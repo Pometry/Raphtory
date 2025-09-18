@@ -4,6 +4,10 @@ use crate::{
         api::{
             state::node_state_ops::NodeStateOps,
             view::{
+                history::{
+                    compose_history_from_items, CompositeHistory, History, HistoryDateTime,
+                    HistorySecondaryIndex, HistoryTimestamp,
+                },
                 internal::{FilterOps, NodeList},
                 DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
@@ -13,6 +17,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use indexmap::IndexSet;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::{iter::Either, prelude::*};
 use std::{
     borrow::Borrow,
@@ -295,6 +300,10 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
     pub fn values(&self) -> &Arc<[V]> {
         &self.values
     }
+
+    pub fn keys(&self) -> &Option<Index<VID>> {
+        &self.keys
+    }
 }
 
 impl<
@@ -471,6 +480,83 @@ impl<
 
     fn len(&self) -> usize {
         self.values.len()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    NodeState<'graph, History<'graph, NodeView<'graph, DynamicGraph>>, G, GH>
+{
+    pub fn t(&self) -> NodeState<'graph, HistoryTimestamp<NodeView<'graph, DynamicGraph>>, G, GH> {
+        let values = self
+            .values
+            .iter()
+            .map(|h| h.clone().t())
+            .collect::<Vec<HistoryTimestamp<NodeView<DynamicGraph, DynamicGraph>>>>()
+            .into();
+        NodeState::new(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            values,
+            self.keys.clone(),
+        )
+    }
+
+    pub fn dt(&self) -> NodeState<'graph, HistoryDateTime<NodeView<'graph, DynamicGraph>>, G, GH> {
+        let values = self
+            .values
+            .iter()
+            .map(|h| h.clone().dt())
+            .collect::<Vec<HistoryDateTime<NodeView<DynamicGraph, DynamicGraph>>>>()
+            .into();
+        NodeState::new(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            values,
+            self.keys.clone(),
+        )
+    }
+
+    pub fn secondary_index(
+        &self,
+    ) -> NodeState<'graph, HistorySecondaryIndex<NodeView<'graph, DynamicGraph>>, G, GH> {
+        let values = self
+            .values
+            .iter()
+            .map(|h| h.clone().secondary_index())
+            .collect::<Vec<HistorySecondaryIndex<NodeView<DynamicGraph, DynamicGraph>>>>()
+            .into();
+        NodeState::new(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            values,
+            self.keys.clone(),
+        )
+    }
+
+    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.values.iter().filter_map(|h| h.earliest_time()).min()
+    }
+
+    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.values.iter().filter_map(|h| h.latest_time()).max()
+    }
+
+    /// Collect and return all the contained time entries as a sorted list
+    pub fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
+        let mut entries: Vec<TimeIndexEntry> = self
+            .par_iter_values()
+            .flat_map_iter(|hist| hist.iter())
+            .collect();
+        entries.par_sort_unstable();
+        entries
+    }
+
+    /// Flattens all history objects into a single history object with all time entries ordered.
+    pub fn flatten(
+        &self,
+    ) -> History<'graph, CompositeHistory<'graph, NodeView<'graph, DynamicGraph>>> {
+        let histories: Vec<_> = self.par_iter_values().map(|hist| hist.0.clone()).collect();
+        compose_history_from_items(histories)
     }
 }
 

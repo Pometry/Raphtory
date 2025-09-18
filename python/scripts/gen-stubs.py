@@ -11,6 +11,8 @@ imports = [
     "from raphtory.node_state import *",
     "from raphtory.graphql import *",
     "from raphtory.typing import *",
+    "import numpy as np",
+    "from numpy.typing import NDArray",
     "from datetime import datetime",
     "from pandas import DataFrame",
     "from os import PathLike",

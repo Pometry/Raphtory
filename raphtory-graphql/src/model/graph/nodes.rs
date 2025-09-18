@@ -3,6 +3,7 @@ use crate::{
         graph::{
             filtering::{NodeFilter, NodesViewCollection},
             node::GqlNode,
+            timeindex::{GqlTimeIndexEntry, GqlTimeInput},
             windowset::GqlNodesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -21,7 +22,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, utils::time::TryIntoTime};
 use std::cmp::Ordering;
 
 #[derive(ResolvedObject, Clone)]
@@ -120,13 +121,13 @@ impl GqlNodes {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
-    async fn window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.window(start, end))
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.window(start.try_into_time()?, end.try_into_time()?)))
     }
 
     /// Create a view of the nodes including all events at a specified time.
-    async fn at(&self, time: i64) -> Self {
-        self.update(self.nn.at(time))
+    async fn at(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.at(time.try_into_time()?)))
     }
 
     /// Create a view of the nodes including all events at the latest time.
@@ -136,8 +137,8 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: i64) -> Self {
-        self.update(self.nn.snapshot_at(time))
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.snapshot_at(time.try_into_time()?)))
     }
 
     /// Create a view of the nodes including all events that are valid at the latest time.
@@ -147,28 +148,35 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events before specified end time (exclusive).
-    async fn before(&self, time: i64) -> Self {
-        self.update(self.nn.before(time))
+    async fn before(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.before(time.try_into_time()?)))
     }
 
     /// Create a view of the nodes including all events after the specified start time (exclusive).
-    async fn after(&self, time: i64) -> Self {
-        self.update(self.nn.after(time))
+    async fn after(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.after(time.try_into_time()?)))
     }
 
     /// Shrink both the start and end of the window.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.shrink_window(start, end))
+    async fn shrink_window(
+        &self,
+        start: GqlTimeInput,
+        end: GqlTimeInput,
+    ) -> Result<Self, GraphError> {
+        Ok(self.update(
+            self.nn
+                .shrink_window(start.try_into_time()?, end.try_into_time()?),
+        ))
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.update(self.nn.shrink_start(start))
+    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.shrink_start(start.try_into_time()?)))
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.update(self.nn.shrink_end(end))
+    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.shrink_end(end.try_into_time()?)))
     }
 
     /// Filter nodes by node type.
@@ -206,9 +214,9 @@ impl GqlNodes {
                     return_view.exclude_layers(layers).await
                 }
                 NodesViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
+                    return_view.window(window.start, window.end).await?
                 }
-                NodesViewCollection::At(at) => return_view.at(at).await,
+                NodesViewCollection::At(at) => return_view.at(at).await?,
                 NodesViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
@@ -223,14 +231,14 @@ impl GqlNodes {
                         return_view
                     }
                 }
-                NodesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                NodesViewCollection::Before(time) => return_view.before(time).await,
-                NodesViewCollection::After(time) => return_view.after(time).await,
+                NodesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await?,
+                NodesViewCollection::Before(time) => return_view.before(time).await?,
+                NodesViewCollection::After(time) => return_view.after(time).await?,
                 NodesViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
+                    return_view.shrink_window(window.start, window.end).await?
                 }
-                NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await?,
+                NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await?,
                 NodesViewCollection::NodeFilter(node_filter) => {
                     return_view.node_filter(node_filter).await?
                 }
@@ -302,13 +310,13 @@ impl GqlNodes {
     ////////////////////////
 
     /// Returns the start time of the window. Errors if there is no window.
-    async fn start(&self) -> Option<i64> {
-        self.nn.start()
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.start().map(|t| t.into())
     }
 
     /// Returns the end time of the window. Errors if there is no window.
-    async fn end(&self) -> Option<i64> {
-        self.nn.end()
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.end().map(|t| t.into())
     }
 
     /////////////////

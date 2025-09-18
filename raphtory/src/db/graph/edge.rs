@@ -7,11 +7,11 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        utils::{iter::GenLockedIter, time::IntoTime},
+        utils::iter::GenLockedIter,
     },
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input, CollectProperties},
             properties::{
                 internal::{
                     InternalMetadataOps, InternalTemporalPropertiesOps,
@@ -34,6 +34,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    utils::time::TryIntoInputTime,
 };
 use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
@@ -178,7 +179,7 @@ impl<
             + InternalDeletionOps<Error = GraphError>,
     > EdgeView<G, G>
 {
-    pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
+    pub fn delete<T: TryIntoInputTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
@@ -596,24 +597,21 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
 
             match self.edge.time() {
                 None => match self.edge.layer() {
-                    None => time_semantics.temporal_edge_prop_last_at(
-                        edge.as_ref(),
-                        &self.graph,
-                        id,
-                        TimeIndexEntry::start(t),
-                    ),
+                    None => {
+                        time_semantics.temporal_edge_prop_last_at(edge.as_ref(), &self.graph, id, t)
+                    }
                     Some(layer) => time_semantics.temporal_edge_prop_last_at(
                         edge.as_ref(),
                         LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                         id,
-                        TimeIndexEntry::start(t),
+                        t,
                     ),
                 },
                 Some(ti) => {
@@ -624,7 +622,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
                         ti,
                         layer,
                         id,
-                        TimeIndexEntry::start(t),
+                        t,
                     )
                 }
             }
@@ -716,7 +714,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 mod test_edge {
     use crate::{db::api::view::time::TimeOps, prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
     use std::collections::HashMap;
 
     #[test]
@@ -854,6 +852,6 @@ mod test_edge {
     fn test_layers_earliest_time() {
         let g = Graph::new();
         let e = g.add_edge(1, 1, 2, NO_PROPS, Some("test")).unwrap();
-        assert_eq!(e.earliest_time(), Some(1));
+        assert_eq!(e.earliest_time().map(|t| t.t()), Some(1));
     }
 }

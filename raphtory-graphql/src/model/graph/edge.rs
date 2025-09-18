@@ -2,8 +2,10 @@ use crate::{
     model::graph::{
         edges::GqlEdges,
         filtering::EdgeViewCollection,
+        history::GqlHistory,
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
+        timeindex::{GqlTimeIndexEntry, GqlTimeInput},
         windowset::GqlEdgeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -19,6 +21,7 @@ use raphtory::{
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
+use raphtory_api::core::utils::time::TryIntoTime;
 
 /// Raphtory graph edge.
 #[derive(ResolvedObject, Clone)]
@@ -140,13 +143,16 @@ impl GqlEdge {
     /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
     ///
     /// For persistent graphs, any edge which exists at any point during the window will be included. You may want to restrict this to only edges that are present at the end of the window using the is_valid function.
-    async fn window(&self, start: i64, end: i64) -> GqlEdge {
-        self.ee.window(start, end).into()
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self
+            .ee
+            .window(start.try_into_time()?, end.try_into_time()?)
+            .into())
     }
 
     /// Creates a view of the Edge including all events at a specified time.
-    async fn at(&self, time: i64) -> GqlEdge {
-        self.ee.at(time).into()
+    async fn at(&self, time: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self.ee.at(time.try_into_time()?).into())
     }
 
     /// Returns a view of the edge at the latest time of the graph.
@@ -157,8 +163,8 @@ impl GqlEdge {
     /// Creates a view of the Edge including all events that are valid at time.
     ///
     /// This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
-    async fn snapshot_at(&self, time: i64) -> GqlEdge {
-        self.ee.snapshot_at(time).into()
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self.ee.snapshot_at(time.try_into_time()?).into())
     }
 
     /// Creates a view of the Edge including all events that are valid at the latest time.
@@ -169,28 +175,35 @@ impl GqlEdge {
     }
 
     /// Creates a view of the Edge including all events before a specified end (exclusive).
-    async fn before(&self, time: i64) -> GqlEdge {
-        self.ee.before(time).into()
+    async fn before(&self, time: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self.ee.before(time.try_into_time()?).into())
     }
 
     /// Creates a view of the Edge including all events after a specified start (exclusive).
-    async fn after(&self, time: i64) -> GqlEdge {
-        self.ee.after(time).into()
+    async fn after(&self, time: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self.ee.after(time.try_into_time()?).into())
     }
 
     /// Shrinks both the start and end of the window.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.ee.shrink_window(start, end).into()
+    async fn shrink_window(
+        &self,
+        start: GqlTimeInput,
+        end: GqlTimeInput,
+    ) -> Result<Self, GraphError> {
+        Ok(self
+            .ee
+            .shrink_window(start.try_into_time()?, end.try_into_time()?)
+            .into())
     }
 
     /// Set the start of the window.
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.ee.shrink_start(start).into()
+    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.ee.shrink_start(start.try_into_time()?).into())
     }
 
     /// Set the end of the window.
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.ee.shrink_end(end).into()
+    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.ee.shrink_end(end.try_into_time()?).into())
     }
 
     /// Takes a specified selection of views and applies them in given order.
@@ -228,56 +241,56 @@ impl GqlEdge {
                         return_view
                     }
                 }
-                EdgeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                EdgeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await?,
                 EdgeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
+                    return_view.window(window.start, window.end).await?
                 }
-                EdgeViewCollection::At(at) => return_view.at(at).await,
-                EdgeViewCollection::Before(time) => return_view.before(time).await,
-                EdgeViewCollection::After(time) => return_view.after(time).await,
+                EdgeViewCollection::At(at) => return_view.at(at).await?,
+                EdgeViewCollection::Before(time) => return_view.before(time).await?,
+                EdgeViewCollection::After(time) => return_view.after(time).await?,
                 EdgeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
+                    return_view.shrink_window(window.start, window.end).await?
                 }
-                EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await?,
+                EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await?,
             }
         }
         Ok(return_view)
     }
 
     /// Returns the earliest time of an edge.
-    async fn earliest_time(&self) -> Option<i64> {
-        self.ee.earliest_time()
+    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.earliest_time().map(|t| t.into())
     }
 
-    async fn first_update(&self) -> Option<i64> {
+    async fn first_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().first().cloned()).await
+        blocking_compute(move || self_clone.ee.history().earliest_time().map(|t| t.into())).await
     }
 
     /// Returns the latest time of an edge.
-    async fn latest_time(&self) -> Option<i64> {
-        self.ee.latest_time()
+    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.latest_time().map(|t| t.into())
     }
 
-    async fn last_update(&self) -> Option<i64> {
+    async fn last_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().last().cloned()).await
+        blocking_compute(move || self_clone.ee.history().latest_time().map(|t| t.into())).await
     }
 
     /// Returns the time of an exploded edge. Errors on an unexploded edge.
-    async fn time(&self) -> Result<i64, GraphError> {
-        self.ee.time()
+    async fn time(&self) -> Result<GqlTimeIndexEntry, GraphError> {
+        self.ee.time().map(|t| t.into())
     }
 
     /// Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
-    async fn start(&self) -> Option<i64> {
-        self.ee.start()
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.start().map(|t| t.into())
     }
 
     /// Returns the end time of the window. Returns none if no window is applied.
-    async fn end(&self) -> Option<i64> {
-        self.ee.end()
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.end().map(|t| t.into())
     }
 
     /// Returns the source node of the edge.
@@ -337,16 +350,16 @@ impl GqlEdge {
         GqlEdges::new(self.ee.explode_layers())
     }
 
-    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
-    async fn history(&self) -> Vec<i64> {
+    /// Returns a History object with time entries for when an edge is added or change to an edge is made.
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history()).await
+        blocking_compute(move || self_clone.ee.history().into()).await
     }
 
-    /// Returns a list of timestamps of when an edge is deleted.
-    async fn deletions(&self) -> Vec<i64> {
+    /// Returns a history object with time entries for an edge's deletion times.
+    async fn deletions(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.deletions()).await
+        blocking_compute(move || self_clone.ee.deletions().into()).await
     }
 
     /// Checks if the edge is currently valid and exists at the current time.

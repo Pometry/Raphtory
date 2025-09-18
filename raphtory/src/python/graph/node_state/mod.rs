@@ -1,6 +1,22 @@
 mod group_by;
+mod lazy_node_state_earliest_date_time;
+mod lazy_node_state_history;
+mod lazy_node_state_latest_date_time;
 mod node_state;
-use crate::{add_classes, python::graph::node_state::group_by::PyNodeGroups};
+mod node_state_history;
+
+use crate::{
+    add_classes,
+    python::{
+        graph::node_state::{
+            group_by::PyNodeGroups, lazy_node_state_earliest_date_time::EarliestDateTimeView,
+            lazy_node_state_history::HistoryView,
+            lazy_node_state_latest_date_time::LatestDateTimeView,
+            node_state_history::NodeStateHistory,
+        },
+        types::wrappers::iterables::UsizeIterable,
+    },
+};
 pub use node_state::*;
 use pyo3::prelude::*;
 
@@ -11,22 +27,30 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         PyNodeGroups,
         DegreeView,
         NodeStateUsize,
+        NodeStateOptionUsize,
         NodeStateU64,
         NodeStateOptionI64,
+        NodeStateOptionTimeIndexEntry,
+        NodeStateOptionDateTime,
         IdView,
         NodeStateGID,
         EarliestTimeView,
+        EarliestTimestampView,
+        EarliestSecondaryIndexView,
+        EarliestDateTimeView,
         LatestTimeView,
+        LatestTimestampView,
+        LatestSecondaryIndexView,
+        LatestDateTimeView,
         NameView,
         NodeStateString,
-        EarliestDateTimeView,
-        LatestDateTimeView,
-        NodeStateOptionDateTime,
         HistoryView,
-        EdgeHistoryCountView,
-        NodeStateListI64,
+        HistoryTimestampView,
         HistoryDateTimeView,
-        NodeStateOptionListDateTime,
+        HistorySecondaryIndexView,
+        IntervalsView,
+        EdgeHistoryCountView,
+        UsizeIterable,
         NodeTypeView,
         NodeStateOptionStr,
         NodeStateListDateTime,
@@ -37,6 +61,11 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeStateListF64,
         NodeStateMotifs,
         NodeStateHits,
+        NodeStateHistory,
+        NodeStateHistoryTimestamp,
+        NodeStateHistoryDateTime,
+        NodeStateHistorySecondaryIndex,
+        NodeStateIntervals,
         NodeStateSEIR,
         NodeLayout,
         NodeStateF64String,

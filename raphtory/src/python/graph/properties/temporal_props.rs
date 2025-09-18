@@ -5,25 +5,27 @@ use crate::{
             internal::InternalPropertiesOps,
             TemporalProperties, TemporalPropertyView,
         },
-        view::internal::{DynamicGraph, Static},
+        view::{
+            history::History,
+            internal::{DynamicGraph, Static},
+        },
     },
     python::{
-        graph::properties::{PyPropValueList, PyPropValueListList},
+        graph::{
+            history::{HistoryIterable, NestedHistoryIterable, PyHistory},
+            properties::{PyPropValueList, PyPropValueListList},
+        },
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
-                iterables::{
-                    I64VecIterable, NestedI64VecIterable, NestedUsizeIterable, PropIterable,
-                    UsizeIterable,
-                },
+                iterables::{NestedUsizeIterable, PropIterable, UsizeIterable},
                 iterators::PyBorrowingIterator,
                 prop::{PropHistItems, PropValue},
             },
         },
-        utils::{NumpyArray, PyGenericIterator, PyTime},
+        utils::{NumpyArray, PyGenericIterator},
     },
 };
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
@@ -31,9 +33,12 @@ use pyo3::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropUnwrap},
-    storage::arc_str::ArcStr,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, TimeIndexEntry},
+    },
+    utils::time::IntoTime,
 };
-use raphtory_core::utils::time::IntoTime;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
@@ -57,9 +62,9 @@ impl From<&PyTemporalProperties> for PyTemporalPropsCmp {
     fn from(value: &PyTemporalProperties) -> Self {
         Self(
             value
-                .histories()
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
+                .props
+                .iter_filtered()
+                .map(|(k, v)| (k.clone(), v.into()))
                 .collect(),
         )
     }
@@ -95,7 +100,7 @@ impl PyTemporalProperties {
     /// List the values of the properties
     ///
     /// Returns:
-    ///     list[TemporalProp]: the list of property views
+    ///     list[TemporalProperty]: the list of property views
     fn values(&self) -> Vec<DynTemporalProperty> {
         self.props.iter_filtered().map(|(_, value)| value).collect()
     }
@@ -116,29 +121,18 @@ impl PyTemporalProperties {
     /// Get the histories of all properties
     ///
     /// Returns:
-    ///     dict[str, list[Tuple[int, PropValue]]]: the mapping of property keys to histories
-    fn histories(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
+    ///     dict[str, list[Tuple[TimeIndexEntry, PropValue]]]: the mapping of property keys to histories
+    fn histories(&self) -> HashMap<ArcStr, Vec<(TimeIndexEntry, Prop)>> {
         self.props
-            .iter_filtered()
-            .map(|(k, v)| (k, v.iter().collect()))
-            .collect()
-    }
-
-    /// Get the histories of all properties
-    ///
-    /// Returns:
-    ///     dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
-    fn histories_date_time(&self) -> HashMap<ArcStr, Option<Vec<(DateTime<Utc>, Prop)>>> {
-        self.props
-            .iter_filtered()
-            .map(|(k, v)| (k, v.histories_date_time().map(|h| h.collect())))
+            .iter()
+            .map(|(k, v)| (k.clone(), v.iter().collect()))
             .collect()
     }
 
     /// Get property value for `key`
     ///
     /// Returns:
-    ///     TemporalProp: the property view
+    ///     TemporalProperty: the property view
     ///
     /// Raises:
     ///     KeyError: if property `key` does not exist
@@ -149,7 +143,7 @@ impl PyTemporalProperties {
     /// Get property value for `key` if it exists
     ///
     /// Returns:
-    ///     TemporalProp: the property view if it exists, otherwise `None`
+    ///     TemporalProperty: the property view if it exists, otherwise `None`
     fn get(&self, key: &str) -> Option<DynTemporalProperty> {
         // Fixme: Add option to specify default?
         self.props.get(key)
@@ -176,9 +170,9 @@ impl PyTemporalProperties {
 }
 
 /// A view of a temporal property
-#[pyclass(name = "TemporalProp", module = "raphtory", frozen)]
+#[pyclass(name = "TemporalProperty", module = "raphtory", frozen)]
 pub struct PyTemporalProp {
-    prop: DynTemporalProperty,
+    pub prop: DynTemporalProperty,
 }
 
 #[derive(Clone, PartialEq)]
@@ -198,7 +192,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropCmp {
 
 impl From<&PyTemporalProp> for PyTemporalPropCmp {
     fn from(value: &PyTemporalProp) -> Self {
-        Self(value.items())
+        Self(value.prop.iter().map(|(t, p)| (t.t(), p)).collect())
     }
 }
 
@@ -208,9 +202,15 @@ impl From<Vec<(i64, Prop)>> for PyTemporalPropCmp {
     }
 }
 
+impl From<Vec<(TimeIndexEntry, Prop)>> for PyTemporalPropCmp {
+    fn from(value: Vec<(TimeIndexEntry, Prop)>) -> Self {
+        Self(value.into_iter().map(|(t, p)| (t.t(), p)).collect())
+    }
+}
+
 impl From<DynTemporalProperty> for PyTemporalPropCmp {
     fn from(value: DynTemporalProperty) -> Self {
-        PyTemporalPropCmp(value.iter().collect())
+        PyTemporalPropCmp(value.iter().map(|(t, p)| (t.0, p)).collect())
     }
 }
 
@@ -218,14 +218,10 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 
 #[pymethods]
 impl PyTemporalProp {
-    /// Get the timestamps at which the property was updated
-    pub fn history(&self) -> NumpyArray {
-        self.prop.history().collect::<Vec<_>>().into()
-    }
-
-    /// Get the timestamps at which the property was updated
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.prop.history_date_time()
+    /// Get a history object which contains time entries for when the property was updated
+    #[getter]
+    pub fn history(&self) -> PyHistory {
+        self.prop.history().into()
     }
 
     /// Get the property values for each update
@@ -233,8 +229,8 @@ impl PyTemporalProp {
         self.prop.values().collect()
     }
 
-    /// List update timestamps and corresponding property values
-    pub fn items(&self) -> Vec<(i64, Prop)> {
+    /// List update TimeIndexEntry and corresponding property values
+    pub fn items(&self) -> Vec<(TimeIndexEntry, Prop)> {
         self.prop.iter().collect()
     }
 
@@ -244,23 +240,17 @@ impl PyTemporalProp {
     }
 
     /// List of ordered deduplicated property values
-    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(TimeIndexEntry, Prop)> {
         self.prop.ordered_dedupe(latest_time)
-    }
-
-    /// List update timestamps and corresponding property values
-    pub fn items_date_time(&self) -> Option<Vec<(DateTime<Utc>, Prop)>> {
-        Some(self.prop.histories_date_time()?.collect())
     }
 
     /// Iterate over `items`
     pub fn __iter__(&self) -> PyBorrowingIterator {
-        py_borrowing_iter!(self.prop.clone(), DynTemporalProperty, |inner| inner
-            .histories())
+        py_borrowing_iter!(self.prop.clone(), DynTemporalProperty, |inner| inner.iter())
     }
     /// Get the value of the property at time `t`
-    pub fn at(&self, t: PyTime) -> Option<Prop> {
-        self.prop.at(t.into_time())
+    pub fn at(&self, t: TimeIndexEntry) -> Option<Prop> {
+        self.prop.at(t.into_time().t())
     }
     /// Get the latest value of the property
     pub fn value(&self) -> Option<Prop> {
@@ -278,8 +268,8 @@ impl PyTemporalProp {
     /// Find the minimum property value and its associated time.
     ///
     /// Returns:
-    ///     Tuple[int, PropValue]: A tuple containing the time and the minimum property value.
-    pub fn min(&self) -> Option<(i64, Prop)> {
+    ///     Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the minimum property value.
+    pub fn min(&self) -> Option<(TimeIndexEntry, Prop)> {
         compute_generalised_sum(
             self.prop.iter(),
             |a, b| {
@@ -296,8 +286,8 @@ impl PyTemporalProp {
     /// Find the maximum property value and its associated time.
     ///
     /// Returns:
-    ///     Tuple[int, PropValue]: A tuple containing the time and the maximum property value.
-    pub fn max(&self) -> Option<(i64, Prop)> {
+    ///     Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the maximum property value.
+    pub fn max(&self) -> Option<(TimeIndexEntry, Prop)> {
         compute_generalised_sum(
             self.prop.iter(),
             |a, b| {
@@ -338,9 +328,9 @@ impl PyTemporalProp {
     /// Compute the median of all property values.
     ///
     /// Returns:
-    ///     Tuple[int, PropValue]: A tuple containing the time and the median property value, or None if empty
-    pub fn median(&self) -> Option<(i64, Prop)> {
-        let mut sorted: Vec<(i64, Prop)> = self.prop.iter().collect();
+    ///     Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the median property value, or None if empty
+    pub fn median(&self) -> Option<(TimeIndexEntry, Prop)> {
+        let mut sorted: Vec<(TimeIndexEntry, Prop)> = self.prop.iter().collect();
         if !sorted.first()?.1.dtype().has_cmp() {
             return None;
         }
@@ -358,7 +348,7 @@ impl PyTemporalProp {
     }
 }
 
-impl<P: InternalPropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>>
+impl<P: InternalPropertiesOps + Send + Sync + Clone + 'static> From<TemporalPropertyView<P>>
     for PyTemporalProp
 {
     fn from(value: TemporalPropertyView<P>) -> Self {
@@ -412,9 +402,9 @@ impl<P: InternalPropertiesOps + Clone> Repr for TemporalProperties<P> {
     }
 }
 
-impl<P: InternalPropertiesOps> Repr for TemporalPropertyView<P> {
+impl<P: InternalPropertiesOps + Clone> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
-        format!("TemporalProp({})", iterator_repr(self.iter()))
+        format!("TemporalProperty({})", iterator_repr(self.iter()))
     }
 }
 
@@ -430,7 +420,7 @@ impl Repr for PyTemporalProperties {
     }
 }
 
-impl<'py, P: InternalPropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
+impl<'py, P: InternalPropertiesOps + Send + Sync + Clone + 'static> IntoPyObject<'py>
     for TemporalPropertyView<P>
 {
     type Target = PyTemporalProp;
@@ -613,9 +603,15 @@ py_iterable_comp!(
 #[pymethods]
 impl PyTemporalPropList {
     #[getter]
-    pub fn history(&self) -> I64VecIterable {
+    pub fn history(&self) -> HistoryIterable {
         let builder = self.builder.clone();
-        (move || builder().map(|p| p.map(|v| v.history().collect_vec()).unwrap_or_default())).into()
+        (move || {
+            builder().map(|p| {
+                p.map(|v| v.history().into_arc_dyn())
+                    .unwrap_or(History::create_empty().into_arc_dyn())
+            })
+        })
+        .into()
     }
 
     pub fn values(&self) -> PyPropHistValueList {
@@ -628,8 +624,8 @@ impl PyTemporalPropList {
         (move || builder().map(|p| p.map(|v| v.iter().collect_vec()).unwrap_or_default())).into()
     }
 
-    pub fn at(&self, t: PyTime) -> PyPropValueList {
-        let t = t.into_time();
+    pub fn at(&self, t: TimeIndexEntry) -> PyPropValueList {
+        let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |p| p.and_then(|v| v.at(t)))).into()
     }
@@ -791,10 +787,15 @@ py_iterable_comp!(
 #[pymethods]
 impl PyTemporalPropListList {
     #[getter]
-    pub fn history(&self) -> NestedI64VecIterable {
+    pub fn history(&self) -> NestedHistoryIterable {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|it| it.map(|p| p.map(|v| v.history().collect_vec()).unwrap_or_default()))
+            builder().map(|it| {
+                it.map(|p| {
+                    p.map(|v| v.history().into_arc_dyn())
+                        .unwrap_or(History::create_empty().into_arc_dyn())
+                })
+            })
         })
         .into()
     }
@@ -815,8 +816,8 @@ impl PyTemporalPropListList {
         .into()
     }
 
-    pub fn at(&self, t: PyTime) -> PyPropValueListList {
-        let t = t.into_time();
+    pub fn at(&self, t: TimeIndexEntry) -> PyPropValueListList {
+        let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |it| it.map(move |p| p.and_then(|v| v.at(t))))).into()
     }

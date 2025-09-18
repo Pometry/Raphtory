@@ -1,4 +1,5 @@
 use crate::{
+    api::core::storage::timeindex::{AsTime, TimeIndexEntry},
     db::{
         api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
@@ -9,23 +10,20 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
-        graph::properties::{
-            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
+        graph::{
+            history::{HistoryIterable, NestedHistoryIterable},
+            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable,
                 NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
-                NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
-                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64Iterable,
+                NestedGIDGIDIterable, NestedOptionTimeIndexEntryIterable,
+                NestedTimeIndexEntryIterable, OptionTimeIndexEntryIterable, TimeIndexEntryIterable,
             },
         },
-        utils::{
-            export::{create_row, extract_properties, get_column_names_from_props},
-            NumpyArray, PyGenericIterable,
-        },
+        utils::export::{create_row, extract_properties, get_column_names_from_props},
     },
 };
 use pyo3::{prelude::*, types::PyDict};
@@ -88,51 +86,21 @@ impl PyEdges {
     /// Returns the earliest time of the edges.
     ///
     /// Returns:
-    /// Earliest time of the edges.
+    ///     OptionTimeIndexEntryIterable: Iterable of the earliest times of the edges as TimeIndexEntry entries.
     #[getter]
-    fn earliest_time(&self) -> OptionI64Iterable {
+    fn earliest_time(&self) -> OptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
 
-    /// Returns the earliest date time of the edges.
+    /// Returns the latest times of the edges.
     ///
     /// Returns:
-    ///  Earliest date time of the edges.
+    ///     OptionTimeIndexEntryIterable: Iterable of the latest times of the edges as TimeIndexEntry entries.
     #[getter]
-    fn earliest_date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.earliest_date_time()).into()
-    }
-
-    /// Returns the latest time of the edges.
-    ///
-    /// Returns:
-    ///  Latest time of the edges.
-    #[getter]
-    fn latest_time(&self) -> OptionI64Iterable {
+    fn latest_time(&self) -> OptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
-    }
-
-    /// Returns the latest date time of the edges.
-    ///
-    /// Returns:
-    ///   Latest date time of the edges.
-    #[getter]
-    fn latest_date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.latest_date_time()).into()
-    }
-
-    /// Returns the date times of exploded edges
-    ///
-    /// Returns:
-    ///    A list of date times.
-    #[getter]
-    fn date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.date_time()).into()
     }
 
     /// Returns the times of exploded edges
@@ -140,7 +108,7 @@ impl PyEdges {
     /// Returns:
     ///   Time of edge
     #[getter]
-    fn time(&self) -> Result<I64Iterable, GraphError> {
+    fn time(&self) -> Result<TimeIndexEntryIterable, GraphError> {
         match self.edges.time().next() {
             Some(Err(err)) => Err(err),
             _ => {
@@ -177,47 +145,24 @@ impl PyEdges {
         (move || edges.id()).into()
     }
 
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    /// Returns history objects for edges containing their time entries, when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    A list of lists unix timestamps.
-    ///
-    fn history(&self) -> PyGenericIterable {
+    ///    HistoryIterable: An iterable of history objects, one for each edge.
+    #[getter]
+    fn history(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.history().map(NumpyArray::I64)).into()
+        (move || edges.history().map(|history| history.into_arc_dyn())).into()
     }
 
-    fn history_counts(&self) -> U64Iterable {
-        let edges = self.edges.clone();
-        (move || edges.history_counts().map(|count| count as u64)).into()
-    }
-
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    /// Returns history objects for edges containing their deletion times.
     ///
     /// Returns:
-    ///    A list of lists of timestamps.
-    ///
-    fn history_date_time(&self) -> OptionVecUtcDateTimeIterable {
+    ///    HistoryIterable: An iterable of history objects, one for each edge.
+    #[getter]
+    fn deletions(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.history_date_time()).into()
-    }
-
-    /// Returns all timestamps of edges where an edge is deleted
-    ///
-    /// Returns:
-    ///     A list of lists of unix timestamps
-    fn deletions(&self) -> PyGenericIterable {
-        let edges = self.edges.clone();
-        (move || edges.deletions().map(NumpyArray::I64)).into()
-    }
-
-    /// Returns all timestamps of edges where an edge is deleted
-    ///
-    /// Returns:
-    ///     A list of lists of DateTime objects
-    fn deletions_date_time(&self) -> OptionVecUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.deletions_date_time()).into()
+        (move || edges.deletions().map(|history| history.into_arc_dyn())).into()
     }
 
     /// Check if the edges are valid (i.e. not deleted)
@@ -226,7 +171,7 @@ impl PyEdges {
         (move || edges.is_valid()).into()
     }
 
-    ////Check if the edges are active (i.e. there is at least one update during this time)
+    /// Check if the edges are active (i.e. there is at least one update during this time)
     fn is_active(&self) -> BoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_active()).into()
@@ -329,7 +274,7 @@ impl PyEdges {
                     &item.metadata(),
                     &mut properties_map,
                     &mut prop_time_dict,
-                    item.start().unwrap_or(0),
+                    item.start().map(|t| t.t()).unwrap_or(0),
                 );
 
                 let row_header: Vec<Prop> = vec![
@@ -339,7 +284,7 @@ impl PyEdges {
                 ];
 
                 let start_point = 3;
-                let history = item.history();
+                let history = item.history().t().collect();
 
                 create_row(
                     convert_datetime,
@@ -418,37 +363,35 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
 
 #[pymethods]
 impl PyNestedEdges {
-    /// Returns the earliest time of the edges.
+    /// Get the earliest time of the edges as TimeIndexEntry.
+    ///
+    /// Returns:
+    ///     NestedOptionTimeIndexEntryIterable: A nested iterable of the earliest times.
     #[getter]
-    fn earliest_time(&self) -> NestedOptionI64Iterable {
+    fn earliest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
 
-    /// Returns the earliest date time of the edges.
+    /// Get the latest time of the edges as TimeIndexEntry.
+    ///
+    /// Returns:
+    ///     NestedOptionTimeIndexEntryIterable: A nested iterable of the latest times.
     #[getter]
-    fn earliest_date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.earliest_date_time()).into()
-    }
-
-    /// Returns the latest time of the edges.
-    #[getter]
-    fn latest_time(&self) -> NestedOptionI64Iterable {
+    fn latest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
     }
 
-    /// Returns the latest date time of the edges.
+    /// Returns the times of exploded edges.
+    ///
+    /// Returns:
+    ///     NestedTimeIndexEntryIterable: A nested iterable of the times of the exploded edges.
+    ///
+    /// Raises:
+    ///     GraphError: If a graph error occurs (e.g. the edges are not exploded).
     #[getter]
-    fn latest_date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.latest_date_time()).into()
-    }
-
-    /// Returns the times of exploded edges
-    #[getter]
-    fn time(&self) -> Result<NestedOptionI64Iterable, GraphError> {
+    fn time(&self) -> Result<NestedTimeIndexEntryIterable, GraphError> {
         match self.edges.time().flatten().next() {
             Some(Err(err)) => Err(err),
             _ => {
@@ -515,34 +458,34 @@ impl PyNestedEdges {
         (move || edges.id()).into()
     }
 
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    fn history(&self) -> NestedI64VecIterable {
-        let edges = self.edges.clone();
-        (move || edges.history()).into()
-    }
-
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.history_date_time()).into()
-    }
-
-    /// Returns all timestamps of edges, where an edge is deleted
+    /// Get history objects for edges, containing time entries about when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     A list of lists of lists of unix timestamps
-    fn deletions(&self) -> NestedI64VecIterable {
+    ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
+    #[getter]
+    fn history(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions()).into()
+        (move || {
+            edges
+                .history()
+                .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
+        })
+        .into()
     }
 
-    /// Returns all timestamps of edges, where an edge is deleted
+    /// Get history objects for edges containing their deletion times.
     ///
     /// Returns:
-    ///     A list of lists of lists of DateTime objects
-    fn deletions_date_time(&self) -> NestedVecUtcDateTimeIterable {
+    ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
+    #[getter]
+    fn deletions(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions_date_time()).into()
+        (move || {
+            edges
+                .deletions()
+                .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
+        })
+        .into()
     }
 
     /// Check if edges are valid (i.e., not deleted)
@@ -551,7 +494,7 @@ impl PyNestedEdges {
         (move || edges.is_valid()).into()
     }
 
-    ////Check if the edges are active (i.e. there is at least one update during this time)
+    /// Check if the edges are active (i.e. there is at least one update during this time)
     fn is_active(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_active()).into()
@@ -567,12 +510,5 @@ impl PyNestedEdges {
     fn is_deleted(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_deleted()).into()
-    }
-
-    /// Get the date times of exploded edges
-    #[getter]
-    fn date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.date_time()).into()
     }
 }

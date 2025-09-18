@@ -32,15 +32,15 @@ print(f"G's exploded edges are {G.edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"G's edges are {G.edges}") == "G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=10, layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=3, latest_time=3, layer(s)=[_default]))"
-assert str(f"G's exploded edges are {G.edges.explode()}") == "G's exploded edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=10, latest_time=10, layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=3, latest_time=10, layer(s)=[_default]))"
+assert str(f"G's edges are {G.edges}") == "G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[10, 3], layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=TimeIndexEntry[3, 1], latest_time=TimeIndexEntry[3, 1], layer(s)=[_default]))"
+assert str(f"G's exploded edges are {G.edges.explode()}") == "G's exploded edges are Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[5, 2], layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[10, 3], latest_time=TimeIndexEntry[10, 18446744073709551615], layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=TimeIndexEntry[3, 1], latest_time=TimeIndexEntry[10, 18446744073709551615], layer(s)=[_default]))"
 ```
 
 !!! Output
 
     ```output
-    G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=10, layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=3, latest_time=10, layer(s)=[_default]))
-    G's exploded edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=10, latest_time=10, layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=3, latest_time=10, layer(s)=[_default]))
+    G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[10, 3], layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=TimeIndexEntry[3, 1], latest_time=TimeIndexEntry[3, 1], layer(s)=[_default]))
+    G's exploded edges are Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[5, 2], layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[10, 3], latest_time=TimeIndexEntry[10, 18446744073709551615], layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=TimeIndexEntry[3, 1], latest_time=TimeIndexEntry[10, 18446744073709551615], layer(s)=[_default]))
     ```
 
 Here we have a graph with two edges: one connecting Alice and Bob, and one connecting Bob and Charlie, and three _exploded edges_, one for each activation of Alice and Bob's edge and the activation of Bob and Charlie's edge. If an edge is not explicitly deleted, it is assumed to last forever (or at least until an integer max value).

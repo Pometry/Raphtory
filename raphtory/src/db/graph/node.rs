@@ -4,7 +4,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input, CollectProperties},
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
@@ -35,6 +35,7 @@ use crate::{
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    utils::time::TryIntoInputTime,
 };
 use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
@@ -321,11 +322,11 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         .into_dyn_boxed()
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         semantics
-            .node_tprop_last_at(node.as_ref(), &self.graph, id, TimeIndexEntry::end(t))
+            .node_tprop_last_at(node.as_ref(), &self.graph, id, t)
             .map(|(_, v)| v)
     }
 }
@@ -505,24 +506,24 @@ mod node_test {
         // FIXME: Node add without properties not showing up (Issue #46)
         test_graph(&graph, |graph| {
             let view = graph.before(2);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap().0, 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap().0, 1);
 
             let view = graph.before(3);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap().0, 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap().0, 2);
 
             let view = graph.after(0);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap().0, 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap().0, 2);
 
             let view = graph.after(2);
             assert_eq!(view.node(1), None);
             assert_eq!(view.node(1), None);
 
             let view = graph.at(1);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap().0, 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap().0, 1);
         });
     }
 

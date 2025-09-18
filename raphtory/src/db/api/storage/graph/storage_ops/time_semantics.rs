@@ -9,7 +9,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{properties::tprop::TPropOps, EID, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
     },
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
@@ -29,11 +29,11 @@ impl GraphTimeSemanticsOps for GraphStorage {
         TimeSemantics::event()
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<TimeIndexEntry> {
         None
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<TimeIndexEntry> {
         None
     }
 
@@ -57,17 +57,17 @@ impl GraphTimeSemanticsOps for GraphStorage {
         }
     }
 
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).first_t())
+            .flat_map(|node| node.additions().range(start..end).first_t())
             .min()
     }
 
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).last_t())
+            .flat_map(|node| node.additions().range(start..end).last_t())
             .max()
     }
 
@@ -85,27 +85,25 @@ impl GraphTimeSemanticsOps for GraphStorage {
             .into_dyn_dboxed()
     }
 
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool {
         self.graph_meta()
             .get_temporal_prop(prop_id)
-            .filter(|p| p.deref().iter_window_t(w).next().is_some())
+            .filter(|p| p.deref().iter_window(w).next().is_some())
             .is_some()
     }
 
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
             .flat_map(move |prop| {
                 GenLockedDIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_dboxed()
+                    prop.deref().iter_window(start..end).into_dyn_dboxed()
                 })
             })
             .into_dyn_dboxed()
@@ -125,9 +123,8 @@ impl GraphTimeSemanticsOps for GraphStorage {
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)> {
-        let w = TimeIndexEntry::range(w);
         if w.contains(&t) {
             self.graph_meta().get_temporal_prop(prop_id).and_then(|p| {
                 p.deref()
@@ -157,9 +154,9 @@ impl NodeHistoryFilter for GraphStorage {
         _prop_id: usize,
         _node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        w.contains(&time.t())
+        w.contains(&time)
     }
 
     fn is_node_prop_update_latest(
@@ -178,13 +175,11 @@ impl NodeHistoryFilter for GraphStorage {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        w.contains(&time.t()) && {
+        w.contains(&time) && {
             let nse = self.core_node(node_id);
-            let x = nse
-                .tprop(prop_id)
-                .active(time.next()..TimeIndexEntry::start(w.end));
+            let x = nse.tprop(prop_id).active(time.next()..w.end);
             !x
         }
     }
@@ -209,9 +204,9 @@ impl EdgeHistoryFilter for GraphStorage {
         _prop_id: usize,
         _edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        w.contains(&time.t())
+        w.contains(&time)
     }
 
     /// Latest Edge Property Update Semantics:
@@ -251,9 +246,9 @@ impl EdgeHistoryFilter for GraphStorage {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        w.contains(&time.t()) && {
+        w.contains(&time) && {
             let time = time.next();
             let ese = self.core_edge(edge_id);
 
@@ -261,7 +256,7 @@ impl EdgeHistoryFilter for GraphStorage {
                 // Check if any layer has an active update beyond `time`
                 let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
-                        .active(time..TimeIndexEntry::start(w.end))
+                        .active(time..w.end)
                 });
 
                 // If no layer has a future update, return true
@@ -395,7 +390,7 @@ mod test_graph_storage {
             let g = init_graph_for_nodes_tests(g);
 
             let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
-            let w = 6..9;
+            let w = TimeIndexEntry::start(6)..TimeIndexEntry::start(9);
 
             let node_id = g.node("N1").unwrap().node;
             let bool = g.is_node_prop_update_latest_window(
@@ -616,7 +611,7 @@ mod test_graph_storage {
             let g = init_graph_for_edges_tests(g);
 
             let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
-            let w = 6..9;
+            let w = TimeIndexEntry::start(6)..TimeIndexEntry::start(9);
 
             let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(

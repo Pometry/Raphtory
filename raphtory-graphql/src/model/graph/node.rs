@@ -2,9 +2,11 @@ use crate::{
     model::graph::{
         edges::GqlEdges,
         filtering::{NodeFilter, NodeViewCollection},
+        history::GqlHistory,
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
         property::{GqlMetadata, GqlProperties},
+        timeindex::{GqlTimeIndexEntry, GqlTimeInput},
         windowset::GqlNodeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -21,6 +23,7 @@ use raphtory::{
     errors::GraphError,
     prelude::NodeStateOps,
 };
+use raphtory_api::core::utils::time::TryIntoTime;
 
 /// Raphtory graph node.
 #[derive(ResolvedObject, Clone)]
@@ -132,13 +135,16 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
-    async fn window(&self, start: i64, end: i64) -> GqlNode {
-        self.vv.window(start, end).into()
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self
+            .vv
+            .window(start.try_into_time()?, end.try_into_time()?)
+            .into())
     }
 
     /// Create a view of the node including all events at a specified time.
-    async fn at(&self, time: i64) -> GqlNode {
-        self.vv.at(time).into()
+    async fn at(&self, time: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self.vv.at(time.try_into_time()?).into())
     }
 
     /// Create a view of the node including all events at the latest time.
@@ -148,8 +154,8 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: i64) -> GqlNode {
-        self.vv.snapshot_at(time).into()
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self.vv.snapshot_at(time.try_into_time()?).into())
     }
 
     /// Create a view of the node including all events that are valid at the latest time.
@@ -159,28 +165,35 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events before specified end time (exclusive).
-    async fn before(&self, time: i64) -> GqlNode {
-        self.vv.before(time).into()
+    async fn before(&self, time: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self.vv.before(time.try_into_time()?).into())
     }
 
     /// Create a view of the node including all events after the specified start time (exclusive).
-    async fn after(&self, time: i64) -> GqlNode {
-        self.vv.after(time).into()
+    async fn after(&self, time: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self.vv.after(time.try_into_time()?).into())
     }
 
     /// Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.vv.shrink_window(start, end).into()
+    async fn shrink_window(
+        &self,
+        start: GqlTimeInput,
+        end: GqlTimeInput,
+    ) -> Result<Self, GraphError> {
+        Ok(self
+            .vv
+            .shrink_window(start.try_into_time()?, end.try_into_time()?)
+            .into())
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.vv.shrink_start(start).into()
+    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.vv.shrink_start(start.try_into_time()?).into())
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.vv.shrink_end(end).into()
+    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.vv.shrink_end(end.try_into_time()?).into())
     }
 
     async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
@@ -208,7 +221,7 @@ impl GqlNode {
                         return_view
                     }
                 }
-                NodeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                NodeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await?,
                 NodeViewCollection::Layers(layers) => return_view.layers(layers).await,
                 NodeViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
@@ -216,16 +229,16 @@ impl GqlNode {
                 NodeViewCollection::Layer(layer) => return_view.layer(layer).await,
                 NodeViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 NodeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
+                    return_view.window(window.start, window.end).await?
                 }
-                NodeViewCollection::At(at) => return_view.at(at).await,
-                NodeViewCollection::Before(time) => return_view.before(time).await,
-                NodeViewCollection::After(time) => return_view.after(time).await,
+                NodeViewCollection::At(at) => return_view.at(at).await?,
+                NodeViewCollection::Before(time) => return_view.before(time).await?,
+                NodeViewCollection::After(time) => return_view.after(time).await?,
                 NodeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
+                    return_view.shrink_window(window.start, window.end).await?
                 }
-                NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await?,
+                NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await?,
                 NodeViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
             }
         }
@@ -237,43 +250,43 @@ impl GqlNode {
     ////////////////////////
 
     /// Returns the earliest time that the node exists.
-    async fn earliest_time(&self) -> Option<i64> {
+    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.earliest_time()).await
+        blocking_compute(move || self_clone.vv.earliest_time().map(|t| t.into())).await
     }
 
     /// Returns the time of the first update made to the node.
-    async fn first_update(&self) -> Option<i64> {
+    async fn first_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().first().cloned()).await
+        blocking_compute(move || self_clone.vv.history().earliest_time().map(|t| t.into())).await
     }
 
     /// Returns the latest time that the node exists.
-    async fn latest_time(&self) -> Option<i64> {
+    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.latest_time()).await
+        blocking_compute(move || self_clone.vv.latest_time().map(|t| t.into())).await
     }
 
     /// Returns the time of the last update made to the node.
-    async fn last_update(&self) -> Option<i64> {
+    async fn last_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().last().cloned()).await
+        blocking_compute(move || self_clone.vv.history().latest_time().map(|t| t.into())).await
     }
 
     /// Gets the start time for the window. Errors if there is no window.
-    async fn start(&self) -> Option<i64> {
-        self.vv.start()
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.vv.start().map(|t| t.into())
     }
 
     /// Gets the end time for the window. Errors if there is no window.
-    async fn end(&self) -> Option<i64> {
-        self.vv.end()
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.vv.end().map(|t| t.into())
     }
 
-    /// Returns the history of a node, including node additions and changes made to node.
-    async fn history(&self) -> Vec<i64> {
+    /// Returns a history object for the node, with time entries for node additions and changes made to node.
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history()).await
+        blocking_compute(move || self_clone.vv.history().into()).await
     }
 
     /// Get the number of edge events for this node.

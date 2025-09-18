@@ -82,13 +82,15 @@ def test_add_properties():
         assert_has_properties(g, props)
 
         localized_datetime = naive_datetime.replace(tzinfo=timezone.utc)
-        timestamps = [
-            1,
-            int(current_datetime.timestamp() * 1000),
-            int(localized_datetime.timestamp() * 1000),
-        ]
+        timestamps = sorted(
+            [
+                1,
+                int(current_datetime.timestamp() * 1000),
+                int(localized_datetime.timestamp() * 1000),
+            ]
+        )
 
-        check_arr(g.properties.temporal.get("prop_map").history(), timestamps)
+        check_arr(g.properties.temporal.get("prop_map").history.t.collect(), timestamps)
 
 
 def test_add_node():
@@ -139,8 +141,8 @@ def test_delete_edge():
         rg.add_edge(1, "ben", "hamza")
         rg.delete_edge(2, "ben", "hamza")
         g = client.receive_graph("path/to/event_graph")
-        assert g.edge("ben", "hamza").history() == [1]
-        assert g.edge("ben", "hamza").deletions() == [2]
+        assert g.edge("ben", "hamza").history.t.collect() == [1]
+        assert g.edge("ben", "hamza").deletions == [(2, 1)]
 
         client.new_graph("path/to/persistent_graph", "PERSISTENT")
         rg = client.remote_graph("path/to/persistent_graph")
@@ -149,5 +151,5 @@ def test_delete_edge():
         rg.add_edge(1, "ben", "lucas", layer="colleagues")
         rg.delete_edge(2, "ben", "lucas", layer="colleagues")
         g = client.receive_graph("path/to/persistent_graph")
-        assert g.edge("ben", "hamza").deletions() == [2]
-        assert g.edge("ben", "lucas").deletions() == [2]
+        assert g.edge("ben", "hamza").deletions == [(2, 1)]
+        assert g.edge("ben", "lucas").deletions == [(2, 3)]

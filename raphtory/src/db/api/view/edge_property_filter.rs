@@ -68,17 +68,9 @@ mod test {
 
         let g_expected = Graph::new();
         g_expected
-            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .add_edge((1, 1), "John", "David", [("band", "Dead & Company")], None)
             .unwrap();
 
-        assert_eq!(
-            filtered_edges
-                .edges()
-                .iter()
-                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-                .collect::<Vec<_>>(),
-            vec!["John->David"]
-        );
         assert_graph_equal(&filtered_edges, &g_expected);
     }
 
@@ -102,7 +94,7 @@ mod test {
 
         let g_expected = PersistentGraph::new();
         g_expected
-            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .add_edge((1, 1), "John", "David", [("band", "Dead & Company")], None)
             .unwrap();
 
         assert_eq!(
@@ -382,7 +374,7 @@ mod test {
             .unwrap();
         assert!(gwf.has_edge(0, 1));
         assert!(!gwf.has_edge(0, 0));
-        assert_eq!(gwf.node(0).unwrap().earliest_time(), Some(1));
+        assert_eq!(gwf.node(0).unwrap().earliest_time().unwrap().0, 1);
         assert_persistent_materialize_graph_equal(&gwf, &gwf.materialize().unwrap());
 
         let gfw = g

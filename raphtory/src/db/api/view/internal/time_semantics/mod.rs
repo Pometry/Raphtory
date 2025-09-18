@@ -26,20 +26,20 @@ pub trait GraphTimeSemanticsOps {
     fn edge_time_semantics(&self) -> TimeSemantics;
 
     /// Returns the start of the current view or `None` if unbounded
-    fn view_start(&self) -> Option<i64>;
+    fn view_start(&self) -> Option<TimeIndexEntry>;
 
     /// Returns the end of the current view or `None` if unbounded
-    fn view_end(&self) -> Option<i64>;
+    fn view_end(&self) -> Option<TimeIndexEntry>;
 
     /// Returns the timestamp for the earliest activity
     fn earliest_time_global(&self) -> Option<i64>;
     /// Returns the timestamp for the latest activity
     fn latest_time_global(&self) -> Option<i64>;
     /// Returns the timestamp for the earliest activity in the window
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64>;
+    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64>;
 
     /// Returns the timestamp for the latest activity in the window
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64>;
+    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64>;
 
     /// Check if graph has temporal property with the given id
     ///
@@ -66,7 +66,7 @@ pub trait GraphTimeSemanticsOps {
     ///
     /// * `prop_id` - The id of the property to retrieve.
     /// * `w` - time window
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool;
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool;
 
     /// Returns all temporal values of the graph property with the given name
     /// that fall within the specified time window.
@@ -85,8 +85,8 @@ pub trait GraphTimeSemanticsOps {
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)>;
 
     /// Returns the value and update time for the temporal graph property at or before a given timestamp
@@ -100,7 +100,7 @@ pub trait GraphTimeSemanticsOps {
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)>;
 }
 
@@ -134,11 +134,11 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
         self.graph().edge_time_semantics()
     }
     #[inline]
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<TimeIndexEntry> {
         self.graph().view_start()
     }
     #[inline]
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<TimeIndexEntry> {
         self.graph().view_end()
     }
     #[inline]
@@ -150,12 +150,12 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
         self.graph().latest_time_global()
     }
     #[inline]
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.graph().earliest_time_window(start, end)
     }
 
     #[inline]
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.graph().latest_time_window(start, end)
     }
 
@@ -170,7 +170,7 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     }
 
     #[inline]
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool {
         self.graph().has_temporal_prop_window(prop_id, w)
     }
 
@@ -178,8 +178,8 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph().temporal_prop_iter_window(prop_id, start, end)
     }
@@ -198,7 +198,7 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)> {
         self.graph().temporal_prop_last_at_window(prop_id, t, w)
     }

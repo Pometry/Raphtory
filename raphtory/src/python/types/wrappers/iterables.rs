@@ -1,8 +1,24 @@
-use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
+use crate::{
+    db::api::view::BoxedIter,
+    prelude::Prop,
+    python::types::{
+        repr::Repr,
+        result_iterable::{
+            NestedResultOptionUtcDateTimeIterable, NestedResultUtcDateTimeIterable,
+            ResultOptionUtcDateTimeIterable, ResultUtcDateTimeIterable,
+        },
+    },
+};
 use chrono::{DateTime, Utc};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::GID,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, TimeIndexEntry},
+    },
+};
 use std::iter::Sum;
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
@@ -91,6 +107,194 @@ py_iterable_comp!(
     NestedOptionI64IterableCmp
 );
 
+py_ordered_iterable!(TimeIndexEntryIterable, TimeIndexEntry);
+py_iterable_comp!(
+    TimeIndexEntryIterable,
+    TimeIndexEntry,
+    TimeIndexEntryIterableCmp
+);
+// Custom TimeIndexEntry operations on iterables as well
+#[pymethods]
+impl TimeIndexEntryIterable {
+    /// Change this Iterable of TimeIndexEntry into an Iterable of corresponding Unix timestamps in milliseconds.
+    ///
+    /// Returns:
+    ///     I64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
+    #[getter]
+    fn t(&self) -> I64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t| t.t())).into()
+    }
+
+    /// Change this Iterable of TimeIndexEntry into an Iterable of corresponding UTC DateTimes.
+    ///
+    /// Returns:
+    ///     ResultUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry.
+    ///
+    /// Raises:
+    ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+    #[getter]
+    fn dt(&self) -> ResultUtcDateTimeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t| t.dt())).into()
+    }
+
+    /// Change this Iterable of TimeIndexEntry into an Iterable of their associated secondary indices.
+    ///
+    /// Returns:
+    ///     UsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry.
+    #[getter]
+    fn secondary_index(&self) -> UsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t| t.i())).into()
+    }
+}
+py_nested_ordered_iterable!(
+    NestedTimeIndexEntryIterable,
+    TimeIndexEntry,
+    OptionTimeIndexEntryIterable
+);
+py_iterable_comp!(
+    NestedTimeIndexEntryIterable,
+    TimeIndexEntryIterableCmp,
+    NestedTimeIndexEntryIterableCmp
+);
+// Custom TimeIndexEntry operations on nested iterables as well
+#[pymethods]
+impl NestedTimeIndexEntryIterable {
+    /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding Unix timestamps in milliseconds.
+    ///
+    /// Returns:
+    ///     NestedI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
+    #[getter]
+    fn t(&self) -> NestedI64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t| t.t()))).into()
+    }
+
+    /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding UTC DateTimes.
+    ///
+    /// Returns:
+    ///     NestedResultUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry.
+    ///
+    /// Raises:
+    ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+    #[getter]
+    fn dt(&self) -> NestedResultUtcDateTimeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t| t.dt()))).into()
+    }
+
+    /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of their associated secondary indices.
+    ///
+    /// Returns:
+    ///     NestedUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry.
+    #[getter]
+    fn secondary_index(&self) -> NestedUsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t| t.i()))).into()
+    }
+}
+
+py_ordered_iterable!(OptionTimeIndexEntryIterable, Option<TimeIndexEntry>);
+py_iterable_comp!(
+    OptionTimeIndexEntryIterable,
+    Option<TimeIndexEntry>,
+    OptionTimeIndexEntryIterableCmp
+);
+// Custom TimeIndexEntry operations on iterables of Option<TimeIndexEntry> as well
+#[pymethods]
+impl OptionTimeIndexEntryIterable {
+    /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of corresponding Unix timestamps in milliseconds.
+    ///
+    /// Returns:
+    ///     OptionI64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
+    #[getter]
+    fn t(&self) -> OptionI64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_opt| t_opt.map(|t| t.t()))).into()
+    }
+
+    /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of corresponding UTC DateTimes.
+    ///
+    /// Returns:
+    ///     ResultOptionUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry, if available.
+    ///
+    /// Raises:
+    ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+    #[getter]
+    fn dt(&self) -> ResultOptionUtcDateTimeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_opt| t_opt.map(|t| t.dt()).transpose())).into()
+    }
+
+    /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of their associated secondary indices.
+    ///
+    /// Returns:
+    ///     OptionUsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry, if available.
+    #[getter]
+    fn secondary_index(&self) -> OptionUsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_opt| t_opt.map(|t| t.i()))).into()
+    }
+}
+py_ordered_iterable!(
+    OptionOptionTimeIndexEntryIterable,
+    Option<Option<TimeIndexEntry>>
+);
+py_iterable_comp!(
+    OptionOptionTimeIndexEntryIterable,
+    Option<Option<TimeIndexEntry>>,
+    OptionOptionTimeIndexEntryIterableCmp
+);
+py_nested_ordered_iterable!(
+    NestedOptionTimeIndexEntryIterable,
+    Option<TimeIndexEntry>,
+    OptionOptionTimeIndexEntryIterable
+);
+py_iterable_comp!(
+    NestedOptionTimeIndexEntryIterable,
+    OptionTimeIndexEntryIterableCmp,
+    NestedOptionTimeIndexEntryIterableCmp
+);
+// Custom TimeIndexEntry operations on nested iterables of Option<TimeIndexEntry> as well
+#[pymethods]
+impl NestedOptionTimeIndexEntryIterable {
+    /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of corresponding Unix timestamps in milliseconds.
+    ///
+    /// Returns:
+    ///     NestedOptionI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
+    #[getter]
+    fn t(&self) -> NestedOptionI64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t_opt| t_opt.map(|t| t.t())))).into()
+    }
+
+    /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of corresponding UTC DateTimes.
+    ///
+    /// Returns:
+    ///     NestedResultOptionUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry, if available.
+    ///
+    /// Raises:
+    ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+    #[getter]
+    fn dt(&self) -> NestedResultOptionUtcDateTimeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t_opt| t_opt.map(|t| t.dt()).transpose())))
+            .into()
+    }
+
+    /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of their associated secondary indices.
+    ///
+    /// Returns:
+    ///     NestedOptionUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry, if available.
+    #[getter]
+    fn secondary_index(&self) -> NestedOptionUsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t_opt| t_opt.map(|t| t.i())))).into()
+    }
+}
+
 py_numeric_iterable!(UsizeIterable, usize);
 py_iterable_comp!(UsizeIterable, usize, UsizeIterableCmp);
 
@@ -106,6 +310,23 @@ py_iterable_comp!(
     NestedUsizeIterable,
     UsizeIterableCmp,
     NestedUsizeIterableCmp
+);
+py_iterable!(OptionOptionUsizeIterable, Option<Option<usize>>);
+_py_ord_max_min_methods!(OptionOptionUsizeIterable, Option<Option<usize>>);
+py_iterable_comp!(
+    OptionOptionUsizeIterable,
+    Option<Option<usize>>,
+    OptionOptionUsizeIterableCmp
+);
+py_nested_ordered_iterable!(
+    NestedOptionUsizeIterable,
+    Option<usize>,
+    OptionOptionUsizeIterable
+);
+py_iterable_comp!(
+    NestedOptionUsizeIterable,
+    OptionUsizeIterableCmp,
+    NestedOptionUsizeIterableCmp
 );
 
 py_iterable!(BoolIterable, bool);

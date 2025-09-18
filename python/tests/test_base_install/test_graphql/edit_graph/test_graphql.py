@@ -219,14 +219,26 @@ def test_graph_windows_and_layers_query():
         q = """
         query GetEdges {
           graph(path: "lotr") {
-            window(start: 200, end: 800) {
+            window(start: {simpleTime: 200}, end: {simpleTime: 800}) {
               node(name: "Frodo") {
-                after(time: 500) {
-                  history
+                after(time: {simpleTime: 500}) {
+                  history {
+                    list {
+                      timestamp
+                      secondaryIndex
+                    }
+                  }
                   neighbours {
                     list {
-                        name
-                        before(time: 300) { history }
+                      name
+                        before(time: {simpleTime: 300}) { 
+                        history {
+                          list {
+                            timestamp
+                            secondaryIndex
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -237,23 +249,113 @@ def test_graph_windows_and_layers_query():
         """
         ra = """
         {
-            "graph": {
-              "window": {
-                "node": {
-                  "after": {
-                    "history": [555, 562],
-                    "neighbours": {
-                      "list": [
-                        {"name": "Gandalf", "before": {"history": [270]}},
-                        {"name": "Bilbo", "before": {"history": [205, 270, 286]}}
-                      ]
-                    }
+          "graph": {
+            "window": {
+              "node": {
+                "after": {
+                  "history": {
+                    "list": [
+                      {
+                        "timestamp": 555,
+                        "secondaryIndex": 93
+                      },
+                      {
+                        "timestamp": 555,
+                        "secondaryIndex": 95
+                      },
+                      {
+                        "timestamp": 555,
+                        "secondaryIndex": 96
+                      },
+                      {
+                        "timestamp": 555,
+                        "secondaryIndex": 98
+                      },
+                      {
+                        "timestamp": 562,
+                        "secondaryIndex": 102
+                      },
+                      {
+                        "timestamp": 562,
+                        "secondaryIndex": 104
+                      }
+                    ]
+                  },
+                  "neighbours": {
+                    "list": [
+                      {
+                        "name": "Gandalf",
+                        "before": {
+                          "history": {
+                            "list": [
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 13
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 14
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 18
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 20
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "name": "Bilbo",
+                        "before": {
+                          "history": {
+                            "list": [
+                              {
+                                "timestamp": 205,
+                                "secondaryIndex": 10
+                              },
+                              {
+                                "timestamp": 205,
+                                "secondaryIndex": 11
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 16
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 17
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 19
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 20
+                              },
+                              {
+                                "timestamp": 286,
+                                "secondaryIndex": 22
+                              },
+                              {
+                                "timestamp": 286,
+                                "secondaryIndex": 23
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ]
                   }
                 }
               }
             }
-        }
-        """
+          }
+        }"""
         a = json.dumps(client.query(q))
         json_a = json.loads(a)
         json_ra = json.loads(ra)
@@ -325,7 +427,12 @@ def test_graph_properties_query():
                     temporal {
                       values(keys:["prop2"]) {
                         key
-                        history
+                        history {
+                          list {
+                            timestamp
+                            secondaryIndex
+                          }
+                        }
                       }
                     }
                   }
@@ -348,7 +455,27 @@ def test_graph_properties_query():
                             "properties": {
                                 "values": [{"key": "prop1", "asString": "val3"}],
                                 "temporal": {
-                                    "values": [{"key": "prop2", "history": [1, 2, 3]}]
+                                    "values": [
+                                        {
+                                            "key": "prop2",
+                                            "history": {
+                                                "list": [
+                                                    {
+                                                        "timestamp": 1,
+                                                        "secondaryIndex": 0,
+                                                    },
+                                                    {
+                                                        "timestamp": 2,
+                                                        "secondaryIndex": 1,
+                                                    },
+                                                    {
+                                                        "timestamp": 3,
+                                                        "secondaryIndex": 2,
+                                                    },
+                                                ]
+                                            },
+                                        }
+                                    ]
                                 },
                             },
                             "metadata": {"values": [{"key": "prop5", "value": "val4"}]},

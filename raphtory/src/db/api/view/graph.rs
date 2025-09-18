@@ -1,10 +1,7 @@
 #[cfg(feature = "search")]
 use crate::search::{fallback_filter_edges, fallback_filter_nodes};
 use crate::{
-    core::{
-        entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
-    },
+    core::entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
         api::{
             properties::{internal::InternalMetadataOps, Metadata, Properties},
@@ -31,7 +28,6 @@ use crate::{
     prelude::*,
 };
 use ahash::HashSet;
-use chrono::{DateTime, Utc};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -91,20 +87,12 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
 
-    /// Timestamp of earliest activity in the graph
-    fn earliest_time(&self) -> Option<i64>;
+    /// Get the `TimeIndexEntry` of the earliest activity in the graph.
+    fn earliest_time(&self) -> Option<TimeIndexEntry>;
 
-    /// UTC DateTime of earliest activity in the graph
-    fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.earliest_time()?.dt()
-    }
-    /// Timestamp of latest activity in the graph
-    fn latest_time(&self) -> Option<i64>;
+    /// Get the `TimeIndexEntry` of the latest activity in the graph.
+    fn latest_time(&self) -> Option<TimeIndexEntry>;
 
-    /// UTC DateTime of latest activity in the graph
-    fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.latest_time()?.dt()
-    }
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
 
@@ -267,13 +255,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         };
 
         if let Some(earliest) = self.earliest_time() {
-            g.update_time(TimeIndexEntry::start(earliest));
+            g.update_time(earliest);
         } else {
             return Ok(self.new_base_graph(g.into()));
         };
 
         if let Some(latest) = self.latest_time() {
-            g.update_time(TimeIndexEntry::end(latest));
+            g.update_time(latest);
         } else {
             return Ok(self.new_base_graph(g.into()));
         };
@@ -466,15 +454,16 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
+    /// Get the `TimeIndexEntry` of the earliest activity in the graph.
     #[inline]
-    fn earliest_time(&self) -> Option<i64> {
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
         match self.filter_state() {
-            FilterState::Neither => self.earliest_time_global(),
+            FilterState::Neither => self.earliest_time_global().map(TimeIndexEntry::from), // TODO: couldn't change earliest_time_global() to return TimeIndexEntry
             _ => self
                 .properties()
                 .temporal()
                 .values()
-                .flat_map(|prop| prop.history().next())
+                .flat_map(|prop| prop.history().earliest_time())
                 .min()
                 .into_iter()
                 .chain(
@@ -488,15 +477,16 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         }
     }
 
+    /// Get the `TimeIndexEntry` of the latest activity in the graph.
     #[inline]
-    fn latest_time(&self) -> Option<i64> {
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
         match self.filter_state() {
-            FilterState::Neither => self.latest_time_global(),
+            FilterState::Neither => self.latest_time_global().map(TimeIndexEntry::end), // TODO: Couldn't change latest_time_global to return TimeIndexEntry
             _ => self
                 .properties()
                 .temporal()
                 .values()
-                .flat_map(|prop| prop.history_rev().next())
+                .flat_map(|prop| prop.history().latest_time())
                 .max()
                 .into_iter()
                 .chain(self.nodes().latest_time().par_iter_values().flatten().max())

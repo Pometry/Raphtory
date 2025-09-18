@@ -52,10 +52,10 @@ print("Unique layers:", unique_layers, "\n")
 
 print("Stats on the graphs time range:")
 
-earliest_datetime = g.earliest_date_time
-latest_datetime = g.latest_date_time
-earliest_epoch = g.earliest_time
-latest_epoch = g.latest_time
+earliest_datetime = g.earliest_time.dt
+latest_datetime = g.latest_time.dt
+earliest_epoch = g.earliest_time.t
+latest_epoch = g.latest_time.t
 
 print("Earliest datetime:", earliest_datetime)
 print("Latest datetime:", latest_datetime)
@@ -137,7 +137,7 @@ print(g.edges)
 ///
 
 ```{.python continuation hide}
-assert str(g.node("LOME")) == "Node(name=LOME, earliest_time=1560419520000, latest_time=1562756100000)"
+assert str(g.node("LOME")) == "Node(name=LOME, earliest_time=TimeIndexEntry[1560419520000, 7], latest_time=TimeIndexEntry[1562756100000, 3189])"
 ```
 
 !!! Output
@@ -145,13 +145,13 @@ assert str(g.node("LOME")) == "Node(name=LOME, earliest_time=1560419520000, late
     ```output
     Checking if specific nodes and edges are in the graph:
     Lomme is in the graph
-    Lomme has played with Nekke 
-
+    Lomme has played with Nekke
+    
     Getting individual nodes and edges:
-    Node(name=LOME, earliest_time=1560419520000, latest_time=1562756100000)
-    Edge(source=LOME, target=NEKKE, earliest_time=1560421080000, latest_time=1562755980000, properties={Weight: 1}, layer(s)=[Touching, Grooming, Resting, Playing with, Carrying]) 
-
+    Node(name=LOME, earliest_time=TimeIndexEntry[1560419520000, 7], latest_time=TimeIndexEntry[1562756100000, 3189])
+    Edge(source=LOME, target=NEKKE, earliest_time=TimeIndexEntry[1560421080000, 22], latest_time=TimeIndexEntry[1562755980000, 3185], properties={Weight: 1}, layer(s)=[Playing with, Resting, Grooming, Touching, Carrying])
+    
     Getting iterators over all nodes and edges:
-    Nodes(Node(name=MALI, earliest_time=1560422040000, latest_time=1562755320000), Node(name=LOME, earliest_time=1560419520000, latest_time=1562756100000), Node(name=NEKKE, earliest_time=1560419520000, latest_time=1562756700000), Node(name=PETOULETTE, earliest_time=1560422520000, latest_time=1562754420000), Node(name=EWINE, earliest_time=1560442020000, latest_time=1562754600000), Node(name=ANGELE, earliest_time=1560419400000, latest_time=1562754600000), Node(name=VIOLETTE, earliest_time=1560423600000, latest_time=1562754900000), Node(name=BOBO, earliest_time=1560419520000, latest_time=1562755500000), Node(name=MAKO, earliest_time=1560421620000, latest_time=1562756100000), Node(name=FEYA, earliest_time=1560420000000, latest_time=1562756040000), ...)
-    Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=1560419400000, latest_time=1562753640000, properties={Weight: 1}, layer(s)=[Grooming, Resting, Presenting, Grunting-Lipsmacking, Submission, Copulating]), Edge(source=PIPO, target=KALI, earliest_time=1560420660000, latest_time=1562752560000, properties={Weight: 1}, layer(s)=[Touching, Grooming, Resting, Grunting-Lipsmacking, Chasing, Mounting, Copulating]), Edge(source=LOME, target=NEKKE, earliest_time=1560421080000, latest_time=1562755980000, properties={Weight: 1}, layer(s)=[Touching, Grooming, Resting, Playing with, Carrying]), Edge(source=LOME, target=MUSE, earliest_time=1560421080000, latest_time=1562584200000, properties={Weight: 1}, layer(s)=[Resting, Playing with]), Edge(source=ATMOSPHERE, target=LIPS, earliest_time=1560420000000, latest_time=1560420000000, properties={Weight: 1}, layer(s)=[Playing with]), Edge(source=PIPO, target=FELIPE, earliest_time=1560420720000, latest_time=1562151240000, properties={Weight: 1}, layer(s)=[Resting, Presenting, Grunting-Lipsmacking, Avoiding]), Edge(source=MUSE, target=NEKKE, earliest_time=1560421620000, latest_time=1562755380000, properties={Weight: 1}, layer(s)=[Touching, Grooming, Resting, Playing with, Embracing, Mounting]), Edge(source=MUSE, target=MAKO, earliest_time=1560421620000, latest_time=1562251620000, properties={Weight: 1}, layer(s)=[Touching, Grooming, Resting, Playing with]), Edge(source=PIPO, target=LIPS, earliest_time=1560420720000, latest_time=1560420720000, properties={Weight: 1}, layer(s)=[Resting]), Edge(source=MUSE, target=LOME, earliest_time=1560421620000, latest_time=1562251620000, properties={Weight: 1}, layer(s)=[Playing with, Submission]), ...)
+    Nodes(Node(name=BOBO, earliest_time=TimeIndexEntry[1560419520000, 8], latest_time=TimeIndexEntry[1562755500000, 3182]), Node(name=PIPO, earliest_time=TimeIndexEntry[1560420660000, 16], latest_time=TimeIndexEntry[1562752560000, 3143]), Node(name=MUSE, earliest_time=TimeIndexEntry[1560421080000, 23], latest_time=TimeIndexEntry[1562755500000, 3182]), Node(name=VIOLETTE, earliest_time=TimeIndexEntry[1560423600000, 112], latest_time=TimeIndexEntry[1562754900000, 3172]), Node(name=FELIPE, earliest_time=TimeIndexEntry[1560419400000, 0], latest_time=TimeIndexEntry[1562756700000, 3195]), Node(name=MAKO, earliest_time=TimeIndexEntry[1560421620000, 38], latest_time=TimeIndexEntry[1562756100000, 3189]), Node(name=EWINE, earliest_time=TimeIndexEntry[1560442020000, 192], latest_time=TimeIndexEntry[1562754600000, 3169]), Node(name=LIPS, earliest_time=TimeIndexEntry[1560419460000, 3], latest_time=TimeIndexEntry[1562756700000, 3195]), Node(name=KALI, earliest_time=TimeIndexEntry[1560420660000, 16], latest_time=TimeIndexEntry[1562752560000, 3143]), Node(name=ANGELE, earliest_time=TimeIndexEntry[1560419400000, 0], latest_time=TimeIndexEntry[1562754600000, 3170]), ...)
+    Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=TimeIndexEntry[1560419400000, 0], latest_time=TimeIndexEntry[1562753640000, 3151], properties={Weight: 1}, layer(s)=[Resting, Grunting-Lipsmacking, Presenting, Grooming, Copulating, Submission]), Edge(source=ATMOSPHERE, target=LIPS, earliest_time=TimeIndexEntry[1560420000000, 14], latest_time=TimeIndexEntry[1560420000000, 14], properties={Weight: 1}, layer(s)=[Playing with]), Edge(source=PIPO, target=KALI, earliest_time=TimeIndexEntry[1560420660000, 16], latest_time=TimeIndexEntry[1562752560000, 3143], properties={Weight: 1}, layer(s)=[Resting, Grunting-Lipsmacking, Grooming, Copulating, Touching, Chasing, Mounting]), Edge(source=PIPO, target=FELIPE, earliest_time=TimeIndexEntry[1560420720000, 19], latest_time=TimeIndexEntry[1562151240000, 2244], properties={Weight: 1}, layer(s)=[Resting, Grunting-Lipsmacking, Presenting, Avoiding]), Edge(source=PIPO, target=LIPS, earliest_time=TimeIndexEntry[1560420720000, 21], latest_time=TimeIndexEntry[1560420720000, 21], properties={Weight: 1}, layer(s)=[Resting]), Edge(source=NEKKE, target=LIPS, earliest_time=TimeIndexEntry[1560421980000, 70], latest_time=TimeIndexEntry[1562668860000, 2965], properties={Weight: 1}, layer(s)=[Playing with, Resting, Embracing]), Edge(source=MUSE, target=NEKKE, earliest_time=TimeIndexEntry[1560421620000, 37], latest_time=TimeIndexEntry[1562755380000, 3179], properties={Weight: 1}, layer(s)=[Playing with, Resting, Embracing, Grooming, Touching, Mounting]), Edge(source=NEKKE, target=MAKO, earliest_time=TimeIndexEntry[1560421980000, 71], latest_time=TimeIndexEntry[1562751120000, 3118], properties={Weight: 1}, layer(s)=[Playing with, Resting, Embracing, Presenting, Grooming]), Edge(source=FELIPE, target=ANGELE, earliest_time=TimeIndexEntry[1560419460000, 2], latest_time=TimeIndexEntry[1562754600000, 3170], properties={Weight: 1}, layer(s)=[Resting, Embracing, Grunting-Lipsmacking, Presenting, Touching, Chasing, Mounting, Supplanting, Submission]), Edge(source=NEKKE, target=MUSE, earliest_time=TimeIndexEntry[1560421980000, 72], latest_time=TimeIndexEntry[1562682060000, 3088], properties={Weight: 1}, layer(s)=[Playing with, Resting, Embracing]), ...)
     ```

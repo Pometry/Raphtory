@@ -5,14 +5,23 @@ use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     add_classes, add_functions,
     python::{
-        algorithm::max_weight_matching::PyMatching,
+        algorithm::{epidemics::PyInfected, max_weight_matching::PyMatching},
+        filter::node_filter_builders::PyNodeFilterBuilder,
         graph::{
             edge::{PyEdge, PyMutableEdge},
             edges::{PyEdges, PyNestedEdges},
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
+            history::{
+                PyHistory, PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp,
+                PyIntervals,
+            },
+            index::{PyIndexSpec, PyIndexSpecBuilder},
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
-            properties::{PyMetadata, PyProperties, PyTemporalProp, PyTemporalProperties},
+            properties::{
+                MetadataView, PropertiesView, PyMetadata, PyProperties, PyTemporalProp,
+                PyTemporalProperties,
+            },
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -21,11 +30,12 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::document::PyDocument,
+        types::wrappers::document::{PyDocument, PyEmbedding},
         utils::PyWindowSet,
     },
 };
 use pyo3::prelude::*;
+use raphtory_api::python::timeindex::PyTimeIndexEntry;
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -36,6 +46,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPersistentGraph,
         PyGraphEncoder,
         PyNode,
+        PyNodeFilterBuilder,
         PyNodes,
         PyPathFromNode,
         PyPathFromGraph,
@@ -46,12 +57,19 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyMutableEdge,
         PyProperties,
         PyMetadata,
+        MetadataView,
         PyTemporalProperties,
         PropertiesView,
         PyTemporalProp,
+        PyTimeIndexEntry,
+        PyHistory,
+        PyHistoryTimestamp,
+        PyHistoryDateTime,
+        PyHistorySecondaryIndex,
+        PyIntervals,
         PyWindowSet,
         PyIndexSpecBuilder,
-        PyIndexSpec
+        PyIndexSpec,
     );
 
     #[pyfunction]
@@ -154,11 +172,3 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
-use crate::python::{
-    algorithm::epidemics::PyInfected,
-    graph::{
-        index::{PyIndexSpec, PyIndexSpecBuilder},
-        properties::PropertiesView,
-    },
-    types::wrappers::document::PyEmbedding,
-};

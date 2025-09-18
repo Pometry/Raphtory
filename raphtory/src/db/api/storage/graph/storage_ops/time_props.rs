@@ -48,12 +48,10 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
         })
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
-        self.graph_meta().get_temporal_prop(id).and_then(|prop| {
-            prop.deref()
-                .last_before(TimeIndexEntry::start(t.saturating_add(1)))
-                .map(|(_, v)| v)
-        })
+    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
+        self.graph_meta()
+            .get_temporal_prop(id)
+            .and_then(|prop| prop.deref().last_before(t.next()).map(|(_, v)| v))
     }
 }
 
