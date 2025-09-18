@@ -131,7 +131,7 @@ tracing-subscriber = { version = "0.3.20", features = ["std", "env-filter"] }
 indoc = "2.0.5"
 walkdir = "2"
 config = "0.14.0"
-either = "=1.11.0"
+either = "=1.15.0"
 clap = { version = "4.5.21", features = ["derive", "env"] }
 memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }

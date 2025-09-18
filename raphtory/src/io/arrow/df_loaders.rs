@@ -901,9 +901,9 @@ mod tests {
     };
     use itertools::Itertools;
     use proptest::proptest;
-    use tempfile::TempDir;
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::sync::Arc;
+    use tempfile::TempDir;
 
     #[cfg(feature = "storage")]
     mod load_multi_layer {
@@ -994,6 +994,7 @@ mod tests {
                     &[],
                     None,
                     Some(edge_list.layer),
+                    None,
                     None,
                 )
                 .unwrap();
