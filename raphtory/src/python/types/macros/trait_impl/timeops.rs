@@ -61,7 +61,7 @@ macro_rules! impl_timeops {
             ///
             /// Arguments:
             ///     step (int | str): The step size of the window.
-            ///     align_start (bool | None): If set to True, aligns the start of the first window
+            ///     align_start (bool): If set to True, aligns the start of the first window
             ///         to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
             ///         the first window will begin at the start of the day of the first time event.
             ///         If set to False, the first window will begin at the first time event.
@@ -69,9 +69,9 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            #[pyo3(signature = (step, align_start=None))]
-            fn expanding(&self, step: $crate::core::utils::time::Interval, align_start: Option<bool>) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
-                if align_start.unwrap_or(true) {
+            #[pyo3(signature = (step, align_start=true))]
+            fn expanding(&self, step: $crate::core::utils::time::Interval, align_start: bool) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
+                if align_start {
                     self.$field.expanding_aligned(step)
                 } else {
                     self.$field.expanding(step)
@@ -86,7 +86,7 @@ macro_rules! impl_timeops {
             ///     window (int | str): The size of the window.
             ///     step (int | str | None): The step size of the window.
             ///         `step` defaults to `window`.
-            ///     align_start (bool | None): If set to True, aligns the start of the first window
+            ///     align_start (bool): If set to True, aligns the start of the first window
             ///         to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
             ///         the first window will begin at the start of the day of the first time event.
             ///         If set to False, the first window will begin at the first time event.
@@ -94,14 +94,14 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            #[pyo3(signature = (window, step=None, align_start=None))]
+            #[pyo3(signature = (window, step=None, align_start=true))]
             fn rolling(
                 &self,
                 window:$crate::core::utils::time::Interval,
                 step: Option<$crate::core::utils::time::Interval>,
-                align_start: Option<bool>,
+                align_start: bool,
             ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
-                if align_start.unwrap_or(true) {
+                if align_start {
                     self.$field.rolling_aligned(window, step)
                 } else {
                     self.$field.rolling(window, step)

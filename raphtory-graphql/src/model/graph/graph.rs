@@ -23,7 +23,10 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::{
+        entities::nodes::node_ref::{AsNodeRef, NodeRef},
+        utils::time::TryIntoInterval,
+    },
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -143,53 +146,41 @@ impl GqlGraph {
     }
 
     /// Creates a rolling window with the specified window size and an optional step.
+    ///
+    /// align_start aligns the start of the first window to the smallest unit of time passed as input.
+    /// e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
     async fn rolling(
         &self,
         window: WindowDuration,
         step: Option<WindowDuration>,
+        align_start: Option<bool>,
     ) -> Result<GqlGraphWindowSet, GraphError> {
-        match window {
-            Duration(window_duration) => match step {
-                Some(step) => match step {
-                    Duration(step_duration) => Ok(GqlGraphWindowSet::new(
-                        self.graph.rolling(window_duration, Some(step_duration))?,
-                        self.path.clone(),
-                    )),
-                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
-                },
-                None => Ok(GqlGraphWindowSet::new(
-                    self.graph.rolling(window_duration, None)?,
-                    self.path.clone(),
-                )),
-            },
-            Epoch(window_duration) => match step {
-                Some(step) => match step {
-                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
-                    Epoch(step_duration) => Ok(GqlGraphWindowSet::new(
-                        self.graph.rolling(window_duration, Some(step_duration))?,
-                        self.path.clone(),
-                    )),
-                },
-                None => Ok(GqlGraphWindowSet::new(
-                    self.graph.rolling(window_duration, None)?,
-                    self.path.clone(),
-                )),
-            },
-        }
+        let window = window.try_into_interval()?;
+        let step = step.map(|x| x.try_into_interval()).transpose()?;
+        let ws = if align_start.unwrap_or(true) {
+            self.graph.rolling_aligned(window, step)?
+        } else {
+            self.graph.rolling(window, step)?
+        };
+        Ok(GqlGraphWindowSet::new(ws, self.path.clone()))
     }
 
     /// Creates a expanding window with the specified step size.
-    async fn expanding(&self, step: WindowDuration) -> Result<GqlGraphWindowSet, GraphError> {
-        match step {
-            Duration(step) => Ok(GqlGraphWindowSet::new(
-                self.graph.expanding(step)?,
-                self.path.clone(),
-            )),
-            Epoch(step) => Ok(GqlGraphWindowSet::new(
-                self.graph.expanding(step)?,
-                self.path.clone(),
-            )),
-        }
+    ///
+    /// align_start aligns the start of the first window to the smallest unit of time passed as input.
+    /// e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+    async fn expanding(
+        &self,
+        step: WindowDuration,
+        align_start: Option<bool>,
+    ) -> Result<GqlGraphWindowSet, GraphError> {
+        let step = step.try_into_interval()?;
+        let ws = if align_start.unwrap_or(true) {
+            self.graph.expanding_aligned(step)?
+        } else {
+            self.graph.expanding(step)?
+        };
+        Ok(GqlGraphWindowSet::new(ws, self.path.clone()))
     }
 
     /// Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.

@@ -329,17 +329,9 @@ impl TryFrom<&str> for Interval {
             return Err(ParseTimeError::InvalidPairs);
         }
 
-        // let (intervals, errors): (Vec<IntervalSize>, Vec<ParseTimeError>) = tokens
-        //     .chunks(2)
-        //     .map(|chunk| Self::parse_duration(chunk[0], chunk[1]))
-        //     .partition_map(|d| match d {
-        //         Ok(d) => Either::Left(d),
-        //         Err(e) => Either::Right(e),
-        //     });
-
         let (temporal_sum, smallest_unit): (IntervalSize, AlignmentUnit) =
             tokens.chunks(2).try_fold(
-                (IntervalSize::empty_temporal(), AlignmentUnit::Year),
+                (IntervalSize::empty_temporal(), AlignmentUnit::Year), // start with the largest alignment unit
                 |(sum, smallest), chunk| {
                     let (interval, unit) = Self::parse_duration(chunk[0], chunk[1])?;
                     Ok::<_, ParseTimeError>((sum.add_temporal(interval), smallest.min(unit)))
@@ -350,18 +342,6 @@ impl TryFrom<&str> for Interval {
             alignment_unit: Some(smallest_unit),
             size: temporal_sum,
         })
-
-        // if errors.is_empty() {
-        //     Ok(Self {
-        //         epoch_alignment: true,
-        //         size: intervals
-        //             .into_iter()
-        //             .reduce(|a, b| a.add_temporal(b))
-        //             .unwrap(),
-        //     })
-        // } else {
-        //     Err(errors.first().unwrap().clone())
-        // }
     }
 }
 

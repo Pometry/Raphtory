@@ -1,4 +1,5 @@
 use dynamic_graphql::OneOfInput;
+use raphtory::core::utils::time::{Interval, ParseTimeError, TryIntoInterval};
 
 pub(crate) mod collection;
 mod document;
@@ -27,4 +28,15 @@ pub(crate) enum WindowDuration {
     Duration(String),
     /// Time.
     Epoch(u64),
+}
+
+impl TryFrom<WindowDuration> for Interval {
+    type Error = ParseTimeError;
+
+    fn try_from(value: WindowDuration) -> Result<Self, Self::Error> {
+        match value {
+            WindowDuration::Duration(temporal) => temporal.try_into_interval(),
+            WindowDuration::Epoch(discrete) => discrete.try_into_interval(),
+        }
+    }
 }

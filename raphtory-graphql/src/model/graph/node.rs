@@ -14,6 +14,7 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     algorithms::components::{in_component, out_component},
+    core::utils::time::TryIntoInterval,
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
         graph::{node::NodeView, views::filter::model::node_filter::CompositeNodeFilter},
@@ -92,43 +93,41 @@ impl GqlNode {
     /// Creates a WindowSet with the specified window size and optional step using a rolling window.
     ///
     /// Returns a collection of collections. This means that item in the window set is a collection of nodes.
+    ///
+    /// align_start aligns the start of the first window to the smallest unit of time passed as input.
+    /// e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
     async fn rolling(
         &self,
         window: WindowDuration,
         step: Option<WindowDuration>,
+        align_start: Option<bool>,
     ) -> Result<GqlNodeWindowSet, GraphError> {
-        match window {
-            Duration(window_duration) => match step {
-                Some(step) => match step {
-                    Duration(step_duration) => Ok(GqlNodeWindowSet::new(
-                        self.vv.rolling(window_duration, Some(step_duration))?,
-                    )),
-                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
-                },
-                None => Ok(GqlNodeWindowSet::new(
-                    self.vv.rolling(window_duration, None)?,
-                )),
-            },
-            Epoch(window_duration) => match step {
-                Some(step) => match step {
-                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
-                    Epoch(step_duration) => Ok(GqlNodeWindowSet::new(
-                        self.vv.rolling(window_duration, Some(step_duration))?,
-                    )),
-                },
-                None => Ok(GqlNodeWindowSet::new(
-                    self.vv.rolling(window_duration, None)?,
-                )),
-            },
-        }
+        let window = window.try_into_interval()?;
+        let step = step.map(|x| x.try_into_interval()).transpose()?;
+        let ws = if align_start.unwrap_or(true) {
+            self.vv.rolling_aligned(window, step)?
+        } else {
+            self.vv.rolling(window, step)?
+        };
+        Ok(GqlNodeWindowSet::new(ws))
     }
 
     /// Creates a WindowSet with the specified step size using an expanding window.
-    async fn expanding(&self, step: WindowDuration) -> Result<GqlNodeWindowSet, GraphError> {
-        match step {
-            Duration(step) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step)?)),
-            Epoch(step) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step)?)),
-        }
+    ///
+    /// align_start aligns the start of the first window to the smallest unit of time passed as input.
+    /// e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+    async fn expanding(
+        &self,
+        step: WindowDuration,
+        align_start: Option<bool>,
+    ) -> Result<GqlNodeWindowSet, GraphError> {
+        let step = step.try_into_interval()?;
+        let ws = if align_start.unwrap_or(true) {
+            self.vv.expanding_aligned(step)?
+        } else {
+            self.vv.expanding(step)?
+        };
+        Ok(GqlNodeWindowSet::new(ws))
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).

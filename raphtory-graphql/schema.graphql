@@ -118,14 +118,20 @@ type Edge {
 	Creates a WindowSet with the given window duration and optional step using a rolling window.
 	
 	A rolling window is a window that moves forward by step size at each iteration.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): EdgeWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignStart: Boolean): EdgeWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window.
 	
 	An expanding window is a window that grows by step size at each iteration.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	expanding(step: WindowDuration!): EdgeWindowSet!
+	expanding(step: WindowDuration!, alignStart: Boolean): EdgeWindowSet!
 	"""
 	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
 	
@@ -472,14 +478,20 @@ type Edges {
 	Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
 	
 	Returns a collection of collections. This means that item in the window set is a collection of edges.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): EdgesWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignStart: Boolean): EdgesWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
 	
 	Returns a collection of collections. This means that item in the window set is a collection of edges.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	expanding(step: WindowDuration!): EdgesWindowSet!
+	expanding(step: WindowDuration!, alignStart: Boolean): EdgesWindowSet!
 	"""
 	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
 	"""
@@ -764,12 +776,18 @@ type Graph {
 	excludeNodes(nodes: [String!]!): Graph!
 	"""
 	Creates a rolling window with the specified window size and an optional step.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): GraphWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignStart: Boolean): GraphWindowSet!
 	"""
 	Creates a expanding window with the specified step size.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	expanding(step: WindowDuration!): GraphWindowSet!
+	expanding(step: WindowDuration!, alignStart: Boolean): GraphWindowSet!
 	"""
 	Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
 	"""
@@ -940,8 +958,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -1393,12 +1411,18 @@ type Node {
 	Creates a WindowSet with the specified window size and optional step using a rolling window.
 	
 	Returns a collection of collections. This means that item in the window set is a collection of nodes.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): NodeWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignStart: Boolean): NodeWindowSet!
 	"""
 	Creates a WindowSet with the specified step size using an expanding window.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	expanding(step: WindowDuration!): NodeWindowSet!
+	expanding(step: WindowDuration!, alignStart: Boolean): NodeWindowSet!
 	"""
 	Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
 	"""
@@ -1736,12 +1760,18 @@ type Nodes {
 	excludeLayer(name: String!): Nodes!
 	"""
 	Creates a WindowSet with the specified window size and optional step using a rolling window.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): NodesWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignStart: Boolean): NodesWindowSet!
 	"""
 	Creates a WindowSet with the specified step size using an expanding window.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	expanding(step: WindowDuration!): NodesWindowSet!
+	expanding(step: WindowDuration!, alignStart: Boolean): NodesWindowSet!
 	"""
 	Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
 	"""
@@ -1989,12 +2019,18 @@ type PathFromNode {
 	excludeLayer(name: String!): PathFromNode!
 	"""
 	Creates a WindowSet with the given window size and optional step using a rolling window.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): PathFromNodeWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignStart: Boolean): PathFromNodeWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window.
+	
+	align_start aligns the start of the first window to the smallest unit of time passed as input.
+	e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
 	"""
-	expanding(step: WindowDuration!): PathFromNodeWindowSet!
+	expanding(step: WindowDuration!, alignStart: Boolean): PathFromNodeWindowSet!
 	"""
 	Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
 	"""
