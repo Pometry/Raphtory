@@ -324,6 +324,9 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns the number of edges in the graph.
+    ///
+    /// Returns:
+    ///     usize:
     async fn count_edges(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.count_edges()).await

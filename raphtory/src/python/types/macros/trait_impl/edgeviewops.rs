@@ -15,24 +15,36 @@ macro_rules! impl_edgeviewops {
         #[pymethods]
         impl $obj {
             /// Returns the source node of the edge.
+            ///
+            /// Returns:
+            ///     Nodes:
             #[getter]
             fn src(&self) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Nodes {
                 self.$field.src()
             }
 
             /// Returns the destination node of the edge.
+            ///
+            /// Returns:
+            ///     Node:
             #[getter]
             fn dst(&self) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Nodes {
                 self.$field.dst()
             }
 
             /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+            ///
+            /// Returns:
+            ///     Nodes:
             #[getter]
             fn nbr(&self) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Nodes {
                 self.$field.nbr()
             }
 
             /// Explodes returns an edge object for each update within the original edge.
+            ///
+            /// Returns:
+            ///     Exploded:
             fn explode(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
@@ -40,6 +52,9 @@ macro_rules! impl_edgeviewops {
             }
 
             /// Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+            ///
+            /// Returns:
+            ///     Exploded:
             fn explode_layers(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {

@@ -87,6 +87,10 @@ where
     /// Returns a tuple of the min result with its key
     fn min_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
 
+    /// Min result.
+    ///
+    /// Returns:
+    ///     value:
     fn min(&self) -> Option<Self::Value<'_>> {
         self.min_item().map(|(_, v)| v)
     }
@@ -101,6 +105,8 @@ where
     /// Returns a tuple of the median result with its key
     fn median_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
 
+    /// Returns:
+    ///     value:
     fn median(&self) -> Option<Self::Value<'_>> {
         self.median_item().map(|(_, v)| v)
     }
@@ -145,6 +151,10 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     /// Returns a tuple of the min result with its key
     fn min_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
 
+    /// Min result.
+    ///
+    /// Returns:
+    ///     value:
     fn min(&self) -> Option<Self::Value<'_>> {
         self.min_item().map(|(_, v)| v)
     }
@@ -159,6 +169,8 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     /// Returns a tuple of the median result with its key
     fn median_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
 
+    /// Returns:
+    ///     value:
     fn median(&self) -> Option<Self::Value<'_>> {
         self.median_item().map(|(_, v)| v)
     }

@@ -56,7 +56,7 @@ impl PyMetadata {
     /// lists the property values
     ///
     /// Returns:
-    ///     list | Array: the property values
+    ///     list[PropValue]:
     pub fn values(&self) -> Vec<Prop> {
         self.props.iter_filtered().map(|(_, value)| value).collect()
     }
@@ -69,7 +69,10 @@ impl PyMetadata {
         self.props.as_vec()
     }
 
-    /// get property value by key
+    /// get property value by key.
+    ///
+    /// Returns:
+    ///     PropValue:
     ///
     /// Raises:
     ///     KeyError: if property `key` does not exist
@@ -85,7 +88,7 @@ impl PyMetadata {
     ///     key (str): the name of the property
     ///
     /// Returns:
-    ///     PropValue | None: the property value or `None` if value for `key` does not exist
+    ///     PropValue: the property value or `None` if value for `key` does not exist
     pub fn get(&self, key: &str) -> Option<Prop> {
         // Fixme: Add option to specify default?
         self.props.get(key)
@@ -196,11 +199,11 @@ impl MetadataView {
     }
 }
 
-py_nested_iterable_base!(PyMetadataListList, DynMetadata, PyMetadata);
-py_eq!(PyMetadataListList, PyMetadataListListCmp);
+py_nested_iterable_base!(MetadataListList, DynMetadata, PyMetadata);
+py_eq!(MetadataListList, PyMetadataListListCmp);
 
 #[pymethods]
-impl PyMetadataListList {
+impl MetadataListList {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(|mut it| it.next().map(|p| p.keys().collect()))

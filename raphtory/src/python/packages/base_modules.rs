@@ -12,7 +12,9 @@ use crate::{
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
-            properties::{PyMetadata, PyProperties, PyTemporalProp, PyTemporalProperties},
+            properties::{
+                PyMetadata, PyPropValueList, PyProperties, PyTemporalProp, PyTemporalProperties,
+            },
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -21,8 +23,19 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::document::PyDocument,
-        utils::PyWindowSet,
+        types::wrappers::{
+            document::PyDocument,
+            iterables::{
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, GIDIterable,
+                NestedArcStringVecIterable, NestedBoolIterable, NestedGIDGIDIterable,
+                NestedGIDIterable, NestedI64VecIterable, NestedOptionArcStringIterable,
+                NestedOptionI64Iterable, NestedStringIterable, NestedUsizeIterable,
+                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionArcStringIterable,
+                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                StringIterable, U64Iterable, UsizeIterable,
+            },
+        },
+        utils::{PyGenericIterable, PyWindowSet},
     },
 };
 use pyo3::prelude::*;
@@ -45,6 +58,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyNestedEdges,
         PyMutableEdge,
         PyProperties,
+        PyPropValueList,
         PyMetadata,
         PyTemporalProperties,
         PropertiesView,
@@ -55,6 +69,10 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     );
 
     #[pyfunction]
+    /// Return Raphtory version.
+    ///
+    /// Returns:
+    ///     str:
     pub(crate) fn version() -> String {
         String::from(crate::version())
     }
@@ -64,6 +82,37 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     #[cfg(feature = "storage")]
     add_classes!(m, PyDiskGraph);
     Ok(())
+}
+
+pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+    let iterables_module = PyModule::new(py, "iterables")?;
+    add_classes!(
+        iterables_module,
+        NestedUtcDateTimeIterable,
+        NestedGIDIterable,
+        GIDIterable,
+        StringIterable,
+        OptionArcStringIterable,
+        UsizeIterable,
+        OptionI64Iterable,
+        NestedOptionArcStringIterable,
+        NestedStringIterable,
+        NestedOptionI64Iterable,
+        NestedI64VecIterable,
+        NestedUsizeIterable,
+        BoolIterable,
+        ArcStringIterable,
+        NestedVecUtcDateTimeIterable,
+        OptionVecUtcDateTimeIterable,
+        GIDGIDIterable,
+        NestedGIDGIDIterable,
+        NestedBoolIterable,
+        U64Iterable,
+        OptionUtcDateTimeIterable,
+        ArcStringVecIterable,
+        NestedArcStringVecIterable,
+    );
+    Ok(iterables_module)
 }
 
 pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {

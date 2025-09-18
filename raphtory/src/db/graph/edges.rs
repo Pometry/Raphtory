@@ -90,6 +90,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Edges<'graph, G,
         self.iter().next().is_none()
     }
 
+    /// Collect all nodes into a list
     pub fn collect(&self) -> Vec<EdgeView<G, GH>> {
         self.iter().map(|e| e.cloned()).collect()
     }

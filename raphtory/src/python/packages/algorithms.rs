@@ -308,6 +308,9 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 }
 
 #[pyfunction]
+/// Returns the Local clustering coefficient (batch, intersection) for each specified node in a graph. This measures the degree to which one or multiple nodes in a graph tend to cluster together.
+///
+/// Uses path-counting for its triangle-counting step.
 pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
     v: &Bound<PyAny>,
