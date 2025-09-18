@@ -22,7 +22,7 @@ use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
     prelude::*,
-    serialise::StableDecode,
+    serialise::{StableDecode, GRAPH_PATH},
     version,
 };
 use std::{
@@ -226,7 +226,7 @@ impl Mut {
         let graph = {
             let in_file = graph.value(ctx)?.content;
             let mut archive = ZipArchive::new(in_file)?;
-            let mut entry = archive.by_name("graph")?;
+            let mut entry = archive.by_name(GRAPH_PATH)?;
             let mut buf = vec![];
             entry.read_to_end(&mut buf)?;
             MaterializedGraph::decode_from_bytes(&buf)?

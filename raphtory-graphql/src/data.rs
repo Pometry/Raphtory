@@ -10,7 +10,9 @@ use raphtory::{
     db::api::view::MaterializedGraph,
     errors::{GraphError, InvalidPathReason},
     vectors::{
-        cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
+        cache::VectorCache,
+        template::DocumentTemplate,
+        vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
     },
 };
@@ -20,7 +22,7 @@ use std::{
     sync::Arc,
 };
 use tokio::fs;
-use tracing::{error, warn};
+use tracing::{warn};
 use walkdir::WalkDir;
 
 #[derive(Clone)]
@@ -384,6 +386,7 @@ pub(crate) mod data_tests {
             .get_graph("shivam/investigations/2024-12-22/g2")
             .await
             .is_ok());
+
         assert!(data.get_graph("some/random/path").await.is_err());
     }
 }

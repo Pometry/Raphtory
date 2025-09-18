@@ -232,7 +232,6 @@ impl PyRaphtoryClient {
             let mut buffer = Vec::new();
             folder.create_zip(Cursor::new(&mut buffer))?;
 
-
             let variables = format!(
                 r#""path": "{}", "overwrite": {}, "graph": null"#,
                 path, overwrite
