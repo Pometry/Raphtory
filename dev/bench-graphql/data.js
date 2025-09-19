@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758123219181,
+  "lastUpdate": 1758304053383,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -593,6 +593,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1727,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "db0c9716d5e1d84efccde7a4201da75c86f6769a",
+          "message": "Removed last graphql objects with gql in the name (#2283)\n\n* Removed last graphql objects with gql in the name\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-09-19T18:12:25+01:00",
+          "tree_id": "a08c3a3dc639b1d4cf6b24adc55fb2ab5ece9869",
+          "url": "https://github.com/Pometry/Raphtory/commit/db0c9716d5e1d84efccde7a4201da75c86f6769a"
+        },
+        "date": 1758304048164,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1404,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 291,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 225,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1248,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1039,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1663,
             "unit": "req/s"
           }
         ]
