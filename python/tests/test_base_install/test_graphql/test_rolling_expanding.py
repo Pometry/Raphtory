@@ -1819,14 +1819,29 @@ def test_mismatched_window_step_and_errors():
             "rolling": {
                 "page": [
                     {
-                        "start": int(datetime(2024, 12, 31, 1, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                        "start": int(
+                            datetime(
+                                2024, 12, 31, 1, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
                     },
                     {
-                        "start": int(datetime(2024, 12, 31, 2, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                        "start": int(
+                            datetime(
+                                2024, 12, 31, 2, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
                     },
                     {
-                        "start": int(datetime(2024, 12, 31, 3, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    }
+                        "start": int(
+                            datetime(
+                                2024, 12, 31, 3, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
                 ]
             }
         }
@@ -1851,21 +1866,45 @@ def test_mismatched_window_step_and_errors():
             "rolling": {
                 "list": [
                     {
-                        "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                        "start": int(
+                            datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()
+                        )
+                        * 1000,
                     },
                     {
-                        "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                        "start": int(
+                            datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()
+                        )
+                        * 1000,
                     },
                     {
-                        "start": int(datetime(2025, 1, 3, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                        "start": int(
+                            datetime(2025, 1, 3, 23, 0, tzinfo=timezone.utc).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()
+                        )
+                        * 1000,
                     },
                     {
-                        "start": int(datetime(2025, 1, 4, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 5, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    }
+                        "start": int(
+                            datetime(2025, 1, 4, 23, 0, tzinfo=timezone.utc).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(2025, 1, 5, 0, 0, tzinfo=timezone.utc).timestamp()
+                        )
+                        * 1000,
+                    },
                 ]
             }
         }
@@ -1932,17 +1971,47 @@ def test_mismatched_window_step_and_errors():
                 "rolling": {
                     "page": [
                         {
-                            "start": int(datetime(2024, 12, 31, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000),
-                            "end": int(datetime(2025, 1, 1, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000)
+                            "start": int(
+                                datetime(
+                                    2024, 12, 31, 0, 0, 0, 11_000, tzinfo=timezone.utc
+                                ).timestamp()
+                                * 1000
+                            ),
+                            "end": int(
+                                datetime(
+                                    2025, 1, 1, 0, 0, 0, 11_000, tzinfo=timezone.utc
+                                ).timestamp()
+                                * 1000
+                            ),
                         },
                         {
-                            "start": int(datetime(2024, 12, 31, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000),
-                            "end": int(datetime(2025, 1, 1, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000)
+                            "start": int(
+                                datetime(
+                                    2024, 12, 31, 0, 0, 0, 22_000, tzinfo=timezone.utc
+                                ).timestamp()
+                                * 1000
+                            ),
+                            "end": int(
+                                datetime(
+                                    2025, 1, 1, 0, 0, 0, 22_000, tzinfo=timezone.utc
+                                ).timestamp()
+                                * 1000
+                            ),
                         },
                         {
-                            "start": int(datetime(2024, 12, 31, 0, 0, 0, 33_000, tzinfo=timezone.utc).timestamp() * 1000),
-                            "end": int(datetime(2025, 1, 1, 0, 0, 0, 33_000, tzinfo=timezone.utc).timestamp() * 1000)
-                        }
+                            "start": int(
+                                datetime(
+                                    2024, 12, 31, 0, 0, 0, 33_000, tzinfo=timezone.utc
+                                ).timestamp()
+                                * 1000
+                            ),
+                            "end": int(
+                                datetime(
+                                    2025, 1, 1, 0, 0, 0, 33_000, tzinfo=timezone.utc
+                                ).timestamp()
+                                * 1000
+                            ),
+                        },
                     ]
                 }
             }
@@ -1964,26 +2033,58 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "node": {
-            "rolling": {
-                "page": [
-                    {
-                        "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    },
-                    {
-                        "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    },
-                    {
-                        "start": int(datetime(2025, 1, 3, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    }
-                ]
+    expected_output = {
+        "graph": {
+            "node": {
+                "rolling": {
+                    "page": [
+                        {
+                            "start": int(
+                                datetime(
+                                    2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                        {
+                            "start": int(
+                                datetime(
+                                    2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                        {
+                            "start": int(
+                                datetime(
+                                    2025, 1, 3, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 4, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                    ]
+                }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # nodes tests
@@ -2003,40 +2104,138 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "nodes": {
-            "page": [
-                {
-                    "rolling": {
-                        "page": [
-                            {
-                                "start": int(datetime(2024, 12, 31, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000),
-                                "end": int(datetime(2025, 1, 1, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000)
-                            },
-                            {
-                                "start": int(datetime(2024, 12, 31, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000),
-                                "end": int(datetime(2025, 1, 1, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000)
-                            }
-                        ]
-                    }
-                },
-                {
-                    "rolling": {
-                        "page": [
-                            {
-                                "start": int(datetime(2024, 12, 31, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000),
-                                "end": int(datetime(2025, 1, 1, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000)
-                            },
-                            {
-                                "start": int(datetime(2024, 12, 31, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000),
-                                "end": int(datetime(2025, 1, 1, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000)
-                            }
-                        ]
-                    }
-                }
-            ]
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "page": [
+                    {
+                        "rolling": {
+                            "page": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024,
+                                            12,
+                                            31,
+                                            0,
+                                            0,
+                                            0,
+                                            11_000,
+                                            tzinfo=timezone.utc,
+                                        ).timestamp()
+                                        * 1000
+                                    ),
+                                    "end": int(
+                                        datetime(
+                                            2025,
+                                            1,
+                                            1,
+                                            0,
+                                            0,
+                                            0,
+                                            11_000,
+                                            tzinfo=timezone.utc,
+                                        ).timestamp()
+                                        * 1000
+                                    ),
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024,
+                                            12,
+                                            31,
+                                            0,
+                                            0,
+                                            0,
+                                            22_000,
+                                            tzinfo=timezone.utc,
+                                        ).timestamp()
+                                        * 1000
+                                    ),
+                                    "end": int(
+                                        datetime(
+                                            2025,
+                                            1,
+                                            1,
+                                            0,
+                                            0,
+                                            0,
+                                            22_000,
+                                            tzinfo=timezone.utc,
+                                        ).timestamp()
+                                        * 1000
+                                    ),
+                                },
+                            ]
+                        }
+                    },
+                    {
+                        "rolling": {
+                            "page": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024,
+                                            12,
+                                            31,
+                                            0,
+                                            0,
+                                            0,
+                                            11_000,
+                                            tzinfo=timezone.utc,
+                                        ).timestamp()
+                                        * 1000
+                                    ),
+                                    "end": int(
+                                        datetime(
+                                            2025,
+                                            1,
+                                            1,
+                                            0,
+                                            0,
+                                            0,
+                                            11_000,
+                                            tzinfo=timezone.utc,
+                                        ).timestamp()
+                                        * 1000
+                                    ),
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024,
+                                            12,
+                                            31,
+                                            0,
+                                            0,
+                                            0,
+                                            22_000,
+                                            tzinfo=timezone.utc,
+                                        ).timestamp()
+                                        * 1000
+                                    ),
+                                    "end": int(
+                                        datetime(
+                                            2025,
+                                            1,
+                                            1,
+                                            0,
+                                            0,
+                                            0,
+                                            22_000,
+                                            tzinfo=timezone.utc,
+                                        ).timestamp()
+                                        * 1000
+                                    ),
+                                },
+                            ]
+                        }
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -2055,40 +2254,82 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "nodes": {
-            "page": [
-                {
-                    "rolling": {
-                        "page": [
-                            {
-                                "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                            },
-                            {
-                                "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                            }
-                        ]
-                    }
-                },
-                {
-                    "rolling": {
-                        "page": [
-                            {
-                                "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                            },
-                            {
-                                "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                            }
-                        ]
-                    }
-                }
-            ]
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "page": [
+                    {
+                        "rolling": {
+                            "page": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                            ]
+                        }
+                    },
+                    {
+                        "rolling": {
+                            "page": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                            ]
+                        }
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # path from nodes tests, epoch is 1 minute
@@ -2110,40 +2351,82 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "node": {
-            "neighbours": {
-                "rolling": {
-                    "page": [
-                        {
-                            "page": [
-                                {
-                                    "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
-                                    "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
-                                },
-                                {
-                                    "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
-                                    "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
-                                    "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
-                                },
-                                {
-                                    "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
-                                    "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
-                                }
-                            ]
-                        }
-                    ]
+    expected_output = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "rolling": {
+                        "page": [
+                            {
+                                "page": [
+                                    {
+                                        "start": int(
+                                            datetime(
+                                                2024, 12, 31, 0, 1, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                        "end": int(
+                                            datetime(
+                                                2025, 1, 1, 0, 1, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                    },
+                                    {
+                                        "start": int(
+                                            datetime(
+                                                2024, 12, 31, 0, 1, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                        "end": int(
+                                            datetime(
+                                                2025, 1, 1, 0, 1, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                    },
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "start": int(
+                                            datetime(
+                                                2024, 12, 31, 0, 2, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                        "end": int(
+                                            datetime(
+                                                2025, 1, 1, 0, 2, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                    },
+                                    {
+                                        "start": int(
+                                            datetime(
+                                                2024, 12, 31, 0, 2, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                        "end": int(
+                                            datetime(
+                                                2025, 1, 1, 0, 2, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                    },
+                                ]
+                            },
+                        ]
+                    }
                 }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -2164,40 +2447,82 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "node": {
-            "neighbours": {
-                "rolling": {
-                    "page": [
-                        {
-                            "page": [
-                                {
-                                    "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                    "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                                },
-                                {
-                                    "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                    "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                    "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                                },
-                                {
-                                    "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                    "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                                }
-                            ]
-                        }
-                    ]
+    expected_output = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "rolling": {
+                        "page": [
+                            {
+                                "page": [
+                                    {
+                                        "start": int(
+                                            datetime(
+                                                2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                        "end": int(
+                                            datetime(
+                                                2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                    },
+                                    {
+                                        "start": int(
+                                            datetime(
+                                                2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                        "end": int(
+                                            datetime(
+                                                2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                    },
+                                ]
+                            },
+                            {
+                                "page": [
+                                    {
+                                        "start": int(
+                                            datetime(
+                                                2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                        "end": int(
+                                            datetime(
+                                                2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                    },
+                                    {
+                                        "start": int(
+                                            datetime(
+                                                2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                        "end": int(
+                                            datetime(
+                                                2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                            ).timestamp()
+                                        )
+                                        * 1000,
+                                    },
+                                ]
+                            },
+                        ]
+                    }
                 }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # edge tests
@@ -2215,26 +2540,58 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "edge": {
-            "rolling": {
-                "page": [
-                    {
-                        "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
-                    },
-                    {
-                        "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
-                    },
-                    {
-                        "start": int(datetime(2024, 12, 31, 0, 3,  tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 1, 0, 3, tzinfo=timezone.utc).timestamp()) * 1000
-                    }
-                ]
+    expected_output = {
+        "graph": {
+            "edge": {
+                "rolling": {
+                    "page": [
+                        {
+                            "start": int(
+                                datetime(
+                                    2024, 12, 31, 0, 1, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 1, 0, 1, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                        {
+                            "start": int(
+                                datetime(
+                                    2024, 12, 31, 0, 2, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 1, 0, 2, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                        {
+                            "start": int(
+                                datetime(
+                                    2024, 12, 31, 0, 3, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 1, 0, 3, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                    ]
+                }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -2251,30 +2608,72 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "edge": {
-            "rolling": {
-                "list": [
-                    {
-                        "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    },
-                    {
-                        "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    },
-                    {
-                        "start": int(datetime(2025, 1, 3, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    },
-                    {
-                        "start": int(datetime(2025, 1, 4, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                        "end": int(datetime(2025, 1, 5, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                    }
-                ]
+    expected_output = {
+        "graph": {
+            "edge": {
+                "rolling": {
+                    "list": [
+                        {
+                            "start": int(
+                                datetime(
+                                    2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                        {
+                            "start": int(
+                                datetime(
+                                    2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                        {
+                            "start": int(
+                                datetime(
+                                    2025, 1, 3, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 4, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                        {
+                            "start": int(
+                                datetime(
+                                    2025, 1, 4, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 5, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
+                    ]
+                }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # edges tests
@@ -2294,38 +2693,80 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "edges": {
-            "rolling": {
-                "page": [
-                    {
-                        "page": [
-                            {
-                                "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
-                            },
-                            {
-                                "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
-                            }
-                        ]
-                    },
-                    {
-                        "page": [
-                            {
-                                "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
-                            },
-                            {
-                                "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
-                            }
-                        ]
-                    }
-                ]
+    expected_output = {
+        "graph": {
+            "edges": {
+                "rolling": {
+                    "page": [
+                        {
+                            "page": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024, 12, 31, 0, 1, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 1, 0, 1, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024, 12, 31, 0, 1, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 1, 0, 1, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024, 12, 31, 0, 2, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 1, 0, 2, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024, 12, 31, 0, 2, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 1, 0, 2, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                            ]
+                        },
+                    ]
+                }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -2344,48 +2785,91 @@ def test_mismatched_window_step_and_errors():
       }
     }
     """
-    expected_output = {"graph": {
-        "edges": {
-            "rolling": {
-                "page": [
-                    {
-                        "page": [
-                            {
-                                "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                            },
-                            {
-                                "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                            }
-                        ]
-                    },
-                    {
-                        "page": [
-                            {
-                                "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                            },
-                            {
-                                "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                                "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                            }
-                        ]
-                    }
-                ]
+    expected_output = {
+        "graph": {
+            "edges": {
+                "rolling": {
+                    "page": [
+                        {
+                            "page": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                            ]
+                        },
+                    ]
+                }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     run_group_graphql_test(queries_and_expected_outputs, graph)
     run_group_graphql_error_test(queries_and_exceptions, graph)
 
+
 def test_alignment():
     g = Graph()
-    dt1 = datetime(2025, 3, 15, 14, 37, 52)     # March 15
-    dt2 = datetime(2025, 7, 8, 9, 12, 5)        # July 8
-    dt3 = datetime(2025, 11, 22, 21, 45, 30)    # November 22
+    dt1 = datetime(2025, 3, 15, 14, 37, 52)  # March 15
+    dt2 = datetime(2025, 7, 8, 9, 12, 5)  # July 8
+    dt3 = datetime(2025, 11, 22, 21, 45, 30)  # November 22
 
     g.add_node(dt1, 1)
     g.add_node(dt2, 1)
@@ -2403,24 +2887,56 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "rolling": {
-            "page": [
-                {
-                    "start": int(datetime(2025, 3, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end": int(datetime(2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                },
-                {
-                    "start": int(datetime(2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end": int(datetime(2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                },
-                {
-                    "start": int(datetime(2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end": int(datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                }
-            ]
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs = [(query, expected_output)]
 
     query = """
@@ -2450,24 +2966,56 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "rolling": {
-            "page": [
-                {
-                    "start": int(datetime(2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end": int(datetime(2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc).timestamp()) * 1000
-                },
-                {
-                    "start": int(datetime(2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end": int(datetime(2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc).timestamp()) * 1000
-                },
-                {
-                    "start": int(datetime(2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end": int(datetime(2025, 6, 15, 14, 37, 52, tzinfo=timezone.utc).timestamp()) * 1000
-                }
-            ]
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 6, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -2482,24 +3030,56 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "rolling": {
-            "page": [
-                {
-                    "start": int(datetime(2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-                {
-                    "start": int(datetime(2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-                {
-                    "start": int(datetime(2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 3, 18, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-            ]
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 3, 18, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -2514,24 +3094,56 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "rolling": {
-            "page": [
-                {
-                    "start": int(datetime(2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 4, 16, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-                {
-                    "start": int(datetime(2025, 4, 16, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 5, 17, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-                {
-                    "start": int(datetime(2025, 5, 17, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 6, 18, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-            ]
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 4, 16, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 4, 16, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 5, 17, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 5, 17, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 6, 18, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # FIXME: the first window is 2025-02-16 -> 2025-03-16. Shouldn't it be 2025-03-15 -> 2025-04-15?
@@ -2547,24 +3159,56 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "rolling": {
-            "page": [
-                {
-                    "start": int(datetime(2025, 2, 16, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-                {
-                    "start": int(datetime(2025, 2, 17, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-                {
-                    "start": int(datetime(2025, 2, 18, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 3, 18, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
-                },
-            ]
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 2, 16, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 2, 17, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 2, 18, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 3, 18, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                ]
+            }
         }
-    }}
+    }
 
     # discrete interval — no alignment (1000 ms = 1 second)
     query = """
@@ -2580,16 +3224,28 @@ def test_alignment():
     }
     """
     earliest = datetime(2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc)
-    expected_output = {"graph": {
-        "rolling": {
-            "page": [
-                {
-                    "start": int(datetime(2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc).timestamp()) * 1000,
-                    "end":   int(datetime(2025, 3, 15, 14, 37, 53, tzinfo=timezone.utc).timestamp()) * 1000,
-                }
-            ]
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 3, 15, 14, 37, 53, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    }
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # test expanding
@@ -2604,18 +3260,30 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "expanding": {
-            "page": [
-                {
-                    "end": int(datetime(2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                },
-                {
-                    "end": int(datetime(2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
-                },
-            ]
+    expected_output = {
+        "graph": {
+            "expanding": {
+                "page": [
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     run_group_graphql_test(queries_and_expected_outputs, g)
