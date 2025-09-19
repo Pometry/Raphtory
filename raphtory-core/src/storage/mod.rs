@@ -8,10 +8,10 @@ use arrow_array::{
         Float32Type, Float64Type, Int32Type, Int64Type, UInt16Type, UInt32Type, UInt64Type,
         UInt8Type,
     },
-    Array, BooleanArray, Date64Array, Decimal128Array, TimestampMillisecondArray,
+    Array, BooleanArray, Decimal128Array, TimestampMillisecondArray,
 };
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, NaiveDateTime};
+use chrono::DateTime;
 use either::Either;
 use lazy_vec::LazyVec;
 use raphtory_api::core::{

@@ -581,7 +581,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
 mod test {
     use super::*;
     use arrow_array::{BooleanArray, Int64Array, StringArray};
-    use raphtory_api::core::entities::properties::prop::PropType;
+    use raphtory_api::core::entities::properties::{prop::PropType, tprop::TPropOps};
     use raphtory_core::storage::timeindex::TimeIndexEntry;
 
     fn create_test_segment() -> MemEdgeSegment {
@@ -677,6 +677,23 @@ mod test {
 
         // Verify time length increased
         assert_eq!(segment.t_len(), 3);
+
+        for (index, local_pos) in [LocalPOS(0), LocalPOS(1), LocalPOS(2)].iter().enumerate() {
+            let actual = segment.layers[0]
+                .t_prop(*local_pos, 0)
+                .into_iter()
+                .flat_map(|p| p.iter())
+                .collect::<Vec<_>>();
+
+            let i = local_pos.0 as i64;
+            assert_eq!(
+                actual,
+                vec![(
+                    TimeIndexEntry::new(i + 1, index),
+                    Prop::str(format!("test{}", i + 1))
+                )]
+            );
+        }
     }
 
     #[test]

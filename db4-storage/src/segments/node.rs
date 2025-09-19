@@ -207,7 +207,7 @@ impl MemNodeSegment {
         let est_size = layer.est_size();
         layer.set_lsn(lsn);
 
-        let mut add_out = layer.reserve_local_row(src_pos);
+        let add_out = layer.reserve_local_row(src_pos);
         let new_entry = add_out.is_new();
         let add_out = add_out.inner();
         let is_new_edge = add_out.adj.add_edge_out(dst, e_id.edge);

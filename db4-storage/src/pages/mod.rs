@@ -50,7 +50,7 @@ pub mod test_utils;
 #[derive(Debug)]
 pub struct GraphStore<NS, ES, EXT> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
-    node_flush_thread: FlushThread,
+    _node_flush_thread: FlushThread,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -143,7 +143,7 @@ impl<
         let t_len = edges.t_len();
 
         Ok(Self {
-            node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone(), edges.clone()),
+            _node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone(), edges.clone()),
             nodes,
             edges,
             event_id: AtomicUsize::new(t_len),
@@ -190,7 +190,7 @@ impl<
         }
 
         Self {
-            node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone(), edges.clone()),
+            _node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone(), edges.clone()),
             nodes,
             edges,
             event_id: AtomicUsize::new(0),
