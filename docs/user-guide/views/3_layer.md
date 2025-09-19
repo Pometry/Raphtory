@@ -81,9 +81,10 @@ assert str(f"Total weight across Grooming and Resting between {start_day} and {e
 
 ## Traversing the graph with layers
 
-Similar to the [time based filters](2_time.md#traversing-the-graph-with-views), if a layer view is applied to the graph, all extracted entities will have this view applied to them. However, if the layer view is applied to a node or edge, it will only last until you have moved to a new node.
-
 Expanding on the example from [the time views](2_time.md#traversing-the-graph-with-views), if you wanted to look at which neighbours LOME has groomed, followed by who those monkeys have rested with, then you could write the following query.
+
+!!! note
+    Similar to the time based filters, if a layer view is applied to the graph then all extracted entities will have this view applied to them. However, if the layer view is applied to a node or edge, it will only last until you have moved to a new node.
 
 /// tab | :fontawesome-brands-python: Python
 ```python
