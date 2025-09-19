@@ -12,6 +12,7 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
+    core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
@@ -96,45 +97,43 @@ impl GqlEdge {
     /// Creates a WindowSet with the given window duration and optional step using a rolling window.
     ///
     /// A rolling window is a window that moves forward by step size at each iteration.
+    ///
+    /// align_start aligns the start of the first window to the smallest unit of time passed as input.
+    /// e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
     async fn rolling(
         &self,
         window: WindowDuration,
         step: Option<WindowDuration>,
+        align_start: Option<bool>,
     ) -> Result<GqlEdgeWindowSet, GraphError> {
-        match window {
-            Duration(window_duration) => match step {
-                Some(step) => match step {
-                    Duration(step_duration) => Ok(GqlEdgeWindowSet::new(
-                        self.ee.rolling(window_duration, Some(step_duration))?,
-                    )),
-                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
-                },
-                None => Ok(GqlEdgeWindowSet::new(
-                    self.ee.rolling(window_duration, None)?,
-                )),
-            },
-            Epoch(window_duration) => match step {
-                Some(step) => match step {
-                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
-                    Epoch(step_duration) => Ok(GqlEdgeWindowSet::new(
-                        self.ee.rolling(window_duration, Some(step_duration))?,
-                    )),
-                },
-                None => Ok(GqlEdgeWindowSet::new(
-                    self.ee.rolling(window_duration, None)?,
-                )),
-            },
-        }
+        let window = window.try_into_interval()?;
+        let step = step.map(|x| x.try_into_interval()).transpose()?;
+        let ws = if align_start.unwrap_or(true) {
+            self.ee.rolling_aligned(window, step)?
+        } else {
+            self.ee.rolling(window, step)?
+        };
+        Ok(GqlEdgeWindowSet::new(ws))
     }
 
     /// Creates a WindowSet with the given step size using an expanding window.
     ///
     /// An expanding window is a window that grows by step size at each iteration.
-    async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgeWindowSet, GraphError> {
-        match step {
-            Duration(step) => Ok(GqlEdgeWindowSet::new(self.ee.expanding(step)?)),
-            Epoch(step) => Ok(GqlEdgeWindowSet::new(self.ee.expanding(step)?)),
-        }
+    ///
+    /// align_start aligns the start of the first window to the smallest unit of time passed as input.
+    /// e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+    async fn expanding(
+        &self,
+        step: WindowDuration,
+        align_start: Option<bool>,
+    ) -> Result<GqlEdgeWindowSet, GraphError> {
+        let step = step.try_into_interval()?;
+        let ws = if align_start.unwrap_or(true) {
+            self.ee.expanding_aligned(step)?
+        } else {
+            self.ee.expanding(step)?
+        };
+        Ok(GqlEdgeWindowSet::new(ws))
     }
 
     /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
