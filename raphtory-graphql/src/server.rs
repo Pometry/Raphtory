@@ -24,7 +24,7 @@ use poem::{
 use raphtory::{
     errors::GraphResult,
     vectors::{
-        cache::VectorCache, embeddings::EmbeddingFunction, storage::Embeddings,
+        cache::{CachedEmbeddings, VectorCache},
         template::DocumentTemplate,
     },
 };
@@ -109,7 +109,7 @@ pub fn register_mutation_plugin<
 }
 
 impl GraphServer {
-    pub fn new(
+    pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         config_path: Option<PathBuf>,
@@ -119,7 +119,7 @@ impl GraphServer {
         }
         let config =
             load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
-        let data = Data::new(work_dir.as_path(), &config);
+        let data = Data::new(work_dir.as_path(), &config).await?;
         Ok(Self { data, config })
     }
 
@@ -153,7 +153,7 @@ impl GraphServer {
     pub async fn vectorise_all_graphs(
         &self,
         template: &DocumentTemplate,
-        embeddings: Embeddings,
+        embeddings: CachedEmbeddings,
     ) -> GraphResult<()> {
         for folder in self.data.get_all_graph_folders() {
             self.data
@@ -174,7 +174,7 @@ impl GraphServer {
         &self,
         name: &str,
         template: DocumentTemplate,
-        embeddings: Embeddings,
+        embeddings: CachedEmbeddings,
     ) -> GraphResult<()> {
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), name)?;
         self.data

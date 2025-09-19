@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use super::{
-    cache::VectorCache,
     entity_db::{EdgeDb, EntityDb, NodeDb},
     utils::apply_window,
     vector_selection::VectorSelection,
@@ -12,6 +11,7 @@ use crate::{
     errors::GraphResult,
     prelude::GraphViewOps,
     vectors::{
+        cache::CachedEmbeddings,
         template::DocumentTemplate,
         utils::find_top_k,
         vector_collection::{lancedb::LanceDbCollection, VectorCollection},
@@ -23,7 +23,7 @@ use crate::{
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
-    pub(crate) cache: Arc<VectorCache>,
+    pub(crate) model: CachedEmbeddings,
     pub(super) node_db: NodeDb<LanceDbCollection>,
     pub(super) edge_db: EdgeDb<LanceDbCollection>,
 }
@@ -33,7 +33,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
         VectorisedGraph {
             source_graph: self.source_graph.clone().into_dynamic(),
             template: self.template,
-            cache: self.cache,
+            model: self.model,
             node_db: self.node_db,
             edge_db: self.edge_db,
         }
@@ -52,7 +52,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
                 })
             })
             .unzip();
-        let vectors = self.cache.get_embeddings(docs).await?;
+        let vectors = self.model.get_embeddings(docs).await?;
         self.node_db.insert_vectors(ids, vectors).await?;
         Ok(())
     }
@@ -68,7 +68,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
                 })
             })
             .unzip();
-        let vectors = self.cache.get_embeddings(docs).await?;
+        let vectors = self.model.get_embeddings(docs).await?;
         self.edge_db.insert_vectors(ids, vectors).await?;
         Ok(())
     }
@@ -142,6 +142,6 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
     /// Returns the embedding for the given text using the embedding model setup for this graph
     pub async fn embed_text(&self, text: String) -> GraphResult<Embedding> {
-        self.cache.get_single(text).await
+        self.model.get_single(text).await
     }
 }

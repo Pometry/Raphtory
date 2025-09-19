@@ -8,16 +8,16 @@ use crate::{
     errors::GraphResult,
     prelude::GraphViewOps,
     vectors::{
-        embeddings::compute_embeddings,
+        cache::CachedEmbeddings,
+        embeddings::{compute_embeddings, SampledModel},
         entity_db::EntityDb,
-        storage::Embeddings,
         template::DocumentTemplate,
         vector_collection::{lancedb::LanceDb, VectorCollection, VectorCollectionFactory},
         vectorised_graph::VectorisedGraph,
     },
 };
 use async_trait::async_trait;
-use std::{ops::Deref, path::Path};
+use std::path::Path;
 use tracing::info;
 
 #[async_trait]
@@ -25,9 +25,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     /// Create a VectorisedGraph from the current graph
     ///
     /// # Arguments:
-    ///   * embedding - the embedding function to translate documents to embeddings
-    ///   * cache - the file to be used as a cache to avoid calling the embedding function
-    ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
+    ///   * model - the embedding function to translate documents to embeddings
     ///   * template - the template to use to translate entities into documents
     ///   * verbose - whether or not to print logs reporting the progress
     ///
@@ -35,7 +33,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise(
         &self,
-        cache: VectorCache,
+        model: CachedEmbeddings,
         template: DocumentTemplate,
         path: Option<&Path>,
         verbose: bool,
@@ -46,7 +44,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
 impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
     async fn vectorise(
         &self,
-        cache: VectorCache,
+        model: CachedEmbeddings,
         template: DocumentTemplate,
         path: Option<&Path>,
         verbose: bool,
@@ -56,7 +54,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             .unwrap_or_else(|| Ok(Box::new(tempfile::tempdir()?)))?;
         let db_path_ref = db_path.as_ref().as_ref();
         let factory = LanceDb;
-        let dim = cache.get_vector_sample().len();
+        let dim = model.get_sample().len();
         if verbose {
             info!("computing embeddings for nodes");
         }
@@ -64,7 +62,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let node_docs = nodes
             .iter()
             .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u64, doc)));
-        let node_vectors = compute_embeddings(node_docs, &cache);
+        let node_vectors = compute_embeddings(node_docs, &model);
         let node_db = NodeDb(factory.new_collection(db_path_ref, "nodes", dim).await?); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
         node_db.insert_vector_stream(node_vectors).await.unwrap();
         node_db.create_index().await;
@@ -78,7 +76,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
                 .edge(edge)
                 .map(|doc| (edge.edge.pid().0 as u64, doc))
         });
-        let edge_vectors = compute_embeddings(edge_docs, &cache);
+        let edge_vectors = compute_embeddings(edge_docs, &model);
         let edge_db = EdgeDb(factory.new_collection(db_path_ref, "edges", dim).await?); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
         edge_db.insert_vector_stream(edge_vectors).await.unwrap();
         edge_db.create_index().await;
@@ -86,8 +84,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         if let Some(path) = path {
             let meta = VectorMeta {
                 template: template.clone(),
-                sample: cache.get_vector_sample(),
-                embeddings: Embeddings::OpenAI(Default::default()), // FIXME: this is just to make it compile, consider removing the default impl
+                model: model.model.clone(),
             };
             meta.write_to_path(path)?;
         }
@@ -97,7 +94,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         Ok(VectorisedGraph {
             source_graph: self.clone(),
             template,
-            cache,
+            model,
             node_db,
             edge_db,
         })

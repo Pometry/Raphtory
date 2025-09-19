@@ -1,6 +1,6 @@
 use super::{
     cache::VectorCache,
-    entity_db::{EdgeDb, EntityDb, NodeDb},
+    entity_db::{EdgeDb, NodeDb},
     template::DocumentTemplate,
     vectorised_graph::VectorisedGraph,
 };
@@ -8,8 +8,9 @@ use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{GraphError, GraphResult},
     vectors::{
+        cache::EmbeddingCacher,
+        embeddings::SampledModel,
         vector_collection::{lancedb::LanceDb, VectorCollectionFactory},
-        Embedding,
     },
 };
 use async_openai::config::{OpenAIConfig, OPENAI_API_BASE};
@@ -17,9 +18,10 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct OpenAIEmbeddings {
     pub model: String,
     pub api_base: Option<String>,
@@ -58,16 +60,10 @@ impl OpenAIEmbeddings {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum Embeddings {
-    OpenAI(OpenAIEmbeddings),
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub(super) struct VectorMeta {
     pub(super) template: DocumentTemplate,
-    pub(super) sample: Embedding,
-    pub(super) embeddings: Embeddings,
+    pub(super) model: SampledModel,
 }
 
 impl VectorMeta {
@@ -76,24 +72,40 @@ impl VectorMeta {
         serde_json::to_writer(file, self)?;
         Ok(())
     }
+
+    pub(super) async fn read_from_path(path: &Path) -> GraphResult<Self> {
+        let meta_string = std::fs::read_to_string(path)?;
+        let meta: VectorMeta = serde_json::from_str(&meta_string)?;
+        let sample = meta.model.model.generate_sample().await?;
+        if sample == meta.model.sample {
+            Ok(meta)
+        } else {
+            panic!("") // TODO: turn this into an error
+        }
+    }
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub async fn read_from_path(path: &Path, graph: G, cache: VectorCache) -> GraphResult<Self> {
-        let meta_string = std::fs::read_to_string(meta_path(path))?;
-        let meta: VectorMeta = serde_json::from_str(&meta_string)?;
+    pub async fn read_from_path(
+        path: &Path,
+        graph: G,
+        cache: Arc<VectorCache>,
+    ) -> GraphResult<Self> {
+        let meta = VectorMeta::read_from_path(&meta_path(path)).await?;
 
         let factory = LanceDb;
         let db_path = db_path(path);
-        let dim = meta.sample.len();
+        let dim = meta.model.sample.len();
         // TODO: put table names in common place? maybe some trait function for EntityDb that returns it
         let node_db = NodeDb(factory.from_path(&db_path, "nodes", dim).await?);
         let edge_db = EdgeDb(factory.from_path(&db_path, "edges", dim).await?);
 
+        let model = cache.cache_model(meta.model).await?.into();
+
         Ok(VectorisedGraph {
             template: meta.template,
             source_graph: graph,
-            cache,
+            model,
             node_db,
             edge_db,
         })
@@ -110,33 +122,25 @@ pub(super) fn db_path(path: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod vector_storage_tests {
-    use async_openai::config::OpenAIConfig;
+    // #[test]
+    // fn test_vector_meta() {
+    //     let meta = VectorMeta {
+    //         template: DocumentTemplate::default(),
+    //         sample: vec![1.0].into(),
+    //         embeddings: SampledModel::OpenAI(StoredOpenAIEmbeddings {
+    //             model: "text-embedding-3-small".to_owned(),
+    //             config: Default::default(),
+    //         }),
+    //     };
+    //     let serialised = serde_json::to_string_pretty(&meta).unwrap();
+    //     println!("{serialised}");
 
-    use crate::vectors::{
-        embeddings::OpenAIEmbeddings,
-        storage::{Embeddings, StoredOpenAIEmbeddings, VectorMeta},
-        template::DocumentTemplate,
-    };
+    //     if let SampledModel::OpenAI(embeddings) = meta.embeddings {
+    //         let embeddings: OpenAIEmbeddings = embeddings.try_into().unwrap();
+    //     } else {
+    //         panic!("should not be here");
+    //     }
 
-    #[test]
-    fn test_vector_meta() {
-        let meta = VectorMeta {
-            template: DocumentTemplate::default(),
-            sample: vec![1.0].into(),
-            embeddings: Embeddings::OpenAI(StoredOpenAIEmbeddings {
-                model: "text-embedding-3-small".to_owned(),
-                config: Default::default(),
-            }),
-        };
-        let serialised = serde_json::to_string_pretty(&meta).unwrap();
-        println!("{serialised}");
-
-        if let Embeddings::OpenAI(embeddings) = meta.embeddings {
-            let embeddings: OpenAIEmbeddings = embeddings.try_into().unwrap();
-        } else {
-            panic!("should not be here");
-        }
-
-        // panic!("here");
-    }
+    //     // panic!("here");
+    // }
 }

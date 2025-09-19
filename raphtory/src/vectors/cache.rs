@@ -1,5 +1,7 @@
-use super::embeddings::EmbeddingFunction;
-use crate::{errors::GraphResult, vectors::Embedding};
+use crate::{
+    errors::GraphResult,
+    vectors::{embeddings::SampledModel, Embedding},
+};
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
 use itertools::Itertools;
@@ -12,8 +14,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
-const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
 
 const MAX_DISK_ITEMS: usize = 1_000_000;
 const MAX_VECTOR_DIM: usize = 8960;
@@ -36,6 +36,7 @@ impl VectorStore {
     fn in_memory() -> Self {
         Self::Mem(Default::default())
     }
+
     fn on_disk(path: &Path) -> GraphResult<Self> {
         let _ = std::fs::create_dir_all(path);
         let page_size = 16384;
@@ -103,27 +104,22 @@ impl VectorStore {
     }
 }
 
-#[derive(PartialEq, Clone)]
-struct EmbeddingFootprint {
-    hash: u64,
-    vector_sample: Embedding,
-}
-
 // #[derive(Clone)]
 pub struct VectorCache {
     store: Arc<VectorStore>,
     cache: Cache<u64, ()>,
-    functions: RwLock<Vec<EmbeddingFootprint>>,
+    models: RwLock<Vec<SampledModel>>,
 }
 
 impl VectorCache {
     // FIXME: this doesnt need to be async anymore
-    pub async fn in_memory() -> GraphResult<Self> {
-        Ok(Self {
+    pub fn in_memory() -> Arc<Self> {
+        Self {
             store: VectorStore::in_memory().into(),
             cache: Cache::new(10),
-            functions: Default::default(),
-        })
+            models: Default::default(),
+        }
+        .into()
     }
 
     pub async fn on_disk(path: &Path) -> GraphResult<Self> {
@@ -142,12 +138,12 @@ impl VectorCache {
         Ok(Self {
             store,
             cache,
-            functions: Default::default(),
+            models: Default::default(),
         })
     }
 
     async fn get(&self, model: usize, text: &str) -> Option<Embedding> {
-        let hash = hash(text);
+        let hash = hash(model, text);
         self.cache.get(&hash).await?;
         let entry = self.store.get(&hash)?;
         if entry.model == model && entry.text == text {
@@ -158,7 +154,7 @@ impl VectorCache {
     }
 
     async fn insert(&self, model: usize, text: String, vector: Embedding) {
-        let hash = hash(&text);
+        let hash = hash(model, &text);
         let entry = CacheEntry {
             model,
             text,
@@ -169,51 +165,31 @@ impl VectorCache {
     }
 }
 
-trait EmbeddingCacher {
-    async fn cache(
-        &mut self,
-        embedding: impl EmbeddingFunction + 'static,
-    ) -> GraphResult<CachedEmbeddings>;
+pub trait EmbeddingCacher {
+    async fn cache_model(&self, model: SampledModel) -> GraphResult<CachedEmbeddings>;
 }
 
 impl EmbeddingCacher for Arc<VectorCache> {
-    async fn cache(
-        &mut self,
-        function: impl EmbeddingFunction + 'static,
-    ) -> GraphResult<CachedEmbeddings> {
-        let mut vectors = function.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
-        let vector_sample = vectors.remove(0);
-
-        let footprint = EmbeddingFootprint {
-            hash: function.get_hash(),
-            vector_sample,
-        };
-
-        let functions = self.functions.write();
-        let maybe_id = functions.iter().find_position(|f| &&footprint == f);
+    async fn cache_model(&self, model: SampledModel) -> GraphResult<CachedEmbeddings> {
+        let mut models = self.models.write();
+        let maybe_id = models.iter().find_position(|f| &&model == f);
         let id = if let Some((id, _)) = maybe_id {
             id
         } else {
-            functions.push(footprint.clone());
-            functions
-                .iter()
-                .find_position(|f| &&footprint == f)
-                .unwrap()
-                .0
+            models.push(model.clone());
+            models.iter().find_position(|f| &&model == f).unwrap().0
         };
 
-        Ok(CachedEmbeddings {
-            function: Arc::new(function),
-            cache: self.clone(),
-            id,
-        })
+        let cache = self.clone();
+        Ok(CachedEmbeddings { cache, id, model })
     }
 }
 
-struct CachedEmbeddings {
-    function: Arc<dyn EmbeddingFunction>,
+#[derive(Clone)]
+pub struct CachedEmbeddings {
     cache: Arc<VectorCache>, // TODO: review if ok using here a parking_lot::RwLock
     id: usize,
+    pub(super) model: SampledModel, // this is kind of duplicated, but enables skipping the rwlock
 }
 
 impl CachedEmbeddings {
@@ -239,7 +215,7 @@ impl CachedEmbeddings {
             })
             .collect();
         let mut fresh_vectors: VecDeque<_> = if !misses.is_empty() {
-            self.function.call(misses.clone()).await?.into()
+            self.model.call(misses.clone()).await?.into()
         } else {
             vec![].into()
         };
@@ -253,9 +229,13 @@ impl CachedEmbeddings {
         Ok(embeddings)
     }
 
-    pub async fn get_single(&self, text: String) -> GraphResult<Embedding> {
+    pub(super) async fn get_single(&self, text: String) -> GraphResult<Embedding> {
         let mut embeddings = self.get_embeddings(vec![text]).await?;
         Ok(embeddings.next().unwrap())
+    }
+
+    pub(super) fn get_sample(&self) -> &Embedding {
+        &self.model.sample
     }
 }
 
@@ -266,81 +246,93 @@ impl CachedEmbeddings {
 //     Ok(vectors.remove(0))
 // }
 
-fn hash(text: &str) -> u64 {
+fn hash(model: usize, text: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
+    model.hash(&mut hasher);
     text.hash(&mut hasher);
     hasher.finish()
 }
 
 #[cfg(test)]
 mod cache_tests {
+    use std::sync::Arc;
+
     use tempfile::tempdir;
 
-    use crate::vectors::{cache::CONTENT_SAMPLE, embeddings::EmbeddingResult, Embedding};
+    use crate::vectors::{
+        cache::EmbeddingCacher,
+        embeddings::{EmbeddingModel, EmbeddingResult},
+        Embedding,
+    };
 
     use super::VectorCache;
 
-    async fn placeholder_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
-        dbg!(texts);
-        todo!()
-    }
-
-    async fn test_abstract_cache(cache: VectorCache) {
-        let vector_a: Embedding = [1.0].into();
-        let vector_b: Embedding = [0.5].into();
-
-        assert_eq!(cache.get("a").await, None);
-        assert_eq!(cache.get("b").await, None);
-
-        cache.insert("a".to_owned(), vector_a.clone()).await;
-        assert_eq!(cache.get("a").await, Some(vector_a.clone()));
-        assert_eq!(cache.get("b").await, None);
-
-        cache.insert("b".to_owned(), vector_b.clone()).await;
-        assert_eq!(cache.get("a").await, Some(vector_a));
-        assert_eq!(cache.get("b").await, Some(vector_b));
+    async fn panicking_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+        panic!("panicking_embedding was called");
     }
 
     #[tokio::test]
     async fn test_empty_request() {
-        let cache = VectorCache::in_memory(placeholder_embedding).await.unwrap();
-        let result: Vec<_> = cache.get_embeddings(vec![]).await.unwrap().collect();
+        let cache = VectorCache::in_memory();
+        let model = cache
+            .cache_model(
+                EmbeddingModel::custom(panicking_embedding)
+                    .sampled()
+                    .await
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let result: Vec<_> = model.get_embeddings(vec![]).await.unwrap().collect();
         assert_eq!(result, vec![]);
     }
 
+    async fn test_abstract_cache(cache: Arc<VectorCache>) {
+        let vector_a: Embedding = [1.0].into();
+        let vector_a_alt: Embedding = [1.0, 0.0].into();
+        let vector_b: Embedding = [0.5].into();
+
+        assert_eq!(cache.get(0, "a").await, None);
+        assert_eq!(cache.get(1, "a").await, None);
+        assert_eq!(cache.get(0, "b").await, None);
+
+        cache.insert(0, "a".to_owned(), vector_a.clone()).await;
+        assert_eq!(cache.get(0, "a").await, Some(vector_a.clone()));
+        assert_eq!(cache.get(1, "a").await, None);
+        assert_eq!(cache.get(0, "b").await, None);
+
+        cache.insert(1, "a".to_owned(), vector_a_alt.clone()).await;
+        assert_eq!(cache.get(0, "a").await, Some(vector_a.clone()));
+        assert_eq!(cache.get(1, "a").await, Some(vector_a_alt.clone()));
+        assert_eq!(cache.get(0, "b").await, None);
+
+        cache.insert(0, "b".to_owned(), vector_b.clone()).await;
+        assert_eq!(cache.get(0, "a").await, Some(vector_a));
+        assert_eq!(cache.get(1, "a").await, Some(vector_a_alt));
+        assert_eq!(cache.get(0, "b").await, Some(vector_b));
+    }
+
     #[tokio::test]
-    async fn test_cache() {
-        let cache = VectorCache::in_memory(placeholder_embedding).await.unwrap();
+    async fn test_in_memory_cache() {
+        let cache = VectorCache::in_memory();
         test_abstract_cache(cache).await;
-        let dir = tempdir().unwrap();
-        test_abstract_cache(
-            VectorCache::on_disk(dir.path(), placeholder_embedding)
-                .await
-                .unwrap(),
-        )
-        .await;
     }
 
     #[tokio::test]
     async fn test_on_disk_cache() {
+        let dir = tempdir().unwrap();
+        test_abstract_cache(VectorCache::on_disk(dir.path()).await.unwrap().into()).await;
+    }
+
+    #[tokio::test]
+    async fn test_on_disk_cache_loading() {
         let vector: Embedding = [1.0].into();
         let dir = tempdir().unwrap();
 
-        {
-            let cache = VectorCache::on_disk(dir.path(), placeholder_embedding)
-                .await
-                .unwrap();
-            cache.insert("a".to_owned(), vector.clone()).await;
-        } // here the heed env gets closed
+        let cache = VectorCache::on_disk(dir.path()).await.unwrap();
+        cache.insert(0, "a".to_owned(), vector.clone()).await;
 
-        let loaded_from_disk = VectorCache::on_disk(dir.path(), placeholder_embedding)
-            .await
-            .unwrap();
-        assert_eq!(loaded_from_disk.get("a").await, Some(vector))
-    }
-
-    #[test]
-    fn test_vector_sample_remains_unchanged() {
-        assert_eq(CONTENT_SAMPLE, "raphtory");
+        let loaded_from_disk = VectorCache::on_disk(dir.path()).await.unwrap();
+        assert_eq!(loaded_from_disk.get(0, "a").await, Some(vector))
     }
 }

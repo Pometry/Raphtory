@@ -35,16 +35,21 @@ pub struct Document<G: StaticGraphViewOps> {
 
 #[cfg(test)]
 mod vector_tests {
-    use super::{embeddings::EmbeddingResult, *};
+    use super::embeddings::EmbeddingResult;
+    use crate::vectors::embeddings::EmbeddingModel;
+    use crate::vectors::storage::OpenAIEmbeddings;
+    use crate::vectors::template::DocumentTemplate;
     use crate::{
         prelude::*,
-        vectors::{cache::VectorCache, embeddings::OpenAIEmbeddings, vectorisable::Vectorisable},
+        vectors::{
+            cache::{CachedEmbeddings, EmbeddingCacher, VectorCache},
+            vectorisable::Vectorisable,
+            Embedding,
+        },
     };
-    use async_openai::config::OpenAIConfig;
     use itertools::Itertools;
     use raphtory_api::core::entities::properties::prop::Prop;
-    use std::{fs::remove_dir_all, path::PathBuf};
-    use template::DocumentTemplate;
+    use std::{fs::remove_dir_all, path::PathBuf, sync::Arc};
     use tokio;
 
     const NO_PROPS: [(&str, Prop); 0] = [];
@@ -54,6 +59,18 @@ mod vector_tests {
             .into_iter()
             .map(|_| vec![1.0, 0.0, 0.0].into())
             .collect_vec())
+    }
+
+    async fn create_fake_cached_model() -> CachedEmbeddings {
+        VectorCache::in_memory()
+            .cache_model(
+                EmbeddingModel::custom(fake_embedding) // TODO: end this boilerplate of sampled().await.unwrap()
+                    .sampled()
+                    .await
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
     }
 
     async fn panicking_embedding(_texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
@@ -73,29 +90,6 @@ mod vector_tests {
     }
 
     #[tokio::test]
-    async fn test_search() {
-        let g = Graph::new();
-        g.add_node(0, "1", NO_PROPS, None).unwrap();
-        g.add_node(0, "2", NO_PROPS, None).unwrap();
-        g.add_node(0, "3", NO_PROPS, None).unwrap();
-
-        let cache = VectorCache::in_memory(fake_embedding).await.unwrap();
-        let embedding = cache.get_single("3".to_owned()).await.unwrap();
-        let template = custom_template();
-        let v = g.vectorise(cache, template, None, false).await.unwrap();
-        let docs = v
-            .nodes_by_similarity(&embedding, 2, None)
-            .await
-            .unwrap()
-            .get_documents()
-            .await
-            .unwrap();
-
-        dbg!(docs);
-        panic!("here")
-    }
-
-    #[tokio::test]
     async fn test_embedding_cache() {
         let template = custom_template();
         let g = Graph::new();
@@ -104,28 +98,41 @@ mod vector_tests {
         let path = PathBuf::from("/tmp/raphtory/very/deep/path/embedding-cache-test");
         let _ = remove_dir_all(&path);
 
-        // the following creates the embeddings, and store them on the cache
-        {
-            let cache = VectorCache::on_disk(&path, fake_embedding).await.unwrap();
-            g.vectorise(cache, template.clone(), None, false)
-                .await
-                .unwrap();
-        } // the cache gets dropped here and the heed env released
+        let cache: Arc<_> = VectorCache::on_disk(&path).await.unwrap().into();
+        let model = cache
+            .cache_model(
+                EmbeddingModel::custom(fake_embedding)
+                    .sampled()
+                    .await
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        g.vectorise(model, template.clone(), None, false)
+            .await
+            .unwrap();
 
         // the following uses the embeddings from the cache, so it doesn't call the panicking
         // embedding, which would make the test fail
-        let cache = VectorCache::on_disk(&path, panicking_embedding)
+        let cache: Arc<_> = VectorCache::on_disk(&path).await.unwrap().into();
+        let model = cache
+            .cache_model(
+                EmbeddingModel::custom(panicking_embedding)
+                    .sampled()
+                    .await
+                    .unwrap(),
+            )
             .await
             .unwrap();
-        g.vectorise(cache, template, None, false).await.unwrap();
+        g.vectorise(model, template, None, false).await.unwrap();
     }
 
     #[tokio::test]
     async fn test_empty_graph() {
         let template = custom_template();
         let g = Graph::new();
-        let cache = VectorCache::in_memory(fake_embedding).await.unwrap();
-        let vectors = g.vectorise(cache, template, None, false).await.unwrap();
+        let model = create_fake_cached_model().await;
+        let vectors = g.vectorise(model, template, None, false).await.unwrap();
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()])
             .await
             .unwrap()
@@ -213,19 +220,25 @@ mod vector_tests {
         .unwrap();
 
         dotenv::dotenv().ok();
-        let cache = VectorCache::in_memory(OpenAIEmbeddings {
-            model: "text-embedding-3-small".to_owned(),
-            config: OpenAIConfig::default(),
-        })
-        .await
-        .unwrap();
-        let vectors = g
-            .vectorise(cache.clone(), template, None, false)
+
+        let cache = VectorCache::in_memory();
+        let model = cache
+            .cache_model(
+                EmbeddingModel::OpenAI(OpenAIEmbeddings {
+                    model: "text-embedding-3-small".to_owned(),
+                    ..Default::default()
+                })
+                .sampled()
+                .await
+                .unwrap(),
+            )
             .await
             .unwrap();
 
+        let vectors = g.vectorise(model, template, None, false).await.unwrap();
+
         let query = "Find a magician".to_owned();
-        let embedding = cache.get_single(query).await.unwrap();
+        let embedding = vectors.embed_text(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
             .await
@@ -237,7 +250,7 @@ mod vector_tests {
         assert!(docs[0].content.contains("Gandalf is a wizard"));
 
         let query = "Find a young person".to_owned();
-        let embedding = cache.get_single(query).await.unwrap();
+        let embedding = vectors.embed_text(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
             .await
@@ -249,7 +262,7 @@ mod vector_tests {
 
         // with window!
         let query = "Find a young person".to_owned();
-        let embedding = cache.get_single(query).await.unwrap();
+        let embedding = vectors.embed_text(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, Some((1, 3)))
             .await
@@ -260,7 +273,7 @@ mod vector_tests {
         assert!(!docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let query = "Has anyone appeared with anyone else?".to_owned();
-        let embedding = cache.get_single(query).await.unwrap();
+        let embedding = vectors.embed_text(query).await.unwrap();
         let docs = vectors
             .edges_by_similarity(&embedding, 1, None)
             .await
