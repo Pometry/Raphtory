@@ -1794,40 +1794,83 @@ def test_zero_step():
     run_group_graphql_error_test(queries_and_exceptions, graph)
 
 
-def test_wrong_window():
+def test_mismatched_window_step_and_errors():
     graph = Graph()
-    create_graph_epoch(graph)
+    create_graph_date(graph)
+    queries_and_expected_outputs = []
     queries_and_exceptions = []
-    mismatch_exception = "Your window and step must be of the same type: duration (string) or epoch (int)"
     parse_exception = "Failed to parse time string: one of the tokens in the interval string supposed to be a number couldn't be parsed"
     parse_exception2 = "Failed to parse time string: 'monthdas' is not a valid unit"
     too_many_exception = "Invalid value for argument \\"
-    # graph fail test
+    # go forward 1 hour (end of window), then go back 1 day (start of window) from the earliest event in the graph (2025-01-01 00:00:00)
     query = """
     {
       graph(path: "g") {
-        rolling(window:{duration:"1 day"},step:{epoch:100}){
-                list{
-            earliestTime
+        rolling(window: {duration: "1 day"}, step: {epoch: 3600000}) {
+          page(limit: 3) {
+            start
           }
         }
       }
     }
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(datetime(2024, 12, 31, 1, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2024, 12, 31, 2, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2024, 12, 31, 3, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    }
+                ]
+            }
+        }
+    }
+    queries_and_expected_outputs.append((query, expected_output))
 
+    # go forward 1 day (end of window), then go back 1 hour (start of window)
     query = """
     {
       graph(path: "g") {
-        rolling(window:{epoch:100},step:{duration:"1 day"}){
-                list{
-            earliestTime
+        rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
+          list {
+            start
+            end
           }
         }
       }
     }
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "list": [
+                    {
+                        "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 3, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 4, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 5, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    }
+                ]
+            }
+        }
+    }
+    queries_and_expected_outputs.append((query, expected_output))
 
     query = """
     {
@@ -1871,175 +1914,471 @@ def test_wrong_window():
     # node tests
     query = """
     {
-  graph(path: "g") {
-    node(name: "1") {
-      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
-        list {
-          earliestTime
+      graph(path: "g") {
+        node(name: "1") {
+          rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
+            page(limit: 3) {
+              start
+              end
+            }
+          }
         }
       }
     }
-  }
-}
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {
+        "graph": {
+            "node": {
+                "rolling": {
+                    "page": [
+                        {
+                            "start": int(datetime(2024, 12, 31, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000),
+                            "end": int(datetime(2025, 1, 1, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000)
+                        },
+                        {
+                            "start": int(datetime(2024, 12, 31, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000),
+                            "end": int(datetime(2025, 1, 1, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000)
+                        },
+                        {
+                            "start": int(datetime(2024, 12, 31, 0, 0, 0, 33_000, tzinfo=timezone.utc).timestamp() * 1000),
+                            "end": int(datetime(2025, 1, 1, 0, 0, 0, 33_000, tzinfo=timezone.utc).timestamp() * 1000)
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    queries_and_expected_outputs.append((query, expected_output))
 
     query = """
     {
-  graph(path: "g") {
-    node(name: "1") {
-      rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
-        list {
-          earliestTime
+      graph(path: "g") {
+        node(name: "1") {
+          rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
+            page(limit: 3) {
+              start
+              end
+            }
+          }
         }
       }
     }
-  }
-}
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {"graph": {
+        "node": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 3, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
 
     # nodes tests
     query = """
     {
-  graph(path: "g") {
-    nodes {
-      list {
-      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
-          list {
-            earliestTime
-          }
-        }
-      }
-    }
-  }
-}
-    """
-    queries_and_exceptions.append((query, mismatch_exception))
-
-    query = """
-{
-  graph(path: "g") {
-    nodes {
-      list {
-        rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
-          list {
-            earliestTime
-          }
-        }
-      }
-    }
-  }
-}
-    """
-    queries_and_exceptions.append((query, mismatch_exception))
-
-    # path from nodes tests
-    query = """
-{
-  graph(path: "g") {
-    node(name: "1") {
-      neighbours {
-      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
-          list {
-            list {
-              earliestTime
+      graph(path: "g") {
+        nodes {
+          page(limit: 2) {
+            rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
+              page(limit: 2) {
+                start
+                end
+              }
             }
           }
         }
       }
     }
-  }
-}
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {"graph": {
+        "nodes": {
+            "page": [
+                {
+                    "rolling": {
+                        "page": [
+                            {
+                                "start": int(datetime(2024, 12, 31, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000),
+                                "end": int(datetime(2025, 1, 1, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000)
+                            },
+                            {
+                                "start": int(datetime(2024, 12, 31, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000),
+                                "end": int(datetime(2025, 1, 1, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000)
+                            }
+                        ]
+                    }
+                },
+                {
+                    "rolling": {
+                        "page": [
+                            {
+                                "start": int(datetime(2024, 12, 31, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000),
+                                "end": int(datetime(2025, 1, 1, 0, 0, 0, 11_000, tzinfo=timezone.utc).timestamp() * 1000)
+                            },
+                            {
+                                "start": int(datetime(2024, 12, 31, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000),
+                                "end": int(datetime(2025, 1, 1, 0, 0, 0, 22_000, tzinfo=timezone.utc).timestamp() * 1000)
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
 
     query = """
-{
-  graph(path: "g") {
-    node(name: "1") {
-      neighbours {
-        rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
-          list {
-            list {
-              earliestTime
+    {
+      graph(path: "g") {
+        nodes {
+          page(limit: 2) {
+            rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
+              page(limit: 2) {
+                start
+                end
+              }
             }
           }
         }
       }
     }
-  }
-}
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {"graph": {
+        "nodes": {
+            "page": [
+                {
+                    "rolling": {
+                        "page": [
+                            {
+                                "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            },
+                            {
+                                "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            }
+                        ]
+                    }
+                },
+                {
+                    "rolling": {
+                        "page": [
+                            {
+                                "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            },
+                            {
+                                "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # path from nodes tests, epoch is 1 minute
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "1") {
+          neighbours {
+            rolling(window: {duration: "1 day"}, step: {epoch: 60000}) {
+              page(limit: 2) {
+                page(limit: 2) {
+                  start
+                  end
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "node": {
+            "neighbours": {
+                "rolling": {
+                    "page": [
+                        {
+                            "page": [
+                                {
+                                    "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
+                                    "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
+                                },
+                                {
+                                    "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
+                                    "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
+                                    "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
+                                },
+                                {
+                                    "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
+                                    "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "1") {
+          neighbours {
+            rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
+              page(limit: 2) {
+                page(limit: 2) {
+                  start
+                  end
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "node": {
+            "neighbours": {
+                "rolling": {
+                    "page": [
+                        {
+                            "page": [
+                                {
+                                    "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                    "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                                },
+                                {
+                                    "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                    "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                    "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                                },
+                                {
+                                    "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                    "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
 
     # edge tests
     query = """
-{
-  graph(path: "g") {
-    edge(src: "1", dst: "2") {
-      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
-        list {
-          earliestTime
+    {
+      graph(path: "g") {
+        edge(src: "1", dst: "2") {
+          rolling(window: {duration: "1 day"}, step: {epoch: 60000}) {
+            page(limit: 3) {
+              start
+              end
+            }
+          }
         }
       }
     }
-  }
-}
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {"graph": {
+        "edge": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2024, 12, 31, 0, 3,  tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 1, 0, 3, tzinfo=timezone.utc).timestamp()) * 1000
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
 
     query = """
-{
-  graph(path: "g") {
-    edge(src: "1", dst: "2") {
-      rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
-        list {
-          earliestTime
+    {
+      graph(path: "g") {
+        edge(src: "1", dst: "2") {
+          rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
+            list {
+              start
+              end
+            }
+          }
         }
       }
     }
-  }
-}
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {"graph": {
+        "edge": {
+            "rolling": {
+                "list": [
+                    {
+                        "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 3, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 4, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 5, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
 
     # edges tests
     query = """
-{
-  graph(path: "g") {
-    edges {
-      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
-        list {
-          list{
-            earliestTime
+    {
+      graph(path: "g") {
+        edges {
+          rolling(window: {duration: "1 day"}, step: {epoch: 60000}) {
+            page(limit: 2) {
+              page(limit: 2) {
+                start
+                end
+              }
+            }
           }
-          
         }
       }
     }
-  }
-}
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {"graph": {
+        "edges": {
+            "rolling": {
+                "page": [
+                    {
+                        "page": [
+                            {
+                                "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
+                            },
+                            {
+                                "start": int(datetime(2024, 12, 31, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 1, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
+                            }
+                        ]
+                    },
+                    {
+                        "page": [
+                            {
+                                "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
+                            },
+                            {
+                                "start": int(datetime(2024, 12, 31, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 1, 0, 2, tzinfo=timezone.utc).timestamp()) * 1000
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
 
     query = """
-{
-  graph(path: "g") {
-    edges {
-      rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
-        list {
-          list{
-            earliestTime
+    {
+      graph(path: "g") {
+        edges {
+          rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
+            page(limit: 2) {
+              page(limit: 2) {
+                start
+                end
+              }
+            }
           }
-          
         }
       }
     }
-  }
-}
     """
-    queries_and_exceptions.append((query, mismatch_exception))
+    expected_output = {"graph": {
+        "edges": {
+            "rolling": {
+                "page": [
+                    {
+                        "page": [
+                            {
+                                "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            },
+                            {
+                                "start": int(datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            }
+                        ]
+                    },
+                    {
+                        "page": [
+                            {
+                                "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            },
+                            {
+                                "start": int(datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    run_group_graphql_test(queries_and_expected_outputs, graph)
     run_group_graphql_error_test(queries_and_exceptions, graph)
 
 def test_alignment():
