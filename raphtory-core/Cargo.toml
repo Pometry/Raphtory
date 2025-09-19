@@ -13,7 +13,7 @@ rust-version.workspace = true
 edition.workspace = true
 
 [dependencies]
-raphtory-api = { workspace = true }
+raphtory-api = { workspace = true, features = ["arrow"] }
 dashmap = { workspace = true, features = ["raw-api"] }
 hashbrown = { workspace = true }
 either = { workspace = true }

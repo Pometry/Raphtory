@@ -15,7 +15,7 @@ use chrono::{DateTime, NaiveDateTime};
 use either::Either;
 use lazy_vec::LazyVec;
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropRef, PropType},
+    entities::properties::prop::{prop_type_from_arrow_dtype, Prop, PropRef, PropType},
     storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHashMap;
@@ -68,6 +68,13 @@ impl TColumns {
         }
     }
 
+    pub fn ensure_column(&mut self, prop_id: usize) {
+        if self.t_props_log.len() <= prop_id {
+            self.t_props_log
+                .resize_with(prop_id + 1, || PropColumn::Empty(self.num_rows));
+        }
+    }
+
     pub fn push_null(&mut self) -> usize {
         let id = self.num_rows;
         for col in self.t_props_log.iter_mut() {
@@ -103,6 +110,18 @@ impl TColumns {
 
     pub fn num_columns(&self) -> usize {
         self.t_props_log.len()
+    }
+
+    pub fn reset_len(&mut self) {
+        self.num_rows = self
+            .t_props_log
+            .iter()
+            .map(|col| col.len())
+            .max()
+            .unwrap_or(0);
+        self.t_props_log
+            .iter_mut()
+            .for_each(|col| col.grow(self.num_rows));
     }
 }
 
@@ -190,7 +209,33 @@ impl PropColumn {
         }
     }
 
+    fn init_from_prop_type(&mut self, prop_type: PropType) {
+        if let PropColumn::Empty(len) = self {
+            match prop_type {
+                PropType::Bool => *self = PropColumn::Bool(LazyVec::with_len(*len)),
+                PropType::I64 => *self = PropColumn::I64(LazyVec::with_len(*len)),
+                PropType::U32 => *self = PropColumn::U32(LazyVec::with_len(*len)),
+                PropType::U64 => *self = PropColumn::U64(LazyVec::with_len(*len)),
+                PropType::F32 => *self = PropColumn::F32(LazyVec::with_len(*len)),
+                PropType::F64 => *self = PropColumn::F64(LazyVec::with_len(*len)),
+                PropType::Str => *self = PropColumn::Str(LazyVec::with_len(*len)),
+                #[cfg(feature = "arrow")]
+                PropType::Array(_) => *self = PropColumn::Array(LazyVec::with_len(*len)),
+                PropType::U8 => *self = PropColumn::U8(LazyVec::with_len(*len)),
+                PropType::U16 => *self = PropColumn::U16(LazyVec::with_len(*len)),
+                PropType::I32 => *self = PropColumn::I32(LazyVec::with_len(*len)),
+                PropType::List(_) => *self = PropColumn::List(LazyVec::with_len(*len)),
+                PropType::Map(_) => *self = PropColumn::Map(LazyVec::with_len(*len)),
+                PropType::NDTime => *self = PropColumn::NDTime(LazyVec::with_len(*len)),
+                PropType::DTime => *self = PropColumn::DTime(LazyVec::with_len(*len)),
+                PropType::Decimal { .. } => *self = PropColumn::Decimal(LazyVec::with_len(*len)),
+                _ => {}
+            }
+        }
+    }
+
     pub fn append(&mut self, col: &dyn Array, mask: &BooleanArray) {
+        self.init_from_prop_type(prop_type_from_arrow_dtype(col.data_type()));
         match self {
             PropColumn::Bool(v) => v.append(col.as_boolean(), mask),
             PropColumn::I64(v) => v.append(col.as_primitive::<Int64Type>(), mask),
