@@ -239,13 +239,6 @@ impl CachedEmbeddings {
     }
 }
 
-// const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
-
-// async fn get_vector_sample(function: &impl EmbeddingFunction) -> GraphResult<Embedding> {
-//     let mut vectors = function.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
-//     Ok(vectors.remove(0))
-// }
-
 fn hash(model: usize, text: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     model.hash(&mut hasher);
