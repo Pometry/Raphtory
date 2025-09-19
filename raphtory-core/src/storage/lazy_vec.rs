@@ -1,3 +1,4 @@
+use arrow_array::BooleanArray;
 use raphtory_api::iter::BoxedLIter;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter};
@@ -167,6 +168,33 @@ impl<A> LazyVec<A>
 where
     A: PartialEq + Default + Debug + Sync + Send + Clone,
 {
+    pub fn append(&mut self, items: impl IntoIterator<Item = Option<A>>, mask: &BooleanArray) {
+        if !matches!(self, LazyVec::LazyVecN(_, _)) {
+            match self {
+                LazyVec::Empty => {
+                    *self = LazyVec::LazyVecN(A::default(), MaskedCol::default());
+                }
+                LazyVec::LazyVec1(_, tuples) => {
+                    let mut take = TupleCol::default();
+                    std::mem::swap(&mut take, tuples);
+                    *self = LazyVec::LazyVecN(A::default(), MaskedCol::from(take));
+                }
+                _ => {}
+            }
+        }
+
+        match self {
+            LazyVec::LazyVecN(_, vector) => {
+                for (item, is_valid) in items.into_iter().zip(mask.values().iter()) {
+                    if is_valid {
+                        vector.push(item);
+                    }
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
     // fails if there is already a value set for the given id to a different value
 
     pub fn upsert(&mut self, id: usize, value: A) {

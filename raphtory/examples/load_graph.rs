@@ -27,10 +27,10 @@ fn main() {
     ];
     let layers = [
         "dai_arb_edge_list",
-        // "usdc_arb_edge_list",
-        // "usdc_e_arb_edge_list",
-        // "usde_arb_edge_list",
-        // "usdt_arb_edge_list",
+        "usdc_arb_edge_list",
+        "usdc_e_arb_edge_list",
+        "usde_arb_edge_list",
+        "usdt_arb_edge_list",
         "usdx_arb_edge_list",
     ];
     let parquet_root = "/Volumes/Work/assets/optimism";

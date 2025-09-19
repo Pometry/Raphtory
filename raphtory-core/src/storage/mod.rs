@@ -2,7 +2,17 @@ use crate::{
     entities::properties::{props::TPropError, tprop::IllegalPropType},
     storage::lazy_vec::IllegalSet,
 };
+use arrow_array::{
+    cast::AsArray,
+    types::{
+        Float32Type, Float64Type, Int32Type, Int64Type, UInt16Type, UInt32Type, UInt64Type,
+        UInt8Type,
+    },
+    Array, BooleanArray, Date64Array, Decimal128Array, TimestampMillisecondArray,
+};
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, NaiveDateTime};
+use either::Either;
 use lazy_vec::LazyVec;
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropRef, PropType},
@@ -69,6 +79,10 @@ impl TColumns {
 
     pub fn get(&self, prop_id: usize) -> Option<&PropColumn> {
         self.t_props_log.get(prop_id)
+    }
+
+    pub fn get_mut(&mut self, prop_id: usize) -> Option<&mut PropColumn> {
+        self.t_props_log.get_mut(prop_id)
     }
 
     pub fn getx(&self, prop_id: usize) -> Option<&PropColumn> {
@@ -173,6 +187,62 @@ impl PropColumn {
     pub(crate) fn grow(&mut self, new_len: usize) {
         while self.len() < new_len {
             self.push_null();
+        }
+    }
+
+    pub fn append(&mut self, col: &dyn Array, mask: &BooleanArray) {
+        match self {
+            PropColumn::Bool(v) => v.append(col.as_boolean(), mask),
+            PropColumn::I64(v) => v.append(col.as_primitive::<Int64Type>(), mask),
+            PropColumn::U32(v) => v.append(col.as_primitive::<UInt32Type>(), mask),
+            PropColumn::U64(v) => v.append(col.as_primitive::<UInt64Type>(), mask),
+            PropColumn::F32(v) => v.append(col.as_primitive::<Float32Type>(), mask),
+            PropColumn::F64(v) => v.append(col.as_primitive::<Float64Type>(), mask),
+            PropColumn::Str(v) => {
+                let iter = col
+                    .as_string_opt::<i32>()
+                    .map(|iter| Either::Left(iter.into_iter()))
+                    .or_else(|| {
+                        col.as_string_opt::<i64>()
+                            .map(|iter| Either::Right(iter.into_iter()))
+                    })
+                    .expect("Failed to cast to StringArray");
+                v.append(iter.map(|opt| opt.map(ArcStr::from)), mask)
+            }
+            PropColumn::U8(v) => v.append(col.as_primitive::<UInt8Type>(), mask),
+            PropColumn::U16(v) => v.append(col.as_primitive::<UInt16Type>(), mask),
+            PropColumn::I32(v) => v.append(col.as_primitive::<Int32Type>(), mask),
+            PropColumn::NDTime(v) => v.append(
+                col.as_any()
+                    .downcast_ref::<TimestampMillisecondArray>()
+                    .expect("Failed to cast to Timestamp")
+                    .iter()
+                    .map(|value| DateTime::from_timestamp_millis(value?).map(|dt| dt.naive_utc())),
+                mask,
+            ),
+            PropColumn::DTime(v) => v.append(
+                col.as_any()
+                    .downcast_ref::<TimestampMillisecondArray>()
+                    .expect("failed to cast to Timestamp")
+                    .iter()
+                    .map(|value| DateTime::from_timestamp_millis(value?)),
+                mask,
+            ),
+            PropColumn::Decimal(v) => v.append(
+                // this needs a review if it actually works
+                col.as_any()
+                    .downcast_ref::<Decimal128Array>()
+                    .expect("Failed to cast to Timestamp")
+                    .iter()
+                    .map(|bd| bd.map(BigDecimal::from)),
+                mask,
+            ),
+            // PropColumn::List(v) => v.append(col, mask),
+            // PropColumn::Map(v) => v.append(col, mask),
+            // #[cfg(feature = "arrow")]
+            // PropColumn::Array(v) => v.append(col, mask),
+            // PropColumn::Empty(_) => {}
+            _ => { /* ignore unsupported types for now */ }
         }
     }
 

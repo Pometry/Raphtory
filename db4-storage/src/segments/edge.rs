@@ -3,11 +3,13 @@ use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
+    pages::resolve_pos,
     persist::strategy::PersistentStrategy,
     properties::PropMutEntry,
     segments::edge_entry::MemEdgeRef,
     utils::Iter4,
 };
+use arrow_array::{Array, BooleanArray};
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::entities::{
     VID,
@@ -15,7 +17,7 @@ use raphtory_api::core::entities::{
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::LayerIds,
+    entities::{EID, LayerIds},
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
@@ -140,6 +142,53 @@ impl MemEdgeSegment {
             .map(|entry| (entry.src, entry.dst))
     }
 
+    pub fn bulk_insert_edges_internal(
+        &mut self,
+        mask: &BooleanArray,
+        time: &[i64],
+        time_sec_index: usize,
+        eids: &[EID],
+        srcs: &[VID],
+        dsts: &[VID],
+        layer_id: usize,
+        cols: &[Box<dyn Array>],
+        col_mapping: &[usize], // mapping from cols to the property id
+    ) {
+        self.ensure_layer(layer_id);
+        let est_size = self.layers[layer_id].est_size();
+        let t_col_offset = self.layers[layer_id].properties().t_len();
+
+        let max_page_len = self.layers.get(layer_id).unwrap().max_page_len;
+        eids.iter()
+            .zip(srcs.iter().zip(dsts.iter()))
+            .zip(time)
+            .enumerate()
+            .fold(
+                (t_col_offset, time_sec_index),
+                |(t_col_offset, time_sec_index), (i, ((eid, (src, dst)), time))| {
+                    if mask.value(i) {
+                        let (_, local_pos) = resolve_pos(*eid, max_page_len);
+                        let row = self.reserve_local_row(local_pos, *src, *dst, layer_id);
+                        let mut prop = self.layers[layer_id].properties_mut().get_mut_entry(row);
+                        prop.set_time(TimeIndexEntry(*time, time_sec_index), t_col_offset);
+                        (t_col_offset + 1, time_sec_index + 1)
+                    } else {
+                        (t_col_offset, time_sec_index)
+                    }
+                },
+            );
+
+        let props = self.layers[layer_id].properties_mut();
+
+        for (prop_id, col) in col_mapping.iter().zip(cols) {
+            let column = props.t_column_mut(*prop_id).unwrap();
+            column.append(col.as_ref(), mask);
+        }
+
+        let layer_est_size = self.layers[layer_id].est_size();
+        self.est_size += layer_est_size.saturating_sub(est_size);
+    }
+
     pub fn insert_edge_internal<T: AsTime>(
         &mut self,
         t: T,
@@ -239,9 +288,6 @@ impl MemEdgeSegment {
     ) -> usize {
         let src = src.into();
         let dst = dst.into();
-
-        // Ensure we have enough layers
-        self.ensure_layer(layer_id);
 
         let row = self.layers[layer_id].reserve_local_row(edge_pos).inner();
         row.src = src;
@@ -519,7 +565,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
     fn layer_count(&self, layer_id: usize) -> u32 {
         self.head()
             .get_layer(layer_id)
-            .map_or(0, |layer| layer.len() as u32)
+            .map_or(0, |layer| layer.len())
     }
 }
 
