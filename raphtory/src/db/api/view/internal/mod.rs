@@ -104,14 +104,9 @@ pub trait InheritStorageOps: Base {}
 pub trait InternalStorageOps {
     fn get_storage(&self) -> Option<&Storage>;
 
-    /// Returns `true` if the underlying storage is persistent (i.e., data is saved to disk),
+    /// Returns `true` if the underlying storage saves data to disk,
     /// or `false` if the storage is in-memory only.
-    fn is_persistent(&self) -> bool {
-        match self.get_storage() {
-            Some(storage) => storage.is_persistent(),
-            None => false,
-        }
-    }
+    fn is_persistent(&self) -> bool;
 }
 
 impl<G: InheritStorageOps> InternalStorageOps for G
@@ -120,6 +115,10 @@ where
 {
     fn get_storage(&self) -> Option<&Storage> {
         self.base().get_storage()
+    }
+
+    fn is_persistent(&self) -> bool {
+        self.base().is_persistent()
     }
 }
 

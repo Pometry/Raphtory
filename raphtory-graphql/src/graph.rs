@@ -82,8 +82,6 @@ impl GraphWithVectors {
             VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
         });
 
-        println!("Graph loaded = {}", folder.get_original_path_str());
-
         if create_index {
             graph.create_index()?;
         }

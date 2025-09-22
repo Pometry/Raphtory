@@ -257,6 +257,10 @@ impl InternalStorageOps for Storage {
     fn get_storage(&self) -> Option<&Storage> {
         Some(self)
     }
+
+    fn is_persistent(&self) -> bool {
+        self.graph.is_persistent()
+    }
 }
 
 impl InheritNodeHistoryFilter for Storage {}

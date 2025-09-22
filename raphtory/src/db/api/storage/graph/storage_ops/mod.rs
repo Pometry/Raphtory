@@ -13,4 +13,8 @@ impl InternalStorageOps for GraphStorage {
     fn get_storage(&self) -> Option<&Storage> {
         None
     }
+
+    fn is_persistent(&self) -> bool {
+        self.is_persistent()
+    }
 }
