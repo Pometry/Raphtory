@@ -93,6 +93,13 @@ impl GraphStorage {
         }
     }
 
+    pub fn is_persistent(&self) -> bool {
+        match self {
+            GraphStorage::Mem(graph) => graph.graph.is_persistent(),
+            GraphStorage::Unlocked(graph) => graph.is_persistent(),
+        }
+    }
+
     #[inline(always)]
     pub fn nodes(&self) -> NodesStorageEntry<'_> {
         match self {

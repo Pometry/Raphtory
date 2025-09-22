@@ -103,6 +103,13 @@ pub trait InheritStorageOps: Base {}
 
 pub trait InternalStorageOps {
     fn get_storage(&self) -> Option<&Storage>;
+
+    fn is_persistent(&self) -> bool {
+        match self.get_storage() {
+            Some(storage) => storage.is_persistent(),
+            None => false,
+        }
+    }
 }
 
 impl<G: InheritStorageOps> InternalStorageOps for G
