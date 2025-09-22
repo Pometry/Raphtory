@@ -67,10 +67,14 @@ impl Data {
             .max_capacity(cache_configs.capacity)
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
             .eviction_listener(|_, graph, _| {
-                // On eviction, serialize graphs without underlying persistence.
+                // On eviction, serialize graphs that don't have underlying persistence.
                 // FIXME: don't have currently a way to know which embedding updates are pending
                 if !graph.graph.is_persistent() {
                     if let Some(folder) = graph.folder.get() {
+                        let _ = folder
+                            .clear()
+                            .map_err(|e| warn!("Error clearing graph folder on eviction: {e}"));
+
                         let _ = graph
                             .graph
                             .encode(folder.clone())
@@ -117,8 +121,10 @@ impl Data {
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
+                let graph_clone = graph.clone();
                 let folder_clone = folder.clone();
-                blocking_io(move || folder_clone.reserve()).await?;
+
+                blocking_io(move || graph_clone.encode(folder_clone.clone())).await?;
 
                 let vectors = self.vectorise(graph.clone(), &folder).await;
                 let graph = GraphWithVectors::new(graph, vectors);
@@ -231,10 +237,14 @@ impl Data {
 
 impl Drop for Data {
     fn drop(&mut self) {
-        // On drop, serialize graphs without underlying persistence.
+        // On drop, serialize graphs that don't have underlying persistence.
         for (_, graph) in self.cache.iter() {
             if !graph.graph.is_persistent() {
                 if let Some(folder) = graph.folder.get() {
+                    let _ = folder
+                    .clear()
+                    .map_err(|e| warn!("Error clearing graph folder on drop: {e}"));
+
                     let _ = graph
                         .graph
                         .encode(folder.clone())

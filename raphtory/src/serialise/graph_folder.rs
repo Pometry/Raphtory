@@ -55,6 +55,7 @@ impl GraphFolder {
     }
 
     /// Reserve a folder, marking it as occupied by a graph.
+    /// Returns an error if `write_as_zip_format` is true or if the folder has data.
     pub fn reserve(&self) -> Result<(), GraphError> {
         if self.write_as_zip_format {
             return Err(
@@ -74,6 +75,17 @@ impl GraphFolder {
     /// Returns true if folder is occupied by a graph.
     pub fn is_reserved(&self) -> bool {
         self.get_meta_path().exists()
+    }
+
+    /// Clears the folder of any contents.
+    pub fn clear(&self) -> Result<(), GraphError> {
+        if self.is_zip() {
+            return Err(GraphError::IOErrorMsg("Cannot clear a zip folder".to_string()));
+        }
+
+        fs::remove_dir_all(&self.root_folder)?;
+        fs::create_dir_all(&self.root_folder)?;
+        Ok(())
     }
 
     pub fn get_graph_path(&self) -> PathBuf {
