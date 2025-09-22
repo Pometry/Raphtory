@@ -5,7 +5,8 @@ use raphtory::{
     db::{
         api::view::{
             internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+                InheritEdgeHistoryFilter, InheritNodeHistoryFilter,
+                InheritStorageOps, Static
             },
             Base, InheritViewOps, MaterializedGraph,
         },

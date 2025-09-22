@@ -7,14 +7,12 @@ use crate::{
 use itertools::Itertools;
 use moka::future::Cache;
 use raphtory::{
-    db::api::view::MaterializedGraph,
-    errors::{GraphError, InvalidPathReason},
-    vectors::{
+    db::api::view::{internal::InternalStorageOps, MaterializedGraph}, errors::{GraphError, InvalidPathReason}, prelude::StableEncode, vectors::{
         cache::VectorCache,
         template::DocumentTemplate,
         vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
-    },
+    }
 };
 use std::{
     collections::HashMap,
@@ -69,7 +67,16 @@ impl Data {
             .max_capacity(cache_configs.capacity)
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
             .eviction_listener(|_, graph, _| {
+                // On eviction, serialize graphs without underlying persistence.
                 // FIXME: don't have currently a way to know which embedding updates are pending
+                if !graph.graph.is_persistent() {
+                    if let Some(folder) = graph.folder.get() {
+                        let _ = graph
+                            .graph
+                            .encode(folder.clone())
+                            .map_err(|e| warn!("Error serializing graph on eviction: {e}"));
+                    }
+                }
             })
             .build();
 
@@ -222,6 +229,22 @@ impl Data {
     }
 }
 
+impl Drop for Data {
+    fn drop(&mut self) {
+        // On drop, serialize graphs without underlying persistence.
+        for (_, graph) in self.cache.iter() {
+            if !graph.graph.is_persistent() {
+                if let Some(folder) = graph.folder.get() {
+                    let _ = graph
+                        .graph
+                        .encode(folder.clone())
+                        .map_err(|e| warn!("Error serializing graph on drop: {e}"));
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod data_tests {
     use super::ValidGraphFolder;
@@ -265,7 +288,7 @@ pub(crate) mod data_tests {
     ) -> Result<(), GraphError> {
         for (name, graph) in graphs.into_iter() {
             let data = Data::new(work_dir, &AppConfig::default());
-            let folder = ValidGraphFolder::try_from(data.work_dir, name)?;
+            let folder = ValidGraphFolder::try_from(data.work_dir.clone(), name)?;
             graph.encode(folder)?;
         }
         Ok(())
