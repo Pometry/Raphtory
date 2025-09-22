@@ -27,7 +27,7 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'NodeFilterBuilder', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'MetadataView', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'TimeIndexEntry', 'History', 'HistoryTimestamp', 'HistoryDateTime', 'HistorySecondaryIndex', 'Intervals', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -127,21 +127,12 @@ class GraphView(object):
         """
 
     @property
-    def earliest_date_time(self) -> Optional[datetime]:
+    def earliest_time(self) -> Optional[TimeIndexEntry]:
         """
-        DateTime of earliest activity in the graph
+        Time entry of the earliest activity in the graph
 
         Returns:
-            Optional[datetime]: the datetime of the earliest activity in the graph
-        """
-
-    @property
-    def earliest_time(self) -> Optional[int]:
-        """
-        Timestamp of earliest activity in the graph
-
-        Returns:
-            Optional[int]: the timestamp of the earliest activity in the graph
+            Optional[TimeIndexEntry]: the time entry of the earliest activity in the graph
         """
 
     def edge(self, src: NodeInput, dst: NodeInput) -> Optional[Edge]:
@@ -166,21 +157,12 @@ class GraphView(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this GraphView is valid.
 
         Returns:
-           Optional[int]: The latest time that this GraphView is valid or None if the GraphView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this GraphView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> GraphView:
@@ -348,21 +330,12 @@ class GraphView(object):
         """
 
     @property
-    def latest_date_time(self) -> Optional[datetime]:
+    def latest_time(self) -> Optional[TimeIndexEntry]:
         """
-        DateTime of latest activity in the graph
+        Time entry of the latest activity in the graph
 
         Returns:
-            Optional[datetime]: the datetime of the latest activity in the graph
-        """
-
-    @property
-    def latest_time(self) -> Optional[int]:
-        """
-        Timestamp of latest activity in the graph
-
-        Returns:
-            Optional[int]: the timestamp of the latest activity in the graph
+            Optional[TimeIndexEntry]: the time entry of the latest activity in the graph
         """
 
     def layer(self, name: str) -> GraphView:
@@ -478,34 +451,34 @@ class GraphView(object):
            list[Node]: A list of nodes which match the filter expression. The list will be empty if no nodes match.
         """
 
-    def shrink_end(self, end: TimeInput) -> GraphView:
+    def shrink_end(self, end: TimeIndexEntry) -> GraphView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              GraphView:
         """
 
-    def shrink_start(self, start: TimeInput) -> GraphView:
+    def shrink_start(self, start: TimeIndexEntry) -> GraphView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              GraphView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> GraphView:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> GraphView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              GraphView:
@@ -535,21 +508,12 @@ class GraphView(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this GraphView
 
         Returns:
-            Optional[int]: The earliest time that this GraphView is valid or None if the GraphView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this GraphView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this GraphView is valid or None if the GraphView is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     def subgraph(self, nodes: list[NodeInput]) -> GraphView:
@@ -2014,15 +1978,6 @@ class Node(object):
         """
 
     @property
-    def earliest_date_time(self) -> datetime:
-        """
-        Returns the earliest datetime that the node exists.
-
-        Returns:
-            datetime: The earliest datetime that the node exists as a Datetime.
-        """
-
-    @property
     def earliest_time(self) -> int:
         """
         Returns the earliest time that the node exists.
@@ -2050,21 +2005,12 @@ class Node(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this Node is valid.
 
         Returns:
-           Optional[int]: The latest time that this Node is valid or None if the Node is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this Node is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this Node is valid or None if the Node is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this Node is valid or None if the Node is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Node:
@@ -2168,21 +2114,13 @@ class Node(object):
             bool:
         """
 
-    def history(self) -> List[int]:
+    @property
+    def history(self) -> History:
         """
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            List[int]: A list of unix timestamps of the event history of node.
-        """
-
-    def history_date_time(self) -> List[datetime]:
-        """
-        Returns the history of a node, including node additions and changes made to node.
-
-        Returns:
-            List[datetime]: A list of timestamps of the event history of node.
-
+            History: A History object for the node, providing access to time entries.
         """
 
     @property
@@ -2237,15 +2175,6 @@ class Node(object):
 
         Returns:
              Node:
-        """
-
-    @property
-    def latest_date_time(self) -> datetime:
-        """
-        Returns the latest datetime that the node exists.
-
-        Returns:
-            datetime: The latest datetime that the node exists as a Datetime.
         """
 
     @property
@@ -2370,34 +2299,34 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> Node:
+    def shrink_end(self, end: TimeIndexEntry) -> Node:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              Node:
         """
 
-    def shrink_start(self, start: TimeInput) -> Node:
+    def shrink_start(self, start: TimeIndexEntry) -> Node:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              Node:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Node:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> Node:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              Node:
@@ -2427,21 +2356,12 @@ class Node(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this Node
 
         Returns:
-            Optional[int]: The earliest time that this Node is valid or None if the Node is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this Node is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this Node is valid or None if the Node is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this Node is valid or None if the Node is valid for all times.
         """
 
     def valid_layers(self, names: list[str]) -> Node:
@@ -2476,6 +2396,46 @@ class Node(object):
         Returns:
             Optional[int]:
         """
+
+class NodeFilterBuilder(object): 
+    """
+    A builder for constructing node filters
+
+    To create a filter builder see [Node][raphtory.filter.Node].
+    """
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value):
+        ...
+
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
+        ...
+
+    def is_in(self, values):
+        ...
+
+    def is_not_in(self, values):
+        ...
+
+    def not_contains(self, value):
+        ...
 
 class Nodes(object): 
     """A list of nodes that can be iterated over."""
@@ -2570,15 +2530,6 @@ class Nodes(object):
         """
 
     @property
-    def earliest_date_time(self) -> EarliestDateTimeView:
-        """
-        The earliest time nodes are active as datetime objects
-
-        Returns:
-            EarliestDateTimeView: a view of the earliest active times.
-        """
-
-    @property
     def earliest_time(self) -> EarliestTimeView:
         """
         The earliest times nodes are active
@@ -2606,21 +2557,12 @@ class Nodes(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this Nodes is valid.
 
         Returns:
-           Optional[int]: The latest time that this Nodes is valid or None if the Nodes is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this Nodes is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this Nodes is valid or None if the Nodes is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Nodes:
@@ -2724,22 +2666,13 @@ class Nodes(object):
             bool:
         """
 
+    @property
     def history(self) -> HistoryView:
         """
-        Returns all timestamps of nodes, when a node is added or change to a node is made.
+        Returns all history objects of nodes, with information on when a node is added or change to a node is made.
 
         Returns:
            HistoryView: a view of the node histories
-
-        """
-
-    def history_date_time(self) -> HistoryDateTimeView:
-        """
-        Returns all timestamps of nodes, when a node is added or change to a node is made.
-
-        Returns:
-           HistoryDateTimeView: a view of the node histories as datetime objects.
-
         """
 
     @property
@@ -2788,15 +2721,6 @@ class Nodes(object):
         """
 
     @property
-    def latest_date_time(self) -> LatestDateTimeView:
-        """
-        The latest time nodes are active as datetime objects
-
-        Returns:
-          LatestDateTimeView: a view of the latest active times
-        """
-
-    @property
     def latest_time(self) -> LatestTimeView:
         """
         The latest time nodes are active
@@ -2830,7 +2754,7 @@ class Nodes(object):
         """
 
     @property
-    def metadata(self):
+    def metadata(self) -> MetadataView:
         """
         The metadata of the node
 
@@ -2918,34 +2842,34 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> Nodes:
+    def shrink_end(self, end: TimeIndexEntry) -> Nodes:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              Nodes:
         """
 
-    def shrink_start(self, start: TimeInput) -> Nodes:
+    def shrink_start(self, start: TimeIndexEntry) -> Nodes:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              Nodes:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Nodes:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> Nodes:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              Nodes:
@@ -2975,21 +2899,12 @@ class Nodes(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this Nodes
 
         Returns:
-            Optional[int]: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this Nodes is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this Nodes is valid or None if the Nodes is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     def to_df(self, include_property_history: bool = False, convert_datetime: bool = False) -> DataFrame:
@@ -3108,6 +3023,14 @@ class PathFromNode(object):
              list[Node]: the list of nodes
         """
 
+    def combined_history(self) -> History:
+        """
+        Get a single history object containing time entries for all nodes in the path.
+
+        Returns:
+            History: History object with all time entries for the nodes.
+        """
+
     def default_layer(self) -> PathFromNode:
         """
          Return a view of PathFromNode containing only the default edge layer
@@ -3122,7 +3045,7 @@ class PathFromNode(object):
     def earliest_time(self):
         """the node earliest times"""
 
-    def edge_history_count(self):
+    def edge_history_count(self) -> UsizeIterable:
         """
         Get the number of edge updates for each node
 
@@ -3141,21 +3064,12 @@ class PathFromNode(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this PathFromNode is valid.
 
         Returns:
-           Optional[int]: The latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this PathFromNode is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> PathFromNode:
@@ -3386,34 +3300,34 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> PathFromNode:
+    def shrink_end(self, end: TimeIndexEntry) -> PathFromNode:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              PathFromNode:
         """
 
-    def shrink_start(self, start: TimeInput) -> PathFromNode:
+    def shrink_start(self, start: TimeIndexEntry) -> PathFromNode:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              PathFromNode:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> PathFromNode:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> PathFromNode:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              PathFromNode:
@@ -3443,21 +3357,12 @@ class PathFromNode(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this PathFromNode
 
         Returns:
-            Optional[int]: The earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this PathFromNode is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
         """
 
     def type_filter(self, node_types: list[str]) -> PathFromNode:
@@ -3559,6 +3464,14 @@ class PathFromGraph(object):
              list[list[Node]]: the list of nodes
         """
 
+    def combined_history(self) -> History:
+        """
+        Get a single history object containing time entries for all nodes in the path.
+
+        Returns:
+            History: A history object with all time entries associated with the nodes.
+        """
+
     def default_layer(self) -> PathFromGraph:
         """
          Return a view of PathFromGraph containing only the default edge layer
@@ -3568,10 +3481,6 @@ class PathFromGraph(object):
 
     def degree(self):
         """the node degrees"""
-
-    @property
-    def earliest_date_time(self):
-        """Returns the earliest date time of the nodes."""
 
     @property
     def earliest_time(self):
@@ -3591,21 +3500,12 @@ class PathFromGraph(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this PathFromGraph is valid.
 
         Returns:
-           Optional[int]: The latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this PathFromGraph is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> PathFromGraph:
@@ -3709,11 +3609,14 @@ class PathFromGraph(object):
             bool:
         """
 
+    @property
     def history(self):
-        """Returns all timestamps of nodes, when an node is added or change to an node is made."""
+        """
+        Returns a history object for each node with time entries for when a node is added or change to a node is made.
 
-    def history_date_time(self):
-        """Returns all timestamps of nodes, when an node is added or change to an node is made."""
+        Returns:
+            NestedHistoryIterable: A nested iterable of history objects, one for each node.
+        """
 
     @property
     def id(self):
@@ -3749,10 +3652,6 @@ class PathFromGraph(object):
         Returns:
              PathFromGraph:
         """
-
-    @property
-    def latest_date_time(self):
-        """Returns the latest date time of the nodes."""
 
     @property
     def latest_time(self):
@@ -3846,34 +3745,34 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> PathFromGraph:
+    def shrink_end(self, end: TimeIndexEntry) -> PathFromGraph:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              PathFromGraph:
         """
 
-    def shrink_start(self, start: TimeInput) -> PathFromGraph:
+    def shrink_start(self, start: TimeIndexEntry) -> PathFromGraph:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              PathFromGraph:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> PathFromGraph:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> PathFromGraph:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              PathFromGraph:
@@ -3903,21 +3802,12 @@ class PathFromGraph(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this PathFromGraph
 
         Returns:
-            Optional[int]: The earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this PathFromGraph is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
         """
 
     def type_filter(self, node_types: list[str]) -> PathFromGraph:
@@ -4084,15 +3974,6 @@ class Edge(object):
              Edge:
         """
 
-    @property
-    def date_time(self) -> datetime:
-        """
-        Gets the datetime of an exploded edge.
-
-        Returns:
-            datetime: the datetime of an exploded edge
-        """
-
     def default_layer(self) -> Edge:
         """
          Return a view of Edge containing only the default edge layer
@@ -4100,20 +3981,13 @@ class Edge(object):
              Edge: The layered view
         """
 
-    def deletions(self) -> List[int]:
+    @property
+    def deletions(self) -> History:
         """
-        Returns a list of timestamps of when an edge is deleted
+        Returns a history object with TimeIndexEntry entries for an edge's deletion times.
 
         Returns:
-            List[int]: A list of unix timestamps
-        """
-
-    def deletions_data_time(self):
-        """
-        Returns a list of timestamps of when an edge is deleted
-
-        Returns:
-            List[datetime]
+           History:  A history object containing time entries about the edge's deletions
         """
 
     @property
@@ -4121,39 +3995,21 @@ class Edge(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_date_time(self) -> datetime:
-        """
-        Gets of earliest datetime of an edge.
-
-        Returns:
-            datetime: the earliest datetime of an edge
-        """
-
-    @property
-    def earliest_time(self) -> int:
+    def earliest_time(self) -> TimeIndexEntry:
         """
         Gets the earliest time of an edge.
 
         Returns:
-            int: The earliest time of an edge
+            TimeIndexEntry: The earliest time of an edge
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this Edge is valid.
 
         Returns:
-           Optional[int]: The latest time that this Edge is valid or None if the Edge is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this Edge is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this Edge is valid or None if the Edge is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this Edge is valid or None if the Edge is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Edge:
@@ -4230,31 +4086,13 @@ class Edge(object):
             bool:
         """
 
-    def history(self) -> List[int]:
+    @property
+    def history(self) -> History:
         """
-        Returns a list of timestamps of when an edge is added or change to an edge is made.
+        Returns a history object with TimeIndexEntry entries for when an edge is added or change to an edge is made.
 
         Returns:
-           List[int]:  A list of unix timestamps.
-
-        """
-
-    def history_counts(self) -> int:
-        """
-        Returns the number of times an edge is added or change to an edge is made.
-
-        Returns:
-           int: The number of times an edge is added or change to an edge is made.
-
-        """
-
-    def history_date_time(self):
-        """
-        Returns a list of timestamps of when an edge is added or change to an edge is made.
-
-        Returns:
-            List[datetime]
-
+           History:  A history object containing temporal entries about the edge
         """
 
     @property
@@ -4298,21 +4136,12 @@ class Edge(object):
         """
 
     @property
-    def latest_date_time(self) -> datetime:
-        """
-        Gets of latest datetime of an edge.
-
-        Returns:
-            datetime: the latest datetime of an edge
-        """
-
-    @property
-    def latest_time(self) -> int:
+    def latest_time(self) -> TimeIndexEntry:
         """
         Gets the latest time of an edge.
 
         Returns:
-            int: The latest time of an edge
+            TimeIndexEntry: The latest time of an edge
         """
 
     def layer(self, name: str) -> Edge:
@@ -4394,34 +4223,34 @@ class Edge(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> Edge:
+    def shrink_end(self, end: TimeIndexEntry) -> Edge:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              Edge:
         """
 
-    def shrink_start(self, start: TimeInput) -> Edge:
+    def shrink_start(self, start: TimeIndexEntry) -> Edge:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              Edge:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Edge:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> Edge:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              Edge:
@@ -4455,21 +4284,12 @@ class Edge(object):
         """Returns the source node of the edge."""
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this Edge
 
         Returns:
-            Optional[int]: The earliest time that this Edge is valid or None if the Edge is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this Edge is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this Edge is valid or None if the Edge is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this Edge is valid or None if the Edge is valid for all times.
         """
 
     @property
@@ -4573,15 +4393,6 @@ class Edges(object):
     def count(self):
         """Returns the number of edges"""
 
-    @property
-    def date_time(self):
-        """
-        Returns the date times of exploded edges
-
-        Returns:
-           A list of date times.
-        """
-
     def default_layer(self) -> Edges:
         """
          Return a view of Edges containing only the default edge layer
@@ -4589,20 +4400,13 @@ class Edges(object):
              Edges: The layered view
         """
 
+    @property
     def deletions(self):
         """
-        Returns all timestamps of edges where an edge is deleted
+        Returns history objects for edges containing their deletion times.
 
         Returns:
-            A list of lists of unix timestamps
-        """
-
-    def deletions_date_time(self):
-        """
-        Returns all timestamps of edges where an edge is deleted
-
-        Returns:
-            A list of lists of DateTime objects
+           HistoryIterable: An iterable of history objects, one for each edge.
         """
 
     @property
@@ -4610,39 +4414,21 @@ class Edges(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_date_time(self):
-        """
-        Returns the earliest date time of the edges.
-
-        Returns:
-         Earliest date time of the edges.
-        """
-
-    @property
     def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
         Returns:
-        Earliest time of the edges.
+            OptionTimeIndexEntryIterable: Iterable of the earliest times of the edges as TimeIndexEntry entries.
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this Edges is valid.
 
         Returns:
-           Optional[int]: The latest time that this Edges is valid or None if the Edges is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this Edges is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this Edges is valid or None if the Edges is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this Edges is valid or None if the Edges is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Edges:
@@ -4719,25 +4505,13 @@ class Edges(object):
             bool:
         """
 
+    @property
     def history(self):
         """
-        Returns all timestamps of edges, when an edge is added or change to an edge is made.
+        Returns history objects for edges containing their time entries, when an edge is added or change to an edge is made.
 
         Returns:
-           A list of lists unix timestamps.
-
-        """
-
-    def history_counts(self):
-        ...
-
-    def history_date_time(self):
-        """
-        Returns all timestamps of edges, when an edge is added or change to an edge is made.
-
-        Returns:
-           A list of lists of timestamps.
-
+           HistoryIterable: An iterable of history objects, one for each edge.
         """
 
     @property
@@ -4745,7 +4519,7 @@ class Edges(object):
         """Returns all ids of the edges."""
 
     def is_active(self):
-        ...
+        """Check if the edges are active (i.e. there is at least one update during this time)"""
 
     def is_deleted(self):
         """Check if the edges are deleted"""
@@ -4765,21 +4539,12 @@ class Edges(object):
         """
 
     @property
-    def latest_date_time(self):
-        """
-        Returns the latest date time of the edges.
-
-        Returns:
-          Latest date time of the edges.
-        """
-
-    @property
     def latest_time(self):
         """
-        Returns the latest time of the edges.
+        Returns the latest times of the edges.
 
         Returns:
-         Latest time of the edges.
+            OptionTimeIndexEntryIterable: Iterable of the latest times of the edges as TimeIndexEntry entries.
         """
 
     def layer(self, name: str) -> Edges:
@@ -4825,7 +4590,7 @@ class Edges(object):
         """
 
     @property
-    def metadata(self):
+    def metadata(self) -> MetadataView:
         """
         Returns all the metadata of the edges
 
@@ -4861,34 +4626,34 @@ class Edges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> Edges:
+    def shrink_end(self, end: TimeIndexEntry) -> Edges:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              Edges:
         """
 
-    def shrink_start(self, start: TimeInput) -> Edges:
+    def shrink_start(self, start: TimeIndexEntry) -> Edges:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              Edges:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Edges:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> Edges:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              Edges:
@@ -4922,21 +4687,12 @@ class Edges(object):
         """Returns the source node of the edge."""
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this Edges
 
         Returns:
-            Optional[int]: The earliest time that this Edges is valid or None if the Edges is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this Edges is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this Edges is valid or None if the Edges is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this Edges is valid or None if the Edges is valid for all times.
         """
 
     @property
@@ -5056,10 +4812,6 @@ class NestedEdges(object):
              list[list[Edges]]: the list of edges
         """
 
-    @property
-    def date_time(self):
-        """Get the date times of exploded edges"""
-
     def default_layer(self) -> NestedEdges:
         """
          Return a view of NestedEdges containing only the default edge layer
@@ -5067,20 +4819,13 @@ class NestedEdges(object):
              NestedEdges: The layered view
         """
 
+    @property
     def deletions(self):
         """
-        Returns all timestamps of edges, where an edge is deleted
+        Get history objects for edges containing their deletion times.
 
         Returns:
-            A list of lists of lists of unix timestamps
-        """
-
-    def deletions_date_time(self):
-        """
-        Returns all timestamps of edges, where an edge is deleted
-
-        Returns:
-            A list of lists of lists of DateTime objects
+            NestedHistoryIterable: A nested iterable of history objects, one for each edge.
         """
 
     @property
@@ -5088,29 +4833,21 @@ class NestedEdges(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_date_time(self):
-        """Returns the earliest date time of the edges."""
-
-    @property
     def earliest_time(self):
-        """Returns the earliest time of the edges."""
+        """
+        Get the earliest time of the edges as TimeIndexEntry.
+
+        Returns:
+            NestedOptionTimeIndexEntryIterable: A nested iterable of the earliest times.
+        """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this NestedEdges is valid.
 
         Returns:
-           Optional[int]: The latest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this NestedEdges is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this NestedEdges is valid or None if the NestedEdges is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> NestedEdges:
@@ -5187,18 +4924,21 @@ class NestedEdges(object):
             bool:
         """
 
+    @property
     def history(self):
-        """Returns all timestamps of edges, when an edge is added or change to an edge is made."""
+        """
+        Get history objects for edges, containing time entries about when an edge is added or change to an edge is made.
 
-    def history_date_time(self):
-        """Returns all timestamps of edges, when an edge is added or change to an edge is made."""
+        Returns:
+            NestedHistoryIterable: A nested iterable of history objects, one for each edge.
+        """
 
     @property
     def id(self):
         """Returns all ids of the edges."""
 
     def is_active(self):
-        ...
+        """Check if the edges are active (i.e. there is at least one update during this time)"""
 
     def is_deleted(self):
         """Check if edges are deleted"""
@@ -5218,12 +4958,13 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_date_time(self):
-        """Returns the latest date time of the edges."""
-
-    @property
     def latest_time(self):
-        """Returns the latest time of the edges."""
+        """
+        Get the latest time of the edges as TimeIndexEntry.
+
+        Returns:
+            NestedOptionTimeIndexEntryIterable: A nested iterable of the latest times.
+        """
 
     def layer(self, name: str) -> NestedEdges:
         """
@@ -5284,34 +5025,34 @@ class NestedEdges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> NestedEdges:
+    def shrink_end(self, end: TimeIndexEntry) -> NestedEdges:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              NestedEdges:
         """
 
-    def shrink_start(self, start: TimeInput) -> NestedEdges:
+    def shrink_start(self, start: TimeIndexEntry) -> NestedEdges:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              NestedEdges:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> NestedEdges:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> NestedEdges:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              NestedEdges:
@@ -5345,26 +5086,25 @@ class NestedEdges(object):
         """Returns the source node of the edge."""
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this NestedEdges
 
         Returns:
-            Optional[int]: The earliest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this NestedEdges is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this NestedEdges is valid or None if the NestedEdges is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
         """
 
     @property
     def time(self):
-        """Returns the times of exploded edges"""
+        """
+        Returns the times of exploded edges.
+
+        Returns:
+            NestedTimeIndexEntryIterable: A nested iterable of the times of the exploded edges.
+
+        Raises:
+            GraphError: If a graph error occurs (e.g. the edges are not exploded).
+        """
 
     def valid_layers(self, names: list[str]) -> NestedEdges:
         """
@@ -5433,13 +5173,14 @@ class MutableEdge(Edge):
             GraphError: If the operation fails.
         """
 
-    def delete(self, t: TimeInput, layer: Optional[str] = None):
+    def delete(self, t: TimeInput, layer: Optional[str] = None, secondary_index: Optional[int] = None):
         """
         Mark the edge as deleted at the specified time.
 
         Parameters:
             t (TimeInput): The timestamp at which the deletion should be applied.
             layer (str, optional): The layer you want the deletion applied to .
+            secondary_index (int, optional): The secondary index for the time entry to delete at.
         """
 
     def update_metadata(self, metadata: PropInput, layer: Optional[str] = None):
@@ -5594,6 +5335,50 @@ class Metadata(object):
             list | Array: the property values
         """
 
+class MetadataView(object): 
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def as_dict(self):
+        ...
+
+    def get(self, key):
+        ...
+
+    def items(self):
+        ...
+
+    def keys(self):
+        ...
+
+    def values(self):
+        ...
+
 class TemporalProperties(object): 
     """A view of the temporal properties of an entity"""
 
@@ -5630,28 +5415,20 @@ class TemporalProperties(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, key) -> TemporalProp:
+    def get(self, key) -> TemporalProperty:
         """
         Get property value for `key` if it exists
 
         Returns:
-            TemporalProp: the property view if it exists, otherwise `None`
+            TemporalProperty: the property view if it exists, otherwise `None`
         """
 
-    def histories(self) -> dict[str, list[Tuple[int, PropValue]]]:
-        """
-        Get the histories of all properties
-
-        Returns:
-            dict[str, list[Tuple[int, PropValue]]]: the mapping of property keys to histories
-        """
-
-    def histories_date_time(self) -> dict[str, list[Tuple[datetime, PropValue]]]:
+    def histories(self) -> dict[str, list[Tuple[TimeIndexEntry, PropValue]]]:
         """
         Get the histories of all properties
 
         Returns:
-            dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
+            dict[str, list[Tuple[TimeIndexEntry, PropValue]]]: the mapping of property keys to histories
         """
 
     def items(self):
@@ -5668,12 +5445,12 @@ class TemporalProperties(object):
             dict[str, PropValue]: the mapping of property keys to latest values
         """
 
-    def values(self) -> list[TemporalProp]:
+    def values(self) -> list[TemporalProperty]:
         """
         List the values of the properties
 
         Returns:
-            list[TemporalProp]: the list of property views
+            list[TemporalProperty]: the list of property views
         """
 
 class PropertiesView(object): 
@@ -5727,7 +5504,7 @@ class PropertiesView(object):
     def values(self):
         """Get the values of the properties"""
 
-class TemporalProp(object): 
+class TemporalProperty(object): 
     """A view of a temporal property"""
 
     def __eq__(self, value):
@@ -5773,24 +5550,19 @@ class TemporalProp(object):
             int: The number of properties.
         """
 
+    @property
     def history(self):
-        """Get the timestamps at which the property was updated"""
-
-    def history_date_time(self):
-        """Get the timestamps at which the property was updated"""
+        """Get a history object which contains time entries for when the property was updated"""
 
     def items(self):
-        """List update timestamps and corresponding property values"""
+        """List update TimeIndexEntry and corresponding property values"""
 
-    def items_date_time(self):
-        """List update timestamps and corresponding property values"""
-
-    def max(self) -> Tuple[int, PropValue]:
+    def max(self) -> Tuple[TimeIndexEntry, PropValue]:
         """
         Find the maximum property value and its associated time.
 
         Returns:
-            Tuple[int, PropValue]: A tuple containing the time and the maximum property value.
+            Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the maximum property value.
         """
 
     def mean(self) -> PropValue:
@@ -5801,20 +5573,20 @@ class TemporalProp(object):
             PropValue: The mean of each property values, or None if count is zero.
         """
 
-    def median(self) -> Tuple[int, PropValue]:
+    def median(self) -> Tuple[TimeIndexEntry, PropValue]:
         """
         Compute the median of all property values.
 
         Returns:
-            Tuple[int, PropValue]: A tuple containing the time and the median property value, or None if empty
+            Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the median property value, or None if empty
         """
 
-    def min(self) -> Tuple[int, PropValue]:
+    def min(self) -> Tuple[TimeIndexEntry, PropValue]:
         """
         Find the minimum property value and its associated time.
 
         Returns:
-            Tuple[int, PropValue]: A tuple containing the time and the minimum property value.
+            Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the minimum property value.
         """
 
     def ordered_dedupe(self, latest_time):
@@ -5836,6 +5608,491 @@ class TemporalProp(object):
 
     def values(self):
         """Get the property values for each update"""
+
+class TimeIndexEntry(object): 
+    """Represents a time entry in Raphtory. Contains a primary timestamp and a secondary index for ordering within the same timestamp."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __hash__(self):
+        """Return hash(self)."""
+
+    def __int__(self):
+        """int(self)"""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @property
+    def as_tuple(self) -> tuple[int,int]:
+        """
+        Return this entry as a tuple of (timestamp_ms, secondary_index).
+
+        Returns:
+            tuple[int,int]: (timestamp, secondary_index).
+        """
+
+    @property
+    def dt(self) -> datetime:
+        """
+        Return the UTC datetime representation of this time entry.
+
+        Returns:
+            datetime: The UTC datetime corresponding to this entry's timestamp.
+
+        Raises:
+            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+        """
+
+    @staticmethod
+    def new(time: int | float | datetime | str | tuple) -> TimeIndexEntry:
+        """
+        Create a new TimeIndexEntry.
+
+        Arguments:
+           time (int | float | datetime | str | tuple): The time entry to be created. Pass a tuple/list of two of these components to specify the secondary index as well.
+        Returns:
+            TimeIndexEntry: A new time index entry.
+        """
+
+    @property
+    def secondary_index(self) -> int:
+        """
+        Return the secondary index associated with this time entry.
+
+        Returns:
+            int: The secondary index.
+        """
+
+    @property
+    def t(self) -> int:
+        """
+        Return the Unix timestamp in milliseconds.
+
+        Returns:
+            int: Milliseconds since the Unix epoch.
+        """
+
+class History(object): 
+    """History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, secondary indices, and intervals."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[TimeIndexEntry]:
+        """
+        Iterate over all time entries in reverse chronological order.
+
+        Returns:
+            Iterator[TimeIndexEntry]: Iterator over time entries in reverse order.
+        """
+
+    def collect(self) -> List[TimeIndexEntry]:
+        """
+        Collect all time entries in chronological order.
+
+        Returns:
+            List[TimeIndexEntry]: Collected time entries.
+        """
+
+    def collect_rev(self) -> List[TimeIndexEntry]:
+        """
+        Collect all time entries in reverse chronological order.
+
+        Returns:
+            List[TimeIndexEntry]: Collected time entries in reverse order.
+        """
+
+    @staticmethod
+    def compose_histories(objects: Iterable[History]) -> History:
+        """
+        Compose multiple History objects into a single History by fusing their time entries in chronological order.
+
+        Arguments:
+            objects (Iterable[History]): History objects to compose.
+
+        Returns:
+            History: Composed History object containing entries from all inputs.
+        """
+
+    @property
+    def dt(self) -> HistoryDateTime:
+        """
+        Access history events as UTC datetimes.
+
+        Returns:
+            HistoryDateTime: Datetime view of this history.
+        """
+
+    def earliest_time(self) -> Optional[TimeIndexEntry]:
+        """
+        Get the earliest time entry.
+
+        Returns:
+            Optional[TimeIndexEntry]: Earliest time entry, or None if empty.
+        """
+
+    @property
+    def intervals(self) -> Intervals:
+        """
+        Access the intervals between consecutive timestamps in milliseconds.
+
+        Returns:
+            Intervals: Intervals view of this history.
+        """
+
+    def is_empty(self) -> bool:
+        """
+        Check whether the history has no entries.
+
+        Returns:
+            bool: True if empty, otherwise False.
+        """
+
+    def latest_time(self) -> Optional[TimeIndexEntry]:
+        """
+        Get the latest time entry.
+
+        Returns:
+            Optional[TimeIndexEntry]: Latest time entry, or None if empty.
+        """
+
+    def merge(self, other: History) -> History:
+        """
+        Merge this History with another by interleaving entries in time order.
+
+        Arguments:
+            other (History): Right-hand history to merge.
+
+        Returns:
+            History: Merged history containing entries from both inputs.
+        """
+
+    def reverse(self) -> History:
+        """
+        Return a History where iteration order is reversed.
+
+        Returns:
+            History: History that yields items in reverse chronological order.
+        """
+
+    @property
+    def secondary_index(self) -> HistorySecondaryIndex:
+        """
+        Access the unique secondary index of each time entry.
+
+        Returns:
+            HistorySecondaryIndex: Secondary index view of this history.
+        """
+
+    @property
+    def t(self) -> HistoryTimestamp:
+        """
+        Access history events as timestamps (milliseconds since Unix epoch).
+
+        Returns:
+            HistoryTimestamp: Timestamp (as int) view of this history.
+        """
+
+class HistoryTimestamp(object): 
+    """History view that exposes timestamps in milliseconds since Unix epoch."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[int]:
+        """
+        Iterate over all timestamps in reverse order.
+
+        Returns:
+            Iterator[int]: Iterator over timestamps (milliseconds since Unix epoch) in reverse order.
+        """
+
+    def collect(self) -> NDArray[np.int64]:
+        """
+        Collect all timestamps into a numpy ndarray.
+
+        Returns:
+            NDArray[np.int64]: Timestamps in milliseconds since Unix epoch.
+        """
+
+    def collect_rev(self) -> NDArray[np.int64]:
+        """
+        Collect all timestamps into a numpy ndarray in reverse order.
+
+        Returns:
+            NDArray[np.int64]: Timestamps in milliseconds since Unix epoch in reverse order.
+        """
+
+class HistoryDateTime(object): 
+    """History view that exposes UTC datetimes."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[datetime]:
+        """
+        Iterate over all datetimes in reverse order.
+
+        Returns:
+            Iterator[datetime]: Iterator over UTC datetimes in reverse order.
+
+        Raises:
+            TimeError: May be raised during iteration if a timestamp cannot be converted.
+        """
+
+    def collect(self) -> List[datetime]:
+        """
+        Collect all datetimes.
+
+        Returns:
+            List[datetime]: Collected UTC datetimes.
+
+        Raises:
+            TimeError: If a timestamp cannot be converted to a datetime.
+        """
+
+    def collect_rev(self) -> List[datetime]:
+        """
+        Collect all datetimes in reverse order.
+
+        Returns:
+            List[datetime]: Collected UTC datetimes in reverse order.
+
+        Raises:
+            TimeError: If a timestamp cannot be converted to a datetime.
+        """
+
+class HistorySecondaryIndex(object): 
+    """History view that exposes secondary indices of time entries. They are used for ordering within the same timestamp."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[int]:
+        """
+        Iterate over all secondary indices in reverse order.
+
+        Returns:
+            Iterator[int]: Iterator over secondary indices in reverse order.
+        """
+
+    def collect(self) -> NDArray[np.uintp]:
+        """
+        Collect all secondary indices.
+
+        Returns:
+            NDArray[np.uintp]: Secondary indices.
+        """
+
+    def collect_rev(self) -> NDArray[np.uintp]:
+        """
+        Collect all secondary indices in reverse order.
+
+        Returns:
+            NDArray[np.uintp]: Secondary indices in reverse order.
+        """
+
+class Intervals(object): 
+    """View over the intervals between consecutive timestamps, expressed in milliseconds."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[int]:
+        """
+        Iterate over all intervals in reverse order.
+
+        Returns:
+            Iterator[int]: Iterator over intervals in reverse order.
+        """
+
+    def collect(self) -> NDArray[np.int64]:
+        """
+        Collect all interval values in milliseconds.
+
+        Returns:
+            NDArray[np.int64]: Intervals in milliseconds.
+        """
+
+    def collect_rev(self) -> NDArray[np.int64]:
+        """
+        Collect all interval values in reverse order.
+
+        Returns:
+            NDArray[np.int64]: Intervals in reverse order.
+        """
+
+    def max(self) -> Optional[int]:
+        """
+        Calculate the maximum interval in milliseconds.
+
+        Returns:
+            Optional[int]: Maximum interval, or None if fewer than 1 interval.
+        """
+
+    def mean(self) -> Optional[float]:
+        """
+        Calculate the mean interval in milliseconds.
+
+        Returns:
+            Optional[float]: Mean interval, or None if fewer than 1 interval.
+        """
+
+    def median(self) -> Optional[int]:
+        """
+        Calculate the median interval in milliseconds.
+
+        Returns:
+            Optional[int]: Median interval, or None if fewer than 1 interval.
+        """
+
+    def min(self) -> Optional[int]:
+        """
+        Calculate the minimum interval in milliseconds.
+
+        Returns:
+            Optional[int]: Minimum interval, or None if fewer than 1 interval.
+        """
 
 class WindowSet(object): 
 

@@ -222,7 +222,7 @@ mod test {
     use crate::{
         db::{
             api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
-            graph::graph::assert_graph_equal,
+            graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
         },
         prelude::*,
     };
@@ -886,12 +886,13 @@ mod test {
         graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
         graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
         let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        assert_graph_equal(&disk_graph, &graph);
+        // persisted graphs have different secondary indices on time entries
+        assert_graph_equal_timestamps(&disk_graph, &graph);
 
         let reloaded_graph = DiskGraphStorage::load_from_dir(graph_dir.path())
             .unwrap()
             .into_graph();
-        assert_graph_equal(&reloaded_graph, &graph);
+        assert_graph_equal_timestamps(&reloaded_graph, &graph);
     }
 
     #[test]

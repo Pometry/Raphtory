@@ -126,7 +126,7 @@ class NodeFilterBuilder(object):
 class Node(object): 
 
     @staticmethod
-    def name():
+    def name() -> NodeFilterBuilder:
         """
         Filter node by name
 
@@ -135,7 +135,7 @@ class Node(object):
         """
 
     @staticmethod
-    def node_type():
+    def node_type() -> NodeFilterBuilder:
         """
         Filter node by type
 

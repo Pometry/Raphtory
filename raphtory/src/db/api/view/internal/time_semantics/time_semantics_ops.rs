@@ -82,7 +82,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
 
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
@@ -95,7 +95,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
 
     fn node_updates<'graph, G: GraphView + 'graph>(

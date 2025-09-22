@@ -297,7 +297,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
         EventSemantics.node_edge_history_window(node, view, w)
     }
@@ -314,7 +314,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
         EventSemantics.node_edge_history_rev_window(node, view, w)
     }
