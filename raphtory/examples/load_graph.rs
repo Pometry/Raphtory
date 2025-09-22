@@ -45,6 +45,7 @@ fn main() {
             None,
             Some(layer),
             None,
+            None,
         )
         .expect("Failed to load edges from parquet");
 

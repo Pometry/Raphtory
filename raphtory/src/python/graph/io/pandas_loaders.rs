@@ -5,13 +5,14 @@ use crate::{
     prelude::{AdditionOps, PropertyAdditionOps},
     python::graph::io::*,
 };
-use polars_arrow::{array::Array, ffi};
+use arrow_array::ArrayRef;
 use pyo3::{
     ffi::{c_str, Py_uintptr_t},
     prelude::*,
     pybacked::PyBackedStr,
     types::{IntoPyDict, PyDict},
 };
+use pyo3_arrow::PyArray;
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::{collections::HashMap, ops::Deref};
 use tracing::error;
@@ -232,7 +233,7 @@ pub(crate) fn process_pandas_py_df<'a>(
             .map(|i| {
                 let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
                 let arr = array_to_rust(&array).map_err(GraphError::from)?;
-                Ok::<Box<dyn Array>, GraphError>(arr)
+                Ok::<_, GraphError>(arr)
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
 
@@ -248,29 +249,8 @@ pub(crate) fn process_pandas_py_df<'a>(
 }
 
 pub fn array_to_rust(obj: &Bound<PyAny>) -> PyResult<ArrayRef> {
-    // prepare a pointer to receive the Array struct
-    let array = Box::new(ffi::ArrowArray::empty());
-    let schema = Box::new(ffi::ArrowSchema::empty());
-
-    let array_ptr = &*array as *const ffi::ArrowArray;
-    let schema_ptr = &*schema as *const ffi::ArrowSchema;
-
-    // make the conversion through PyArrow's private API
-    // this changes the pointer's memory and is thus unsafe. In particular, `_export_to_c` can go out of bounds
-    obj.call_method1(
-        "_export_to_c",
-        (array_ptr as Py_uintptr_t, schema_ptr as Py_uintptr_t),
-    )?;
-
-    unsafe {
-        let field = ffi::import_field_from_c(schema.as_ref())
-            .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-
-        let array = ffi::import_array_from_c(*array, field.data_type)
-            .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-
-        Ok(array)
-    }
+    let (array, _) = PyArray::extract_bound(obj)?.into_inner();
+    Ok(array)
 }
 
 fn is_jupyter(py: Python) {
