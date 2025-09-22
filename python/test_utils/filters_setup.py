@@ -432,6 +432,8 @@ def create_test_graph(g):
             "prop4": True,
             "prop5": [1, 2, 3],  # min: 1, max: 3, sum: 6, avg: 2.0, len: 3
             "prop6": [1, 2, 3],  # min: 1, max: 3, sum: 6, avg: 2.0, len: 3
+            "prop8": [2, 2, 2],
+            "prop9": [2, 2, 3],
         },
         "fire_nation",
     )
@@ -441,6 +443,8 @@ def create_test_graph(g):
         {
             "prop5": [1, 2, 3],  # min: 1, max: 3, sum: 6, avg: 2.0, len: 3
             "prop6": [3, 4, 5],  # min: 3, max: 5, sum: 12, avg: 4.0, len: 3
+            "prop8": [2, 3, 3],
+            "prop9": [2, 2, 2],
         },
         "fire_nation",
     )
@@ -487,7 +491,7 @@ def create_test_graph(g):
     g.add_node(
         1,
         "d",
-        {"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False},
+        {"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False, "prop8": [3]},
         "air_nomads",
     )
     g.add_edge(

@@ -676,6 +676,19 @@ type GqlIndexSpec {
 	edgeProperties: [String!]!
 }
 
+enum GqlListAgg {
+	LEN
+	SUM
+	AVG
+	MIN
+	MAX
+}
+
+enum GqlListElemQualifier {
+	ANY
+	ALL
+}
+
 type GqlVectorSelection {
 	"""
 	Returns a list of nodes in the current selection.
@@ -1165,6 +1178,14 @@ input MetadataFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: GqlListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: GqlListElemQualifier
 }
 
 type MutRoot {
@@ -2184,6 +2205,14 @@ input PropertyFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: GqlListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: GqlListElemQualifier
 }
 
 input PropertyInput {
@@ -2358,6 +2387,14 @@ input TemporalPropertyFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: GqlListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: GqlListElemQualifier
 }
 
 input TemporalPropertyInput {

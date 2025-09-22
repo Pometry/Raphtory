@@ -951,3 +951,55 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
     """
     expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_list_agg(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+             property: {
+              name: "prop5"
+              operator: EQUAL
+              value: { i64: 6 }
+              listAgg:SUM
+            }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_list_qualifier(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+             property: {
+              name: "prop5"
+              operator: EQUAL
+              value: { i64: 6 }
+              elemQualifier: ANY
+            }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "c"}]}}}}
+    run_graphql_test(query, expected_output, graph)

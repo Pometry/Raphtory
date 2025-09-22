@@ -11,7 +11,9 @@ use raphtory::{
         edge_filter::CompositeEdgeFilter,
         filter_operator::FilterOperator,
         node_filter::CompositeNodeFilter,
-        property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef, Temporal},
+        property_filter::{
+            ListAgg, ListElemQualifier, PropertyFilter, PropertyFilterValue, PropertyRef, Temporal,
+        },
         Filter, FilterValue,
     },
     errors::GraphError,
@@ -407,6 +409,42 @@ pub enum EdgeFilter {
     Not(Wrapped<EdgeFilter>),
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GqlListAgg {
+    Len,
+    Sum,
+    Avg,
+    Min,
+    Max,
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GqlListElemQualifier {
+    Any,
+    All,
+}
+
+impl From<GqlListElemQualifier> for ListElemQualifier {
+    fn from(q: GqlListElemQualifier) -> Self {
+        match q {
+            GqlListElemQualifier::Any => ListElemQualifier::Any,
+            GqlListElemQualifier::All => ListElemQualifier::All,
+        }
+    }
+}
+
+impl From<GqlListAgg> for ListAgg {
+    fn from(a: GqlListAgg) -> Self {
+        match a {
+            GqlListAgg::Len => ListAgg::Len,
+            GqlListAgg::Sum => ListAgg::Sum,
+            GqlListAgg::Avg => ListAgg::Avg,
+            GqlListAgg::Min => ListAgg::Min,
+            GqlListAgg::Max => ListAgg::Max,
+        }
+    }
+}
+
 #[derive(InputObject, Clone, Debug)]
 pub struct PropertyFilterExpr {
     /// Node property to compare against.
@@ -415,11 +453,21 @@ pub struct PropertyFilterExpr {
     pub operator: Operator,
     /// Value.
     pub value: Option<Value>,
+    /// List aggregate
+    pub list_agg: Option<GqlListAgg>,
+    /// List qualifier
+    pub elem_qualifier: Option<GqlListElemQualifier>,
 }
 
 impl PropertyFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, self.value.as_ref())
+        validate_operator_value_pair(self.operator, self.value.as_ref())?;
+        if self.elem_qualifier.is_some() && self.list_agg.is_some() {
+            return Err(GraphError::InvalidGqlFilter(
+                "List aggregation and element qualifier cannot be used together".into(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -431,6 +479,10 @@ pub struct MetadataFilterExpr {
     pub operator: Operator,
     /// Value.
     pub value: Option<Value>,
+    /// List aggregate
+    pub list_agg: Option<GqlListAgg>,
+    /// List qualifier
+    pub elem_qualifier: Option<GqlListElemQualifier>,
 }
 
 impl MetadataFilterExpr {
@@ -449,6 +501,10 @@ pub struct TemporalPropertyFilterExpr {
     pub operator: Operator,
     /// Value.
     pub value: Option<Value>,
+    /// List aggregate
+    pub list_agg: Option<GqlListAgg>,
+    /// List qualifier
+    pub elem_qualifier: Option<GqlListElemQualifier>,
 }
 
 impl TemporalPropertyFilterExpr {
@@ -757,6 +813,8 @@ fn build_property_filter<M>(
     prop_ref: PropertyRef,
     operator: Operator,
     value: Option<&Value>,
+    list_agg: Option<GqlListAgg>,
+    list_elem_qualifier: Option<GqlListElemQualifier>,
 ) -> Result<PropertyFilter<M>, GraphError> {
     let prop = value.cloned().map(Prop::try_from).transpose()?;
 
@@ -774,7 +832,8 @@ fn build_property_filter<M>(
         prop_ref,
         prop_value,
         operator: operator.into(),
-        list_agg: None,
+        list_agg: list_agg.map(Into::into),
+        list_elem_qualifier: list_elem_qualifier.map(Into::into),
         _phantom: PhantomData,
     })
 }
@@ -787,6 +846,8 @@ impl<M> TryFrom<PropertyFilterExpr> for PropertyFilter<M> {
             PropertyRef::Property(expr.name),
             expr.operator,
             expr.value.as_ref(),
+            expr.list_agg,
+            expr.elem_qualifier,
         )
     }
 }
@@ -799,6 +860,8 @@ impl<M> TryFrom<MetadataFilterExpr> for PropertyFilter<M> {
             PropertyRef::Metadata(expr.name),
             expr.operator,
             expr.value.as_ref(),
+            expr.list_agg,
+            expr.elem_qualifier,
         )
     }
 }
@@ -811,6 +874,8 @@ impl<M> TryFrom<TemporalPropertyFilterExpr> for PropertyFilter<M> {
             PropertyRef::TemporalProperty(expr.name, expr.temporal.into()),
             expr.operator,
             expr.value.as_ref(),
+            expr.list_agg,
+            expr.elem_qualifier,
         )
     }
 }

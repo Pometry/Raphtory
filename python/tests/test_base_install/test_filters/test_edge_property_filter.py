@@ -1055,6 +1055,104 @@ def test_edge_unsupported_ops_agg():
     return check
 
 
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_property_any():
+    def check(graph):
+        expr = filter.Edge.property("p_u8s").any() == Prop.u8(2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_property_all():
+    def check(graph):
+        expr = filter.Edge.property("p_bools").all() == Prop.bool(True)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_temporal_property_first_any():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").temporal().first().any() == Prop.u64(2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_temporal_property_first_all():
+    def check(graph):
+        expr = filter.Edge.property("p_bools").temporal().first().all() == Prop.bool(
+            True
+        )
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_temporal_property_latest_any():
+    def check(graph):
+        expr = filter.Edge.property("p_i64s").temporal().latest().any() == Prop.i64(-2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_temporal_property_latest_all():
+    def check(graph):
+        expr = filter.Edge.property("p_f32s").temporal().latest().all() == Prop.f32(3.0)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_temporal_property_all_any():
+    def check(graph):
+        expr = filter.Edge.property("p_bools").temporal().all().any() == Prop.bool(
+            False
+        )
+        assert _pairs(graph.filter(expr).edges) == {("a", "b"), ("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_temporal_property_all_all():
+    def check(graph):
+        expr = filter.Edge.property("p_bools").temporal().all().all() == Prop.bool(
+            False
+        )
+        assert _pairs(graph.filter(expr).edges) == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_temporal_property_any_any():
+    def check(graph):
+        expr = filter.Edge.property("p_strs").temporal().any().any() == Prop.str("x")
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph"])
+def test_edge_temporal_property_any_all():
+    def check(graph):
+        expr = filter.Edge.property("p_strs").temporal().any().all() == Prop.str(
+            "longword"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("d", "a")}
+
+    return check
+
+
 @with_disk_variants(init_graph)
 def test_edges_getitem_property_filter_expr():
     def check(graph):
