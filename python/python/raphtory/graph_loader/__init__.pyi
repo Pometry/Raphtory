@@ -67,28 +67,28 @@ def lotr_graph_with_props() -> Graph:
     """
 
 def neo4j_movie_graph(
-    uri: Any, username: Any, password: Any, database: Any = ...
+    uri: str, username: str, password: str, database: str = ...
 ) -> Graph:
     """
     Returns the neo4j movie graph example.
 
     Parameters:
-        uri: (str)
-        username: (str)
-        password: (str)
-        database: (str)
+        uri (str):
+        username (str):
+        password (str):
+        database (str):
 
     Returns:
         Graph:
     """
 
-def stable_coin_graph(path: Any = None, subset: Any = None) -> Graph:
+def stable_coin_graph(path: str = None, subset: bool = None) -> Graph:
     """
     Returns the stablecoin graph example.
 
     Parameters:
-        path: (str)
-        subset: (bool)
+        path (str):
+        subset (bool):
 
     Returns:
         Graph:
@@ -132,12 +132,12 @@ def reddit_hyperlink_graph(timeout_seconds: int = 600) -> Graph:
         Graph: A Graph containing the Reddit hyperlinks dataset
     """
 
-def reddit_hyperlink_graph_local(file_path: Any) -> Graph:
+def reddit_hyperlink_graph_local(file_path: str) -> Graph:
     """
     Returns the Reddit hyperlink graph example.
 
     Parameters:
-        file_path: (str)
+        file_path (str):
 
     Returns:
         Graph:

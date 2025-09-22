@@ -162,7 +162,7 @@ impl PyRaphtoryClient {
     ///
     /// Arguments:
     ///     query (str): the query to make.
-    ///     variables: (dict[str, Any], optional) a dict of variables present on the query and their values.
+    ///     variables (dict[str, Any], optional): a dict of variables present on the query and their values.
     ///
     /// Returns:
     ///     dict[str, Any]: The data field from the graphQL response.
@@ -186,9 +186,9 @@ impl PyRaphtoryClient {
     /// Send a graph to the server
     ///
     /// Arguments:
-    ///     path: (str) the path of the graph
-    ///     graph: (Graph | PersistentGraph) the graph to send
-    ///     overwrite: (bool) overwrite existing graph. Defaults to False.
+    ///     path (str): the path of the graph
+    ///     graph (Graph | PersistentGraph): the graph to send
+    ///     overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
     ///     dict[str, Any]: The data field from the graphQL response after executing the mutation.
@@ -225,9 +225,9 @@ impl PyRaphtoryClient {
     /// Upload graph file from a path file_path on the client
     ///
     /// Arguments:
-    ///     path: (str) the name of the graph
-    ///     file_path: (str) the path of the graph on the client
-    ///     overwrite: (bool) overwrite existing graph. Defaults to False.
+    ///     path (str): the name of the graph
+    ///     file_path (str): the path of the graph on the client
+    ///     overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
     ///     dict[str, Any]: The data field from the graphQL response after executing the mutation.
@@ -304,8 +304,8 @@ impl PyRaphtoryClient {
     /// Copy graph from a path path on the server to a new_path on the server
     ///
     /// Arguments:
-    ///     path: (str) the path of the graph to be copied
-    ///     new_path: (str) the new path of the copied graph
+    ///     path (str): the path of the graph to be copied
+    ///     new_path (str): the new path of the copied graph
     ///
     /// Returns:
     ///     None:
@@ -338,8 +338,8 @@ impl PyRaphtoryClient {
     /// Move graph from a path path on the server to a new_path on the server
     ///
     /// Arguments:
-    ///     path: (str) the path of the graph to be moved
-    ///     new_path: (str) the new path of the moved graph
+    ///     path (str): the path of the graph to be moved
+    ///     new_path (str): the new path of the moved graph
     ///
     /// Returns:
     ///     None:
@@ -372,7 +372,7 @@ impl PyRaphtoryClient {
     /// Delete graph from a path path on the server
     ///
     /// Arguments:
-    ///     path: (str) the path of the graph to be deleted
+    ///     path (str): the path of the graph to be deleted
     ///
     /// Returns:
     ///     None:
@@ -404,7 +404,7 @@ impl PyRaphtoryClient {
     /// This downloads a copy of the graph. Modifications are not persistet to the server.
     ///
     /// Arguments:
-    ///     path: (str) the path of the graph to be received
+    ///     path (str): the path of the graph to be received
     ///
     /// Returns:
     ///     Union[Graph, PersistentGraph]: A copy of the graph
@@ -430,8 +430,8 @@ impl PyRaphtoryClient {
     /// Create a new empty Graph on the server at path
     ///
     /// Arguments:
-    ///     path: (str) the path of the graph to be created
-    ///     graph_type: (Literal["EVENT", "PERSISTENT"]) the type of graph that should be created - this can be EVENT or PERSISTENT
+    ///     path (str): the path of the graph to be created
+    ///     graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
     ///
     /// Returns:
     ///     None:
@@ -462,7 +462,7 @@ impl PyRaphtoryClient {
     /// Get a RemoteGraph reference to a graph on the server at path
     ///
     /// Arguments:
-    ///     path: (str) the path of the graph to be created
+    ///     path (str): the path of the graph to be created
     ///
     /// Returns:
     ///     RemoteGraph: the remote graph reference

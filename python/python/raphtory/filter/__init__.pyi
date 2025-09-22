@@ -83,7 +83,7 @@ class PropertyFilterOps(object):
         """
 
     def fuzzy_search(
-        self, prop_value: Any, levenshtein_distance: Any, prefix_match: Any
+        self, prop_value: str, levenshtein_distance: Any, prefix_match: bool
     ):
         """
         Returns a filter expression that checks if the specified properties approximately match the specified string.
@@ -91,9 +91,9 @@ class PropertyFilterOps(object):
         Uses a specified Levenshtein distance and optional prefix matching.
 
         Parameters:
-            prop_value: (str)
-            levenshtein_distance: (usize)
-            prefix_match: (bool)
+            prop_value (str):
+            levenshtein_distance (usize):
+            prefix_match (bool):
 
         Returns:
             FilterExpr:
@@ -279,16 +279,16 @@ class EdgeFilterOp(object):
             filter expression
         """
 
-    def fuzzy_search(self, value, levenshtein_distance: Any, prefix_match: Any):
+    def fuzzy_search(self, value, levenshtein_distance: Any, prefix_match: bool):
         """
         Returns a filter expression that checks if the specified properties approximately match the specified string.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
         Parameters:
-            prop_value: (str)
-            levenshtein_distance: (usize)
-            prefix_match: (bool)
+            prop_value (str):
+            levenshtein_distance (usize):
+            prefix_match (bool):
 
         Returns:
             FilterExpr:

@@ -78,41 +78,45 @@ class GraphServer(object):
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def run(self, port: Any = 1736, timeout_ms: Any = 180000) -> None:
+    def run(self, port: int = 1736, timeout_ms: int = 180000) -> None:
         """
         Run the server until completion.
 
         Arguments:
-            port: (int) The port to use. Defaults to 1736.
-            timeout_ms: (int) Timeout for waiting for the server to start. Defaults to 180000.
+            port (int): The port to use. Defaults to 1736.
+            timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
 
         Returns:
             None:
         """
 
     def set_embeddings(
-        self, cache: Any, embedding: Any = None, nodes: Any = True, edges: Any = True
+        self,
+        cache: str,
+        embedding: Optional[Callable] = None,
+        nodes: bool | str = True,
+        edges: bool | str = True,
     ) -> GraphServer:
         """
         Setup the server to vectorise graphs with a default template.
 
         Arguments:
-            cache:  (str) the directory to use as cache for the embeddings.
-            embedding: (Callable, optional) the embedding function to translate documents to embeddings.
-            nodes:  (bool | str) if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-            edges: (bool | str) if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+            cache  (str): the directory to use as cache for the embeddings.
+            embedding (Callable, optional): the embedding function to translate documents to embeddings.
+            nodes  (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 
         Returns:
             GraphServer: A new server object with embeddings setup.
         """
 
-    def start(self, port: Any = 1736, timeout_ms: Any = 5000) -> RunningGraphServer:
+    def start(self, port: int = 1736, timeout_ms: int = 5000) -> RunningGraphServer:
         """
         Start the server and return a handle to it.
 
         Arguments:
-            port: (int) the port to use. Defaults to 1736.
-            timeout_ms: (int) wait for server to be online. Defaults to 5000.
+            port (int): the port to use. Defaults to 1736.
+            timeout_ms (int): wait for server to be online. Defaults to 5000.
 
         The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
 
@@ -129,15 +133,15 @@ class GraphServer(object):
         """
 
     def with_vectorised_graphs(
-        self, graph_names: Any, nodes: Any = True, edges: Any = True
+        self, graph_names: list[str], nodes: bool | str = True, edges: bool | str = True
     ) -> GraphServer:
         """
         Vectorise a subset of the graphs of the server.
 
         Arguments:
-            graph_names: (list[str]) the names of the graphs to vectorise. All by default.
-            nodes: (bool | str) if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-            edges: (bool | str) if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+            graph_names (list[str]): the names of the graphs to vectorise. All by default.
+            nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 
         Returns:
             GraphServer: A new server object containing the vectorised graphs.
@@ -169,45 +173,45 @@ class RaphtoryClient(object):
     A client for handling GraphQL operations in the context of Raphtory.
 
     Arguments:
-        url: (str) the URL of the Raphtory GraphQL server
+        url (str): the URL of the Raphtory GraphQL server
         token:
     """
 
-    def __new__(cls, url: Any, token: Any = None) -> RaphtoryClient:
+    def __new__(cls, url: str, token: Any = None) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def copy_graph(self, path: Any, new_path: Any) -> None:
+    def copy_graph(self, path: str, new_path: str) -> None:
         """
         Copy graph from a path path on the server to a new_path on the server
 
         Arguments:
-            path: (str) the path of the graph to be copied
-            new_path: (str) the new path of the copied graph
+            path (str): the path of the graph to be copied
+            new_path (str): the new path of the copied graph
 
         Returns:
             None:
         """
 
-    def create_index(self, path: Any, index_spec, in_ram: Any = True) -> None:
+    def create_index(self, path: Any, index_spec, in_ram: bool = True) -> None:
         """
         Create Index for graph on the server at 'path'
 
         Arguments:
             path: the path of the graph to be created
-            RemoteIndexSpec: spec specifying the properties that need to be indexed
-            in_ram: create index in ram
+            RemoteIndexSpec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+            in_ram (bool): create index in ram
 
         Returns:
             None:
 
         """
 
-    def delete_graph(self, path: Any) -> None:
+    def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path path on the server
 
         Arguments:
-            path: (str) the path of the graph to be deleted
+            path (str): the path of the graph to be deleted
 
         Returns:
             None:
@@ -221,44 +225,46 @@ class RaphtoryClient(object):
             bool: Returns true if server is online otherwise false.
         """
 
-    def move_graph(self, path: Any, new_path: Any) -> None:
+    def move_graph(self, path: str, new_path: str) -> None:
         """
         Move graph from a path path on the server to a new_path on the server
 
         Arguments:
-            path: (str) the path of the graph to be moved
-            new_path: (str) the new path of the moved graph
+            path (str): the path of the graph to be moved
+            new_path (str): the new path of the moved graph
 
         Returns:
             None:
         """
 
-    def new_graph(self, path: Any, graph_type: Any) -> None:
+    def new_graph(self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]) -> None:
         """
         Create a new empty Graph on the server at path
 
         Arguments:
-            path: (str) the path of the graph to be created
-            graph_type: (Literal["EVENT", "PERSISTENT"]) the type of graph that should be created - this can be EVENT or PERSISTENT
+            path (str): the path of the graph to be created
+            graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
 
         Returns:
             None:
 
         """
 
-    def query(self, query: Any, variables: Any = None) -> dict[str, Any]:
+    def query(
+        self, query: str, variables: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         Make a GraphQL query against the server.
 
         Arguments:
-            query: (str) the query to make.
-            variables: (dict[str, Any], optional) a dict of variables present on the query and their values.
+            query (str): the query to make.
+            variables (dict[str, Any], optional): a dict of variables present on the query and their values.
 
         Returns:
             dict[str, Any]: The data field from the graphQL response.
         """
 
-    def receive_graph(self, path: Any) -> Union[Graph, PersistentGraph]:
+    def receive_graph(self, path: str) -> Union[Graph, PersistentGraph]:
         """
         Receive graph from a path path on the server
 
@@ -266,18 +272,18 @@ class RaphtoryClient(object):
         This downloads a copy of the graph. Modifications are not persistet to the server.
 
         Arguments:
-            path: (str) the path of the graph to be received
+            path (str): the path of the graph to be received
 
         Returns:
             Union[Graph, PersistentGraph]: A copy of the graph
         """
 
-    def remote_graph(self, path: Any) -> RemoteGraph:
+    def remote_graph(self, path: str) -> RemoteGraph:
         """
         Get a RemoteGraph reference to a graph on the server at path
 
         Arguments:
-            path: (str) the path of the graph to be created
+            path (str): the path of the graph to be created
 
         Returns:
             RemoteGraph: the remote graph reference
@@ -285,30 +291,30 @@ class RaphtoryClient(object):
         """
 
     def send_graph(
-        self, path: Any, graph: Any, overwrite: Any = False
+        self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False
     ) -> dict[str, Any]:
         """
         Send a graph to the server
 
         Arguments:
-            path: (str) the path of the graph
-            graph: (Graph | PersistentGraph) the graph to send
-            overwrite: (bool) overwrite existing graph. Defaults to False.
+            path (str): the path of the graph
+            graph (Graph | PersistentGraph): the graph to send
+            overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
             dict[str, Any]: The data field from the graphQL response after executing the mutation.
         """
 
     def upload_graph(
-        self, path: Any, file_path: Any, overwrite: Any = False
+        self, path: str, file_path: str, overwrite: bool = False
     ) -> dict[str, Any]:
         """
         Upload graph file from a path file_path on the client
 
         Arguments:
-            path: (str) the name of the graph
-            file_path: (str) the path of the graph on the client
-            overwrite: (bool) overwrite existing graph. Defaults to False.
+            path (str): the name of the graph
+            file_path (str): the path of the graph on the client
+            overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
             dict[str, Any]: The data field from the graphQL response after executing the mutation.

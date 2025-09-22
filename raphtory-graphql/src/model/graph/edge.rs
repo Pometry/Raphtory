@@ -297,7 +297,7 @@ impl GqlEdge {
     }
 
     /// Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
-    /// 
+    ///
     /// Returns:
     ///     Node:
     async fn nbr(&self) -> GqlNode {
@@ -305,7 +305,7 @@ impl GqlEdge {
     }
 
     /// Returns the id of the edge.
-    /// 
+    ///
     /// Returns:
     ///     list[str]:
     async fn id(&self) -> Vec<String> {

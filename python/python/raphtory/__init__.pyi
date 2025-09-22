@@ -1508,23 +1508,23 @@ class PersistentGraph(GraphView):
     def __reduce__(self): ...
     def add_edge(
         self,
-        timestamp: Any,
-        src: Any,
-        dst: Any,
-        properties: Any = None,
-        layer: Any = None,
-        secondary_index: Any = None,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        properties: Optional[PropInput] = None,
+        layer: Optional[str] = None,
+        secondary_index: Optional[int] = None,
     ) -> None:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
         Arguments:
-            timestamp: (int) The timestamp of the edge.
-            src: (str | int) The id of the source node.
-            dst: (str | int) The id of the destination node.
-            properties: (PropInput, optional) The properties of the edge, as a dict of string and properties
-            layer: (str, optional) The layer of the edge.
-            secondary_index: (int, optional) The optional integer which will be used as a secondary index
+            timestamp (int): The timestamp of the edge.
+            src (str | int): The id of the source node.
+            dst (str | int): The id of the destination node.
+            properties (PropInput, optional): The properties of the edge, as a dict of string and properties
+            layer (str, optional): The layer of the edge.
+            secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -5088,12 +5088,12 @@ class Edges(object):
              list[Edge]: the list of edges
         """
 
-    def count(self):
+    def count(self) -> int:
         """
         Returns the number of edges.
 
         Returns:
-            usize:
+            int:
         """
 
     @property

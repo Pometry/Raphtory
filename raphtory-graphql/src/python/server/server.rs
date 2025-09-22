@@ -150,10 +150,10 @@ impl PyGraphServer {
     /// Setup the server to vectorise graphs with a default template.
     ///
     /// Arguments:
-    ///     cache:  (str) the directory to use as cache for the embeddings.
-    ///     embedding: (Callable, optional) the embedding function to translate documents to embeddings.
-    ///     nodes:  (bool | str) if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///     edges: (bool | str) if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///     cache  (str): the directory to use as cache for the embeddings.
+    ///     embedding (Callable, optional): the embedding function to translate documents to embeddings.
+    ///     nodes  (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
     ///     GraphServer: A new server object with embeddings setup.
@@ -179,9 +179,9 @@ impl PyGraphServer {
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Arguments:
-    ///     graph_names: (list[str]) the names of the graphs to vectorise. All by default.
-    ///     nodes: (bool | str) if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///     edges: (bool | str) if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///     graph_names (list[str]): the names of the graphs to vectorise. All by default.
+    ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
     ///     GraphServer: A new server object containing the vectorised graphs.
@@ -205,8 +205,8 @@ impl PyGraphServer {
     /// Start the server and return a handle to it.
     ///
     /// Arguments:
-    ///     port: (int) the port to use. Defaults to 1736.
-    ///     timeout_ms: (int) wait for server to be online. Defaults to 5000.
+    ///     port (int): the port to use. Defaults to 1736.
+    ///     timeout_ms (int): wait for server to be online. Defaults to 5000.
     ///
     /// The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
     ///
@@ -268,8 +268,8 @@ impl PyGraphServer {
     /// Run the server until completion.
     ///
     /// Arguments:
-    ///     port: (int) The port to use. Defaults to 1736.
-    ///     timeout_ms: (int) Timeout for waiting for the server to start. Defaults to 180000.
+    ///     port (int): The port to use. Defaults to 1736.
+    ///     timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
     ///
     /// Returns:
     ///     None:
