@@ -171,9 +171,9 @@ impl PyPropertyFilterOps {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Parameters:
-    ///     prop_value: (str)
-    ///     levenshtein_distance: (usize)
-    ///     prefix_match: (bool)
+    ///     prop_value (str):
+    ///     levenshtein_distance (usize):
+    ///     prefix_match (bool):
     ///  
     /// Returns:
     ///     FilterExpr:

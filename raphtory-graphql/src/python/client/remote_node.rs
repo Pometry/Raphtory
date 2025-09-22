@@ -19,9 +19,9 @@ impl PyRemoteNode {
     /// New node.
     ///
     /// Parameters:
-    ///   path: (str)
-    ///   client: (RaphtoryClient)
-    ///   id: (str)
+    ///   path (str):
+    ///   client (RaphtoryClient):
+    ///   id (str):
     ///
     /// Returns:
     ///   None:

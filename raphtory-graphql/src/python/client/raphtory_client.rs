@@ -23,7 +23,7 @@ use tracing::debug;
 /// A client for handling GraphQL operations in the context of Raphtory.
 ///
 /// Arguments:
-///     url: (str) the URL of the Raphtory GraphQL server
+///     url (str): the URL of the Raphtory GraphQL server
 ///     token:
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql")]
@@ -71,8 +71,8 @@ impl PyRaphtoryClient {
     /// Returns the query sent and the response.
     ///
     /// Arguments:
-    ///     query: (str)
-    ///     variables: (tuple(string, JsonValue))
+    ///     query (str):
+    ///     variables (tuple(string, JsonValue)):
     ///
     /// Returns:
     ///     PyResult:
@@ -161,7 +161,7 @@ impl PyRaphtoryClient {
     /// Make a GraphQL query against the server.
     ///
     /// Arguments:
-    ///     query: (str) the query to make.
+    ///     query (str): the query to make.
     ///     variables: (dict[str, Any], optional) a dict of variables present on the query and their values.
     ///
     /// Returns:
@@ -478,8 +478,8 @@ impl PyRaphtoryClient {
     ///
     /// Arguments:
     ///     path: the path of the graph to be created
-    ///     RemoteIndexSpec: spec specifying the properties that need to be indexed
-    ///     in_ram: create index in ram
+    ///     RemoteIndexSpec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+    ///     in_ram (bool): create index in ram
     ///
     /// Returns:
     ///     None:

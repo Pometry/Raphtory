@@ -283,7 +283,7 @@ impl GqlEdge {
     /// Returns the source node of the edge.
     ///
     /// Returns:
-    ///     GqlNode:
+    ///     Node:
     async fn src(&self) -> GqlNode {
         self.ee.src().into()
     }
@@ -291,17 +291,23 @@ impl GqlEdge {
     /// Returns the destination node of the edge.
     ///
     /// Returns:
-    ///     GqlNode:
+    ///     Node:
     async fn dst(&self) -> GqlNode {
         self.ee.dst().into()
     }
 
     /// Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
+    /// 
+    /// Returns:
+    ///     Node:
     async fn nbr(&self) -> GqlNode {
         self.ee.nbr().into()
     }
 
     /// Returns the id of the edge.
+    /// 
+    /// Returns:
+    ///     list[str]:
     async fn id(&self) -> Vec<String> {
         let (src_name, dst_name) = self.ee.id();
         vec![src_name.to_string(), dst_name.to_string()]

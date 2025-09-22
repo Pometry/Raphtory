@@ -83,7 +83,7 @@ impl PyEdges {
     /// Returns the number of edges.
     ///
     /// Returns:
-    ///     usize:
+    ///     int:
     fn count(&self) -> usize {
         self.edges.len()
     }

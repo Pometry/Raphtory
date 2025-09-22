@@ -112,9 +112,9 @@ impl Filter {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Parameters:
-    ///     prop_value: (str)
-    ///     levenshtein_distance: (usize)
-    ///     prefix_match: (bool)
+    ///     prop_value (str):
+    ///     levenshtein_distance (usize):
+    ///     prefix_match (bool):
     ///  
     pub fn fuzzy_search(
         field_name: impl Into<String>,
@@ -560,9 +560,9 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Parameters:
-    ///     prop_value: (str)
-    ///     levenshtein_distance: (usize)
-    ///     prefix_match: (bool)
+    ///     prop_value (str):
+    ///     levenshtein_distance (usize):
+    ///     prefix_match (bool):
     ///  
     /// Returns:
     ///     PropertyFilter:
@@ -696,9 +696,9 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Parameters:
-    ///     prop_value: (str)
-    ///     levenshtein_distance: (usize)
-    ///     prefix_match: (bool)
+    ///     prop_value (str):
+    ///     levenshtein_distance (usize):
+    ///     prefix_match (bool):
     ///  
     fn fuzzy_search(
         &self,
@@ -815,9 +815,9 @@ pub trait EdgeFilterOps {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Parameters:
-    ///     prop_value: (str)
-    ///     levenshtein_distance: (usize)
-    ///     prefix_match: (bool)
+    ///     prop_value (str):
+    ///     levenshtein_distance (usize):
+    ///     prefix_match (bool):
     ///  
     /// Returns:
     ///     EdgeFieldFilter:
@@ -889,9 +889,9 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Parameters:
-    ///     prop_value: (str)
-    ///     levenshtein_distance: (usize)
-    ///     prefix_match: (bool)
+    ///     prop_value (str):
+    ///     levenshtein_distance (usize):
+    ///     prefix_match (bool):
     ///  
     /// Returns:
     ///     EdgeFieldFilter:
