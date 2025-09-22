@@ -193,7 +193,7 @@ pub(crate) fn load_nodes_from_df<
 }
 
 pub fn load_edges_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
