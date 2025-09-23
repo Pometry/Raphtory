@@ -890,7 +890,7 @@ Returns the end time of the window. Returns none if no window is applied.
 Returns the source node of the edge.
 
 Returns:
-GqlNode:
+Node:
 
 </td>
 </tr>
@@ -902,7 +902,7 @@ GqlNode:
 Returns the destination node of the edge.
 
 Returns:
-GqlNode:
+Node:
 
 </td>
 </tr>
@@ -913,6 +913,9 @@ GqlNode:
 
 Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
 
+Returns:
+Node:
+
 </td>
 </tr>
 <tr>
@@ -921,6 +924,9 @@ Returns the node at the other end of the edge (same as dst() for out-edges and s
 <td>
 
 Returns the id of the edge.
+
+Returns:
+list[str]:
 
 </td>
 </tr>
@@ -1479,7 +1485,7 @@ Returns the end time of the window or none if there is no window.
 Returns the number of edges.
 
 Returns:
-usize:
+int:
 
 </td>
 </tr>
@@ -2252,7 +2258,7 @@ Returns the earliest time that any edge in this graph is valid.
 Returns the number of edges in the graph.
 
 Returns:
-usize:
+int:
 
 </td>
 </tr>
@@ -2565,26 +2571,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2602,6 +2588,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2796,7 +2802,7 @@ Returns the number of nodes in the graph.
 Returns the number of edges in the graph.
 
 Returns:
-usize:
+int:
 
 </td>
 </tr>

@@ -202,22 +202,28 @@ type Edge {
 	Returns the source node of the edge.
 	
 	Returns:
-	GqlNode:
+	Node:
 	"""
 	src: Node!
 	"""
 	Returns the destination node of the edge.
 	
 	Returns:
-	GqlNode:
+	Node:
 	"""
 	dst: Node!
 	"""
 	Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
+	
+	Returns:
+	Node:
 	"""
 	nbr: Node!
 	"""
 	Returns the id of the edge.
+	
+	Returns:
+	list[str]:
 	"""
 	id: [String!]!
 	"""
@@ -559,7 +565,7 @@ type Edges {
 	Returns the number of edges.
 	
 	Returns:
-	usize:
+	int:
 	"""
 	count: Int!
 	"""
@@ -865,7 +871,7 @@ type Graph {
 	Returns the number of edges in the graph.
 	
 	Returns:
-	usize:
+	int:
 	"""
 	countEdges: Int!
 	"""
@@ -958,8 +964,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -1145,7 +1151,7 @@ type MetaGraph {
 	Returns the number of edges in the graph.
 	
 	Returns:
-	usize:
+	int:
 	"""
 	edgeCount: Int!
 	"""
