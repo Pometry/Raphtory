@@ -26,10 +26,7 @@ use raphtory::{
     version,
 };
 use std::{
-    error::Error,
-    fmt::{Display, Formatter},
-    io::Read,
-    sync::Arc,
+    error::Error, fmt::{Display, Formatter}, io::Read, path::PathBuf, sync::Arc
 };
 use zip::ZipArchive;
 
@@ -247,14 +244,19 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = {
-            let in_file = graph.value(ctx)?.content;
-            MaterializedGraph::decode_parquet_from_zip(in_file)?
-        };
-        if overwrite {
-            let _ignored = data.delete_graph(&path).await;
+        let in_file = graph.value(ctx)?.content;
+
+        if data.has_graph(&path).await && !overwrite {
+            return Err(GraphError::GraphNameAlreadyExists(PathBuf::from(path)).into());
         }
+
+        if overwrite {
+            data.delete_graph(&path).await?;
+        }
+
+        let graph = MaterializedGraph::decode_parquet_from_zip(in_file)?;
         data.insert_graph(&path, graph).await?;
+
         Ok(path)
     }
 

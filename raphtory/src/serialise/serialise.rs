@@ -44,10 +44,10 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 }
 
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
-    // Decode the graph from the given bytes array
+    // Decode the graph from the given bytes array. Does not include any metadata/indexes.
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError>;
 
-    // Decode the graph along with any metadata/indexes from the given path
+    // Decode the graph along with any metadata/indexes from the given path.
     fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
 }
 

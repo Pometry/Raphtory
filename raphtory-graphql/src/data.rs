@@ -109,6 +109,10 @@ impl Data {
             .map(|graph| (graph, graph_folder))
     }
 
+    pub async fn has_graph(&self, path: &str) -> bool {
+        ExistingGraphFolder::try_from(self.work_dir.clone(), path).is_ok()
+    }
+
     pub async fn insert_graph(
         &self,
         path: &str,
@@ -116,7 +120,7 @@ impl Data {
     ) -> Result<(), GraphError> {
         // TODO: replace ValidGraphFolder with ValidNonExistingGraphFolder !!!!!!!!!
         // or even a NewGraphFolder, so that we try to create the graph file and if that is sucessful
-        // we can write to it and its guaranteed to me atomic
+        // we can write to it and it is guaranteed to be atomic.
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),

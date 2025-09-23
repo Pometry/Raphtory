@@ -1,11 +1,10 @@
 use crate::{
-    python::{
+    paths::ExistingGraphFolder, python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph,
         server::is_online,
         translate_from_python, translate_map_to_python,
-    },
-    url_encode::url_decode_graph,
+    }, url_encode::url_decode_graph
 };
 use pyo3::{
     exceptions::{PyException, PyValueError},
