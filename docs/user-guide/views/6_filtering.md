@@ -2,15 +2,19 @@
 
 The `filter` module provides a variety of functions prefixed with 'filter' that take a [filter expression][raphtory.filter.FilterExpr] and return a corresponding view.
 
-Filter expressions allow you to create complex logical queries to select a narrower set of your data based on multiple criteria. This is useful when you already have some knowledge of the subset you want to isolate.
-
 The following functions can be called on a `graph` or `node`:
 
 - [filter_edges][raphtory.GraphView.filter_edges]
 - [filter_exploded_edges][raphtory.GraphView.filter_exploded_edges]
 - [filter_nodes][raphtory.GraphView.filter_nodes]
 
-For example, a cybersecurity team investigating the impact of a CVE on your companies servers might filter for nodes which function as public facing servers and that have a specific operating system. This would give the security team a view that contains only nodes that might be vulnerable.
+Filter expressions allow you to create complex logical queries to select a narrower set of your data based on multiple criteria. This is useful when you already have some knowledge of the subset you want to isolate. 
+
+To construct a filter expression you can use methods from [filter.Node()][raphtory.filter.Node], [filter.Edge()][raphtory.filter.Edge], [filter.Property()][raphtory.filter.Property], or [filter.Metadata()][raphtory.filter.Metadata] which create a corresponding builder that will return the desired filter expression.
+
+## Cybersecurity scenario
+
+Consider a cybersecurity team investigating the impact of a CVE on your companies servers. They might use Raphtory to filter for nodes which function as public facing servers and that have a specific operating system. This would give the security team a view that contains only nodes that might be vulnerable.
 
 Using the traffic dataset you can explore this scenario by using `filter_nodes()` to create a new `GraphView` that contains only the nodes that match the CVE description:
 
