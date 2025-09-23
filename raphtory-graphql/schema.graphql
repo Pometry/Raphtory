@@ -1023,7 +1023,7 @@ type History {
 	"""
 	Fetch one page of TimeIndexEntry entries with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1031,7 +1031,7 @@ type History {
 	"""
 	Fetch one page of TimeIndexEntry entries with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1088,7 +1088,7 @@ type HistoryDateTime {
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
 	will be raised on time conversion error. Defaults to False.
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1098,7 +1098,7 @@ type HistoryDateTime {
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
 	will be raised on time conversion error. Defaults to False.
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1120,7 +1120,7 @@ type HistorySecondaryIndex {
 	"""
 	Fetch one page of secondary indices with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1128,7 +1128,7 @@ type HistorySecondaryIndex {
 	"""
 	Fetch one page of secondary indices in reverse chronological order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1150,7 +1150,7 @@ type HistoryTimestamp {
 	"""
 	Fetch one page of timestamps with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1158,7 +1158,7 @@ type HistoryTimestamp {
 	"""
 	Fetch one page of timestamps in reverse order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1237,7 +1237,7 @@ type Intervals {
 	"""
 	Fetch one page of intervals between consecutive timestamps with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1245,7 +1245,7 @@ type Intervals {
 	"""
 	Fetch one page of intervals between consecutive timestamps in reverse order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -2649,34 +2649,34 @@ type VectorSelection {
 	getDocuments: [Document!]!
 	"""
 	Adds all the documents associated with the specified nodes to the current selection.
-
+	
 	Documents added by this call are assumed to have a score of 0.
 	"""
 	addNodes(nodes: [String!]!): VectorSelection!
 	"""
 	Adds all the documents associated with the specified edges to the current selection.
-
+	
 	Documents added by this call are assumed to have a score of 0.
 	"""
 	addEdges(edges: [InputEdge!]!): VectorSelection!
 	"""
 	Add all the documents a specified number of hops away to the selection.
-
+	
 	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
 	"""
-	expand(hops: Int!, window: Window): VectorSelection!
+	expand(hops: Int!, window: VectorisedGraphWindow): VectorSelection!
 	"""
 	Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
 	"""
-	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	expandEntitiesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): VectorSelection!
 	"""
 	Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
 	"""
-	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	expandNodesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): VectorSelection!
 	"""
 	Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
 	"""
-	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	expandEdgesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): VectorSelection!
 }
 
 type VectorisedGraph {
@@ -2688,7 +2688,6 @@ type VectorisedGraph {
 	Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
 	"""
 	entitiesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): VectorSelection!
-	entitiesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
 	"""
 	Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
 	"""
