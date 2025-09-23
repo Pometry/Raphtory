@@ -249,11 +249,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let graph = {
             let in_file = graph.value(ctx)?.content;
-            let mut archive = ZipArchive::new(in_file)?;
-            let mut entry = archive.by_name(GRAPH_PATH)?;
-            let mut buf = vec![];
-            entry.read_to_end(&mut buf)?;
-            MaterializedGraph::decode_from_bytes(&buf)?
+            MaterializedGraph::decode_parquet_from_zip(in_file)?
         };
         if overwrite {
             let _ignored = data.delete_graph(&path).await;
