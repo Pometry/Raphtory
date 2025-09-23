@@ -104,7 +104,7 @@ pub fn register_mutation_plugin<
 }
 
 impl GraphServer {
-    /// New server
+    /// Creates a new server and returns a corresponding GraphServer object.
     ///
     /// Returns:
     ///     IoResult:

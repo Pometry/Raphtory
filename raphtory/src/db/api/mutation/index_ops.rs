@@ -18,7 +18,7 @@ pub trait IndexMutationOps: Sized + AdditionOps {
     /// Creates a new index using the provided index specification.
     ///
     /// Arguments:
-    ///     IndexSpec: - The specification for the index to be created.
+    ///     index_spec: The specification for the index to be created.
     ///
     /// Returns:
     ///     None:
@@ -32,11 +32,8 @@ pub trait IndexMutationOps: Sized + AdditionOps {
 
     /// Creates a new index in RAM using the provided index specification.
     ///
-    /// Parameters:
-    ///     index_spec: The specification for the in-memory index to be created.
-    ///
     /// Arguments:
-    ///     IndexSpec: The specification for the in-memory index to be created.
+    ///     index_spec: The specification for the in-memory index to be created.
     ///
     /// Returns:
     ///     None:
@@ -45,7 +42,7 @@ pub trait IndexMutationOps: Sized + AdditionOps {
     /// Loads an index from the specified disk path.
     ///
     /// Arguments:
-    ///     path - The path to the folder containing the index data.
+    ///     path: The path to the folder containing the index data.
     ///
     /// Returns:
     ///     None:
@@ -54,7 +51,7 @@ pub trait IndexMutationOps: Sized + AdditionOps {
     /// Persists the current index to disk at the specified path.
     ///
     /// Arguments:
-    ///     path - The path to the folder where the index should be saved.
+    ///     path: The path to the folder where the index should be saved.
     ///
     /// Returns:
     ///     None:
@@ -63,7 +60,7 @@ pub trait IndexMutationOps: Sized + AdditionOps {
     /// Persists the current index to disk as a compressed ZIP file at the specified path.
     ///
     /// Arguments:
-    ///     path - The path to the folder where the ZIP file should be saved.
+    ///     path: The path to the folder where the ZIP file should be saved.
     ///
     /// Returns:
     ///     None:
@@ -106,11 +103,8 @@ impl<G: AdditionOps> IndexMutationOps for G {
     /// This is primarily intended for use in tests and should not be used in production environments,
     /// as the index will not be persisted to disk.
     ///
-    /// Parameters:
-    ///     index_spec: The specification for the in-memory index to be created.
-    ///
     ///  Arguments:
-    ///     IndexSpec: The specification for the in-memory index to be created.
+    ///     index_spec: The specification for the in-memory index to be created.
     ///
     /// Returns:
     ///     None:

@@ -89,13 +89,12 @@ pub trait ImportOps: Sized {
 
     /// Imports multiple nodes into the graph.
     ///
-    /// # Arguments
-    ///
-    /// * `nodes` - A vector of references to the nodes to be imported.
-    /// * `new_ids` - A list of node IDs to use for the imported nodes.
-    /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
+    /// Arguments:
+    ///     nodes: A list of nodes to be imported.
+    ///     new_ids: A list of node IDs to use for the imported nodes.
+    ///     merge: An optional boolean flag.
+    ///         If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
+    ///         If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// Returns:
     ///     Ok(()) if the nodes were successfully imported.
