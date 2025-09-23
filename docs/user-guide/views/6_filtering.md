@@ -8,7 +8,7 @@ The following functions can be called on a `graph` or `node`:
 - [filter_exploded_edges][raphtory.GraphView.filter_exploded_edges]
 - [filter_nodes][raphtory.GraphView.filter_nodes]
 
-Filter expressions allow you to create complex logical queries to select a narrower set of your data based on multiple criteria. This is useful when you already have some knowledge of the subset you want to isolate. 
+Filter expressions allow you to create complex logical queries to select a narrower set of your data based on multiple criteria. This is useful when you already have some knowledge of the subset you want to isolate.
 
 To construct a filter expression you can use methods from [filter.Node()][raphtory.filter.Node], [filter.Edge()][raphtory.filter.Edge], [filter.Property()][raphtory.filter.Property], or [filter.Metadata()][raphtory.filter.Metadata] which create a corresponding builder that will return the desired filter expression.
 
