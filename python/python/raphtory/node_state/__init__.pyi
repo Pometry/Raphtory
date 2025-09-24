@@ -545,13 +545,13 @@ class DegreeView(object):
              Iterator[int]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> DegreeView:
+    def window(self, start: TimeInput, end: TimeInput) -> DegreeView:
         """
          Create a view of the DegreeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             DegreeView:
@@ -1933,13 +1933,13 @@ class EarliestTimeView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             EarliestTimeView:
@@ -2416,13 +2416,13 @@ class LatestTimeView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             LatestTimeView:
@@ -3268,13 +3268,13 @@ class EarliestDateTimeView(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestDateTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             EarliestDateTimeView:
@@ -3751,13 +3751,13 @@ class LatestDateTimeView(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestDateTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             LatestDateTimeView:
@@ -4402,13 +4402,13 @@ class HistoryView(object):
              Iterator[list[int]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> HistoryView:
+    def window(self, start: TimeInput, end: TimeInput) -> HistoryView:
         """
          Create a view of the HistoryView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             HistoryView:
@@ -4893,13 +4893,13 @@ class EdgeHistoryCountView(object):
              Iterator[int]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> EdgeHistoryCountView:
+    def window(self, start: TimeInput, end: TimeInput) -> EdgeHistoryCountView:
         """
          Create a view of the EdgeHistoryCountView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             EdgeHistoryCountView:
@@ -5536,13 +5536,13 @@ class HistoryDateTimeView(object):
              Iterator[Optional[list[datetime]]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> HistoryDateTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             HistoryDateTimeView:

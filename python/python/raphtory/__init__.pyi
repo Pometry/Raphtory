@@ -677,13 +677,13 @@ class GraphView(object):
           VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> GraphView:
+    def window(self, start: TimeInput, end: TimeInput) -> GraphView:
         """
          Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             GraphView:
@@ -2474,13 +2474,13 @@ class Node(object):
              Node: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> Node:
+    def window(self, start: TimeInput, end: TimeInput) -> Node:
         """
          Create a view of the Node including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             Node:
@@ -3060,13 +3060,13 @@ class Nodes(object):
              Nodes: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> Nodes:
+    def window(self, start: TimeInput, end: TimeInput) -> Nodes:
         """
          Create a view of the Nodes including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             Nodes:
@@ -3521,13 +3521,13 @@ class PathFromNode(object):
              PathFromNode: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> PathFromNode:
+    def window(self, start: TimeInput, end: TimeInput) -> PathFromNode:
         """
          Create a view of the PathFromNode including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             PathFromNode:
@@ -3991,13 +3991,13 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> PathFromGraph:
+    def window(self, start: TimeInput, end: TimeInput) -> PathFromGraph:
         """
          Create a view of the PathFromGraph including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             PathFromGraph:
@@ -4551,13 +4551,13 @@ class Edge(object):
              Edge: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> Edge:
+    def window(self, start: TimeInput, end: TimeInput) -> Edge:
         """
          Create a view of the Edge including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             Edge:
@@ -5048,13 +5048,13 @@ class Edges(object):
              Edges: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> Edges:
+    def window(self, start: TimeInput, end: TimeInput) -> Edges:
         """
          Create a view of the Edges including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             Edges:
@@ -5456,13 +5456,13 @@ class NestedEdges(object):
              NestedEdges: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> NestedEdges:
+    def window(self, start: TimeInput, end: TimeInput) -> NestedEdges:
         """
          Create a view of the NestedEdges including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             NestedEdges:

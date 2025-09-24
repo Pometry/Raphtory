@@ -349,14 +349,8 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                     Some(step) => step.try_into()?,
                     None => window,
                 };
-                // take the minimum alignment unit between step and window. Can't simply take the minimum
-                // from step because step might be larger than window.
-                let align_unit = step
-                    .alignment_unit
-                    .into_iter()
-                    .chain(window.alignment_unit)
-                    .min()
-                    .unwrap_or(AlignmentUnit::Millisecond);
+                // Align with step only
+                let align_unit = step.alignment_unit.unwrap_or(AlignmentUnit::Millisecond);
                 // Align the timestamp to the smallest unit. If there is None (i.e. the Interval is discrete),
                 // no alignment is done (aligning to millisecond is the same as not aligning)
                 let start_time = AlignmentUnit::align_timestamp(start, align_unit);

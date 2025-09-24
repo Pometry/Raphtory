@@ -93,10 +93,7 @@ def test_rolling_month_and_day_alignment_default_true(example_graph):
 
 def test_rolling_alignment_smallest_of_window_and_step(example_graph):
     g = example_graph
-    windows = list(islice(g.rolling("1 month", step="1 day"), 5))  # align_start True
-    print(f"\nGraph earliest time: {g.earliest_date_time}")
-    for gw in windows:
-        print(f"Start: {gw.start_date_time}; End: {gw.end_date_time}")
+    windows = list(islice(g.rolling("1 month", step="1 day"), 5))
     # Earliest event is 2025-03-15 14:37:52; day alignment (not month): 2025-03-15 00:00:00
     assert windows[0].start_date_time == datetime(2025, 2, 16, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert windows[0].end_date_time == datetime(2025, 3, 16, 0, 0, 0, 0, tzinfo=timezone.utc)
@@ -231,24 +228,19 @@ def test_edges_rolling_alignment(example_graph_with_edges):
     assert exp_ws[0].end_date_time == datetime(2025, 3, 16, 0, 0, tzinfo=timezone.utc)
     assert exp_ws[1].end_date_time == datetime(2025, 3, 17, 0, 0, tzinfo=timezone.utc)
 
-# FIXME: Shouldn't the window start at hour 15, not 14?
-@pytest.mark.skip(reason="Neighbours rolling window start doesn't depend on neighbours.")
 def test_path_from_node_neighbours_rolling_alignment(example_graph_with_edges):
     g = example_graph_with_edges
     n1 = g.node(1)
     assert n1 is not None
-    neigh = n1.neighbours
-    for n in neigh:
-        print(f"Name: {n.name}; Earliest: {n.earliest_date_time}; Latest: {n.latest_date_time}")
-    ws = list(islice(neigh.rolling("1 hour"), 2))
-    assert ws[0].start_date_time == datetime(2025, 3, 15, 15, 0, tzinfo=timezone.utc)
-    assert ws[0].end_date_time   == datetime(2025, 3, 15, 16, 0, tzinfo=timezone.utc)
-    assert ws[1].start_date_time == datetime(2025, 3, 15, 16, 0, tzinfo=timezone.utc)
-    assert ws[1].end_date_time   == datetime(2025, 3, 15, 17, 0, tzinfo=timezone.utc)
+    ws = list(islice(n1.neighbours.rolling("1 hour"), 2))
+    assert ws[0].start_date_time == datetime(2025, 3, 15, 14, 0, tzinfo=timezone.utc)
+    assert ws[0].end_date_time   == datetime(2025, 3, 15, 15, 0, tzinfo=timezone.utc)
+    assert ws[1].start_date_time == datetime(2025, 3, 15, 15, 0, tzinfo=timezone.utc)
+    assert ws[1].end_date_time   == datetime(2025, 3, 15, 16, 0, tzinfo=timezone.utc)
 
-    exp_ws = list(islice(neigh.expanding("1 hour"), 2))
-    assert exp_ws[0].end_date_time == datetime(2025, 3, 15, 16, 0, tzinfo=timezone.utc)
-    assert exp_ws[1].end_date_time == datetime(2025, 3, 15, 17, 0, tzinfo=timezone.utc)
+    exp_ws = list(islice(n1.neighbours.expanding("1 hour"), 2))
+    assert exp_ws[0].end_date_time == datetime(2025, 3, 15, 15, 0, tzinfo=timezone.utc)
+    assert exp_ws[1].end_date_time == datetime(2025, 3, 15, 16, 0, tzinfo=timezone.utc)
 
 def test_path_from_graph_neighbours_rolling_alignment(example_graph_with_edges):
     g = example_graph_with_edges
@@ -264,31 +256,28 @@ def test_path_from_graph_neighbours_rolling_alignment(example_graph_with_edges):
     assert exp_ws[0].end_date_time == datetime(2025, 3, 15, 15, 0, tzinfo=timezone.utc)
     assert exp_ws[1].end_date_time == datetime(2025, 3, 15, 16, 0, tzinfo=timezone.utc)
 
-# FIXME: The first window is before the first item (empty window).
 def test_mismatched_window_step_basic(example_graph_with_edges):
     g = example_graph_with_edges
-    ws_unaligned = list(islice(g.rolling("1 day", step=3600000, align_start=False), 3))
-    print(f"ws_unaligned first start: {ws_unaligned[0].start_date_time}; first end: {ws_unaligned[0].end_date_time}")
     # window: 1 day (temporal), step: 1 hour (discrete epoch ms)
     ws = list(islice(g.rolling("1 day", step=3600000), 3))
     # earliest time is 2025-03-15 14:37:52
-    assert ws[0].start_date_time == datetime(2025, 3, 14, 1, 0, tzinfo=timezone.utc)
-    assert ws[0].end_date_time == datetime(2025, 3, 15, 1, 0, tzinfo=timezone.utc)
-    assert ws[1].start_date_time == datetime(2025, 3, 14, 2, 0, tzinfo=timezone.utc)
-    assert ws[1].end_date_time == datetime(2025, 3, 15, 2, 0, tzinfo=timezone.utc)
+    assert ws[0].start_date_time == datetime(2025, 3, 14, 15, 37, 52, tzinfo=timezone.utc)
+    assert ws[0].end_date_time == datetime(2025, 3, 15, 15, 37, 52, tzinfo=timezone.utc)
+    assert ws[1].start_date_time == datetime(2025, 3, 14, 16, 37, 52, tzinfo=timezone.utc)
+    assert ws[1].end_date_time == datetime(2025, 3, 15, 16, 37, 52, tzinfo=timezone.utc)
 
-# FIXME: The first window is past the first item.
 def test_mismatched_window_step_basic2(example_graph_with_edges):
     g = example_graph_with_edges
     # window: 1 hour (discrete epoch ms), step: 1 day (temporal)
     ws = list(islice(g.rolling(3600000, step="1 day"), 3))
     # Earliest time: 2025-03-15 14:37:52
+    # The first window is past the first item.
     assert ws[0].start_date_time == datetime(2025, 3, 15, 23, 0, tzinfo=timezone.utc)
     assert ws[0].end_date_time == datetime(2025, 3, 16, 0, 0, tzinfo=timezone.utc)
     assert ws[1].start_date_time == datetime(2025, 3, 16, 23, 0, tzinfo=timezone.utc)
     assert ws[1].end_date_time == datetime(2025, 3, 17, 0, 0, tzinfo=timezone.utc)
 
-def test_window_3weeks_step_2days_alignment(example_graph_with_edges):
+def test_window_3weeks_2days(example_graph_with_edges):
     g = example_graph_with_edges
     windows = list(islice(g.rolling("3 weeks", step="2 days"), 3))
     assert windows[0].start_date_time == datetime(2025, 2, 24, 0, 0, tzinfo=timezone.utc)

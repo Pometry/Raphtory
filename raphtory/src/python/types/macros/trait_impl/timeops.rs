@@ -111,8 +111,8 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Create a view of the ", $name, r" including all events between `start` (inclusive) and `end` (exclusive)")]
             ///
             /// Arguments:
-            ///     start (TimeInput | None): The start time of the window (unbounded if `None`).
-            ///     end (TimeInput | None): The end time of the window (unbounded if `None`).
+            ///     start (TimeInput): The start time of the window.
+            ///     end (TimeInput): The end time of the window.
             ///
             /// Returns:
             #[doc = concat!("    ", $name, ":")]
