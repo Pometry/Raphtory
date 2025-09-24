@@ -1169,6 +1169,7 @@ impl<M> PropertyFilterBuilder<M> {
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for PropertyFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Property(self.0.clone())
     }
@@ -1180,11 +1181,31 @@ pub struct AnyElemFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
 #[derive(Clone)]
 pub struct AllElemFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
 
+pub trait ElemQualifierOps<M>: InternalPropertyFilterOps {
+    fn any(self) -> AnyElemFilterBuilder<M>
+    where
+        Self: Sized,
+    {
+        AnyElemFilterBuilder(self.property_ref(), PhantomData)
+    }
+
+    fn all(self) -> AllElemFilterBuilder<M>
+    where
+        Self: Sized,
+    {
+        AllElemFilterBuilder(self.property_ref(), PhantomData)
+    }
+}
+
+impl<T: InternalPropertyFilterOps> ElemQualifierOps<T::Marker> for T {}
+
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for AnyElemFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         self.0.clone()
     }
+
     fn list_elem_qualifier(&self) -> Option<ListElemQualifier> {
         Some(ListElemQualifier::Any)
     }
@@ -1192,9 +1213,11 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for AnyElemFilt
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for AllElemFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         self.0.clone()
     }
+
     fn list_elem_qualifier(&self) -> Option<ListElemQualifier> {
         Some(ListElemQualifier::All)
     }
@@ -1203,14 +1226,6 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for AllElemFilt
 impl<M> PropertyFilterBuilder<M> {
     pub fn temporal(self) -> TemporalPropertyFilterBuilder<M> {
         TemporalPropertyFilterBuilder(self.0, PhantomData)
-    }
-
-    pub fn any(self) -> AnyElemFilterBuilder<M> {
-        AnyElemFilterBuilder(PropertyRef::Property(self.0), PhantomData)
-    }
-
-    pub fn all(self) -> AllElemFilterBuilder<M> {
-        AllElemFilterBuilder(PropertyRef::Property(self.0), PhantomData)
     }
 }
 
@@ -1221,18 +1236,11 @@ impl<M> MetadataFilterBuilder<M> {
     pub fn new(prop: impl Into<String>) -> Self {
         Self(prop.into(), PhantomData)
     }
-
-    pub fn any(self) -> AnyElemFilterBuilder<M> {
-        AnyElemFilterBuilder(PropertyRef::Metadata(self.0), PhantomData)
-    }
-
-    pub fn all(self) -> AllElemFilterBuilder<M> {
-        AllElemFilterBuilder(PropertyRef::Metadata(self.0), PhantomData)
-    }
 }
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for MetadataFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Metadata(self.0.clone())
     }
@@ -1266,24 +1274,9 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
     for AnyTemporalPropertyFilterBuilder<M>
 {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::Any)
-    }
-}
-
-impl<M> AnyTemporalPropertyFilterBuilder<M> {
-    pub fn any(self) -> AnyElemFilterBuilder<M> {
-        AnyElemFilterBuilder(
-            PropertyRef::TemporalProperty(self.0, Temporal::Any),
-            PhantomData,
-        )
-    }
-
-    pub fn all(self) -> AllElemFilterBuilder<M> {
-        AllElemFilterBuilder(
-            PropertyRef::TemporalProperty(self.0, Temporal::Any),
-            PhantomData,
-        )
     }
 }
 
@@ -1294,24 +1287,9 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
     for LatestTemporalPropertyFilterBuilder<M>
 {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::Latest)
-    }
-}
-
-impl<M> LatestTemporalPropertyFilterBuilder<M> {
-    pub fn any(self) -> AnyElemFilterBuilder<M> {
-        AnyElemFilterBuilder(
-            PropertyRef::TemporalProperty(self.0, Temporal::Latest),
-            PhantomData,
-        )
-    }
-
-    pub fn all(self) -> AllElemFilterBuilder<M> {
-        AllElemFilterBuilder(
-            PropertyRef::TemporalProperty(self.0, Temporal::Latest),
-            PhantomData,
-        )
     }
 }
 
@@ -1322,24 +1300,9 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
     for FirstTemporalPropertyFilterBuilder<M>
 {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::First)
-    }
-}
-
-impl<M> FirstTemporalPropertyFilterBuilder<M> {
-    pub fn any(self) -> AnyElemFilterBuilder<M> {
-        AnyElemFilterBuilder(
-            PropertyRef::TemporalProperty(self.0, Temporal::First),
-            PhantomData,
-        )
-    }
-
-    pub fn all(self) -> AllElemFilterBuilder<M> {
-        AllElemFilterBuilder(
-            PropertyRef::TemporalProperty(self.0, Temporal::First),
-            PhantomData,
-        )
     }
 }
 
@@ -1350,24 +1313,9 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
     for AllTemporalPropertyFilterBuilder<M>
 {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::All)
-    }
-}
-
-impl<M> AllTemporalPropertyFilterBuilder<M> {
-    pub fn any(self) -> AnyElemFilterBuilder<M> {
-        AnyElemFilterBuilder(
-            PropertyRef::TemporalProperty(self.0, Temporal::All),
-            PhantomData,
-        )
-    }
-
-    pub fn all(self) -> AllElemFilterBuilder<M> {
-        AllElemFilterBuilder(
-            PropertyRef::TemporalProperty(self.0, Temporal::All),
-            PhantomData,
-        )
     }
 }
 

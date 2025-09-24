@@ -237,9 +237,18 @@ mod test_exploded_edge_property_filtered_graph {
     ) -> (PersistentGraph, PersistentGraph) {
         let g = PersistentGraph::new();
         let g_filtered = PersistentGraph::new();
-        if !edges.iter().all(|(_, v)| v.is_empty()) {
-            g_filtered.resolve_layer(None).unwrap();
-        }
+
+        g.resolve_edge_property("str_prop", PropType::Str, false)
+            .unwrap();
+        g.resolve_edge_property("int_prop", PropType::I64, false)
+            .unwrap();
+        g_filtered
+            .resolve_edge_property("str_prop", PropType::Str, false)
+            .unwrap();
+        g_filtered
+            .resolve_edge_property("int_prop", PropType::I64, false)
+            .unwrap();
+
         for ((src, dst), updates) in edges {
             for (t, update) in updates {
                 match update {
@@ -274,13 +283,6 @@ mod test_exploded_edge_property_filtered_graph {
                                 .unwrap();
                         } else {
                             g_filtered.delete_edge(t, src, dst, None).unwrap();
-                            // properties still exist after filtering
-                            g_filtered
-                                .resolve_edge_property("str_prop", PropType::Str, false)
-                                .unwrap();
-                            g_filtered
-                                .resolve_edge_property("int_prop", PropType::I64, false)
-                                .unwrap();
                         }
                     }
                 }
@@ -741,20 +743,5 @@ mod test_exploded_edge_property_filtered_graph {
         assert_eq!(gfw.count_edges(), 0);
         let gm = gfw.materialize().unwrap();
         assert_persistent_materialize_graph_equal(&gfw, &gm);
-    }
-
-    #[test]
-    fn test_persistent_graph_only_deletion() {
-        let g = PersistentGraph::new();
-        g.delete_edge(0, 0, 0, None).unwrap();
-        let gfw = g
-            .filter(ExplodedEdgeFilter::property("int_prop").gt(1i64))
-            .unwrap()
-            .window(-1, 1);
-        let gfwm = gfw.materialize().unwrap();
-
-        // deletions are not filtered
-        assert_graph_equal(&g, &gfw);
-        assert_graph_equal(&gfw, &gfwm);
     }
 }

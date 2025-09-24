@@ -1160,15 +1160,19 @@ mod views_test {
             use std::sync::Arc;
 
             use crate::{
-                db::graph::{
-                    assertions::WindowGraphTransformer,
-                    views::filter::model::{
-                        node_filter::{NodeFilter, NodeFilterBuilderOps},
-                        property_filter::PropertyFilterOps,
-                        PropertyFilterFactory,
+                db::{
+                    api::view::filter_ops::BaseFilterOps,
+                    graph::{
+                        assertions::WindowGraphTransformer,
+                        views::filter::model::{
+                            node_filter::{NodeFilter, NodeFilterBuilderOps},
+                            property_filter::PropertyFilterOps,
+                            PropertyFilterFactory,
+                        },
                     },
                 },
-                prelude::GraphViewOps,
+                errors::GraphError,
+                prelude::{Graph, GraphViewOps, TimeOps},
             };
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
@@ -2103,28 +2107,6 @@ mod views_test {
                     &expected_results,
                     vec![TestGraphVariants::Graph],
                 );
-
-                let filter = NodeFilter::property("x").ne(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = Vec::<&str>::new();
-                assert_filter_nodes_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
@@ -2213,28 +2195,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = NodeFilter::property("x").ne(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = Vec::<&str>::new();
-                assert_filter_nodes_results(
-                    init_graph,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     vec![TestGraphVariants::PersistentGraph],
-                // );
             }
 
             #[test]
@@ -2453,28 +2413,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = NodeFilter::property("x").le(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = Vec::<&str>::new();
-                assert_filter_nodes_results(
-                    init_graph,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    TestVariants::PersistentOnly,
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -2536,22 +2474,15 @@ mod views_test {
                     Prop::U64(6),
                     Prop::U64(9),
                 ])));
-                let expected_results = Vec::<&str>::new();
-                assert_filter_nodes_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
+                let graph = init_graph(Graph::new());
+                assert!(matches!(
+                    graph.window(1, 9).filter(filter.clone()).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "x"
+                ));
+                assert!(matches!(
+                    graph.persistent_graph().window(1, 9).filter(filter).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "x"
+                ));
             }
 
             #[test]
@@ -3347,7 +3278,7 @@ mod views_test {
         mod test_edges_filters_window_graph {
             use crate::{
                 db::{
-                    api::view::StaticGraphViewOps,
+                    api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
                     graph::{
                         assertions::{
                             assert_filter_edges_results, assert_search_edges_results,
@@ -3360,7 +3291,8 @@ mod views_test {
                         },
                     },
                 },
-                prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps},
+                errors::GraphError,
+                prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps, TimeOps},
             };
             use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
             use std::sync::Arc;
@@ -4142,28 +4074,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::EventOnly,
                 );
-
-                let filter = EdgeFilter::property("x").ne(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = Vec::<&str>::new();
-                assert_filter_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    TestVariants::EventOnly,
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1..9),
-                //     filter.clone(),
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
@@ -4559,22 +4469,15 @@ mod views_test {
                     Prop::U64(6),
                     Prop::U64(9),
                 ])));
-                let expected_results = Vec::<&str>::new();
-                assert_filter_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    TestVariants::EventOnly,
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
+                let graph = init_graph(Graph::new());
+                assert!(matches!(
+                    graph.window(1, 9).filter(filter.clone()).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "x"
+                ));
+                assert!(matches!(
+                    graph.persistent_graph().window(1, 9).filter(filter).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "x"
+                ));
             }
 
             #[test]

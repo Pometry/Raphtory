@@ -199,8 +199,9 @@ where
         other => panic!("expected InvalidFilter, got: {other:?}"),
     }
 }
+
 pub fn assert_filter_nodes_err(
-    init_graph: impl FnOnce(Graph) -> Graph,
+    init_graph: fn(Graph) -> Graph,
     transform: impl GraphTransformer,
     filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &str,

@@ -801,7 +801,7 @@ mod test_index {
 
             let filter = EdgeFilter::property("e_p1")
                 .lt(5f64)
-                .or(EdgeFilter::property("e_y").eq(false));
+                .or(EdgeFilter::metadata("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
@@ -836,7 +836,7 @@ mod test_index {
 
             let filter = EdgeFilter::property("e_p1")
                 .lt(5f64)
-                .or(EdgeFilter::property("e_y").eq(false));
+                .or(EdgeFilter::metadata("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }

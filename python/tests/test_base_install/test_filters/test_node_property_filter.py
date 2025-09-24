@@ -160,9 +160,11 @@ def test_filter_nodes_for_property_starts_with():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").starts_with("Paper")
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("p20").temporal().first().starts_with("Old")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
@@ -211,9 +213,11 @@ def test_filter_nodes_for_property_ends_with():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").ends_with("ane")
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -242,9 +246,11 @@ def test_filter_nodes_for_property_contains():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").contains("Paper")
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -277,9 +283,11 @@ def test_filter_nodes_for_property_not_contains():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").not_contains("ship")
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -777,7 +785,7 @@ def test_filter_nodes_for_temporary_property_any_all():
     return check
 
 
-@with_disk_variants(create_test_graph)
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
 def test_filter_nodes_with_with_qualifier_on_non_string():
     def check(graph):
         filter_expr = filter.Node.property("prop8").any() == "3"
@@ -790,7 +798,7 @@ def test_filter_nodes_with_with_qualifier_on_non_string():
     return check
 
 
-@with_disk_variants(create_test_graph)
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
 def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     def check(graph):
         filter_expr = filter.Node.property("prop8").any().is_some()

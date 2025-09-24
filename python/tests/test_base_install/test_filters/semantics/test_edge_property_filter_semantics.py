@@ -6,6 +6,7 @@ from filters_setup import (
     combined,
 )
 from utils import with_disk_variants
+import pytest
 
 
 def init_graph_for_secondary_indexes(graph):
@@ -226,9 +227,11 @@ def test_property_semantics_only_metadata():
 def test_property_semantics_only_metadata2():
     def check(graph):
         filter_expr = filter.Edge.metadata("p1") == 1
-        result_ids = sorted(graph.filter(filter_expr).edges.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p1 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 

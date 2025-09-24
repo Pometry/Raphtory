@@ -466,7 +466,6 @@ pub(crate) mod test_filters {
     use raphtory_storage::mutation::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
-    use std::sync::Arc;
 
     struct IdentityGraphTransformer;
 
@@ -483,7 +482,7 @@ pub(crate) mod test_filters {
         mod test_node_property_filter_semantics {
             use crate::{
                 db::{
-                    api::view::StaticGraphViewOps,
+                    api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
                     graph::{
                         assertions::{
                             assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
@@ -497,6 +496,7 @@ pub(crate) mod test_filters {
                         },
                     },
                 },
+                errors::GraphError,
                 prelude::*,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
@@ -764,21 +764,15 @@ pub(crate) mod test_filters {
                 }
 
                 let filter = NodeFilter::property("p1").ge(1u64);
-                let expected_results = vec![];
-                assert_filter_nodes_results(
-                    init_graph,
-                    IdentityGraphTransformer,
-                    filter.clone(),
-                    &expected_results,
-                    TestVariants::NonDiskOnly,
-                );
-                assert_search_nodes_results(
-                    init_graph,
-                    IdentityGraphTransformer,
-                    filter,
-                    &expected_results,
-                    TestVariants::NonDiskOnly,
-                );
+                let graph = init_graph(Graph::new());
+                assert!(matches!(
+                    graph.filter(filter.clone()).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "p1"
+                ));
+                assert!(matches!(
+                    graph.persistent_graph().filter(filter).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "p1"
+                ));
             }
 
             #[test]
@@ -848,6 +842,7 @@ pub(crate) mod test_filters {
                         },
                     },
                 },
+                errors::GraphError,
                 prelude::*,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
@@ -1318,21 +1313,15 @@ pub(crate) mod test_filters {
                 }
 
                 let filter = EdgeFilter::property("p1").eq(1u64);
-                let expected_results = vec![];
-                assert_filter_edges_results(
-                    init_graph,
-                    IdentityGraphTransformer,
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                assert_search_edges_results(
-                    init_graph,
-                    IdentityGraphTransformer,
-                    filter.clone(),
-                    &expected_results,
-                    TestVariants::NonDiskOnly,
-                );
+                let graph = init_graph(Graph::new());
+                assert!(matches!(
+                    graph.filter(filter.clone()).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "p1"
+                ));
+                assert!(matches!(
+                    graph.persistent_graph().filter(filter).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "p1"
+                ));
             }
 
             #[test]
@@ -1384,7 +1373,10 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::db::graph::assertions::GraphTransformer;
+    use crate::db::graph::{
+        assertions::{assert_filter_nodes_err, GraphTransformer, TestVariants::NonDiskOnly},
+        views::filter::{internal::CreateFilter, model::TryAsCompositeFilter},
+    };
 
     fn init_nodes_graph<
         G: StaticGraphViewOps
@@ -4158,7 +4150,7 @@ pub(crate) mod test_filters {
                         internal::CreateFilter,
                         model::{
                             node_filter::NodeFilter,
-                            property_filter::{ListAggOps, PropertyFilterOps},
+                            property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
                             PropertyFilterFactory, TryAsCompositeFilter,
                         },
                         test_filters::IdentityGraphTransformer,

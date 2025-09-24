@@ -253,9 +253,11 @@ def test_filter_edges_for_property_starts_with():
         assert result_ids == expected_ids
 
         filter_expr = filter.Edge.metadata("p10").starts_with("Paper")
-        result_ids = sorted(graph.filter(filter_expr).edges.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -294,9 +296,11 @@ def test_filter_edges_for_property_ends_with():
         assert result_ids == expected_ids
 
         filter_expr = filter.Edge.metadata("p10").ends_with("hip")
-        result_ids = sorted(graph.filter(filter_expr).edges.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -325,9 +329,11 @@ def test_filter_edges_for_property_contains():
         assert result_ids == expected_ids
 
         filter_expr = filter.Edge.metadata("p10").contains("Paper")
-        result_ids = sorted(graph.filter(filter_expr).edges.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -360,9 +366,11 @@ def test_filter_edges_for_property_not_contains():
         assert result_ids == expected_ids
 
         filter_expr = filter.Edge.metadata("p10").not_contains("ship")
-        result_ids = sorted(graph.filter(filter_expr).edges.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Property p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
