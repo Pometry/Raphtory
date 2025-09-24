@@ -6,18 +6,25 @@ use crate::{
     errors::GraphError,
     serialise::parquet::{ParquetDecoder, ParquetEncoder},
 };
+use tempfile;
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
-    /// Encode the graph into bytes. Does not include any metadata/indexes.
+    /// Encode the graph into bytes.
     fn encode_to_bytes(&self) -> Vec<u8>;
 
-    /// Encode the graph along with any metadata/indexes to the given path.
+    /// Encode the graph into the given path.
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError>;
 }
 
 impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
     fn encode_to_bytes(&self) -> Vec<u8> {
-        self.encode_parquet_to_bytes().unwrap()
+        // Encode to a temp zip file and return the bytes
+        let tempdir = tempfile::tempdir().unwrap();
+        let zip_path = tempdir.path().join("graph.zip");
+        let folder = GraphFolder::new_as_zip(&zip_path);
+
+        self.encode(&folder).unwrap();
+        std::fs::read(&zip_path).unwrap()
     }
 
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
@@ -44,16 +51,23 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 }
 
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
-    // Decode the graph from the given bytes array. Does not include any metadata/indexes.
+    // Decode the graph from the given bytes array.
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError>;
 
-    // Decode the graph along with any metadata/indexes from the given path.
+    // Decode the graph from the given path.
     fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
-        let graph = Self::decode_parquet_from_bytes(bytes)?;
+        // Write bytes to a temp zip file and decode
+        let tempdir = tempfile::tempdir()?;
+        let zip_path = tempdir.path().join("graph.zip");
+        let folder = GraphFolder::new_as_zip(&zip_path);
+        std::fs::write(&zip_path, bytes)?;
+
+        let graph = Self::decode(&folder)?;
+
         Ok(graph)
     }
 

@@ -226,6 +226,7 @@ impl PyRaphtoryClient {
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         let remote_client = self.clone();
         let client = self.client.clone();
+
         self.execute_async_task(move || async move {
             let folder = GraphFolder::from(file_path.clone());
             let mut buffer = Vec::new();
