@@ -6,11 +6,12 @@ from datetime import datetime, timezone
 @pytest.fixture()
 def example_graph() -> Graph:
     g: Graph = Graph()
-    g.add_node(datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc), 1)   # 0
-    g.add_node(datetime(1970, 1, 2, 0, 0, 0, tzinfo=timezone.utc), 2)   # 86400000
+    g.add_node(datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc), 1)  # 0
+    g.add_node(datetime(1970, 1, 2, 0, 0, 0, tzinfo=timezone.utc), 2)  # 86400000
     g.add_node(datetime(1970, 1, 2, 0, 30, 0, tzinfo=timezone.utc), 3)  # 88200000
-    g.add_node(datetime(2000, 1, 1, 0, 0, 0, tzinfo=timezone.utc), 4)   # 946684800000
+    g.add_node(datetime(2000, 1, 1, 0, 0, 0, tzinfo=timezone.utc), 4)  # 946684800000
     return g
+
 
 def test_time_index():
     t = TimeIndexEntry.new((5, 1))
@@ -40,6 +41,7 @@ def test_time_index():
     assert t == (datetime(1970, 1, 1, 0, 0, 0, 5000), "1970-01-01T00:00:00.001")
     assert t < (datetime(1970, 1, 1, 0, 0, 0, 5000), "1970-01-01T00:00:00.010Z")
 
+
 def test_time_input_parsing(example_graph):
     g: Graph = example_graph
     start_variants = [
@@ -48,18 +50,15 @@ def test_time_input_parsing(example_graph):
         datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
         # no timezone information, should assume UTC
         datetime(1970, 1, 1, 0, 0, 0),
-
-        "1970-01-01T00:00:00Z",                 # RFC3339
-        "Thu, 01 Jan 1970 00:00:00 +0000",      # RFC2822
-        "1970-01-01",                           # date-only
-        "1970-01-01T00:00:00.000",              # naive ISO T with ms
-        "1970-01-01T00:00:00",                  # naive ISO T
-        "1970-01-01 00:00:00.000",              # naive space with ms
-        "1970-01-01 00:00:00",                  # naive space
-
+        "1970-01-01T00:00:00Z",  # RFC3339
+        "Thu, 01 Jan 1970 00:00:00 +0000",  # RFC2822
+        "1970-01-01",  # date-only
+        "1970-01-01T00:00:00.000",  # naive ISO T with ms
+        "1970-01-01T00:00:00",  # naive ISO T
+        "1970-01-01 00:00:00.000",  # naive space with ms
+        "1970-01-01 00:00:00",  # naive space
         TimeIndexEntry.new(0),
         TimeIndexEntry.new((0, 0)),
-
         # tuple/list indexed forms
         (0, 0),
         [0, 0],
@@ -74,15 +73,12 @@ def test_time_input_parsing(example_graph):
         datetime(1970, 1, 1, 0, 0, 0, 10000, tzinfo=timezone.utc),
         # no timezone information, should assume UTC
         datetime(1970, 1, 1, 0, 0, 0, 10000),
-
-        "1970-01-01T00:00:00.010Z",            # RFC3339 with ms
-        "Thu, 01 Jan 1970 00:00:01 +0000",     # RFC2822 (1s)
-        "1970-01-01T00:00:00.010",             # naive ISO T with ms
-        "1970-01-01 00:00:00.010",             # naive space with ms
-
+        "1970-01-01T00:00:00.010Z",  # RFC3339 with ms
+        "Thu, 01 Jan 1970 00:00:01 +0000",  # RFC2822 (1s)
+        "1970-01-01T00:00:00.010",  # naive ISO T with ms
+        "1970-01-01 00:00:00.010",  # naive space with ms
         TimeIndexEntry.new(10),
         TimeIndexEntry.new((10, 0)),
-
         # tuple/list indexed forms
         (10, 0),
         [10, 0],

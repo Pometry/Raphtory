@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime, timezone
 from raphtory import Graph, History, PersistentGraph
 
+
 @pytest.fixture()
 def example_graph() -> Graph:
     g = Graph()
@@ -14,10 +15,17 @@ def example_graph() -> Graph:
     g.add_node(350, "Harry", properties={"Age": 21})
 
     g.add_edge(150, "Dumbledore", "Harry", layer="communication")
-    g.add_edge(200, "Dumbledore", "Harry", properties={"weight": 0.5}, layer="friendship")
-    g.add_edge(300, "Dumbledore", "Harry", properties={"weight": 0.7}, layer="communication")
-    g.add_edge(350, "Dumbledore", "Harry", properties={"weight": 0.9}, layer="friendship")
+    g.add_edge(
+        200, "Dumbledore", "Harry", properties={"weight": 0.5}, layer="friendship"
+    )
+    g.add_edge(
+        300, "Dumbledore", "Harry", properties={"weight": 0.7}, layer="communication"
+    )
+    g.add_edge(
+        350, "Dumbledore", "Harry", properties={"weight": 0.9}, layer="friendship"
+    )
     return g
+
 
 def test_node_and_edge_history_timestamps(example_graph):
     g = example_graph
@@ -32,10 +40,18 @@ def test_node_and_edge_history_timestamps(example_graph):
     assert g.window(150, 300).edge("Dumbledore", "Harry").history.t == [150, 200]
     assert g.window(300, 450).edge("Dumbledore", "Harry").history.t == [300, 350]
 
+
 def test_layered_history_timestamps(example_graph):
     g = example_graph
-    assert (g.layer("friendship").node("Dumbledore").history.t == [100, 200, 200, 300, 350])
-    assert (g.layer("communication").edge("Dumbledore", "Harry").history.t== [150, 300])
+    assert g.layer("friendship").node("Dumbledore").history.t == [
+        100,
+        200,
+        200,
+        300,
+        350,
+    ]
+    assert g.layer("communication").edge("Dumbledore", "Harry").history.t == [150, 300]
+
 
 def test_history_reverse_merge_and_compose(example_graph):
     g = example_graph
@@ -47,11 +63,14 @@ def test_history_reverse_merge_and_compose(example_graph):
     assert reverse == list(reversed(forward))
 
     merged = node_history.merge(edge_history)
-    assert merged.t.collect().tolist() == sorted(forward + edge_history.t.collect().tolist())
+    assert merged.t.collect().tolist() == sorted(
+        forward + edge_history.t.collect().tolist()
+    )
     assert merged.t == [100, 150, 150, 200, 200, 200, 300, 300, 300, 350, 350]
 
     composed = History.compose_histories([node_history, edge_history])
     assert composed.t.collect().tolist() == merged.t.collect().tolist()
+
 
 def test_intervals_basic_and_same_timestamp():
     g = Graph()
@@ -68,6 +87,7 @@ def test_intervals_basic_and_same_timestamp():
     assert g2.node("X").history.intervals == [0]
     g2.add_node(2, "X")
     assert g2.node("X").history.intervals == [0, 1]
+
 
 def test_intervals_stats():
     g = Graph()
@@ -90,6 +110,7 @@ def test_intervals_stats():
     assert inter2.max() is None
     assert inter2.min() is None
 
+
 def test_secondary_index_ordering_with_same_timestamp():
     g = Graph()
 
@@ -102,6 +123,7 @@ def test_secondary_index_ordering_with_same_timestamp():
     # Secondary index should be ascending
     assert g.node("A").history.secondary_index == [1, 2, 3]
     assert g.node("A").history == [(1, 1), (1, 2), (1, 3)]
+
 
 def test_composed_neighbours_history():
     g = Graph()
@@ -123,6 +145,7 @@ def test_composed_neighbours_history():
     # Expected: node2(2,4,7) + node3(3,5) in order
     assert combined == [(2, 1), (3, 2), (4, 3), (5, 4), (7, 6)]
 
+
 def test_history_datetime_view():
     g = Graph()
     # Use datetimes and ensure dt view matches UTC conversions
@@ -132,6 +155,7 @@ def test_history_datetime_view():
     lst = g.node("Z").history.dt.collect()
     assert [d.tzinfo for d in lst] == [timezone.utc, timezone.utc]
     assert [d.hour for d in lst] == [12, 13]
+
 
 def test_nodes_history_iterable(example_graph):
     g = example_graph
@@ -144,10 +168,12 @@ def test_nodes_history_iterable(example_graph):
     expected = [expected_by_node[n] for n in names]
     assert histories == expected
 
+
 def test_edges_history_iterable(example_graph):
     g = example_graph
     edges_histories = [arr.tolist() for arr in g.edges.history.t.collect()]
     assert edges_histories == [[150, 200, 300, 350]]
+
 
 def test_nodes_neighbours_history_iterable(example_graph):
     g = example_graph
@@ -157,11 +183,15 @@ def test_nodes_neighbours_history_iterable(example_graph):
         "Dumbledore": [100, 150, 200, 200, 300, 300, 350],
         "Harry": [150, 150, 200, 250, 300, 350, 350],
     }
-    expected_nested = [[expected_by_node[n] for n in inner] for inner in neighbour_names]
+    expected_nested = [
+        [expected_by_node[n] for n in inner] for inner in neighbour_names
+    ]
     nested_histories = [
-        [arr.tolist() for arr in inner] for inner in g.nodes.neighbours.history.t.collect()
+        [arr.tolist() for arr in inner]
+        for inner in g.nodes.neighbours.history.t.collect()
     ]
     assert nested_histories == expected_nested
+
 
 def test_edge_deletions_history():
     g = PersistentGraph()

@@ -2329,26 +2329,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -2366,6 +2346,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">direction</td>
 <td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
+<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2449,57 +2449,6 @@ will be returned.
 <td colspan="2" valign="top"><strong id="graphwindowset.list">list</strong></td>
 <td valign="top">[<a href="#graph">Graph</a>!]!</td>
 <td></td>
-</tr>
-</tbody>
-</table>
-
-### IndexSpec
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.nodemetadata">nodeMetadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns node metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.nodeproperties">nodeProperties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns node properties.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.edgemetadata">edgeMetadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns edge metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.edgeproperties">edgeProperties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns edge properties.
-
-</td>
 </tr>
 </tbody>
 </table>
@@ -2975,6 +2924,57 @@ will be returned.
 <td colspan="2" align="right" valign="top">pageIndex</td>
 <td valign="top"><a href="#int">Int</a></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+
+### IndexSpec
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="indexspec.nodemetadata">nodeMetadata</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Returns node metadata.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="indexspec.nodeproperties">nodeProperties</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Returns node properties.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="indexspec.edgemetadata">edgeMetadata</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Returns edge metadata.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="indexspec.edgeproperties">edgeProperties</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Returns edge properties.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5740,7 +5740,7 @@ Two documents A and B are considered to be 1 hop away of each other if they are 
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5764,7 +5764,7 @@ Adds documents, from the set of one hop neighbours to the current selection, to 
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5788,7 +5788,7 @@ Add the adjacent nodes with higher score for query to the selection up to a spec
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5812,7 +5812,7 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 </tbody>
