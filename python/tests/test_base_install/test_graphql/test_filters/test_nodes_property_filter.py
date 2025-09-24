@@ -1,6 +1,6 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import create_test_graph
+from filters_setup import create_test_graph, create_test_graph2, create_test_graph3
 from utils import run_graphql_test, run_graphql_error_test
 
 EVENT_GRAPH = create_test_graph(Graph())
@@ -938,6 +938,37 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
                       temporal: ALL,
                       operator: STARTS_WITH
                       value: { str: "abc1" }
+                    }
+                  }
+                ) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = create_test_graph3(Graph())
+PERSISTENT_GRAPH = create_test_graph3(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_filter_nodes_with_prop_u8(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes {
+              nodeFilter(
+                  filter: {
+                      property: {
+                          name: "prop1"
+                          operator: EQUAL
+                          value: { u8: 5 }
                     }
                   }
                 ) {
