@@ -25,7 +25,6 @@ dashmap = { workspace = true }
 rustc-hash = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
-polars-arrow = { workspace = true, optional = true }
 pyo3 = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
 rayon = { workspace = true }
@@ -56,7 +55,6 @@ python = [
 ]
 
 storage = [
-    "dep:polars-arrow",
     "dep:arrow-schema",
 ]
 

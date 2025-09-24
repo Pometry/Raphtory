@@ -135,37 +135,6 @@ impl PropType {
     }
 }
 
-#[cfg(feature = "storage")]
-mod storage {
-    use crate::core::entities::properties::prop::PropType;
-    use arrow_schema::DataType;
-    use polars_arrow::datatypes::ArrowDataType as PolarsDataType;
-
-    impl From<&PolarsDataType> for PropType {
-        fn from(value: &PolarsDataType) -> Self {
-            match value {
-                PolarsDataType::Utf8 => PropType::Str,
-                PolarsDataType::LargeUtf8 => PropType::Str,
-                PolarsDataType::Utf8View => PropType::Str,
-                PolarsDataType::UInt8 => PropType::U8,
-                PolarsDataType::UInt16 => PropType::U16,
-                PolarsDataType::Int32 => PropType::I32,
-                PolarsDataType::Int64 => PropType::I64,
-                PolarsDataType::UInt32 => PropType::U32,
-                PolarsDataType::UInt64 => PropType::U64,
-                PolarsDataType::Float32 => PropType::F32,
-                PolarsDataType::Float64 => PropType::F64,
-                PolarsDataType::Decimal(_, scale) => PropType::Decimal {
-                    scale: *scale as i64,
-                },
-                PolarsDataType::Boolean => PropType::Bool,
-
-                _ => PropType::Empty,
-            }
-        }
-    }
-}
-
 #[cfg(any(feature = "arrow", feature = "storage"))]
 mod arrow {
     use crate::core::entities::properties::prop::PropType;
