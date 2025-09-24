@@ -5,7 +5,8 @@ use pyo3::{
     prelude::*,
     sync::GILOnceCell,
     types::{PyBool, PyType},
-    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
+    Bound, BoundObject, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult,
+    Python,
 };
 use std::{ops::Deref, str::FromStr, sync::Arc};
 
@@ -26,7 +27,7 @@ impl<'py> IntoPyObject<'py> for Prop {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(match self {
             Prop::Str(s) => s.into_pyobject(py)?.into_any(),
-            Prop::Bool(bool) => bool.into_pyobject(py)?.into_bound_py_any(py)?,
+            Prop::Bool(bool) => bool.into_bound_py_any(py)?,
             Prop::U8(u8) => u8.into_pyobject(py)?.into_any(),
             Prop::U16(u16) => u16.into_pyobject(py)?.into_any(),
             Prop::I64(i64) => i64.into_pyobject(py)?.into_any(),
@@ -37,9 +38,7 @@ impl<'py> IntoPyObject<'py> for Prop {
             #[cfg(feature = "arrow")]
             Prop::Array(blob) => {
                 if let Some(arr_ref) = blob.into_array_ref() {
-                    pyo3_arrow::PyArray::from_array_ref(arr_ref)
-                        .to_pyarrow(py)?
-                        .into_bound(py)
+                    pyo3_arrow::PyArray::from_array_ref(arr_ref).into_bound_py_any(py)?
                 } else {
                     py.None().into_bound(py)
                 }

@@ -1,10 +1,6 @@
 use crate::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
 use itertools::Itertools;
 use num_traits::ToPrimitive;
-use polars_arrow::{
-    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
-    datatypes::{ArrowDataType, ArrowSchema, Field},
-};
 use pometry_storage::{
     properties::{node_ts, NodePropsBuilder, Properties},
     RAError,
