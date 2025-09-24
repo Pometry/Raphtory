@@ -209,7 +209,7 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     PyArray:
+    ///     List[int]:
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.edge.history();
         history.into_pyarray(py)
@@ -424,7 +424,7 @@ impl PyMutableEdge {
     /// Add updates to an edge in the graph at a specified time.
     /// This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
-    /// Parameters:
+    /// Arguments:
     ///    t (TimeInput): The timestamp at which the updates should be applied.
     ///    properties (PropInput, optional): A dictionary of properties to update.
     ///    layer (str, optional): The layer you want these properties to be added on to.
@@ -456,7 +456,7 @@ impl PyMutableEdge {
 
     /// Mark the edge as deleted at the specified time.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to.
     ///
@@ -474,7 +474,7 @@ impl PyMutableEdge {
     /// This function is used to add properties to an edge that do not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
     ///
@@ -493,7 +493,7 @@ impl PyMutableEdge {
     /// This function is used to add properties to an edge that does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
     ///

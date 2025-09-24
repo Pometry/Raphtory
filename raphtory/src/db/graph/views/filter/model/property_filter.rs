@@ -109,7 +109,7 @@ impl Display for PropertyFilter {
 }
 
 impl PropertyFilter {
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     ///     prop_value:
     pub fn eq(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
@@ -120,7 +120,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     ///     prop_value:
     pub fn ne(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
@@ -131,7 +131,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     ///     prop_value:
     pub fn le(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
@@ -142,7 +142,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     ///     prop_value:
     pub fn ge(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
@@ -153,7 +153,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     ///     prop_value:
     pub fn lt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
@@ -164,7 +164,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     ///     prop_value:
     pub fn gt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
@@ -175,7 +175,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     ///     prop_values:
     pub fn is_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
@@ -186,7 +186,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     ///     prop_values:
     pub fn is_not_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
@@ -197,7 +197,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     pub fn is_none(prop_ref: PropertyRef) -> Self {
         Self {
@@ -207,7 +207,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     pub fn is_some(prop_ref: PropertyRef) -> Self {
         Self {
@@ -217,7 +217,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     pub fn contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
@@ -227,7 +227,7 @@ impl PropertyFilter {
         }
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     prop_ref:
     pub fn not_contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
@@ -241,7 +241,7 @@ impl PropertyFilter {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):

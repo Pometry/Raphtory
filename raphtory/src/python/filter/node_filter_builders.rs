@@ -28,8 +28,8 @@ impl<T: InternalNodeFilterBuilderOps + 'static> From<T> for PyNodeFilterBuilder 
 impl PyNodeFilterBuilder {
     /// Returns a filter expression that checks if a given value is equal to a specified string.
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     filter expression
@@ -40,8 +40,8 @@ impl PyNodeFilterBuilder {
     /// Returns a filter expression that checks if a given value is not equal to a specified string.
     ///
     ///  
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     filter expression
@@ -51,8 +51,8 @@ impl PyNodeFilterBuilder {
 
     /// Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
     ///
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[str]:
     ///
     /// Returns:
     ///     filter expression
@@ -62,8 +62,8 @@ impl PyNodeFilterBuilder {
 
     /// Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
     ///
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[str]:
     ///
     /// Returns:
     ///     filter expression
@@ -73,8 +73,8 @@ impl PyNodeFilterBuilder {
 
     /// Returns a filter expression that checks if the specified iterable of strings contains a given value.
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     filter expression
@@ -85,8 +85,8 @@ impl PyNodeFilterBuilder {
     /// Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
     ///
     ///  
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     filter expression
@@ -98,8 +98,8 @@ impl PyNodeFilterBuilder {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///     levenshtein_distance:
     ///     prefix_match:
     ///
@@ -142,43 +142,43 @@ impl PyNodeFilter {
 }
 
 pub trait DynNodeFilterBuilderOps: Send + Sync {
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     FilterExpr:
     fn eq(&self, value: String) -> PyFilterExpr;
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     FilterExpr:
     fn ne(&self, value: String) -> PyFilterExpr;
 
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[str]:
     ///
     /// Returns:
     ///     FilterExpr:
     fn is_in(&self, values: Vec<String>) -> PyFilterExpr;
 
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[str]:
     ///
     /// Returns:
     ///     FilterExpr:
     fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr;
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     FilterExpr:
     fn contains(&self, value: String) -> PyFilterExpr;
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -188,7 +188,7 @@ pub trait DynNodeFilterBuilderOps: Send + Sync {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):
@@ -207,8 +207,8 @@ impl<T> DynNodeFilterBuilderOps for T
 where
     T: InternalNodeFilterBuilderOps,
 {
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -218,8 +218,8 @@ where
         ))))
     }
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -229,7 +229,7 @@ where
         ))))
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     values:
     ///
     /// Returns:
@@ -240,7 +240,7 @@ where
         )))
     }
 
-    /// Parameters:
+    /// Arguments:
     ///     values:
     ///
     /// Returns:
@@ -251,8 +251,8 @@ where
         )))
     }
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -262,8 +262,8 @@ where
         )))
     }
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -277,7 +277,7 @@ where
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):

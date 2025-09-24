@@ -1,6 +1,7 @@
 """
 Load and save Raphtory graphs from/to file(s)
 """
+
 from __future__ import annotations
 
 ###############################################################################
@@ -27,7 +28,16 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['lotr_graph', 'lotr_graph_with_props', 'neo4j_movie_graph', 'stable_coin_graph', 'reddit_hyperlink_graph', 'reddit_hyperlink_graph_local', 'karate_club_graph']
+__all__ = [
+    "lotr_graph",
+    "lotr_graph_with_props",
+    "neo4j_movie_graph",
+    "stable_coin_graph",
+    "reddit_hyperlink_graph",
+    "reddit_hyperlink_graph_local",
+    "karate_club_graph",
+]
+
 def lotr_graph() -> Graph:
     """
     Load the Lord of the Rings dataset into a graph.
@@ -56,11 +66,13 @@ def lotr_graph_with_props() -> Graph:
         Graph:
     """
 
-def neo4j_movie_graph(uri: str, username: str, password: str, database: str = ...) -> Graph:
+def neo4j_movie_graph(
+    uri: str, username: str, password: str, database: str = ...
+) -> Graph:
     """
     Returns the neo4j movie graph example.
 
-    Parameters:
+    Arguments:
         uri (str):
         username (str):
         password (str):
@@ -74,7 +86,7 @@ def stable_coin_graph(path: str = None, subset: bool = None) -> Graph:
     """
     Returns the stablecoin graph example.
 
-    Parameters:
+    Arguments:
         path (str):
         subset (bool):
 
@@ -124,7 +136,7 @@ def reddit_hyperlink_graph_local(file_path: str) -> Graph:
     """
     Returns the Reddit hyperlink graph example.
 
-    Parameters:
+    Arguments:
         file_path (str):
 
     Returns:

@@ -396,7 +396,7 @@ impl PyMutableNode {
     /// Set the type on the node. This only works if the type has not been previously set, otherwise will
     /// throw an error
     ///
-    /// Parameters:
+    /// Arguments:
     ///     new_type (str): The new type to be set
     ///
     /// Returns:
@@ -408,7 +408,7 @@ impl PyMutableNode {
     /// Add updates to a node in the graph at a specified time.
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
-    /// Parameters:
+    /// Arguments:
     ///    t (TimeInput): The timestamp at which the updates should be applied.
     ///    properties (PropInput, optional): A dictionary of properties to update. Each key is a
     ///                                      string representing the property name, and each value
@@ -440,7 +440,7 @@ impl PyMutableNode {
     /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
     ///
     /// Returns:
@@ -453,7 +453,7 @@ impl PyMutableNode {
     /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
     ///
     /// Returns:

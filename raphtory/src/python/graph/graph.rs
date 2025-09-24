@@ -1008,7 +1008,7 @@ impl PyGraph {
     /// This is primarily intended for use in tests and should not be used in production environments,
     /// as the index will not be persisted to disk.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     py_spec: The specification for the in-memory index to be created.
     ///
     /// Arguments:

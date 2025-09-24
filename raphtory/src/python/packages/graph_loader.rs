@@ -82,7 +82,7 @@ pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
 #[pyo3(signature = (file_path))]
 /// Returns the Reddit hyperlink graph example.
 ///
-/// Parameters:
+/// Arguments:
 ///     file_path (str):
 ///
 /// Returns:
@@ -98,7 +98,7 @@ pub fn reddit_hyperlink_graph_local(file_path: &str) -> PyResult<Py<PyGraph>> {
 #[pyo3(signature = (path=None,subset=None))]
 /// Returns the stablecoin graph example.
 ///
-/// Parameters:
+/// Arguments:
 ///     path (str):
 ///     subset (bool):
 ///
@@ -115,7 +115,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult
 #[pyo3(signature = (uri,username,password,database="neo4j".to_string()))]
 /// Returns the neo4j movie graph example.
 ///
-/// Parameters:
+/// Arguments:
 ///     uri (str):
 ///     username (str):
 ///     password (str):

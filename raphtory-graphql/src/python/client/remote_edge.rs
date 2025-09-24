@@ -38,7 +38,7 @@ impl PyRemoteEdge {
     /// This function allows for the addition of property updates to an edge within the graph.
     /// The updates are time-stamped, meaning they are applied at the specified time.
     ///
-    /// Parameters:
+    /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the updates should be applied.
     ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
     ///   layer (str, optional): The layer you want the updates to be applied.
@@ -80,7 +80,7 @@ impl PyRemoteEdge {
 
     /// Mark the edge as deleted at the specified time.
     ///
-    /// Parameters:
+    /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the deletion should be applied.
     ///   layer (str, optional): The layer you want the deletion applied to.
     ///
@@ -119,7 +119,7 @@ impl PyRemoteEdge {
     /// This function is used to add metadata to an edge that does not
     /// change over time. This metadata is fundamental information of the edge.
     ///
-    /// Parameters:
+    /// Arguments:
     ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
     ///   layer (str, optional): The layer you want these properties to be added on to.
     ///
@@ -160,7 +160,7 @@ impl PyRemoteEdge {
     /// This function is used to add properties to an edge that does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
-    /// Parameters:
+    /// Arguments:
     ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
     ///   layer (str, optional): The layer you want these properties to be added on to.
     ///

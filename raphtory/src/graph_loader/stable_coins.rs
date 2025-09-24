@@ -23,7 +23,7 @@ pub struct StableCoin {
 
 /// Returns the stablecoin graph example.
 ///
-/// Parameters:
+/// Arguments:
 ///     path:
 ///     subset:
 ///

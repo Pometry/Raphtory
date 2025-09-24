@@ -111,7 +111,7 @@ impl Filter {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):
@@ -335,8 +335,8 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
 pub trait PropertyFilterOps {
     /// Equals
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue: MAKE ALL THESE PROP VALUES
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -344,8 +344,8 @@ pub trait PropertyFilterOps {
 
     /// Not equals
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue::
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -353,8 +353,8 @@ pub trait PropertyFilterOps {
 
     /// Less than or equal to
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -362,8 +362,8 @@ pub trait PropertyFilterOps {
 
     /// Greater than or equal to
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -371,8 +371,8 @@ pub trait PropertyFilterOps {
 
     /// Less than or equal to
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -380,8 +380,8 @@ pub trait PropertyFilterOps {
 
     /// Greater than
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -389,8 +389,8 @@ pub trait PropertyFilterOps {
 
     /// Is in
     ///
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[PropValue]:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -398,8 +398,8 @@ pub trait PropertyFilterOps {
 
     /// Is not in
     ///
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[PropValue]:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -419,8 +419,8 @@ pub trait PropertyFilterOps {
 
     /// Contains
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -428,8 +428,8 @@ pub trait PropertyFilterOps {
 
     /// Not contains
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -437,10 +437,10 @@ pub trait PropertyFilterOps {
 
     /// Fuzzy search
     ///
-    /// Parameters:
-    ///     prop_value:
-    ///     levenshtein_distance:
-    ///     prefix_match:
+    /// Arguments:
+    ///     prop_value (str):
+    ///     levenshtein_distance (int):
+    ///     prefix_match (bool):
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -453,8 +453,10 @@ pub trait PropertyFilterOps {
 }
 
 impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
-    /// Parameters:
-    ///     value:
+    /// Equals
+    ///
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -462,8 +464,10 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::eq(self.property_ref(), value.into())
     }
 
-    /// Parameters:
-    ///     value:
+    /// Not equals
+    ///
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -471,8 +475,10 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::ne(self.property_ref(), value.into())
     }
 
-    /// Parameters:
-    ///     value:
+    /// Less than or equal to
+    ///
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -480,8 +486,10 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::le(self.property_ref(), value.into())
     }
 
-    /// Parameters:
-    ///     value:
+    /// Greater than or equal to
+    ///
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -489,8 +497,10 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::ge(self.property_ref(), value.into())
     }
 
-    /// Parameters:
-    ///     value:
+    /// Less than
+    ///
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -498,8 +508,10 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::lt(self.property_ref(), value.into())
     }
 
-    /// Parameters:
-    ///     value:
+    /// Greater than
+    ///
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -507,7 +519,9 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::gt(self.property_ref(), value.into())
     }
 
-    /// Parameters:
+    /// Is in
+    ///
+    /// Arguments:
     ///     values:
     ///
     /// Returns:
@@ -516,7 +530,9 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::is_in(self.property_ref(), values)
     }
 
-    /// Parameters:
+    /// Is not in
+    ///
+    /// Arguments:
     ///     values:
     ///
     /// Returns:
@@ -525,20 +541,26 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::is_not_in(self.property_ref(), values)
     }
 
+    /// Is none
+    ///
     /// Returns:
     ///     PropertyFilter:
     fn is_none(&self) -> PropertyFilter {
         PropertyFilter::is_none(self.property_ref())
     }
 
+    /// Is some
+    ///
     /// Returns:
     ///     PropertyFilter:
     fn is_some(&self) -> PropertyFilter {
         PropertyFilter::is_some(self.property_ref())
     }
 
-    /// Parameters:
-    ///     value:
+    /// Contains
+    ///
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -546,8 +568,10 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::contains(self.property_ref(), value.into())
     }
 
-    /// Parameters:
-    ///     value:
+    /// Not contains
+    ///
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     PropertyFilter:
@@ -559,7 +583,7 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):
@@ -695,7 +719,7 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):
@@ -758,8 +782,8 @@ impl<T: InternalEdgeFilterBuilderOps> InternalEdgeFilterBuilderOps for Arc<T> {
 pub trait EdgeFilterOps {
     /// Equals
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -767,8 +791,8 @@ pub trait EdgeFilterOps {
 
     /// Not equals
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -776,8 +800,8 @@ pub trait EdgeFilterOps {
 
     /// Is in
     ///
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[str]:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -785,8 +809,8 @@ pub trait EdgeFilterOps {
 
     /// Is not in
     ///
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[str]:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -794,8 +818,8 @@ pub trait EdgeFilterOps {
 
     /// Contains
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -803,8 +827,8 @@ pub trait EdgeFilterOps {
 
     /// Not contains
     ///
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -814,7 +838,7 @@ pub trait EdgeFilterOps {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):
@@ -830,8 +854,8 @@ pub trait EdgeFilterOps {
 }
 
 impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -839,8 +863,8 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
         EdgeFieldFilter(Filter::eq(self.field_name(), value))
     }
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -848,8 +872,8 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
         EdgeFieldFilter(Filter::ne(self.field_name(), value))
     }
 
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[str]:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -857,8 +881,8 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
         EdgeFieldFilter(Filter::is_in(self.field_name(), values))
     }
 
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[str]:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -866,8 +890,8 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
         EdgeFieldFilter(Filter::is_not_in(self.field_name(), values))
     }
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -875,8 +899,8 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
         EdgeFieldFilter(Filter::contains(self.field_name(), value.into()))
     }
 
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     str:
     ///
     /// Returns:
     ///     EdgeFieldFilter:
@@ -888,7 +912,7 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):

@@ -30,8 +30,8 @@ impl<T: InternalPropertyFilterOps + 'static> From<T> for PyPropertyFilterOps {
 impl PyPropertyFilterOps {
     /// Returns a filter expression that checks if a specified property is equal to a given value.
     ///  
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -42,8 +42,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if a specified property is not equal to a given value.
     ///   
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -54,8 +54,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if a specified property is less than to a given value.
     ///   
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -66,8 +66,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if a specified property is less than or equal to a given value.
     ///   
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -78,8 +78,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if a specified property is greater than a given value.
     ///   
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -90,8 +90,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if a specified property is greater than or equal to a given value.
     ///   
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -102,8 +102,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if a given value is in a specified iterable of properties.
     ///   
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[PropValue]:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -114,8 +114,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if a given value is not in a specified iterable of properties.
     ///   
-    /// Parameters:
-    ///     values:
+    /// Arguments:
+    ///     list[PropValue]:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -144,8 +144,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if this object contains a specified property.
     ///   
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -156,8 +156,8 @@ impl PyPropertyFilterOps {
 
     /// Returns a filter expression that checks if this object does not contain a specified property.
     ///   
-    /// Parameters:
-    ///     value:
+    /// Arguments:
+    ///     PropValue:
     ///
     /// Returns:
     ///     FilterExpr:
@@ -170,7 +170,7 @@ impl PyPropertyFilterOps {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):

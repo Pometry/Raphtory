@@ -169,7 +169,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
 
-    /// Return a vview of the metadata of the edge
+    /// Return a view of the metadata of the edge
     fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
     /// Returns the source node of the edge.
@@ -202,11 +202,11 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Explodes an edge and returns all instances it had been updated as separate edges
     ///
     /// Returns:
-    ///     Exploded:
+    ///     Edges:
     fn explode(&self) -> Self::Exploded;
 
     /// Returns:
-    ///     Exploded:
+    ///     Edges:
     fn explode_layers(&self) -> Self::Exploded;
 
     /// Gets the first time an edge was seen
@@ -240,12 +240,18 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
+    ///
+    /// Returns:
+    ///     str:
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
     fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
 
     /// Gets the name of the layer this edge belongs to
+    ///
+    /// Returns:
+    ///     str:
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>>;
 }
 
@@ -289,6 +295,9 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Returns the number of times a change to the history was made.
+    ///
+    /// Returns:
+    ///     int:
     fn history_counts(&self) -> Self::ValueType<usize> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -310,6 +319,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     Optional[List[datetime]]:
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -336,6 +347,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     list[int]
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
         self.map(|g, e| {
             EdgeView::new(g, e)
@@ -345,6 +358,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     Optional[List[datetime]]:
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
             EdgeView::new(g, e)
@@ -354,6 +369,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     boolean:
     fn is_valid(&self) -> Self::ValueType<bool> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -378,6 +395,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     boolean:
     fn is_deleted(&self) -> Self::ValueType<bool> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -402,15 +421,24 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns true if the source and destination nodes are identical.
+    ///
+    ///  Returns:
+    ///     boolean:
     fn is_self_loop(&self) -> Self::ValueType<bool> {
         self.map(|_g, e| e.src() == e.dst())
     }
 
-    /// Return a view of the properties of the edge
+    /// Returns a view of the properties of the edge
+    ///
+    /// Returns:
+    ///     properties:
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.as_props()
     }
 
+    /// Returns:
+    ///     metadata:
     fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
         self.as_metadata()
     }

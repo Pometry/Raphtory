@@ -80,7 +80,7 @@ impl PyEdgeFilterOp {
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
-    /// Parameters:
+    /// Arguments:
     ///     prop_value (str):
     ///     levenshtein_distance (usize):
     ///     prefix_match (bool):

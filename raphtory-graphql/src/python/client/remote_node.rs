@@ -18,7 +18,7 @@ pub struct PyRemoteNode {
 impl PyRemoteNode {
     /// New node.
     ///
-    /// Parameters:
+    /// Arguments:
     ///   path (str):
     ///   client (RaphtoryClient):
     ///   id (str):
@@ -35,7 +35,7 @@ impl PyRemoteNode {
     /// Set the type on the node. This only works if the type has not been previously set, otherwise will
     /// throw an error
     ///
-    /// Parameters:
+    /// Arguments:
     ///   new_type (str): The new type to be set
     ///
     /// Returns:
@@ -65,7 +65,7 @@ impl PyRemoteNode {
     /// Add updates to a node in the remote graph at a specified time.
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
-    /// Parameters:
+    /// Arguments:
     ///   t (int | str | datetime): The timestamp at which the updates should be applied.
     ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
     ///
@@ -105,7 +105,7 @@ impl PyRemoteNode {
     /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
-    /// Parameters:
+    /// Arguments:
     ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
@@ -140,7 +140,7 @@ impl PyRemoteNode {
     /// This function is used to add properties to a node that does not
     /// change over time. These properties are fundamental attributes of the node.
     ///
-    /// Parameters:
+    /// Arguments:
     ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:

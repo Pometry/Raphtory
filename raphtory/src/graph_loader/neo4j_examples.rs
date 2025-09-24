@@ -44,7 +44,7 @@ fn load_movies(row: Row, graph: &rap::Graph) {
 
 /// Returns the neo4j movie graph example.
 ///
-/// Parameters:
+/// Arguments:
 ///     uri (str):
 ///     username (str):
 ///     password (str):

@@ -90,7 +90,7 @@ where
     /// Min result.
     ///
     /// Returns:
-    ///     value:
+    ///     PropValue:
     fn min(&self) -> Option<Self::Value<'_>> {
         self.min_item().map(|(_, v)| v)
     }
@@ -106,7 +106,7 @@ where
     fn median_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
 
     /// Returns:
-    ///     value:
+    ///     PropValue:
     fn median(&self) -> Option<Self::Value<'_>> {
         self.median_item().map(|(_, v)| v)
     }
@@ -154,7 +154,7 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     /// Min result.
     ///
     /// Returns:
-    ///     value:
+    ///     PropValue:
     fn min(&self) -> Option<Self::Value<'_>> {
         self.min_item().map(|(_, v)| v)
     }
@@ -170,7 +170,7 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     fn median_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
 
     /// Returns:
-    ///     value:
+    ///     PropValue:
     fn median(&self) -> Option<Self::Value<'_>> {
         self.median_item().map(|(_, v)| v)
     }
