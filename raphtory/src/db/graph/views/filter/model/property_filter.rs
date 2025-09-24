@@ -565,18 +565,14 @@ impl<M> PropertyFilter<M> {
         Ok(())
     }
 
-    pub fn resolve_prop_id(
-        &self,
-        meta: &Meta,
-        expect_map: bool,
-    ) -> Result<Option<usize>, GraphError> {
+    pub fn resolve_prop_id(&self, meta: &Meta, expect_map: bool) -> Result<usize, GraphError> {
         let (name, is_static) = match &self.prop_ref {
             PropertyRef::Metadata(n) => (n.as_str(), true),
             PropertyRef::Property(n) | PropertyRef::TemporalProperty(n, _) => (n.as_str(), false),
         };
 
         match meta.get_prop_id_and_type(name, is_static) {
-            None => Ok(None),
+            None => Err(GraphError::PropertyMissingError(name.to_string())),
             Some((id, dtype)) => {
                 // agg and elem-qualifier cannot both be set
                 if let (Some(agg), Some(_q)) = (self.list_agg, self.list_elem_qualifier) {
@@ -592,7 +588,7 @@ impl<M> PropertyFilter<M> {
                 } else {
                     self.validate(&dtype, is_static && expect_map)?;
                 }
-                Ok(Some(id))
+                Ok(id)
             }
         }
     }
@@ -831,62 +827,54 @@ impl<M> PropertyFilter<M> {
 
     fn is_property_matched<I: InternalPropertiesOps + Clone>(
         &self,
-        t_prop_id: Option<usize>,
+        t_prop_id: usize,
         props: Properties<I>,
     ) -> bool {
         match self.prop_ref {
             PropertyRef::Property(_) => {
-                let prop_value = t_prop_id.and_then(|prop_id| props.get_by_id(prop_id));
+                let prop_value = props.get_by_id(t_prop_id);
                 self.matches(prop_value.as_ref())
             }
             PropertyRef::Metadata(_) => false,
-            PropertyRef::TemporalProperty(_, Temporal::Any) => t_prop_id.is_some_and(|prop_id| {
-                props
-                    .temporal()
-                    .get_by_id(prop_id)
-                    .filter(|prop_view| prop_view.values().any(|v| self.matches(Some(&v))))
-                    .is_some()
-            }),
+            PropertyRef::TemporalProperty(_, Temporal::Any) => props
+                .temporal()
+                .get_by_id(t_prop_id)
+                .filter(|prop_view| prop_view.values().any(|v| self.matches(Some(&v))))
+                .is_some(),
             PropertyRef::TemporalProperty(_, Temporal::Latest) => {
-                let prop_value = t_prop_id.and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.latest())
-                });
+                let prop_value = props
+                    .temporal()
+                    .get_by_id(t_prop_id)
+                    .and_then(|prop_view| prop_view.latest());
                 self.matches(prop_value.as_ref())
             }
             PropertyRef::TemporalProperty(_, Temporal::First) => {
-                let prop_value = t_prop_id.and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.first())
-                });
+                let prop_value = props
+                    .temporal()
+                    .get_by_id(t_prop_id)
+                    .and_then(|prop_view| prop_view.first());
                 self.matches(prop_value.as_ref())
             }
-            PropertyRef::TemporalProperty(_, Temporal::All) => t_prop_id.is_some_and(|prop_id| {
-                props
-                    .temporal()
-                    .get_by_id(prop_id)
-                    .filter(|prop_view| {
-                        let has_any = prop_view.values().next().is_some();
-                        let all_ok = prop_view.values().all(|v| self.matches(Some(&v)));
-                        has_any && all_ok
-                    })
-                    .is_some()
-            }),
+            PropertyRef::TemporalProperty(_, Temporal::All) => props
+                .temporal()
+                .get_by_id(t_prop_id)
+                .filter(|prop_view| {
+                    let has_any = prop_view.values().next().is_some();
+                    let all_ok = prop_view.values().all(|v| self.matches(Some(&v)));
+                    has_any && all_ok
+                })
+                .is_some(),
         }
     }
 
     fn is_metadata_matched<I: InternalPropertiesOps + Clone>(
         &self,
-        c_prop_id: Option<usize>,
+        c_prop_id: usize,
         props: Metadata<I>,
     ) -> bool {
         match self.prop_ref {
             PropertyRef::Metadata(_) => {
-                let prop_value = c_prop_id.and_then(|id| props.get_by_id(id));
+                let prop_value = props.get_by_id(c_prop_id);
                 self.matches(prop_value.as_ref())
             }
             _ => false,
@@ -896,7 +884,7 @@ impl<M> PropertyFilter<M> {
     pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        prop_id: Option<usize>,
+        prop_id: usize,
         node: NodeStorageRef,
     ) -> bool {
         let node = NodeView::new_internal(graph, node.vid());
@@ -915,7 +903,7 @@ impl<M> PropertyFilter<M> {
     pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        prop_id: Option<usize>,
+        prop_id: usize,
         edge: EdgeStorageRef,
     ) -> bool {
         let edge = EdgeView::new(graph, edge.out_ref());
@@ -934,7 +922,7 @@ impl<M> PropertyFilter<M> {
     pub fn matches_exploded_edge<G: GraphView>(
         &self,
         graph: &G,
-        prop_id: Option<usize>,
+        prop_id: usize,
         e: EID,
         t: TimeIndexEntry,
         layer: usize,

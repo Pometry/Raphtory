@@ -27,7 +27,7 @@ use raphtory_storage::core_ops::InheritCoreGraphOps;
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
     graph: G,
-    prop_id: Option<usize>,
+    prop_id: usize,
     filter: PropertyFilter<ExplodedEdgeFilter>,
 }
 
@@ -37,7 +37,7 @@ impl<G> Immutable for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
     pub(crate) fn new(
         graph: G,
-        prop_id: Option<usize>,
+        prop_id: usize,
         filter: PropertyFilter<ExplodedEdgeFilter>,
     ) -> Self {
         Self {

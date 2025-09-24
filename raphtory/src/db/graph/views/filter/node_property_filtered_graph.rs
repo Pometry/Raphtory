@@ -22,16 +22,12 @@ use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::No
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
     graph: G,
-    prop_id: Option<usize>,
+    prop_id: usize,
     filter: PropertyFilter<NodeFilter>,
 }
 
 impl<G> NodePropertyFilteredGraph<G> {
-    pub(crate) fn new(
-        graph: G,
-        prop_id: Option<usize>,
-        filter: PropertyFilter<NodeFilter>,
-    ) -> Self {
+    pub(crate) fn new(graph: G, prop_id: usize, filter: PropertyFilter<NodeFilter>) -> Self {
         Self {
             graph,
             prop_id,

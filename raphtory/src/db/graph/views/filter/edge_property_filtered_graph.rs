@@ -23,16 +23,12 @@ use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::Ed
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
     graph: G,
-    prop_id: Option<usize>,
+    prop_id: usize,
     filter: PropertyFilter<EdgeFilter>,
 }
 
 impl<G> EdgePropertyFilteredGraph<G> {
-    pub(crate) fn new(
-        graph: G,
-        prop_id: Option<usize>,
-        filter: PropertyFilter<EdgeFilter>,
-    ) -> Self {
+    pub(crate) fn new(graph: G, prop_id: usize, filter: PropertyFilter<EdgeFilter>) -> Self {
         Self {
             graph,
             prop_id,

@@ -974,3 +974,16 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
         assert result_ids == expected_ids
 
     return check
+
+
+@with_disk_variants(init_graph)
+def test_prop_not_found_error():
+    def check(graph):
+        filter_expr = filter.Node.property("p").any().is_some()
+        with pytest.raises(
+            Exception,
+            match=r"Property p does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
+
+    return check

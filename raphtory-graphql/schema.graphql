@@ -676,19 +676,6 @@ type GqlIndexSpec {
 	edgeProperties: [String!]!
 }
 
-enum GqlListAgg {
-	LEN
-	SUM
-	AVG
-	MIN
-	MAX
-}
-
-enum GqlListElemQualifier {
-	ANY
-	ALL
-}
-
 type GqlVectorSelection {
 	"""
 	Returns a list of nodes in the current selection.
@@ -953,8 +940,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
@@ -1111,6 +1098,19 @@ type LayerSchema {
 	edges: [EdgeSchema!]!
 }
 
+enum ListAgg {
+	LEN
+	SUM
+	AVG
+	MIN
+	MAX
+}
+
+enum ListElemQualifier {
+	ANY
+	ALL
+}
+
 type MetaGraph {
 	"""
 	Returns the graph name.
@@ -1181,11 +1181,11 @@ input MetadataFilterExpr {
 	"""
 	List aggregate
 	"""
-	listAgg: GqlListAgg
+	listAgg: ListAgg
 	"""
 	List qualifier
 	"""
-	elemQualifier: GqlListElemQualifier
+	elemQualifier: ListElemQualifier
 }
 
 type MutRoot {
@@ -2208,11 +2208,11 @@ input PropertyFilterExpr {
 	"""
 	List aggregate
 	"""
-	listAgg: GqlListAgg
+	listAgg: ListAgg
 	"""
 	List qualifier
 	"""
-	elemQualifier: GqlListElemQualifier
+	elemQualifier: ListElemQualifier
 }
 
 input PropertyInput {
@@ -2390,11 +2390,11 @@ input TemporalPropertyFilterExpr {
 	"""
 	List aggregate
 	"""
-	listAgg: GqlListAgg
+	listAgg: ListAgg
 	"""
 	List qualifier
 	"""
-	elemQualifier: GqlListElemQualifier
+	elemQualifier: ListElemQualifier
 }
 
 input TemporalPropertyInput {

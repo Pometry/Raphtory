@@ -410,6 +410,7 @@ pub enum EdgeFilter {
 }
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+#[graphql(name = "ListAgg")]
 pub enum GqlListAgg {
     Len,
     Sum,
@@ -419,6 +420,7 @@ pub enum GqlListAgg {
 }
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+#[graphql(name = "ListElemQualifier")]
 pub enum GqlListElemQualifier {
     Any,
     All,
