@@ -8,8 +8,7 @@ use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{GraphError, GraphResult},
     vectors::{
-        cache::EmbeddingCacher,
-        embeddings::SampledModel,
+        embeddings::EmbeddingModel,
         vector_collection::{lancedb::LanceDb, VectorCollectionFactory},
     },
 };
@@ -21,7 +20,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash)]
 pub struct OpenAIEmbeddings {
     pub model: String,
     pub api_base: Option<String>,
@@ -63,7 +62,7 @@ impl OpenAIEmbeddings {
 #[derive(Serialize, Deserialize, Debug)]
 pub(super) struct VectorMeta {
     pub(super) template: DocumentTemplate,
-    pub(super) model: SampledModel,
+    pub(super) model: EmbeddingModel,
 }
 
 impl VectorMeta {
@@ -76,12 +75,8 @@ impl VectorMeta {
     pub(super) async fn read_from_path(path: &Path) -> GraphResult<Self> {
         let meta_string = std::fs::read_to_string(path)?;
         let meta: VectorMeta = serde_json::from_str(&meta_string)?;
-        let sample = meta.model.model.generate_sample().await?;
-        if sample == meta.model.sample {
-            Ok(meta)
-        } else {
-            panic!("") // TODO: turn this into an error
-        }
+        let sample = meta.model.generate_sample().await?;
+        Ok(meta)
     }
 }
 
@@ -100,7 +95,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let node_db = NodeDb(factory.from_path(&db_path, "nodes", dim).await?);
         let edge_db = EdgeDb(factory.from_path(&db_path, "edges", dim).await?);
 
-        let model = cache.cache_model(meta.model).await?.into();
+        let model = cache.validate_and_cache_model(meta.model).await?.into();
 
         Ok(VectorisedGraph {
             template: meta.template,

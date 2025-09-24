@@ -11,7 +11,7 @@ use raphtory::{
     errors::{GraphError, GraphResult, InvalidPathReason},
     prelude::CacheOps,
     vectors::{
-        cache::{CachedEmbeddings, VectorCache},
+        cache::{CachedEmbeddingModel, VectorCache},
         template::DocumentTemplate,
         vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
@@ -144,7 +144,7 @@ impl Data {
         graph: MaterializedGraph,
         folder: &ValidGraphFolder,
         template: &DocumentTemplate,
-        model: CachedEmbeddings,
+        model: CachedEmbeddingModel,
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
         let vectors = graph
             .vectorise(
@@ -168,7 +168,7 @@ impl Data {
         &self,
         folder: &ExistingGraphFolder,
         template: &DocumentTemplate,
-        model: CachedEmbeddings,
+        model: CachedEmbeddingModel,
     ) -> GraphResult<()> {
         let graph = self.read_graph_from_folder(folder.clone()).await?.graph;
         self.vectorise_with_template(graph, folder, template, model)

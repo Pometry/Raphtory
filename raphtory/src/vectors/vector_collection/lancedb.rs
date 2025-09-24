@@ -126,8 +126,13 @@ impl VectorCollection for LanceDbCollection {
         let vector_query = self.table.query().nearest_to(query.as_ref()).unwrap();
         let limited = vector_query.limit(k);
         let filtered = if let Some(candidates) = candidates {
-            let id_list = candidates.into_iter().map(|id| id.to_string()).join(",");
-            limited.only_if(format!("id IN ({id_list})"))
+            let mut iter = candidates.into_iter().peekable();
+            if let Some(_) = iter.peek() {
+                let id_list = iter.map(|id| id.to_string()).join(",");
+                limited.only_if(format!("id IN ({id_list})"))
+            } else {
+                limited.only_if("false") // this is a bit hacky, maybe the top layer shouldnt even call this one if the candidates list is empty
+            }
         } else {
             limited
         };
@@ -135,6 +140,7 @@ impl VectorCollection for LanceDbCollection {
         let result = stream.try_collect::<Vec<_>>().await.unwrap();
 
         let downcasted = result.into_iter().flat_map(|record| {
+            // TODO: merge both things
             let ids = record
                 .column_by_name("id")
                 .unwrap()
@@ -160,15 +166,19 @@ impl VectorCollection for LanceDbCollection {
     }
 
     async fn create_index(&self) {
-        self.table
-            .create_index(
-                &[VECTOR_COL_NAME],
-                Index::IvfPq(IvfPqIndexBuilder::default().distance_type(DistanceType::Cosine)),
-            )
-            // .create_index(&[VECTOR_COL_NAME], Index::Auto)
-            .execute()
-            .await
-            .unwrap()
+        let count = self.table.count_rows(None).await.unwrap(); // FIXME: remove unwrap
+        if count > 0 {
+            // we check the count because indexing with no rows errors out
+            self.table
+                .create_index(
+                    &[VECTOR_COL_NAME],
+                    Index::IvfPq(IvfPqIndexBuilder::default().distance_type(DistanceType::Cosine)),
+                )
+                // .create_index(&[VECTOR_COL_NAME], Index::Auto)
+                .execute()
+                .await
+                .unwrap() // FIXME: remove unwrap
+        }
     }
 }
 

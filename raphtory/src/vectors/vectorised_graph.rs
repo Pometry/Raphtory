@@ -11,7 +11,7 @@ use crate::{
     errors::GraphResult,
     prelude::GraphViewOps,
     vectors::{
-        cache::CachedEmbeddings,
+        cache::CachedEmbeddingModel,
         template::DocumentTemplate,
         utils::find_top_k,
         vector_collection::{lancedb::LanceDbCollection, VectorCollection},
@@ -23,7 +23,7 @@ use crate::{
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
-    pub(crate) model: CachedEmbeddings,
+    pub(crate) model: CachedEmbeddingModel,
     pub(super) node_db: NodeDb<LanceDbCollection>,
     pub(super) edge_db: EdgeDb<LanceDbCollection>,
 }
@@ -141,7 +141,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 
     /// Returns the embedding for the given text using the embedding model setup for this graph
-    pub async fn embed_text(&self, text: String) -> GraphResult<Embedding> {
-        self.model.get_single(text).await
+    pub async fn embed_text<T: Into<String>>(&self, text: T) -> GraphResult<Embedding> {
+        self.model.get_single(text.into()).await
     }
 }

@@ -75,6 +75,7 @@ moka = { workspace = true, optional = true }
 lancedb = {workspace = true, optional = true }
 # lancedb-arrow-array = { version = "55.2.0", package = "arrow-array", optional = true } # this works for lancedb 0.22.0
 lancedb-arrow-array = { version = "54.1.0", package = "arrow-array", optional = true } # this works for lancedb 0.19.1
+axum = "0.8.4" # TODO put this in the proper place and make optional
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -146,6 +147,7 @@ vectors = [
     "dep:moka",
     "dep:lancedb",
     "dep:lancedb-arrow-array",
+    "dep:tokio",          # also used for the io feature
     "dep:tempfile",          # also used for the storage feature
 ]
 

@@ -24,7 +24,7 @@ use poem::{
 use raphtory::{
     errors::GraphResult,
     vectors::{
-        cache::{CachedEmbeddings, VectorCache},
+        cache::{CachedEmbeddingModel, VectorCache},
         template::DocumentTemplate,
     },
 };
@@ -153,7 +153,7 @@ impl GraphServer {
     pub async fn vectorise_all_graphs(
         &self,
         template: &DocumentTemplate,
-        embeddings: CachedEmbeddings,
+        embeddings: CachedEmbeddingModel,
     ) -> GraphResult<()> {
         for folder in self.data.get_all_graph_folders() {
             self.data
@@ -174,7 +174,7 @@ impl GraphServer {
         &self,
         name: &str,
         template: DocumentTemplate,
-        embeddings: CachedEmbeddings,
+        embeddings: CachedEmbeddingModel,
     ) -> GraphResult<()> {
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), name)?;
         self.data
