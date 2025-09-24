@@ -1,6 +1,6 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import create_test_graph
+from filters_setup import create_test_graph, create_test_graph2, create_test_graph3
 from utils import run_graphql_test, run_graphql_error_test
 
 EVENT_GRAPH = create_test_graph(Graph())
