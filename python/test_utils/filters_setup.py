@@ -1,4 +1,4 @@
-from raphtory import Graph, PersistentGraph
+from raphtory import Graph, PersistentGraph, Prop
 import tempfile
 import pytest
 import shutil
@@ -681,4 +681,16 @@ def create_test_graph2(g: Graph):
 
     g.load_edges_from_pandas(df, "time", "src", "dst", prop_cols)
 
+    return g
+
+
+def create_test_graph3(g):
+    g.add_node(
+        1,
+        "a",
+        {
+            "prop1": Prop.u8(5),
+        },
+        "fire_nation",
+    )
     return g
