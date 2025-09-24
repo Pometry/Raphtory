@@ -198,7 +198,8 @@ impl GraphFolder {
         path.is_dir()
     }
 
-    pub fn create_zip<W: Write + Seek>(&self, mut writer: W) -> Result<(), GraphError> {
+    /// Creates a zip file from the folder.
+    pub fn zip_from_folder<W: Write + Seek>(&self, mut writer: W) -> Result<(), GraphError> {
         let mut buffer = Vec::new();
 
         if self.is_zip() {
@@ -237,6 +238,43 @@ impl GraphFolder {
 
         Ok(())
     }
+
+    /// Extracts a zip file to the folder.
+    pub fn unzip_to_folder<R: Read + Seek>(&self, reader: R) -> Result<(), GraphError> {
+        if self.write_as_zip_format {
+            return Err(GraphError::IOErrorMsg(
+                "Cannot unzip to a zip format folder".to_string()
+            ));
+        }
+
+        self.ensure_clean_root_dir()?;
+
+        let mut zip = ZipArchive::new(reader)?;
+
+        for i in 0..zip.len() {
+            let mut file = zip.by_index(i)?;
+            let zip_entry_name = match file.enclosed_name() {
+                Some(name) => name,
+                None => continue,
+            };
+
+            let out_path = self.root_folder.join(zip_entry_name);
+
+            if file.is_dir() {
+                std::fs::create_dir_all(&out_path)?;
+            } else {
+                // Create any parent directories
+                if let Some(parent) = out_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+
+                let mut out_file = std::fs::File::create(&out_path)?;
+                std::io::copy(&mut file, &mut out_file)?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl<P: AsRef<Path>> From<P> for GraphFolder {
@@ -262,7 +300,7 @@ mod zip_tests {
     use super::*;
     use crate::{
         db::graph::graph::assert_graph_equal,
-        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
+        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS, Prop},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
 
@@ -356,7 +394,7 @@ mod zip_tests {
     }
 
     #[test]
-    fn test_create_zip_from_folder() {
+    fn test_zip_from_folder() {
         let graph = Graph::new();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
         graph.add_node(1, 1, NO_PROPS, None).unwrap();
@@ -373,7 +411,7 @@ mod zip_tests {
         // Create a zip file from the folder
         let output_zip_path = temp_folder.path().join("output.zip");
         let output_zip_file = std::fs::File::create(&output_zip_path).unwrap();
-        initial_folder.create_zip(output_zip_file).unwrap();
+        initial_folder.zip_from_folder(output_zip_file).unwrap();
 
         assert!(output_zip_path.exists());
 
@@ -385,7 +423,7 @@ mod zip_tests {
     }
 
     #[test]
-    fn test_create_zip_from_zip() {
+    fn test_zip_from_zip() {
         let graph = Graph::new();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
         graph.add_node(1, 1, NO_PROPS, None).unwrap();
@@ -402,7 +440,7 @@ mod zip_tests {
         // Create a new zip file from the existing zip
         let output_zip_path = temp_folder.path().join("output.zip");
         let output_zip_file = std::fs::File::create(&output_zip_path).unwrap();
-        initial_folder.create_zip(output_zip_file).unwrap();
+        initial_folder.zip_from_folder(output_zip_file).unwrap();
 
         assert!(output_zip_path.exists());
 
@@ -416,5 +454,42 @@ mod zip_tests {
         let decoded_graph = Graph::decode(&zip_folder).unwrap();
 
         assert_graph_equal(&graph, &decoded_graph);
+    }
+
+    #[test]
+    fn test_unzip_to_folder() {
+        let graph = Graph::new();
+
+        graph.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
+        graph.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
+        graph.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
+        graph.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
+        graph.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
+
+        let temp_folder = tempfile::TempDir::new().unwrap();
+        let folder = temp_folder.path().join("graph");
+        let graph_folder = GraphFolder::from(&folder);
+
+        graph.encode(&graph_folder).unwrap();
+        assert!(graph_folder.get_graph_path().exists());
+
+        // Zip the folder
+        let mut zip_bytes = Vec::new();
+        let cursor = std::io::Cursor::new(&mut zip_bytes);
+        graph_folder.zip_from_folder(cursor).unwrap();
+
+        // Unzip to a new folder
+        let folder = temp_folder.path().join("unzip");
+        let unzip_folder = GraphFolder::from(&folder);
+        let cursor = std::io::Cursor::new(&zip_bytes);
+        unzip_folder.unzip_to_folder(cursor).unwrap();
+
+        // Verify the extracted folder has the same structure
+        assert!(unzip_folder.get_graph_path().exists());
+        assert!(unzip_folder.get_meta_path().exists());
+
+        // Verify the extracted graph is the same as the original
+        let extracted_graph = Graph::decode(&unzip_folder).unwrap();
+        assert_graph_equal(&graph, &extracted_graph);
     }
 }

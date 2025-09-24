@@ -18,6 +18,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
+    io::{Read, Seek},
 };
 use tokio::fs;
 use tracing::{warn};
@@ -122,6 +123,7 @@ impl Data {
         // or even a NewGraphFolder, so that we try to create the graph file and if that is sucessful
         // we can write to it and it is guaranteed to be atomic.
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
+
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
@@ -138,6 +140,25 @@ impl Data {
                     .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
 
                 self.cache.insert(path.into(), graph).await;
+
+                Ok(())
+            }
+        }
+    }
+
+    /// Insert a graph serialized from a graph folder.
+    pub async fn insert_graph_as_bytes<R: Read + Seek>(&self, path: &str, bytes: R) -> Result<(), GraphError> {
+        let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
+
+        match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
+            Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
+            Err(_) => {
+                folder.unzip_to_folder(bytes)?;
+
+                // Can't use '?' directly as get_graph returns Arc<GraphError>
+                self.get_graph(path)
+                    .await
+                    .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
                 Ok(())
             }

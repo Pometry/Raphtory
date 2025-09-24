@@ -254,8 +254,7 @@ impl Mut {
             data.delete_graph(&path).await?;
         }
 
-        let graph = MaterializedGraph::decode_parquet_from_zip(in_file)?;
-        data.insert_graph(&path, graph).await?;
+        data.insert_graph_as_bytes(&path, in_file).await?;
 
         Ok(path)
     }

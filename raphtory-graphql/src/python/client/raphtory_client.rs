@@ -230,7 +230,7 @@ impl PyRaphtoryClient {
         self.execute_async_task(move || async move {
             let folder = GraphFolder::from(file_path.clone());
             let mut buffer = Vec::new();
-            folder.create_zip(Cursor::new(&mut buffer))?;
+            folder.zip_from_folder(Cursor::new(&mut buffer))?;
 
             let variables = format!(
                 r#""path": "{}", "overwrite": {}, "graph": null"#,
