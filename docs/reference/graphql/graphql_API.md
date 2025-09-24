@@ -2547,26 +2547,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -2584,6 +2564,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">direction</td>
 <td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
+<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -7012,6 +7012,33 @@ Properties.
 </thead>
 <tbody>
 <tr>
+<td colspan="2" valign="top"><strong id="value.u8">u8</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+8 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.u16">u16</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+16 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.u32">u32</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+32 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="value.u64">u64</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
@@ -7021,11 +7048,29 @@ Properties.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="value.i32">i32</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+32 bit signed integer.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="value.i64">i64</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
 64 bit signed integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.f32">f32</strong></td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+32 bit float.
 
 </td>
 </tr>
