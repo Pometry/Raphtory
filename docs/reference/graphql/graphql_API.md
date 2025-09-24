@@ -639,6 +639,9 @@ Creates a WindowSet with the given window duration and optional step using a rol
 
 A rolling window is a window that moves forward by step size at each iteration.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
@@ -652,6 +655,11 @@ A rolling window is a window that moves forward by step size at each iteration.
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="edge.expanding">expanding</strong></td>
 <td valign="top"><a href="#edgewindowset">EdgeWindowSet</a>!</td>
 <td>
@@ -660,11 +668,19 @@ Creates a WindowSet with the given step size using an expanding window.
 
 An expanding window is a window that grows by step size at each iteration.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>
@@ -1229,6 +1245,9 @@ Creates a WindowSet with the given window duration and optional step using a rol
 
 Returns a collection of collections. This means that item in the window set is a collection of edges.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
@@ -1242,6 +1261,11 @@ Returns a collection of collections. This means that item in the window set is a
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="edges.expanding">expanding</strong></td>
 <td valign="top"><a href="#edgeswindowset">EdgesWindowSet</a>!</td>
 <td>
@@ -1250,11 +1274,19 @@ Creates a WindowSet with the given step size using an expanding window. An expan
 
 Returns a collection of collections. This means that item in the window set is a collection of edges.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>
@@ -1972,6 +2004,9 @@ Returns a subgraph containing all nodes except the specified excluded nodes.
 
 Creates a rolling window with the specified window size and an optional step.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
@@ -1985,17 +2020,30 @@ Creates a rolling window with the specified window size and an optional step.
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="graph.expanding">expanding</strong></td>
 <td valign="top"><a href="#graphwindowset">GraphWindowSet</a>!</td>
 <td>
 
 Creates a expanding window with the specified step size.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>
@@ -3511,6 +3559,9 @@ Creates a WindowSet with the specified window size and optional step using a rol
 
 Returns a collection of collections. This means that item in the window set is a collection of nodes.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
@@ -3524,17 +3575,30 @@ Returns a collection of collections. This means that item in the window set is a
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="node.expanding">expanding</strong></td>
 <td valign="top"><a href="#nodewindowset">NodeWindowSet</a>!</td>
 <td>
 
 Creates a WindowSet with the specified step size using an expanding window.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>
@@ -4070,6 +4134,9 @@ Return a view of the nodes containing all layers except those specified.
 
 Creates a WindowSet with the specified window size and optional step using a rolling window.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
@@ -4083,17 +4150,30 @@ Creates a WindowSet with the specified window size and optional step using a rol
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="nodes.expanding">expanding</strong></td>
 <td valign="top"><a href="#nodeswindowset">NodesWindowSet</a>!</td>
 <td>
 
 Creates a WindowSet with the specified step size using an expanding window.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>
@@ -4507,6 +4587,9 @@ Return a view of PathFromNode containing all layers except the specified exclude
 
 Creates a WindowSet with the given window size and optional step using a rolling window.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
@@ -4520,17 +4603,30 @@ Creates a WindowSet with the given window size and optional step using a rolling
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.expanding">expanding</strong></td>
 <td valign="top"><a href="#pathfromnodewindowset">PathFromNodeWindowSet</a>!</td>
 <td>
 
 Creates a WindowSet with the given step size using an expanding window.
 
+align_start aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignStart</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>
