@@ -639,8 +639,10 @@ Creates a WindowSet with the given window duration and optional step using a rol
 
 A rolling window is a window that moves forward by step size at each iteration.
 
-align_start aligns the start of the first window to the smallest unit of time passed as input.
-e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+align_start defaults to true and aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while align_start is true can lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
 </td>
 </tr>
@@ -1245,8 +1247,10 @@ Creates a WindowSet with the given window duration and optional step using a rol
 
 Returns a collection of collections. This means that item in the window set is a collection of edges.
 
-align_start aligns the start of the first window to the smallest unit of time passed as input.
-e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+align_start defaults to true and aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while align_start is true can lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
 </td>
 </tr>
@@ -2004,8 +2008,10 @@ Returns a subgraph containing all nodes except the specified excluded nodes.
 
 Creates a rolling window with the specified window size and an optional step.
 
-align_start aligns the start of the first window to the smallest unit of time passed as input.
-e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+align_start defaults to true and aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while align_start is true can lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
 </td>
 </tr>
@@ -3559,8 +3565,10 @@ Creates a WindowSet with the specified window size and optional step using a rol
 
 Returns a collection of collections. This means that item in the window set is a collection of nodes.
 
-align_start aligns the start of the first window to the smallest unit of time passed as input.
-e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+align_start defaults to true and aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while align_start is true can lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
 </td>
 </tr>
@@ -4134,8 +4142,10 @@ Return a view of the nodes containing all layers except those specified.
 
 Creates a WindowSet with the specified window size and optional step using a rolling window.
 
-align_start aligns the start of the first window to the smallest unit of time passed as input.
-e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+align_start defaults to true and aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while align_start is true can lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
 </td>
 </tr>
@@ -4587,8 +4597,10 @@ Return a view of PathFromNode containing all layers except the specified exclude
 
 Creates a WindowSet with the given window size and optional step using a rolling window.
 
-align_start aligns the start of the first window to the smallest unit of time passed as input.
-e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+align_start defaults to true and aligns the start of the first window to the smallest unit of time passed as input.
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while align_start is true can lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
 </td>
 </tr>

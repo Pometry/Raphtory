@@ -58,8 +58,12 @@ def test_rolling_month_alignment_default_true(example_graph):
         assert end == exp_end, f"window[{i}] end: {end} != {exp_end}"
 
     # check last window for errors at boundary. Latest time is 2025-11-22 21:45:30
-    assert windows[-1].start_date_time == datetime(2025, 11, 1, 0, 0, 0, tzinfo=timezone.utc)
-    assert windows[-1].end_date_time == datetime(2025, 12, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert windows[-1].start_date_time == datetime(
+        2025, 11, 1, 0, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[-1].end_date_time == datetime(
+        2025, 12, 1, 0, 0, 0, tzinfo=timezone.utc
+    )
 
 
 def test_rolling_day_alignment_default_true(example_graph):
@@ -81,8 +85,12 @@ def test_rolling_day_alignment_default_true(example_graph):
     assert s2 == exp2_start and e2 == exp2_end
 
     # Latest time is 2025-11-22 21:45:30
-    assert windows[-1].start_date_time == datetime(2025, 11, 22, 0, 0, 0, tzinfo=timezone.utc)
-    assert windows[-1].end_date_time == datetime(2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc)
+    assert windows[-1].start_date_time == datetime(
+        2025, 11, 22, 0, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[-1].end_date_time == datetime(
+        2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc
+    )
 
 
 def test_rolling_month_and_day_alignment_default_true(example_graph):
@@ -104,8 +112,12 @@ def test_rolling_month_and_day_alignment_default_true(example_graph):
     assert s2 == exp2_start and e2 == exp2_end
 
     # Latest time is 2025-11-22 21:45:30
-    assert windows[-1].start_date_time == datetime(2025, 10, 22, 0, 0, 0, tzinfo=timezone.utc)
-    assert windows[-1].end_date_time == datetime(2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc)
+    assert windows[-1].start_date_time == datetime(
+        2025, 10, 22, 0, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[-1].end_date_time == datetime(
+        2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc
+    )
 
 
 def test_rolling_alignment_smallest_of_window_and_step(example_graph):
@@ -131,8 +143,12 @@ def test_rolling_alignment_smallest_of_window_and_step(example_graph):
         2025, 3, 18, 0, 0, 0, 0, tzinfo=timezone.utc
     )
     # Latest time is 2025-11-22 21:45:30
-    assert windows[-1].start_date_time == datetime(2025, 10, 23, 0, 0, 0, tzinfo=timezone.utc)
-    assert windows[-1].end_date_time == datetime(2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc)
+    assert windows[-1].start_date_time == datetime(
+        2025, 10, 23, 0, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[-1].end_date_time == datetime(
+        2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc
+    )
 
 
 def test_rolling_no_alignment_for_discrete_ms(example_graph):
@@ -250,10 +266,19 @@ def test_node_rolling_alignment(example_graph_with_edges):
     exp_start_last = datetime(2025, 11, 22, 0, 0, tzinfo=timezone.utc)
     exp_end_last = datetime(2025, 11, 23, 0, 0, tzinfo=timezone.utc)
 
-    assert windows[0].start_date_time == exp_start0 and windows[0].end_date_time == exp_end0
-    assert windows[1].start_date_time == exp_start1 and windows[1].end_date_time == exp_end1
+    assert (
+        windows[0].start_date_time == exp_start0
+        and windows[0].end_date_time == exp_end0
+    )
+    assert (
+        windows[1].start_date_time == exp_start1
+        and windows[1].end_date_time == exp_end1
+    )
     # Latest time is 2025-11-22 21:45:30
-    assert windows[-1].start_date_time == exp_start_last and windows[-1].end_date_time == exp_end_last
+    assert (
+        windows[-1].start_date_time == exp_start_last
+        and windows[-1].end_date_time == exp_end_last
+    )
 
     expand_windows = list(n1.expanding("1 day"))
     assert expand_windows[0].end_date_time == exp_end0
@@ -334,7 +359,9 @@ def test_path_from_node_neighbours_rolling_alignment(example_graph_with_edges):
     exp_ws = list(n1.neighbours.expanding("1 hour"))
     assert exp_ws[0].end_date_time == datetime(2025, 3, 15, 15, 0, tzinfo=timezone.utc)
     assert exp_ws[1].end_date_time == datetime(2025, 3, 15, 16, 0, tzinfo=timezone.utc)
-    assert exp_ws[-1].end_date_time == datetime(2025, 11, 22, 22, 0, tzinfo=timezone.utc)
+    assert exp_ws[-1].end_date_time == datetime(
+        2025, 11, 22, 22, 0, tzinfo=timezone.utc
+    )
 
 
 def test_path_from_graph_neighbours_rolling_alignment(example_graph_with_edges):
@@ -353,7 +380,9 @@ def test_path_from_graph_neighbours_rolling_alignment(example_graph_with_edges):
     exp_ws = list(neigh.expanding("2 hours"))
     assert exp_ws[0].end_date_time == datetime(2025, 3, 15, 16, 0, tzinfo=timezone.utc)
     assert exp_ws[1].end_date_time == datetime(2025, 3, 15, 18, 0, tzinfo=timezone.utc)
-    assert exp_ws[-1].end_date_time == datetime(2025, 11, 22, 22, 0, tzinfo=timezone.utc)
+    assert exp_ws[-1].end_date_time == datetime(
+        2025, 11, 22, 22, 0, tzinfo=timezone.utc
+    )
 
 
 def test_mismatched_window_step_basic(example_graph_with_edges):
@@ -370,7 +399,10 @@ def test_mismatched_window_step_basic(example_graph_with_edges):
     exp_end_last = datetime(2025, 11, 22, 22, 37, 52, tzinfo=timezone.utc)
     assert ws[0].start_date_time == exp_start0 and ws[0].end_date_time == exp_end0
     assert ws[1].start_date_time == exp_start1 and ws[1].end_date_time == exp_end1
-    assert ws[-1].start_date_time == exp_start_last and ws[-1].end_date_time == exp_end_last
+    assert (
+        ws[-1].start_date_time == exp_start_last
+        and ws[-1].end_date_time == exp_end_last
+    )
 
 
 def test_mismatched_window_step_basic2(example_graph_with_edges):
@@ -402,10 +434,22 @@ def test_window_different_intervals_1(example_graph_with_edges):
     # Latest time is 2025-11-22 21:45:30
     exp_start_last = datetime(2025, 11, 3, 0, 0, tzinfo=timezone.utc)
     exp_end_last = datetime(2025, 11, 24, 0, 0, tzinfo=timezone.utc)
-    assert windows[0].start_date_time == exp_start0 and windows[0].end_date_time == exp_end0
-    assert windows[1].start_date_time == exp_start1 and windows[1].end_date_time == exp_end1
-    assert windows[2].start_date_time == exp_start2 and windows[2].end_date_time == exp_end2
-    assert windows[-1].start_date_time == exp_start_last and windows[-1].end_date_time == exp_end_last
+    assert (
+        windows[0].start_date_time == exp_start0
+        and windows[0].end_date_time == exp_end0
+    )
+    assert (
+        windows[1].start_date_time == exp_start1
+        and windows[1].end_date_time == exp_end1
+    )
+    assert (
+        windows[2].start_date_time == exp_start2
+        and windows[2].end_date_time == exp_end2
+    )
+    assert (
+        windows[-1].start_date_time == exp_start_last
+        and windows[-1].end_date_time == exp_end_last
+    )
 
 
 def test_window_different_intervals_2(example_graph_with_edges):
@@ -421,10 +465,23 @@ def test_window_different_intervals_2(example_graph_with_edges):
     # Latest time is 2025-11-22 21:45:30
     exp_start_last = datetime(2025, 10, 31, 0, 0, tzinfo=timezone.utc)
     exp_end_last = datetime(2025, 11, 23, 0, 0, tzinfo=timezone.utc)
-    assert windows[0].start_date_time == exp_start0 and windows[0].end_date_time == exp_end0
-    assert windows[1].start_date_time == exp_start1 and windows[1].end_date_time == exp_end1
-    assert windows[2].start_date_time == exp_start2 and windows[2].end_date_time == exp_end2
-    assert windows[-1].start_date_time == exp_start_last and windows[-1].end_date_time == exp_end_last
+    assert (
+        windows[0].start_date_time == exp_start0
+        and windows[0].end_date_time == exp_end0
+    )
+    assert (
+        windows[1].start_date_time == exp_start1
+        and windows[1].end_date_time == exp_end1
+    )
+    assert (
+        windows[2].start_date_time == exp_start2
+        and windows[2].end_date_time == exp_end2
+    )
+    assert (
+        windows[-1].start_date_time == exp_start_last
+        and windows[-1].end_date_time == exp_end_last
+    )
+
 
 def test_window_different_intervals_3(example_graph_with_edges):
     g: Graph = example_graph_with_edges
@@ -439,10 +496,23 @@ def test_window_different_intervals_3(example_graph_with_edges):
     # Latest time is 2025-11-22 21:45:30
     exp_start_last = datetime(2025, 11, 2, 0, 0, tzinfo=timezone.utc)
     exp_end_last = datetime(2025, 11, 25, 0, 0, tzinfo=timezone.utc)
-    assert windows[0].start_date_time == exp_start0 and windows[0].end_date_time == exp_end0
-    assert windows[1].start_date_time == exp_start1 and windows[1].end_date_time == exp_end1
-    assert windows[2].start_date_time == exp_start2 and windows[2].end_date_time == exp_end2
-    assert windows[-1].start_date_time == exp_start_last and windows[-1].end_date_time == exp_end_last
+    assert (
+        windows[0].start_date_time == exp_start0
+        and windows[0].end_date_time == exp_end0
+    )
+    assert (
+        windows[1].start_date_time == exp_start1
+        and windows[1].end_date_time == exp_end1
+    )
+    assert (
+        windows[2].start_date_time == exp_start2
+        and windows[2].end_date_time == exp_end2
+    )
+    assert (
+        windows[-1].start_date_time == exp_start_last
+        and windows[-1].end_date_time == exp_end_last
+    )
+
 
 def test_window_different_intervals_4(example_graph_with_edges):
     g: Graph = example_graph_with_edges
@@ -459,7 +529,19 @@ def test_window_different_intervals_4(example_graph_with_edges):
     # The last window is before the last item because we are aligning when the step is larger than the window.
     exp_start_last = datetime(2025, 11, 18, 0, 0, tzinfo=timezone.utc)
     exp_end_last = datetime(2025, 11, 20, 0, 0, tzinfo=timezone.utc)
-    assert windows[0].start_date_time == exp_start0 and windows[0].end_date_time == exp_end0
-    assert windows[1].start_date_time == exp_start1 and windows[1].end_date_time == exp_end1
-    assert windows[2].start_date_time == exp_start2 and windows[2].end_date_time == exp_end2
-    assert windows[-1].start_date_time == exp_start_last and windows[-1].end_date_time == exp_end_last
+    assert (
+        windows[0].start_date_time == exp_start0
+        and windows[0].end_date_time == exp_end0
+    )
+    assert (
+        windows[1].start_date_time == exp_start1
+        and windows[1].end_date_time == exp_end1
+    )
+    assert (
+        windows[2].start_date_time == exp_start2
+        and windows[2].end_date_time == exp_end2
+    )
+    assert (
+        windows[-1].start_date_time == exp_start_last
+        and windows[-1].end_date_time == exp_end_last
+    )
