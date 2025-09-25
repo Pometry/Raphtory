@@ -161,7 +161,10 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
 mod test_utils {
-    use crate::{db::api::storage::storage::Storage, prelude::*};
+    use crate::{
+        db::{api::storage::storage::Storage, graph::assertions::EdgeRow},
+        prelude::*,
+    };
     use ahash::HashSet;
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
@@ -173,7 +176,6 @@ mod test_utils {
     use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
-    use crate::db::graph::assertions::EdgeRow;
 
     pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
         test(graph)
@@ -608,21 +610,10 @@ mod test_utils {
     pub(crate) fn build_node_props(
         max_num_nodes: u64,
     ) -> impl Strategy<Value = Vec<(u64, Option<String>, Option<i64>)>> {
-        (1..=max_num_nodes).prop_flat_map(|num_nodes| {
-            let n = num_nodes as usize;
-            (
-                0..n,
-                any::<i64>(),
-                proptest::collection::vec((any::<Option<String>>(), any::<Option<i64>>()), n),
-            )
-                .prop_map(move |(idx, forced_val, mut props)| {
-                    props[idx].1 = Some(forced_val);
-                    props
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, (s, iv))| (i as u64, s, iv))
-                        .collect()
-                })
+        (0..max_num_nodes).prop_flat_map(|num_nodes| {
+            (0..num_nodes)
+                .map(|node| (Just(node), any::<Option<String>>(), any::<Option<i64>>()))
+                .collect_vec()
         })
     }
 

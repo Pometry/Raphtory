@@ -443,7 +443,7 @@ pub fn search_edges(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<Str
 
 pub type EdgeRow = (u64, u64, i64, String, i64);
 
-pub fn on_ok_or_missing<T>(
+pub fn assert_ok_or_missing_edges<T>(
     edges: &[EdgeRow],
     res: Result<T, GraphError>,
     on_ok: impl FnOnce(T),
@@ -454,6 +454,24 @@ pub fn on_ok_or_missing<T>(
             assert!(
                 edges.is_empty(),
                 "PropertyMissingError({name}) on non-empty graph"
+            );
+        }
+        Err(err) => panic!("unexpected error from filter: {err:?}"),
+    }
+}
+
+pub fn assert_ok_or_missing_nodes<T>(
+    nodes: &[(u64, Option<String>, Option<i64>)],
+    res: Result<T, GraphError>,
+    on_ok: impl FnOnce(T),
+) {
+    match res {
+        Ok(v) => on_ok(v),
+        Err(GraphError::PropertyMissingError(name)) => {
+            let any_int_prop = nodes.iter().any(|(_, _, iv)| iv.is_some());
+            assert!(
+                !any_int_prop,
+                "PropertyMissingError({name}) but at least one node had int_prop"
             );
         }
         Err(err) => panic!("unexpected error from filter: {err:?}"),
