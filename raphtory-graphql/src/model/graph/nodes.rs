@@ -82,8 +82,10 @@ impl GqlNodes {
 
     /// Creates a WindowSet with the specified window size and optional step using a rolling window.
     ///
-    /// align_start aligns the start of the first window to the smallest unit of time passed as input.
-    /// e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+    /// align_start defaults to true and aligns the start of the first window to the smallest unit of time passed as input.
+    /// e.g. "1 month and 1 day" will align at the start of the day.
+    /// Note that passing a step larger than window while align_start is true can lead to some entries appearing before
+    /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
     async fn rolling(
         &self,
         window: WindowDuration,

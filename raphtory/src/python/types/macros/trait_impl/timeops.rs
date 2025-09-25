@@ -79,6 +79,8 @@ macro_rules! impl_timeops {
             }
 
             /// Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+            /// If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+            /// can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
             ///
             /// A rolling window is a window that moves forward by `step` size at each iteration.
             ///

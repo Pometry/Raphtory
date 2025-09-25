@@ -10,6 +10,12 @@ use chrono::ParseError;
 use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use std::num::ParseIntError;
 
+pub(crate) const SECOND_MS: i64 = 1000;
+pub(crate) const MINUTE_MS: i64 = 60 * SECOND_MS;
+pub(crate) const HOUR_MS: i64 = 60 * MINUTE_MS;
+pub(crate) const DAY_MS: i64 = 24 * HOUR_MS;
+pub(crate) const WEEK_MS: i64 = 7 * DAY_MS;
+
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 pub enum ParseTimeError {
     #[error("the interval string doesn't contain a complete number of number-unit pairs")]
@@ -229,21 +235,14 @@ pub enum AlignmentUnit {
 
 impl AlignmentUnit {
     /// Floors a UTC timestamp in milliseconds since Unix epoch to the nearest alignment unit.
-    pub fn align_timestamp(timestamp: i64, unit: AlignmentUnit) -> i64 {
-        let second_ms: i64 = 1000;
-        let minute_ms: i64 = 60 * second_ms;
-        let hour_ms: i64 = 60 * minute_ms;
-        let day_ms: i64 = 24 * hour_ms;
-        let week_ms: i64 = 7 * day_ms;
-
-        match unit {
+    pub fn align_timestamp(&self, timestamp: i64) -> i64 {
+        match self {
             AlignmentUnit::Millisecond => timestamp,
-            AlignmentUnit::Second => Self::floor_ms(timestamp, second_ms),
-            AlignmentUnit::Minute => Self::floor_ms(timestamp, minute_ms),
-            AlignmentUnit::Hour => Self::floor_ms(timestamp, hour_ms),
-            AlignmentUnit::Day => Self::floor_ms(timestamp, day_ms),
-            AlignmentUnit::Week => Self::floor_ms(timestamp, week_ms),
-
+            AlignmentUnit::Second => Self::floor_ms(timestamp, SECOND_MS),
+            AlignmentUnit::Minute => Self::floor_ms(timestamp, MINUTE_MS),
+            AlignmentUnit::Hour => Self::floor_ms(timestamp, HOUR_MS),
+            AlignmentUnit::Day => Self::floor_ms(timestamp, DAY_MS),
+            AlignmentUnit::Week => Self::floor_ms(timestamp, WEEK_MS),
             // Month and Year are variable (28, 30, or 31 days/ 365 or 366 days so we can't simply use division)
             AlignmentUnit::Month => {
                 let naive = DateTime::from_timestamp_millis(timestamp)
@@ -260,7 +259,6 @@ impl AlignmentUnit {
                     .and_utc()
                     .timestamp_millis()
             }
-
             AlignmentUnit::Year => {
                 let naive = DateTime::from_timestamp_millis(timestamp)
                     .unwrap_or_else(|| {
@@ -278,9 +276,8 @@ impl AlignmentUnit {
         }
     }
 
-    /// Floors `ts` to a multiple of `unit_ms` using a remainder that
-    /// is always non-negative, so the result is the boundary at or before `ts`,
-    /// even for negative timestamps.
+    /// Floors `ts` to a multiple of `unit_ms` using a remainder that is always non-negative,
+    /// so the result is the boundary at or before `ts`, even for negative timestamps.
     #[inline]
     fn floor_ms(ts: i64, unit_ms: i64) -> i64 {
         ts - ts.rem_euclid(unit_ms)
@@ -570,7 +567,7 @@ impl Add<Interval> for TimeIndexEntry {
     type Output = TimeIndexEntry;
     fn add(self, rhs: Interval) -> Self::Output {
         match rhs.size {
-            IntervalSize::Discrete(number) => TimeIndexEntry::from(self.0 + (number as i64)),
+            IntervalSize::Discrete(number) => TimeIndexEntry(self.0 + (number as i64), self.1),
             IntervalSize::Temporal { millis, months } => {
                 // first we add the number of months and then the number of milliseconds for
                 // consistency with the implementation of Sub (we revert back the steps) so we

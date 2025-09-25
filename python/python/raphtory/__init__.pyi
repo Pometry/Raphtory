@@ -443,6 +443,8 @@ class GraphView(object):
     def rolling(self, window: int | str, step: int | str | None = None, align_start: bool = True) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -2371,6 +2373,8 @@ class Node(object):
     def rolling(self, window: int | str, step: int | str | None = None, align_start: bool = True) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -2929,6 +2933,8 @@ class Nodes(object):
     def rolling(self, window: int | str, step: int | str | None = None, align_start: bool = True) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -3407,6 +3413,8 @@ class PathFromNode(object):
     def rolling(self, window: int | str, step: int | str | None = None, align_start: bool = True) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -3877,6 +3885,8 @@ class PathFromGraph(object):
     def rolling(self, window: int | str, step: int | str | None = None, align_start: bool = True) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -4435,6 +4445,8 @@ class Edge(object):
     def rolling(self, window: int | str, step: int | str | None = None, align_start: bool = True) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -4912,6 +4924,8 @@ class Edges(object):
     def rolling(self, window: int | str, step: int | str | None = None, align_start: bool = True) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -5345,6 +5359,8 @@ class NestedEdges(object):
     def rolling(self, window: int | str, step: int | str | None = None, align_start: bool = True) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
+        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 

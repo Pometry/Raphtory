@@ -174,10 +174,13 @@ pub trait TimeOps<'graph>:
 
     /// Creates a `WindowSet` with the given `window` size and optional `step`
     /// using a rolling window. The last window may fall partially outside the range of the data/view.
-    /// The window will be aligned with the smallest unit of time passed. For example, if the interval
-    /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
+    /// Note that passing a `step` larger than `window` can lead to some entries appearing before
+    /// the start of the first window and/or after the end of the last window (i.e. not included in any window)
     ///
     /// A rolling window is a window that moves forward by `step` size at each iteration.
+    ///
+    /// The window will be aligned with the smallest unit of time passed. For example, if the interval
+    /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
     fn rolling_aligned<I>(
         &self,
         window: I,
@@ -297,10 +300,10 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                 let step: Interval = step.try_into()?;
                 // Align the timestamp to the smallest unit. If there is None (the Interval is discrete),
                 // no alignment is done (aligning to millisecond is the same as not aligning)
-                let start_time = AlignmentUnit::align_timestamp(
-                    start,
-                    step.alignment_unit.unwrap_or(AlignmentUnit::Millisecond),
-                );
+                let start_time = step
+                    .alignment_unit
+                    .unwrap_or(AlignmentUnit::Millisecond)
+                    .align_timestamp(start);
                 WindowSet::new(parent, start_time, end, step, None)
             }
             _ => WindowSet::empty(parent),
@@ -349,11 +352,12 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                     Some(step) => step.try_into()?,
                     None => window,
                 };
-                // Align with step only
-                let align_unit = step.alignment_unit.unwrap_or(AlignmentUnit::Millisecond);
-                // Align the timestamp to the smallest unit. If there is None (i.e. the Interval is discrete),
+                // Align the timestamp to the smallest unit in step. If there is None (i.e. the Interval is discrete),
                 // no alignment is done (aligning to millisecond is the same as not aligning)
-                let start_time = AlignmentUnit::align_timestamp(start, align_unit);
+                let start_time = step
+                    .alignment_unit
+                    .unwrap_or(AlignmentUnit::Millisecond)
+                    .align_timestamp(start);
                 WindowSet::new(parent, start_time, end, step, Some(window))
             }
             _ => WindowSet::empty(parent),

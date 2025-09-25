@@ -3146,7 +3146,6 @@ def test_alignment():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
-    # FIXME: the first window is 2025-02-16 -> 2025-03-16. Shouldn't it be 2025-03-15 -> 2025-04-15?
     query = """
     {
       graph(path: "g") {
