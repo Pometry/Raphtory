@@ -173,6 +173,7 @@ mod test_utils {
     use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
+    use crate::db::graph::assertions::EdgeRow;
 
     pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
         test(graph)
@@ -197,7 +198,7 @@ mod test_utils {
     pub(crate) fn build_edge_list(
         len: usize,
         num_nodes: u64,
-    ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64)>> {
+    ) -> impl Strategy<Value = Vec<EdgeRow>> {
         proptest::collection::vec(
             (
                 0..num_nodes,
@@ -206,7 +207,7 @@ mod test_utils {
                 any::<String>(),
                 any::<i64>(),
             ),
-            1..=len,
+            0..=len,
         )
     }
 

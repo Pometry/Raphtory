@@ -440,3 +440,22 @@ pub fn search_edges(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<Str
     results.sort();
     results
 }
+
+pub type EdgeRow = (u64, u64, i64, String, i64);
+
+pub fn on_ok_or_missing<T>(
+    edges: &[EdgeRow],
+    res: Result<T, GraphError>,
+    on_ok: impl FnOnce(T),
+) {
+    match res {
+        Ok(v) => on_ok(v),
+        Err(GraphError::PropertyMissingError(name)) => {
+            assert!(
+                edges.is_empty(),
+                "PropertyMissingError({name}) on non-empty graph"
+            );
+        }
+        Err(err) => panic!("unexpected error from filter: {err:?}"),
+    }
+}

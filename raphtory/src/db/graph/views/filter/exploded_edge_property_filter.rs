@@ -142,6 +142,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
 
 #[cfg(test)]
 mod test_exploded_edge_property_filtered_graph {
+    use crate::errors::GraphError;
     use crate::{
         db::{
             api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
@@ -176,6 +177,7 @@ mod test_exploded_edge_property_filtered_graph {
     use raphtory_core::entities::nodes::node_ref::AsNodeRef;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::{HashMap, HashSet};
+    use crate::db::graph::assertions::on_ok_or_missing;
 
     fn build_filtered_graph(
         edges: &[(u64, u64, i64, String, i64)],
@@ -312,18 +314,18 @@ mod test_exploded_edge_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             let filter = ExplodedEdgeFilter::property("int_prop").gt(v);
-            let filtered = g.filter(filter.clone()).unwrap();
-            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv > v);
-            assert_graph_equal(&filtered, &expected_filtered_g);
-
-            #[cfg(feature = "search")]
-            {
-                let search_ee = g.search_exploded_edges(filter, 100, 0).unwrap();
-                let filter_ee = filtered.edges().explode().collect();
-                let from_search = search_ee.iter().map(edge_attr).collect_vec();
-                let from_filter = filter_ee.iter().map(edge_attr).collect_vec();
-                assert_eq!(from_search, from_filter);
-            }
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let expected_filtered_g = build_filtered_graph(&edges, |vv| vv > v);
+                assert_graph_equal(&filtered, &expected_filtered_g);
+                #[cfg(feature = "search")]
+                {
+                    let search_ee = g.search_exploded_edges(filter, 100, 0).unwrap();
+                    let filter_ee = filtered.edges().explode().collect();
+                    let from_search = search_ee.iter().map(edge_attr).collect_vec();
+                    let from_filter = filter_ee.iter().map(edge_attr).collect_vec();
+                    assert_eq!(from_search, from_filter);
+                }
+            });
         })
     }
 
@@ -360,11 +362,11 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").ge(v)
-            ).unwrap();
-            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv >= v);
-            assert_graph_equal(&filtered, &expected_filtered_g);
+            let filter = ExplodedEdgeFilter::property("int_prop").ge(v);
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let expected_filtered_g = build_filtered_graph(&edges, |vv| vv >= v);
+                assert_graph_equal(&filtered, &expected_filtered_g);
+            });
         })
     }
 
@@ -408,11 +410,11 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").lt(v)
-            ).unwrap();
-            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv < v);
-            assert_graph_equal(&filtered, &expected_filtered_g);
+            let filter = ExplodedEdgeFilter::property("int_prop").lt(v);
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let expected_filtered_g = build_filtered_graph(&edges, |vv| vv < v);
+                assert_graph_equal(&filtered, &expected_filtered_g);
+            });
         })
     }
 
@@ -435,11 +437,11 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").le(v)
-            ).unwrap();
-            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv <= v);
-            assert_graph_equal(&filtered, &expected_filtered_g);
+            let filter = ExplodedEdgeFilter::property("int_prop").le(v);
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let expected_filtered_g = build_filtered_graph(&edges, |vv| vv <= v);
+                assert_graph_equal(&filtered, &expected_filtered_g);
+            });
         })
     }
 
@@ -462,11 +464,11 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").eq(v)
-            ).unwrap();
-            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
-            assert_graph_equal(&filtered, &expected_filtered_g);
+            let filter = ExplodedEdgeFilter::property("int_prop").eq(v);
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
+                assert_graph_equal(&filtered, &expected_filtered_g);
+            });
         })
     }
 
@@ -489,11 +491,11 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").ne(v)
-            ).unwrap();
-            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv != v);
-            assert_graph_equal(&filtered, &expected_filtered_g);
+            let filter = ExplodedEdgeFilter::property("int_prop").ne(v);
+            on_ok_or_missing(&edges, g.filter(filter), |filtered| {
+                let expected_filtered_g = build_filtered_graph(&edges, |vv| vv != v);
+                assert_graph_equal(&filtered, &expected_filtered_g);
+            });
         })
     }
 
@@ -516,11 +518,11 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>(), (start, end) in build_window()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").eq(v)
-            ).unwrap();
-            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
-            assert_graph_equal(&filtered.window(start, end), &expected_filtered_g.window(start, end));
+            let filter = ExplodedEdgeFilter::property("int_prop").eq(v);
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
+                assert_graph_equal(&filtered.window(start, end), &expected_filtered_g.window(start, end));
+            });
         })
     }
 
@@ -543,11 +545,11 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").eq(v)
-            ).unwrap();
-            let mat = filtered.materialize().unwrap();
-            assert_graph_equal(&filtered, &mat);
+            let filter = ExplodedEdgeFilter::property("int_prop").eq(v);
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let mat = filtered.materialize().unwrap();
+                assert_graph_equal(&filtered, &mat);
+            });
         })
     }
 
@@ -572,12 +574,11 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered_nodes =
-                g.nodes().filter(
-                    ExplodedEdgeFilter::property("int_prop").eq(v)
-                ).unwrap();
-            let expected_filtered_g = build_filtered_nodes_graph(&edges, |vv| vv == v);
-            assert_nodes_equal(&filtered_nodes, &expected_filtered_g.nodes());
+            let filter = ExplodedEdgeFilter::property("int_prop").eq(v);
+            on_ok_or_missing(&edges, g.nodes().filter(filter.clone()), |filtered| {
+                let expected_filtered_g = build_filtered_nodes_graph(&edges, |vv| vv == v);
+                assert_nodes_equal(&filtered, &expected_filtered_g.nodes());
+            });
         })
     }
 
@@ -608,12 +609,12 @@ mod test_exploded_edge_property_filtered_graph {
             edges in build_edge_list(100, 100), v in any::<i64>(), (start, end) in build_window()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").eq(v)
-            ).unwrap();
-            let left = filtered.window(start, end);
-            let right = filtered.window(start, end).materialize().unwrap();
-            assert_graph_equal(&left, &right);
+            let filter = ExplodedEdgeFilter::property("int_prop").eq(v);
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let left = filtered.window(start, end);
+                let right = filtered.window(start, end).materialize().unwrap();
+                assert_graph_equal(&left, &right);
+            });
         })
     }
 
@@ -673,13 +674,11 @@ mod test_exploded_edge_property_filtered_graph {
             for (src, dst, t) in edge_deletions {
                 g.delete_edge(t, src, dst, None).unwrap();
             }
-            let gf = g
-                .filter(
-                ExplodedEdgeFilter::property("int_prop").gt(v)
-            )
-                .unwrap();
-            let gfm = gf.materialize().unwrap();
-            assert_graph_equal(&gf, &gfm)
+            let filter = ExplodedEdgeFilter::property("int_prop").gt(v);
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let gfm = filtered.materialize().unwrap();
+                assert_graph_equal(&filtered, &gfm)
+            });
         })
     }
 
@@ -705,21 +704,16 @@ mod test_exploded_edge_property_filtered_graph {
             for (src, dst, t) in edge_deletions {
                 g.delete_edge(t, src, dst, None).unwrap();
             }
-            let gwf = g.window(start, end)
-                .filter(
-                ExplodedEdgeFilter::property("int_prop").gt(v)
-            )
-                .unwrap();
-            let gwfm = gwf.materialize().unwrap();
-            assert_persistent_materialize_graph_equal(&gwf, &gwfm);
-
-            let gfw = g
-                .filter(
-                ExplodedEdgeFilter::property("int_prop").gt(v)
-            ).unwrap()
-                .window(start, end);
-            let gfwm = gfw.materialize().unwrap();
-            assert_persistent_materialize_graph_equal(&gfw, &gfwm);
+            let filter = ExplodedEdgeFilter::property("int_prop").gt(v);
+            on_ok_or_missing(&edges, g.window(start, end).filter(filter.clone()), |filtered| {
+                let gwfm = filtered.materialize().unwrap();
+                assert_persistent_materialize_graph_equal(&filtered, &gwfm);
+            });
+            on_ok_or_missing(&edges, g.filter(filter.clone()), |filtered| {
+                let gfw = filtered.window(start, end);
+                let gfwm = gfw.materialize().unwrap();
+                assert_persistent_materialize_graph_equal(&gfw, &gfwm);
+            });
         })
     }
 
