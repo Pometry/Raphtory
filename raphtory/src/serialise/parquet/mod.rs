@@ -163,6 +163,7 @@ pub trait ParquetDecoder: Sized {
 const NODE_ID_COL: &str = "rap_node_id";
 const TYPE_COL: &str = "rap_node_type";
 const TIME_COL: &str = "rap_time";
+const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
 const SRC_COL: &str = "rap_src";
 const DST_COL: &str = "rap_dst";
 const LAYER_COL: &str = "rap_layer";
@@ -171,14 +172,10 @@ const EDGES_D_PATH: &str = "edges_d"; // deletions
 const EDGES_C_PATH: &str = "edges_c";
 const NODES_T_PATH: &str = "nodes_t";
 const NODES_C_PATH: &str = "nodes_c";
-
 const GRAPH_T_PATH: &str = "graph_t";
 const GRAPH_C_PATH: &str = "graph_c";
-
 const GRAPH_TYPE: &str = "graph_type";
-
 const EVENT_GRAPH_TYPE: &str = "rap_event_graph";
-
 const PERSISTENT_GRAPH_TYPE: &str = "rap_persistent_graph";
 
 impl ParquetEncoder for Graph {
@@ -411,7 +408,7 @@ fn decode_graph_storage(
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
     let g_type = {
-        let exclude = vec![TIME_COL];
+        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL];
         let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
         let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
         load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, &[], &c_props, batch_size)?;
@@ -428,7 +425,7 @@ fn decode_graph_storage(
     let t_graph_path = path.as_ref().join(GRAPH_T_PATH);
 
     if std::fs::exists(&t_graph_path)? {
-        let exclude = vec![TIME_COL];
+        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL];
         let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
         let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
         load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, &t_props, &[], batch_size)?;
@@ -436,7 +433,7 @@ fn decode_graph_storage(
 
     let t_node_path = path.as_ref().join(NODES_T_PATH);
     if std::fs::exists(&t_node_path)? {
-        let exclude = vec![NODE_ID_COL, TIME_COL, TYPE_COL];
+        let exclude = vec![NODE_ID_COL, TIME_COL, SECONDARY_INDEX_COL, TYPE_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
         let t_prop_columns = t_prop_columns
             .iter()
@@ -478,7 +475,7 @@ fn decode_graph_storage(
         )?;
     }
 
-    let exclude = vec![TIME_COL, SRC_COL, DST_COL, LAYER_COL];
+    let exclude = vec![TIME_COL, SECONDARY_INDEX_COL, SRC_COL, DST_COL, LAYER_COL];
     let t_edge_path = path.as_ref().join(EDGES_T_PATH);
     if std::fs::exists(&t_edge_path)? {
         let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;

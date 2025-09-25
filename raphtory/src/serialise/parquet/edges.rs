@@ -25,6 +25,7 @@ pub(crate) fn encode_edge_tprop(
         |id_type| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
+                Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
                 Field::new(SRC_COL, id_type.clone(), false),
                 Field::new(DST_COL, id_type.clone(), false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
@@ -69,6 +70,7 @@ pub(crate) fn encode_edge_deletions(
         |id_type| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
+                Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
                 Field::new(SRC_COL, id_type.clone(), false),
                 Field::new(DST_COL, id_type.clone(), false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
