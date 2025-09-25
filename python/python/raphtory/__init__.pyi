@@ -887,7 +887,7 @@ class Graph(GraphView):
             None:
         """
 
-    def create_index_in_ram_with_spec(self, py_spec) -> None:
+    def create_index_in_ram_with_spec(self, py_spec: IndexSpec) -> None:
         """
         Creates a graph index in memory (RAM) with the provided index spec.
 
@@ -898,7 +898,7 @@ class Graph(GraphView):
             py_spec: The specification for the in-memory index to be created.
 
         Arguments:
-            IndexSpec: - The specification for the in-memory index to be created.
+            py_spec (IndexSpec): - The specification for the in-memory index to be created.
 
         Returns:
             None:
@@ -1626,7 +1626,7 @@ class PersistentGraph(GraphView):
             None:
         """
 
-    def create_index_in_ram_with_spec(self, py_spec: Any) -> None:
+    def create_index_in_ram_with_spec(self, py_spec: IndexSpec) -> None:
         """
         Creates a graph index in memory (RAM) with the provided index spec.
 
@@ -1637,7 +1637,7 @@ class PersistentGraph(GraphView):
             py_spec: The specification for the in-memory index to be created.
 
          Arguments:
-            IndexSpec: The specification for the in-memory index to be created.
+            py_spec (IndexSpec): The specification for the in-memory index to be created.
 
         Returns:
             None:
@@ -6229,7 +6229,7 @@ class Properties(object):
 
     def keys(self) -> list[str]:
         """
-        Get the names for all properties (includes temporal and static properties).
+        Get the names for all properties
 
         Returns:
             list[str]:
@@ -6378,7 +6378,7 @@ class Metadata(object):
         """
         as_dict() -> dict[str, Any]
 
-        convert the properties view to a python dict
+        Convert the properties view to a python dict
 
         Returns:
             dict[str, PropValue]:

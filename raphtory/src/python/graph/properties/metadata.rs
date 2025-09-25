@@ -96,7 +96,7 @@ impl PyMetadata {
 
     /// as_dict() -> dict[str, Any]
     ///
-    /// convert the properties view to a python dict
+    /// Convert the properties view to a python dict
     ///
     /// Returns:
     ///     dict[str, PropValue]:
@@ -104,7 +104,7 @@ impl PyMetadata {
         self.props.as_map()
     }
 
-    /// iterate over property keys
+    /// Iterate over property keys
     ///
     /// Returns:
     ///     Iterator[str]: keys iterator
@@ -114,14 +114,20 @@ impl PyMetadata {
 
     /// __contains__(key: str) -> bool
     ///
-    /// check if property `key` exists
+    /// Check if property `key` exists
+    ///
+    /// Returns:
+    ///     bool:
     pub fn __contains__(&self, key: &str) -> bool {
         self.props.get(key).is_some()
     }
 
     /// __len__() -> int
     ///
-    /// the number of properties
+    /// The number of properties
+    ///
+    /// Returns:
+    ///     int:
     pub fn __len__(&self) -> usize {
         self.keys().len()
     }

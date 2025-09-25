@@ -271,9 +271,12 @@ class EdgeFilterOp(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
+    def contains(self, value: str):
         """
         Returns a filter expression that checks if a given value contains the specified string.
+
+        Arguments:
+            value (str):
 
         Returns:
             filter expression
@@ -294,25 +297,34 @@ class EdgeFilterOp(object):
             FilterExpr:
         """
 
-    def is_in(self, values):
+    def is_in(self, values: list[str]):
         """
         Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
 
+        Arguments:
+            values (list[str]):
+
         Returns:
             filter expression
         """
 
-    def is_not_in(self, values):
+    def is_not_in(self, values: list[str]):
         """
         Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
 
+        Arguments:
+            values (list[str]):
+
         Returns:
             filter expression
         """
 
-    def not_contains(self, value):
+    def not_contains(self, value: str):
         """
         Returns a filter expression that checks if a given value does not contain the specified string.
+
+        Arguments:
+            value (str):
 
         Returns:
             filter expression

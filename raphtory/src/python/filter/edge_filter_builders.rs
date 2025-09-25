@@ -23,6 +23,9 @@ impl<T: InternalEdgeFilterBuilderOps + 'static> From<T> for PyEdgeFilterOp {
 #[pymethods]
 impl PyEdgeFilterOp {
     /// Returns a filter expression that checks if a specified string is equal to a given value.
+    ///
+    /// Arguments:
+    ///     value (str):
     ///  
     /// Returns:
     ///     filter expression
@@ -33,6 +36,9 @@ impl PyEdgeFilterOp {
 
     /// Returns a filter expression that checks if a specified string is not equal to a given value.
     ///  
+    /// Arguments:
+    ///     value (str):
+    ///
     /// Returns:
     ///     filter expression
     fn __ne__(&self, value: String) -> PyFilterExpr {
@@ -42,6 +48,9 @@ impl PyEdgeFilterOp {
 
     /// Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
     ///  
+    /// Arguments:
+    ///     values (list[str]):
+    ///
     /// Returns:
     ///     filter expression
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
@@ -51,6 +60,9 @@ impl PyEdgeFilterOp {
 
     /// Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
     ///  
+    /// Arguments:
+    ///     values (list[str]):
+    ///
     /// Returns:
     ///     filter expression
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
@@ -60,6 +72,9 @@ impl PyEdgeFilterOp {
 
     /// Returns a filter expression that checks if a given value contains the specified string.
     ///  
+    /// Arguments:
+    ///     value (str):
+    ///
     /// Returns:
     ///     filter expression
     fn contains(&self, value: String) -> PyFilterExpr {
@@ -69,6 +84,9 @@ impl PyEdgeFilterOp {
 
     /// Returns a filter expression that checks if a given value does not contain the specified string.
     ///  
+    /// Arguments:
+    ///     value (str):
+    ///
     /// Returns:
     ///     filter expression
     fn not_contains(&self, value: String) -> PyFilterExpr {

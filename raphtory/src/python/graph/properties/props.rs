@@ -99,28 +99,40 @@ impl PyProperties {
     }
 
     /// Check if property `key` exists.
+    ///
+    /// Returns:
+    ///     bool:
     pub fn __contains__(&self, key: &str) -> bool {
         self.props.get(key).is_some()
     }
 
-    /// gets property value if it exists, otherwise raises `KeyError`
+    /// Gets property value if it exists, otherwise raises `KeyError`
+    ///
+    /// Returns:
+    ///     dict[PropValue]:
     fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         self.props
             .get(key)
             .ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// iterate over property keys
+    /// Iterate over property keys
+    ///
+    /// Returns:
+    ///     Iterator[str]:
     fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
-    /// number of properties
+    /// Number of properties
+    ///
+    /// Returns:
+    ///     int:
     fn __len__(&self) -> usize {
         self.keys().len()
     }
 
-    /// Get the names for all properties (includes temporal and static properties).
+    /// Get the names for all properties
     ///
     /// Returns:
     ///     list[str]:

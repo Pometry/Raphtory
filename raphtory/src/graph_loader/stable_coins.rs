@@ -24,8 +24,8 @@ pub struct StableCoin {
 /// Returns the stablecoin graph example.
 ///
 /// Arguments:
-///     path:
-///     subset:
+///     path (str):
+///     subset (bool):
 ///
 /// Returns:
 ///     Graph:

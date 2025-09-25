@@ -311,6 +311,13 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 /// Returns the Local clustering coefficient (batch, intersection) for each specified node in a graph. This measures the degree to which one or multiple nodes in a graph tend to cluster together.
 ///
 /// Uses path-counting for its triangle-counting step.
+///
+/// Arguments:
+///     graph: Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     v: vec of node ids, if empty, will return results for every node in the graph
+///
+/// Returns:
+///     dict[NodeState]:
 pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
     v: &Bound<PyAny>,

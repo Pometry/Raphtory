@@ -297,7 +297,7 @@ impl PyTemporalProp {
     /// Get the value of the property at a specified time.
     ///
     /// Arguments:
-    ///     t: time.
+    ///     t (time): time
     ///
     /// Returns:
     ///     Optional[PropValue]:
@@ -889,7 +889,9 @@ impl PyPropHistValueListList {
         (move || builder().map(|it| it.map(|itit| itit.len()))).into()
     }
 
-    /// Returns:
+    /// Median
+    /// 
+    ///  Returns:
     ///     list[list[PropValue]]:
     pub fn median(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
@@ -1110,7 +1112,7 @@ impl PyPropValueList {
     /// Find the maximum property value and its associated time.
     ///
     /// Returns:
-    ///     list[PropValue]:
+    ///     PropValue:
     pub fn max(&self) -> PropValue {
         compute_generalised_sum(
             self.iter().flatten(),

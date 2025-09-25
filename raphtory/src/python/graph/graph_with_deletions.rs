@@ -1000,7 +1000,7 @@ impl PyPersistentGraph {
     ///     py_spec: The specification for the in-memory index to be created.
     ///
     ///  Arguments:
-    ///     IndexSpec: The specification for the in-memory index to be created.
+    ///     py_spec (IndexSpec): The specification for the in-memory index to be created.
     ///
     /// Returns:
     ///     None:

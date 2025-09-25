@@ -109,6 +109,8 @@ impl Display for PropertyFilter {
 }
 
 impl PropertyFilter {
+    /// Equals
+    ///
     /// Arguments:
     ///     prop_ref:
     ///     prop_value:
@@ -120,7 +122,9 @@ impl PropertyFilter {
         }
     }
 
-    /// Arguments:
+    /// Not Equal
+    ///
+    ///  Arguments:
     ///     prop_ref:
     ///     prop_value:
     pub fn ne(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
@@ -131,6 +135,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Less than or equal to
+    ///
     /// Arguments:
     ///     prop_ref:
     ///     prop_value:
@@ -142,6 +148,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Greater than or equal to
+    ///
     /// Arguments:
     ///     prop_ref:
     ///     prop_value:
@@ -153,6 +161,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Less than
+    ///
     /// Arguments:
     ///     prop_ref:
     ///     prop_value:
@@ -164,6 +174,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Greater than
+    ///
     /// Arguments:
     ///     prop_ref:
     ///     prop_value:
@@ -175,6 +187,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Is in
+    ///
     /// Arguments:
     ///     prop_ref:
     ///     prop_values:
@@ -186,6 +200,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Is not in
+    ///
     /// Arguments:
     ///     prop_ref:
     ///     prop_values:
@@ -197,6 +213,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Is none
+    ///
     /// Arguments:
     ///     prop_ref:
     pub fn is_none(prop_ref: PropertyRef) -> Self {
@@ -207,6 +225,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Is some
+    ///
     /// Arguments:
     ///     prop_ref:
     pub fn is_some(prop_ref: PropertyRef) -> Self {
@@ -217,6 +237,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Contains
+    ///
     /// Arguments:
     ///     prop_ref:
     pub fn contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
@@ -227,6 +249,8 @@ impl PropertyFilter {
         }
     }
 
+    /// Does not contain
+    ///
     /// Arguments:
     ///     prop_ref:
     pub fn not_contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
