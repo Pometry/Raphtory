@@ -229,7 +229,7 @@ def test_property_semantics_only_metadata2():
         filter_expr = filter.Edge.metadata("p1") == 1
         with pytest.raises(
             Exception,
-            match=r"Property p1 does not exist",
+            match=r"Metadata p1 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 

@@ -255,7 +255,7 @@ def test_filter_edges_for_property_starts_with():
         filter_expr = filter.Edge.metadata("p10").starts_with("Paper")
         with pytest.raises(
             Exception,
-            match=r"Property p10 does not exist",
+            match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -298,7 +298,7 @@ def test_filter_edges_for_property_ends_with():
         filter_expr = filter.Edge.metadata("p10").ends_with("hip")
         with pytest.raises(
             Exception,
-            match=r"Property p10 does not exist",
+            match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -331,7 +331,7 @@ def test_filter_edges_for_property_contains():
         filter_expr = filter.Edge.metadata("p10").contains("Paper")
         with pytest.raises(
             Exception,
-            match=r"Property p10 does not exist",
+            match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -368,7 +368,7 @@ def test_filter_edges_for_property_not_contains():
         filter_expr = filter.Edge.metadata("p10").not_contains("ship")
         with pytest.raises(
             Exception,
-            match=r"Property p10 does not exist",
+            match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 

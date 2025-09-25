@@ -238,6 +238,10 @@ mod test_exploded_edge_property_filtered_graph {
         let g = PersistentGraph::new();
         let g_filtered = PersistentGraph::new();
 
+        if !edges.iter().all(|(_, v)| v.is_empty()) {
+            g_filtered.resolve_layer(None).unwrap();
+        }
+
         g.resolve_edge_property("str_prop", PropType::Str, false)
             .unwrap();
         g.resolve_edge_property("int_prop", PropType::I64, false)

@@ -572,7 +572,13 @@ impl<M> PropertyFilter<M> {
         };
 
         match meta.get_prop_id_and_type(name, is_static) {
-            None => Err(GraphError::PropertyMissingError(name.to_string())),
+            None => {
+                if is_static {
+                    Err(GraphError::MetadataMissingError(name.to_string()))
+                } else {
+                    Err(GraphError::PropertyMissingError(name.to_string()))
+                }
+            }
             Some((id, dtype)) => {
                 // agg and elem-qualifier cannot both be set
                 if let (Some(agg), Some(_q)) = (self.list_agg, self.list_elem_qualifier) {
