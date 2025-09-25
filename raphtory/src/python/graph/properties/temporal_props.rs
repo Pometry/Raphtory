@@ -890,7 +890,7 @@ impl PyPropHistValueListList {
     }
 
     /// Median
-    /// 
+    ///
     ///  Returns:
     ///     list[list[PropValue]]:
     pub fn median(&self) -> PyPropValueListList {

@@ -6298,12 +6298,12 @@ class PyPropValueList(object):
             list[PropValue]:
         """
 
-    def max(self) -> list[PropValue]:
+    def max(self) -> PropValue:
         """
         Find the maximum property value and its associated time.
 
         Returns:
-            list[PropValue]:
+            PropValue:
         """
 
     def mean(self) -> PropValue:
@@ -6629,7 +6629,7 @@ class TemporalProp(object):
         Get the value of the property at a specified time.
 
         Arguments:
-            t: time.
+            t (time): time
 
         Returns:
             Optional[PropValue]:
