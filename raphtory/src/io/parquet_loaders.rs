@@ -4,10 +4,8 @@ use crate::{
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
 };
-use itertools::Itertools;
 use parquet::{
     arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask},
-    file::reader::FileReader,
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::{
@@ -44,6 +42,7 @@ pub fn load_nodes_from_parquet<
         load_nodes_from_df(
             df_view,
             time,
+            None,
             id,
             properties,
             metadata,
@@ -122,6 +121,7 @@ pub fn load_edges_from_parquet<
     load_edges_from_df(
         df_view,
         time,
+        None,
         src,
         dst,
         properties,
@@ -254,7 +254,7 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_graph_props_from_df(df_view, time, Some(properties), Some(metadata), graph)
+        load_graph_props_from_df(df_view, time, None, Some(properties), Some(metadata), graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
 
@@ -340,8 +340,9 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
 mod test {
     use super::*;
     use arrow_array::{
-        ArrayRef, Float64Array, Int64Array, PrimitiveArray, StringArray, StringViewArray,
+        ArrayRef, Float64Array, Int64Array, StringArray,
     };
+    use itertools::Itertools;
     use std::{path::PathBuf, sync::Arc};
 
     #[test]

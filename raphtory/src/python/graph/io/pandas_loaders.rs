@@ -44,9 +44,12 @@ pub(crate) fn load_nodes_from_pandas<
 
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
+    let secondary_index: Option<&str> = None;
+
     load_nodes_from_df(
         df_view,
         time,
+        secondary_index,
         id,
         properties,
         metadata,
@@ -81,9 +84,12 @@ pub(crate) fn load_edges_from_pandas<
 
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
+    let secondary_index: Option<&str> = None;
+
     load_edges_from_df(
         df_view,
         time,
+        secondary_index,
         src,
         dst,
         properties,

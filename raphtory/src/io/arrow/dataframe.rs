@@ -4,7 +4,7 @@ use crate::{
 };
 use arrow_array::{
     cast::AsArray,
-    types::{Int64Type, TimestampMillisecondType},
+    types::{Int64Type, TimestampMillisecondType, UInt64Type},
     Array, ArrayRef, ArrowPrimitiveType, Int64Array, PrimitiveArray,
 };
 use arrow_cast::cast;
@@ -91,6 +91,38 @@ impl TimeCol {
     }
 }
 
+pub struct SecondaryIndexCol(PrimitiveArray<UInt64Type>);
+
+impl SecondaryIndexCol {
+    /// Load a secondary index column from a dataframe.
+    pub fn new_from_df(arr: &dyn Array) -> Result<Self, LoadError> {
+        if arr.null_count() > 0 {
+            return Err(LoadError::MissingSecondaryIndexError);
+        }
+
+        Ok(SecondaryIndexCol(arr.as_primitive::<UInt64Type>().clone()))
+    }
+
+    /// Generate a secondary index column with values from `start` to `end` (not inclusive).
+    pub fn new_from_range(start: usize, end: usize) -> Self {
+        let start = start as u64;
+        let end = end as u64;
+        SecondaryIndexCol(PrimitiveArray::from_iter_values(start..end))
+    }
+
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = u64> + '_ {
+        (0..self.0.len()).into_par_iter().map(|i| self.0.value(i))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = u64> + '_ {
+        self.0.values().iter().copied()
+    }
+
+    pub fn get(&self, i: usize) -> Option<u64> {
+        (i < self.0.len()).then(|| self.0.value(i))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DFChunk {
     pub(crate) chunk: Vec<ArrayRef>,
@@ -107,5 +139,9 @@ impl DFChunk {
 
     pub fn time_col(&self, index: usize) -> Result<TimeCol, LoadError> {
         TimeCol::new(self.chunk[index].as_ref())
+    }
+
+    pub fn secondary_index_col(&self, index: usize) -> Result<SecondaryIndexCol, LoadError> {
+        SecondaryIndexCol::new_from_df(self.chunk[index].as_ref())
     }
 }

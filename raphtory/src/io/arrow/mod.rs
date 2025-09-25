@@ -50,9 +50,12 @@ mod test {
         let graph = Graph::new();
         let layer_name: Option<&str> = None;
         let layer_col: Option<&str> = None;
+        let secondary_index: Option<&str> = None;
+
         load_edges_from_df(
             df,
             "time",
+            secondary_index,
             "src",
             "dst",
             &["prop1", "prop2"],
@@ -145,10 +148,12 @@ mod test {
             num_rows: 2,
         };
         let graph = Graph::new();
+        let secondary_index: Option<&str> = None;
 
         load_nodes_from_df(
             df,
             "time",
+            secondary_index,
             "id",
             &["name"],
             &[],

@@ -88,6 +88,8 @@ pub enum LoadError {
     MissingNodeError,
     #[error("Missing value for timestamp")]
     MissingTimeError,
+    #[error("Missing value for secondary index")]
+    MissingSecondaryIndexError,
     #[error("Missing value for edge id {0:?} -> {1:?}")]
     MissingEdgeError(VID, VID),
     #[error("Node IDs have the wrong type, expected {existing}, got {new}")]

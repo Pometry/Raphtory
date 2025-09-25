@@ -3,7 +3,7 @@ use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
-        dataframe::{DFChunk, DFView},
+        dataframe::{DFChunk, DFView, SecondaryIndexCol},
         layer_col::{lift_layer_col, lift_node_type_col},
         prop_handler::*,
     },
@@ -33,6 +33,7 @@ use std::{
         Arc,
     },
 };
+use itertools::izip;
 
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
@@ -62,6 +63,7 @@ pub(crate) fn load_nodes_from_df<
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
+    secondary_index: Option<&str>,
     node_id: &str,
     properties: &[&str],
     metadata: &[&str],
@@ -85,6 +87,7 @@ pub(crate) fn load_nodes_from_df<
 
     let node_id_index = df_view.get_index(node_id)?;
     let time_index = df_view.get_index(time)?;
+    let secondary_index_index = secondary_index.map(|col| df_view.get_index(col)).transpose()?;
 
     let session = graph.write_session().map_err(into_graph_err)?;
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
@@ -123,18 +126,24 @@ pub(crate) fn load_nodes_from_df<
         let time_col = df.time_col(time_index)?;
         let node_col = df.node_col(node_id_index)?;
 
+        // Load the secondary index column if it exists, otherwise generate from start_id.
+        let secondary_index_col = match secondary_index_index {
+            Some(col_index) => df.secondary_index_col(col_index)?,
+            None => SecondaryIndexCol::new_from_range(start_id, start_id + df.len()),
+        };
+
         node_col_resolved.resize_with(df.len(), Default::default);
         node_type_col_resolved.resize_with(df.len(), Default::default);
 
         // TODO: Using parallel iterators results in a 5x speedup, but
         // needs to be implemented such that node VID order is preserved.
         // See: https://github.com/Pometry/pometry-storage/issues/81
-        for (((gid, resolved), node_type), node_type_resolved) in node_col
-            .iter()
-            .zip(node_col_resolved.iter_mut())
-            .zip(node_type_col.iter())
-            .zip(node_type_col_resolved.iter_mut())
-        {
+        for (gid, resolved, node_type, node_type_resolved) in izip!(
+            node_col.iter(),
+            node_col_resolved.iter_mut(),
+            node_type_col.iter(),
+            node_type_col_resolved.iter_mut()
+        ) {
             let (vid, res_node_type) = write_locked_graph
                 .graph()
                 .resolve_node_and_type(gid.as_node_ref(), node_type)
@@ -157,31 +166,35 @@ pub(crate) fn load_nodes_from_df<
             .nodes
             .par_iter_mut()
             .try_for_each(|shard| {
-                let mut t_props = vec![];
-                let mut c_props = vec![];
+                // Zip all columns for iteration.
+                let zip = izip!(
+                    node_col_resolved.iter(),
+                    time_col.iter(),
+                    secondary_index_col.iter(),
+                    node_type_col_resolved.iter(),
+                    node_col.iter()
+                );
 
-                for (idx, (((vid, time), node_type), gid)) in node_col_resolved
-                    .iter()
-                    .zip(time_col.iter())
-                    .zip(node_type_col_resolved.iter())
-                    .zip(node_col.iter())
-                    .enumerate()
-                {
+                for (row, (vid, time, secondary_index, node_type, gid)) in zip.enumerate() {
                     if let Some(mut_node) = shard.resolve_pos(*vid) {
-                        let t = TimeIndexEntry(time, start_id + idx);
-                        update_time(t);
                         let mut writer = shard.writer();
-                        writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type, 0);
-                        t_props.clear();
-                        t_props.extend(prop_cols.iter_row(idx));
+                        let t = TimeIndexEntry(time, secondary_index as usize);
+                        let layer_id = 0;
+                        let lsn = 0;
 
-                        c_props.clear();
-                        c_props.extend(metadata_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_metadata);
-                        writer.update_c_props(mut_node, 0, c_props.drain(..), 0);
-                        writer.add_props(t, mut_node, 0, t_props.drain(..), 0);
+                        update_time(t);
+                        writer.store_node_id_and_node_type(mut_node, layer_id, gid, *node_type, lsn);
+
+                        let t_props = prop_cols.iter_row(row);
+                        let c_props = metadata_cols
+                            .iter_row(row)
+                            .chain(shared_metadata.iter().cloned());
+
+                        writer.add_props(t, mut_node, layer_id, t_props, lsn);
+                        writer.update_c_props(mut_node, layer_id, c_props, lsn);
                     };
                 }
+
                 Ok::<_, GraphError>(())
             })?;
 
@@ -189,14 +202,16 @@ pub(crate) fn load_nodes_from_df<
         let _ = pb.update(df.len());
         start_id += df.len();
     }
+
     Ok(())
 }
 
-pub fn load_edges_from_df<
+pub(crate) fn load_edges_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
+    secondary_index: Option<&str>,
     src: &str,
     dst: &str,
     properties: &[&str],
@@ -221,6 +236,7 @@ pub fn load_edges_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
+    let secondary_index_index = secondary_index.map(|col| df_view.get_index(col)).transpose()?;
     let layer_index = if let Some(layer_col) = layer_col {
         Some(df_view.get_index(layer_col.as_ref())?)
     } else {
@@ -374,6 +390,12 @@ pub fn load_edges_from_df<
 
         let time_col = df.time_col(time_index)?;
 
+        // Load the secondary index column if it exists, otherwise generate from start_idx.
+        let secondary_index_col = match secondary_index_index {
+            Some(col_index) => df.secondary_index_col(col_index)?,
+            None => SecondaryIndexCol::new_from_range(start_idx, start_idx + df.len()),
+        };
+
         write_locked_graph.resize_chunks_to_num_nodes(num_nodes.load(Ordering::Relaxed));
 
         eid_col_resolved.resize_with(df.len(), Default::default);
@@ -393,16 +415,19 @@ pub fn load_edges_from_df<
             .iter_mut() // TODO: change to par_iter_mut but preserve edge_id order
             .enumerate()
             .for_each(|(page_id, locked_page)| {
-                for (row, ((((src, src_gid), dst), time), layer)) in src_col_resolved
-                    .iter()
-                    .zip(src_col.iter())
-                    .zip(dst_col_resolved.iter())
-                    .zip(time_col.iter())
-                    .zip(layer_col_resolved.iter())
-                    .enumerate()
-                {
+                // Zip all columns for iteration.
+                let zip = izip!(
+                    src_col_resolved.iter(),
+                    src_col.iter(),
+                    dst_col_resolved.iter(),
+                    time_col.iter(),
+                    secondary_index_col.iter(),
+                    layer_col_resolved.iter()
+                );
+
+                for (row, (src, src_gid, dst, time, secondary_index, layer)) in zip.enumerate() {
                     if let Some(src_pos) = locked_page.resolve_pos(*src) {
-                        let t = TimeIndexEntry(time, start_idx + row);
+                        let t = TimeIndexEntry(time, secondary_index as usize);
                         let mut writer = locked_page.writer();
                         writer.store_node_id(src_pos, 0, src_gid, 0);
 
@@ -426,6 +451,7 @@ pub fn load_edges_from_df<
                             edge_id.with_layer(*layer),
                             0,
                         ); // FIXME: when we update this to work with layers use the correct layer
+
                         per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
                     }
                 }
@@ -441,16 +467,19 @@ pub fn load_edges_from_df<
                     .par_iter_mut()
                     .enumerate()
                     .for_each(|(page_id, shard)| {
-                        for (row, ((((src, (dst, dst_gid)), eid), time), layer)) in src_col_resolved
-                            .iter()
-                            .zip(dst_col_resolved.iter().zip(dst_col.iter()))
-                            .zip(eid_col_resolved.iter())
-                            .zip(time_col.iter())
-                            .zip(layer_col_resolved.iter())
-                            .enumerate()
-                        {
+                        let zip = izip!(
+                            src_col_resolved.iter(),
+                            dst_col_resolved.iter(),
+                            dst_col.iter(),
+                            eid_col_resolved.iter(),
+                            time_col.iter(),
+                            secondary_index_col.iter(),
+                            layer_col_resolved.iter()
+                        );
+
+                        for (src, dst, dst_gid, eid, time, secondary_index, layer) in zip {
                             if let Some(dst_pos) = shard.resolve_pos(*dst) {
-                                let t = TimeIndexEntry(time, start_idx + row);
+                                let t = TimeIndexEntry(time, secondary_index as usize);
                                 let mut writer = shard.writer();
 
                                 writer.store_node_id(dst_pos, 0, dst_gid, 0);
@@ -474,29 +503,26 @@ pub fn load_edges_from_df<
                 write_locked_graph.edges.par_iter_mut().for_each(|shard| {
                     let mut t_props = vec![];
                     let mut c_props = vec![];
+                    let zip = izip!(
+                        src_col_resolved.iter(),
+                        dst_col_resolved.iter(),
+                        time_col.iter(),
+                        secondary_index_col.iter(),
+                        eid_col_resolved.iter(),
+                        layer_col_resolved.iter(),
+                        eids_exist.iter().map(|exists| exists.load(Ordering::Relaxed))
+                    );
 
-                    for (idx, (((((src, dst), time), eid), layer), exists)) in src_col_resolved
-                        .iter()
-                        .zip(dst_col_resolved.iter())
-                        .zip(time_col.iter())
-                        .zip(eid_col_resolved.iter())
-                        .zip(layer_col_resolved.iter())
-                        .zip(
-                            eids_exist
-                                .iter()
-                                .map(|exists| exists.load(Ordering::Relaxed)),
-                        )
-                        .enumerate()
-                    {
+                    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
                         if let Some(eid_pos) = shard.resolve_pos(*eid) {
-                            let t = TimeIndexEntry(time, start_idx + idx);
+                            let t = TimeIndexEntry(time, secondary_index as usize);
                             let mut writer = shard.writer();
 
                             t_props.clear();
-                            t_props.extend(prop_cols.iter_row(idx));
+                            t_props.extend(prop_cols.iter_row(row));
 
                             c_props.clear();
-                            c_props.extend(metadata_cols.iter_row(idx));
+                            c_props.extend(metadata_cols.iter_row(row));
                             c_props.extend_from_slice(&shared_metadata);
 
                             writer.add_static_edge(Some(eid_pos), *src, *dst, 0, Some(exists));
@@ -871,6 +897,7 @@ pub(crate) fn load_graph_props_from_df<
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
+    secondary_index: Option<&str>,
     properties: Option<&[&str]>,
     metadata: Option<&[&str]>,
     graph: &G,
@@ -888,6 +915,7 @@ pub(crate) fn load_graph_props_from_df<
         .collect::<Result<Vec<_>, GraphError>>()?;
 
     let time_index = df_view.get_index(time)?;
+    let secondary_index_index = secondary_index.map(|col| df_view.get_index(col)).transpose()?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
@@ -913,14 +941,21 @@ pub(crate) fn load_graph_props_from_df<
             })?;
         let time_col = df.time_col(time_index)?;
 
+        // Load the secondary index column if it exists, otherwise generate from start_id.
+        let secondary_index_col = match secondary_index_index {
+            Some(col_index) => df.secondary_index_col(col_index)?,
+            None => SecondaryIndexCol::new_from_range(start_id, start_id + df.len()),
+        };
+
         time_col
             .par_iter()
+            .zip(secondary_index_col.par_iter())
             .zip(prop_cols.par_rows())
             .zip(metadata_cols.par_rows())
-            .enumerate()
-            .try_for_each(|(id, ((time, t_props), c_props))| {
-                let t = TimeIndexEntry(time, start_id + id);
+            .try_for_each(|(((time, secondary_index), t_props), c_props)| {
+                let t = TimeIndexEntry(time, secondary_index as usize);
                 let t_props: Vec<_> = t_props.collect();
+
                 if !t_props.is_empty() {
                     graph
                         .internal_add_properties(t, &t_props)
@@ -934,12 +969,15 @@ pub(crate) fn load_graph_props_from_df<
                         .internal_add_metadata(&c_props)
                         .map_err(into_graph_err)?;
                 }
+
                 Ok::<(), GraphError>(())
             })?;
+
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
         start_id += df.len();
     }
+
     Ok(())
 }
 
@@ -956,13 +994,12 @@ mod tests {
         test_utils::{build_edge_list, build_edge_list_str},
     };
     use arrow_array::builder::{
-        ArrayBuilder, Int64Builder, LargeStringBuilder, PrimitiveBuilder, StringViewBuilder,
+        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder,
         UInt64Builder,
     };
     use itertools::Itertools;
     use proptest::proptest;
     use raphtory_storage::core_ops::CoreGraphOps;
-    use std::sync::Arc;
 
     fn build_df(
         chunk_size: usize,
@@ -1057,14 +1094,30 @@ mod tests {
             let df_view = build_df(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
+            let secondary_index = None;
+
+            load_edges_from_df(
+                df_view,
+                "time",
+                secondary_index,
+                "src",
+                "dst",
+                &props,
+                &[],
+                None,
+                None,
+                None,
+            &g).unwrap();
+
             let g2 = Graph::new();
+
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
                 let edge = g.edge(src, dst).unwrap().at(time);
                 assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
+
             assert_eq!(g.unfiltered_num_edges(), distinct_edges);
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
             assert_graph_equal(&g, &g2);
@@ -1078,14 +1131,31 @@ mod tests {
             let df_view = build_df_str(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
+            let secondary_index = None;
+
+            load_edges_from_df(
+                df_view,
+                "time",
+                secondary_index,
+                "src",
+                "dst",
+                &props,
+                &[],
+                None,
+                None,
+                None,
+                &g,
+            ).unwrap();
+
             let g2 = Graph::new();
+
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, &src, &dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
                 let edge = g.edge(&src, &dst).unwrap().at(time);
                 assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
+
             assert_eq!(g.unfiltered_num_edges(), distinct_edges);
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
             assert_graph_equal(&g, &g2);
@@ -1098,9 +1168,12 @@ mod tests {
         let df_view = build_df_str(1, &edges);
         let g = Graph::new();
         let props = ["str_prop", "int_prop"];
+        let secondary_index = None;
+
         load_edges_from_df(
             df_view,
             "time",
+            secondary_index,
             "src",
             "dst",
             &props,
@@ -1137,9 +1210,12 @@ mod tests {
                 .collect_vec();
             let df_view = build_df(chunk_size, &edges);
             let props = ["str_prop", "int_prop"];
+            let secondary_index = None;
+
             load_edges_from_df(
                 df_view,
                 "time",
+                secondary_index,
                 "src",
                 "dst",
                 &props,
@@ -1180,9 +1256,12 @@ mod tests {
         let df_view = build_df(chunk_size, &edges);
         let g = Graph::new();
         let props = ["str_prop", "int_prop"];
+        let secondary_index = None;
+
         load_edges_from_df(
             df_view,
             "time",
+            secondary_index,
             "src",
             "dst",
             &props,
@@ -1193,6 +1272,7 @@ mod tests {
             &g,
         )
         .unwrap();
+
         let g2 = Graph::new();
         for (src, dst, time, str_prop, int_prop) in edges {
             g2.add_edge(
