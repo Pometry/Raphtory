@@ -8,7 +8,7 @@ use crate::{
                 InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateNodeFilter, model::Filter, NodeNameFilter},
+        graph::views::filter::{internal::CreateFilter, model::Filter, NodeNameFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -31,13 +31,13 @@ impl<G> NodeNameFilteredGraph<G> {
     }
 }
 
-impl CreateNodeFilter for NodeNameFilter {
-    type NodeFiltered<'graph, G: GraphViewOps<'graph>> = NodeNameFilteredGraph<G>;
+impl CreateFilter for NodeNameFilter {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeNameFilteredGraph<G>;
 
-    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         Ok(NodeNameFilteredGraph::new(graph, self.0))
     }
 }
@@ -65,12 +65,13 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodeNameFilte
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeNameFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeNameFilteredGraph<G> {
+    fn internal_nodes_filtered(&self) -> bool {
+        true
+    }
+
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.internal_filter_node(node, layer_ids) {
-            self.filter.matches(Some(&node.id().to_str()))
-        } else {
-            false
-        }
+        self.graph.internal_filter_node(node, layer_ids)
+            && self.filter.matches(Some(&node.id().to_str()))
     }
 }

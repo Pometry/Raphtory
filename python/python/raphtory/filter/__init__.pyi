@@ -22,7 +22,7 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['FilterExpr', 'PropertyFilterOps', 'NodeFilterBuilder', 'Node', 'EdgeFilterOp', 'EdgeEndpoint', 'Edge', 'Property', 'Metadata', 'TemporalPropertyFilterBuilder']
+__all__ = ['FilterExpr', 'PropertyFilterOps', 'Node', 'EdgeFilterOp', 'EdgeEndpoint', 'Edge', 'ExplodedEdge', 'Property', 'Metadata', 'TemporalPropertyFilterBuilder']
 class FilterExpr(object): 
 
     def __and__(self, value):
@@ -60,7 +60,19 @@ class PropertyFilterOps(object):
     def __ne__(self, value):
         """Return self!=value."""
 
+    def all(self):
+        ...
+
+    def any(self):
+        ...
+
+    def avg(self):
+        ...
+
     def contains(self, value):
+        ...
+
+    def ends_with(self, value):
         ...
 
     def fuzzy_search(self, prop_value, levenshtein_distance, prefix_match):
@@ -78,50 +90,38 @@ class PropertyFilterOps(object):
     def is_some(self):
         ...
 
-    def not_contains(self, value):
+    def len(self):
         ...
 
-class NodeFilterBuilder(object): 
-    """
-    A builder for constructing node filters
-
-    To create a filter builder see [Node][raphtory.filter.Node].
-    """
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def contains(self, value):
+    def max(self):
         ...
 
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
-        ...
-
-    def is_in(self, values):
-        ...
-
-    def is_not_in(self, values):
+    def min(self):
         ...
 
     def not_contains(self, value):
+        ...
+
+    def starts_with(self, value):
+        ...
+
+    def sum(self):
         ...
 
 class Node(object): 
+
+    @staticmethod
+    def id():
+        """
+        Filter node by id
+
+        Returns:
+            NodeFilterBuilder: A filter builder for filtering by node id
+        """
+
+    @staticmethod
+    def metadata(name):
+        ...
 
     @staticmethod
     def name():
@@ -140,6 +140,10 @@ class Node(object):
         Returns:
             NodeFilterBuilder: A filter builder for filtering by node type
         """
+
+    @staticmethod
+    def property(name):
+        ...
 
 class EdgeFilterOp(object): 
 
@@ -164,6 +168,9 @@ class EdgeFilterOp(object):
     def contains(self, value):
         ...
 
+    def ends_with(self, value):
+        ...
+
     def fuzzy_search(self, value, levenshtein_distance, prefix_match):
         ...
 
@@ -176,7 +183,13 @@ class EdgeFilterOp(object):
     def not_contains(self, value):
         ...
 
+    def starts_with(self, value):
+        ...
+
 class EdgeEndpoint(object): 
+
+    def id(self):
+        ...
 
     def name(self):
         ...
@@ -188,7 +201,25 @@ class Edge(object):
         ...
 
     @staticmethod
+    def metadata(name):
+        ...
+
+    @staticmethod
+    def property(name):
+        ...
+
+    @staticmethod
     def src():
+        ...
+
+class ExplodedEdge(object): 
+
+    @staticmethod
+    def metadata(name):
+        ...
+
+    @staticmethod
+    def property(name):
         ...
 
 class Property(PropertyFilterOps): 
@@ -198,9 +229,6 @@ class Property(PropertyFilterOps):
     Arguments:
         name (str): the name of the property to filter
     """
-
-    def __new__(cls, name: str) -> Property:
-        """Create and return a new object.  See help(type) for accurate signature."""
 
     def temporal(self):
         ...
@@ -213,12 +241,16 @@ class Metadata(PropertyFilterOps):
         name (str): the name of the property to filter
     """
 
-    def __new__(cls, name: str) -> Metadata:
-        """Create and return a new object.  See help(type) for accurate signature."""
 
 class TemporalPropertyFilterBuilder(object): 
 
+    def all(self):
+        ...
+
     def any(self):
+        ...
+
+    def first(self):
         ...
 
     def latest(self):

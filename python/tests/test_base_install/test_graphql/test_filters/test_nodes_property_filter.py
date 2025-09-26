@@ -1,6 +1,6 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import create_test_graph
+from filters_setup import create_test_graph, create_test_graph2, create_test_graph3
 from utils import run_graphql_test, run_graphql_error_test
 
 EVENT_GRAPH = create_test_graph(Graph())
@@ -825,3 +825,181 @@ def test_node_property_filter_contains_wrong_value_type_error(graph):
         "Invalid filter: Operator CONTAINS requires a string value, got U64(2)"
     )
     run_graphql_error_test(query, expected_error_message, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_starts_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes {
+              nodeFilter(
+                  filter: {
+                      property: {
+                          name: "prop3"
+                          operator: STARTS_WITH
+                          value: { str: "abc" }
+                    }
+                  }
+                ) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "nodeFilter": {
+                    "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_ends_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes {
+              nodeFilter(
+                  filter: {
+                      property: {
+                          name: "prop3"
+                          operator: ENDS_WITH
+                          value: { str: "333" }
+                    }
+                  }
+                ) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "c"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_temporal_first_starts_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes {
+              nodeFilter(
+                  filter: {
+                    temporalProperty: {
+                      name: "prop3",
+                      temporal: FIRST,
+                      operator: STARTS_WITH
+                      value: { str: "abc" }
+                    }
+                  }
+                ) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "nodeFilter": {
+                    "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_temporal_first_starts_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes {
+              nodeFilter(
+                  filter: {
+                    temporalProperty: {
+                      name: "prop3",
+                      temporal: ALL,
+                      operator: STARTS_WITH
+                      value: { str: "abc1" }
+                    }
+                  }
+                ) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_list_agg(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+             property: {
+              name: "prop5"
+              operator: EQUAL
+              value: { i64: 6 }
+              listAgg:SUM
+            }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_list_qualifier(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+             property: {
+              name: "prop5"
+              operator: EQUAL
+              value: { i64: 6 }
+              elemQualifier: ANY
+            }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "c"}]}}}}
+    run_graphql_test(query, expected_output, graph)

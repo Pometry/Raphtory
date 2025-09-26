@@ -81,28 +81,16 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     }
 }
 
-pub fn assert_node_equal<
-    'graph,
-    G1: GraphViewOps<'graph>,
-    GH1: GraphViewOps<'graph>,
-    G2: GraphViewOps<'graph>,
-    GH2: GraphViewOps<'graph>,
->(
-    n1: NodeView<'graph, G1, GH1>,
-    n2: NodeView<'graph, G2, GH2>,
+pub fn assert_node_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    n1: NodeView<'graph, G1>,
+    n2: NodeView<'graph, G2>,
 ) {
     assert_node_equal_layer(n1, n2, "", false)
 }
 
-pub fn assert_node_equal_layer<
-    'graph,
-    G1: GraphViewOps<'graph>,
-    GH1: GraphViewOps<'graph>,
-    G2: GraphViewOps<'graph>,
-    GH2: GraphViewOps<'graph>,
->(
-    n1: NodeView<'graph, G1, GH1>,
-    n2: NodeView<'graph, G2, GH2>,
+pub fn assert_node_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    n1: NodeView<'graph, G1>,
+    n2: NodeView<'graph, G2>,
     layer_tag: &str,
     persistent: bool,
 ) {
@@ -283,12 +271,10 @@ pub fn assert_edges_equal<
     'graph1,
     'graph2,
     G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
     G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
 >(
-    edges1: &Edges<'graph1, G1, GH1>,
-    edges2: &Edges<'graph2, G2, GH2>,
+    edges1: &Edges<'graph1, G1>,
+    edges2: &Edges<'graph2, G2>,
 ) {
     assert_edges_equal_layer(edges1, edges2, "", false);
 }
@@ -297,12 +283,10 @@ pub fn assert_edges_equal_layer<
     'graph1,
     'graph2,
     G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
     G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
 >(
-    edges1: &Edges<'graph1, G1, GH1>,
-    edges2: &Edges<'graph2, G2, GH2>,
+    edges1: &Edges<'graph1, G1>,
+    edges2: &Edges<'graph2, G2>,
     layer_tag: &str,
     persistent: bool,
 ) {
@@ -710,10 +694,7 @@ mod db_tests {
             assert!(graph.is_empty());
 
             assert!(graph.nodes().collect().is_empty());
-            assert_eq!(
-                graph.edges().collect(),
-                Vec::<EdgeView<Graph, Graph>>::new()
-            );
+            assert_eq!(graph.edges().collect(), Vec::<EdgeView<Graph>>::new());
             assert!(!graph.internal_edge_filtered());
             assert!(graph.edge(1, 2).is_none());
             assert!(graph.latest_time_global().is_none());
@@ -1314,7 +1295,7 @@ mod db_tests {
     }
 
     #[test]
-    fn graph_degree_window() {
+    fn graph_degree_window2() {
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -1859,23 +1840,25 @@ mod db_tests {
             let actual = (1..=3)
                 .map(|i| {
                     let v = graph.node(i).unwrap();
-                    (
-                        v.window(-1, 7)
-                            .in_neighbours()
-                            .id()
-                            .filter_map(|id| id.as_u64())
-                            .collect::<Vec<_>>(),
-                        v.window(1, 7)
-                            .out_neighbours()
-                            .id()
-                            .filter_map(|id| id.as_u64())
-                            .collect::<Vec<_>>(),
-                        v.window(0, 1)
-                            .neighbours()
-                            .id()
-                            .filter_map(|id| id.as_u64())
-                            .collect::<Vec<_>>(),
-                    )
+                    let first = v
+                        .window(-1, 7)
+                        .in_neighbours()
+                        .id()
+                        .filter_map(|id| id.as_u64())
+                        .collect::<Vec<_>>();
+                    let second = v
+                        .window(1, 7)
+                        .out_neighbours()
+                        .id()
+                        .filter_map(|id| id.as_u64())
+                        .collect::<Vec<_>>();
+                    let third = v
+                        .window(0, 1)
+                        .neighbours()
+                        .id()
+                        .filter_map(|id| id.as_u64())
+                        .collect::<Vec<_>>();
+                    (first, second, third)
                 })
                 .collect::<Vec<_>>();
 
@@ -1991,8 +1974,8 @@ mod db_tests {
             assert_eq!(node1.in_degree(), 0);
             assert_eq!(node2.in_degree(), 0);
 
-            fn to_tuples<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-                edges: Edges<'graph, G, GH>,
+            fn to_tuples<'graph, G: GraphViewOps<'graph>>(
+                edges: Edges<'graph, G>,
             ) -> Vec<(u64, u64)> {
                 edges
                     .id()
@@ -2025,8 +2008,8 @@ mod db_tests {
             assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
             assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
 
-            fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-                neighbours: PathFromNode<'graph, G, GH>,
+            fn to_ids<'graph, G: GraphViewOps<'graph>>(
+                neighbours: PathFromNode<'graph, G>,
             ) -> Vec<u64> {
                 neighbours
                     .iter()
@@ -3248,103 +3231,6 @@ mod db_tests {
             ),
         );
         correct
-    }
-
-    #[test]
-    fn test_one_hop_filter_reset() {
-        let graph = Graph::new();
-        graph.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
-        graph.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
-        graph.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
-        graph.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
-        graph.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
-
-        test_storage!(&graph, |graph| {
-            let v = graph.node(1).unwrap();
-
-            // filtering resets on neighbours
-            let out_out: Vec<_> = v
-                .at(0)
-                .layers("1")
-                .unwrap()
-                .out_neighbours()
-                .layers("2")
-                .unwrap()
-                .out_neighbours()
-                .id()
-                .collect();
-            assert_eq!(out_out, [GID::U64(3)]);
-
-            let out_out: Vec<_> = v
-                .at(0)
-                .layers("1")
-                .unwrap()
-                .out_neighbours()
-                .layers("2")
-                .unwrap()
-                .out_edges()
-                .properties()
-                .flat_map(|p| p.get("layer").into_i32())
-                .collect();
-            assert_eq!(out_out, [2]);
-
-            // filter applies to edges
-            let layers: Vec<_> = v
-                .layers("1")
-                .unwrap()
-                .edges()
-                .layer_names()
-                .flatten()
-                .dedup()
-                .collect();
-            assert_eq!(layers, ["1"]);
-
-            // graph level filter is preserved
-            let out_out_2: Vec<_> = graph
-                .at(0)
-                .node(1)
-                .unwrap()
-                .layers("1")
-                .unwrap()
-                .out_neighbours()
-                .layers("2")
-                .unwrap()
-                .out_neighbours()
-                .id()
-                .collect();
-            assert!(out_out_2.is_empty());
-
-            let v = graph.node(1).unwrap();
-            let out_out: Vec<_> = v
-                .at(0)
-                .out_neighbours()
-                .after(1)
-                .out_neighbours()
-                .id()
-                .collect();
-            assert_eq!(out_out, [GID::U64(4)]);
-
-            let earliest_time = v
-                .at(0)
-                .out_neighbours()
-                .after(1)
-                .out_edges()
-                .earliest_time()
-                .flatten()
-                .min();
-            assert_eq!(earliest_time, Some(2));
-
-            // dst and src on edge reset the filter
-            let degrees: Vec<_> = v
-                .at(0)
-                .layers("1")
-                .unwrap()
-                .edges()
-                .dst()
-                .out_degree()
-                .collect();
-            assert_eq!(degrees, [1]);
-        });
     }
 
     #[test]

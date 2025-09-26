@@ -1053,6 +1053,19 @@ type LayerSchema {
 	edges: [EdgeSchema!]!
 }
 
+enum ListAgg {
+	LEN
+	SUM
+	AVG
+	MIN
+	MAX
+}
+
+enum ListElemQualifier {
+	ANY
+	ALL
+}
+
 type MetaGraph {
 	"""
 	Returns the graph name.
@@ -1120,6 +1133,14 @@ input MetadataFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: ListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: ListElemQualifier
 }
 
 type MutRoot {
@@ -1504,6 +1525,10 @@ input NodeAddition {
 }
 
 enum NodeField {
+	"""
+	Node id.
+	"""
+	NODE_ID
 	"""
 	Node name.
 	"""
@@ -1907,6 +1932,8 @@ enum Operator {
 	Is Not In operator.
 	"""
 	IS_NOT_IN
+	STARTS_WITH
+	ENDS_WITH
 	"""
 	Contains operator.
 	"""
@@ -2133,6 +2160,14 @@ input PropertyFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: ListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: ListElemQualifier
 }
 
 input PropertyInput {
@@ -2307,6 +2342,14 @@ input TemporalPropertyFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: ListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: ListElemQualifier
 }
 
 input TemporalPropertyInput {
@@ -2329,19 +2372,41 @@ enum TemporalType {
 	Latest.
 	"""
 	LATEST
+	FIRST
+	ALL
 }
 
 scalar Upload
 
 input Value @oneOf {
 	"""
+	8 bit unsigned integer.
+	"""
+	u8: Int
+	"""
+	16 bit unsigned integer.
+	"""
+	u16: Int
+	"""
+	32 bit unsigned integer.
+	"""
+	u32: Int
+	"""
 	64 bit unsigned integer.
 	"""
 	u64: Int
 	"""
+	32 bit signed integer.
+	"""
+	i32: Int
+	"""
 	64 bit signed integer.
 	"""
 	i64: Int
+	"""
+	32 bit float.
+	"""
+	f32: Float
 	"""
 	64 bit float.
 	"""
