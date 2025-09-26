@@ -61,6 +61,14 @@ impl From<Arc<Storage>> for Graph {
     }
 }
 
+impl From<GraphStorage> for Graph {
+    fn from(inner: GraphStorage) -> Self {
+        Self {
+            inner: Arc::new(Storage::from_inner(inner)),
+        }
+    }
+}
+
 impl Static for Graph {}
 
 pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
