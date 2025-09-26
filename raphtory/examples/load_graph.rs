@@ -28,6 +28,7 @@ fn main() {
             &g,
             &parquet_path,
             "transaction_timestamp",
+            None,
             "transfer_sender_cluster_id",
             "transfer_receiver_cluster_id",
             &[

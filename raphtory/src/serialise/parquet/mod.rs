@@ -411,7 +411,16 @@ fn decode_graph_storage(
         let exclude = vec![TIME_COL, SECONDARY_INDEX_COL];
         let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
         let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, &[], &c_props, batch_size)?;
+
+        load_graph_props_from_parquet(
+            &g,
+            &c_graph_path,
+            TIME_COL,
+            Some(SECONDARY_INDEX_COL),
+            &[],
+            &c_props,
+            batch_size
+        )?;
 
         g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))?
     };
@@ -428,7 +437,16 @@ fn decode_graph_storage(
         let exclude = vec![TIME_COL, SECONDARY_INDEX_COL];
         let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
         let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, &t_props, &[], batch_size)?;
+
+        load_graph_props_from_parquet(
+            &g,
+            &t_graph_path,
+            TIME_COL,
+            Some(SECONDARY_INDEX_COL),
+            &t_props,
+            &[],
+            batch_size
+        )?;
     }
 
     let t_node_path = path.as_ref().join(NODES_T_PATH);
@@ -444,6 +462,7 @@ fn decode_graph_storage(
             &g,
             &t_node_path,
             TIME_COL,
+            Some(SECONDARY_INDEX_COL),
             NODE_ID_COL,
             None,
             Some(TYPE_COL),
@@ -488,6 +507,7 @@ fn decode_graph_storage(
             &g,
             &t_edge_path,
             TIME_COL,
+            Some(SECONDARY_INDEX_COL),
             SRC_COL,
             DST_COL,
             &t_prop_columns,
