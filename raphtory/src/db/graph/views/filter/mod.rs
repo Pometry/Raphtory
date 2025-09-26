@@ -466,7 +466,6 @@ pub(crate) mod test_filters {
     use raphtory_storage::mutation::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
-    use std::sync::Arc;
 
     struct IdentityGraphTransformer;
 
@@ -483,7 +482,7 @@ pub(crate) mod test_filters {
         mod test_node_property_filter_semantics {
             use crate::{
                 db::{
-                    api::view::StaticGraphViewOps,
+                    api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
                     graph::{
                         assertions::{
                             assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
@@ -497,6 +496,7 @@ pub(crate) mod test_filters {
                         },
                     },
                 },
+                errors::GraphError,
                 prelude::*,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
@@ -764,21 +764,15 @@ pub(crate) mod test_filters {
                 }
 
                 let filter = NodeFilter::property("p1").ge(1u64);
-                let expected_results = vec![];
-                assert_filter_nodes_results(
-                    init_graph,
-                    IdentityGraphTransformer,
-                    filter.clone(),
-                    &expected_results,
-                    TestVariants::NonDiskOnly,
-                );
-                assert_search_nodes_results(
-                    init_graph,
-                    IdentityGraphTransformer,
-                    filter,
-                    &expected_results,
-                    TestVariants::NonDiskOnly,
-                );
+                let graph = init_graph(Graph::new());
+                assert!(matches!(
+                    graph.filter(filter.clone()).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "p1"
+                ));
+                assert!(matches!(
+                    graph.persistent_graph().filter(filter).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "p1"
+                ));
             }
 
             #[test]
@@ -848,6 +842,7 @@ pub(crate) mod test_filters {
                         },
                     },
                 },
+                errors::GraphError,
                 prelude::*,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
@@ -1318,21 +1313,15 @@ pub(crate) mod test_filters {
                 }
 
                 let filter = EdgeFilter::property("p1").eq(1u64);
-                let expected_results = vec![];
-                assert_filter_edges_results(
-                    init_graph,
-                    IdentityGraphTransformer,
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                assert_search_edges_results(
-                    init_graph,
-                    IdentityGraphTransformer,
-                    filter.clone(),
-                    &expected_results,
-                    TestVariants::NonDiskOnly,
-                );
+                let graph = init_graph(Graph::new());
+                assert!(matches!(
+                    graph.filter(filter.clone()).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "p1"
+                ));
+                assert!(matches!(
+                    graph.persistent_graph().filter(filter).unwrap_err(),
+                    GraphError::PropertyMissingError(ref name) if name == "p1"
+                ));
             }
 
             #[test]
@@ -1384,7 +1373,10 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::db::graph::assertions::GraphTransformer;
+    use crate::db::graph::{
+        assertions::{assert_filter_nodes_err, GraphTransformer, TestVariants::NonDiskOnly},
+        views::filter::{internal::CreateFilter, model::TryAsCompositeFilter},
+    };
 
     fn init_nodes_graph<
         G: StaticGraphViewOps
@@ -4158,7 +4150,7 @@ pub(crate) mod test_filters {
                         internal::CreateFilter,
                         model::{
                             node_filter::NodeFilter,
-                            property_filter::{ListAggOps, PropertyFilterOps},
+                            property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
                             PropertyFilterFactory, TryAsCompositeFilter,
                         },
                         test_filters::IdentityGraphTransformer,
@@ -4259,6 +4251,7 @@ pub(crate) mod test_filters {
                         ("p_strs", list_str(&["a", "b", "c", "d"])), // min: None, max: None, sum: None, avg: None, len: 4
                         ("p_u64s", list_u64(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
                         ("p_f64s", list_f64(&[30.0, 50.0, 40.0])), // min: 30.0, max: 50.0, sum: 120.0, avg: 40.0, len: 3
+                        ("p_bools", list_bool(&[false, false])),
                     ],
                 ),
                 (
@@ -4311,6 +4304,7 @@ pub(crate) mod test_filters {
                         ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                         ("p_i32s", list_i32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                         ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5,  avg: 2.1666666666666665, len: 3
+                        ("p_bools_all", list_bool(&[true, true])),
                     ],
                 ),
                 (
@@ -4322,6 +4316,7 @@ pub(crate) mod test_filters {
                         ("p_u64s", list_u64(&[10, 20, 30])), // min: 10, max: 30, sum: 60,   avg: 20.0, len: 3
                         ("p_i32s", list_i32(&[10, 20, 30])), // min: 10, max: 30, sum: 60,   avg: 20.0, len: 3
                         ("p_f32s", list_f32(&[10.0, 20.0, 30.0])), // min: 10.0, max: 30.0, sum: 60.0, avg: 20.0, len: 3
+                        ("p_bools_all", list_bool(&[true, true])),
                     ],
                 ),
                 (
@@ -4364,6 +4359,7 @@ pub(crate) mod test_filters {
                         ("p_i64s", list_i64(&[1, 2, -3])), // min: -3, max: 2,  sum: 0,   avg: 0.0,  len: 3
                         ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5, avg: 2.1666666666666665, len: 3
                         ("p_f64s", list_f64(&[50.0, 40.0])), // min: 40.0, max: 50.0, sum: 90.0, avg: 45.0, len: 2
+                        ("p_bools_all", list_bool(&[true, true])),
                     ],
                 ),
             ];
@@ -4411,12 +4407,14 @@ pub(crate) mod test_filters {
                     "n6",
                     vec![
                         ("p_u64s", list_u64(&[])), // min: None, max: None, sum: None, avg: None, len: 0
+                        ("p_strs", list_str(&["a", "a"])),
                     ],
                 ),
                 (
                     "n7",
                     vec![
                         ("p_u64s", list_u64(&[u64::MAX, 1])), // min: 1, max: u64::MAX, sum: None (overflow), avg: ~9.22e18, len: 2
+                        ("p_strs", list_str(&["a"])),
                     ],
                 ),
                 (
@@ -7238,6 +7236,144 @@ pub(crate) mod test_filters {
             let avg = (i64::MAX as f64 + 1.0) / 2.0;
             let filter = NodeFilter::property("p_i64s_max").avg().eq(avg);
             let expected = vec!["n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Property: any ------
+        #[test]
+        fn test_node_property_any() {
+            let filter = NodeFilter::property("p_u8s").any().eq(Prop::U8(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Property: all ------
+        #[test]
+        fn test_node_property_all() {
+            let filter = NodeFilter::property("p_bools_all")
+                .all()
+                .eq(Prop::Bool(true));
+            let expected = vec!["n10", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Metadata: any ------
+        #[test]
+        fn test_node_metadata_any() {
+            let filter = NodeFilter::metadata("p_u64s").any().eq(Prop::U64(1));
+            let expected = vec!["n10", "n7"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Metadata: all ------
+        #[test]
+        fn test_node_metadata_all() {
+            let filter = NodeFilter::metadata("p_strs").all().eq("a");
+            let expected = vec!["n6", "n7"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal First: any ------
+        #[test]
+        fn test_node_temporal_property_first_any() {
+            let filter = NodeFilter::property("p_bools")
+                .temporal()
+                .first()
+                .any()
+                .eq(false);
+            let expected = vec!["n1", "n10", "n2", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal First: all ------
+        #[test]
+        fn test_node_temporal_property_first_all() {
+            let filter = NodeFilter::property("p_bools_all")
+                .temporal()
+                .first()
+                .all()
+                .eq(true);
+            let expected = vec!["n10", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal Latest: any ------
+        #[test]
+        fn test_node_temporal_property_latest_any() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .latest()
+                .any()
+                .eq(Prop::F32(3.5));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal Latest: all ------
+        #[test]
+        fn test_node_temporal_property_latest_all() {
+            let filter = NodeFilter::property("p_bools_all")
+                .temporal()
+                .latest()
+                .all()
+                .eq(true);
+            let expected = vec!["n10", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal Any: any ------
+        #[test]
+        fn test_node_temporal_property_any_any() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .any()
+                .eq(Prop::F32(3.5));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .any()
+                .eq(Prop::F32(30.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal Any: all ------
+        #[test]
+        fn test_node_temporal_property_any_all() {
+            let filter = NodeFilter::property("p_bools")
+                .temporal()
+                .any()
+                .all()
+                .eq(false);
+            let expected = vec!["n2", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal All: any ------
+        #[test]
+        fn test_node_temporal_property_all_any() {
+            let filter = NodeFilter::property("p_bools")
+                .temporal()
+                .all()
+                .any()
+                .eq(true);
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal All: all ------
+        #[test]
+        fn test_node_temporal_property_all_all() {
+            let filter = NodeFilter::property("p_bools_all")
+                .temporal()
+                .all()
+                .all()
+                .eq(true);
+            let expected = vec!["n4", "n10"];
             apply_assertion(filter, &expected);
         }
     }

@@ -189,7 +189,7 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        if filter.list_agg.is_some() {
+        if filter.list_agg.is_some() || filter.list_elem_qualifier.is_some() {
             return fallback_filter_nodes(graph, filter, limit, offset);
         }
 

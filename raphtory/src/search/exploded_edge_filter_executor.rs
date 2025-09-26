@@ -191,7 +191,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        if filter.list_agg.is_some() {
+        if filter.list_agg.is_some() || filter.list_elem_qualifier.is_some() {
             return fallback_filter_exploded_edges(graph, filter, limit, offset);
         }
 

@@ -1,6 +1,7 @@
 from raphtory import filter, Prop
 from filters_setup import init_graph, create_test_graph, create_test_graph2
 from utils import with_disk_variants
+import pytest
 
 
 @with_disk_variants(init_graph)
@@ -159,9 +160,11 @@ def test_filter_nodes_for_property_starts_with():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").starts_with("Paper")
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Metadata p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("p20").temporal().first().starts_with("Old")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
@@ -210,9 +213,11 @@ def test_filter_nodes_for_property_ends_with():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").ends_with("ane")
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Metadata p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -241,9 +246,11 @@ def test_filter_nodes_for_property_contains():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").contains("Paper")
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Metadata p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -276,9 +283,11 @@ def test_filter_nodes_for_property_not_contains():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").not_contains("ship")
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
+        with pytest.raises(
+            Exception,
+            match=r"Metadata p10 does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -652,6 +661,171 @@ def test_filter_nodes_for_metadata_min():
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_metadata_any():
+    def check(graph):
+        filter_expr = filter.Node.metadata("prop2").any() == -2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a", "b"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_metadata_all():
+    def check(graph):
+        filter_expr = filter.Node.metadata("prop4").all() > 10
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["b"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_property_any():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").any().is_in([3])
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a", "d"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_property_all():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").all() == 3
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["d"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporary_property_first_any():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").temporal().first().any() == 3
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["d"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporary_property_first_all():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").temporal().first().all() == 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporary_property_latest_any():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").temporal().latest().any() == 3
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a", "d"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporary_property_latest_all():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").temporal().latest().all() > 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a", "d"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("prop8").temporal().latest().all() > 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["d"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporary_property_any_any():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").temporal().any().any() == 3
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a", "d"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("prop9").temporal().any().any() == 3
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporary_property_any_all():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").temporal().any().all() == 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("prop8").temporal().any().all() > 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["d"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_with_with_qualifier_on_non_string():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").any() == "3"
+        with pytest.raises(
+            Exception,
+            match=r"Wrong type for property prop8: expected I64 but actual type is Str",
+        ):
+            graph.filter(filter_expr).nodes.id
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").any().is_some()
+        with pytest.raises(
+            Exception,
+            match=r"Invalid filter: Operator IS_SOME/IS_NONE is not supported with element qualifiers; apply it to the list itself \(without elem qualifiers\).",
+        ):
+            graph.filter(filter_expr).nodes.id
+
+    return check
+
+
+def test_filter_nodes_with_with_qualifier_alongside_illegal_agg_operators():
+    with pytest.raises(
+        Exception,
+        match=r"List aggregation len cannot be used after an element qualifier \(any/all\)",
+    ):
+        filter.Node.property("prop8").all().len()
+
+    with pytest.raises(
+        Exception,
+        match=r"Element qualifiers \(any/all\) cannot be used after a list aggregation \(len/sum/avg/min/max\).",
+    ):
+        filter.Node.property("prop8").sum().any()
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
 def test_filter_nodes_for_metadata_max():
     def check(graph):
         filter_expr = filter.Node.metadata("prop2").max() == 3
@@ -806,5 +980,18 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
         result_ids = graph.node("1").neighbours[filter_expr3].id.collect()
         expected_ids = ["3"]
         assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_prop_not_found_error():
+    def check(graph):
+        filter_expr = filter.Node.property("p").any().is_some()
+        with pytest.raises(
+            Exception,
+            match=r"Property p does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check

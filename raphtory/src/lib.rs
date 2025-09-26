@@ -161,7 +161,10 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
 mod test_utils {
-    use crate::{db::api::storage::storage::Storage, prelude::*};
+    use crate::{
+        db::{api::storage::storage::Storage, graph::assertions::EdgeRow},
+        prelude::*,
+    };
     use ahash::HashSet;
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
@@ -197,7 +200,7 @@ mod test_utils {
     pub(crate) fn build_edge_list(
         len: usize,
         num_nodes: u64,
-    ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64)>> {
+    ) -> impl Strategy<Value = Vec<EdgeRow>> {
         proptest::collection::vec(
             (
                 0..num_nodes,

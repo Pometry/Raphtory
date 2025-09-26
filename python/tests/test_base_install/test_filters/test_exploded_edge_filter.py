@@ -431,21 +431,6 @@ def test_all_property_types(GraphClass):
             ),
             2,
         ),
-        # fake property
-        (filter.ExplodedEdge.property("blah") == 2, 0),
-        (filter.ExplodedEdge.property("blah") != 3, 0),
-        (filter.ExplodedEdge.property("blah") < 3, 0),
-        (filter.ExplodedEdge.property("blah") > 1, 0),
-        (filter.ExplodedEdge.property("blah") <= 2, 0),
-        (filter.ExplodedEdge.property("blah") >= 3, 0),
-        (filter.ExplodedEdge.property("blah").is_in([1, 2]), 0),
-        (filter.ExplodedEdge.property("blah").is_not_in([3]), 0),
-        (filter.ExplodedEdge.property("blah").contains(["blah"]), 0),
-        (filter.ExplodedEdge.property("blah").contains([]), 0),
-        (filter.ExplodedEdge.property("blah").not_contains([]), 0),
-        (filter.ExplodedEdge.property("blah").not_contains(["blah"]), 0),
-        (filter.ExplodedEdge.property("blah").is_some(), 0),
-        (filter.ExplodedEdge.property("blah").is_none(), 6),
     ]
     print()
     for i, (expr, expected) in enumerate(test_cases):
@@ -825,6 +810,29 @@ def test_all_property_types(GraphClass):
     with pytest.raises(Exception) as e:
         filter.ExplodedEdge.property("name").fuzzy_search(2, 2, False)
     assert "'int' object cannot be converted to 'PyString'" in str(e.value)
+
+    missing_prop = [
+        (filter.ExplodedEdge.property("blah") == 2),
+        (filter.ExplodedEdge.property("blah") != 3),
+        (filter.ExplodedEdge.property("blah") < 3),
+        (filter.ExplodedEdge.property("blah") > 1),
+        (filter.ExplodedEdge.property("blah") <= 2),
+        (filter.ExplodedEdge.property("blah") >= 3),
+        (filter.ExplodedEdge.property("blah").is_in([1, 2])),
+        (filter.ExplodedEdge.property("blah").is_not_in([3])),
+        (filter.ExplodedEdge.property("blah").contains(["blah"])),
+        (filter.ExplodedEdge.property("blah").contains([])),
+        (filter.ExplodedEdge.property("blah").not_contains([])),
+        (filter.ExplodedEdge.property("blah").not_contains(["blah"])),
+        (filter.ExplodedEdge.property("blah").is_some()),
+        (filter.ExplodedEdge.property("blah").is_none()),
+    ]
+
+    for expr in missing_prop:
+        with pytest.raises(Exception) as e:
+            # force evaluation so the exception surfaces here
+            _ = g.filter(expr).edges.explode()
+        assert "Property blah does not exist" in str(e.value)
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])

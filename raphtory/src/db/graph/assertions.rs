@@ -199,8 +199,9 @@ where
         other => panic!("expected InvalidFilter, got: {other:?}"),
     }
 }
+
 pub fn assert_filter_nodes_err(
-    init_graph: impl FnOnce(Graph) -> Graph,
+    init_graph: fn(Graph) -> Graph,
     transform: impl GraphTransformer,
     filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &str,
@@ -438,4 +439,48 @@ pub fn search_edges(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<Str
         .collect::<Vec<_>>();
     results.sort();
     results
+}
+
+pub type EdgeRow = (u64, u64, i64, String, i64);
+
+pub fn assert_ok_or_missing_edges<T>(
+    edges: &[EdgeRow],
+    res: Result<T, GraphError>,
+    on_ok: impl FnOnce(T),
+) {
+    match res {
+        Ok(v) => on_ok(v),
+        Err(GraphError::PropertyMissingError(name)) => {
+            assert!(
+                edges.is_empty(),
+                "PropertyMissingError({name}) on non-empty graph"
+            );
+        }
+        Err(err) => panic!("Unexpected error from filter: {err:?}"),
+    }
+}
+
+pub fn assert_ok_or_missing_nodes<T>(
+    nodes: &[(u64, Option<String>, Option<i64>)],
+    res: Result<T, GraphError>,
+    on_ok: impl FnOnce(T),
+) {
+    match res {
+        Ok(v) => on_ok(v),
+
+        Err(GraphError::PropertyMissingError(name)) => {
+            let property_really_missing = match name.as_str() {
+                "int_prop" => nodes.iter().all(|(_, _, iv)| iv.is_none()),
+                "str_prop" => nodes.iter().all(|(_, sv, _)| sv.is_none()),
+                _ => panic!("Unexpected property {name}"),
+            };
+
+            assert!(
+                property_really_missing,
+                "PropertyMissingError({name}) but at least one node had that property"
+            );
+        }
+
+        Err(err) => panic!("Unexpected error from filter: {err:?}"),
+    }
 }

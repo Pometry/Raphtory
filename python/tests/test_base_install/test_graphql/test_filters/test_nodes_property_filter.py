@@ -953,25 +953,20 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
     run_graphql_test(query, expected_output, graph)
 
 
-EVENT_GRAPH = create_test_graph3(Graph())
-PERSISTENT_GRAPH = create_test_graph3(PersistentGraph())
-
-
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_filter_nodes_with_prop_u8(graph):
+def test_nodes_property_filter_list_agg(graph):
     query = """
         query {
           graph(path: "g") {
-            nodes {
-              nodeFilter(
-                  filter: {
-                      property: {
-                          name: "prop1"
-                          operator: EQUAL
-                          value: { u8: 5 }
-                    }
-                  }
-                ) {
+            nodeFilter(filter: {
+             property: {
+              name: "prop5"
+              operator: EQUAL
+              value: { i64: 6 }
+              listAgg:SUM
+            }
+            }) {
+              nodes {
                 list {
                   name
                 }
@@ -980,5 +975,31 @@ def test_filter_nodes_with_prop_u8(graph):
           }
         }
     """
-    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_list_qualifier(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+             property: {
+              name: "prop5"
+              operator: EQUAL
+              value: { i64: 6 }
+              elemQualifier: ANY
+            }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "c"}]}}}}
     run_graphql_test(query, expected_output, graph)

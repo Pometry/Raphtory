@@ -61,6 +61,17 @@ impl FilterOperator {
         )
     }
 
+    pub fn is_string_operation(&self) -> bool {
+        matches!(
+            self,
+            Self::StartsWith
+                | Self::EndsWith
+                | Self::Contains
+                | Self::NotContains
+                | Self::FuzzySearch { .. }
+        )
+    }
+
     fn operation<T>(&self) -> impl Fn(&T, &T) -> bool
     where
         T: ?Sized + PartialEq + PartialOrd,

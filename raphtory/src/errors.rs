@@ -214,6 +214,10 @@ pub enum GraphError {
 
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
+
+    #[error("Metadata {0} does not exist")]
+    MetadataMissingError(String),
+
     // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),

@@ -22,16 +22,12 @@ use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::No
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
     graph: G,
-    prop_id: Option<usize>,
+    prop_id: usize,
     filter: PropertyFilter<NodeFilter>,
 }
 
 impl<G> NodePropertyFilteredGraph<G> {
-    pub(crate) fn new(
-        graph: G,
-        prop_id: Option<usize>,
-        filter: PropertyFilter<NodeFilter>,
-    ) -> Self {
+    pub(crate) fn new(graph: G, prop_id: usize, filter: PropertyFilter<NodeFilter>) -> Self {
         Self {
             graph,
             prop_id,
@@ -92,6 +88,7 @@ mod test_node_property_filtered_graph {
         db::{
             api::view::{filter_ops::BaseFilterOps, IterFilterOps},
             graph::{
+                assertions::assert_ok_or_missing_nodes,
                 graph::assert_edges_equal,
                 views::filter::model::{
                     node_filter::{NodeFilter, NodeFilterBuilderOps},
@@ -347,17 +344,19 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter(
-                NodeFilter::property("int_prop").gt(v)
-            ).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv > v ).is_some()});
-            assert_edges_equal(&filtered.edges(), &expected_g.edges());
-            let filtered_p = g.persistent_graph().filter(
-                NodeFilter::property("int_prop").gt(v)
-            ).unwrap();
-            assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
-            // FIXME: history filtering not working properly
+            let filter = NodeFilter::property("int_prop").gt(v);
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
+                    int_v.filter(|&vv| *vv > v).is_some()
+                });
+
+            assert_ok_or_missing_nodes(&nodes, g.filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+            });
+            assert_ok_or_missing_nodes(&nodes, g.persistent_graph().filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+                // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
+            });
         })
     }
 
@@ -368,17 +367,18 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter(
-                NodeFilter::property("int_prop").ge(v)
-            ).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv >= v ).is_some()});
-            assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter(
-                NodeFilter::property("int_prop").ge(v)
-            ).unwrap();
-            assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
-            // FIXME: history filtering not working properly
-            // assert_graph_equal(&filtered, &expected_g);
+            let filter = NodeFilter::property("int_prop").ge(v);
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
+                int_v.filter(|&vv| *vv >= v ).is_some()
+            });
+            assert_ok_or_missing_nodes(&nodes, g.filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+            });
+            assert_ok_or_missing_nodes(&nodes, g.persistent_graph().filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.persistent_graph().edges());
+                // FIXME: history filtering not working properly
+                // assert_graph_equal(&filtered, &expected_g);
+            });
         })
     }
 
@@ -389,17 +389,18 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter(
-                NodeFilter::property("int_prop").lt(v)
-            ).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv < v ).is_some()});
-            assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter(
-                NodeFilter::property("int_prop").lt(v)
-            ).unwrap();
-            assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
+            let filter = NodeFilter::property("int_prop").lt(v);
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
+                int_v.filter(|&vv| *vv < v ).is_some()
+            });
+            assert_ok_or_missing_nodes(&nodes, g.filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+            });
+            assert_ok_or_missing_nodes(&nodes, g.persistent_graph().filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.persistent_graph().edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
+            });
         })
     }
 
@@ -410,17 +411,18 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter(
-                NodeFilter::property("int_prop").le(v)
-            ).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv <= v ).is_some()});
-            assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter(
-                NodeFilter::property("int_prop").le(v)
-            ).unwrap();
-            assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
-            // FIXME: history filtering not working properly
-            // assert_graph_equal(&filtered, &expected_g);
+            let filter = NodeFilter::property("int_prop").le(v);
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
+                int_v.filter(|&vv| *vv <= v ).is_some()
+            });
+            assert_ok_or_missing_nodes(&nodes, g.filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+            });
+            assert_ok_or_missing_nodes(&nodes, g.persistent_graph().filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.persistent_graph().edges());
+                // FIXME: history filtering not working properly
+                // assert_graph_equal(&filtered, &expected_g);
+            });
         })
     }
 
@@ -431,17 +433,18 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter(
-                NodeFilter::property("int_prop").eq(v)
-            ).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv == v ).is_some()});
-            assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter(
-                NodeFilter::property("int_prop").eq(v)
-            ).unwrap();
-            assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
-            // FIXME: history filtering not working properly
-            // assert_graph_equal(&filtered, &expected_g);
+            let filter = NodeFilter::property("int_prop").eq(v);
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
+                int_v.filter(|&vv| *vv == v ).is_some()
+            });
+            assert_ok_or_missing_nodes(&nodes, g.filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+            });
+            assert_ok_or_missing_nodes(&nodes, g.persistent_graph().filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.persistent_graph().edges());
+                // FIXME: history filtering not working properly
+                // assert_graph_equal(&filtered, &expected_g);
+            });
         })
     }
 
@@ -452,17 +455,18 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter(
-                NodeFilter::property("int_prop").ne(v)
-            ).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv != v ).is_some()});
-            assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter(
-                NodeFilter::property("int_prop").ne(v)
-            ).unwrap();
-            assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
-            // FIXME: history filtering not working properly
-            // assert_graph_equal(&filtered, &expected_g);
+            let filter = NodeFilter::property("int_prop").ne(v);
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
+                int_v.filter(|&vv| *vv != v ).is_some()
+            });
+            assert_ok_or_missing_nodes(&nodes, g.filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+            });
+            assert_ok_or_missing_nodes(&nodes, g.persistent_graph().filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.persistent_graph().edges());
+                // FIXME: history filtering not working properly
+                // assert_graph_equal(&filtered, &expected_g);
+            });
         })
     }
 
@@ -473,17 +477,18 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter(
-                NodeFilter::property("int_prop").is_some()
-            ).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.is_some()});
-            assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter(
-                NodeFilter::property("int_prop").is_some()
-            ).unwrap();
-            assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
-            // FIXME: history filtering not working properly
-            // assert_graph_equal(&filtered, &expected_g);
+            let filter = NodeFilter::property("int_prop").is_some();
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
+                int_v.is_some()
+            });
+            assert_ok_or_missing_nodes(&nodes, g.filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+            });
+            assert_ok_or_missing_nodes(&nodes, g.persistent_graph().filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.persistent_graph().edges());
+                // FIXME: history filtering not working properly
+                // assert_graph_equal(&filtered, &expected_g);
+            });
         })
     }
 
@@ -494,17 +499,18 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filtered = g.filter(
-                NodeFilter::property("int_prop").is_none()
-            ).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.is_none()});
-            assert_edges_equal(&filtered.edges(), &expected_g.edges());
-                        let filtered_p = g.persistent_graph().filter(
-                NodeFilter::property("int_prop").is_none()
-            ).unwrap();
-            assert_edges_equal(&filtered_p.edges(), &expected_g.persistent_graph().edges());
-            // FIXME: history filtering not working properly
-            // assert_graph_equal(&filtered, &expected_g);
+            let filter = NodeFilter::property("int_prop").is_none();
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
+                int_v.is_none()
+            });
+            assert_ok_or_missing_nodes(&nodes, g.filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.edges());
+            });
+            assert_ok_or_missing_nodes(&nodes, g.persistent_graph().filter(filter.clone()), |filtered| {
+                assert_edges_equal(&filtered.edges(), &expected_g.persistent_graph().edges());
+                // FIXME: history filtering not working properly
+                // assert_graph_equal(&filtered, &expected_g);
+            });
         })
     }
 

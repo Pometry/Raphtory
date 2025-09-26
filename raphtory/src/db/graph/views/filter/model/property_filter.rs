@@ -47,6 +47,12 @@ pub enum ListAgg {
     Max,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListElemQualifier {
+    Any,
+    All,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Temporal {
     Any,
@@ -97,6 +103,7 @@ pub struct PropertyFilter<M> {
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,
     pub list_agg: Option<ListAgg>,
+    pub list_elem_qualifier: Option<ListElemQualifier>,
     pub _phantom: PhantomData<M>,
 }
 
@@ -143,12 +150,18 @@ impl<M> PropertyFilter<M> {
         self
     }
 
+    pub fn with_list_elem_qualifier(mut self, q: Option<ListElemQualifier>) -> Self {
+        self.list_elem_qualifier = q;
+        self
+    }
+
     pub fn eq(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Eq,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -159,6 +172,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Ne,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -169,6 +183,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Le,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -179,6 +194,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Ge,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -189,6 +205,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Lt,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -199,6 +216,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Gt,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -209,6 +227,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
             operator: FilterOperator::In,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -219,6 +238,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
             operator: FilterOperator::NotIn,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -229,6 +249,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::None,
             operator: FilterOperator::IsNone,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -239,6 +260,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::None,
             operator: FilterOperator::IsSome,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -249,6 +271,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::StartsWith,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -259,6 +282,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::EndsWith,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -269,6 +293,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Contains,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -279,6 +304,7 @@ impl<M> PropertyFilter<M> {
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::NotContains,
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -297,6 +323,7 @@ impl<M> PropertyFilter<M> {
                 prefix_match,
             },
             list_agg: None,
+            list_elem_qualifier: None,
             _phantom: PhantomData,
         }
     }
@@ -489,25 +516,85 @@ impl<M> PropertyFilter<M> {
         }
     }
 
-    pub fn resolve_prop_id(
-        &self,
-        meta: &Meta,
-        expect_map: bool,
-    ) -> Result<Option<usize>, GraphError> {
+    fn validate_list_elem_and_operator(&self, dtype: &PropType) -> Result<(), GraphError> {
+        // Get the inner element type as &PropType
+        let inner_ty: &PropType = match dtype {
+            PropType::List(inner) => inner.as_ref(), // <- &PropType
+            _ => {
+                return Err(GraphError::InvalidFilter(format!(
+                    "Element qualifier {:?} is only supported on list properties; got {:?}",
+                    self.list_elem_qualifier, dtype
+                )))
+            }
+        };
+
+        match self.operator {
+            FilterOperator::IsSome | FilterOperator::IsNone => {
+                return Err(GraphError::InvalidFilter(
+                    "Operator IS_SOME/IS_NONE is not supported with element qualifiers; \
+                 apply it to the list itself (without elem qualifiers)."
+                        .into(),
+                ));
+            }
+
+            FilterOperator::In | FilterOperator::NotIn => {
+                if let PropertyFilterValue::Set(ref s) = self.prop_value {
+                    for v in s.iter() {
+                        // inner_ty is &PropType, v.dtype() is PropType
+                        unify_types(inner_ty, &v.dtype(), &mut false)
+                            .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
+                    }
+                } else {
+                    return Err(GraphError::InvalidFilterExpectSetGotSingle(self.operator));
+                }
+            }
+
+            _ => {
+                // Validate single value against the element type
+                let dt = self.validate_single_dtype(inner_ty, false)?;
+                if self.operator.is_strictly_numeric_operation() && !dt.has_cmp() {
+                    return Err(GraphError::InvalidFilterCmp(dt));
+                }
+                // For string-only ops, require element type Str
+                if self.operator.is_string_operation() && !matches!(inner_ty, PropType::Str) {
+                    return Err(GraphError::InvalidContains(self.operator));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn resolve_prop_id(&self, meta: &Meta, expect_map: bool) -> Result<usize, GraphError> {
         let (name, is_static) = match &self.prop_ref {
             PropertyRef::Metadata(n) => (n.as_str(), true),
             PropertyRef::Property(n) | PropertyRef::TemporalProperty(n, _) => (n.as_str(), false),
         };
 
         match meta.get_prop_id_and_type(name, is_static) {
-            None => Ok(None),
+            None => {
+                if is_static {
+                    Err(GraphError::MetadataMissingError(name.to_string()))
+                } else {
+                    Err(GraphError::PropertyMissingError(name.to_string()))
+                }
+            }
             Some((id, dtype)) => {
+                // agg and elem-qualifier cannot both be set
+                if let (Some(agg), Some(_q)) = (self.list_agg, self.list_elem_qualifier) {
+                    return Err(GraphError::InvalidFilter(format!(
+                        "List aggregation {:?} cannot be used after an element qualifier (any/all).",
+                        agg
+                    )));
+                }
                 if let Some(_) = self.list_agg {
                     self.validate_agg(&dtype)?;
+                } else if let Some(_) = self.list_elem_qualifier {
+                    self.validate_list_elem_and_operator(&dtype)?;
                 } else {
                     self.validate(&dtype, is_static && expect_map)?;
                 }
-                Ok(Some(id))
+                Ok(id)
             }
         }
     }
@@ -721,71 +808,79 @@ impl<M> PropertyFilter<M> {
     pub fn matches(&self, other: Option<&Prop>) -> bool {
         if let Some(agg) = self.list_agg {
             let agg_other = other.and_then(|x| self.aggregate_list_value(x, agg));
-            self.operator
-                .apply_to_property(&self.prop_value, agg_other.as_ref())
-        } else {
-            self.operator.apply_to_property(&self.prop_value, other)
+            return self
+                .operator
+                .apply_to_property(&self.prop_value, agg_other.as_ref());
         }
+
+        if let Some(q) = self.list_elem_qualifier {
+            let vals = match other {
+                Some(Prop::List(v)) => v.as_slice(),
+                _ => return false, // not a list
+            };
+            if vals.is_empty() {
+                return false;
+            }
+            let chk = |val: &Prop| self.operator.apply_to_property(&self.prop_value, Some(val));
+            return match q {
+                ListElemQualifier::Any => vals.iter().any(chk),
+                ListElemQualifier::All => vals.iter().all(chk),
+            };
+        }
+
+        self.operator.apply_to_property(&self.prop_value, other)
     }
 
     fn is_property_matched<I: InternalPropertiesOps + Clone>(
         &self,
-        t_prop_id: Option<usize>,
+        t_prop_id: usize,
         props: Properties<I>,
     ) -> bool {
         match self.prop_ref {
             PropertyRef::Property(_) => {
-                let prop_value = t_prop_id.and_then(|prop_id| props.get_by_id(prop_id));
+                let prop_value = props.get_by_id(t_prop_id);
                 self.matches(prop_value.as_ref())
             }
             PropertyRef::Metadata(_) => false,
-            PropertyRef::TemporalProperty(_, Temporal::Any) => t_prop_id.is_some_and(|prop_id| {
-                props
-                    .temporal()
-                    .get_by_id(prop_id)
-                    .filter(|prop_view| prop_view.values().any(|v| self.matches(Some(&v))))
-                    .is_some()
-            }),
+            PropertyRef::TemporalProperty(_, Temporal::Any) => props
+                .temporal()
+                .get_by_id(t_prop_id)
+                .filter(|prop_view| prop_view.values().any(|v| self.matches(Some(&v))))
+                .is_some(),
             PropertyRef::TemporalProperty(_, Temporal::Latest) => {
-                let prop_value = t_prop_id.and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.latest())
-                });
+                let prop_value = props
+                    .temporal()
+                    .get_by_id(t_prop_id)
+                    .and_then(|prop_view| prop_view.latest());
                 self.matches(prop_value.as_ref())
             }
             PropertyRef::TemporalProperty(_, Temporal::First) => {
-                let prop_value = t_prop_id.and_then(|prop_id| {
-                    props
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .and_then(|prop_view| prop_view.first())
-                });
+                let prop_value = props
+                    .temporal()
+                    .get_by_id(t_prop_id)
+                    .and_then(|prop_view| prop_view.first());
                 self.matches(prop_value.as_ref())
             }
-            PropertyRef::TemporalProperty(_, Temporal::All) => t_prop_id.is_some_and(|prop_id| {
-                props
-                    .temporal()
-                    .get_by_id(prop_id)
-                    .filter(|prop_view| {
-                        let has_any = prop_view.values().next().is_some();
-                        let all_ok = prop_view.values().all(|v| self.matches(Some(&v)));
-                        has_any && all_ok
-                    })
-                    .is_some()
-            }),
+            PropertyRef::TemporalProperty(_, Temporal::All) => props
+                .temporal()
+                .get_by_id(t_prop_id)
+                .filter(|prop_view| {
+                    let has_any = prop_view.values().next().is_some();
+                    let all_ok = prop_view.values().all(|v| self.matches(Some(&v)));
+                    has_any && all_ok
+                })
+                .is_some(),
         }
     }
 
     fn is_metadata_matched<I: InternalPropertiesOps + Clone>(
         &self,
-        c_prop_id: Option<usize>,
+        c_prop_id: usize,
         props: Metadata<I>,
     ) -> bool {
         match self.prop_ref {
             PropertyRef::Metadata(_) => {
-                let prop_value = c_prop_id.and_then(|id| props.get_by_id(id));
+                let prop_value = props.get_by_id(c_prop_id);
                 self.matches(prop_value.as_ref())
             }
             _ => false,
@@ -795,7 +890,7 @@ impl<M> PropertyFilter<M> {
     pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        prop_id: Option<usize>,
+        prop_id: usize,
         node: NodeStorageRef,
     ) -> bool {
         let node = NodeView::new_internal(graph, node.vid());
@@ -814,7 +909,7 @@ impl<M> PropertyFilter<M> {
     pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        prop_id: Option<usize>,
+        prop_id: usize,
         edge: EdgeStorageRef,
     ) -> bool {
         let edge = EdgeView::new(graph, edge.out_ref());
@@ -833,7 +928,7 @@ impl<M> PropertyFilter<M> {
     pub fn matches_exploded_edge<G: GraphView>(
         &self,
         graph: &G,
-        prop_id: Option<usize>,
+        prop_id: usize,
         e: EID,
         t: TimeIndexEntry,
         layer: usize,
@@ -908,6 +1003,10 @@ pub trait InternalPropertyFilterOps: Send + Sync {
     fn list_agg(&self) -> Option<ListAgg> {
         None
     }
+
+    fn list_elem_qualifier(&self) -> Option<ListElemQualifier> {
+        None
+    }
 }
 
 impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
@@ -919,6 +1018,10 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
 
     fn list_agg(&self) -> Option<ListAgg> {
         self.deref().list_agg()
+    }
+
+    fn list_elem_qualifier(&self) -> Option<ListElemQualifier> {
+        self.deref().list_elem_qualifier()
     }
 }
 
@@ -961,61 +1064,87 @@ pub trait PropertyFilterOps: InternalPropertyFilterOps {
 
 impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
     fn eq(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::eq(self.property_ref(), value.into()).with_list_agg(self.list_agg())
+        PropertyFilter::eq(self.property_ref(), value.into())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn ne(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::ne(self.property_ref(), value.into()).with_list_agg(self.list_agg())
+        PropertyFilter::ne(self.property_ref(), value.into())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn le(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::le(self.property_ref(), value.into()).with_list_agg(self.list_agg())
+        PropertyFilter::le(self.property_ref(), value.into())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn ge(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::ge(self.property_ref(), value.into()).with_list_agg(self.list_agg())
+        PropertyFilter::ge(self.property_ref(), value.into())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn lt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::lt(self.property_ref(), value.into()).with_list_agg(self.list_agg())
+        PropertyFilter::lt(self.property_ref(), value.into())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn gt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::gt(self.property_ref(), value.into()).with_list_agg(self.list_agg())
+        PropertyFilter::gt(self.property_ref(), value.into())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::is_in(self.property_ref(), values).with_list_agg(self.list_agg())
+        PropertyFilter::is_in(self.property_ref(), values)
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::is_not_in(self.property_ref(), values).with_list_agg(self.list_agg())
+        PropertyFilter::is_not_in(self.property_ref(), values)
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn is_none(&self) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::is_none(self.property_ref()).with_list_agg(self.list_agg())
+        PropertyFilter::is_none(self.property_ref())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn is_some(&self) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::is_some(self.property_ref()).with_list_agg(self.list_agg())
+        PropertyFilter::is_some(self.property_ref())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn starts_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::starts_with(self.property_ref(), value.into())
             .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn ends_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::ends_with(self.property_ref(), value.into()).with_list_agg(self.list_agg())
+        PropertyFilter::ends_with(self.property_ref(), value.into())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        PropertyFilter::contains(self.property_ref(), value.into()).with_list_agg(self.list_agg())
+        PropertyFilter::contains(self.property_ref(), value.into())
+            .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::not_contains(self.property_ref(), value.into())
             .with_list_agg(self.list_agg())
+            .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 
     fn fuzzy_search(
@@ -1031,6 +1160,7 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
             prefix_match,
         )
         .with_list_agg(self.list_agg())
+        .with_list_elem_qualifier(self.list_elem_qualifier())
     }
 }
 
@@ -1045,8 +1175,57 @@ impl<M> PropertyFilterBuilder<M> {
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for PropertyFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Property(self.0.clone())
+    }
+}
+
+#[derive(Clone)]
+pub struct AnyElemFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
+
+#[derive(Clone)]
+pub struct AllElemFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
+
+pub trait ElemQualifierOps<M>: InternalPropertyFilterOps {
+    fn any(self) -> AnyElemFilterBuilder<M>
+    where
+        Self: Sized,
+    {
+        AnyElemFilterBuilder(self.property_ref(), PhantomData)
+    }
+
+    fn all(self) -> AllElemFilterBuilder<M>
+    where
+        Self: Sized,
+    {
+        AllElemFilterBuilder(self.property_ref(), PhantomData)
+    }
+}
+
+impl<T: InternalPropertyFilterOps> ElemQualifierOps<T::Marker> for T {}
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for AnyElemFilterBuilder<M> {
+    type Marker = M;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.0.clone()
+    }
+
+    fn list_elem_qualifier(&self) -> Option<ListElemQualifier> {
+        Some(ListElemQualifier::Any)
+    }
+}
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for AllElemFilterBuilder<M> {
+    type Marker = M;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.0.clone()
+    }
+
+    fn list_elem_qualifier(&self) -> Option<ListElemQualifier> {
+        Some(ListElemQualifier::All)
     }
 }
 
@@ -1067,6 +1246,7 @@ impl<M> MetadataFilterBuilder<M> {
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for MetadataFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Metadata(self.0.clone())
     }
@@ -1100,6 +1280,7 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
     for AnyTemporalPropertyFilterBuilder<M>
 {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::Any)
     }
@@ -1112,6 +1293,7 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
     for LatestTemporalPropertyFilterBuilder<M>
 {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::Latest)
     }
@@ -1124,6 +1306,7 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
     for FirstTemporalPropertyFilterBuilder<M>
 {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::First)
     }
@@ -1136,6 +1319,7 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
     for AllTemporalPropertyFilterBuilder<M>
 {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::TemporalProperty(self.0.clone(), Temporal::All)
     }

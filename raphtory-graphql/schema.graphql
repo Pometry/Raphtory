@@ -1053,6 +1053,19 @@ type LayerSchema {
 	edges: [EdgeSchema!]!
 }
 
+enum ListAgg {
+	LEN
+	SUM
+	AVG
+	MIN
+	MAX
+}
+
+enum ListElemQualifier {
+	ANY
+	ALL
+}
+
 type MetaGraph {
 	"""
 	Returns the graph name.
@@ -1120,6 +1133,14 @@ input MetadataFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: ListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: ListElemQualifier
 }
 
 type MutRoot {
@@ -2139,6 +2160,14 @@ input PropertyFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: ListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: ListElemQualifier
 }
 
 input PropertyInput {
@@ -2313,6 +2342,14 @@ input TemporalPropertyFilterExpr {
 	Value.
 	"""
 	value: Value
+	"""
+	List aggregate
+	"""
+	listAgg: ListAgg
+	"""
+	List qualifier
+	"""
+	elemQualifier: ListElemQualifier
 }
 
 input TemporalPropertyInput {

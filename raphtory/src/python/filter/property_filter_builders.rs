@@ -4,9 +4,9 @@ use crate::{
         model::{
             property_filter::{
                 AllTemporalPropertyFilterBuilder, AnyTemporalPropertyFilterBuilder,
-                FirstTemporalPropertyFilterBuilder, LatestTemporalPropertyFilterBuilder,
-                ListAggOps, MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps,
-                TemporalPropertyFilterBuilder,
+                ElemQualifierOps, FirstTemporalPropertyFilterBuilder, InternalPropertyFilterOps,
+                LatestTemporalPropertyFilterBuilder, ListAggOps, MetadataFilterBuilder,
+                PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
             },
             TryAsCompositeFilter,
         },
@@ -14,7 +14,9 @@ use crate::{
     prelude::PropertyFilter,
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
+use pyo3::{
+    exceptions::PyTypeError, pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python,
+};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
@@ -139,27 +141,37 @@ where
 pub struct PyPropertyFilterOps {
     ops: Arc<dyn DynPropertyFilterOps>,
     agg: Arc<dyn DynListAggOps>,
+    qual: Arc<dyn DynElemQualifierOps>,
 }
 
 impl PyPropertyFilterOps {
-    fn from_parts<O, A>(ops_provider: Arc<O>, agg_provider: Arc<A>) -> Self
+    fn from_parts<O, A, Q>(
+        ops_provider: Arc<O>,
+        agg_provider: Arc<A>,
+        qual_provider: Arc<Q>,
+    ) -> Self
     where
         O: DynPropertyFilterOps + 'static,
         A: DynListAggOps + 'static,
+        Q: DynElemQualifierOps + 'static,
     {
-        let ops: Arc<dyn DynPropertyFilterOps> = ops_provider;
-        let agg: Arc<dyn DynListAggOps> = agg_provider;
-        PyPropertyFilterOps { ops, agg }
+        PyPropertyFilterOps {
+            ops: ops_provider,
+            agg: agg_provider,
+            qual: qual_provider,
+        }
     }
 
     fn from_builder<B>(builder: B) -> Self
     where
-        B: DynPropertyFilterOps + DynListAggOps + 'static,
+        B: DynPropertyFilterOps + DynListAggOps + DynElemQualifierOps + 'static,
     {
         let shared: Arc<B> = Arc::new(builder);
-        let ops: Arc<dyn DynPropertyFilterOps> = shared.clone();
-        let agg: Arc<dyn DynListAggOps> = shared;
-        PyPropertyFilterOps { ops, agg }
+        PyPropertyFilterOps {
+            ops: shared.clone(),
+            agg: shared.clone(),
+            qual: shared,
+        }
     }
 }
 
@@ -231,244 +243,160 @@ impl PyPropertyFilterOps {
             .fuzzy_search(prop_value, levenshtein_distance, prefix_match)
     }
 
-    fn len(&self) -> PyPropertyFilterOps {
+    pub fn any(&self) -> PyResult<PyPropertyFilterOps> {
+        self.qual.any()
+    }
+
+    pub fn all(&self) -> PyResult<PyPropertyFilterOps> {
+        self.qual.all()
+    }
+
+    fn len(&self) -> PyResult<PyPropertyFilterOps> {
         self.agg.len()
     }
 
-    fn sum(&self) -> PyPropertyFilterOps {
+    fn sum(&self) -> PyResult<PyPropertyFilterOps> {
         self.agg.sum()
     }
 
-    fn avg(&self) -> PyPropertyFilterOps {
+    fn avg(&self) -> PyResult<PyPropertyFilterOps> {
         self.agg.avg()
     }
 
-    fn min(&self) -> PyPropertyFilterOps {
+    fn min(&self) -> PyResult<PyPropertyFilterOps> {
         self.agg.min()
     }
 
-    fn max(&self) -> PyPropertyFilterOps {
+    fn max(&self) -> PyResult<PyPropertyFilterOps> {
         self.agg.max()
     }
 }
 
 pub trait DynListAggOps: Send + Sync {
-    fn len(&self) -> PyPropertyFilterOps;
-    fn sum(&self) -> PyPropertyFilterOps;
-    fn avg(&self) -> PyPropertyFilterOps;
-    fn min(&self) -> PyPropertyFilterOps;
-    fn max(&self) -> PyPropertyFilterOps;
+    fn len(&self) -> PyResult<PyPropertyFilterOps>;
+
+    fn sum(&self) -> PyResult<PyPropertyFilterOps>;
+
+    fn avg(&self) -> PyResult<PyPropertyFilterOps>;
+
+    fn min(&self) -> PyResult<PyPropertyFilterOps>;
+
+    fn max(&self) -> PyResult<PyPropertyFilterOps>;
 }
 
-impl<M> DynListAggOps for PropertyFilterBuilder<M>
-where
-    M: Clone + Send + Sync + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-{
-    fn len(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<PropertyFilterBuilder<M> as ListAggOps<M>>::len(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+trait DynElemQualifierOps: Send + Sync {
+    fn any(&self) -> PyResult<PyPropertyFilterOps>;
+
+    fn all(&self) -> PyResult<PyPropertyFilterOps>;
+}
+
+#[derive(Clone)]
+struct NoElemQualifiers;
+
+impl DynElemQualifierOps for NoElemQualifiers {
+    fn any(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err("Element qualifiers (any/all) cannot be used after a list aggregation (len/sum/avg/min/max)."))
     }
-    fn sum(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<PropertyFilterBuilder<M> as ListAggOps<M>>::sum(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn avg(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<PropertyFilterBuilder<M> as ListAggOps<M>>::avg(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn min(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<PropertyFilterBuilder<M> as ListAggOps<M>>::min(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn max(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<PropertyFilterBuilder<M> as ListAggOps<M>>::max(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+
+    fn all(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err("Element qualifiers (any/all) cannot be used after a list aggregation (len/sum/avg/min/max)."))
     }
 }
 
-impl<M> DynListAggOps for MetadataFilterBuilder<M>
-where
-    M: Clone + Send + Sync + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-{
-    fn len(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<MetadataFilterBuilder<M> as ListAggOps<M>>::len(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+#[derive(Clone)]
+struct NoListAggOps;
+
+impl DynListAggOps for NoListAggOps {
+    fn len(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err(
+            "List aggregation len cannot be used after an element qualifier (any/all).",
+        ))
     }
-    fn sum(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<MetadataFilterBuilder<M> as ListAggOps<M>>::sum(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+    fn sum(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err(
+            "List aggregation sum cannot be used after an element qualifier (any/all).",
+        ))
     }
-    fn avg(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<MetadataFilterBuilder<M> as ListAggOps<M>>::avg(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+    fn avg(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err(
+            "List aggregation avg cannot be used after an element qualifier (any/all).",
+        ))
     }
-    fn min(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<MetadataFilterBuilder<M> as ListAggOps<M>>::min(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+    fn min(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err(
+            "List aggregation min cannot be used after an element qualifier (any/all).",
+        ))
     }
-    fn max(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(<MetadataFilterBuilder<M> as ListAggOps<M>>::max(
-            self.clone(),
-        ));
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+    fn max(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err(
+            "List aggregation max cannot be used after an element qualifier (any/all).",
+        ))
     }
 }
 
-impl<M> DynListAggOps for AnyTemporalPropertyFilterBuilder<M>
+impl<T> DynListAggOps for T
 where
-    M: Clone + Send + Sync + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+    T: ListAggOps<<T as InternalPropertyFilterOps>::Marker>
+        + InternalPropertyFilterOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+    PropertyFilter<<T as InternalPropertyFilterOps>::Marker>: CreateFilter + TryAsCompositeFilter,
 {
-    fn len(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().len());
+    fn len(&self) -> PyResult<PyPropertyFilterOps> {
+        let ops = Arc::new(<T as ListAggOps<_>>::len(self.clone()));
         let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+        let qual = Arc::new(NoElemQualifiers);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
     }
-    fn sum(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().sum());
+    fn sum(&self) -> PyResult<PyPropertyFilterOps> {
+        let ops = Arc::new(<T as ListAggOps<_>>::sum(self.clone()));
         let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+        let qual = Arc::new(NoElemQualifiers);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
     }
-    fn avg(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().avg());
+    fn avg(&self) -> PyResult<PyPropertyFilterOps> {
+        let ops = Arc::new(<T as ListAggOps<_>>::avg(self.clone()));
         let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+        let qual = Arc::new(NoElemQualifiers);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
     }
-    fn min(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().min());
+    fn min(&self) -> PyResult<PyPropertyFilterOps> {
+        let ops = Arc::new(<T as ListAggOps<_>>::min(self.clone()));
         let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+        let qual = Arc::new(NoElemQualifiers);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
     }
-    fn max(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().max());
+    fn max(&self) -> PyResult<PyPropertyFilterOps> {
+        let ops = Arc::new(<T as ListAggOps<_>>::max(self.clone()));
         let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+        let qual = Arc::new(NoElemQualifiers);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
     }
 }
 
-impl<M> DynListAggOps for LatestTemporalPropertyFilterBuilder<M>
+impl<T> DynElemQualifierOps for T
 where
-    M: Clone + Send + Sync + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+    T: ElemQualifierOps<<T as InternalPropertyFilterOps>::Marker>
+        + InternalPropertyFilterOps
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+    PropertyFilter<<T as InternalPropertyFilterOps>::Marker>: CreateFilter + TryAsCompositeFilter,
 {
-    fn len(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().len());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+    fn any(&self) -> PyResult<PyPropertyFilterOps> {
+        let ops = Arc::new(<T as ElemQualifierOps<_>>::any(self.clone()));
+        let agg = Arc::new(NoListAggOps);
+        let qual = Arc::new(NoElemQualifiers);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
     }
-    fn sum(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().sum());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn avg(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().avg());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn min(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().min());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn max(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().max());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-}
-
-impl<M> DynListAggOps for FirstTemporalPropertyFilterBuilder<M>
-where
-    M: Clone + Send + Sync + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-{
-    fn len(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().len());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn sum(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().sum());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn avg(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().avg());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn min(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().min());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn max(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().max());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-}
-
-impl<M> DynListAggOps for AllTemporalPropertyFilterBuilder<M>
-where
-    M: Clone + Send + Sync + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-{
-    fn len(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().len());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn sum(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().sum());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn avg(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().avg());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn min(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().min());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
-    }
-    fn max(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(self.clone().max());
-        let agg = Arc::new(self.clone());
-        PyPropertyFilterOps::from_parts(ops, agg)
+    fn all(&self) -> PyResult<PyPropertyFilterOps> {
+        let ops = Arc::new(<T as ElemQualifierOps<_>>::all(self.clone()));
+        let agg = Arc::new(NoListAggOps);
+        let qual = Arc::new(NoElemQualifiers);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
     }
 }
 
@@ -566,6 +494,7 @@ where
         let parent = PyPropertyFilterOps {
             ops: inner.clone(),
             agg: inner.clone(),
+            qual: inner.clone(),
         };
         let child = PyPropertyFilterBuilder(inner as Arc<dyn DynPropertyFilterBuilderOps>);
         Bound::new(py, (child, parent))
@@ -599,7 +528,8 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let parent = PyPropertyFilterOps {
             ops: Arc::new(self.clone()),
-            agg: Arc::new(self),
+            agg: Arc::new(self.clone()),
+            qual: Arc::new(self),
         };
         let child = PyMetadataFilterBuilder;
         Bound::new(py, (child, parent))
