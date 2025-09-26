@@ -12,7 +12,7 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::time::TryIntoInterval,
+    core::utils::time::{AlignmentUnit, TryIntoInterval},
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
@@ -111,9 +111,10 @@ impl GqlEdge {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if align_start.unwrap_or(true) {
-            self.ee.rolling_aligned(window, step)?
-        } else {
             self.ee.rolling(window, step)?
+        } else {
+            self.ee
+                .rolling_aligned(window, step, AlignmentUnit::Unaligned)?
         };
         Ok(GqlEdgeWindowSet::new(ws))
     }
@@ -131,9 +132,9 @@ impl GqlEdge {
     ) -> Result<GqlEdgeWindowSet, GraphError> {
         let step = step.try_into_interval()?;
         let ws = if align_start.unwrap_or(true) {
-            self.ee.expanding_aligned(step)?
-        } else {
             self.ee.expanding(step)?
+        } else {
+            self.ee.expanding_aligned(step, AlignmentUnit::Unaligned)?
         };
         Ok(GqlEdgeWindowSet::new(ws))
     }

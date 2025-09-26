@@ -616,7 +616,7 @@ mod db_tests {
         },
         utils::logging::global_info_logger,
     };
-    use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
+    use raphtory_core::utils::time::{AlignmentUnit, ParseTimeError, TryIntoTime};
     use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
     use rayon::join;
     use std::{
@@ -1888,10 +1888,16 @@ mod db_tests {
         let graph = Graph::new();
 
         test_storage!(&graph, |graph| {
-            let rolling = graph.rolling(1, None).unwrap().collect_vec();
+            let rolling = graph
+                .rolling_aligned(1, None, AlignmentUnit::Unaligned)
+                .unwrap()
+                .collect_vec();
             assert!(rolling.is_empty());
 
-            let expanding = graph.expanding(1).unwrap().collect_vec();
+            let expanding = graph
+                .expanding_aligned(1, AlignmentUnit::Unaligned)
+                .unwrap()
+                .collect_vec();
             assert!(expanding.is_empty());
         });
     }

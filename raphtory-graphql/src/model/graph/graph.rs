@@ -25,7 +25,7 @@ use itertools::Itertools;
 use raphtory::{
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::time::TryIntoInterval,
+        utils::time::{AlignmentUnit, TryIntoInterval},
     },
     db::{
         api::{
@@ -160,9 +160,10 @@ impl GqlGraph {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if align_start.unwrap_or(true) {
-            self.graph.rolling_aligned(window, step)?
-        } else {
             self.graph.rolling(window, step)?
+        } else {
+            self.graph
+                .rolling_aligned(window, step, AlignmentUnit::Unaligned)?
         };
         Ok(GqlGraphWindowSet::new(ws, self.path.clone()))
     }
@@ -178,9 +179,10 @@ impl GqlGraph {
     ) -> Result<GqlGraphWindowSet, GraphError> {
         let step = step.try_into_interval()?;
         let ws = if align_start.unwrap_or(true) {
-            self.graph.expanding_aligned(step)?
-        } else {
             self.graph.expanding(step)?
+        } else {
+            self.graph
+                .expanding_aligned(step, AlignmentUnit::Unaligned)?
         };
         Ok(GqlGraphWindowSet::new(ws, self.path.clone()))
     }

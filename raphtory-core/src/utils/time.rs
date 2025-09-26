@@ -223,6 +223,7 @@ impl From<Duration> for IntervalSize {
 /// (eg. at the start of the hour, week, year, ...)
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AlignmentUnit {
+    Unaligned, // note that there is no functional difference between millisecond and unaligned for the time being
     Millisecond,
     Second,
     Minute,
@@ -237,6 +238,7 @@ impl AlignmentUnit {
     /// Floors a UTC timestamp in milliseconds since Unix epoch to the nearest alignment unit.
     pub fn align_timestamp(&self, timestamp: i64) -> i64 {
         match self {
+            AlignmentUnit::Unaligned => timestamp,
             AlignmentUnit::Millisecond => timestamp,
             AlignmentUnit::Second => Self::floor_ms(timestamp, SECOND_MS),
             AlignmentUnit::Minute => Self::floor_ms(timestamp, MINUTE_MS),
@@ -286,8 +288,8 @@ impl AlignmentUnit {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Interval {
-    /// Used if the IntervalSize is Temporal, keeps track of the smallest unit passed to line up windows
-    /// (eg. at the start of the hour, week, year, ...)
+    /// Used if the `IntervalSize` is Temporal, keeps track of the smallest unit passed to line up windows.
+    /// (eg. at the start of the hour, week, year, ...). If the IntervalSize is discrete, this is `None`.
     pub alignment_unit: Option<AlignmentUnit>,
     /// The interval.
     pub size: IntervalSize,

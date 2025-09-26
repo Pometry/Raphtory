@@ -140,6 +140,7 @@ mod rich_club_test {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::{TimeOps, NO_PROPS},
     };
+    use raphtory_core::utils::time::AlignmentUnit;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -187,7 +188,9 @@ mod rich_club_test {
     // Using the toy example from the paper
     fn toy_graph_test() {
         let g = load_sample_graph();
-        let g_rolling = g.rolling(1, Some(1)).unwrap();
+        let g_rolling = g
+            .rolling_aligned(1, Some(1), AlignmentUnit::Unaligned)
+            .unwrap();
 
         let rc_coef_1 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 1);
         let rc_coef_3 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 3);

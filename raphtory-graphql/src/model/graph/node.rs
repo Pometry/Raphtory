@@ -14,7 +14,7 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     algorithms::components::{in_component, out_component},
-    core::utils::time::TryIntoInterval,
+    core::utils::time::{AlignmentUnit, TryIntoInterval},
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
         graph::{node::NodeView, views::filter::model::node_filter::CompositeNodeFilter},
@@ -107,9 +107,10 @@ impl GqlNode {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if align_start.unwrap_or(true) {
-            self.vv.rolling_aligned(window, step)?
-        } else {
             self.vv.rolling(window, step)?
+        } else {
+            self.vv
+                .rolling_aligned(window, step, AlignmentUnit::Unaligned)?
         };
         Ok(GqlNodeWindowSet::new(ws))
     }
@@ -125,9 +126,9 @@ impl GqlNode {
     ) -> Result<GqlNodeWindowSet, GraphError> {
         let step = step.try_into_interval()?;
         let ws = if align_start.unwrap_or(true) {
-            self.vv.expanding_aligned(step)?
-        } else {
             self.vv.expanding(step)?
+        } else {
+            self.vv.expanding_aligned(step, AlignmentUnit::Unaligned)?
         };
         Ok(GqlNodeWindowSet::new(ws))
     }

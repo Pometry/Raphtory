@@ -140,32 +140,25 @@ pub trait TimeOps<'graph>:
     /// using an expanding window. The last window may fall partially outside the range of the data/view.
     ///
     /// An expanding window is a window that grows by `step` size at each iteration.
+    ///
+    /// The window will be aligned with the smallest unit of time passed. For example, if the interval
+    /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
-        I: TryInto<Interval>,
+        I: TryInto<Interval> + Clone,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>;
 
-    /// Creates a `WindowSet` with the given `step` size
-    /// using an expanding window. The last window may fall partially outside the range of the data/view.
-    /// The window will be aligned with the smallest unit of time passed. For example, if the interval
-    /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
+    /// Creates a `WindowSet` with the given `step` size using an expanding window, where the windows are aligned
+    /// with the `alignment_unit` passed. The last window may fall partially outside the range of the data/view.
     ///
     /// An expanding window is a window that grows by `step` size at each iteration.
-    fn expanding_aligned<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
-    where
-        Self: Sized + Clone + 'graph,
-        I: TryInto<Interval>,
-        ParseTimeError: From<<I as TryInto<Interval>>::Error>;
-
-    /// Creates a `WindowSet` with the given `window` size and optional `step`
-    /// using a rolling window. The last window may fall partially outside the range of the data/view.
     ///
-    /// A rolling window is a window that moves forward by `step` size at each iteration.
-    fn rolling<I>(
+    /// Note that `alignment_unit = AlignmentUnit::Unaligned` achieves unaligned behaviour.
+    fn expanding_aligned<I>(
         &self,
-        window: I,
-        step: Option<I>,
+        step: I,
+        alignment_unit: AlignmentUnit,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
@@ -181,10 +174,29 @@ pub trait TimeOps<'graph>:
     ///
     /// The window will be aligned with the smallest unit of time passed. For example, if the interval
     /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
+    fn rolling<I>(
+        &self,
+        window: I,
+        step: Option<I>,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval> + Clone,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>;
+
+    /// Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window, where the windows
+    /// are aligned with the `alignment_unit` passed. The last window may fall partially outside the range of the data/view.
+    /// Note that, depending on the `alignment_unit`, passing a `step` larger than `window` can lead to some entries
+    /// appearing before the start of the first window and/or after the end of the last window (i.e. not included in any window)
+    ///
+    /// A rolling window is a window that moves forward by `step` size at each iteration.
+    ///
+    /// Note that `alignment_unit = AlignmentUnit::Unaligned` achieves unaligned behaviour.
     fn rolling_aligned<I>(
         &self,
         window: I,
         step: Option<I>,
+        alignment_unit: AlignmentUnit,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
@@ -275,20 +287,25 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
-        I: TryInto<Interval>,
+        I: TryInto<Interval> + Clone,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>,
     {
-        let parent = self.clone();
-        match (self.timeline_start(), self.timeline_end()) {
-            (Some(start), Some(end)) => {
-                let step: Interval = step.try_into()?;
-                WindowSet::new(parent, start, end, step, None)
-            }
-            _ => WindowSet::empty(parent),
-        }
+        // step is usually a number or a small string so performance impact of cloning should be minimal
+        let alignment_unit = step
+            .clone()
+            .try_into()?
+            .alignment_unit
+            .unwrap_or(AlignmentUnit::Unaligned);
+        // Align the timestamp to the smallest unit.
+        // If there is None (the Interval is discrete), no alignment is done
+        self.expanding_aligned(step, alignment_unit)
     }
 
-    fn expanding_aligned<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    fn expanding_aligned<I>(
+        &self,
+        step: I,
+        alignment_unit: AlignmentUnit,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
         I: TryInto<Interval>,
@@ -298,12 +315,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         match (self.timeline_start(), self.timeline_end()) {
             (Some(start), Some(end)) => {
                 let step: Interval = step.try_into()?;
-                // Align the timestamp to the smallest unit. If there is None (the Interval is discrete),
-                // no alignment is done (aligning to millisecond is the same as not aligning)
-                let start_time = step
-                    .alignment_unit
-                    .unwrap_or(AlignmentUnit::Millisecond)
-                    .align_timestamp(start);
+                let start_time = alignment_unit.align_timestamp(start);
                 WindowSet::new(parent, start_time, end, step, None)
             }
             _ => WindowSet::empty(parent),
@@ -317,27 +329,32 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
-        I: TryInto<Interval>,
+        I: TryInto<Interval> + Clone,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>,
     {
-        let parent = self.clone();
-        match (self.timeline_start(), self.timeline_end()) {
-            (Some(start), Some(end)) => {
-                let window: Interval = window.try_into()?;
-                let step: Interval = match step {
-                    Some(step) => step.try_into()?,
-                    None => window,
-                };
-                WindowSet::new(parent, start, end, step, Some(window))
-            }
-            _ => WindowSet::empty(parent),
-        }
+        // step and window are usually numbers or small strings so performance impact of cloning should be minimal
+        let alignment_unit = match &step {
+            Some(s) => s
+                .clone()
+                .try_into()?
+                .alignment_unit
+                .unwrap_or(AlignmentUnit::Unaligned),
+            None => window
+                .clone()
+                .try_into()?
+                .alignment_unit
+                .unwrap_or(AlignmentUnit::Unaligned),
+        };
+        // Align the timestamp to the smallest unit in step.
+        // If there is None (i.e. the Interval is discrete), no alignment is done.
+        self.rolling_aligned(window, step, alignment_unit)
     }
 
     fn rolling_aligned<I>(
         &self,
         window: I,
         step: Option<I>,
+        alignment_unit: AlignmentUnit,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
@@ -352,12 +369,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                     Some(step) => step.try_into()?,
                     None => window,
                 };
-                // Align the timestamp to the smallest unit in step. If there is None (i.e. the Interval is discrete),
-                // no alignment is done (aligning to millisecond is the same as not aligning)
-                let start_time = step
-                    .alignment_unit
-                    .unwrap_or(AlignmentUnit::Millisecond)
-                    .align_timestamp(start);
+                let start_time = alignment_unit.align_timestamp(start);
                 WindowSet::new(parent, start_time, end, step, Some(window))
             }
             _ => WindowSet::empty(parent),
@@ -513,7 +525,7 @@ mod time_tests {
         test_storage,
     };
     use itertools::Itertools;
-    use raphtory_core::utils::time::ParseTimeError;
+    use raphtory_core::utils::time::{AlignmentUnit, ParseTimeError};
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
@@ -559,21 +571,28 @@ mod time_tests {
     fn rolling() {
         let graph = graph_with_timeline(1, 7);
         test_storage!(&graph, |graph| {
-            let windows = graph.rolling(2, None).unwrap();
+            let windows = graph
+                .rolling_aligned(2, None, AlignmentUnit::Unaligned)
+                .unwrap();
             let expected = vec![(Some(1), Some(3)), (Some(3), Some(5)), (Some(5), Some(7))];
             assert_bounds(windows, expected);
         });
 
         let graph = graph_with_timeline(1, 6);
         test_storage!(&graph, |graph| {
-            let windows = graph.rolling(3, Some(2)).unwrap();
+            let windows = graph
+                .rolling_aligned(3, Some(2), AlignmentUnit::Unaligned)
+                .unwrap();
             let expected = vec![(Some(0), Some(3)), (Some(2), Some(5)), (Some(4), Some(7))];
             assert_bounds(windows, expected.clone());
         });
 
         let graph = graph_with_timeline(0, 9);
         test_storage!(&graph, |graph| {
-            let windows = graph.window(1, 6).rolling(3, Some(2)).unwrap();
+            let windows = graph
+                .window(1, 6)
+                .rolling_aligned(3, Some(2), AlignmentUnit::Unaligned)
+                .unwrap();
             assert_bounds(
                 windows,
                 vec![(Some(1), Some(3)), (Some(2), Some(5)), (Some(4), Some(6))],
@@ -585,21 +604,28 @@ mod time_tests {
     fn expanding() {
         let graph = graph_with_timeline(1, 7);
         test_storage!(&graph, |graph| {
-            let windows = graph.expanding(2).unwrap();
+            let windows = graph
+                .expanding_aligned(2, AlignmentUnit::Unaligned)
+                .unwrap();
             let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
             assert_bounds(windows, expected);
         });
 
         let graph = graph_with_timeline(1, 6);
         test_storage!(&graph, |graph| {
-            let windows = graph.expanding(2).unwrap();
+            let windows = graph
+                .expanding_aligned(2, AlignmentUnit::Unaligned)
+                .unwrap();
             let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
             assert_bounds(windows, expected.clone());
         });
 
         let graph = graph_with_timeline(0, 9);
         test_storage!(&graph, |graph| {
-            let windows = graph.window(1, 6).expanding(2).unwrap();
+            let windows = graph
+                .window(1, 6)
+                .expanding_aligned(2, AlignmentUnit::Unaligned)
+                .unwrap();
             assert_bounds(
                 windows,
                 vec![(Some(1), Some(3)), (Some(1), Some(5)), (Some(1), Some(6))],
@@ -613,7 +639,9 @@ mod time_tests {
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         test_storage!(&graph, |graph| {
-            let windows = graph.rolling("1 day", None).unwrap();
+            let windows = graph
+                .rolling_aligned("1 day", None, AlignmentUnit::Unaligned)
+                .unwrap();
             let expected = vec![
                 (
                     "2020-06-06 00:00:00".try_into_time().ok(), // entire 2020-06-06
@@ -631,7 +659,9 @@ mod time_tests {
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         test_storage!(&graph, |graph| {
-            let windows = graph.rolling("1 day", None).unwrap();
+            let windows = graph
+                .rolling_aligned("1 day", None, AlignmentUnit::Unaligned)
+                .unwrap();
             let expected = vec![
                 (
                     "2020-06-06 00:00:00".try_into_time().ok(), // entire 2020-06-06
@@ -676,7 +706,7 @@ mod time_tests {
                 assert_eq!(e, ParseTimeError::ZeroSizeStep)
             }
         }
-        match graph.rolling(1, Some(0)) {
+        match graph.rolling_aligned(1, Some(0), AlignmentUnit::Unaligned) {
             Ok(_) => {
                 panic!("Expected error, but got Ok")
             }
@@ -684,7 +714,7 @@ mod time_tests {
                 assert_eq!(e, ParseTimeError::ZeroSizeStep)
             }
         }
-        match graph.expanding("0 day") {
+        match graph.expanding_aligned("0 day", AlignmentUnit::Unaligned) {
             Ok(_) => {
                 panic!("Expected error, but got Ok")
             }
@@ -701,7 +731,7 @@ mod time_tests {
             }
         }
 
-        match graph.expanding("0fead day") {
+        match graph.expanding_aligned("0fead day", AlignmentUnit::Unaligned) {
             Ok(_) => {
                 panic!("Expected error, but got Ok")
             }
@@ -720,7 +750,10 @@ mod time_tests {
         }
 
         assert_eq!(
-            graph.rolling("1 day", Some("1000 days")).unwrap().count(),
+            graph
+                .rolling_aligned("1 day", Some("1000 days"), AlignmentUnit::Unaligned)
+                .unwrap()
+                .count(),
             0
         )
     }
@@ -731,7 +764,9 @@ mod time_tests {
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         test_storage!(&graph, |graph| {
-            let windows = graph.expanding("1 day").unwrap();
+            let windows = graph
+                .expanding_aligned("1 day", AlignmentUnit::Unaligned)
+                .unwrap();
             let expected = vec![
                 (None, "2020-06-07 00:00:00".try_into_time().ok()),
                 (None, "2020-06-08 00:00:00".try_into_time().ok()),
@@ -743,7 +778,9 @@ mod time_tests {
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         test_storage!(&graph, |graph| {
-            let windows = graph.expanding("1 day").unwrap();
+            let windows = graph
+                .expanding_aligned("1 day", AlignmentUnit::Unaligned)
+                .unwrap();
             let expected = vec![
                 (None, "2020-06-07 00:00:00".try_into_time().ok()),
                 (None, "2020-06-08 00:00:00".try_into_time().ok()),

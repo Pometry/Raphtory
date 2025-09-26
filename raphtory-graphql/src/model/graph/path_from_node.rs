@@ -9,7 +9,7 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::time::TryIntoInterval,
+    core::utils::time::{AlignmentUnit, TryIntoInterval},
     db::{api::view::DynamicGraph, graph::path::PathFromNode},
     errors::GraphError,
     prelude::*,
@@ -83,9 +83,10 @@ impl GqlPathFromNode {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
         let ws = if align_start.unwrap_or(true) {
-            self.nn.rolling_aligned(window, step)?
-        } else {
             self.nn.rolling(window, step)?
+        } else {
+            self.nn
+                .rolling_aligned(window, step, AlignmentUnit::Unaligned)?
         };
         Ok(GqlPathFromNodeWindowSet::new(ws))
     }
@@ -101,9 +102,9 @@ impl GqlPathFromNode {
     ) -> Result<GqlPathFromNodeWindowSet, GraphError> {
         let step = step.try_into_interval()?;
         let ws = if align_start.unwrap_or(true) {
-            self.nn.expanding_aligned(step)?
-        } else {
             self.nn.expanding(step)?
+        } else {
+            self.nn.expanding_aligned(step, AlignmentUnit::Unaligned)?
         };
         Ok(GqlPathFromNodeWindowSet::new(ws))
     }

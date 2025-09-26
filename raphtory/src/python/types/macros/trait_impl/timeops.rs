@@ -72,9 +72,9 @@ macro_rules! impl_timeops {
             #[pyo3(signature = (step, align_start=true))]
             fn expanding(&self, step: $crate::core::utils::time::Interval, align_start: bool) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
                 if align_start {
-                    self.$field.expanding_aligned(step)
-                } else {
                     self.$field.expanding(step)
+                } else {
+                    self.$field.expanding_aligned(step, raphtory_core::utils::time::AlignmentUnit::Unaligned)
                 }
             }
 
@@ -104,9 +104,9 @@ macro_rules! impl_timeops {
                 align_start: bool,
             ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
                 if align_start {
-                    self.$field.rolling_aligned(window, step)
-                } else {
                     self.$field.rolling(window, step)
+                } else {
+                    self.$field.rolling_aligned(window, step, raphtory_core::utils::time::AlignmentUnit::Unaligned)
                 }
             }
 
