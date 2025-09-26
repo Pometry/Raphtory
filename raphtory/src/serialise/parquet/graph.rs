@@ -23,6 +23,7 @@ pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
         GRAPH_T_PATH,
         |_| vec![Field::new(TIME_COL, DataType::Int64, false)],
         |_, g, decoder, writer| {
+            // TODO: Add secondary index column for graph temporal properties
             let merged_props = g
                 .properties()
                 .temporal()

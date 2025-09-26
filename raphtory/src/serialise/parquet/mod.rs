@@ -408,7 +408,7 @@ fn decode_graph_storage(
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
     let g_type = {
-        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL];
+        let exclude = vec![TIME_COL];
         let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
         let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
 
@@ -416,7 +416,7 @@ fn decode_graph_storage(
             &g,
             &c_graph_path,
             TIME_COL,
-            Some(SECONDARY_INDEX_COL),
+            None,
             &[],
             &c_props,
             batch_size
@@ -434,7 +434,8 @@ fn decode_graph_storage(
     let t_graph_path = path.as_ref().join(GRAPH_T_PATH);
 
     if std::fs::exists(&t_graph_path)? {
-        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL];
+        // TODO: Add secondary index column for graph temporal properties
+        let exclude = vec![TIME_COL];
         let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
         let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
 
@@ -442,7 +443,7 @@ fn decode_graph_storage(
             &g,
             &t_graph_path,
             TIME_COL,
-            Some(SECONDARY_INDEX_COL),
+            None,
             &t_props,
             &[],
             batch_size
@@ -450,6 +451,7 @@ fn decode_graph_storage(
     }
 
     let t_node_path = path.as_ref().join(NODES_T_PATH);
+
     if std::fs::exists(&t_node_path)? {
         let exclude = vec![NODE_ID_COL, TIME_COL, SECONDARY_INDEX_COL, TYPE_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
@@ -474,6 +476,7 @@ fn decode_graph_storage(
     }
 
     let c_node_path = path.as_ref().join(NODES_C_PATH);
+
     if std::fs::exists(&c_node_path)? {
         let exclude = vec![NODE_ID_COL, TYPE_COL];
         let (c_prop_columns, _) = collect_prop_columns(&c_node_path, &exclude)?;
@@ -494,9 +497,10 @@ fn decode_graph_storage(
         )?;
     }
 
-    let exclude = vec![TIME_COL, SECONDARY_INDEX_COL, SRC_COL, DST_COL, LAYER_COL];
     let t_edge_path = path.as_ref().join(EDGES_T_PATH);
+
     if std::fs::exists(&t_edge_path)? {
+        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL, SRC_COL, DST_COL, LAYER_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;
         let t_prop_columns = t_prop_columns
             .iter()
@@ -520,6 +524,7 @@ fn decode_graph_storage(
     }
 
     let d_edge_path = path.as_ref().join(EDGES_D_PATH);
+
     if std::fs::exists(&d_edge_path)? {
         load_edge_deletions_from_parquet(
             g.core_graph(),
@@ -535,7 +540,9 @@ fn decode_graph_storage(
     }
 
     let c_edge_path = path.as_ref().join(EDGES_C_PATH);
+
     if std::fs::exists(&c_edge_path)? {
+        let exclude = vec![SRC_COL, DST_COL, LAYER_COL];
         let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
         let metadata = c_prop_columns
             .iter()

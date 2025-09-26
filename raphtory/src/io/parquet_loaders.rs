@@ -31,11 +31,14 @@ pub fn load_nodes_from_parquet<
     batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
+
     cols_to_check.extend_from_slice(properties);
     cols_to_check.extend_from_slice(metadata);
+
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
+
     if let Some(ref secondary_index) = secondary_index {
         cols_to_check.push(secondary_index.as_ref());
     }
@@ -263,8 +266,10 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
     batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![time];
+
     cols_to_check.extend_from_slice(properties);
     cols_to_check.extend_from_slice(metadata);
+
     if let Some(ref secondary_index) = secondary_index {
         cols_to_check.push(secondary_index.as_ref());
     }
