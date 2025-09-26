@@ -456,7 +456,7 @@ pub fn assert_ok_or_missing_edges<T>(
                 "PropertyMissingError({name}) on non-empty graph"
             );
         }
-        Err(err) => panic!("unexpected error from filter: {err:?}"),
+        Err(err) => panic!("Unexpected error from filter: {err:?}"),
     }
 }
 
@@ -467,13 +467,20 @@ pub fn assert_ok_or_missing_nodes<T>(
 ) {
     match res {
         Ok(v) => on_ok(v),
+
         Err(GraphError::PropertyMissingError(name)) => {
-            let any_int_prop = nodes.iter().any(|(_, _, iv)| iv.is_some());
+            let property_really_missing = match name.as_str() {
+                "int_prop" => nodes.iter().all(|(_, _, iv)| iv.is_none()),
+                "str_prop" => nodes.iter().all(|(_, sv, _)| sv.is_none()),
+                _ => panic!("Unexpected property {name}"),
+            };
+
             assert!(
-                !any_int_prop,
-                "PropertyMissingError({name}) but at least one node had int_prop"
+                property_really_missing,
+                "PropertyMissingError({name}) but at least one node had that property"
             );
         }
-        Err(err) => panic!("unexpected error from filter: {err:?}"),
+
+        Err(err) => panic!("Unexpected error from filter: {err:?}"),
     }
 }
