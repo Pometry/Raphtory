@@ -25,6 +25,7 @@ use raphtory::{
     errors::GraphResult,
     vectors::{
         cache::{CachedEmbeddingModel, VectorCache},
+        storage::OpenAIEmbeddings,
         template::DocumentTemplate,
     },
 };
@@ -153,11 +154,12 @@ impl GraphServer {
     pub async fn vectorise_all_graphs(
         &self,
         template: &DocumentTemplate,
-        embeddings: CachedEmbeddingModel,
+        embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
+        let model = self.data.vector_cache.openai(embeddings).await?;
         for folder in self.data.get_all_graph_folders() {
             self.data
-                .vectorise_folder(&folder, template, embeddings.clone()) // TODO: avoid clone, just ask for a ref
+                .vectorise_folder(&folder, template, model.clone()) // TODO: avoid clone, just ask for a ref
                 .await?;
         }
         Ok(())
@@ -174,12 +176,11 @@ impl GraphServer {
         &self,
         name: &str,
         template: DocumentTemplate,
-        embeddings: CachedEmbeddingModel,
+        embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
+        let model = self.data.vector_cache.openai(embeddings).await?;
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), name)?;
-        self.data
-            .vectorise_folder(&folder, &template, embeddings)
-            .await
+        self.data.vectorise_folder(&folder, &template, model).await
     }
 
     /// Start the server on the default port and return a handle to it.
@@ -354,7 +355,10 @@ mod server_tests {
     use chrono::prelude::*;
     use raphtory::{
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{embeddings::EmbeddingResult, template::DocumentTemplate, Embedding},
+        vectors::{
+            embeddings::EmbeddingResult, storage::OpenAIEmbeddings, template::DocumentTemplate,
+            Embedding,
+        },
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
@@ -365,7 +369,9 @@ mod server_tests {
     async fn test_server_start_stop() {
         global_info_logger();
         let tmp_dir = tempfile::tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None)
+            .await
+            .unwrap();
         info!("Calling start at time {}", Local::now());
         let handler = server.start_with_port(0);
         sleep(Duration::from_secs(1)).await;
@@ -379,10 +385,6 @@ mod server_tests {
         Variant,
     }
 
-    async fn failing_embedding(_texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
-        Err(SomeError::Variant.into())
-    }
-
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempfile::tempdir().unwrap();
@@ -391,17 +393,18 @@ mod server_tests {
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let mut server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None)
+            .await
+            .unwrap();
         let template = DocumentTemplate {
             node_template: Some("{{ name }}".to_owned()),
             ..Default::default()
         };
-        let cache_dir = tempdir().unwrap();
-        server
-            .enable_embeddings(failing_embedding, cache_dir.path())
-            .await
-            .unwrap();
-        server.vectorise_all_graphs(&template).await.unwrap();
+        let model = OpenAIEmbeddings {
+            api_base: Some("wrong-api-base".to_owned()),
+            ..Default::default()
+        };
+        server.vectorise_all_graphs(&template, model).await.unwrap();
         let handler = server.start_with_port(0);
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await

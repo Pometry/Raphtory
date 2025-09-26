@@ -460,7 +460,7 @@ impl<'py> IntoPyObject<'py> for NumpyArray {
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-pub fn execute_async_task<T, F, O>(task: T) -> O
+pub(crate) fn execute_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,
@@ -481,4 +481,12 @@ where
             .expect("error when waiting for async task to complete")
         })
     })
+}
+
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_multi_thread() // TODO: double-check this is fine, with no thread??
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(future)
 }

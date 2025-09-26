@@ -1,3 +1,5 @@
+#[cfg(feature = "vectors")]
+use crate::vectors::embeddings::EmbeddingError;
 use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
@@ -15,6 +17,8 @@ use raphtory_core::{
     utils::time::ParseTimeError,
 };
 use raphtory_storage::mutation::MutationError;
+#[cfg(feature = "vectors")]
+use std::sync::Arc;
 use std::{
     fmt::Debug,
     io,
@@ -287,7 +291,7 @@ pub enum GraphError {
     #[error("Embedding operation failed")]
     EmbeddingError {
         #[from]
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: EmbeddingError,
     },
 
     #[cfg(feature = "search")]

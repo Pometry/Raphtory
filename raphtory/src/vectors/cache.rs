@@ -1,23 +1,26 @@
 use crate::{
     errors::GraphResult,
     vectors::{
-        embeddings::{EmbeddingModel, ModelConfig},
+        embeddings::{EmbeddingError, EmbeddingModel, ModelConfig},
         storage::OpenAIEmbeddings,
         Embedding,
     },
 };
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
-use itertools::Itertools;
 use moka::future::Cache;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, VecDeque},
     hash::{DefaultHasher, Hash, Hasher},
+    ops::Deref,
     path::Path,
     sync::Arc,
+    u64,
 };
+
+const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
 
 const MAX_DISK_ITEMS: usize = 1_000_000;
 const MAX_VECTOR_DIM: usize = 8960;
@@ -112,7 +115,7 @@ impl VectorStore {
 pub struct VectorCache {
     store: Arc<VectorStore>,
     cache: Arc<Cache<u64, ()>>,
-    // models: Arc<RwLock<Vec<SampledModel>>>,
+    models: Arc<Cache<ModelConfig, EmbeddingModel>>, // this always lives only in memory, precisely to force resampling from different environments
 }
 
 impl VectorCache {
@@ -120,7 +123,7 @@ impl VectorCache {
         Self {
             store: VectorStore::in_memory().into(),
             cache: Cache::new(10).into(),
-            // models: Default::default(),
+            models: build_model_cache(),
         }
     }
 
@@ -141,7 +144,7 @@ impl VectorCache {
         Ok(Self {
             store,
             cache: cache.into(),
-            // models: Default::default(),
+            models: build_model_cache(),
         })
     }
 
@@ -154,10 +157,9 @@ impl VectorCache {
         &self,
         model: ModelConfig,
     ) -> GraphResult<CachedEmbeddingModel> {
-        let sample = model.generate_sample().await?;
         Ok(CachedEmbeddingModel {
             cache: self.clone(),
-            model: EmbeddingModel { model, sample },
+            model: self.sample_model(model).await?,
         })
     }
 
@@ -165,8 +167,8 @@ impl VectorCache {
         &self,
         model: EmbeddingModel,
     ) -> GraphResult<CachedEmbeddingModel> {
-        let sample = model.generate_sample().await?;
-        if sample == model.sample {
+        let expected_model = self.sample_model(model.model.clone()).await?;
+        if model == expected_model {
             Ok(CachedEmbeddingModel {
                 model,
                 cache: self.clone(),
@@ -174,6 +176,26 @@ impl VectorCache {
         } else {
             panic!("") // TODO: turn this into an error
         }
+    }
+
+    async fn sample_model(&self, config: ModelConfig) -> GraphResult<EmbeddingModel> {
+        let cloned_config = config.clone();
+        let model = self
+            .models
+            .try_get_with(config, async {
+                let mut vectors = cloned_config.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
+                let sample = vectors.remove(0);
+                Ok(EmbeddingModel {
+                    model: cloned_config,
+                    sample,
+                })
+            })
+            .await
+            .map_err(|error: Arc<EmbeddingError>| {
+                let inner: &EmbeddingError = error.deref();
+                inner.clone()
+            })?;
+        Ok(model)
     }
 
     async fn get(&self, model: &EmbeddingModel, text: &str) -> Option<Embedding> {
@@ -197,6 +219,10 @@ impl VectorCache {
         self.store.insert(hash, entry);
         self.cache.insert(hash, ()).await;
     }
+}
+
+fn build_model_cache() -> Arc<Cache<ModelConfig, EmbeddingModel>> {
+    Cache::new(u64::MAX).into()
 }
 
 #[derive(Clone)]
@@ -261,18 +287,21 @@ fn hash(model: &EmbeddingModel, text: &str) -> u64 {
 
 #[cfg(test)]
 mod cache_tests {
-    use std::sync::Arc;
-
     use tempfile::tempdir;
 
     use crate::vectors::{
-        cache::CachedEmbeddingModel,
+        cache::{CachedEmbeddingModel, CONTENT_SAMPLE},
         embeddings::{EmbeddingModel, ModelConfig},
         storage::OpenAIEmbeddings,
         Embedding,
     };
 
     use super::VectorCache;
+
+    #[test]
+    fn test_vector_sample_remains_unchanged() {
+        assert_eq!(CONTENT_SAMPLE, "raphtory");
+    }
 
     #[tokio::test]
     async fn test_empty_request() {

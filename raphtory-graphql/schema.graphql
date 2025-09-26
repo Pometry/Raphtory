@@ -13,7 +13,6 @@ enum AllPropertySpec {
 	ALL_PROPERTIES
 }
 
-
 """
 Collection of items
 """
@@ -637,7 +636,6 @@ type EdgesWindowSet {
 	list: [Edges!]!
 }
 
-
 """
 Document in a vector graph
 """
@@ -940,8 +938,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
@@ -1063,7 +1061,6 @@ type GraphWindowSet {
 	list: [Graph!]!
 }
 
-
 input IndexSpecInput {
 	"""
 	Node properties.
@@ -1085,7 +1082,6 @@ input InputEdge {
 	"""
 	dst: String!
 }
-
 
 type LayerSchema {
 	"""
@@ -2299,7 +2295,6 @@ enum SortByTime {
 	EARLIEST
 }
 
-
 type TemporalProperties {
 	"""
 	Get property value matching the specified key.
@@ -2452,9 +2447,21 @@ input WindowDuration @oneOf {
 	epoch: Int
 }
 
+"""
+Directs the executor to include this field or fragment only when the `if` argument is true.
+"""
 directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+"""
+Indicates that an Input Object is a OneOf Input Object (and thus requires exactly one of its field be provided)
+"""
 directive @oneOf on INPUT_OBJECT
+"""
+Directs the executor to skip this field or fragment when the `if` argument is true.
+"""
 directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+"""
+Provides a scalar specification URL for specifying the behavior of custom scalar types.
+"""
 directive @specifiedBy(url: String!) on SCALAR
 schema {
 	query: QueryRoot

@@ -4,11 +4,11 @@ use crate::{
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         types::wrappers::document::PyDocument,
-        utils::{execute_async_task, PyNodeRef, PyTime},
+        utils::{block_on, execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
         cache::VectorCache,
-        embeddings::{EmbeddingFunction, EmbeddingResult},
+        custom::{serve_custom_embedding, EmbeddingFunction, EmbeddingServer},
         storage::OpenAIEmbeddings,
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         vector_selection::DynamicVectorSelection,
@@ -17,11 +17,18 @@ use crate::{
         Document, DocumentEntity, Embedding,
     },
 };
-use async_openai::config::OpenAIConfig;
-use futures_util::future::BoxFuture;
+
 use itertools::Itertools;
-use pyo3::{exceptions::PyTypeError, prelude::*};
-use std::{future::Future, path::PathBuf};
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    types::{PyFunction, PyList},
+};
+use std::{
+    path::PathBuf,
+    thread::{self, JoinHandle},
+};
+use tokio::runtime::Runtime;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
@@ -67,12 +74,76 @@ impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
     }
 }
 
-impl EmbeddingFunction for PyOpenAIEmbeddings {
-    // TODO: instead of implementing EmbeddingFunction, could just translate it into OpenAIEmbeddings when I receive it from the user
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        let embeddings: OpenAIEmbeddings = self.clone().into();
-        embeddings.call(texts)
+impl EmbeddingFunction for Py<PyFunction> {
+    fn call(&self, text: &str) -> Vec<f32> {
+        Python::with_gil(|py| {
+            // TODO: remove unwraps?
+            let any = self.call1(py, (text,)).unwrap();
+            let list = any.downcast_bound::<PyList>(py).unwrap();
+            list.iter().map(|value| value.extract().unwrap()).collect()
+        })
     }
+}
+
+#[pyfunction]
+fn embedding_server(function: Py<PyFunction>, address: String) -> PyEmbeddingServer {
+    PyEmbeddingServer {
+        function,
+        address,
+        running: None,
+    }
+}
+
+struct RunningServer {
+    runtime: Runtime,
+    server: EmbeddingServer,
+}
+
+#[pyclass(name = "EmbeddingServer")]
+struct PyEmbeddingServer {
+    function: Py<PyFunction>,
+    address: String,
+    running: Option<RunningServer>, // TODO: use all of these ideas for the GraphServer implementation
+}
+// TODO: ideally, I should allow users to provide this server object as embedding model, so the  fact it has an OpenAI  like API is transparent to the user
+
+impl PyEmbeddingServer {
+    fn create_running_server(&self) -> RunningServer {
+        assert!(self.running.is_none()); // TODO: return error
+        let runtime = build_runtime();
+        let server = runtime.block_on(serve_custom_embedding(&self.address, self.function));
+        RunningServer { runtime, server }
+    }
+}
+
+#[pymethods]
+impl PyEmbeddingServer {
+    fn run(&self) {
+        let running = self.create_running_server();
+        running.runtime.block_on(running.server.start());
+    }
+
+    fn start(mut slf: PyRefMut<'_, Self>) {
+        let running = slf.create_running_server();
+        running.runtime.spawn(running.server.start());
+        slf.running = Some(running)
+    }
+
+    fn stop(mut slf: PyRefMut<'_, Self>) {
+        if let Some(RunningServer { runtime, server }) = &mut slf.running {
+            runtime.block_on(server.stop());
+            slf.running = None
+        } else {
+            panic!("nothing to stop")
+        }
+    }
+}
+
+fn build_runtime() -> Runtime {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
 }
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
@@ -94,9 +165,9 @@ impl PyQuery {
     ) -> PyResult<Embedding> {
         match self {
             Self::Raw(query) => {
-                let cache = graph.cache.clone();
+                let graph = graph.clone();
                 let result = Ok(execute_async_task(move || async move {
-                    cache.get_single(query).await
+                    graph.embed_text(query).await
                 })?);
                 result
             }
@@ -211,11 +282,12 @@ impl PyGraphView {
         let graph = self.graph.clone();
         execute_async_task(move || async move {
             let cache = if let Some(cache) = cache {
-                VectorCache::on_disk(&PathBuf::from(cache), embedding).await?
+                VectorCache::on_disk(&PathBuf::from(cache)).await?
             } else {
-                VectorCache::in_memory(embedding).await?
+                VectorCache::in_memory()
             };
-            Ok(graph.vectorise(cache, template, None, verbose).await?)
+            let model = cache.openai(embedding.into()).await?;
+            Ok(graph.vectorise(model, template, None, verbose).await?)
         })
     }
 }
@@ -509,12 +581,4 @@ impl PyVectorSelection {
         block_on(slf.0.expand_edges_by_similarity(&embedding, limit, w))?;
         Ok(())
     }
-}
-
-fn block_on<F: Future>(future: F) -> F::Output {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(future)
 }

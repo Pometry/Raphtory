@@ -1,4 +1,5 @@
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 use std::{ops::Deref, pin::Pin};
 
 use async_openai::{
@@ -13,13 +14,14 @@ use crate::{
     vectors::{cache::CachedEmbeddingModel, storage::OpenAIEmbeddings, Embedding},
 };
 
-const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
 const CHUNK_SIZE: usize = 1000;
 
-pub(crate) type EmbeddingError = Box<dyn std::error::Error + Send + Sync>;
+// this is an Arc to allow cloning even if the underlying type doesn't allow it
+// the underlying type depends on the embedding model implementation in use
+pub(crate) type EmbeddingError = Arc<dyn std::error::Error + Send + Sync>;
 pub type EmbeddingResult<T> = Result<T, EmbeddingError>;
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug, Hash)]
 pub enum ModelConfig {
     OpenAI(OpenAIEmbeddings),
 }
@@ -29,11 +31,6 @@ impl ModelConfig {
         match self {
             ModelConfig::OpenAI(model) => model.call(texts).await,
         }
-    }
-
-    pub(super) async fn generate_sample(&self) -> GraphResult<Embedding> {
-        let mut vectors = self.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
-        Ok(vectors.remove(0))
     }
 }
 
@@ -84,7 +81,11 @@ impl OpenAIEmbeddings {
         };
 
         Box::pin(async move {
-            let response = client.embeddings().create(request).await?;
+            let response = client
+                .embeddings()
+                .create(request)
+                .await
+                .map_err(|err| Arc::new(err) as Arc<dyn std::error::Error + Send + Sync>)?;
             Ok(response
                 .data
                 .into_iter()
@@ -120,14 +121,4 @@ where
             stream
         })
         .flatten()
-}
-
-#[cfg(test)]
-mod embedding_tests {
-    use crate::vectors::embeddings::CONTENT_SAMPLE;
-
-    #[test]
-    fn test_vector_sample_remains_unchanged() {
-        assert_eq!(CONTENT_SAMPLE, "raphtory");
-    }
 }

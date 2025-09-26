@@ -58,7 +58,7 @@ pub struct Data {
     pub(crate) work_dir: PathBuf, // TODO: move this to config?
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool, // TODO: move this to config?
-    vector_cache: Arc<VectorCache>,
+    pub(crate) vector_cache: VectorCache,
 }
 
 impl Data {
@@ -87,9 +87,7 @@ impl Data {
             work_dir: work_dir.to_path_buf(),
             cache,
             create_index,
-            vector_cache: VectorCache::on_disk(&work_dir.join(".vector-cache"))
-                .await?
-                .into(), // FIXME: need to disable graph names starting with a dot
+            vector_cache: VectorCache::on_disk(&work_dir.join(".vector-cache")).await?, // FIXME: need to disable graph names starting with a dot
         })
     }
 
@@ -195,9 +193,8 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let cache = self.vector_cache.clone();
         let create_index = self.create_index;
-        GraphWithVectors::read_from_folder(&folder, cache, create_index).await
+        GraphWithVectors::read_from_folder(&folder, &self.vector_cache, create_index).await
         // FIXME: I need some blocking_io inside of GraphWithVectors::read_from_folder
     }
 }
@@ -256,12 +253,12 @@ pub(crate) mod data_tests {
         File::create(path.join("graph")).unwrap();
     }
 
-    pub(crate) fn save_graphs_to_work_dir(
+    pub(crate) async fn save_graphs_to_work_dir(
         work_dir: &Path,
         graphs: &HashMap<String, MaterializedGraph>,
     ) -> Result<(), GraphError> {
         for (name, graph) in graphs.into_iter() {
-            let data = Data::new(work_dir, &AppConfig::default());
+            let data = Data::new(work_dir, &AppConfig::default()).await?;
             let folder = ValidGraphFolder::try_from(data.work_dir, name)?;
 
             #[cfg(feature = "storage")]

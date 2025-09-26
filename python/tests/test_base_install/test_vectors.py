@@ -1,5 +1,26 @@
+import pytest
 from raphtory import Graph
 from raphtory.vectors import VectorisedGraph
+
+
+
+@pytest.fixture(autouse=True)
+def test_server():
+    # Start your server as a subprocess
+    process = subprocess.Popen(
+        ["python", "-m", "http.server", "8000"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Give it a moment to start
+    time.sleep(1)
+
+    yield  # tests will run while the server is alive
+
+    # Teardown: kill the server
+    process.terminate()
+    process.wait()
 
 embedding_map = {
     "node1": [1.0, 0.0, 0.0],

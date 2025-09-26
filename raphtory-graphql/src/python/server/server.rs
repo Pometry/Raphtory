@@ -8,11 +8,11 @@ use pyo3::{
     prelude::*,
 };
 use raphtory::{
-    python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-    vectors::{
-        storage::Embeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    python::{
+        packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
+        utils::block_on,
     },
+    vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
 use std::{path::PathBuf, thread};
 
@@ -108,7 +108,7 @@ impl PyGraphServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let server = GraphServer::new(work_dir, app_config, config_path)?;
+        let server = block_on(GraphServer::new(work_dir, app_config, config_path))?;
         Ok(PyGraphServer(server))
     }
 
@@ -159,11 +159,13 @@ impl PyGraphServer {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
             self.0
-                .vectorise_graph(name, template, Embeddings::OpenAI(embeddings.into()))
+                .vectorise_graph(name, template, embeddings.into())
                 .await?;
             Ok(())
         })
     }
+
+    // TODO: vectorise all graphs
 
     /// Start the server and return a handle to it.
     ///
@@ -207,6 +209,7 @@ impl PyGraphServer {
             let url = format!("http://localhost:{port}");
             // we need to release the GIL, otherwise the server will deadlock when trying to use python function as the embedding function
             // and wait_for_server_online will never return
+            // FIXME: this does not apply anymore, can remove
             let result =
                 py.allow_threads(|| PyRunningGraphServer::wait_for_server_online(&url, timeout_ms));
             match result {

@@ -20,7 +20,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OpenAIEmbeddings {
     pub model: String,
     pub api_base: Option<String>,
@@ -75,17 +75,12 @@ impl VectorMeta {
     pub(super) async fn read_from_path(path: &Path) -> GraphResult<Self> {
         let meta_string = std::fs::read_to_string(path)?;
         let meta: VectorMeta = serde_json::from_str(&meta_string)?;
-        let sample = meta.model.generate_sample().await?;
         Ok(meta)
     }
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub async fn read_from_path(
-        path: &Path,
-        graph: G,
-        cache: Arc<VectorCache>,
-    ) -> GraphResult<Self> {
+    pub async fn read_from_path(path: &Path, graph: G, cache: &VectorCache) -> GraphResult<Self> {
         let meta = VectorMeta::read_from_path(&meta_path(path)).await?;
 
         let factory = LanceDb;
