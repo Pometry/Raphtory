@@ -760,6 +760,7 @@ impl PyPersistentGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
+    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
     ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
@@ -768,26 +769,28 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df, time, src, dst, layer = None, layer_col = None))]
+    #[pyo3(signature = (df, time, src, dst, secondary_index = None, layer = None, layer_col = None))]
     fn load_edge_deletions_from_pandas(
         &self,
         df: &Bound<PyAny>,
         time: &str,
         src: &str,
         dst: &str,
+        secondary_index: Option<&str>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        load_edge_deletions_from_pandas(&self.graph, df, time, src, dst, layer, layer_col)
+        load_edge_deletions_from_pandas(&self.graph, df, time, secondary_index, src, dst, layer, layer_col)
     }
 
     /// Load edges deletions from a Parquet file into the graph.
     ///
     /// Arguments:
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
+    ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     time (str): The column name for the update timestamps.
+    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
     ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
@@ -796,13 +799,14 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, time, src, dst, layer = None, layer_col = None))]
+    #[pyo3(signature = (parquet_path, time, src, dst, secondary_index = None, layer = None, layer_col = None))]
     fn load_edge_deletions_from_parquet(
         &self,
         parquet_path: PathBuf,
         time: &str,
         src: &str,
         dst: &str,
+        secondary_index: Option<&str>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -810,6 +814,7 @@ impl PyPersistentGraph {
             &self.graph,
             parquet_path.as_path(),
             time,
+            secondary_index,
             src,
             dst,
             layer,

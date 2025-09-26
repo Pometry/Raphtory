@@ -605,6 +605,7 @@ pub(crate) fn load_edge_deletions_from_df<
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
+    secondary_index: Option<&str>,
     src: &str,
     dst: &str,
     layer: Option<&str>,
@@ -614,6 +615,7 @@ pub(crate) fn load_edge_deletions_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
+    let secondary_index_index = secondary_index.map(|col| df_view.get_index(col)).transpose()?;
     let layer_index = layer_col.map(|layer_col| df_view.get_index(layer_col.as_ref()));
     let layer_index = layer_index.transpose()?;
     #[cfg(feature = "python")]
@@ -629,18 +631,26 @@ pub(crate) fn load_edge_deletions_from_df<
         let src_col = df.node_col(src_index)?;
         let dst_col = df.node_col(dst_index)?;
         let time_col = df.time_col(time_index)?;
+
+        // Load the secondary index column if it exists, otherwise generate from start_idx.
+        let secondary_index_col = match secondary_index_index {
+            Some(col_index) => df.secondary_index_col(col_index)?,
+            None => SecondaryIndexCol::new_from_range(start_idx, start_idx + df.len()),
+        };
+
         src_col
             .par_iter()
             .zip(dst_col.par_iter())
             .zip(time_col.par_iter())
+            .zip(secondary_index_col.par_iter())
             .zip(layer.par_iter())
-            .enumerate()
-            .try_for_each(|(idx, (((src, dst), time), layer))| {
+            .try_for_each(|((((src, dst), time), secondary_index), layer)| {
                 let src = src.ok_or(LoadError::MissingSrcError)?;
                 let dst = dst.ok_or(LoadError::MissingDstError)?;
-                graph.delete_edge((time, start_idx + idx), src, dst, layer)?;
+                graph.delete_edge((time, secondary_index as usize), src, dst, layer)?;
                 Ok::<(), GraphError>(())
             })?;
+
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
         start_idx += df.len();

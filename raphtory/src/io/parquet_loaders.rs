@@ -227,6 +227,7 @@ pub fn load_edge_deletions_from_parquet<
     graph: &G,
     parquet_path: &Path,
     time: &str,
+    secondary_index: Option<&str>,
     src: &str,
     dst: &str,
     layer: Option<&str>,
@@ -234,14 +235,19 @@ pub fn load_edge_deletions_from_parquet<
     batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
+
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
+    }
+
+    if let Some(ref secondary_index) = secondary_index {
+        cols_to_check.push(secondary_index.as_ref());
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
+        load_edge_deletions_from_df(df_view, time, secondary_index, src, dst, layer, layer_col, graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
     Ok(())

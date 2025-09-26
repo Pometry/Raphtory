@@ -525,6 +525,7 @@ fn decode_graph_storage(
             g.core_graph(),
             &d_edge_path,
             TIME_COL,
+            Some(SECONDARY_INDEX_COL),
             SRC_COL,
             DST_COL,
             None,

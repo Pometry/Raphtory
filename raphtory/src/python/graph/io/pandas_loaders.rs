@@ -176,6 +176,7 @@ pub fn load_edge_deletions_from_pandas<
     graph: &G,
     df: &Bound<'py, PyAny>,
     time: &str,
+    secondary_index: Option<&str>,
     src: &str,
     dst: &str,
     layer: Option<&str>,
@@ -185,12 +186,16 @@ pub fn load_edge_deletions_from_pandas<
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
+    if let Some(ref secondary_index) = secondary_index {
+        cols_to_check.push(secondary_index.as_ref());
+    }
 
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edge_deletions_from_df(
         df_view,
         time,
+        secondary_index,
         src,
         dst,
         layer,
