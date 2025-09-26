@@ -103,7 +103,11 @@ impl<'a> NodeAdditions<'a> {
                 }
             }),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => AdditionVariants::Col(index.edge_history()),
+            NodeAdditions::Col(index) => {
+                let edge_history = index.edge_history().collect::<Vec<_>>();
+                dbg!(&edge_history);
+                AdditionVariants::Col(edge_history.into_iter())
+            }
         }
     }
 
