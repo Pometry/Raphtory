@@ -2329,26 +2329,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2366,6 +2346,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -6063,6 +6063,24 @@ Value.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metadatafilterexpr.listagg">listAgg</strong></td>
+<td valign="top"><a href="#listagg">ListAgg</a></td>
+<td>
+
+List aggregate
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metadatafilterexpr.elemqualifier">elemQualifier</strong></td>
+<td valign="top"><a href="#listelemqualifier">ListElemQualifier</a></td>
+<td>
+
+List qualifier
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -6819,6 +6837,24 @@ Value.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyfilterexpr.listagg">listAgg</strong></td>
+<td valign="top"><a href="#listagg">ListAgg</a></td>
+<td>
+
+List aggregate
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyfilterexpr.elemqualifier">elemQualifier</strong></td>
+<td valign="top"><a href="#listelemqualifier">ListElemQualifier</a></td>
+<td>
+
+List qualifier
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -6962,6 +6998,24 @@ Operator.
 <td>
 
 Value.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.listagg">listAgg</strong></td>
+<td valign="top"><a href="#listagg">ListAgg</a></td>
+<td>
+
+List aggregate
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.elemqualifier">elemQualifier</strong></td>
+<td valign="top"><a href="#listelemqualifier">ListElemQualifier</a></td>
+<td>
+
+List qualifier
 
 </td>
 </tr>
@@ -7252,6 +7306,60 @@ Persistent.
 Event.
 
 </td>
+</tr>
+</tbody>
+</table>
+
+### ListAgg
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>LEN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>SUM</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>AVG</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>MIN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>MAX</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### ListElemQualifier
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>ANY</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>ALL</strong></td>
+<td></td>
 </tr>
 </tbody>
 </table>
