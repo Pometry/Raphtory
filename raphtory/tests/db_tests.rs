@@ -1855,6 +1855,8 @@ fn check_node_edge_history_count() {
 }
 
 #[cfg(feature = "storage")]
+use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
+#[cfg(feature = "storage")]
 #[test]
 fn edges_at_from_node_history() {
     use crate::test_utils::test_disk_graph;
