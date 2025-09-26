@@ -39,10 +39,7 @@ use raphtory_api::core::{
     utils::logging::global_info_logger,
 };
 use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
-use raphtory_storage::{
-    core_ops::CoreGraphOps, graph::edges::edge_storage_ops::EdgeStorageOps,
-    mutation::addition_ops::InternalAdditionOps,
-};
+use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
 use rayon::{join, prelude::*};
 use std::{
     collections::{HashMap, HashSet},
@@ -55,7 +52,7 @@ use tracing::{error, info};
 
 use crate::test_utils::{build_graph, build_graph_strat, test_graph};
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn edge_metadata() -> Result<(), GraphError> {

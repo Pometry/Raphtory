@@ -1,4 +1,4 @@
-mod test_utils;
+pub mod test_utils;
 
 #[cfg(test)]
 #[cfg(feature = "proto")]

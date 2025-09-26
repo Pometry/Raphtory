@@ -12,7 +12,7 @@ use raphtory::{
 };
 use raphtory_core::utils::time::ParseTimeError;
 
-mod test_utils;
+pub mod test_utils;
 
 // start inclusive, end exclusive
 fn graph_with_timeline(start: i64, end: i64) -> Graph {

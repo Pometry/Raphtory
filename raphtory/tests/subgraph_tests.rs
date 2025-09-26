@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 
 use crate::test_utils::{build_graph, build_graph_strat};
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn test_materialize_no_edges() {

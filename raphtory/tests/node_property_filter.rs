@@ -16,7 +16,7 @@ use crate::test_utils::{
     node_filtered_graph,
 };
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn test_node_filter_on_nodes() {

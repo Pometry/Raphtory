@@ -8,7 +8,7 @@ use raphtory_api::core::entities::GID;
 
 use crate::test_utils::{build_graph, build_graph_layer, build_graph_strat};
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn prop_test_layering() {

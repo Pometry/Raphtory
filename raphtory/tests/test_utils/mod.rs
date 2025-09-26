@@ -11,7 +11,6 @@ use std::{collections::HashMap, sync::Arc};
 #[cfg(feature = "storage")]
 use tempfile::TempDir;
 
-pub mod assertions;
 pub mod filter;
 
 pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
@@ -34,7 +33,7 @@ pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(&disk_graph)
 }
 
-pub(crate) fn build_edge_list(
+pub fn build_edge_list(
     len: usize,
     num_nodes: u64,
 ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64)>> {
@@ -50,7 +49,7 @@ pub(crate) fn build_edge_list(
     )
 }
 
-pub(crate) fn build_edge_deletions(
+pub fn build_edge_deletions(
     len: usize,
     num_nodes: u64,
 ) -> impl Strategy<Value = Vec<(u64, u64, i64)>> {
@@ -63,7 +62,7 @@ pub enum Update {
     Deletion,
 }
 
-pub(crate) fn build_edge_list_with_deletions(
+pub fn build_edge_list_with_deletions(
     len: usize,
     num_nodes: u64,
 ) -> impl Strategy<Value = HashMap<(u64, u64), Vec<(i64, Update)>>> {
@@ -74,7 +73,7 @@ pub(crate) fn build_edge_list_with_deletions(
     )
 }
 
-pub(crate) fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
+pub fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
     match p_type {
         PropType::Str => any::<String>().prop_map(Prop::str).boxed(),
         PropType::I64 => any::<i64>().prop_map(Prop::I64).boxed(),
@@ -139,7 +138,7 @@ pub(crate) fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
     }
 }
 
-pub(crate) fn prop_type() -> impl Strategy<Value = PropType> {
+pub fn prop_type() -> impl Strategy<Value = PropType> {
     let leaf = proptest::sample::select(&[
         PropType::Str,
         PropType::I64,
@@ -386,7 +385,7 @@ fn edge_updates(
         .prop_map(|(props, deletions)| EdgeUpdatesFixture { props, deletions })
 }
 
-pub(crate) fn build_nodes_dyn(num_nodes: usize, len: usize) -> impl Strategy<Value = NodeFixture> {
+pub fn build_nodes_dyn(num_nodes: usize, len: usize) -> impl Strategy<Value = NodeFixture> {
     let schema = prop_schema(len);
     schema.prop_flat_map(move |schema| {
         proptest::collection::hash_map(
@@ -398,7 +397,7 @@ pub(crate) fn build_nodes_dyn(num_nodes: usize, len: usize) -> impl Strategy<Val
     })
 }
 
-pub(crate) fn build_edge_list_dyn(
+pub fn build_edge_list_dyn(
     len: usize,
     num_nodes: usize,
     del_edges: bool,
@@ -420,12 +419,12 @@ pub(crate) fn build_edge_list_dyn(
     })
 }
 
-pub(crate) fn build_props_dyn(len: usize) -> impl Strategy<Value = PropUpdatesFixture> {
+pub fn build_props_dyn(len: usize) -> impl Strategy<Value = PropUpdatesFixture> {
     let schema = prop_schema(len);
     schema.prop_flat_map(move |schema| prop_updates(schema, len))
 }
 
-pub(crate) fn build_graph_strat(
+pub fn build_graph_strat(
     len: usize,
     num_nodes: usize,
     del_edges: bool,
@@ -435,7 +434,7 @@ pub(crate) fn build_graph_strat(
     (nodes, edges).prop_map(|(nodes, edges)| GraphFixture { nodes, edges })
 }
 
-pub(crate) fn build_node_props(
+pub fn build_node_props(
     max_num_nodes: u64,
 ) -> impl Strategy<Value = Vec<(u64, Option<String>, Option<i64>)>> {
     (0..max_num_nodes).prop_flat_map(|num_nodes| {
@@ -445,7 +444,7 @@ pub(crate) fn build_node_props(
     })
 }
 
-pub(crate) fn build_graph_from_edge_list<'a>(
+pub fn build_graph_from_edge_list<'a>(
     edge_list: impl IntoIterator<Item = &'a (u64, u64, i64, String, i64)>,
 ) -> Graph {
     let g = Graph::new();
@@ -465,7 +464,7 @@ pub(crate) fn build_graph_from_edge_list<'a>(
     g
 }
 
-pub(crate) fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
+pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
     let g = Arc::new(Storage::default());
     for ((src, dst, layer), updates) in graph_fix.edges() {
         for (t, props) in updates.props.t_props.iter() {
@@ -497,7 +496,7 @@ pub(crate) fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
     g
 }
 
-pub(crate) fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
+pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
     let g = Arc::new(Storage::default());
     let actual_layer_set: HashSet<_> = graph_fix
         .edges()
@@ -555,7 +554,7 @@ pub(crate) fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Ar
     g
 }
 
-pub(crate) fn add_node_props<'a>(
+pub fn add_node_props<'a>(
     graph: &'a Graph,
     nodes: impl IntoIterator<Item = &'a (u64, Option<String>, Option<i64>)>,
 ) {
@@ -570,7 +569,7 @@ pub(crate) fn add_node_props<'a>(
     }
 }
 
-pub(crate) fn node_filtered_graph(
+pub fn node_filtered_graph(
     edge_list: &[(u64, u64, i64, String, i64)],
     nodes: &[(u64, Option<String>, Option<i64>)],
     filter: impl Fn(Option<&String>, Option<&i64>) -> bool,

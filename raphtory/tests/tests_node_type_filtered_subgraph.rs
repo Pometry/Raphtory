@@ -11,7 +11,7 @@ use std::ops::Range;
 
 use crate::test_utils::{build_graph, build_graph_strat, make_node_types};
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn test_type_filtered_subgraph() {

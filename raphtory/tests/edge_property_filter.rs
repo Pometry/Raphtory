@@ -21,7 +21,7 @@ use crate::test_utils::{
     build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window,
 };
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn test_edge_filter() {

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::test_utils::test_graph;
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn test_properties() {

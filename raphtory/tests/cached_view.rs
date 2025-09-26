@@ -5,7 +5,7 @@ use raphtory::{
     prelude::*,
 };
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn empty_graph() {

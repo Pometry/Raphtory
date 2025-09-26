@@ -27,7 +27,7 @@ use crate::test_utils::{
     build_graph_from_edge_list, build_window, Update,
 };
 
-mod test_utils;
+pub mod test_utils;
 
 fn build_filtered_graph(
     edges: &[(u64, u64, i64, String, i64)],

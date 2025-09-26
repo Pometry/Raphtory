@@ -6,7 +6,7 @@ use std::ops::Range;
 
 use crate::test_utils::{build_edge_list, build_graph_from_edge_list};
 
-mod test_utils;
+pub mod test_utils;
 
 #[test]
 fn test_materialize() {
