@@ -543,6 +543,55 @@ Returns a count of collection objects.
 </tbody>
 </table>
 
+### Document
+
+Document in a vector graph
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="document.entity">entity</strong></td>
+<td valign="top"><a href="#documententity">DocumentEntity</a>!</td>
+<td>
+
+Entity associated with document.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="document.content">content</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Content of the document.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="document.embedding">embedding</strong></td>
+<td valign="top">[<a href="#float">Float</a>!]!</td>
+<td>
+
+Similarity score with a specified query
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="document.score">score</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### Edge
 
 Raphtory graph edge.
@@ -1561,273 +1610,6 @@ will be returned.
 </tbody>
 </table>
 
-### GqlDocument
-
-Document in a vector graph
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="gqldocument.entity">entity</strong></td>
-<td valign="top"><a href="#documententity">DocumentEntity</a>!</td>
-<td>
-
-Entity associated with document.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqldocument.content">content</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Content of the document.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqldocument.embedding">embedding</strong></td>
-<td valign="top">[<a href="#float">Float</a>!]!</td>
-<td>
-
-Similarity score with a specified query
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqldocument.score">score</strong></td>
-<td valign="top"><a href="#float">Float</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
-### GqlIndexSpec
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlindexspec.nodemetadata">nodeMetadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns node metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlindexspec.nodeproperties">nodeProperties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns node properties.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlindexspec.edgemetadata">edgeMetadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns edge metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlindexspec.edgeproperties">edgeProperties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns edge properties.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### GqlVectorSelection
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.nodes">nodes</strong></td>
-<td valign="top">[<a href="#node">Node</a>!]!</td>
-<td>
-
-Returns a list of nodes in the current selection.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.edges">edges</strong></td>
-<td valign="top">[<a href="#edge">Edge</a>!]!</td>
-<td>
-
-Returns a list of edges in the current selection.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.getdocuments">getDocuments</strong></td>
-<td valign="top">[<a href="#gqldocument">GqlDocument</a>!]!</td>
-<td>
-
-Returns a list of documents in the current selection.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.addnodes">addNodes</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td>
-
-Adds all the documents associated with the specified nodes to the current selection.
-
-Documents added by this call are assumed to have a score of 0.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">nodes</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.addedges">addEdges</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td>
-
-Adds all the documents associated with the specified edges to the current selection.
-
-Documents added by this call are assumed to have a score of 0.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">edges</td>
-<td valign="top">[<a href="#inputedge">InputEdge</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.expand">expand</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td>
-
-Add all the documents a specified number of hops away to the selection.
-
-Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">hops</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.expandentitiesbysimilarity">expandEntitiesBySimilarity</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td>
-
-Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">query</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">limit</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.expandnodesbysimilarity">expandNodesBySimilarity</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td>
-
-Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">query</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">limit</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlvectorselection.expandedgesbysimilarity">expandEdgesBySimilarity</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td>
-
-Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">query</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">limit</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 ### Graph
 
 <table>
@@ -2457,7 +2239,7 @@ Export all nodes and edges from this graph view to another existing graph
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.getindexspec">getIndexSpec</strong></td>
-<td valign="top"><a href="#gqlindexspec">GqlIndexSpec</a>!</td>
+<td valign="top"><a href="#indexspec">IndexSpec</a>!</td>
 <td>
 
 (Experimental) Get index specification.
@@ -2547,26 +2329,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2584,6 +2346,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2667,6 +2449,57 @@ will be returned.
 <td colspan="2" valign="top"><strong id="graphwindowset.list">list</strong></td>
 <td valign="top">[<a href="#graph">Graph</a>!]!</td>
 <td></td>
+</tr>
+</tbody>
+</table>
+
+### IndexSpec
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="indexspec.nodemetadata">nodeMetadata</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Returns node metadata.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="indexspec.nodeproperties">nodeProperties</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Returns node properties.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="indexspec.edgemetadata">edgeMetadata</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Returns edge metadata.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="indexspec.edgeproperties">edgeProperties</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Returns edge properties.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5162,6 +4995,173 @@ Return the values of the properties.
 </tbody>
 </table>
 
+### VectorSelection
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.nodes">nodes</strong></td>
+<td valign="top">[<a href="#node">Node</a>!]!</td>
+<td>
+
+Returns a list of nodes in the current selection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.edges">edges</strong></td>
+<td valign="top">[<a href="#edge">Edge</a>!]!</td>
+<td>
+
+Returns a list of edges in the current selection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.getdocuments">getDocuments</strong></td>
+<td valign="top">[<a href="#document">Document</a>!]!</td>
+<td>
+
+Returns a list of documents in the current selection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.addnodes">addNodes</strong></td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
+<td>
+
+Adds all the documents associated with the specified nodes to the current selection.
+
+Documents added by this call are assumed to have a score of 0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.addedges">addEdges</strong></td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
+<td>
+
+Adds all the documents associated with the specified edges to the current selection.
+
+Documents added by this call are assumed to have a score of 0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">edges</td>
+<td valign="top">[<a href="#inputedge">InputEdge</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.expand">expand</strong></td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
+<td>
+
+Add all the documents a specified number of hops away to the selection.
+
+Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">hops</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">window</td>
+<td valign="top"><a href="#window">Window</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.expandentitiesbysimilarity">expandEntitiesBySimilarity</strong></td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
+<td>
+
+Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">query</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">window</td>
+<td valign="top"><a href="#window">Window</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.expandnodesbysimilarity">expandNodesBySimilarity</strong></td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
+<td>
+
+Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">query</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">window</td>
+<td valign="top"><a href="#window">Window</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorselection.expandedgesbysimilarity">expandEdgesBySimilarity</strong></td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
+<td>
+
+Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">query</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">window</td>
+<td valign="top"><a href="#window">Window</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### VectorisedGraph
 
 <table>
@@ -5176,7 +5176,7 @@ Return the values of the properties.
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.emptyselection">emptySelection</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
 <td>
 
 Returns an empty selection of documents.
@@ -5185,7 +5185,7 @@ Returns an empty selection of documents.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.entitiesbysimilarity">entitiesBySimilarity</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
 <td>
 
 Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
@@ -5209,7 +5209,7 @@ Search the top scoring entities according to a specified query returning no more
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.nodesbysimilarity">nodesBySimilarity</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
 <td>
 
 Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
@@ -5233,7 +5233,7 @@ Search the top scoring nodes according to a specified query returning no more th
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.edgesbysimilarity">edgesBySimilarity</strong></td>
-<td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
+<td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
 <td>
 
 Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
