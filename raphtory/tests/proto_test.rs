@@ -293,6 +293,8 @@ mod proto_test {
     #[cfg(feature = "search")]
     #[test]
     fn test_node_name() {
+        use raphtory::db::api::view::MaterializedGraph;
+
         let g = Graph::new();
         g.add_edge(1, "ben", "hamza", NO_PROPS, None).unwrap();
         g.add_edge(2, "haaroon", "hamza", NO_PROPS, None).unwrap();
