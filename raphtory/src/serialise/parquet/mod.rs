@@ -434,8 +434,7 @@ fn decode_graph_storage(
     let t_graph_path = path.as_ref().join(GRAPH_T_PATH);
 
     if std::fs::exists(&t_graph_path)? {
-        // TODO: Add secondary index column for graph temporal properties
-        let exclude = vec![TIME_COL];
+        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL];
         let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
         let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
 
@@ -443,7 +442,7 @@ fn decode_graph_storage(
             &g,
             &t_graph_path,
             TIME_COL,
-            None,
+            Some(SECONDARY_INDEX_COL),
             &t_props,
             &[],
             batch_size
