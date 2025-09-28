@@ -323,6 +323,7 @@ pub(crate) fn derive_schema(
     } else {
         make_schema(DataType::UInt64, fields)
     };
+
     Ok(schema)
 }
 
@@ -378,17 +379,21 @@ fn collect_prop_columns(
                 });
             Ok((cols, graph_type))
         };
+
     let mut prop_columns = vec![];
     let mut g_type: Option<GraphType> = None;
-    for path in ls_parquet_files(path)? {
+
+    // Collect columns from just the first file
+    if let Some(path) = ls_parquet_files(path)?.next() {
         let (columns, tpe) = prop_columns_fn(&path, exclude)?;
+
         if g_type.is_none() {
             g_type = tpe;
         }
+
         prop_columns.extend_from_slice(&columns);
     }
-    prop_columns.sort();
-    prop_columns.dedup();
+
     Ok((prop_columns, g_type))
 }
 
