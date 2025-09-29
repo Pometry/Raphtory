@@ -174,7 +174,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     }
 
     pub fn nodes_path(&self) -> Option<&Path> {
-        self.nodes_path.as_ref().map(|path| path.as_path())
+        self.nodes_path.as_deref()
     }
 
     pub fn load(

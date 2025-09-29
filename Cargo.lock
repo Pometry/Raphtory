@@ -1919,6 +1919,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "sysinfo",
  "tempfile",
  "thiserror 2.0.12",
 ]
@@ -4963,6 +4964,7 @@ dependencies = [
 name = "raphtory-core"
 version = "0.16.1"
 dependencies = [
+ "arrow-array",
  "bigdecimal",
  "chrono",
  "dashmap",

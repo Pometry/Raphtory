@@ -151,7 +151,7 @@ impl MemEdgeSegment {
         srcs: &[VID],
         dsts: &[VID],
         layer_id: usize,
-        cols: &[Box<dyn Array>],
+        cols: &[&dyn Array],
         col_mapping: &[usize], // mapping from cols to the property id
     ) {
         self.ensure_layer(layer_id);
@@ -188,7 +188,7 @@ impl MemEdgeSegment {
 
         for (prop_id, col) in col_mapping.iter().zip(cols) {
             let column = props.t_column_mut(*prop_id).unwrap();
-            column.append(col.as_ref(), mask);
+            column.append(*col, mask);
         }
 
         props.reset_t_len();
@@ -386,7 +386,7 @@ impl ArcLockedSegmentView {
     fn edge_par_iter_layer<'a>(
         &'a self,
         layer_id: usize,
-    ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + 'a {
         self.inner
             .layers
             .get(layer_id)
@@ -541,7 +541,6 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
     }
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS) -> Self::Entry<'a> {
-        let edge_pos = edge_pos.into();
         MemEdgeEntry::new(edge_pos, self.head())
     }
 
@@ -551,7 +550,6 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         layer_id: usize,
         locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>> {
-        let edge_pos = edge_pos.into();
         locked_head.and_then(|locked_head| {
             let layer = locked_head.as_ref().get(layer_id)?;
             layer
@@ -650,6 +648,7 @@ mod test {
         let dsts = vec![VID(2), VID(4), VID(6)];
         let cols: Vec<Box<dyn Array>> =
             vec![Box::new(StringArray::from(vec!["test1", "test2", "test3"]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
         let col_mapping = vec![0]; // property id 0
 
         // Bulk insert edges
@@ -709,6 +708,7 @@ mod test {
         let cols: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec![
             "test1", "test2", "test3", "test4",
         ]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
         let col_mapping = vec![0];
 
         // Bulk insert edges
@@ -780,6 +780,7 @@ mod test {
         let dsts = vec![VID(2), VID(4), VID(6)];
         let cols: Vec<Box<dyn Array>> =
             vec![Box::new(StringArray::from(vec!["test1", "test2", "test3"]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
         let col_mapping = vec![0];
 
         segment2.bulk_insert_edges_internal(
@@ -829,6 +830,7 @@ mod test {
         let srcs = vec![VID(3), VID(5)];
         let dsts = vec![VID(4), VID(6)];
         let cols: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec!["bulk1", "bulk2"]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
         let col_mapping = vec![0];
 
         segment.bulk_insert_edges_internal(
@@ -862,6 +864,7 @@ mod test {
         let dsts2 = vec![VID(10), VID(12), VID(14)];
         let cols2: Vec<Box<dyn Array>> =
             vec![Box::new(StringArray::from(vec!["bulk3", "bulk4", "bulk5"]))];
+        let cols2 = cols2.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
 
         segment.bulk_insert_edges_internal(
             &mask2,
@@ -908,6 +911,7 @@ mod test {
         let dsts = vec![VID(2), VID(4)];
         let cols: Vec<Box<dyn Array>> =
             vec![Box::new(StringArray::from(vec!["layer0_1", "layer0_2"]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
         let col_mapping = vec![0];
 
         segment.bulk_insert_edges_internal(
@@ -929,6 +933,7 @@ mod test {
         let srcs2 = vec![VID(5)];
         let dsts2 = vec![VID(6)];
         let cols2: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec!["layer1_1"]))];
+        let cols2 = cols2.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
 
         segment.bulk_insert_edges_internal(
             &mask2,

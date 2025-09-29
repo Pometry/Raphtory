@@ -11,7 +11,10 @@ use arrow_cast::cast;
 use arrow_schema::{DataType, TimeUnit};
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    ops::Deref,
+};
 
 pub(crate) struct DFView<I> {
     pub names: Vec<String>,
@@ -88,6 +91,14 @@ impl TimeCol {
 
     pub fn get(&self, i: usize) -> Option<i64> {
         (i < self.0.len()).then(|| self.0.value(i))
+    }
+}
+
+impl Deref for TimeCol {
+    type Target = [i64];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.values()
     }
 }
 

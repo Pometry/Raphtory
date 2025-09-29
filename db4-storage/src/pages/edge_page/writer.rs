@@ -65,7 +65,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         srcs: &[VID],
         dsts: &[VID],
         layer_id: usize,
-        cols: &[Box<dyn Array>],
+        cols: &[&dyn Array],
         cols_prop_ids: &[usize],
     ) {
         self.writer.bulk_insert_edges_internal(

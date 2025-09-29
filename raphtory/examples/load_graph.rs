@@ -6,35 +6,40 @@ static GLOBAL: MiMalloc = MiMalloc;
 #[cfg(all(feature = "io", feature = "arrow"))]
 fn main() {
     use std::path::PathBuf;
-    #[derive(serde::Serialize, PartialEq, PartialOrd, Eq, Ord)]
-    struct Edge {
-        src: String,
-        dst: String,
-    }
 
     use raphtory::{io::parquet_loaders::load_edges_from_parquet, prelude::*};
     use raphtory_storage::core_ops::CoreGraphOps;
+    let layer_map = [
+        (
+            "eip155:8217:5c13e303a62fc5dedf5b52d66873f2e59fedadc2",
+            "usd₮0_opt_edge_list",
+        ),
+        (
+            "eip155:8217:e2053bcf56d2030d2470fb454574237cf9ee3d4b",
+            "usdc_e_opt_edge_list",
+        ),
+        (
+            "eip155:8217:608792deb376cce1c9fa4d0e6b7b44f507cffa6a",
+            "usdc_opt_edge_list",
+        ),
+        (
+            "eip155:8217:9025095263d1e548dc890a7589a4c78038ac40ab",
+            "usdt_opt_edge_list",
+        ),
+        (
+            "eip155:8217:9025095263d1e548dc890a7589a4c78038ac40ab",
+            "usdt6_opt_edge_list",
+        ),
+        (
+            "eip155:8217:d077a400968890eacc75cdc901f0356c943e4fdb",
+            "usdt7_opt_edge_list",
+        ),
+    ]
+    .into_iter()
+    .collect::<std::collections::HashMap<_, _>>();
 
-    let graph_path = PathBuf::from("/Volumes/Work/graphs/raphtory_graph_1");
-    let layers = [
-        "usd₮0_opt_edge_list",
-        "dai_opt_edge_list",
-        "dola_opt_edge_list",
-        "susd_opt_edge_list",
-        "usdc_e_opt_edge_list",
-        "usdc_opt_edge_list",
-        "usdt_opt_edge_list",
-    ];
-    let layers = [
-        "dai_arb_edge_list",
-        // "usdc_arb_edge_list",
-        // "usdc_e_arb_edge_list",
-        "usde_arb_edge_list",
-        // "usdt_arb_edge_list",
-        "usdx_arb_edge_list",
-    ];
-    let parquet_root = "/Volumes/Work/assets/optimism";
-    let parquet_root = "/Volumes/Work/assets/arbitrum_one";
+    let graph_path = PathBuf::from("/Volumes/pometry/work/graphs/kaia_1");
+    let parquet_root = "/Volumes/pometry/work/assets/kaia";
     if graph_path.exists() {
         let now = std::time::Instant::now();
         let g = Graph::load_from_path(&graph_path);
@@ -62,72 +67,50 @@ fn main() {
                 g.latest_time(),
                 g.unique_layers().collect::<Vec<_>>()
             );
-
-            // let mut all_edges_count = 0;
-            // let mut all_nodes_count = 0;
-
-            // let mut wtr = csv::WriterBuilder::new()
-            //     .has_headers(true)
-            //     .from_path(format!(
-            //         "/Volumes/Work/assets/usd_0_opt_edge_list_sampl_actual.csv"
-            //     ))
-            //     .expect("Failed to create CSV writer");
-
-            // let mut edges = vec![];
-            // for n in g.nodes() {
-            //     all_nodes_count += 1usize;
-            //     for e in n.out_edges() {
-            //         all_edges_count += 1usize;
-            //         // edges.push(Edge {
-            //         //     src: e.src().name().to_string(),
-            //         //     dst: e.dst().name().to_string(),
-            //         // });
-            //     }
-            // }
-            // edges.sort();
-
-            // for edge in edges {
-            //     wtr.serialize(edge).expect("Failed to write edge to CSV");
-            // }
-
-            // println!("Total edges in graph: {all_edges_count}, total nodes: {all_nodes_count}");
         };
         let now = std::time::Instant::now();
-        for layer in layers {
-            let parquet_path = format!("{parquet_root}/{layer}");
-            println!("Loading layer: {layer} from {parquet_path}");
 
-            load_edges_from_parquet(
-                &g,
-                &parquet_path,
-                "transaction_timestamp",
-                "transfer_sender_cluster_id",
-                "transfer_receiver_cluster_id",
-                &[
-                    "transaction_hash",
-                    "transfer_index",
-                    "transfer_amount_asset",
-                    "transfer_amount_usd",
-                    "transfer_sender_name",
-                    "transfer_receiver_name",
-                    "receiver_address",
-                    "transfer_sender_category",
-                    "transfer_receiver_category",
-                ],
-                &[],
-                None,
-                Some(layer),
-                None,
-                Some(2_000_000),
-            )
-            .expect("Failed to load edges from parquet");
+        for entry in std::fs::read_dir(parquet_root).expect("Failed to read parquet root") {
+            let entry = entry.expect("Failed to read entry");
+            let path = entry.path();
+            if path.is_dir() {
+                let dir_name = path.file_name().unwrap().to_str().unwrap();
+                let layer_name = layer_map
+                    .get(dir_name.strip_prefix("asset_id=").unwrap())
+                    .unwrap_or_else(|| panic!("{dir_name} not in layer_map")); //.map_or(dir_name, |n| *n);
 
-            print_stats_fn(&g);
+                println!("Loading layer: {layer_name} from {path:?}");
+
+                load_edges_from_parquet(
+                    &g,
+                    &path,
+                    "transaction_timestamp",
+                    "transfer_sender_cluster_id",
+                    "transfer_receiver_cluster_id",
+                    &[
+                        "transaction_hash",
+                        "transfer_index",
+                        "transfer_amount_asset",
+                        "transfer_amount_usd",
+                        "transfer_sender_name",
+                        "transfer_receiver_name",
+                        "receiver_address",
+                        "transfer_sender_category",
+                        "transfer_receiver_category",
+                    ],
+                    &[],
+                    None,
+                    Some(layer_name),
+                    None,
+                    Some(2_000_000),
+                )
+                .expect("Failed to load edges from parquet");
+
+                print_stats_fn(&g);
+            }
         }
-        println!("Total time: {:?}", now.elapsed());
 
-        // let g = Graph::load_from_path(&graph_path);
-        // print_stats_fn(&g);
+        println!("Total time: {:?}", now.elapsed());
     }
 }
 

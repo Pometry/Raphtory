@@ -473,8 +473,23 @@ pub fn load_edges_from_df<
             // Add temporal & constant properties to edges
             sc.spawn(|_| {
                 write_locked_graph.edges.par_iter_mut().for_each(|shard| {
-                    let mut t_props = vec![];
-                    let mut c_props = vec![];
+                    let mut t_props: Vec<(usize, Prop)> = vec![];
+                    let mut c_props: Vec<(usize, Prop)> = vec![];
+
+                    // let mut writer = shard.writer();
+                    // let cols = prop_cols.cols();
+
+                    // writer.bulk_add_edges(
+                    //     mask,
+                    //     *time_col,
+                    //     start_idx,
+                    //     eid_col_resolved,
+                    //     src_col_resolved,
+                    //     dst_col_resolved,
+                    //     0, // use the mask to select for layer
+                    //     &cols,
+                    //     prop_cols.prop_ids(),
+                    // );
 
                     for (idx, (((((src, dst), time), eid), layer), exists)) in src_col_resolved
                         .iter()
