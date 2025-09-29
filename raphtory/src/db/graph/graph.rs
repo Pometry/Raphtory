@@ -586,6 +586,3 @@ impl Graph {
         PersistentGraph::from_storage(self.inner.clone())
     }
 }
-
-#[cfg(test)]
-mod db_tests {}

@@ -14,6 +14,3 @@ pub trait EdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
-
-#[cfg(test)]
-mod test {}

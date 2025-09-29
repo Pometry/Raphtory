@@ -487,6 +487,3 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             .map_err(into_graph_err)
     }
 }
-
-#[cfg(test)]
-mod node_test {}

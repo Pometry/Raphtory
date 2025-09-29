@@ -6,13 +6,258 @@ mod test {
     use bigdecimal::BigDecimal;
     use itertools::Itertools;
     use polars_arrow::array::Utf8Array;
-    use std::{path::PathBuf, str::FromStr};
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
     use tempfile::TempDir;
 
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
-    use raphtory::{db::graph::graph::assert_graph_equal, prelude::*};
+    use proptest::{prelude::*, sample::size_range};
+    use raphtory::{
+        db::{api::view::StaticGraphViewOps, graph::graph::assert_graph_equal},
+        prelude::*,
+    };
     use raphtory_api::core::entities::properties::prop::Prop;
-    use raphtory_storage::disk::ParquetLayerCols;
+    use raphtory_storage::{
+        disk::{ParquetLayerCols, Time},
+        graph::graph::GraphStorage,
+    };
+    use rayon::prelude::*;
+
+    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
+        let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
+        Graph::from(GraphStorage::from(storage))
+    }
+
+    fn check_graph_counts(edges: &[(u64, u64, Time, f64)], g: &impl StaticGraphViewOps) {
+        // check number of nodes
+        let expected_len = edges
+            .iter()
+            .flat_map(|(src, dst, _, _)| vec![*src, *dst])
+            .sorted()
+            .dedup()
+            .count();
+        assert_eq!(g.count_nodes(), expected_len);
+
+        // check number of edges
+        let expected_len = edges
+            .iter()
+            .map(|(src, dst, _, _)| (*src, *dst))
+            .sorted()
+            .dedup()
+            .count();
+        assert_eq!(g.count_edges(), expected_len);
+
+        // get edges back
+        assert!(edges
+            .iter()
+            .all(|(src, dst, _, _)| g.edge(*src, *dst).is_some()));
+
+        assert!(edges.iter().all(|(src, dst, _, _)| g.has_edge(*src, *dst)));
+
+        // check earlies_time
+        let expected = edges.iter().map(|(_, _, t, _)| *t).min().unwrap();
+        assert_eq!(g.earliest_time(), Some(expected));
+
+        // check latest_time
+        let expected = edges.iter().map(|(_, _, t, _)| *t).max().unwrap();
+        assert_eq!(g.latest_time(), Some(expected));
+
+        // get edges over window
+
+        let g = g.window(i64::MIN, i64::MAX).layers(Layer::Default).unwrap();
+
+        // get edges back from full windows with all layers
+        assert!(edges
+            .iter()
+            .all(|(src, dst, _, _)| g.edge(*src, *dst).is_some()));
+
+        assert!(edges.iter().all(|(src, dst, _, _)| g.has_edge(*src, *dst)));
+
+        // check earlies_time
+        let expected = edges.iter().map(|(_, _, t, _)| *t).min().unwrap();
+        assert_eq!(g.earliest_time(), Some(expected));
+
+        // check latest_time
+        let expected = edges.iter().map(|(_, _, t, _)| *t).max().unwrap();
+        assert_eq!(g.latest_time(), Some(expected));
+    }
+
+    #[test]
+    fn test_1_edge() {
+        let test_dir = tempfile::tempdir().unwrap();
+        let edges = vec![(1u64, 2u64, 0i64, 4.0)];
+        let g = make_simple_graph(test_dir, &edges);
+        check_graph_counts(&edges, &g);
+    }
+
+    #[test]
+    fn test_2_edges() {
+        let test_dir = tempfile::tempdir().unwrap();
+        let edges = vec![(0, 0, 0, 0.0), (4, 1, 2, 0.0)];
+        let g = make_simple_graph(test_dir, &edges);
+        check_graph_counts(&edges, &g);
+    }
+
+    #[test]
+    fn graph_degree_window() {
+        let test_dir = tempfile::tempdir().unwrap();
+        let mut edges = vec![
+            (1u64, 1u64, 0i64, 4.0),
+            (1, 1, 1, 6.0),
+            (1, 2, 1, 1.0),
+            (1, 3, 2, 2.0),
+            (2, 1, -1, 3.0),
+            (3, 2, 7, 5.0),
+        ];
+
+        edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
+
+        let g = make_simple_graph(test_dir, &edges);
+        let expected = vec![(2, 3, 0), (1, 0, 0), (1, 0, 0)];
+        check_degrees(&g, &expected)
+    }
+
+    fn check_degrees(g: &impl StaticGraphViewOps, expected: &[(usize, usize, usize)]) {
+        let actual = (1..=3)
+            .map(|i| {
+                let v = g.node(i).unwrap();
+                (
+                    v.window(-1, 7).in_degree(),
+                    v.window(1, 7).out_degree(),
+                    0, // v.window(0, 1).degree(), // we don't support both direction edges yet
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_windows() {
+        let test_dir = tempfile::tempdir().unwrap();
+        let mut edges = vec![
+            (1u64, 1u64, -2i64, 4.0),
+            (1u64, 2u64, -1i64, 4.0),
+            (1u64, 2u64, 0i64, 4.0),
+            (1u64, 3u64, 1i64, 4.0),
+            (1u64, 4u64, 2i64, 4.0),
+            (1u64, 4u64, 3i64, 4.0),
+        ];
+
+        edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
+
+        let g = make_simple_graph(test_dir, &edges);
+
+        let w_g = g.window(-1, 0);
+
+        // let actual = w_g.edges().count();
+        // let expected = 1;
+        // assert_eq!(actual, expected);
+
+        let out_v_deg = w_g.nodes().out_degree().iter_values().collect::<Vec<_>>();
+        assert_eq!(out_v_deg, vec![1, 0]);
+
+        let w_g = g.window(-2, 0);
+        let out_v_deg = w_g.nodes().out_degree().iter_values().collect::<Vec<_>>();
+        assert_eq!(out_v_deg, vec![2, 0]);
+
+        let w_g = g.window(-2, 4);
+        let out_v_deg = w_g.nodes().out_degree().iter_values().collect::<Vec<_>>();
+        assert_eq!(out_v_deg, vec![4, 0, 0, 0]);
+
+        let in_v_deg = w_g.nodes().in_degree().iter_values().collect::<Vec<_>>();
+        assert_eq!(in_v_deg, vec![1, 1, 1, 1]);
+    }
+
+    #[test]
+    fn test_temp_props() {
+        let test_dir = tempfile::tempdir().unwrap();
+        let mut edges = vec![
+            (1u64, 2u64, -2i64, 1.0),
+            (1u64, 2u64, -1i64, 2.0),
+            (1u64, 2u64, 0i64, 3.0),
+            (1u64, 2u64, 1i64, 4.0),
+            (1u64, 3u64, 2i64, 1.0),
+            (1u64, 3u64, 3i64, 2.0),
+        ];
+
+        edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
+
+        let g = make_simple_graph(test_dir, &edges);
+
+        // check all properties
+        let edge_t_props = weight_props(&g);
+
+        assert_eq!(
+            edge_t_props,
+            vec![(-2, 1.0), (-1, 2.0), (0, 3.0), (1, 4.0), (2, 1.0), (3, 2.0)]
+        );
+
+        // window the graph half way
+        let w_g = g.window(-2, 0);
+        let edge_t_props = weight_props(&w_g);
+        assert_eq!(edge_t_props, vec![(-2, 1.0), (-1, 2.0)]);
+
+        // window the other half
+        let w_g = g.window(0, 3);
+        let edge_t_props = weight_props(&w_g);
+        assert_eq!(edge_t_props, vec![(0, 3.0), (1, 4.0), (2, 1.0)]);
+    }
+
+    fn weight_props(g: &impl StaticGraphViewOps) -> Vec<(i64, f64)> {
+        let edge_t_props: Vec<_> = g
+            .edges()
+            .into_iter()
+            .flat_map(|e| {
+                e.properties()
+                    .temporal()
+                    .get("weight")
+                    .into_iter()
+                    .flat_map(|t_prop| t_prop.into_iter())
+            })
+            .filter_map(|(t, t_prop)| t_prop.into_f64().map(|v| (t, v)))
+            .collect();
+        edge_t_props
+    }
+
+    proptest! {
+        #[test]
+        fn test_graph_count_nodes(
+            edges in any_with::<Vec<(u64, u64, Time, f64)>>(size_range(1..=1000).lift()).prop_map(|mut v| {
+                v.sort_by(|(a1, b1, c1, _),(a2, b2, c2, _) | {
+                    (a1, b1, c1).cmp(&(a2, b2, c2))
+                });
+                v
+            })
+        ) {
+            let test_dir = tempfile::tempdir().unwrap();
+            let g = make_simple_graph(test_dir, &edges);
+            check_graph_counts(&edges, &g);
+
+        }
+    }
+
+    #[test]
+    fn test_par_nodes() {
+        let test_dir = TempDir::new().unwrap();
+
+        let mut edges = vec![
+            (1u64, 2u64, -2i64, 1.0),
+            (1u64, 2u64, -1i64, 2.0),
+            (1u64, 2u64, 0i64, 3.0),
+            (1u64, 2u64, 1i64, 4.0),
+            (1u64, 3u64, 2i64, 1.0),
+            (1u64, 3u64, 3i64, 2.0),
+        ];
+
+        edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
+
+        let g = make_simple_graph(test_dir.path(), &edges);
+
+        assert_eq!(g.nodes().par_iter().count(), g.count_nodes())
+    }
 
     #[test]
     fn test_no_prop_nodes() {

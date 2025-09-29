@@ -592,6 +592,3 @@ impl<'graph, G: GraphViewOps<'graph>> WindowedGraph<G> {
         WindowedGraph { graph, start, end }
     }
 }
-
-#[cfg(test)]
-mod views_test {}

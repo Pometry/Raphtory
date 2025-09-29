@@ -69,6 +69,3 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for ValidGraph<
             && self.graph.internal_filter_edge_layer(edge, layer)
     }
 }
-
-#[cfg(test)]
-mod tests {}

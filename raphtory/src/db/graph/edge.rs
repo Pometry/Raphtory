@@ -711,6 +711,3 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
         EdgeView::new_filtered(self.base_graph.clone(), filtered_graph, self.edge)
     }
 }
-
-#[cfg(test)]
-mod test_edge {}
