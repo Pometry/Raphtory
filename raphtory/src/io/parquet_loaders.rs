@@ -271,7 +271,7 @@ pub(crate) fn process_parquet_file_to_df(
         .collect();
 
     let chunks = match batch_size {
-        None => chunks,
+        None => chunks.with_batch_size(100_000),
         Some(batch_size) => chunks.with_batch_size(batch_size),
     };
 
