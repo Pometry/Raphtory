@@ -1809,6 +1809,7 @@ def test_mismatched_window_step_and_errors():
         rolling(window: {duration: "1 day"}, step: {epoch: 3600000}) {
           page(limit: 3) {
             start
+            end
           }
         }
       }
@@ -1824,7 +1825,10 @@ def test_mismatched_window_step_and_errors():
                                 2024, 12, 31, 1, 0, tzinfo=timezone.utc
                             ).timestamp()
                         )
-                        * 1000
+                        * 1000,
+                        "end": int(
+                            datetime(2025, 1, 1, 1, 0, tzinfo=timezone.utc).timestamp()
+                        ) * 1000
                     },
                     {
                         "start": int(
@@ -1832,7 +1836,10 @@ def test_mismatched_window_step_and_errors():
                                 2024, 12, 31, 2, 0, tzinfo=timezone.utc
                             ).timestamp()
                         )
-                        * 1000
+                        * 1000,
+                        "end": int(
+                            datetime(2025, 1, 1, 2, 0, tzinfo=timezone.utc).timestamp()
+                        ) * 1000
                     },
                     {
                         "start": int(
@@ -1840,12 +1847,45 @@ def test_mismatched_window_step_and_errors():
                                 2024, 12, 31, 3, 0, tzinfo=timezone.utc
                             ).timestamp()
                         )
-                        * 1000
+                        * 1000,
+                        "end": int(
+                            datetime(2025, 1, 1, 3, 0, tzinfo=timezone.utc).timestamp()
+                        ) * 1000
                     },
                 ]
             }
         }
     }
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # test the last windows for each query to test boundaries
+    # 97 elements, so offset = 95 yields the last 2 elements. If they weren't the last windows, limit = 3 would yield 3 windows instead of 2
+    query = """
+    {
+      graph(path: "g") {
+        rolling(window: {duration: "1 day"}, step: {epoch: 3600000}) {
+          page(limit: 3, offset: 95) { 
+            start
+            end
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "rolling": {
+            "page": [
+                {
+                    "start": int(datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                    "end": int(datetime(2025, 1, 5, 0, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                },
+                {
+                    "start": int(datetime(2025, 1, 4, 1, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                    "end": int(datetime(2025, 1, 5, 1, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                }
+            ]
+        }
+    }}
     queries_and_expected_outputs.append((query, expected_output))
 
     # go forward 1 day (end of window), then go back 1 hour (start of window)
@@ -2019,12 +2059,45 @@ def test_mismatched_window_step_and_errors():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
+    # last window, 31418182 items
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "1") {
+          rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
+            page(limit: 3, offset: 31418180) {
+              start
+              end
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "node": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(datetime(2025, 1, 3, 23, 59, 59, 991_000, tzinfo=timezone.utc).timestamp() * 1000),
+                        "end": int(datetime(2025, 1, 4, 23, 59, 59, 991_000, tzinfo=timezone.utc).timestamp() * 1000)
+                    },
+                    {
+                        "start": int(datetime(2025, 1, 4, 0, 0, 0, 2_000, tzinfo=timezone.utc).timestamp() * 1000),
+                        "end": int(datetime(2025, 1, 5, 0, 0, 0, 2_000, tzinfo=timezone.utc).timestamp() * 1000)
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
     query = """
     {
       graph(path: "g") {
         node(name: "1") {
           rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
-            page(limit: 3) {
+            list {
               start
               end
             }
@@ -2037,7 +2110,7 @@ def test_mismatched_window_step_and_errors():
         "graph": {
             "node": {
                 "rolling": {
-                    "page": [
+                    "list": [
                         {
                             "start": int(
                                 datetime(
@@ -2080,6 +2153,20 @@ def test_mismatched_window_step_and_errors():
                             )
                             * 1000,
                         },
+                        {
+                            "start": int(
+                                datetime(
+                                    2025, 1, 4, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                            "end": int(
+                                datetime(
+                                    2025, 1, 5, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
+                            )
+                            * 1000,
+                        },
                     ]
                 }
             }
@@ -2087,13 +2174,12 @@ def test_mismatched_window_step_and_errors():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
-    # nodes tests
     query = """
     {
       graph(path: "g") {
         nodes {
           page(limit: 2) {
-            rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
+            rolling(window: {duration: "1 day"}, step: {epoch: 60000}) {
               page(limit: 2) {
                 start
                 end
@@ -2118,9 +2204,8 @@ def test_mismatched_window_step_and_errors():
                                             12,
                                             31,
                                             0,
+                                            1,
                                             0,
-                                            0,
-                                            11_000,
                                             tzinfo=timezone.utc,
                                         ).timestamp()
                                         * 1000
@@ -2131,9 +2216,8 @@ def test_mismatched_window_step_and_errors():
                                             1,
                                             1,
                                             0,
+                                            1,
                                             0,
-                                            0,
-                                            11_000,
                                             tzinfo=timezone.utc,
                                         ).timestamp()
                                         * 1000
@@ -2146,9 +2230,8 @@ def test_mismatched_window_step_and_errors():
                                             12,
                                             31,
                                             0,
+                                            2,
                                             0,
-                                            0,
-                                            22_000,
                                             tzinfo=timezone.utc,
                                         ).timestamp()
                                         * 1000
@@ -2159,9 +2242,8 @@ def test_mismatched_window_step_and_errors():
                                             1,
                                             1,
                                             0,
+                                            2,
                                             0,
-                                            0,
-                                            22_000,
                                             tzinfo=timezone.utc,
                                         ).timestamp()
                                         * 1000
@@ -2180,9 +2262,8 @@ def test_mismatched_window_step_and_errors():
                                             12,
                                             31,
                                             0,
+                                            1,
                                             0,
-                                            0,
-                                            11_000,
                                             tzinfo=timezone.utc,
                                         ).timestamp()
                                         * 1000
@@ -2193,9 +2274,8 @@ def test_mismatched_window_step_and_errors():
                                             1,
                                             1,
                                             0,
+                                            1,
                                             0,
-                                            0,
-                                            11_000,
                                             tzinfo=timezone.utc,
                                         ).timestamp()
                                         * 1000
@@ -2208,9 +2288,8 @@ def test_mismatched_window_step_and_errors():
                                             12,
                                             31,
                                             0,
+                                            2,
                                             0,
-                                            0,
-                                            22_000,
                                             tzinfo=timezone.utc,
                                         ).timestamp()
                                         * 1000
@@ -2221,9 +2300,8 @@ def test_mismatched_window_step_and_errors():
                                             1,
                                             1,
                                             0,
+                                            2,
                                             0,
-                                            0,
-                                            22_000,
                                             tzinfo=timezone.utc,
                                         ).timestamp()
                                         * 1000
@@ -2236,6 +2314,51 @@ def test_mismatched_window_step_and_errors():
             }
         }
     }
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # last window
+    query = """
+    {
+      graph(path: "g") {
+        nodes {
+          page(limit: 2) {
+            rolling(window: {duration: "1 day"}, step: {epoch: 60000}) {
+              page(limit: 2, offset: 5760) {
+                start
+                end
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "nodes": {
+            "page": [
+                {
+                    "rolling": {
+                        "page": [
+                            {
+                                "start": int(datetime(2025, 1, 4, 0, 1, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 5, 0, 1, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            }
+                        ]
+                    }
+                },
+                {
+                    "rolling": {
+                        "page": [
+                            {
+                                "start": int(datetime(2025, 1, 4, 0, 1, 0, tzinfo=timezone.utc).timestamp()) * 1000,
+                                "end": int(datetime(2025, 1, 5, 0, 1, 0, tzinfo=timezone.utc).timestamp()) * 1000
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }}
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -2244,7 +2367,7 @@ def test_mismatched_window_step_and_errors():
         nodes {
           page(limit: 2) {
             rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
-              page(limit: 2) {
+              list {
                 start
                 end
               }
@@ -2260,7 +2383,7 @@ def test_mismatched_window_step_and_errors():
                 "page": [
                     {
                         "rolling": {
-                            "page": [
+                            "list": [
                                 {
                                     "start": int(
                                         datetime(
@@ -2285,6 +2408,34 @@ def test_mismatched_window_step_and_errors():
                                     "end": int(
                                         datetime(
                                             2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 3, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 4, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 4, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 5, 0, 0, tzinfo=timezone.utc
                                         ).timestamp()
                                     )
                                     * 1000,
@@ -2294,7 +2445,7 @@ def test_mismatched_window_step_and_errors():
                     },
                     {
                         "rolling": {
-                            "page": [
+                            "list": [
                                 {
                                     "start": int(
                                         datetime(
@@ -2319,6 +2470,34 @@ def test_mismatched_window_step_and_errors():
                                     "end": int(
                                         datetime(
                                             2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 3, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 4, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 4, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 5, 0, 0, tzinfo=timezone.utc
                                         ).timestamp()
                                     )
                                     * 1000,
@@ -2332,7 +2511,6 @@ def test_mismatched_window_step_and_errors():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
-    # path from nodes tests, epoch is 1 minute
     query = """
     {
       graph(path: "g") {
@@ -2340,7 +2518,7 @@ def test_mismatched_window_step_and_errors():
           neighbours {
             rolling(window: {duration: "1 day"}, step: {epoch: 60000}) {
               page(limit: 2) {
-                page(limit: 2) {
+                list {
                   start
                   end
                 }
@@ -2358,7 +2536,7 @@ def test_mismatched_window_step_and_errors():
                     "rolling": {
                         "page": [
                             {
-                                "page": [
+                                "list": [
                                     {
                                         "start": int(
                                             datetime(
@@ -2390,7 +2568,7 @@ def test_mismatched_window_step_and_errors():
                                 ]
                             },
                             {
-                                "page": [
+                                "list": [
                                     {
                                         "start": int(
                                             datetime(
@@ -2436,7 +2614,7 @@ def test_mismatched_window_step_and_errors():
           neighbours {
             rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
               page(limit: 2) {
-                page(limit: 2) {
+                list {
                   start
                   end
                 }
@@ -2454,7 +2632,7 @@ def test_mismatched_window_step_and_errors():
                     "rolling": {
                         "page": [
                             {
-                                "page": [
+                                "list": [
                                     {
                                         "start": int(
                                             datetime(
@@ -2486,7 +2664,7 @@ def test_mismatched_window_step_and_errors():
                                 ]
                             },
                             {
-                                "page": [
+                                "list": [
                                     {
                                         "start": int(
                                             datetime(
@@ -2525,7 +2703,6 @@ def test_mismatched_window_step_and_errors():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
-    # edge tests
     query = """
     {
       graph(path: "g") {
@@ -2592,6 +2769,35 @@ def test_mismatched_window_step_and_errors():
             }
         }
     }
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # last window
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "1", dst: "2") {
+          rolling(window: {duration: "1 day"}, step: {epoch: 60000}) {
+            page(limit: 2, offset: 5760) {
+              start
+              end
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "edge": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(datetime(2025, 1, 4, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000,
+                        "end": int(datetime(2025, 1, 5, 0, 1, tzinfo=timezone.utc).timestamp()) * 1000
+                    }
+                ]
+            }
+        }
+    }}
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -2676,14 +2882,13 @@ def test_mismatched_window_step_and_errors():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
-    # edges tests
     query = """
     {
       graph(path: "g") {
         edges {
           rolling(window: {duration: "1 day"}, step: {epoch: 60000}) {
             page(limit: 2) {
-              page(limit: 2) {
+              list {
                 start
                 end
               }
@@ -2699,7 +2904,21 @@ def test_mismatched_window_step_and_errors():
                 "rolling": {
                     "page": [
                         {
-                            "page": [
+                            "list": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024, 12, 31, 0, 1, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 1, 0, 1, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
                                 {
                                     "start": int(
                                         datetime(
@@ -2731,7 +2950,21 @@ def test_mismatched_window_step_and_errors():
                             ]
                         },
                         {
-                            "page": [
+                            "list": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2024, 12, 31, 0, 2, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 1, 0, 2, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
                                 {
                                     "start": int(
                                         datetime(
@@ -2775,7 +3008,7 @@ def test_mismatched_window_step_and_errors():
         edges {
           rolling(window: {epoch: 3600000}, step: {duration: "1 day"}) {
             page(limit: 2) {
-              page(limit: 2) {
+              list {
                 start
                 end
               }
@@ -2791,7 +3024,21 @@ def test_mismatched_window_step_and_errors():
                 "rolling": {
                     "page": [
                         {
-                            "page": [
+                            "list": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
                                 {
                                     "start": int(
                                         datetime(
@@ -2823,7 +3070,21 @@ def test_mismatched_window_step_and_errors():
                             ]
                         },
                         {
-                            "page": [
+                            "list": [
+                                {
+                                    "start": int(
+                                        datetime(
+                                            2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                    "end": int(
+                                        datetime(
+                                            2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000,
+                                },
                                 {
                                     "start": int(
                                         datetime(
@@ -2870,10 +3131,12 @@ def test_alignment():
     dt1 = datetime(2025, 3, 15, 14, 37, 52)  # March 15
     dt2 = datetime(2025, 7, 8, 9, 12, 5)  # July 8
     dt3 = datetime(2025, 11, 22, 21, 45, 30)  # November 22
+    dt_edge = datetime(2025, 8, 30, 5, 30, 15) # August 30
 
     g.add_node(dt1, 1)
     g.add_node(dt2, 1)
     g.add_node(dt3, 1)
+    g.add_edge(dt_edge, 1, 2)
 
     query = """
     {
@@ -3208,6 +3471,7 @@ def test_alignment():
             }
         }
     }
+    queries_and_expected_outputs.append((query, expected_output))
 
     # discrete interval — no alignment (1000 ms = 1 second)
     query = """
@@ -3222,7 +3486,7 @@ def test_alignment():
       }
     }
     """
-    earliest = datetime(2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc)
+    # earliest = 2025-03-15 14:37:52
     expected_output = {
         "graph": {
             "rolling": {
@@ -3283,6 +3547,370 @@ def test_alignment():
             }
         }
     }
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "1") {
+          expanding(step: {duration: "2 days"}) {
+            page(limit: 2) {
+              end
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "node": {
+            "expanding": {
+                "page": [
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 3, 19, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # last window
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "1") {
+          expanding(step: {duration: "2 days"}) {
+            page(limit: 2, offset: 126) {
+              end
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "node": {
+            "expanding": {
+                "page": [
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 11, 24, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # no alignment bc epoch
+    query = """
+    {
+      graph(path: "g") {
+        nodes {
+          page(limit: 2) {
+            expanding(step: {epoch: 60000}) {
+              page(limit: 2) {
+                end
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "nodes": {
+            "page": [
+                {
+                    "expanding": {
+                        "page": [
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 3, 15, 14, 38, 52, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            },
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 3, 15, 14, 39, 52, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            }
+                        ]
+                    }
+                },
+                {
+                    "expanding": {
+                        "page": [
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 3, 15, 14, 38, 52, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            },
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 3, 15, 14, 39, 52, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            }
+                        ]
+                    }
+                },
+            ]
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # last window
+    query = """
+    {
+      graph(path: "g") {
+        nodes {
+          page(limit: 2) {
+            expanding(step: {epoch: 60000}) {
+              page(limit: 2, offset: 363307) {
+                end
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "nodes": {
+            "page": [
+                {
+                    "expanding": {
+                        "page": [
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 11, 22, 21, 45, 52, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            }
+                        ]
+                    }
+                },
+                {
+                    "expanding": {
+                        "page": [
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 11, 22, 21, 45, 52, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "1", dst: "2") {
+          expanding(step: {duration: "3 months"}) {
+            list {
+              end
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "edge": {
+            "expanding": {
+                "list": [
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 9, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 12, 1, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        edges {
+          expanding(step: {duration: "10 weeks"}) {
+            list {
+              list {
+                end
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "edges": {
+            "expanding": {
+                "list": [
+                    {
+                        "list": [
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 5, 22, 0, 0, 0, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            }
+                        ]
+                    },
+                    {
+                        "list": [
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 7, 31, 0, 0, 0, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            }
+                        ]
+                    },
+                    {
+                        "list": [
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 10, 9, 0, 0, 0, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            }
+                        ]
+                    },
+                    {
+                        "list": [
+                            {
+                                "end": int(
+                                    datetime(
+                                        2025, 12, 18, 0, 0, 0, tzinfo=timezone.utc
+                                    ).timestamp()
+                                )
+                                * 1000
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "1") {
+          neighbours {
+            expanding(step: {duration: "70 days"}) {
+              page(limit: 2) {
+                list {
+                  end
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "node": {
+            "neighbours": {
+                "expanding": {
+                    "page": [
+                        {
+                            "list": [
+                                {
+                                    "end": int(
+                                        datetime(
+                                            2025, 5, 24, 0, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000
+                                }
+                            ]
+                        },
+                        {
+                            "list": [
+                                {
+                                    "end": int(
+                                        datetime(
+                                            2025, 8, 2, 0, 0, 0, tzinfo=timezone.utc
+                                        ).timestamp()
+                                    )
+                                    * 1000
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    }}
     queries_and_expected_outputs.append((query, expected_output))
 
     run_group_graphql_test(queries_and_expected_outputs, g)
