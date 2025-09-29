@@ -24,10 +24,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{
-    path::PathBuf,
-    thread::{self, JoinHandle},
-};
+use std::{path::PathBuf, sync::Arc};
 use tokio::runtime::Runtime;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
@@ -42,19 +39,21 @@ pub struct PyOpenAIEmbeddings {
     project_id: Option<String>,
 }
 
+// TODO text-embedding-3-small as default is duplicated, try to make it only in one place
+
 #[pymethods]
 impl PyOpenAIEmbeddings {
     #[new]
-    #[pyo3(signature = (model, api_base=None, api_key_env=None, org_id=None, project_id=None))]
+    #[pyo3(signature = (model="text-embedding-3-small", api_base=None, api_key_env=None, org_id=None, project_id=None))]
     fn new(
-        model: String,
+        model: &str,
         api_base: Option<String>,
         api_key_env: Option<String>,
         org_id: Option<String>,
         project_id: Option<String>,
     ) -> Self {
         Self {
-            model,
+            model: model.to_owned(),
             api_base,
             api_key_env,
             org_id,
@@ -74,11 +73,14 @@ impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
     }
 }
 
-impl EmbeddingFunction for Py<PyFunction> {
+impl EmbeddingFunction for Arc<Py<PyFunction>> {
     fn call(&self, text: &str) -> Vec<f32> {
         Python::with_gil(|py| {
             // TODO: remove unwraps?
-            let any = self.call1(py, (text,)).unwrap();
+            let any = self
+                .call1(py, (text,))
+                .inspect_err(|e| println!("{e:?}")) // TODO: remove
+                .unwrap();
             let list = any.downcast_bound::<PyList>(py).unwrap();
             list.iter().map(|value| value.extract().unwrap()).collect()
         })
@@ -86,11 +88,23 @@ impl EmbeddingFunction for Py<PyFunction> {
 }
 
 #[pyfunction]
-fn embedding_server(function: Py<PyFunction>, address: String) -> PyEmbeddingServer {
-    PyEmbeddingServer {
-        function,
-        address,
-        running: None,
+pub fn embedding_server(address: String) -> EmbeddingServerDecorator {
+    EmbeddingServerDecorator { address }
+}
+
+#[pyclass]
+struct EmbeddingServerDecorator {
+    address: String,
+}
+
+#[pymethods]
+impl EmbeddingServerDecorator {
+    fn __call__(&self, function: Py<PyFunction>) -> PyEmbeddingServer {
+        PyEmbeddingServer {
+            function: function.into(),
+            address: self.address.clone(),
+            running: None,
+        }
     }
 }
 
@@ -100,8 +114,8 @@ struct RunningServer {
 }
 
 #[pyclass(name = "EmbeddingServer")]
-struct PyEmbeddingServer {
-    function: Py<PyFunction>,
+pub struct PyEmbeddingServer {
+    function: Arc<Py<PyFunction>>,
     address: String,
     running: Option<RunningServer>, // TODO: use all of these ideas for the GraphServer implementation
 }
@@ -111,7 +125,7 @@ impl PyEmbeddingServer {
     fn create_running_server(&self) -> RunningServer {
         assert!(self.running.is_none()); // TODO: return error
         let runtime = build_runtime();
-        let server = runtime.block_on(serve_custom_embedding(&self.address, self.function));
+        let server = runtime.block_on(serve_custom_embedding(&self.address, self.function.clone()));
         RunningServer { runtime, server }
     }
 }
@@ -120,12 +134,11 @@ impl PyEmbeddingServer {
 impl PyEmbeddingServer {
     fn run(&self) {
         let running = self.create_running_server();
-        running.runtime.block_on(running.server.start());
+        running.runtime.block_on(running.server.wait());
     }
 
     fn start(mut slf: PyRefMut<'_, Self>) {
         let running = slf.create_running_server();
-        running.runtime.spawn(running.server.start());
         slf.running = Some(running)
     }
 

@@ -1,28 +1,10 @@
+from time import sleep
 import pytest
 from raphtory import Graph
-from raphtory.vectors import VectorisedGraph
-
-
-
-@pytest.fixture(autouse=True)
-def test_server():
-    # Start your server as a subprocess
-    process = subprocess.Popen(
-        ["python", "-m", "http.server", "8000"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    # Give it a moment to start
-    time.sleep(1)
-
-    yield  # tests will run while the server is alive
-
-    # Teardown: kill the server
-    process.terminate()
-    process.wait()
+from raphtory.vectors import VectorisedGraph, OpenAIEmbeddings, embedding_server
 
 embedding_map = {
+    "raphtory": [1.0, 0.0, 0.0], # this is now needed,
     "node1": [1.0, 0.0, 0.0],
     "node2": [0.0, 1.0, 0.0],
     "node3": [0.0, 0.0, 1.0],
@@ -32,16 +14,16 @@ embedding_map = {
     "edge3": [0.0, 1.0, 1.0],
 }
 
-
-def single_embedding(text: str):
-    try:
+@pytest.fixture(autouse=True)
+def test_server():
+    @embedding_server(address="0.0.0.0:7340") # TODO: ask only for PORT!!!
+    def custom_embeddings(text: str):
         return embedding_map[text]
-    except:
-        raise Exception(f"unexpected document content: {text}")
 
-
-def embedding(texts):
-    return [single_embedding(text) for text in texts]
+    custom_embeddings.start()
+    sleep(1)
+    yield
+    custom_embeddings.stop()
 
 
 def floats_are_equals(float1: float, float2: float) -> bool:
@@ -69,7 +51,9 @@ def create_graph() -> VectorisedGraph:
     g.add_edge(3, "node1", "node3", {"name": "edge2"})
     g.add_edge(4, "node3", "node4", {"name": "edge3"})
 
-    vg = g.vectorise(embedding, nodes="{{ name }}", edges="{{ properties.name }}")
+# FIXME: I should not need to write /v1?, change that in rust, so the route is /embeddings, not v1/embeddings
+    embeddings = OpenAIEmbeddings(api_base="http://localhost:7340/v1")
+    vg = g.vectorise(embeddings, nodes="{{ name }}", edges="{{ properties.name }}")
 
     return vg
 
@@ -77,18 +61,18 @@ def create_graph() -> VectorisedGraph:
 def test_selection():
     vg = create_graph()
 
-    ################################
-    selection = vg.empty_selection()
-    nodes_to_select = ["node1", "node2"]
-    edges_to_select = [("node1", "node2"), ("node1", "node3")]
-    selection = vg.empty_selection()
-    selection.add_nodes(nodes_to_select)
-    selection.add_edges(edges_to_select)
-    nodes = selection.nodes()
-    ###########################
+    # ################################
+    # selection = vg.empty_selection()
+    # nodes_to_select = ["node1", "node2"]
+    # edges_to_select = [("node1", "node2"), ("node1", "node3")]
+    # selection = vg.empty_selection()
+    # selection.add_nodes(nodes_to_select)
+    # selection.add_edges(edges_to_select)
+    # nodes = selection.nodes()
+    # ###########################
 
     assert len(vg.empty_selection().get_documents()) == 0
-    assert len(vg.empty_selection().get_documents_with_scores()) == 0
+    assert len(vg.empty_selection().get_documents_with_distances()) == 0
 
     nodes_to_select = ["node1", "node2"]
     edges_to_select = [("node1", "node2"), ("node1", "node3")]

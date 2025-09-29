@@ -18,7 +18,6 @@ use raphtory_core::{
 };
 use raphtory_storage::mutation::MutationError;
 #[cfg(feature = "vectors")]
-use std::sync::Arc;
 use std::{
     fmt::Debug,
     io,

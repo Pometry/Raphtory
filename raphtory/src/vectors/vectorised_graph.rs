@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::{
     entity_db::{EdgeDb, EntityDb, NodeDb},
     utils::apply_window,

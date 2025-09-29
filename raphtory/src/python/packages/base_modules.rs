@@ -19,7 +19,7 @@ use crate::{
             algorithms::*,
             graph_gen::*,
             graph_loader::*,
-            vectors::{PyOpenAIEmbeddings, PyVectorSelection, PyVectorisedGraph},
+            vectors::{embedding_server, PyOpenAIEmbeddings, PyVectorSelection, PyVectorisedGraph},
         },
         types::wrappers::document::PyDocument,
         utils::PyWindowSet,
@@ -146,11 +146,15 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 
 pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
-    vectors_module.add_class::<PyVectorisedGraph>()?;
-    vectors_module.add_class::<PyDocument>()?;
-    vectors_module.add_class::<PyEmbedding>()?;
-    vectors_module.add_class::<PyVectorSelection>()?;
-    vectors_module.add_class::<PyOpenAIEmbeddings>()?;
+    add_classes!(
+        &vectors_module,
+        PyVectorisedGraph,
+        PyDocument,
+        PyEmbedding,
+        PyVectorSelection,
+        PyOpenAIEmbeddings
+    );
+    add_functions!(&vectors_module, embedding_server);
     Ok(vectors_module)
 }
 

@@ -7,10 +7,11 @@ use axum::{
 use serde::Deserialize;
 use std::{
     future::{Future, IntoFuture},
+    ops::Deref,
     pin::Pin,
     sync::Arc,
 };
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, task::JoinHandle};
 
 #[derive(Deserialize, Debug)]
 struct EmbeddingRequest {
@@ -58,17 +59,17 @@ async fn embeddings(
 }
 
 pub struct EmbeddingServer {
-    execution: Box<dyn Future<Output = ()> + Send>,
+    execution: JoinHandle<()>,
     stop_signal: tokio::sync::mpsc::Sender<()>,
 }
 
 impl EmbeddingServer {
-    pub async fn start(&self) {
-        self.execution.await;
+    pub async fn wait(self) {
+        self.execution.await.unwrap();
     }
 
     pub async fn stop(&self) {
-        self.stop_signal.send(()).await
+        self.stop_signal.send(()).await.unwrap();
     }
 }
 
@@ -78,22 +79,28 @@ pub async fn serve_custom_embedding(
     function: impl EmbeddingFunction,
 ) -> EmbeddingServer {
     let state = Arc::new(function);
+    dbg!();
     let app = Router::new()
         .route("/v1/embeddings", post(embeddings))
         .with_state(state);
+    dbg!();
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+    dbg!();
     let (sender, mut receiver) = mpsc::channel(1);
-    let shutdown: Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>> =
-        Box::pin(async move {
-            // TODO: add other common signals like Ctrl+C (see server_termination in raphtory-graphql/src/server.rs)
-            receiver.recv().await;
-        });
-    let execution = axum::serve(listener, app).with_graceful_shutdown(shutdown);
-
+    dbg!();
+    let execution = tokio::spawn(async {
+        dbg!();
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async move {
+                receiver.recv().await;
+            })
+            .await
+            .unwrap();
+        dbg!();
+    });
+    dbg!();
     EmbeddingServer {
-        execution: Box::new(async {
-            execution.await.unwrap();
-        }),
+        execution,
         stop_signal: sender,
     }
 }

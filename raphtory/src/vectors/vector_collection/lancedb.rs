@@ -4,7 +4,10 @@ use futures_util::TryStreamExt;
 use itertools::Itertools;
 use lancedb::{
     arrow::arrow_schema::{DataType, Field, Schema},
-    index::{vector::IvfPqIndexBuilder, Index},
+    index::{
+        vector::{IvfFlatIndexBuilder, IvfPqIndexBuilder},
+        Index,
+    },
     query::{ExecutableQuery, QueryBase},
     Connection, DistanceType, Table,
 };
@@ -106,6 +109,7 @@ impl VectorCollection for LanceDbCollection {
     }
 
     async fn get_id(&self, id: u64) -> GraphResult<Option<crate::vectors::Embedding>> {
+        dbg!(id);
         let query = self.table.query().only_if(format!("id = {id}"));
         let result = query.execute().await.unwrap();
         let batches: Vec<_> = result.try_collect().await.unwrap();
@@ -172,13 +176,17 @@ impl VectorCollection for LanceDbCollection {
             self.table
                 .create_index(
                     &[VECTOR_COL_NAME],
-                    Index::IvfPq(IvfPqIndexBuilder::default().distance_type(DistanceType::Cosine)),
+                    Index::IvfFlat(
+                        IvfFlatIndexBuilder::default().distance_type(DistanceType::Cosine),
+                    ),
+                    // Index::IvfPq(IvfPqIndexBuilder::default().distance_type(DistanceType::Cosine)), // TODO: bring this back for over 256 rows, or a greater value
                 )
                 // .create_index(&[VECTOR_COL_NAME], Index::Auto)
                 .execute()
                 .await
                 .unwrap() // FIXME: remove unwrap
         }
+        // FIXME: what happens if the rows are added later on???
     }
 }
 
