@@ -1,6 +1,11 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import create_test_graph, create_test_graph2, create_test_graph3
+from filters_setup import (
+    create_test_graph,
+    create_test_graph2,
+    create_test_graph3,
+    init_graph,
+)
 from utils import run_graphql_test, run_graphql_error_test
 
 EVENT_GRAPH = create_test_graph(Graph())
@@ -1002,4 +1007,37 @@ def test_nodes_property_filter_list_qualifier(graph):
         }
     """
     expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "c"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = init_graph(Graph())
+PERSISTENT_GRAPH = init_graph(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_temporal_property_filter_agg(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+             temporalProperty: {
+              name: "p2"
+              temporal:VALUES
+              operator: LESS_THAN
+              listAgg: AVG
+              value: { f64: 10.0 }
+            }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {"nodeFilter": {"nodes": {"list": [{"name": "2"}, {"name": "3"}]}}}
+    }
     run_graphql_test(query, expected_output, graph)

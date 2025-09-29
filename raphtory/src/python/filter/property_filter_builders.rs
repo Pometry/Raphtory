@@ -3,9 +3,7 @@ use crate::{
         internal::CreateFilter,
         model::{
             property_filter::{
-                AllTemporalPropertyFilterBuilder, AnyTemporalPropertyFilterBuilder,
-                ElemQualifierOps, FirstTemporalPropertyFilterBuilder, InternalPropertyFilterOps,
-                LatestTemporalPropertyFilterBuilder, ListAggOps, MetadataFilterBuilder,
+                ElemQualifierOps, InternalPropertyFilterOps, ListAggOps, MetadataFilterBuilder,
                 PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
             },
             TryAsCompositeFilter,
@@ -438,24 +436,47 @@ where
     module = "raphtory.filter"
 )]
 #[derive(Clone)]
-pub struct PyTemporalPropertyFilterBuilder(Arc<dyn DynTemporalPropertyFilterBuilderOps>);
+pub struct PyTemporalPropertyFilterBuilder {
+    t: Arc<dyn DynTemporalPropertyFilterBuilderOps>,
+    agg: Arc<dyn DynListAggOps>,
+}
 
 #[pymethods]
 impl PyTemporalPropertyFilterBuilder {
     pub fn any(&self) -> PyPropertyFilterOps {
-        self.0.any()
+        self.t.any()
     }
 
     pub fn latest(&self) -> PyPropertyFilterOps {
-        self.0.latest()
+        self.t.latest()
     }
 
     pub fn first(&self) -> PyPropertyFilterOps {
-        self.0.first()
+        self.t.first()
     }
 
     pub fn all(&self) -> PyPropertyFilterOps {
-        self.0.all()
+        self.t.all()
+    }
+
+    pub fn len(&self) -> PyResult<PyPropertyFilterOps> {
+        self.agg.len()
+    }
+
+    pub fn sum(&self) -> PyResult<PyPropertyFilterOps> {
+        self.agg.sum()
+    }
+
+    pub fn avg(&self) -> PyResult<PyPropertyFilterOps> {
+        self.agg.avg()
+    }
+
+    pub fn min(&self) -> PyResult<PyPropertyFilterOps> {
+        self.agg.min()
+    }
+
+    pub fn max(&self) -> PyResult<PyPropertyFilterOps> {
+        self.agg.max()
     }
 }
 
@@ -468,7 +489,9 @@ where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
     fn temporal(&self) -> PyTemporalPropertyFilterBuilder {
-        PyTemporalPropertyFilterBuilder(Arc::new(self.clone().temporal()))
+        let t = Arc::new(self.clone().temporal()) as Arc<dyn DynTemporalPropertyFilterBuilderOps>;
+        let agg = Arc::new(self.clone().temporal()) as Arc<dyn DynListAggOps>;
+        PyTemporalPropertyFilterBuilder { t, agg }
     }
 }
 

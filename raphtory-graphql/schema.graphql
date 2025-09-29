@@ -2374,6 +2374,7 @@ enum TemporalType {
 	LATEST
 	FIRST
 	ALL
+	VALUES
 }
 
 scalar Upload

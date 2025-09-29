@@ -489,7 +489,13 @@ pub struct MetadataFilterExpr {
 
 impl MetadataFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, self.value.as_ref())
+        validate_operator_value_pair(self.operator, self.value.as_ref())?;
+        if self.elem_qualifier.is_some() && self.list_agg.is_some() {
+            return Err(GraphError::InvalidGqlFilter(
+                "List aggregation and element qualifier cannot be used together".into(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -511,7 +517,23 @@ pub struct TemporalPropertyFilterExpr {
 
 impl TemporalPropertyFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, self.value.as_ref())
+        validate_operator_value_pair(self.operator, self.value.as_ref())?;
+
+        if let TemporalType::Values = self.temporal {
+            if self.list_agg.is_none() {
+                return Err(GraphError::InvalidGqlFilter(
+                    "temporal: VALUES must be used with a list_agg (len/sum/avg/min/max)".into(),
+                ));
+            }
+            if self.elem_qualifier.is_some() {
+                return Err(GraphError::InvalidGqlFilter(
+                    "Element qualifiers (any/all) are not supported with temporal VALUES aggregation"
+                        .into(),
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -523,6 +545,7 @@ pub enum TemporalType {
     Latest,
     First,
     All,
+    Values,
 }
 
 fn field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
@@ -921,6 +944,7 @@ impl From<TemporalType> for Temporal {
             TemporalType::Latest => Temporal::Latest,
             TemporalType::First => Temporal::First,
             TemporalType::All => Temporal::All,
+            TemporalType::Values => Temporal::Values,
         }
     }
 }

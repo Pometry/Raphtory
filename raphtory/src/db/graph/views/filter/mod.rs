@@ -1374,7 +1374,7 @@ pub(crate) mod test_filters {
     }
 
     use crate::db::graph::{
-        assertions::{assert_filter_nodes_err, GraphTransformer, TestVariants::NonDiskOnly},
+        assertions::GraphTransformer,
         views::filter::{internal::CreateFilter, model::TryAsCompositeFilter},
     };
 
@@ -2617,8 +2617,10 @@ pub(crate) mod test_filters {
             assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
             views::filter::{
                 model::{
-                    node_filter::NodeFilter, not_filter::NotFilter,
-                    property_filter::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
+                    node_filter::NodeFilter,
+                    not_filter::NotFilter,
+                    property_filter::{ListAggOps, PropertyFilterOps},
+                    ComposableFilter, PropertyFilterFactory,
                 },
                 test_filters::IdentityGraphTransformer,
             },
@@ -3679,6 +3681,114 @@ pub(crate) mod test_filters {
             );
 
             let filter = NodeFilter::property("p10").contains("Paper").not();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_temporal_property_sum() {
+            let filter = NodeFilter::property("p9").temporal().sum().eq(15u64);
+            let expected_results: Vec<&str> = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_temporal_property_avg() {
+            let filter = NodeFilter::property("p2").temporal().avg().le(10f64);
+            let expected_results: Vec<&str> = vec!["2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_temporal_property_min() {
+            let filter = NodeFilter::property("p40").temporal().min().is_in(vec![
+                Prop::U64(5),
+                Prop::U64(10),
+                Prop::U64(20),
+            ]);
+            let expected_results: Vec<&str> = vec!["1", "2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_temporal_property_max() {
+            let filter = NodeFilter::property("p3").temporal().max().is_not_in(vec![
+                Prop::U64(5),
+                Prop::U64(10),
+                Prop::U64(20),
+            ]);
+            let expected_results: Vec<&str> = vec!["3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_temporal_property_len() {
+            let filter = NodeFilter::property("p2").temporal().len().le(5u64);
+            let expected_results: Vec<&str> = vec!["1", "2", "3", "4"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
