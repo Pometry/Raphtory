@@ -61,20 +61,24 @@ macro_rules! impl_timeops {
             ///
             /// Arguments:
             ///     step (int | str): The step size of the window.
-            ///     align_start (bool): If set to True, aligns the start of the first window
-            ///         to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
-            ///         the first window will begin at the start of the day of the first time event.
-            ///         If set to False, the first window will begin at the first time event.
-            ///         align_start defaults to True.
+            ///     alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+            ///         to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+            ///         the windows will be aligned on days (00:00:00 to 23:59:59).
+            ///         If set to "unaligned", the first window will begin at the first time event.
+            ///         If any other alignment unit is passed, the windows will be aligned to that unit.
+            ///         alignment_unit defaults to None.
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            #[pyo3(signature = (step, align_start=true))]
-            fn expanding(&self, step: $crate::core::utils::time::Interval, align_start: bool) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
-                if align_start {
-                    self.$field.expanding(step)
-                } else {
-                    self.$field.expanding_aligned(step, raphtory_core::utils::time::AlignmentUnit::Unaligned)
+            #[pyo3(signature = (step, alignment_unit=None))]
+            fn expanding(
+                &self,
+                step: $crate::core::utils::time::Interval,
+                alignment_unit: Option<raphtory_core::utils::time::AlignmentUnit>
+            ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
+                match alignment_unit {
+                    None => self.$field.expanding(step),
+                    Some(unit) => self.$field.expanding_aligned(step, unit),
                 }
             }
 
@@ -88,25 +92,26 @@ macro_rules! impl_timeops {
             ///     window (int | str): The size of the window.
             ///     step (int | str | None): The step size of the window.
             ///         `step` defaults to `window`.
-            ///     align_start (bool): If set to True, aligns the start of the first window
-            ///         to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+            ///     alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+            ///         to the smallest unit of time passed to step (or window if no step is passed).
+            ///         For example, if the step is "1 month and 1 day",
             ///         the first window will begin at the start of the day of the first time event.
-            ///         If set to False, the first window will begin at the first time event.
-            ///         align_start defaults to True.
+            ///         If set to "unaligned", the first window will begin at the first time event.
+            ///         If any other alignment unit is passed, the windows will be aligned to that unit.
+            ///         alignment_unit defaults to None.
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            #[pyo3(signature = (window, step=None, align_start=true))]
+            #[pyo3(signature = (window, step=None, alignment_unit=None))]
             fn rolling(
                 &self,
                 window:$crate::core::utils::time::Interval,
                 step: Option<$crate::core::utils::time::Interval>,
-                align_start: bool,
+                alignment_unit: Option<raphtory_core::utils::time::AlignmentUnit>,
             ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
-                if align_start {
-                    self.$field.rolling(window, step)
-                } else {
-                    self.$field.rolling_aligned(window, step, raphtory_core::utils::time::AlignmentUnit::Unaligned)
+                match alignment_unit {
+                    None => self.$field.rolling(window, step),
+                    Some(unit) => self.$field.rolling_aligned(window, step, unit),
                 }
             }
 

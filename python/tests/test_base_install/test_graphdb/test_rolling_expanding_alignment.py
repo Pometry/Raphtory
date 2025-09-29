@@ -173,7 +173,7 @@ def test_rolling_no_alignment_for_discrete_ms(example_graph):
 
 def test_rolling_align_start_false(example_graph):
     g: Graph = example_graph
-    windows = list(g.rolling("1 month", align_start=False))
+    windows = list(g.rolling("1 month", alignment_unit="unaligned"))
     # no month alignment
     assert windows[0].start_date_time == datetime(
         2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc
@@ -206,7 +206,7 @@ def test_expanding_day_alignment_default_true(example_graph):
 
 def test_expanding_align_start_false(example_graph):
     g: Graph = example_graph
-    ws = list(g.expanding("1 day", align_start=False))
+    ws = list(g.expanding("1 day", alignment_unit="unaligned"))
     exp_end0 = datetime(2025, 3, 16, 14, 37, 52, tzinfo=timezone.utc)
     exp_end_last = datetime(2025, 11, 23, 14, 37, 52, tzinfo=timezone.utc)
     assert ws[0].end_date_time == exp_end0

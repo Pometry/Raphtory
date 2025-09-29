@@ -25,15 +25,17 @@ pub enum ParseTimeError {
         #[from]
         source: ParseIntError,
     },
-    #[error("'{0}' is not a valid unit")]
+    #[error("'{0}' is not a valid unit. Valid units are year(s), month(s), week(s), day(s), hour(s), minute(s), second(s) and millisecond(s).")]
     InvalidUnit(String),
+    #[error("'{0}' is not a valid unit. Valid units are year(s), month(s), week(s), day(s), hour(s), minute(s), second(s), millisecond(s), and unaligned.")]
+    InvalidAlignmentUnit(String),
     #[error(transparent)]
     ParseError(#[from] ParseError),
     #[error("negative interval is not supported")]
     NegativeInt,
     #[error("0 size step is not supported")]
     ZeroSizeStep,
-    #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
+    #[error("'{0}' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
     InvalidDateTimeString(String),
 }
 
@@ -283,6 +285,34 @@ impl AlignmentUnit {
     #[inline]
     fn floor_ms(ts: i64, unit_ms: i64) -> i64 {
         ts - ts.rem_euclid(unit_ms)
+    }
+}
+
+impl TryFrom<String> for AlignmentUnit {
+    type Error = ParseTimeError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
+impl TryFrom<&str> for AlignmentUnit {
+    type Error = ParseTimeError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let unit = match value.to_lowercase().as_str() {
+            "year" | "years" => AlignmentUnit::Year,
+            "month" | "months" => AlignmentUnit::Month,
+            "week" | "weeks" => AlignmentUnit::Week,
+            "day" | "days" => AlignmentUnit::Day,
+            "hour" | "hours" => AlignmentUnit::Hour,
+            "minute" | "minutes" => AlignmentUnit::Minute,
+            "second" | "seconds" => AlignmentUnit::Second,
+            "millisecond" | "milliseconds" => AlignmentUnit::Millisecond,
+            "unaligned" => AlignmentUnit::Unaligned,
+            unit => return Err(ParseTimeError::InvalidAlignmentUnit(unit.to_string())),
+        };
+        Ok(unit)
     }
 }
 

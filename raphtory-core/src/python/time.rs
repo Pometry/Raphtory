@@ -1,4 +1,4 @@
-use crate::utils::time::{Interval, ParseTimeError};
+use crate::utils::time::{AlignmentUnit, Interval, ParseTimeError};
 use pyo3::{exceptions::PyTypeError, prelude::*, Bound, FromPyObject, PyAny, PyErr, PyResult};
 use raphtory_api::python::error::adapt_err_value;
 
@@ -21,5 +21,15 @@ impl<'source> FromPyObject<'source> for Interval {
         Err(PyTypeError::new_err(format!(
             "interval '{interval}' must be a str or an unsigned integer"
         )))
+    }
+}
+
+impl<'source> FromPyObject<'source> for AlignmentUnit {
+    fn extract_bound(unit: &Bound<'source, PyAny>) -> PyResult<Self> {
+        if let Ok(string) = unit.extract::<String>() {
+            return Ok(string.try_into()?);
+        };
+
+        Err(PyTypeError::new_err(format!("unit '{unit}' must be a str")))
     }
 }
