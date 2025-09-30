@@ -11,7 +11,7 @@ use polars_arrow::{
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};
 
-pub(crate) struct DFView<I> {
+pub struct DFView<I> {
     pub names: Vec<String>,
     pub(crate) chunks: I,
     pub num_rows: usize,
@@ -47,6 +47,14 @@ where
             .iter()
             .position(|n| n == name)
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
+    }
+
+    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+        Self {
+            names,
+            chunks,
+            num_rows,
+        }
     }
 }
 
@@ -94,11 +102,15 @@ impl TimeCol {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct DFChunk {
+pub struct DFChunk {
     pub(crate) chunk: Vec<Box<dyn Array>>,
 }
 
 impl DFChunk {
+    pub fn new(chunk: Vec<Box<dyn Array>>) -> Self {
+        Self { chunk }
+    }
+
     pub fn len(&self) -> usize {
         self.chunk.first().map(|c| c.len()).unwrap_or(0)
     }

@@ -30,33 +30,3 @@ pub fn degree_centrality<G: StaticGraphViewOps>(g: &G) -> NodeState<'static, f64
 
     NodeState::new_from_values(g.clone(), values)
 }
-
-#[cfg(test)]
-mod degree_centrality_test {
-    use crate::{
-        algorithms::centrality::degree_centrality::degree_centrality,
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::NO_PROPS,
-        test_storage,
-    };
-    use std::collections::HashMap;
-
-    #[test]
-    fn test_degree_centrality() {
-        let graph = Graph::new();
-        let vs = vec![(1, 2), (1, 3), (1, 4), (2, 3), (2, 4)];
-        for (src, dst) in &vs {
-            graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
-        }
-        test_storage!(&graph, |graph| {
-            let mut expected: HashMap<String, f64> = HashMap::new();
-            expected.insert("1".to_string(), 1.0);
-            expected.insert("2".to_string(), 1.0);
-            expected.insert("3".to_string(), 2.0 / 3.0);
-            expected.insert("4".to_string(), 2.0 / 3.0);
-
-            let res = degree_centrality(graph);
-            assert_eq!(res, expected);
-        });
-    }
-}

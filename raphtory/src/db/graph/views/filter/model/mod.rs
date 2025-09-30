@@ -273,7 +273,7 @@ impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for OrFilter<L, R> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NotFilter<T>(pub(crate) T);
+pub struct NotFilter<T>(pub T);
 
 impl<T: Display> Display for NotFilter<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
