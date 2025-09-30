@@ -233,6 +233,7 @@ def test_graph_edge_sort_by_earliest_time(graph):
               }
               earliestTime {
                 timestamp
+                datetime
               }
             }
           }
@@ -248,27 +249,27 @@ def test_graph_edge_sort_by_earliest_time(graph):
                         {
                             "src": {"id": "c"},
                             "dst": {"id": "d"},
-                            "earliestTime": {"timestamp": 1},
+                            "earliestTime": {"timestamp": 1, "datetime": "1970-01-01T00:00:00.001+00:00"},
                         },
                         {
                             "src": {"id": "a"},
                             "dst": {"id": "b"},
-                            "earliestTime": {"timestamp": 1},
+                            "earliestTime": {"timestamp": 1, "datetime": "1970-01-01T00:00:00.001+00:00"},
                         },
                         {
                             "src": {"id": "b"},
                             "dst": {"id": "d"},
-                            "earliestTime": {"timestamp": 2},
+                            "earliestTime": {"timestamp": 2, "datetime": "1970-01-01T00:00:00.002+00:00"},
                         },
                         {
                             "src": {"id": "a"},
                             "dst": {"id": "d"},
-                            "earliestTime": {"timestamp": 3},
+                            "earliestTime": {"timestamp": 3, "datetime": "1970-01-01T00:00:00.003+00:00"},
                         },
                         {
                             "src": {"id": "b"},
                             "dst": {"id": "c"},
-                            "earliestTime": {"timestamp": 4},
+                            "earliestTime": {"timestamp": 4, "datetime": "1970-01-01T00:00:00.004+00:00"},
                         },
                     ]
                 }

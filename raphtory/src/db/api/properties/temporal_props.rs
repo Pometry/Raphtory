@@ -223,16 +223,6 @@ impl<P: InternalPropertiesOps + Clone> TemporalProperties<P> {
             .collect()
     }
 
-    pub fn histories_timestamps(&self) -> Vec<(ArcStr, (i64, Prop))> {
-        self.iter()
-            .flat_map(|(k, v)| {
-                v.into_iter()
-                    .map(|(t, p)| (t.t(), p))
-                    .map(move |v| (k.clone(), v.clone()))
-            })
-            .collect()
-    }
-
     pub fn collect_properties(self) -> Vec<(ArcStr, Prop)> {
         self.iter()
             .flat_map(|(k, v)| v.latest().map(|v| (k.clone(), v)))

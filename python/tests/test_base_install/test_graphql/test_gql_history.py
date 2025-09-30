@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from utils import run_group_graphql_test
 from raphtory import Graph
 
@@ -30,6 +32,7 @@ def create_graph() -> Graph:
 
 def test_history():
     graph = create_graph()
+    queries_and_expected_outputs = []
 
     # test node
     query = """
@@ -51,7 +54,7 @@ def test_history():
             }
         }
     }
-    queries_and_expected_outputs = [(query, expected_output)]
+    queries_and_expected_outputs.append((query, expected_output))
 
     # test edge
     query = """
@@ -373,5 +376,299 @@ def test_history():
         }
     }
     queries_and_expected_outputs.append((query_4, expected_output_4))
+
+    run_group_graphql_test(queries_and_expected_outputs, graph)
+
+def test_gql_time_index():
+    graph = create_graph()
+    graph.add_edge(datetime(2025, 1, 20, 0, 0, tzinfo=timezone.utc), "Dumbledore", "Harry")
+    queries_and_expected_outputs = []
+
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "Dumbledore", dst: "Harry") {
+          history {
+            datetimes {
+              list
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "edge": {
+            "history": {
+                "datetimes": {
+                    "list": [
+                        "1970-01-01T00:00:00.150+00:00",
+                        "1970-01-01T00:00:00.200+00:00",
+                        "1970-01-01T00:00:00.300+00:00",
+                        "1970-01-01T00:00:00.350+00:00",
+                        "2025-01-20T00:00:00+00:00"
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "Dumbledore", dst: "Harry") {
+          history {
+            datetimes(formatString: "%Y-%m-%d") {
+              list
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "edge": {
+            "history": {
+                "datetimes": {
+                    "list": [
+                        "1970-01-01",
+                        "1970-01-01",
+                        "1970-01-01",
+                        "1970-01-01",
+                        "2025-01-20"
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "Dumbledore", dst: "Harry") {
+          history {
+            datetimes(formatString: "%Y-%m-%d %H:%M:%S %3fms") {
+              list
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "edge": {
+            "history": {
+                "datetimes": {
+                    "list": [
+                        "1970-01-01 00:00:00 150ms",
+                        "1970-01-01 00:00:00 200ms",
+                        "1970-01-01 00:00:00 300ms",
+                        "1970-01-01 00:00:00 350ms",
+                        "2025-01-20 00:00:00 000ms"
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "Dumbledore", dst: "Harry") {
+          history {
+            secondaryIndex {
+              list
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "edge": {
+            "history": {
+                "secondaryIndex": {
+                    "list": [
+                        6,
+                        7,
+                        8,
+                        9,
+                        10
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # test parsing of time inputs
+    query = """
+    {
+      graph(path: "g") {
+        window(start: {simpleTime: "1970-01-01T00:00:00"}, end: {simpleTime: "1970-01-01T00:00:00.150"}) {
+          node(name: "Dumbledore") {
+            history {
+              timestamps {
+                list
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "window": {
+            "node": {
+                "history": {
+                    "timestamps": {
+                        "list": [
+                            100
+                        ]
+                    }
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # test indexed time parsing and windowing behaviour
+    query = """
+    {
+      graph(path: "g") {
+        window(
+          start: {indexedTime: {time: "1970-01-01T00:00:00.150+00:00", secondaryIndex: 0}}
+          end: {indexedTime: {time: "1970-01-01T00:00:00.350+00:00", secondaryIndex: 10}}
+        ) {
+          edge(src: "Dumbledore", dst: "Harry") {
+            history {
+              list {
+                timestamp
+                secondaryIndex
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "window": {
+            "edge": {
+                "history": {
+                    "list": [
+                        {
+                            "timestamp": 150,
+                            "secondaryIndex": 6
+                        },
+                        {
+                            "timestamp": 200,
+                            "secondaryIndex": 7
+                        },
+                        {
+                            "timestamp": 300,
+                            "secondaryIndex": 8
+                        },
+                        {
+                            "timestamp": 350,
+                            "secondaryIndex": 9
+                        }
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # end of the window is exclusive, timestamp: 350 should be missing
+    query = """
+    {
+      graph(path: "g") {
+        window(
+          start: {indexedTime: {time: 150, secondaryIndex: 6}}
+          end: {indexedTime: {time: "1970-01-01 00:00:00.350", secondaryIndex: 9}}
+        ) {
+          edge(src: "Dumbledore", dst: "Harry") {
+            history {
+              list {
+                timestamp
+                secondaryIndex
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "window": {
+            "edge": {
+                "history": {
+                    "list": [
+                        {
+                            "timestamp": 150,
+                            "secondaryIndex": 6
+                        },
+                        {
+                            "timestamp": 200,
+                            "secondaryIndex": 7
+                        },
+                        {
+                            "timestamp": 300,
+                            "secondaryIndex": 8
+                        }
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # start of window is inclusive, we need to go past it
+    query = """
+    {
+      graph(path: "g") {
+        window(
+          start: {indexedTime: {time: 150, secondaryIndex: 7}}
+          end: {indexedTime: {time: "1970-01-01T00:00:00.351", secondaryIndex: 8}}
+        ) {
+          edge(src: "Dumbledore", dst: "Harry") {
+            history {
+              list {
+                timestamp
+                secondaryIndex
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "window": {
+            "edge": {
+                "history": {
+                    "list": [
+                        {
+                            "timestamp": 200,
+                            "secondaryIndex": 7
+                        },
+                        {
+                            "timestamp": 300,
+                            "secondaryIndex": 8
+                        },
+                        {
+                            "timestamp": 350,
+                            "secondaryIndex": 9
+                        }
+                    ]
+                }
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
 
     run_group_graphql_test(queries_and_expected_outputs, graph)

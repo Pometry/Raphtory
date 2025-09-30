@@ -78,7 +78,7 @@ impl NodeStateHistory {
             self.inner.base_graph().clone(),
             self.inner.graph().clone(),
             values,
-            self.inner.keys().clone(),
+            self.inner.ids().clone(),
         )
     }
 
@@ -98,7 +98,7 @@ impl NodeStateHistory {
             self.inner.base_graph().clone(),
             self.inner.graph().clone(),
             values,
-            self.inner.keys().clone(),
+            self.inner.ids().clone(),
         )
     }
 
@@ -120,7 +120,7 @@ impl NodeStateHistory {
             self.inner.base_graph().clone(),
             self.inner.graph().clone(),
             values,
-            self.inner.keys().clone(),
+            self.inner.ids().clone(),
         )
     }
 
@@ -140,7 +140,7 @@ impl NodeStateHistory {
             self.inner.base_graph().clone(),
             self.inner.graph().clone(),
             values,
-            self.inner.keys().clone(),
+            self.inner.ids().clone(),
         )
     }
 

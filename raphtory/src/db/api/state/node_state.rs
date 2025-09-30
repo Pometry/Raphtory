@@ -301,7 +301,7 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
         &self.values
     }
 
-    pub fn keys(&self) -> &Option<Index<VID>> {
+    pub fn ids(&self) -> &Option<Index<VID>> {
         &self.keys
     }
 }

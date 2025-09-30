@@ -131,7 +131,11 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<TimeIndexEntry> {
     })
 }
 
-/// Represents a time entry in Raphtory. Contains a primary timestamp and a secondary index for ordering within the same timestamp.
+/// Raphtory's representation of a timestamp.
+/// Contains a primary timestamp and a secondary index used for ordering between equal timestamps.
+/// Unless specified manually, the secondary indices are generated automatically by Raphtory to
+/// maintain a unique ordering of events.
+/// You can convert a TimeIndexEntry into a Unix Epoch timestamp or a Python datetime.
 #[pyclass(name = "TimeIndexEntry", module = "raphtory", frozen)]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyTimeIndexEntry {
