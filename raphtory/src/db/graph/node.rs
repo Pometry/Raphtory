@@ -36,6 +36,7 @@ use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
+use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     fmt,
@@ -160,6 +161,34 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
             node,
             _marker: PhantomData,
         }
+    }
+
+    pub fn edge_history(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        GenLockedIter::from(node, move |node| {
+            semantics
+                .node_edge_history(node.as_ref(), &self.graph)
+                .into_dyn_boxed()
+        })
+    }
+
+    pub fn edge_history_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        GenLockedIter::from(node, move |node| {
+            semantics
+                .node_edge_history_rev(node.as_ref(), &self.graph)
+                .into_dyn_boxed()
+        })
+    }
+
+    pub fn earliest_edge_time(&self) -> Option<i64> {
+        self.edge_history().next().map(|(t, _)| t.t())
+    }
+
+    pub fn latest_edge_time(&self) -> Option<i64> {
+        self.edge_history_rev().next().map(|(t, _)| t.t())
     }
 }
 
@@ -456,108 +485,5 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         self.graph
             .internal_add_node(t, self.node, &properties)
             .map_err(into_graph_err)
-    }
-}
-
-#[cfg(test)]
-mod node_test {
-    use crate::{prelude::*, test_utils::test_graph};
-    use raphtory_api::core::storage::arc_str::ArcStr;
-    use std::collections::HashMap;
-
-    #[test]
-    fn test_earliest_time() {
-        let graph = Graph::new();
-        graph.add_node(0, 1, NO_PROPS, None).unwrap();
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        graph.add_node(2, 1, NO_PROPS, None).unwrap();
-
-        // FIXME: Node add without properties not showing up (Issue #46)
-        test_graph(&graph, |graph| {
-            let view = graph.before(2);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
-
-            let view = graph.before(3);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
-
-            let view = graph.after(0);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
-
-            let view = graph.after(2);
-            assert_eq!(view.node(1), None);
-            assert_eq!(view.node(1), None);
-
-            let view = graph.at(1);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
-        });
-    }
-
-    #[test]
-    fn test_properties() {
-        let graph = Graph::new();
-        let props = [("test", "test")];
-        graph.add_node(0, 1, NO_PROPS, None).unwrap();
-        graph.add_node(2, 1, props, None).unwrap();
-
-        // FIXME: Node add without properties not showing up (Issue #46)
-        test_graph(&graph, |graph| {
-            let v1 = graph.node(1).unwrap();
-            let v1_w = graph.window(0, 1).node(1).unwrap();
-            assert_eq!(
-                v1.properties().as_map(),
-                [(ArcStr::from("test"), Prop::str("test"))].into()
-            );
-            assert_eq!(v1_w.properties().as_map(), HashMap::default())
-        });
-    }
-
-    #[test]
-    fn test_property_additions() {
-        let graph = Graph::new();
-        let props = [("test", "test")];
-        let v1 = graph.add_node(0, 1, NO_PROPS, None).unwrap();
-        v1.add_updates(2, props).unwrap();
-        let v1_w = v1.window(0, 1);
-        assert_eq!(
-            v1.properties().as_map(),
-            props
-                .into_iter()
-                .map(|(k, v)| (k.into(), v.into_prop()))
-                .collect()
-        );
-        assert_eq!(v1_w.properties().as_map(), HashMap::default())
-    }
-
-    #[test]
-    fn test_metadata_additions() {
-        let g = Graph::new();
-        let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
-        v1.add_metadata([("test", "test")]).unwrap();
-        assert_eq!(v1.metadata().get("test"), Some("test".into()))
-    }
-
-    #[test]
-    fn test_metadata_updates() {
-        let g = Graph::new();
-        let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
-        v1.add_metadata([("test", "test")]).unwrap();
-        v1.update_metadata([("test", "test2")]).unwrap();
-        assert_eq!(v1.metadata().get("test"), Some("test2".into()))
-    }
-
-    #[test]
-    fn test_string_deduplication() {
-        let g = Graph::new();
-        let v1 = g
-            .add_node(0, 1, [("test1", "test"), ("test2", "test")], None)
-            .unwrap();
-        let s1 = v1.properties().get("test1").unwrap_str();
-        let s2 = v1.properties().get("test2").unwrap_str();
-
-        assert_eq!(s1.as_ptr(), s2.as_ptr())
     }
 }

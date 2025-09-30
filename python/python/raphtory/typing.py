@@ -8,8 +8,6 @@ PropValue = Union[
     float,
     datetime,
     str,
-    "Graph",
-    "PersistentGraph",
     "Document",
     list["PropValue"],
     dict[str, "PropValue"],
