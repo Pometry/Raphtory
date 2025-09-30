@@ -29,6 +29,9 @@ filter3 = (filter.Property("primary_function").is_not_in(["Database", "Backup"])
 
 ```
 
+!!! Note
+    As the above example shows, you must use the bitwise operators `&` and `|` instead of `and` and `or` when combining filter expressions. For more information on logical operators consult the [Python Mapping of Operators to Functions](https://docs.python.org/3/library/operator.html#mapping-operators-to-functions).
+
 ## Cybersecurity scenario
 
 Consider a cybersecurity team investigating the impact of a CVE on your companies servers. They might use Raphtory to filter for nodes which function as public facing servers and that have a specific operating system. This would give the security team a view that contains only nodes that might be vulnerable.
