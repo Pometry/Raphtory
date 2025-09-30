@@ -1174,6 +1174,25 @@ mod storage_tests {
     }
 
     #[test]
+    fn test_merge_simple() {
+        let left = [(4, 4, 2), (4, 4, 2)];
+        let right = [];
+        inner_merge_test(&left, &right);
+
+        let left = [(0, 5, 5)];
+        let right = [];
+        inner_merge_test(&left, &right);
+
+        let left = [(0, 0, 0), (0, 0, 0), (0, 0, 0)];
+        let right = [];
+        inner_merge_test(&left, &right);
+
+        let left = [(0, 0, 0), (0, 0, 0), (0, 0, 0)];
+        let right = [(0, 0, 0)];
+        inner_merge_test(&left, &right);
+    }
+
+    #[test]
     fn test_one_empty_graph_non_zero_time() {
         inner_merge_test(&[], &[(1, 0, 0)])
     }

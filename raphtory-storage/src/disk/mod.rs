@@ -511,11 +511,16 @@ mod test {
 
         let mut expected_node_additions = edges
             .iter()
-            .flat_map(|(src, dst, t)| [(*src, *t), (*dst, *t)])
+            .flat_map(|(src, dst, t)| {
+                if src != dst {
+                    vec![(*src, *t), (*dst, *t)]
+                } else {
+                    vec![(*src, *t)]
+                }
+            })
             .into_group_map();
         for v in expected_node_additions.values_mut() {
             v.sort();
-            v.dedup();
         }
 
         for (v_id, node) in nodes.iter().enumerate() {

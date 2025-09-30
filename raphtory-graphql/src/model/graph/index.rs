@@ -74,6 +74,7 @@ impl IndexSpecInput {
 }
 
 #[derive(SimpleObject)]
+#[graphql(name = "IndexSpec")]
 pub struct GqlIndexSpec {
     /// Returns node metadata.
     pub node_metadata: Vec<String>,

@@ -475,7 +475,6 @@ mod test {
             .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(0i64))
             .unwrap();
         let gfm = gf.materialize().unwrap();
-        dbg!(&gfm);
         assert_eq!(gf.node(0).unwrap().out_degree(), 1);
         assert_eq!(gfm.node(0).unwrap().out_degree(), 1);
         assert_graph_equal(&gf, &gfm);

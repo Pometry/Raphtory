@@ -78,6 +78,25 @@ type CollectionOfNamespacedItem {
 }
 
 """
+Document in a vector graph
+"""
+type Document {
+	"""
+	Entity associated with document.
+	"""
+	entity: DocumentEntity!
+	"""
+	Content of the document.
+	"""
+	content: String!
+	"""
+	Similarity score with a specified query
+	"""
+	embedding: [Float!]!
+	score: Float!
+}
+
+"""
 Entity associated with document.
 """
 union DocumentEntity = Node | Edge
@@ -659,89 +678,6 @@ type EdgesWindowSet {
 }
 
 
-"""
-Document in a vector graph
-"""
-type GqlDocument {
-	"""
-	Entity associated with document.
-	"""
-	entity: DocumentEntity!
-	"""
-	Content of the document.
-	"""
-	content: String!
-	"""
-	Similarity score with a specified query
-	"""
-	embedding: [Float!]!
-	score: Float!
-}
-
-type GqlIndexSpec {
-	"""
-	Returns node metadata.
-	"""
-	nodeMetadata: [String!]!
-	"""
-	Returns node properties.
-	"""
-	nodeProperties: [String!]!
-	"""
-	Returns edge metadata.
-	"""
-	edgeMetadata: [String!]!
-	"""
-	Returns edge properties.
-	"""
-	edgeProperties: [String!]!
-}
-
-type GqlVectorSelection {
-	"""
-	Returns a list of nodes in the current selection.
-	"""
-	nodes: [Node!]!
-	"""
-	Returns a list of edges in the current selection.
-	"""
-	edges: [Edge!]!
-	"""
-	Returns a list of documents in the current selection.
-	"""
-	getDocuments: [GqlDocument!]!
-	"""
-	Adds all the documents associated with the specified nodes to the current selection.
-	
-	Documents added by this call are assumed to have a score of 0.
-	"""
-	addNodes(nodes: [String!]!): GqlVectorSelection!
-	"""
-	Adds all the documents associated with the specified edges to the current selection.
-	
-	Documents added by this call are assumed to have a score of 0.
-	"""
-	addEdges(edges: [InputEdge!]!): GqlVectorSelection!
-	"""
-	Add all the documents a specified number of hops away to the selection.
-	
-	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
-	"""
-	expand(hops: Int!, window: Window): GqlVectorSelection!
-	"""
-	Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
-	"""
-	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-	"""
-	Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
-	"""
-	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-	"""
-	Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
-	"""
-	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-}
-
 type Graph {
 	"""
 	Returns the names of all layers in the graphview.
@@ -943,7 +879,7 @@ type Graph {
 	"""
 	(Experimental) Get index specification.
 	"""
-	getIndexSpec: GqlIndexSpec!
+	getIndexSpec: IndexSpec!
 	"""
 	(Experimental) Searches for nodes which match the given filter expression.
 	
@@ -1087,6 +1023,25 @@ type GraphWindowSet {
 	list: [Graph!]!
 }
 
+
+type IndexSpec {
+	"""
+	Returns node metadata.
+	"""
+	nodeMetadata: [String!]!
+	"""
+	Returns node properties.
+	"""
+	nodeProperties: [String!]!
+	"""
+	Returns edge metadata.
+	"""
+	edgeMetadata: [String!]!
+	"""
+	Returns edge properties.
+	"""
+	edgeProperties: [String!]!
+}
 
 input IndexSpecInput {
 	"""
@@ -2439,23 +2394,68 @@ input Value @oneOf {
 	object: [ObjectEntry!]
 }
 
+type VectorSelection {
+	"""
+	Returns a list of nodes in the current selection.
+	"""
+	nodes: [Node!]!
+	"""
+	Returns a list of edges in the current selection.
+	"""
+	edges: [Edge!]!
+	"""
+	Returns a list of documents in the current selection.
+	"""
+	getDocuments: [Document!]!
+	"""
+	Adds all the documents associated with the specified nodes to the current selection.
+	
+	Documents added by this call are assumed to have a score of 0.
+	"""
+	addNodes(nodes: [String!]!): VectorSelection!
+	"""
+	Adds all the documents associated with the specified edges to the current selection.
+	
+	Documents added by this call are assumed to have a score of 0.
+	"""
+	addEdges(edges: [InputEdge!]!): VectorSelection!
+	"""
+	Add all the documents a specified number of hops away to the selection.
+	
+	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
+	"""
+	expand(hops: Int!, window: Window): VectorSelection!
+	"""
+	Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
+	"""
+	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	"""
+	Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
+	"""
+	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	"""
+	Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
+	"""
+	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+}
+
 type VectorisedGraph {
 	"""
 	Returns an empty selection of documents.
 	"""
-	emptySelection: GqlVectorSelection!
+	emptySelection: VectorSelection!
 	"""
 	Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
 	"""
-	entitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	entitiesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
 	"""
 	Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
 	"""
-	nodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	nodesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
 	"""
 	Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
 	"""
-	edgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	edgesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
 }
 
 input Window {
