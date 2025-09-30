@@ -290,6 +290,7 @@ where
         self.indexed(index)
     }
 
+    /// Collect nodes into a vec
     pub fn collect(&self) -> Vec<NodeView<'graph, G, GH>> {
         self.iter_owned().collect()
     }
