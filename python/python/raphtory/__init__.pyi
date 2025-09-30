@@ -5610,7 +5610,13 @@ class TemporalProperty(object):
         """Get the property values for each update"""
 
 class TimeIndexEntry(object): 
-    """Represents a time entry in Raphtory. Contains a primary timestamp and a secondary index for ordering within the same timestamp."""
+    """
+    Raphtory's representation of a timestamp.
+    Contains a primary timestamp and a secondary index used for ordering between equal timestamps.
+    Unless specified manually, the secondary indices are generated automatically by Raphtory to
+    maintain a unique ordering of events.
+    You can convert a TimeIndexEntry into a Unix Epoch timestamp or a Python datetime.
+    """
 
     def __eq__(self, value):
         """Return self==value."""

@@ -379,9 +379,12 @@ def test_history():
 
     run_group_graphql_test(queries_and_expected_outputs, graph)
 
+
 def test_gql_time_index():
     graph = create_graph()
-    graph.add_edge(datetime(2025, 1, 20, 0, 0, tzinfo=timezone.utc), "Dumbledore", "Harry")
+    graph.add_edge(
+        datetime(2025, 1, 20, 0, 0, tzinfo=timezone.utc), "Dumbledore", "Harry"
+    )
     queries_and_expected_outputs = []
 
     query = """
@@ -397,21 +400,23 @@ def test_gql_time_index():
       }
     }
     """
-    expected_output = {"graph": {
-        "edge": {
-            "history": {
-                "datetimes": {
-                    "list": [
-                        "1970-01-01T00:00:00.150+00:00",
-                        "1970-01-01T00:00:00.200+00:00",
-                        "1970-01-01T00:00:00.300+00:00",
-                        "1970-01-01T00:00:00.350+00:00",
-                        "2025-01-20T00:00:00+00:00"
-                    ]
+    expected_output = {
+        "graph": {
+            "edge": {
+                "history": {
+                    "datetimes": {
+                        "list": [
+                            "1970-01-01T00:00:00.150+00:00",
+                            "1970-01-01T00:00:00.200+00:00",
+                            "1970-01-01T00:00:00.300+00:00",
+                            "1970-01-01T00:00:00.350+00:00",
+                            "2025-01-20T00:00:00+00:00",
+                        ]
+                    }
                 }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -427,21 +432,23 @@ def test_gql_time_index():
       }
     }
     """
-    expected_output = {"graph": {
-        "edge": {
-            "history": {
-                "datetimes": {
-                    "list": [
-                        "1970-01-01",
-                        "1970-01-01",
-                        "1970-01-01",
-                        "1970-01-01",
-                        "2025-01-20"
-                    ]
+    expected_output = {
+        "graph": {
+            "edge": {
+                "history": {
+                    "datetimes": {
+                        "list": [
+                            "1970-01-01",
+                            "1970-01-01",
+                            "1970-01-01",
+                            "1970-01-01",
+                            "2025-01-20",
+                        ]
+                    }
                 }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -457,21 +464,23 @@ def test_gql_time_index():
       }
     }
     """
-    expected_output = {"graph": {
-        "edge": {
-            "history": {
-                "datetimes": {
-                    "list": [
-                        "1970-01-01 00:00:00 150ms",
-                        "1970-01-01 00:00:00 200ms",
-                        "1970-01-01 00:00:00 300ms",
-                        "1970-01-01 00:00:00 350ms",
-                        "2025-01-20 00:00:00 000ms"
-                    ]
+    expected_output = {
+        "graph": {
+            "edge": {
+                "history": {
+                    "datetimes": {
+                        "list": [
+                            "1970-01-01 00:00:00 150ms",
+                            "1970-01-01 00:00:00 200ms",
+                            "1970-01-01 00:00:00 300ms",
+                            "1970-01-01 00:00:00 350ms",
+                            "2025-01-20 00:00:00 000ms",
+                        ]
+                    }
                 }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -487,21 +496,9 @@ def test_gql_time_index():
       }
     }
     """
-    expected_output = {"graph": {
-        "edge": {
-            "history": {
-                "secondaryIndex": {
-                    "list": [
-                        6,
-                        7,
-                        8,
-                        9,
-                        10
-                    ]
-                }
-            }
-        }
-    }}
+    expected_output = {
+        "graph": {"edge": {"history": {"secondaryIndex": {"list": [6, 7, 8, 9, 10]}}}}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # test parsing of time inputs
@@ -520,19 +517,9 @@ def test_gql_time_index():
       }
     }
     """
-    expected_output = {"graph": {
-        "window": {
-            "node": {
-                "history": {
-                    "timestamps": {
-                        "list": [
-                            100
-                        ]
-                    }
-                }
-            }
-        }
-    }}
+    expected_output = {
+        "graph": {"window": {"node": {"history": {"timestamps": {"list": [100]}}}}}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # test indexed time parsing and windowing behaviour
@@ -555,32 +542,22 @@ def test_gql_time_index():
       }
     }
     """
-    expected_output = {"graph": {
-        "window": {
-            "edge": {
-                "history": {
-                    "list": [
-                        {
-                            "timestamp": 150,
-                            "secondaryIndex": 6
-                        },
-                        {
-                            "timestamp": 200,
-                            "secondaryIndex": 7
-                        },
-                        {
-                            "timestamp": 300,
-                            "secondaryIndex": 8
-                        },
-                        {
-                            "timestamp": 350,
-                            "secondaryIndex": 9
-                        }
-                    ]
+    expected_output = {
+        "graph": {
+            "window": {
+                "edge": {
+                    "history": {
+                        "list": [
+                            {"timestamp": 150, "secondaryIndex": 6},
+                            {"timestamp": 200, "secondaryIndex": 7},
+                            {"timestamp": 300, "secondaryIndex": 8},
+                            {"timestamp": 350, "secondaryIndex": 9},
+                        ]
+                    }
                 }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # end of the window is exclusive, timestamp: 350 should be missing
@@ -603,28 +580,21 @@ def test_gql_time_index():
       }
     }
     """
-    expected_output = {"graph": {
-        "window": {
-            "edge": {
-                "history": {
-                    "list": [
-                        {
-                            "timestamp": 150,
-                            "secondaryIndex": 6
-                        },
-                        {
-                            "timestamp": 200,
-                            "secondaryIndex": 7
-                        },
-                        {
-                            "timestamp": 300,
-                            "secondaryIndex": 8
-                        }
-                    ]
+    expected_output = {
+        "graph": {
+            "window": {
+                "edge": {
+                    "history": {
+                        "list": [
+                            {"timestamp": 150, "secondaryIndex": 6},
+                            {"timestamp": 200, "secondaryIndex": 7},
+                            {"timestamp": 300, "secondaryIndex": 8},
+                        ]
+                    }
                 }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # start of window is inclusive, we need to go past it
@@ -647,28 +617,21 @@ def test_gql_time_index():
       }
     }
     """
-    expected_output = {"graph": {
-        "window": {
-            "edge": {
-                "history": {
-                    "list": [
-                        {
-                            "timestamp": 200,
-                            "secondaryIndex": 7
-                        },
-                        {
-                            "timestamp": 300,
-                            "secondaryIndex": 8
-                        },
-                        {
-                            "timestamp": 350,
-                            "secondaryIndex": 9
-                        }
-                    ]
+    expected_output = {
+        "graph": {
+            "window": {
+                "edge": {
+                    "history": {
+                        "list": [
+                            {"timestamp": 200, "secondaryIndex": 7},
+                            {"timestamp": 300, "secondaryIndex": 8},
+                            {"timestamp": 350, "secondaryIndex": 9},
+                        ]
+                    }
                 }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     run_group_graphql_test(queries_and_expected_outputs, graph)
