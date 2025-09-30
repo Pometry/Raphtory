@@ -583,7 +583,7 @@ class DegreeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this DegreeView
+         Get the window size (difference between start and end) for this DegreeView.
 
         Returns:
             Optional[int]:
@@ -1963,7 +1963,7 @@ class EarliestTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EarliestTimeView
+         Get the window size (difference between start and end) for this EarliestTimeView.
 
         Returns:
             Optional[int]:
@@ -2438,7 +2438,7 @@ class LatestTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this LatestTimeView
+         Get the window size (difference between start and end) for this LatestTimeView.
 
         Returns:
             Optional[int]:
@@ -3283,7 +3283,7 @@ class EarliestDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EarliestDateTimeView
+         Get the window size (difference between start and end) for this EarliestDateTimeView.
 
         Returns:
             Optional[int]:
@@ -3760,7 +3760,7 @@ class LatestDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this LatestDateTimeView
+         Get the window size (difference between start and end) for this LatestDateTimeView.
 
         Returns:
             Optional[int]:
@@ -4404,7 +4404,7 @@ class HistoryView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this HistoryView
+         Get the window size (difference between start and end) for this HistoryView.
 
         Returns:
             Optional[int]:
@@ -4887,7 +4887,7 @@ class EdgeHistoryCountView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EdgeHistoryCountView
+         Get the window size (difference between start and end) for this EdgeHistoryCountView.
 
         Returns:
             Optional[int]:
@@ -5525,7 +5525,7 @@ class HistoryDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this HistoryDateTimeView
+         Get the window size (difference between start and end) for this HistoryDateTimeView.
 
         Returns:
             Optional[int]:

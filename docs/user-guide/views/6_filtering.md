@@ -10,7 +10,24 @@ The following functions can be called on a `graph` or `node`:
 
 Filter expressions allow you to create complex logical queries to select a narrower set of your data based on multiple criteria. This is useful when you already have some knowledge of the subset you want to isolate.
 
-To construct a filter expression you can use methods from [filter.Node()][raphtory.filter.Node], [filter.Edge()][raphtory.filter.Edge], [filter.Property()][raphtory.filter.Property], or [filter.Metadata()][raphtory.filter.Metadata] which create a corresponding builder that will return the desired filter expression.
+To construct a filter expression you can call [filter.Node()][raphtory.filter.Node], [filter.Edge()][raphtory.filter.Edge], [filter.Property()][raphtory.filter.Property], [filter.Metadata()][raphtory.filter.Metadata], or one of their methods. This creates a corresponding builder that requires a comparison to a specified value or values to produce a valid filter expression.
+
+The available operators for comparisons depend on if you are looking at a [node][raphtory.filter.NodeFilterBuilder], [edge][raphtory.filter.EdgeFilterOp], or [property][raphtory.filter.PropertyFilterOps] and metadata have the same operators available as properties. Additionally, you can use any of the normal Python logical operators to combine filter expressions.
+
+For example:
+
+/// tab | :fontawesome-brands-python: Python
+
+```{.python notest}
+
+# Compare a numerical value
+filter1 = filter.Property("uptime_days") <= 60
+# Check equality of stings
+filter2 = filter.Property("OS_version") == "Ubuntu 20.04"
+# Create a single filter from a logical combination using Python bitwise or 
+filter3 = (filter.Property("primary_function").is_not_in(["Database", "Backup"])) | (filter.Property("uptime_days") < 45)
+
+```
 
 ## Cybersecurity scenario
 

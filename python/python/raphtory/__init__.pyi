@@ -741,7 +741,7 @@ class GraphView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this GraphView
+         Get the window size (difference between start and end) for this GraphView.
 
         Returns:
             Optional[int]:
@@ -2765,7 +2765,7 @@ class Node(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this Node
+         Get the window size (difference between start and end) for this Node.
 
         Returns:
             Optional[int]:
@@ -3343,7 +3343,7 @@ class Nodes(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this Nodes
+         Get the window size (difference between start and end) for this Nodes.
 
         Returns:
             Optional[int]:
@@ -3793,7 +3793,7 @@ class PathFromNode(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this PathFromNode
+         Get the window size (difference between start and end) for this PathFromNode.
 
         Returns:
             Optional[int]:
@@ -4252,7 +4252,7 @@ class PathFromGraph(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this PathFromGraph
+         Get the window size (difference between start and end) for this PathFromGraph.
 
         Returns:
             Optional[int]:
@@ -4806,7 +4806,7 @@ class Edge(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this Edge
+         Get the window size (difference between start and end) for this Edge.
 
         Returns:
             Optional[int]:
@@ -5294,7 +5294,7 @@ class Edges(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this Edges
+         Get the window size (difference between start and end) for this Edges.
 
         Returns:
             Optional[int]:
@@ -5689,7 +5689,7 @@ class NestedEdges(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this NestedEdges
+         Get the window size (difference between start and end) for this NestedEdges.
 
         Returns:
             Optional[int]:
