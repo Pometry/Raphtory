@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758304053383,
+  "lastUpdate": 1759234037724,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -647,6 +647,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1663,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ccacea18d3ea750e7149fe75a5739ecb5704803f",
+          "message": "Indexed node additions and moves tests into separate raphtory/tests (#2289)\n\n* move raphtory tests into raphtory/tests/\n\n* break away proto and df loaders tests\n\n* import Materialized graph\n\n* bring debug symbols back and remove some of the warnings from the new tests\n\n* missing use\n\n* fixed comments on PR\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2025-09-30T12:30:37+01:00",
+          "tree_id": "aa8722b25b36ff4de415b5d7875ed00e6516aab5",
+          "url": "https://github.com/Pometry/Raphtory/commit/ccacea18d3ea750e7149fe75a5739ecb5704803f"
+        },
+        "date": 1759234032456,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1443,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 269,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 211,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1168,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1043,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1627,
             "unit": "req/s"
           }
         ]
