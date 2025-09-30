@@ -125,6 +125,7 @@ io = [
     "dep:reqwest",
     "dep:tokio",
     "dep:parquet",
+    "dep:tempfile",
     "proto",
     "kdam",
 ]
