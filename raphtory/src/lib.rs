@@ -110,6 +110,10 @@ pub mod errors;
 pub mod serialise;
 pub mod storage;
 
+/// Return Raphtory crate version.
+///
+/// Returns:
+///     str:
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }

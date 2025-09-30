@@ -145,6 +145,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// List the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
+    /// Returns the number of times a change to the history was made.
     fn history_counts(&self) -> Self::ValueType<usize>;
 
     /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
@@ -168,51 +169,89 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
 
-    /// Return a vview of the metadata of the edge
+    /// Return a view of the metadata of the edge
     fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
     /// Returns the source node of the edge.
+    ///
+    /// Returns:
+    ///     Nodes:
     fn src(&self) -> Self::Nodes;
 
     /// Returns the destination node of the edge.
+    ///
+    /// Returns:
+    ///     Nodes:
     fn dst(&self) -> Self::Nodes;
 
     /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+    ///
+    /// Returns:
+    ///     Nodes:
     fn nbr(&self) -> Self::Nodes;
 
-    /// Check if edge is active at a given time point
+    /// Check if the edge is active (has some update within the current bound) at a given time point.
     fn is_active(&self) -> Self::ValueType<bool>;
 
     /// Returns the id of the edge.
+    ///
+    /// Returns:
+    ///     GID:
     fn id(&self) -> Self::ValueType<(GID, GID)>;
 
-    /// Explodes an edge and returns all instances it had been updated as seperate edges
+    /// Explodes an edge and returns all instances it had been updated as separate edges
+    ///
+    /// Returns:
+    ///     Edges:
     fn explode(&self) -> Self::Exploded;
 
+    /// Returns:
+    ///     Edges:
     fn explode_layers(&self) -> Self::Exploded;
 
     /// Gets the first time an edge was seen
+    ///
+    /// Returns:
+    ///     int:
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
+    /// Returns:
+    ///     DateTime:
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
+    /// Returns:
+    ///     DateTime:
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the latest time an edge was updated
+    ///
+    /// Returns:
+    ///     int:
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
+    ///
+    /// Returns:
+    ///     int:
     fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
 
+    /// Returns:
+    ///     DateTime:
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
+    ///
+    /// Returns:
+    ///     str:
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
     fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
 
     /// Gets the name of the layer this edge belongs to
+    ///
+    /// Returns:
+    ///     str:
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>>;
 }
 
@@ -255,6 +294,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns the number of times a change to the history was made.
+    ///
+    /// Returns:
+    ///     int:
     fn history_counts(&self) -> Self::ValueType<usize> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -276,6 +319,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     Optional[List[datetime]]:
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -302,6 +347,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     list[int]
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
         self.map(|g, e| {
             EdgeView::new(g, e)
@@ -311,6 +358,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     Optional[List[datetime]]:
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
             EdgeView::new(g, e)
@@ -320,6 +369,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     boolean:
     fn is_valid(&self) -> Self::ValueType<bool> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -344,6 +395,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns:
+    ///     boolean:
     fn is_deleted(&self) -> Self::ValueType<bool> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -368,34 +421,54 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns true if the source and destination nodes are identical.
+    ///
+    ///  Returns:
+    ///     boolean:
     fn is_self_loop(&self) -> Self::ValueType<bool> {
         self.map(|_g, e| e.src() == e.dst())
     }
 
-    /// Return a view of the properties of the edge
+    /// Returns a view of the properties of the edge
+    ///
+    /// Returns:
+    ///     properties:
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.as_props()
     }
 
+    /// Returns:
+    ///     metadata:
     fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
         self.as_metadata()
     }
 
     /// Returns the source node of the edge.
+    ///
+    /// Returns:
+    ///     Nodes:
     fn src(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.src())
     }
 
     /// Returns the destination node of the edge.
+    ///
+    /// Returns:
+    ///     Nodes:
     fn dst(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.dst())
     }
 
+    /// Returns:
+    ///     Nodes:
     fn nbr(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.remote())
     }
 
-    /// Check if edge is active (i.e. has some update within the current bound)
+    /// Check if an edge is active is active (has some update within the current bound) at a given time point.
+    ///
+    /// Returns:
+    ///     bool:
     fn is_active(&self) -> Self::ValueType<bool> {
         self.map(move |g, e| {
             if edge_valid_layer(g, e) {

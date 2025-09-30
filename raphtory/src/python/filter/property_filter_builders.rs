@@ -28,66 +28,155 @@ impl<T: InternalPropertyFilterOps + 'static> From<T> for PyPropertyFilterOps {
 
 #[pymethods]
 impl PyPropertyFilterOps {
+    /// Returns a filter expression that checks if a specified property is equal to a given value.
+    ///  
+    /// Arguments:
+    ///     PropValue:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.eq(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a specified property is not equal to a given value.
+    ///   
+    /// Arguments:
+    ///     PropValue:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.ne(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a specified property is less than to a given value.
+    ///   
+    /// Arguments:
+    ///     PropValue:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.lt(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a specified property is less than or equal to a given value.
+    ///   
+    /// Arguments:
+    ///     PropValue:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn __le__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.le(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a specified property is greater than a given value.
+    ///   
+    /// Arguments:
+    ///     PropValue:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.gt(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a specified property is greater than or equal to a given value.
+    ///   
+    /// Arguments:
+    ///     PropValue:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.ge(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a given value is in a specified iterable of properties.
+    ///   
+    /// Arguments:
+    ///     list[PropValue]:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let property = self.0.is_in(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a given value is not in a specified iterable of properties.
+    ///   
+    /// Arguments:
+    ///     list[PropValue]:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let property = self.0.is_not_in(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a given value is none.
+    ///  
+    /// Returns:
+    ///     FilterExpr:
     fn is_none(&self) -> PyFilterExpr {
         let property = self.0.is_none();
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if a given value is some.
+    ///  
+    /// Returns:
+    ///     FilterExpr:
     fn is_some(&self) -> PyFilterExpr {
         let property = self.0.is_some();
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if this object contains a specified property.
+    ///   
+    /// Arguments:
+    ///     PropValue:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn contains(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.contains(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if this object does not contain a specified property.
+    ///   
+    /// Arguments:
+    ///     PropValue:
+    ///
+    /// Returns:
+    ///     FilterExpr:
     fn not_contains(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Arguments:
+    ///     prop_value (str):
+    ///     levenshtein_distance (usize):
+    ///     prefix_match (bool):
+    ///  
+    /// Returns:
+    ///     FilterExpr:
     fn fuzzy_search(
         &self,
         prop_value: String,

@@ -12,12 +12,12 @@ use rayon::prelude::*;
 /// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
 /// Uses path-counting for its triangle-counting step.
 ///
-/// # Arguments
-/// - `graph`: Raphtory graph, can be directed or undirected but will be treated as undirected.
-/// - `v`: vec of node ids, if empty, will return results for every node in the graph
+/// Arguments:
+///     graph: Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     v: vec of node ids, if empty, will return results for every node in the graph
 ///
-/// # Returns
-/// the local clustering coefficient of node v in g.
+/// Returns:
+///     NodeState: The local clustering coefficient of node v in g.
 pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
