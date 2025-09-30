@@ -45,10 +45,10 @@ from raphtory import Graph
 from raphtory import filter
 import pandas as pd
 
-server_edges_df = pd.read_csv("./network_traffic_edges.csv")
+server_edges_df = pd.read_csv("../data/network_traffic_edges.csv")
 server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
 
-server_nodes_df = pd.read_csv("./network_traffic_nodes.csv")
+server_nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
 
 traffic_graph = Graph()
@@ -60,7 +60,7 @@ traffic_graph.load_edges_from_pandas(
     properties=["data_size_MB"],
     layer_col="transaction_type",
     metadata=["is_encrypted"],
-    shared_metadata={"datasource": "./network_traffic_edges.csv"},
+    shared_metadata={"datasource": "../data/network_traffic_edges.csv"},
 )
 traffic_graph.load_nodes_from_pandas(
     df=server_nodes_df,
@@ -68,7 +68,7 @@ traffic_graph.load_nodes_from_pandas(
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
     metadata=["server_name", "hardware_type"],
-    shared_metadata={"datasource": "./network_traffic_edges.csv"},
+    shared_metadata={"datasource": "../data/network_traffic_edges.csv"},
 )
 
 my_filter = filter.Property("OS_version").is_in(["Ubuntu 20.04", "Red Hat 8.1"]) & filter.Property("primary_function").is_in(["Web Server", "Application Server"])
