@@ -187,7 +187,7 @@ impl EdgesStorage {
     pub fn get_edge(&self, eid: EID) -> EdgeRGuard {
         let (bucket, offset) = self.resolve(eid.into());
         EdgeRGuard {
-            guard: self.shards[bucket].read(),
+            guard: self.shards[bucket].read_recursive(),
             offset,
         }
     }
