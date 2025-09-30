@@ -62,8 +62,38 @@ def lotr_graph_with_props() -> Graph:
     """
     Same as `lotr_graph()` but with additional properties race and gender for some of the nodes
 
-def neo4j_movie_graph(uri, username, password, database=...): ...
-def stable_coin_graph(path=None, subset=None): ...
+    Returns:
+        Graph:
+    """
+
+def neo4j_movie_graph(
+    uri: str, username: str, password: str, database: str = ...
+) -> Graph:
+    """
+    Returns the neo4j movie graph example.
+
+    Arguments:
+        uri (str):
+        username (str):
+        password (str):
+        database (str):
+
+    Returns:
+        Graph:
+    """
+
+def stable_coin_graph(path: str = None, subset: bool = None) -> Graph:
+    """
+    Returns the stablecoin graph example.
+
+    Arguments:
+        path (str):
+        subset (bool):
+
+    Returns:
+        Graph:
+    """
+
 def reddit_hyperlink_graph(timeout_seconds: int = 600) -> Graph:
     """
     Load (a subset of) Reddit hyperlinks dataset into a graph.
@@ -102,8 +132,18 @@ def reddit_hyperlink_graph(timeout_seconds: int = 600) -> Graph:
         Graph: A Graph containing the Reddit hyperlinks dataset
     """
 
-def reddit_hyperlink_graph_local(file_path): ...
-def karate_club_graph():
+def reddit_hyperlink_graph_local(file_path: str) -> Graph:
+    """
+    Returns the Reddit hyperlink graph example.
+
+    Arguments:
+        file_path (str):
+
+    Returns:
+        Graph:
+    """
+
+def karate_club_graph() -> Graph:
     """
     `karate_club_graph` constructs a karate club graph.
 

@@ -41,6 +41,7 @@ __all__ = [
     "NestedEdges",
     "MutableEdge",
     "Properties",
+    "PyPropValueList",
     "Metadata",
     "TemporalProperties",
     "PropertiesView",
@@ -56,6 +57,7 @@ __all__ = [
     "vectors",
     "node_state",
     "filter",
+    "iterables",
     "nullmodels",
     "plottingutils",
 ]
@@ -5264,8 +5266,15 @@ class Edges(object):
 
         """
 
-    def history_counts(self): ...
-    def history_date_time(self):
+    def history_counts(self) -> U64Iterable:
+        """
+        Returns the number of times any edge was added or change to an edge was been made.
+
+        Returns:
+            U64Iterable:
+        """
+
+    def history_date_time(self) -> OptionVecUtcDateTimeIterable:
         """
         Returns all timestamps of edges, when an edge is added or change to an edge is made.
 
@@ -5278,9 +5287,13 @@ class Edges(object):
         """
         Returns all ids of the edges.
 
-    def is_active(self): ...
-    def is_deleted(self):
-        """Check if the edges are deleted"""
+        Returns:
+            GIDGIDIterable:
+        """
+
+    def is_active(self) -> BoolIterable:
+        """
+        Check if the edges are active (there is at least one update during this time).
 
         Returns:
             BoolIterable:
@@ -5806,9 +5819,13 @@ class NestedEdges(object):
         """
         Returns all ids of the edges.
 
-    def is_active(self): ...
-    def is_deleted(self):
-        """Check if edges are deleted"""
+        Returns:
+            NestedGIDGIDIterable:
+        """
+
+    def is_active(self) -> NestedBoolIterable:
+        """
+        Check if the edges are active (there is at least one update during this time).
 
         Returns:
             NestedBoolIterable:
@@ -6235,8 +6252,7 @@ class Properties(object):
             list[PropValue]:
         """
 
-class PyPropValueList(object): 
-
+class PyPropValueList(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6272,12 +6288,8 @@ class PyPropValueList(object):
             PropValue: The average of each property values, or None if count is zero.
         """
 
-    def collect(self):
-        ...
-
-    def count(self):
-        ...
-
+    def collect(self): ...
+    def count(self): ...
     def drop_none(self) -> list[PropValue]:
         """
         Drop none.
@@ -6768,29 +6780,150 @@ class IndexSpecBuilder(object):
     def __new__(cls, graph) -> IndexSpecBuilder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def build(self): ...
-    def with_all_edge_metadata(self): ...
-    def with_all_edge_properties(self): ...
-    def with_all_edge_properties_and_metadata(self): ...
-    def with_all_node_metadata(self): ...
-    def with_all_node_properties(self): ...
-    def with_all_node_properties_and_metadata(self): ...
-    def with_edge_metadata(self, props): ...
-    def with_edge_properties(self, props): ...
-    def with_node_metadata(self, props): ...
-    def with_node_properties(self, props): ...
+    def build(self) -> IndexSpec:
+        """
+        Return a spec
+
+        Returns:
+            IndexSpec:
+        """
+
+    def with_all_edge_metadata(self) -> dict[str, Any]:
+        """
+        Adds all edge metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_edge_properties(self) -> dict[str, Any]:
+        """
+        Adds all edge properties to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_edge_properties_and_metadata(self) -> dict[str, Any]:
+        """
+        Adds all edge properties and metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_node_metadata(self) -> dict[str, Any]:
+        """
+        Adds all node metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_node_properties(self) -> dict[str, Any]:
+        """
+        Adds all node properties to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_node_properties_and_metadata(self) -> dict[str, Any]:
+        """
+        Adds all node properties and metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_edge_metadata(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified edge metadata to the spec.
+
+        Arguments:
+            props: List of metadata.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_edge_properties(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified edge properties to the spec.
+
+        Arguments:
+            props: List of properties.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_node_metadata(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified node metadata to the spec.
+
+        Arguments:
+            props: list of metadata.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_node_properties(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified node properties to the spec.
+
+        Arguments:
+            props: list of properties.
+
+        Returns:
+            dict[str, Any]:
+        """
 
 class IndexSpec(object):
     def __repr__(self):
         """Return repr(self)."""
 
     @property
-    def edge_metadata(self): ...
-    @property
-    def edge_properties(self): ...
-    @property
-    def node_metadata(self): ...
-    @property
-    def node_properties(self): ...
+    def edge_metadata(self) -> list[str]:
+        """
+        Get edge metadata.
 
-def version(): ...
+        Returns:
+            list[str]:
+        """
+
+    @property
+    def edge_properties(self) -> list[str]:
+        """
+        Get edge properties.
+
+        Returns:
+            list[str]:
+        """
+
+    @property
+    def node_metadata(self) -> list[str]:
+        """
+        Get node metadata.
+
+        Returns:
+            list[str]:
+        """
+
+    @property
+    def node_properties(self) -> list[str]:
+        """
+        Get node properties.
+
+        Returns:
+            list[str]:
+        """
+
+def version() -> str:
+    """
+    Return Raphtory version.
+
+    Returns:
+        str:
+    """
