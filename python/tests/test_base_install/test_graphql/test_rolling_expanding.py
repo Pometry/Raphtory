@@ -1800,7 +1800,7 @@ def test_mismatched_window_step_and_errors():
     queries_and_expected_outputs = []
     queries_and_exceptions = []
     parse_exception = "Failed to parse time string: one of the tokens in the interval string supposed to be a number couldn't be parsed"
-    parse_exception2 = "Failed to parse time string: 'monthdas' is not a valid unit"
+    parse_exception2 = "Failed to parse time string: 'monthdas' is not a valid unit. Valid units are year(s), month(s), week(s), day(s), hour(s), minute(s), second(s) and millisecond(s)."
     too_many_exception = "Invalid value for argument \\"
     # go forward 1 hour (end of window), then go back 1 day (start of window) from the earliest event in the graph (2025-01-01 00:00:00)
     query = """
