@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - master
+      - docbrownv4_merge
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
