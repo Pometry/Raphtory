@@ -18,18 +18,30 @@ As you get new data you can make global updates, like adding new nodes, using th
 
 ## Nodes
 
-The [Node][raphtory.Node] object in Raphtory typically represents some entity in your data. You must create nodes using the [add_node()][raphtory.Graph.add_node] function on your Graph object and any subsequent updates must be made using a [MutableNode][raphtory.MutableNode] that you can get by calling `my_graph.node(node_id)`. Any queries are performed using the Node object or an appropriate view.
+The [Node][raphtory.Node] object in Raphtory typically represents some entity in your data. You must create nodes using the [.add_node()][raphtory.Graph.add_node] function on your Graph object and any subsequent updates must be made using a [MutableNode][raphtory.MutableNode] that you can get by calling `my_graph.node(node_id)`. Any queries are performed using the Node object or an appropriate view.
 
 To make queries more convenient Raphtory provides the [Nodes][raphtory.Nodes] iterable that allows you to make queries over all the nodes in the current view. Typically, queries on an individual Node will return a result directly, while queries over the Nodes iterable will return a view.
 
+!!! Info
+    The Nodes and Edges iterables have a `.collect()` function that returns list of all the your objects. This is operates on the underlying Rust library and is much faster than creating the list manually in Python.
+
 ## Edges
 
-However, there can only be one edge between any pair of nodes
+The [Edge][raphtory.Edge] object represents relationships between nodes. However, in Raphtory there can only be one edge between any pair of nodes so to represent multiple relationships you must use properties and metadata.
+
+Similarly to nodes, you must create edges using [.add_edge()][raphtory.Graph.add_edge] and make changes using a [MutableEdge][raphtory.MutableEdge] object. There is also an [Edges][raphtory.Edges] iterable that allows you to make queries over all the nodes in the current view.
+
+An Edge object contains the combined information for that edge across all points in time. Often it is more useful to look at the changes across time. To do this Raphtory provides the option to [explode][raphtory.Edge.explode] an edge, which returns an edge object for each update within the original edge.
 
 ## Properties and metadata
+
+
 
 ## Layers
 
 ## Views
+
+Views are a kind of object in Raphtory that allow you to perform queries on a subset of your data. 
+
 
 ## History
