@@ -925,32 +925,30 @@ mod tests {
 
     #[cfg(feature = "storage")]
     mod load_multi_layer {
-        use std::{
-            fs::File,
-            path::{Path, PathBuf},
-        };
-
         use crate::{
             db::graph::graph::assert_graph_equal, io::parquet_loaders::load_edges_from_parquet,
             prelude::Graph, test_utils::build_edge_list,
         };
-        use polars_arrow::{
-            array::{PrimitiveArray, Utf8Array},
-            types::NativeType,
+        use arrow_array::{record_batch, Int64Array, LargeStringArray, RecordBatch, UInt64Array};
+        use itertools::MultiUnzip;
+        use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
+        use pometry_storage::{
+            chunked_array::array_like::BaseArrayLike, graph::TemporalGraph, load::ExternalEdgeList,
         };
-        use polars_core::{frame::DataFrame, prelude::*};
-        use polars_io::prelude::{ParquetCompression, ParquetWriter};
-        use pometry_storage::{graph::TemporalGraph, load::ExternalEdgeList};
         use prop::sample::SizeRange;
         use proptest::prelude::*;
         use raphtory_storage::{disk::DiskGraphStorage, graph::graph::GraphStorage};
+        use std::{
+            fs::File,
+            path::{Path, PathBuf},
+        };
         use tempfile::TempDir;
 
         fn build_edge_list_df(
             len: usize,
             num_nodes: impl Strategy<Value = u64>,
             num_layers: impl Into<SizeRange>,
-        ) -> impl Strategy<Value = Vec<DataFrame>> {
+        ) -> impl Strategy<Value = Vec<RecordBatch>> {
             let layer = num_nodes
                 .prop_flat_map(move |num_nodes| {
                     build_edge_list(len, num_nodes)
@@ -963,34 +961,31 @@ mod tests {
             proptest::collection::vec(layer, num_layers)
         }
 
-        fn new_df_from_rows(rows: &[(u64, u64, i64, String, i64)]) -> DataFrame {
-            let src = native_series("src", rows.iter().map(|(src, _, _, _, _)| *src));
-            let dst = native_series("dst", rows.iter().map(|(_, dst, _, _, _)| *dst));
-            let time = native_series("time", rows.iter().map(|(_, _, time, _, _)| *time));
-            let int_prop = native_series(
-                "int_prop",
-                rows.iter().map(|(_, _, _, _, int_prop)| *int_prop),
-            );
-
-            let str_prop = Series::from_arrow(
-                "str_prop",
-                Utf8Array::<i64>::from_iter(
-                    rows.iter()
-                        .map(|(_, _, _, str_prop, _)| Some(str_prop.clone())),
-                )
-                .boxed(),
-            )
+        fn new_df_from_rows(rows: &[(u64, u64, i64, String, i64)]) -> RecordBatch {
+            let (src, dst, time, str_prop, int_prop): (
+                UInt64Array,
+                UInt64Array,
+                Int64Array,
+                LargeStringArray,
+                Int64Array,
+            ) = rows
+                .iter()
+                .map(|(src, dst, time, str_prop, int_prop)| {
+                    (*src, *dst, *time, str_prop.clone(), *int_prop)
+                })
+                .multiunzip();
+            let batch = RecordBatch::try_from_iter([
+                ("src", src.as_array_ref()),
+                ("dst", dst.as_array_ref()),
+                ("time", time.as_array_ref()),
+                ("str_prop", str_prop.as_array_ref()),
+                ("int_prop", int_prop.as_array_ref()),
+            ])
             .unwrap();
-
-            DataFrame::new(vec![src, dst, time, str_prop, int_prop]).unwrap()
+            batch
         }
 
-        fn native_series<T: NativeType>(name: &str, is: impl IntoIterator<Item = T>) -> Series {
-            let is = PrimitiveArray::from_vec(is.into_iter().collect());
-            Series::from_arrow(name, is.boxed()).unwrap()
-        }
-
-        fn check_layers_from_df(input: Vec<DataFrame>, num_threads: usize) {
+        fn check_layers_from_df(input: Vec<RecordBatch>, num_threads: usize) {
             let root_dir = TempDir::new().unwrap();
             let graph_dir = TempDir::new().unwrap();
             let layers = input
@@ -1060,7 +1055,7 @@ mod tests {
         }
 
         fn write_layers<'a>(
-            layers: &'a [(String, DataFrame)],
+            layers: &'a [(String, RecordBatch)],
             root_dir: &Path,
         ) -> Vec<ExternalEdgeList<'a, PathBuf>> {
             let mut paths = vec![];
@@ -1082,11 +1077,18 @@ mod tests {
                 );
 
                 let file = File::create(layer_path).unwrap();
-                let mut df = df.clone();
-                ParquetWriter::new(file)
-                    .with_compression(ParquetCompression::Snappy)
-                    .finish(&mut df)
-                    .unwrap();
+
+                // WriterProperties can be used to set Parquet file options
+                let props = WriterProperties::builder()
+                    .set_compression(Compression::SNAPPY)
+                    .build();
+
+                let mut writer = ArrowWriter::try_new(file, df.schema(), Some(props)).unwrap();
+
+                writer.write(df).expect("Writing batch");
+
+                // writer must be closed to write footer
+                writer.close().unwrap();
             }
             paths
         }

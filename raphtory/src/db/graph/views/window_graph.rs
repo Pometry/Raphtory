@@ -792,6 +792,44 @@ mod views_test {
         });
     }
 
+    #[cfg(feature = "storage")]
+    #[test]
+    fn windowed_graph_has_edge_disk() {
+        proptest!(|(mut edges: Vec<(i64, (u64, u64))>)| {
+            prop_assume!(!edges.is_empty());
+
+            edges.sort_by_key(|e| e.1); // Sorted by edge
+            edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
+            edges.sort_by_key(|e| e.0); // Sorted by time
+
+            let rand_start_index = thread_rng().gen_range(0..edges.len());
+            let rand_end_index = thread_rng().gen_range(rand_start_index..edges.len());
+
+            let g = Graph::new();
+
+            for (t, e) in &edges {
+                g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
+            }
+
+            let test_dir = TempDir::new().unwrap();
+            let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
+
+            let start = edges.get(rand_start_index).expect("start index in range").0;
+            let end = edges.get(rand_end_index).expect("end index in range").0;
+
+            let wg = g.window(start, end);
+
+            let rand_test_index: usize = thread_rng().gen_range(0..edges.len());
+
+            let (i, e) = edges.get(rand_test_index).expect("test index in range");
+            if (start..end).contains(i) {
+                prop_assert!(wg.has_edge(e.0, e.1), "Edge {:?} was not in window {:?}", (i, e), start..end);
+            } else {
+                prop_assert!(!wg.has_edge(e.0, e.1), "Edge {:?} was in window {:?}", (i, e), start..end);
+            }
+        });
+    }
+
     #[test]
     fn windowed_graph_edge_count() {
         proptest!(|(mut edges: Vec<(i64, (u64, u64))>, window: Range<i64>)| {
@@ -906,44 +944,6 @@ mod views_test {
     //         TestResult::error(format!("Node {:?} was in window {:?}", (i, v), start..end))
     //     }
     // }
-
-    #[cfg(feature = "storage")]
-    #[test]
-    fn windowed_graph_has_edge() {
-        proptest!(|(mut edges: Vec<(i64, (u64, u64))>)| {
-            prop_assume!(!edges.is_empty());
-
-            edges.sort_by_key(|e| e.1); // Sorted by edge
-            edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
-            edges.sort_by_key(|e| e.0); // Sorted by time
-
-            let rand_start_index = thread_rng().gen_range(0..edges.len());
-            let rand_end_index = thread_rng().gen_range(rand_start_index..edges.len());
-
-            let g = Graph::new();
-
-            for (t, e) in &edges {
-                g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
-            }
-
-            let test_dir = TempDir::new().unwrap();
-            let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-
-            let start = edges.get(rand_start_index).expect("start index in range").0;
-            let end = edges.get(rand_end_index).expect("end index in range").0;
-
-            let wg = g.window(start, end);
-
-            let rand_test_index: usize = thread_rng().gen_range(0..edges.len());
-
-            let (i, e) = edges.get(rand_test_index).expect("test index in range");
-            if (start..end).contains(i) {
-                prop_assert!(wg.has_edge(e.0, e.1), "Edge {:?} was not in window {:?}", (i, e), start..end);
-            } else {
-                prop_assert!(!wg.has_edge(e.0, e.1), "Edge {:?} was in window {:?}", (i, e), start..end);
-            }
-        });
-    }
 
     #[test]
     fn windowed_graph_node_ids() {

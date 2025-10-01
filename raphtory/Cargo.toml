@@ -18,6 +18,7 @@ homepage.workspace = true
 raphtory-api = { path = "../raphtory-api", version = "0.16.1" }
 raphtory-core = { path = "../raphtory-core", version = "0.16.1" }
 raphtory-storage = { path = "../raphtory-storage", version = "0.16.1" }
+pometry-storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
 
 hashbrown = { workspace = true }
@@ -94,7 +95,6 @@ numpy = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
-pometry-storage = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
 
 
@@ -108,9 +108,6 @@ streaming-stats = { workspace = true }
 proptest = { workspace = true }
 proptest-derive = { workspace = true }
 indoc = { workspace = true }
-polars-arrow = "0.51.0"
-polars-core = "0.51.0"
-polars-io = { version = "0.51.0", features = ["parquet"] }
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }

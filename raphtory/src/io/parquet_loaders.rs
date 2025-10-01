@@ -1,34 +1,26 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
-    errors::InvalidPathReason::PathDoesNotExist,
+    errors::{GraphError, InvalidPathReason::PathDoesNotExist},
     io::arrow::{dataframe::*, df_loaders::*},
-    prelude::DeletionOps,
+    prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
     serialise::incremental::InternalCache,
 };
+use arrow_array::StructArray;
+use arrow_schema::Field;
 use itertools::Itertools;
 use parquet::{
     arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask},
     file::reader::FileReader,
 };
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::{
     collections::HashMap,
     fs,
     fs::File,
     path::{Path, PathBuf},
 };
-
-use crate::{
-    errors::GraphError,
-    prelude::{AdditionOps, PropertyAdditionOps},
-};
-#[cfg(feature = "storage")]
-use polars_arrow::{
-    array::StructArray,
-    datatypes::{ArrowDataType, Field},
-};
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
-use raphtory_api::core::entities::properties::prop::Prop;
 
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
@@ -357,22 +349,16 @@ pub fn read_struct_arrays(
     let readers = get_parquet_file_paths(path)?
         .into_iter()
         .map(|path| {
-            read_parquet_file(path, col_names).map(|(col_names, reader, _)| (col_names, reader))
+            read_parquet_file(path, col_names).and_then(|(col_names, reader, _)| {
+                Ok::<_, GraphError>((col_names, reader.build()?))
+            })
         })
         .collect::<Result<Vec<_>, _>>()?;
 
     let chunks = readers.into_iter().flat_map(|(field_names, iter)| {
         iter.map(move |cols| {
-            cols.map(|col| {
-                let values = col.into_arrays();
-                let fields = values
-                    .iter()
-                    .zip(field_names.iter())
-                    .map(|(arr, field_name)| Field::new(field_name, arr.data_type().clone(), true))
-                    .collect::<Vec<_>>();
-                StructArray::new(ArrowDataType::Struct(fields), values, None)
-            })
-            .map_err(RAError::Arrow)
+            cols.map(|col| StructArray::from(col))
+                .map_err(RAError::ArrowRs)
         })
     });
     Ok(chunks)

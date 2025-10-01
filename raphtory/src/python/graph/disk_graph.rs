@@ -2,10 +2,6 @@
 //!
 use super::io::pandas_loaders::*;
 use crate::{
-    arrow2::{
-        array::StructArray,
-        datatypes::{ArrowDataType as DataType, Field},
-    },
     db::{
         api::storage::graph::storage_ops::disk_storage::IntoGraph,
         graph::views::deletion_graph::PersistentGraph,
@@ -15,6 +11,8 @@ use crate::{
     prelude::Graph,
     python::{graph::graph::PyGraph, types::repr::StructReprBuilder},
 };
+use arrow_array::StructArray;
+use arrow_schema::Field;
 use itertools::Itertools;
 use pometry_storage::{
     graph::{load_node_metadata, TemporalGraph},
@@ -185,7 +183,7 @@ impl PyDiskGraph {
                         Field::new(col_name, arr.data_type().clone(), arr.null_count() > 0)
                     })
                     .collect_vec();
-                let s_array = StructArray::new(DataType::Struct(fields), df.chunk, None);
+                let s_array = StructArray::new(fields.into(), df.chunk, None);
                 s_array
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
@@ -272,7 +270,7 @@ impl PyDiskGraph {
         let mut cloned = self.clone();
         let chunks = read_struct_arrays(&location, Some(&[col_name]))?.map(|chunk| match chunk {
             Ok(chunk) => {
-                let (_, cols, _) = chunk.into_data();
+                let (_, cols, _) = chunk.into_parts();
                 cols.into_iter().next().ok_or(RAError::EmptyChunk)
             }
             Err(err) => Err(err),

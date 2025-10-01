@@ -5,8 +5,8 @@ use crate::{
     errors::GraphError,
     prelude::{Graph, GraphViewOps, NodeStateOps, NodeViewOps},
 };
+use arrow_array::ArrayRef;
 use itertools::Itertools;
-use polars_arrow::array::Array;
 use pometry_storage::interop::GraphLike;
 use raphtory_api::{
     core::{
@@ -170,7 +170,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
         layer: usize,
         prop_id: usize,
         _key: S,
-    ) -> Option<Box<dyn Array>> {
+    ) -> Option<ArrayRef> {
         let prop_type = self
             .edge_meta()
             .temporal_prop_mapper()
@@ -206,9 +206,9 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
 #[cfg(test)]
 mod test {
+    use arrow_array::StringArray;
     use bigdecimal::BigDecimal;
     use itertools::Itertools;
-    use polars_arrow::array::Utf8Array;
     use proptest::{prelude::*, sample::size_range};
     use rayon::prelude::*;
     use std::{
@@ -226,7 +226,9 @@ mod test {
         },
         prelude::*,
     };
-    use pometry_storage::{graph::TemporalGraph, properties::Properties};
+    use pometry_storage::{
+        chunked_array::array_like::BaseArrayLike, graph::TemporalGraph, properties::Properties,
+    };
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_storage::disk::{ParquetLayerCols, Time};
 
@@ -889,8 +891,11 @@ mod test {
         let graph = Graph::new();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let mut dg = DiskGraphStorage::from_graph(&graph, graph_dir.path()).unwrap();
-        dg.load_node_types_from_arrays([Ok(Utf8Array::<i32>::from_slice(["1", "2"]).boxed())], 100)
-            .unwrap();
+        dg.load_node_types_from_arrays(
+            [Ok(StringArray::from_iter_values(["1", "2"]).as_array_ref())],
+            100,
+        )
+        .unwrap();
         assert_eq!(
             dg.into_graph().nodes().node_type().collect_vec(),
             [Some("1".into()), Some("2".into())]

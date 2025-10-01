@@ -158,9 +158,6 @@ pub mod prelude {
     pub use crate::db::api::{mutation::IndexMutationOps, view::SearchableGraphOps};
 }
 
-#[cfg(feature = "storage")]
-pub use polars_arrow as arrow2;
-
 pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
@@ -213,7 +210,6 @@ mod test_utils {
             0..=len,
         )
     }
-
 
     pub(crate) fn build_edge_list_str(
         len: usize,
