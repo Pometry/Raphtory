@@ -1117,7 +1117,24 @@ mod tests {
 
     fn check_test_load_edges_disk(edges: &[(u64, u64, i64, String, i64)], chunk_size: usize) {
         let temp_dir = tempfile::tempdir().unwrap();
-        let g = Graph::new_at_path(temp_dir.path());
+
+        let exp_g = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edges {
+            exp_g
+                .add_edge(
+                    *time,
+                    src,
+                    dst,
+                    [
+                        ("str_prop", str_prop.clone().into_prop()),
+                        ("int_prop", int_prop.into_prop()),
+                    ],
+                    None,
+                )
+                .unwrap();
+        }
+
+        let act_g = Graph::new_at_path(temp_dir.path());
         let load_edges = |g: &Graph, edges: &[(u64, u64, i64, String, i64)]| {
             let props = ["str_prop", "int_prop"];
             let df_view = build_df(chunk_size, edges);
@@ -1135,35 +1152,71 @@ mod tests {
             )
             .unwrap();
         };
-        load_edges(&g, &edges[0..edges.len() / 2]);
-        drop(g);
-        let g = Graph::load_from_path(temp_dir.path());
-        load_edges(&g, &edges[edges.len() / 2..]);
-        let g2 = Graph::new();
-        for (src, dst, time, str_prop, int_prop) in edges {
-            g2.add_edge(
-                *time,
-                src,
-                dst,
-                [
-                    ("str_prop", str_prop.clone().into_prop()),
-                    ("int_prop", int_prop.into_prop()),
-                ],
-                None,
-            )
-            .unwrap();
-        }
-        assert_graph_equal(&g, &g2);
+        load_edges(&act_g, &edges[0..edges.len() / 2]);
+        drop(act_g);
+        let act_g = Graph::load_from_path(temp_dir.path());
+        load_edges(&act_g, &edges[edges.len() / 2..]);
+        assert_graph_equal(&act_g, &exp_g);
+        drop(act_g);
+        let act_g = Graph::load_from_path(temp_dir.path());
+        assert_graph_equal(&act_g, &exp_g);
     }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(50))]
         #[test]
         fn test_load_edges_disk(
-            edges in build_edge_list(100, 10).prop_filter("at least 2 edge events", |e| e.len() >= 2),
+            edges in build_edge_list(1000, 100).prop_filter("at least 2 edge events", |e| e.len() >= 2),
             chunk_size in 10usize..=100) {
             check_test_load_edges_disk(&edges, chunk_size);
         }
+    }
+
+    #[test]
+    fn test_load_edges_disk_small() {
+        let edges = vec![
+            (0, 0, 0, "".to_string(), -4),
+            (1, 0, 6, "a".to_string(), 8),
+            (2, 3, 57, "b".to_string(), 3),
+            (0, 0, -53, "c".to_string(), 8),
+            // half
+            (4, 1, -35, "d".to_string(), 3),
+            (0, 3, 89, "e".to_string(), -6),
+            (5, 4, -91, "f".to_string(), -2),
+            (0, 5, -10, "g".to_string(), 6),
+        ];
+        let graph_dir = tempfile::tempdir().unwrap();
+        let g = Graph::new_at_path(graph_dir.path());
+
+        let load_edges = |g: &Graph, edges: &[(u64, u64, i64, String, i64)]| {
+            let props = ["str_prop", "int_prop"];
+            let df_view = build_df(10, edges);
+            load_edges_from_df(
+                df_view,
+                "time",
+                "src",
+                "dst",
+                &props,
+                &[],
+                None,
+                None,
+                None,
+                g,
+            )
+            .unwrap();
+        };
+        // load_edges(&g, &edges[0..edges.len() / 2]);
+        // drop(g);
+        // let g = Graph::load_from_path(graph_dir.path());
+        // load_edges(&g, &edges[edges.len() / 2..]);
+        load_edges(&g, &edges);
+        drop(g);
+        let g = Graph::load_from_path(&graph_dir);
+
+        let history_0 = g.node(0).unwrap().history();
+        assert_eq!(history_0, vec![-53, -10, 0, 6, 89]);
+        let history_1 = g.node(1).unwrap().history();
+        assert_eq!(history_1, vec![-35, 6]);
     }
 
     #[test]

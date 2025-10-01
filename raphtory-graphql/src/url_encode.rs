@@ -61,7 +61,6 @@ pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T) -> Result<MaterializedGraph, G
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
         let out_path = temp_dir.path().join(file.enclosed_name().unwrap());
-        dbg!(&out_path);
 
         if let Some(path) = out_path.parent() {
             std::fs::create_dir_all(path)?;
