@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759311097689,
+  "lastUpdate": 1759333826047,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -755,6 +755,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1233,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fbd7326250de52326693dca6cd54ce6763c74bff",
+          "message": "bump rust version for release action (#2298)\n\n* bump rust version for release action\n\n* chore: apply tidy-public auto-fixes\n\n* change rust version to stable for the bump versions action\n\n* setup stable rust on _release_rust.yml as well\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-01T17:13:59+02:00",
+          "tree_id": "c4102f05e4f220d949e6e8cb150fbc167c58bc99",
+          "url": "https://github.com/Pometry/Raphtory/commit/fbd7326250de52326693dca6cd54ce6763c74bff"
+        },
+        "date": 1759333820910,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1427,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 274,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 222,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1144,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1018,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1519,
             "unit": "req/s"
           }
         ]
