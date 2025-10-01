@@ -20,10 +20,10 @@ pub const GRAPH_PATH: &str = "graph";
 pub const META_PATH: &str = ".raph";
 
 /// Directory that stores search indexes
-const INDEX_PATH: &str = "index";
+pub const INDEX_PATH: &str = "index";
 
 /// Directory that stores vector embeddings of the graph
-const VECTORS_PATH: &str = "vectors";
+pub const VECTORS_PATH: &str = "vectors";
 
 /// A container for managing graph data.
 /// Folder structure:

@@ -7,7 +7,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
-    serialise::GraphFolder,
+    serialise::{INDEX_PATH, GraphFolder},
 };
 use parking_lot::RwLock;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
@@ -289,7 +289,7 @@ impl GraphIndex {
                 .strip_prefix(&source_path)
                 .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
 
-            let zip_entry_name = PathBuf::from("index")
+            let zip_entry_name = PathBuf::from(INDEX_PATH)
                 .join(rel_path)
                 .to_string_lossy()
                 .into_owned();
