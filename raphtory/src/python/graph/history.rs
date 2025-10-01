@@ -13,8 +13,9 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
 use raphtory_api::{
-    core::storage::timeindex::{TimeError, TimeIndexEntry},
+    core::storage::timeindex::{AsTime, TimeError, TimeIndexEntry},
     iter::{BoxedIter, BoxedLIter, IntoDynBoxed},
+    python::timeindex::TimeIndexComponent,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use std::sync::Arc;
@@ -223,6 +224,14 @@ impl PyHistory {
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
         if let Ok(py_hist) = other.downcast::<PyHistory>() {
             return self.history.eq(&py_hist.get().history);
+        }
+        // compare timestamps only
+        if let Ok(list) = other.extract::<Vec<TimeIndexComponent>>() {
+            return self
+                .history
+                .iter()
+                .map(|t| t.t())
+                .eq(list.into_iter().map(|c| c.t()));
         }
         if let Ok(list) = other.extract::<Vec<TimeIndexEntry>>() {
             return self.history.iter().eq(list.into_iter());

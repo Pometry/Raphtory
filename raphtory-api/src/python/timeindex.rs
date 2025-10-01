@@ -33,7 +33,7 @@ impl<'source> FromPyObject<'source> for TimeIndexEntry {
 
 /// Components that can make a TimeIndexEntry. They can be used as the secondary index as well.
 /// Extract them from Python as individual components so we can support tuples for TimeIndexEntry.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TimeIndexComponent {
     component: i64,
 }
