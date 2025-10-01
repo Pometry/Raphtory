@@ -78,7 +78,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: {simpleTime: 0}, end: {simpleTime: 150}) {
+        window(start: 0, end: 150) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -96,7 +96,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: {simpleTime: 150}, end: {simpleTime: 300}) {
+        window(start: 150, end: 300) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -117,7 +117,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: {simpleTime: 300}, end: {simpleTime: 450}) {
+        window(start: 300, end: 450) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -139,7 +139,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: {simpleTime: 0}, end: {simpleTime: 150}) {
+        window(start: 0, end: 150) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -157,7 +157,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: {simpleTime: 150}, end: {simpleTime: 300}) {
+        window(start: 150, end: 300) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -177,7 +177,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: {simpleTime: 300}, end: {simpleTime: 450}) {
+        window(start: 300, end: 450) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -386,6 +386,7 @@ def test_gql_time_index():
         datetime(2025, 1, 20, 0, 0, tzinfo=timezone.utc), "Dumbledore", "Harry"
     )
     queries_and_expected_outputs = []
+    queries_and_expected_errors = []
 
     query = """
     {
@@ -483,6 +484,77 @@ def test_gql_time_index():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
+    # call datetime on individual TimeIndexEntries
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "Dumbledore", dst: "Harry") {
+          history {
+            list {
+              datetime(formatString: "%Y-%m-%d %H:%M:%S %3fms")
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "edge": {
+            "history": {
+                "list": [
+                    {
+                        "datetime": "1970-01-01 00:00:00 150ms"
+                    },
+                    {
+                        "datetime": "1970-01-01 00:00:00 200ms"
+                    },
+                    {
+                        "datetime": "1970-01-01 00:00:00 300ms"
+                    },
+                    {
+                        "datetime": "1970-01-01 00:00:00 350ms"
+                    },
+                    {
+                        "datetime": "2025-01-20 00:00:00 000ms"
+                    }
+                ]
+            }
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    # invalid format string should return error but not crash server
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "Dumbledore", dst: "Harry") {
+          history {
+            datetimes(formatString: "%Y-%m-%d %H:%M:%S %4fms") {
+              list
+            }
+          }
+        }
+      }
+    }
+    """
+    queries_and_expected_errors.append((query, "Invalid datetime format string: '%Y-%m-%d %H:%M:%S %4fms'"))
+
+    # error when we call datetime on individual TimeIndexEntries
+    query = """
+    {
+      graph(path: "g") {
+        edge(src: "Dumbledore", dst: "Harry") {
+          history {
+            list {
+              datetime(formatString: "%Y-%m-%d %H:%M:%S %4fms")
+            }
+          }
+        }
+      }
+    }
+    """
+    queries_and_expected_errors.append((query, "Invalid datetime format string: '%Y-%m-%d %H:%M:%S %4fms'"))
+
     query = """
     {
       graph(path: "g") {
@@ -505,7 +577,7 @@ def test_gql_time_index():
     query = """
     {
       graph(path: "g") {
-        window(start: {simpleTime: "1970-01-01T00:00:00"}, end: {simpleTime: "1970-01-01T00:00:00.150"}) {
+        window(start: "1970-01-01T00:00:00", end: "1970-01-01T00:00:00.150") {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -527,8 +599,8 @@ def test_gql_time_index():
     {
       graph(path: "g") {
         window(
-          start: {indexedTime: {time: "1970-01-01T00:00:00.150+00:00", secondaryIndex: 0}}
-          end: {indexedTime: {time: "1970-01-01T00:00:00.350+00:00", secondaryIndex: 10}}
+          start: {epoch: "1970-01-01T00:00:00.150+00:00", index: 0}
+          end: {time: "1970-01-01T00:00:00.350+00:00", secondaryIndex: 10}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
@@ -565,8 +637,8 @@ def test_gql_time_index():
     {
       graph(path: "g") {
         window(
-          start: {indexedTime: {time: 150, secondaryIndex: 6}}
-          end: {indexedTime: {time: "1970-01-01 00:00:00.350", secondaryIndex: 9}}
+          start: {epoch: 150, secondaryIndex: 6}
+          end: {time: "1970-01-01 00:00:00.350", index: 9}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
@@ -602,8 +674,8 @@ def test_gql_time_index():
     {
       graph(path: "g") {
         window(
-          start: {indexedTime: {time: 150, secondaryIndex: 7}}
-          end: {indexedTime: {time: "1970-01-01T00:00:00.351", secondaryIndex: 8}}
+          start: {epoch: 150, index: 7}
+          end: {time: "1970-01-01T00:00:00.351", secondaryIndex: 8}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {

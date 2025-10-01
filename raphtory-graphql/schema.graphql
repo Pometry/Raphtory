@@ -1196,20 +1196,6 @@ input IndexSpecInput {
 	edgeProps: PropsInput!
 }
 
-"""
-Input for indexed time entries.
-"""
-input IndexedTimeInput {
-	"""
-	Simple time input. Either a timestamp (int) or a DateTime formatted string.
-	"""
-	time: SimpleTimeInput!
-	"""
-	Secondary index.
-	"""
-	secondaryIndex: Int!
-}
-
 input InputEdge {
 	"""
 	Source node.
@@ -2458,13 +2444,6 @@ type ShortestPathOutput {
 	nodes: [String!]!
 }
 
-"""
-Input for primary time component. Int or DateTime formatted String.
-Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
-%Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
-"""
-scalar SimpleTimeInput
-
 input SomePropertySpec {
 	"""
 	List of metadata.
@@ -2588,18 +2567,12 @@ type TimeIndexEntry {
 }
 
 """
-Input for simple or indexed time entries.
+Input for primary time component. Expects Int, DateTime formatted String, or Object {epoch, index}
+where epoch is either an Int or a DateTime formatted String, and index is a non-negative Int.
+Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
+%Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
 """
-input TimeInput @oneOf {
-	"""
-	Simple time input. Either a timestamp (int) or a DateTime formatted string.
-	"""
-	simpleTime: SimpleTimeInput
-	"""
-	Indexed time input. Allows specifying a secondary index for ordering within the same timestamp.
-	"""
-	indexedTime: IndexedTimeInput
-}
+scalar TimeInput
 
 scalar Upload
 
@@ -2741,3 +2714,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

@@ -1,4 +1,8 @@
-use crate::{model::graph::timeindex::GqlTimeIndexEntry, rayon::blocking_compute};
+use crate::{
+    model::graph::timeindex::{dt_format_str_is_valid, GqlTimeIndexEntry},
+    rayon::blocking_compute,
+};
+use async_graphql::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::api::view::history::{
     History, HistoryDateTime, HistorySecondaryIndex, HistoryTimestamp, InternalHistoryOps,
@@ -247,10 +251,16 @@ impl GqlHistoryDateTime {
     /// List all datetimes formatted as strings.
     /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
     /// will be raised on time conversion error. Defaults to False.
-    async fn list(&self, filter_broken: Option<bool>) -> Result<Vec<String>, TimeError> {
+    async fn list(&self, filter_broken: Option<bool>) -> Result<Vec<String>, Error> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+            if !dt_format_str_is_valid(fmt_string) {
+                return Err(Error::new(format!(
+                    "Invalid datetime format string: '{}'",
+                    fmt_string
+                )));
+            }
             self_clone
                 .history_dt
                 .iter()
@@ -260,7 +270,7 @@ impl GqlHistoryDateTime {
                         if filter_broken.unwrap_or(false) {
                             None
                         } else {
-                            Some(Err(e))
+                            Some(Err(Error::new(e.to_string())))
                         }
                     }
                 })
@@ -272,10 +282,16 @@ impl GqlHistoryDateTime {
     /// List all datetimes formatted as strings in reverse chronological order.
     /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
     /// will be raised on time conversion error. Defaults to False.
-    async fn list_rev(&self, filter_broken: Option<bool>) -> Result<Vec<String>, TimeError> {
+    async fn list_rev(&self, filter_broken: Option<bool>) -> Result<Vec<String>, Error> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+            if !dt_format_str_is_valid(fmt_string) {
+                return Err(Error::new(format!(
+                    "Invalid datetime format string: '{}'",
+                    fmt_string
+                )));
+            }
             self_clone
                 .history_dt
                 .iter_rev()
@@ -285,7 +301,7 @@ impl GqlHistoryDateTime {
                         if filter_broken.unwrap_or(false) {
                             None
                         } else {
-                            Some(Err(e))
+                            Some(Err(Error::new(e.to_string())))
                         }
                     }
                 })
@@ -307,11 +323,17 @@ impl GqlHistoryDateTime {
         offset: Option<usize>,
         page_index: Option<usize>,
         filter_broken: Option<bool>,
-    ) -> Result<Vec<String>, TimeError> {
+    ) -> Result<Vec<String>, Error> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+            if !dt_format_str_is_valid(fmt_string) {
+                return Err(Error::new(format!(
+                    "Invalid datetime format string: '{}'",
+                    fmt_string
+                )));
+            }
             self_clone
                 .history_dt
                 .iter()
@@ -322,7 +344,7 @@ impl GqlHistoryDateTime {
                         if filter_broken.unwrap_or(false) {
                             None
                         } else {
-                            Some(Err(e))
+                            Some(Err(Error::new(e.to_string())))
                         }
                     }
                 })
@@ -346,11 +368,17 @@ impl GqlHistoryDateTime {
         offset: Option<usize>,
         page_index: Option<usize>,
         filter_broken: Option<bool>,
-    ) -> Result<Vec<String>, TimeError> {
+    ) -> Result<Vec<String>, Error> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+            if !dt_format_str_is_valid(fmt_string) {
+                return Err(Error::new(format!(
+                    "Invalid datetime format string: '{}'",
+                    fmt_string
+                )));
+            }
             self_clone
                 .history_dt
                 .iter_rev()
@@ -361,7 +389,7 @@ impl GqlHistoryDateTime {
                         if filter_broken.unwrap_or(false) {
                             None
                         } else {
-                            Some(Err(e))
+                            Some(Err(Error::new(e.to_string())))
                         }
                     }
                 })
