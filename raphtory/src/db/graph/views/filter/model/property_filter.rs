@@ -113,18 +113,6 @@ impl<M> Display for PropertyFilter<M> {
         let base = match &self.prop_ref {
             PropertyRef::Property(name) => name.to_string(),
             PropertyRef::Metadata(name) => format!("const({})", name),
-            PropertyRef::TemporalProperty(name, Temporal::Any) => {
-                format!("temporal_any({})", name)
-            }
-            PropertyRef::TemporalProperty(name, Temporal::Latest) => {
-                format!("temporal_latest({})", name)
-            }
-            PropertyRef::TemporalProperty(name, Temporal::First) => {
-                format!("temporal_first({})", name)
-            }
-            PropertyRef::TemporalProperty(name, Temporal::All) => {
-                format!("temporal_all({})", name)
-            }
             PropertyRef::TemporalProperty(name, t) => {
                 format!("temporal_{:?}({})", t, name)
             }
@@ -611,41 +599,58 @@ impl<M> PropertyFilter<M> {
             )));
         }
 
-        if let PropertyRef::TemporalProperty(_, temporal) = &self.prop_ref {
-            match temporal {
-                Temporal::Values => {
-                    if self.list_agg.is_none() {
-                        return Err(GraphError::InvalidFilter(
-                            "temporal() must be followed by an aggregation (len/sum/avg/min/max)"
-                                .into(),
-                        ));
-                    }
-                    if self.list_elem_qualifier.is_some() {
-                        return Err(GraphError::InvalidFilter(
-                            "Element qualifiers (any/all) are not supported with temporal aggregation."
-                                .into(),
-                        ));
-                    }
-                    self.validate_agg(&dtype)?;
-                    return Ok(id);
-                }
+        if let PropertyRef::TemporalProperty(_, Temporal::Values) = &self.prop_ref {
+            if let Some(_) = self.list_agg {
+                self.validate_agg(&dtype)?;
+                return Ok(id);
+            }
 
-                Temporal::Latest | Temporal::First | Temporal::Any | Temporal::All => {
-                    if self.list_agg.is_some() {
-                        self.validate_agg(&dtype)?;
-                    } else if self.list_elem_qualifier.is_some() {
-                        self.validate_list_elem_and_operator(&dtype)?;
-                    } else {
-                        self.validate(&dtype, is_static && expect_map)?;
+            if self.list_elem_qualifier.is_some() {
+                return Err(GraphError::InvalidFilter(
+                    "Element qualifiers (any/all) are not supported with temporal aggregation."
+                        .into(),
+                ));
+            }
+
+            return match self.operator {
+                FilterOperator::Eq | FilterOperator::Ne => {
+                    match &self.prop_value {
+                        PropertyFilterValue::Single(Prop::List(list)) => {
+                            // Empty list is allowed; otherwise check homogeneity & dtype compatibility
+                            if let Some(first) = list.first() {
+                                let first_ty = first.dtype();
+                                unify_types(&dtype, &first_ty, &mut false)
+                                    .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
+                                for v in list.iter().skip(1) {
+                                    unify_types(&first_ty, &v.dtype(), &mut false).map_err(
+                                        |e| e.with_name(self.prop_ref.name().to_owned()),
+                                    )?;
+                                }
+                            }
+                            Ok(id)
+                        }
+                        PropertyFilterValue::Single(_) => {
+                            Err(GraphError::InvalidFilter(
+                                "temporal() == / != expects a list value (e.g. [1,2,3])".into(),
+                            ))
+                        }
+                        PropertyFilterValue::Set(_) | PropertyFilterValue::None => {
+                            Err(GraphError::InvalidFilter(
+                                "temporal() == / != expects a single list value".into(),
+                            ))
+                        }
                     }
-                    return Ok(id);
+                }
+                _ => {
+                    Err(GraphError::InvalidFilter(
+                        "temporal() without aggregation supports only EQ/NE against a list (e.g. [..])."
+                            .into(),
+                    ))
                 }
             }
         }
 
-        // Non-temporal refs (Property / Metadata): keep existing semantics
         if let Some(_) = self.list_agg {
-            // For non-temporal, aggs are only valid on List<T>
             self.validate_agg(&dtype)?;
         } else if let Some(_) = self.list_elem_qualifier {
             self.validate_list_elem_and_operator(&dtype)?;
@@ -941,7 +946,7 @@ impl<M> PropertyFilter<M> {
                     has_any && all_ok
                 })
                 .is_some(),
-            PropertyRef::TemporalProperty(_, _) => {
+            PropertyRef::TemporalProperty(_, Temporal::Values) => {
                 let tview = match props.temporal().get_by_id(t_prop_id) {
                     Some(v) => v,
                     None => return false,
@@ -952,9 +957,11 @@ impl<M> PropertyFilter<M> {
                     self.operator
                         .apply_to_property(&self.prop_value, agg_prop.as_ref())
                 } else {
-                    // This branch should be unreachable because resolve_prop_id/validate should already error.
-                    // As a safe runtime fallback, return false here.
-                    false
+                    // No aggregation: compare the full temporal history as a list
+                    let values: Vec<Prop> = tview.values().collect();
+                    let full = Prop::List(Arc::new(values));
+                    self.operator
+                        .apply_to_property(&self.prop_value, Some(&full))
                 }
             }
         }

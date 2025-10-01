@@ -399,6 +399,10 @@ where
 }
 
 trait DynTemporalPropertyFilterBuilderOps: Send + Sync {
+    fn __eq__(&self, value: Prop) -> PyFilterExpr;
+
+    fn __ne__(&self, value: Prop) -> PyFilterExpr;
+
     fn any(&self) -> PyPropertyFilterOps;
 
     fn latest(&self) -> PyPropertyFilterOps;
@@ -413,6 +417,14 @@ impl<M: Clone + Send + Sync + 'static> DynTemporalPropertyFilterBuilderOps
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
+    fn __eq__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.clone().eq(value)))
+    }
+
+    fn __ne__(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.clone().ne(value)))
+    }
+
     fn any(&self) -> PyPropertyFilterOps {
         PyPropertyFilterOps::from_builder(self.clone().any())
     }
@@ -477,6 +489,14 @@ impl PyTemporalPropertyFilterBuilder {
 
     pub fn max(&self) -> PyResult<PyPropertyFilterOps> {
         self.agg.max()
+    }
+
+    fn __eq__(&self, value: Prop) -> PyFilterExpr {
+        self.t.__eq__(value)
+    }
+
+    fn __ne__(&self, value: Prop) -> PyFilterExpr {
+        self.t.__ne__(value)
     }
 }
 
