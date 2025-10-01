@@ -1,4 +1,3 @@
-use crate::arrow2::{array::Arrow2Arrow, datatypes::ArrowDataType, types::NativeType};
 use arrow::datatypes::ArrowPrimitiveType;
 
 pub(crate) mod table_provider;
@@ -25,16 +24,4 @@ pub enum ExecError {
 
     #[error("IO Failure {0}")]
     IOError(#[from] std::io::Error),
-}
-
-fn arrow2_to_arrow_buf<U: ArrowPrimitiveType>(
-    buffer: &crate::arrow2::buffer::Buffer<U::Native>,
-) -> arrow::array::PrimitiveArray<U>
-where
-    U::Native: NativeType,
-{
-    let dt = ArrowDataType::from(<U::Native as crate::arrow2::types::NativeType>::PRIMITIVE);
-    let prim_array = crate::arrow2::array::PrimitiveArray::new(dt, buffer.clone(), None);
-    let data = prim_array.to_data();
-    arrow::array::PrimitiveArray::from(data)
 }

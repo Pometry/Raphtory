@@ -1,9 +1,5 @@
 use super::operator::HopPlan;
-use crate::{
-    arrow2::{offset::Offset, types::NativeType},
-    executor::table_provider::plan_properties,
-    take_record_batch,
-};
+use crate::{executor::table_provider::plan_properties, take_record_batch};
 use arrow_array::{
     builder::{
         make_builder, ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder,
@@ -25,9 +21,8 @@ use datafusion::{
 };
 use futures::{Stream, StreamExt};
 use pometry_storage::{
-    chunked_array::chunked_array::IntoCol,
     graph_fragment::TempColGraphFragment,
-    prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
+    prelude::{ArrayOps, BaseArrayOps},
 };
 use raphtory::{api::core::Direction, core::entities::VID, prelude::DiskGraphStorage};
 use std::{

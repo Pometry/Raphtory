@@ -1,7 +1,7 @@
 use super::plan_properties;
-use crate::executor::{arrow2_to_arrow_buf, ExecError};
+use crate::executor::ExecError;
 use arrow::datatypes::*;
-use arrow_array::{make_array, Array, PrimitiveArray};
+use arrow_array::{make_array, Array, Int64Array, PrimitiveArray, StructArray};
 use arrow_buffer::{OffsetBuffer, ScalarBuffer};
 use arrow_schema::Field;
 use async_trait::async_trait;
@@ -17,12 +17,11 @@ use datafusion::{
     error::DataFusionError,
     execution::{context::ExecutionProps, SendableRecordBatchStream, TaskContext},
     logical_expr::{col, Expr},
-    physical_expr::PhysicalSortExpr,
+    physical_expr::{create_physical_sort_expr, PhysicalSortExpr},
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
         ExecutionPlan, PlanProperties,
     },
-    physical_planner::create_physical_sort_expr,
 };
 use futures::Stream;
 use pometry_storage::prelude::*;
@@ -74,7 +73,7 @@ impl EdgeListTableProvider {
             .layer(layer_id)
             .edges_data_type()
             .first()
-            .map(|f| f.name.clone())
+            .map(|f| f.name().clone())
             .unwrap();
 
         let expr = col(time_field_name).sort(true, true);
@@ -93,30 +92,17 @@ impl EdgeListTableProvider {
     }
 }
 
-fn lift_nested_arrow_schema(
-    graph: &DiskGraphStorage,
-    layer_id: usize,
-) -> Result<Arc<Schema>, ExecError> {
-    let arrow2_fields = graph.as_ref().layer(layer_id).edges_data_type();
-    let a2_dt = crate::arrow2::datatypes::ArrowDataType::Struct(arrow2_fields.to_vec());
-    let a_dt: DataType = a2_dt.into();
-    let schema = match a_dt {
-        DataType::Struct(fields) => {
-            let node_ids_and_edge_fields = Schema::new(vec![
-                Field::new("id", DataType::UInt64, false),
-                Field::new("layer_id", DataType::UInt64, false),
-                Field::new("src", DataType::UInt64, false),
-                Field::new("dst", DataType::UInt64, false),
-            ]);
-
-            let props_fields = Schema::new(&fields[..]);
-            let schema = Schema::try_merge([node_ids_and_edge_fields, props_fields])?;
-
-            SchemaRef::new(schema)
-        }
-        _ => unreachable!(),
-    };
-    Ok(schema)
+fn lift_nested_arrow_schema(graph: &DiskGraphStorage, layer_id: usize) -> Arc<Schema> {
+    let props_fields = graph.as_ref().layer(layer_id).edges_data_type();
+    let mut schema_builder = SchemaBuilder::from(vec![
+        Field::new("id", DataType::UInt64, false),
+        Field::new("layer_id", DataType::UInt64, false),
+        Field::new("src", DataType::UInt64, false),
+        Field::new("dst", DataType::UInt64, false),
+    ]);
+    schema_builder.extend(props_fields);
+    let schema = schema_builder.finish();
+    Arc::new(schema)
 }
 
 #[async_trait]
@@ -273,7 +259,7 @@ fn produce_record_batch(
             let layer_ids = layer_ids.slice(*from, len);
             let srcs = srcs.slice(*from, len);
             let dsts = dsts.slice(*from, len);
-            let time: Arc<dyn Array> = Arc::new(arrow2_to_arrow_buf::<Int64Type>(&time_values));
+            let time: Arc<dyn Array> = Arc::new(Int64Array::new(time_values, None));
             let mut columns = vec![e_ids, layer_ids, srcs, dsts, time];
 
             for col_id in &column_ids {
@@ -293,24 +279,18 @@ fn produce_record_batch(
                     .collect::<Vec<_>>();
 
                 RecordBatch::try_new(schema.clone(), columns)
-                    .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+                    .map_err(|arrow_err| DataFusionError::ArrowError(Box::new(arrow_err), None))
             } else {
                 RecordBatch::try_new(schema.clone(), columns)
-                    .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+                    .map_err(|arrow_err| DataFusionError::ArrowError(Box::new(arrow_err), None))
             }
         });
 
     Box::new(iter)
 }
 
-fn property_to_arrow_column(
-    temporal_props: &crate::arrow2::array::StructArray,
-    col_id: usize,
-) -> Arc<dyn Array> {
-    let arr = temporal_props.values()[col_id].as_ref();
-    let arrow_data = crate::arrow2::array::to_data(arr);
-
-    (make_array(arrow_data)) as _
+fn property_to_arrow_column(temporal_props: &StructArray, col_id: usize) -> Arc<dyn Array> {
+    temporal_props.column(col_id).clone()
 }
 
 impl EdgeListExecPlan {

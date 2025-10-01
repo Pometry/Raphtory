@@ -1,12 +1,9 @@
 use super::plan_properties;
-use crate::{
-    arrow2::{self, array::to_data, datatypes::ArrowDataType},
-    executor::ExecError,
-};
+use crate::executor::ExecError;
 use arrow::datatypes::UInt64Type;
 use arrow_array::{make_array, Array, PrimitiveArray};
 use arrow_buffer::ScalarBuffer;
-use arrow_schema::{DataType, Schema};
+use arrow_schema::{DataType, Field, Schema, SchemaBuilder};
 use async_trait::async_trait;
 use datafusion::{
     arrow::{array::RecordBatch, datatypes::SchemaRef},
@@ -23,7 +20,10 @@ use datafusion::{
     },
 };
 use futures::Stream;
-use pometry_storage::{prelude::Chunked, properties::ConstProps};
+use pometry_storage::{
+    prelude::{BaseArrayOps, Chunked},
+    properties::ConstProps,
+};
 use raphtory::{core::entities::VID, prelude::DiskGraphStorage};
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
@@ -54,7 +54,7 @@ impl NodeTableProvider {
             });
 
         let name_dt = graph.global_ordering().data_type();
-        let schema = lift_arrow_schema(name_dt.clone(), graph.node_properties().metadata.as_ref())?;
+        let schema = lift_arrow_schema(name_dt.clone(), graph.node_properties().metadata.as_ref());
 
         Ok(Self {
             graph: g,
@@ -65,30 +65,17 @@ impl NodeTableProvider {
     }
 }
 
-pub fn lift_arrow_schema(
-    gid_dt: ArrowDataType,
-    properties: Option<&ConstProps<VID>>,
-) -> Result<SchemaRef, ExecError> {
-    let mut fields = vec![];
+pub fn lift_arrow_schema(gid_dt: DataType, properties: Option<&ConstProps<VID>>) -> SchemaRef {
+    let mut schema_builder = SchemaBuilder::new();
+    schema_builder.push(Field::new("id", DataType::UInt64, false));
 
-    fields.push(arrow2::datatypes::Field::new(
-        "id",
-        ArrowDataType::UInt64,
-        false,
-    ));
+    schema_builder.push(Field::new("id", DataType::UInt64, false));
 
-    fields.push(arrow2::datatypes::Field::new("gid", gid_dt, false));
+    schema_builder.push(Field::new("gid", gid_dt, false));
     if let Some(properties) = properties {
-        fields.extend_from_slice(properties.prop_dtypes());
+        schema_builder.extend(properties.prop_dtypes());
     }
-
-    let dt: DataType = ArrowDataType::Struct(fields).into();
-
-    if let DataType::Struct(fields) = dt {
-        Ok(Arc::new(Schema::new(fields)))
-    } else {
-        unreachable!("we make the struct type above, so this should never happen")
-    }
+    Arc::new(schema_builder.finish())
 }
 
 #[async_trait]
@@ -158,16 +145,11 @@ async fn produce_record_batch(
     ));
 
     let length = (end - start).min(graph.global_ordering().len());
-    let arr_gid = graph.global_ordering().sliced(start, length);
-    let gid_data = to_data(arr_gid.as_ref());
-    let gid = make_array(gid_data);
+    let gid = graph.global_ordering().slice(start, length);
 
     let mut columns: Vec<Arc<dyn Array>> = vec![id, gid];
 
-    columns.extend(chunk.values().iter().map(|col| {
-        let arrow_data = arrow2::array::to_data(col.as_ref());
-        make_array(arrow_data)
-    }));
+    columns.extend(chunk.columns().iter().cloned());
 
     if let Some(projection) = projection {
         // FIXME: this is not an actual projection we could avoid doing some work before we get here
