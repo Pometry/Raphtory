@@ -10,11 +10,13 @@ use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLReque
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, Validation};
 use poem::{
-    error::Unauthorized, Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
+    error::{TooManyRequests, Unauthorized},
+    Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
+use tokio::sync::Semaphore;
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -31,12 +33,17 @@ pub(crate) struct TokenClaims {
 pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AuthConfig,
+    semaphore: Semaphore,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
     /// Create a GraphQL endpoint.
     pub fn new(executor: E, config: AuthConfig) -> Self {
-        Self { executor, config }
+        Self {
+            executor,
+            config,
+            semaphore: Semaphore::new(10),
+        }
     }
 }
 
@@ -106,7 +113,12 @@ where
             let (req, mut body) = req.split();
             let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
             let req = req.0.data(access);
-            Ok(GraphQLBatchResponse(self.executor.execute_batch(req).await).into_response())
+            match self.semaphore.acquire().await {
+                Ok(_permit) => Ok(
+                    GraphQLBatchResponse(self.executor.execute_batch(req).await).into_response()
+                ),
+                Err(error) => Err(TooManyRequests(error)),
+            }
         }
     }
 }
