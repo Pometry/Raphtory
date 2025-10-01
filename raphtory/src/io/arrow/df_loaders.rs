@@ -11,6 +11,7 @@ use crate::{
 };
 use bytemuck::checked::cast_slice_mut;
 use either::Either;
+use itertools::izip;
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
@@ -33,7 +34,6 @@ use std::{
         Arc,
     },
 };
-use itertools::izip;
 
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
@@ -87,7 +87,9 @@ pub(crate) fn load_nodes_from_df<
 
     let node_id_index = df_view.get_index(node_id)?;
     let time_index = df_view.get_index(time)?;
-    let secondary_index_index = secondary_index.map(|col| df_view.get_index(col)).transpose()?;
+    let secondary_index_index = secondary_index
+        .map(|col| df_view.get_index(col))
+        .transpose()?;
 
     let session = graph.write_session().map_err(into_graph_err)?;
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
@@ -183,7 +185,8 @@ pub(crate) fn load_nodes_from_df<
                         let lsn = 0;
 
                         update_time(t);
-                        writer.store_node_id_and_node_type(mut_node, layer_id, gid, *node_type, lsn);
+                        writer
+                            .store_node_id_and_node_type(mut_node, layer_id, gid, *node_type, lsn);
 
                         let t_props = prop_cols.iter_row(row);
                         let c_props = metadata_cols
@@ -206,9 +209,7 @@ pub(crate) fn load_nodes_from_df<
     Ok(())
 }
 
-pub(crate) fn load_edges_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
+pub(crate) fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
     secondary_index: Option<&str>,
@@ -236,7 +237,9 @@ pub(crate) fn load_edges_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
-    let secondary_index_index = secondary_index.map(|col| df_view.get_index(col)).transpose()?;
+    let secondary_index_index = secondary_index
+        .map(|col| df_view.get_index(col))
+        .transpose()?;
     let layer_index = if let Some(layer_col) = layer_col {
         Some(df_view.get_index(layer_col.as_ref())?)
     } else {
@@ -510,10 +513,14 @@ pub(crate) fn load_edges_from_df<
                         secondary_index_col.iter(),
                         eid_col_resolved.iter(),
                         layer_col_resolved.iter(),
-                        eids_exist.iter().map(|exists| exists.load(Ordering::Relaxed))
+                        eids_exist
+                            .iter()
+                            .map(|exists| exists.load(Ordering::Relaxed))
                     );
 
-                    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
+                    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
+                        zip.enumerate()
+                    {
                         if let Some(eid_pos) = shard.resolve_pos(*eid) {
                             let t = TimeIndexEntry(time, secondary_index as usize);
                             let mut writer = shard.writer();
@@ -615,7 +622,9 @@ pub(crate) fn load_edge_deletions_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
-    let secondary_index_index = secondary_index.map(|col| df_view.get_index(col)).transpose()?;
+    let secondary_index_index = secondary_index
+        .map(|col| df_view.get_index(col))
+        .transpose()?;
     let layer_index = layer_col.map(|layer_col| df_view.get_index(layer_col.as_ref()));
     let layer_index = layer_index.transpose()?;
     #[cfg(feature = "python")]
@@ -925,7 +934,9 @@ pub(crate) fn load_graph_props_from_df<
         .collect::<Result<Vec<_>, GraphError>>()?;
 
     let time_index = df_view.get_index(time)?;
-    let secondary_index_index = secondary_index.map(|col| df_view.get_index(col)).transpose()?;
+    let secondary_index_index = secondary_index
+        .map(|col| df_view.get_index(col))
+        .transpose()?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
@@ -1004,8 +1015,7 @@ mod tests {
         test_utils::{build_edge_list, build_edge_list_str},
     };
     use arrow_array::builder::{
-        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder,
-        UInt64Builder,
+        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
     use itertools::Itertools;
     use proptest::proptest;
@@ -1402,13 +1412,10 @@ mod tests {
             (1, 2, 100, 2, "secondary_index_2".to_string(), 1),
             (1, 2, 100, 0, "secondary_index_0".to_string(), 2),
             (1, 2, 100, 1, "secondary_index_1".to_string(), 3),
-
             (2, 3, 200, 1, "secondary_index_1".to_string(), 4),
             (2, 3, 200, 0, "secondary_index_0".to_string(), 5),
-
             (3, 4, 300, 10, "secondary_index_10".to_string(), 6),
             (3, 4, 300, 5, "secondary_index_5".to_string(), 7),
-
             (4, 5, 400, 0, "secondary_index_0".to_string(), 8),
             (4, 5, 500, 0, "secondary_index_0".to_string(), 9),
         ];
@@ -1438,10 +1445,7 @@ mod tests {
         let g2 = Graph::new();
 
         for (src, dst, time, secondary_index, str_prop, int_prop) in edges {
-            let time_with_secondary_index = TimeIndexEntry(
-                time,
-                secondary_index as usize,
-            );
+            let time_with_secondary_index = TimeIndexEntry(time, secondary_index as usize);
 
             g2.add_edge(
                 time_with_secondary_index,
@@ -1469,13 +1473,10 @@ mod tests {
             (1, 100, 2, "secondary_index_2".to_string(), 1),
             (1, 100, 0, "secondary_index_0".to_string(), 2),
             (1, 100, 1, "secondary_index_1".to_string(), 3),
-
             (2, 200, 1, "secondary_index_1".to_string(), 4),
             (2, 200, 0, "secondary_index_0".to_string(), 5),
-
             (3, 300, 10, "secondary_index_10".to_string(), 6),
             (3, 300, 5, "secondary_index_5".to_string(), 7),
-
             (4, 400, 0, "secondary_index_0".to_string(), 8),
             (4, 500, 0, "secondary_index_0".to_string(), 9),
         ];
@@ -1504,10 +1505,7 @@ mod tests {
         let g2 = Graph::new();
 
         for (node_id, time, secondary_index, str_prop, int_prop) in nodes {
-            let time_with_secondary_index = TimeIndexEntry(
-                time,
-                secondary_index as usize,
-            );
+            let time_with_secondary_index = TimeIndexEntry(time, secondary_index as usize);
 
             g2.add_node(
                 time_with_secondary_index,

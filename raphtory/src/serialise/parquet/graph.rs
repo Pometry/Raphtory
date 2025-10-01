@@ -2,9 +2,8 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, Prop, PropertiesOps},
     serialise::parquet::{
-        model::ParquetProp, run_encode,
-        EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH, PERSISTENT_GRAPH_TYPE,
-        SECONDARY_INDEX_COL, TIME_COL
+        model::ParquetProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
+        PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
     },
 };
 use arrow_schema::{DataType, Field};
@@ -38,7 +37,8 @@ pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
                 .into_iter()
                 .map(|(prop_key, prop_view)| {
                     // Collect all the props for a given prop key
-                    prop_view.iter_indexed()
+                    prop_view
+                        .iter_indexed()
                         .map(move |(time, prop_value)| (time, prop_key.clone(), prop_value))
                         .collect::<Vec<_>>() // Need to collect to avoid ref issues with prop_view
                         .into_iter()
@@ -50,9 +50,9 @@ pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
                 .chunk_by(|(t, _, _)| *t)
                 .into_iter()
                 .map(|(timestamp, group)| {
-                    let row = group.map(
-                        |(_, prop_key, prop_value)| (prop_key, prop_value)
-                    ).collect();
+                    let row = group
+                        .map(|(_, prop_key, prop_value)| (prop_key, prop_value))
+                        .collect();
 
                     Row { t: timestamp, row }
                 })

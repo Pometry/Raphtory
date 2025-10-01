@@ -1,13 +1,8 @@
-use walkdir::WalkDir;
-use zip::{write::FileOptions, ZipArchive, ZipWriter};
 use crate::{
     db::api::view::MaterializedGraph,
     errors::GraphError,
     prelude::{GraphViewOps, PropertiesOps},
-    serialise::{
-        metadata::GraphMetadata,
-        serialise::StableDecode,
-    },
+    serialise::{metadata::GraphMetadata, serialise::StableDecode},
 };
 use std::{
     fs::{self, File, OpenOptions},
@@ -15,6 +10,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use tracing::info;
+use walkdir::WalkDir;
+use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 /// Stores graph data
 pub const GRAPH_PATH: &str = "graph";
@@ -58,9 +55,9 @@ impl GraphFolder {
     /// Returns an error if `write_as_zip_format` is true or if the folder has data.
     pub fn reserve(&self) -> Result<(), GraphError> {
         if self.write_as_zip_format {
-            return Err(
-                GraphError::IOErrorMsg("Cannot reserve a zip folder".to_string())
-            );
+            return Err(GraphError::IOErrorMsg(
+                "Cannot reserve a zip folder".to_string(),
+            ));
         }
 
         self.ensure_clean_root_dir()?;
@@ -80,7 +77,9 @@ impl GraphFolder {
     /// Clears the folder of any contents.
     pub fn clear(&self) -> Result<(), GraphError> {
         if self.is_zip() {
-            return Err(GraphError::IOErrorMsg("Cannot clear a zip folder".to_string()));
+            return Err(GraphError::IOErrorMsg(
+                "Cannot clear a zip folder".to_string(),
+            ));
         }
 
         fs::remove_dir_all(&self.root_folder)?;
@@ -148,7 +147,10 @@ impl GraphFolder {
         }
     }
 
-    pub fn write_metadata<'graph>(&self, graph: &impl GraphViewOps<'graph>) -> Result<(), GraphError> {
+    pub fn write_metadata<'graph>(
+        &self,
+        graph: &impl GraphViewOps<'graph>,
+    ) -> Result<(), GraphError> {
         let node_count = graph.count_nodes();
         let edge_count = graph.count_edges();
         let properties = graph.metadata();
@@ -214,11 +216,9 @@ impl GraphFolder {
                 .filter_map(Result::ok)
             {
                 let path = entry.path();
-                let rel_path = path
-                    .strip_prefix(&self.root_folder)
-                    .map_err(|e|
-                        GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
-                    )?;
+                let rel_path = path.strip_prefix(&self.root_folder).map_err(|e| {
+                    GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
+                })?;
 
                 let zip_entry_name = rel_path.to_string_lossy().into_owned();
 
@@ -243,7 +243,7 @@ impl GraphFolder {
     pub fn unzip_to_folder<R: Read + Seek>(&self, reader: R) -> Result<(), GraphError> {
         if self.write_as_zip_format {
             return Err(GraphError::IOErrorMsg(
-                "Cannot unzip to a zip format folder".to_string()
+                "Cannot unzip to a zip format folder".to_string(),
             ));
         }
 
@@ -300,7 +300,7 @@ mod zip_tests {
     use super::*;
     use crate::{
         db::graph::graph::assert_graph_equal,
-        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS, Prop},
+        prelude::{AdditionOps, Graph, Prop, StableEncode, NO_PROPS},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
 
@@ -351,7 +351,9 @@ mod zip_tests {
 
                 // Copy all files except the metadata file
                 if file.name() != META_PATH {
-                    zip_writer.start_file::<_, ()>(file.name(), FileOptions::default()).unwrap();
+                    zip_writer
+                        .start_file::<_, ()>(file.name(), FileOptions::default())
+                        .unwrap();
                     std::io::copy(&mut file, &mut zip_writer).unwrap();
                 }
             }
@@ -460,11 +462,27 @@ mod zip_tests {
     fn test_unzip_to_folder() {
         let graph = Graph::new();
 
-        graph.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
-        graph.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
-        graph.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
-        graph.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
-        graph.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
+        graph
+            .add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None)
+            .unwrap();
+        graph
+            .add_edge(
+                1,
+                2,
+                3,
+                [("test prop 1", Prop::map([("key", "value")]))],
+                Some("layer_a"),
+            )
+            .unwrap();
+        graph
+            .add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b"))
+            .unwrap();
+        graph
+            .add_edge(3, 1, 4, [("test prop 3", 10.0)], None)
+            .unwrap();
+        graph
+            .add_edge(4, 1, 3, [("test prop 4", true)], None)
+            .unwrap();
 
         let temp_folder = tempfile::TempDir::new().unwrap();
         let folder = temp_folder.path().join("graph");

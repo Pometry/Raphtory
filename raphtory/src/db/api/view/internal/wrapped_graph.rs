@@ -11,4 +11,3 @@ impl<T: BoxableGraphView + ?Sized> InheritStorageOps for Arc<T> {}
 impl<T: BoxableGraphView + ?Sized> InheritNodeHistoryFilter for Arc<T> {}
 
 impl<T: BoxableGraphView + ?Sized> InheritEdgeHistoryFilter for Arc<T> {}
-

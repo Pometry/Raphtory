@@ -1,9 +1,6 @@
 use crate::{
     core::entities::LayerIds,
-    db::{
-        api::view::MaterializedGraph,
-        graph::views::deletion_graph::PersistentGraph,
-    },
+    db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::GraphError,
     prelude::Graph,
 };
@@ -13,12 +10,10 @@ pub mod proto_generated {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
 
+use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
-        properties::{
-            prop::Prop,
-            tprop::TPropOps,
-        },
+        properties::{prop::Prop, tprop::TPropOps},
         VID,
     },
     storage::timeindex::TimeIndexOps,
@@ -30,8 +25,7 @@ use raphtory_storage::{
         nodes::node_storage_ops::NodeStorageOps,
     },
 };
-use std::{iter, ops::Deref, io::Cursor};
-use itertools::Itertools;
+use std::{io::Cursor, iter, ops::Deref};
 
 pub mod ext;
 
@@ -226,24 +220,15 @@ mod proto_test {
     use prost::Message;
 
     use super::*;
-    use proto_generated::GraphType;
-    use crate::{
-        prelude::*,
-        serialise::ProtoGraph,
-    };
+    use crate::{prelude::*, serialise::ProtoGraph};
     use chrono::{DateTime, NaiveDateTime};
+    use proto_generated::GraphType;
     use raphtory_api::core::{
         entities::{
-            EID, GID, GidRef,
-            properties::{
-                meta::PropMapper,
-                prop::PropType,
-            },
+            properties::{meta::PropMapper, prop::PropType},
+            GidRef, EID, GID,
         },
-        storage::{
-            arc_str::ArcStr,
-            timeindex::TimeIndexEntry,
-        },
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     };
     use std::iter;
 

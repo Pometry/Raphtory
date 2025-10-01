@@ -4,7 +4,8 @@ use crate::{
     errors::GraphError,
     serialise::parquet::{
         model::{ParquetCNode, ParquetTNode},
-        run_encode, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL,
+        run_encode, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, SECONDARY_INDEX_COL, TIME_COL,
+        TYPE_COL,
     },
 };
 use arrow_schema::{DataType, Field};

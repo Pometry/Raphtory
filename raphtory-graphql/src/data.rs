@@ -7,21 +7,22 @@ use crate::{
 use itertools::Itertools;
 use moka::future::Cache;
 use raphtory::{
-    db::api::view::{internal::InternalStorageOps, MaterializedGraph}, errors::{GraphError, InvalidPathReason}, prelude::StableEncode, vectors::{
-        cache::VectorCache,
-        template::DocumentTemplate,
-        vectorisable::Vectorisable,
+    db::api::view::{internal::InternalStorageOps, MaterializedGraph},
+    errors::{GraphError, InvalidPathReason},
+    prelude::StableEncode,
+    vectors::{
+        cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
-    }
+    },
 };
 use std::{
     collections::HashMap,
+    io::{Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
-    io::{Read, Seek},
 };
 use tokio::fs;
-use tracing::{warn};
+use tracing::warn;
 use walkdir::WalkDir;
 
 #[derive(Clone)]
@@ -147,7 +148,11 @@ impl Data {
     }
 
     /// Insert a graph serialized from a graph folder.
-    pub async fn insert_graph_as_bytes<R: Read + Seek>(&self, path: &str, bytes: R) -> Result<(), GraphError> {
+    pub async fn insert_graph_as_bytes<R: Read + Seek>(
+        &self,
+        path: &str,
+        bytes: R,
+    ) -> Result<(), GraphError> {
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
 
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
@@ -267,8 +272,8 @@ impl Drop for Data {
             if !graph.graph.is_persistent() {
                 if let Some(folder) = graph.folder.get() {
                     let _ = folder
-                    .clear()
-                    .map_err(|e| warn!("Error clearing graph folder on drop: {e}"));
+                        .clear()
+                        .map_err(|e| warn!("Error clearing graph folder on drop: {e}"));
 
                     let _ = graph
                         .graph
@@ -290,8 +295,9 @@ pub(crate) mod data_tests {
     use itertools::Itertools;
     use raphtory::{
         db::api::view::MaterializedGraph,
-        errors::GraphError, prelude::*,
-        serialise::{GraphFolder, GRAPH_PATH}
+        errors::GraphError,
+        prelude::*,
+        serialise::{GraphFolder, GRAPH_PATH},
     };
     use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
     use tokio::time::sleep;

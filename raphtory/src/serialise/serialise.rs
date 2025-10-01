@@ -2,7 +2,7 @@ use super::graph_folder::GraphFolder;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    db::api::view::StaticGraphViewOps, db::api::mutation::AdditionOps,
+    db::api::{mutation::AdditionOps, view::StaticGraphViewOps},
     errors::GraphError,
     serialise::parquet::{ParquetDecoder, ParquetEncoder},
 };
@@ -89,7 +89,6 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -100,30 +99,21 @@ mod tests {
     use crate::{
         db::{
             api::{
-                mutation::DeletionOps,
-                properties::internal::InternalMetadataOps,
+                mutation::DeletionOps, properties::internal::InternalMetadataOps,
                 view::MaterializedGraph,
             },
-            graph::{
-                graph::assert_graph_equal,
-                views::deletion_graph::PersistentGraph,
-            },
+            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         },
         prelude::*,
         serialise::{
-            graph_folder::GraphFolder,
-            metadata::assert_metadata_correct,
-            {StableEncode, StableDecode},
+            graph_folder::GraphFolder, metadata::assert_metadata_correct, StableDecode,
+            StableEncode,
         },
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
     use chrono::{DateTime, NaiveDateTime};
     use proptest::proptest;
-    use raphtory_api::core::{
-        storage::{
-            arc_str::ArcStr,
-        },
-    };
+    use raphtory_api::core::storage::arc_str::ArcStr;
 
     #[test]
     fn node_no_props() {
@@ -536,9 +526,18 @@ mod tests {
     fn encode_decode_zip() {
         let g = Graph::new();
 
-        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
-        g.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
-        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
+        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None)
+            .unwrap();
+        g.add_edge(
+            1,
+            2,
+            3,
+            [("test prop 1", Prop::map([("key", "value")]))],
+            Some("layer_a"),
+        )
+        .unwrap();
+        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b"))
+            .unwrap();
         g.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
         g.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
 
@@ -593,4 +592,3 @@ mod tests {
         ));
     }
 }
-

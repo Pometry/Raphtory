@@ -26,7 +26,11 @@ use raphtory::{
     version,
 };
 use std::{
-    error::Error, fmt::{Display, Formatter}, io::Read, path::PathBuf, sync::Arc
+    error::Error,
+    fmt::{Display, Formatter},
+    io::Read,
+    path::PathBuf,
+    sync::Arc,
 };
 use zip::ZipArchive;
 

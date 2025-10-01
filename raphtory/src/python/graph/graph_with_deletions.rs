@@ -780,7 +780,16 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        load_edge_deletions_from_pandas(&self.graph, df, time, secondary_index, src, dst, layer, layer_col)
+        load_edge_deletions_from_pandas(
+            &self.graph,
+            df,
+            time,
+            secondary_index,
+            src,
+            dst,
+            layer,
+            layer_col,
+        )
     }
 
     /// Load edges deletions from a Parquet file into the graph.

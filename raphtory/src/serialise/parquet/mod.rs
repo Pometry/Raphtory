@@ -9,12 +9,15 @@ use crate::{
         load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
     },
     prelude::*,
-    serialise::{parquet::{
-        edges::encode_edge_deletions,
-        graph::{encode_graph_cprop, encode_graph_tprop},
-        model::get_id_type,
-        nodes::{encode_nodes_cprop, encode_nodes_tprop},
-    }, graph_folder::GRAPH_PATH},
+    serialise::{
+        graph_folder::GRAPH_PATH,
+        parquet::{
+            edges::encode_edge_deletions,
+            graph::{encode_graph_cprop, encode_graph_tprop},
+            model::get_id_type,
+            nodes::{encode_nodes_cprop, encode_nodes_tprop},
+        },
+    },
 };
 use arrow_json::{reader::Decoder, ReaderBuilder};
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
@@ -37,14 +40,13 @@ use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use rayon::prelude::*;
 use std::{
     fs::File,
+    io::{Read, Seek, Write},
     ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
-    io::{Read, Seek, Write},
 };
-use zip::write::FileOptions;
-use zip::ZipWriter;
 use walkdir::WalkDir;
+use zip::{write::FileOptions, ZipWriter};
 
 mod edges;
 mod model;
@@ -78,11 +80,9 @@ pub trait ParquetEncoder {
         {
             let path = entry.path();
 
-            let relative_path = path
-                .strip_prefix(temp_dir.path())
-                .map_err(|e|
-                    GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
-                )?;
+            let relative_path = path.strip_prefix(temp_dir.path()).map_err(|e| {
+                GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
+            })?;
 
             // Attach GRAPH_PATH as a prefix to the relative path
             let zip_entry_name = PathBuf::from(GRAPH_PATH)
@@ -133,9 +133,9 @@ pub trait ParquetDecoder: Sized {
                 // when encoding, we strip it away while decoding.
                 let relative_path = zip_entry_name
                     .strip_prefix(GRAPH_PATH)
-                    .map_err(|e|
+                    .map_err(|e| {
                         GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
-                    )?
+                    })?
                     .to_path_buf();
 
                 let out_path = temp_dir.path().join(relative_path);
@@ -424,7 +424,7 @@ fn decode_graph_storage(
             None,
             &[],
             &c_props,
-            batch_size
+            batch_size,
         )?;
 
         g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))?
@@ -450,7 +450,7 @@ fn decode_graph_storage(
             Some(SECONDARY_INDEX_COL),
             &t_props,
             &[],
-            batch_size
+            batch_size,
         )?;
     }
 
@@ -569,24 +569,21 @@ fn decode_graph_storage(
     Ok(g)
 }
 impl ParquetDecoder for Graph {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    {
+    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let gs = decode_graph_storage(path, GraphType::EventGraph, None)?;
         Ok(Graph::from_storage(gs))
     }
 }
 
 impl ParquetDecoder for PersistentGraph {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    {
+    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let gs = decode_graph_storage(path, GraphType::PersistentGraph, None)?;
         Ok(PersistentGraph(gs))
     }
 }
 
 impl ParquetDecoder for MaterializedGraph {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    {
+    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         // Try to decode as EventGraph first
         match decode_graph_storage(path.as_ref(), GraphType::EventGraph, None) {
             Ok(gs) => Ok(MaterializedGraph::EventGraph(Graph::from_storage(gs))),
@@ -1161,9 +1158,18 @@ mod test {
     fn test_parquet_zip_simple() {
         let g = Graph::new();
 
-        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
-        g.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
-        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
+        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None)
+            .unwrap();
+        g.add_edge(
+            1,
+            2,
+            3,
+            [("test prop 1", Prop::map([("key", "value")]))],
+            Some("layer_a"),
+        )
+        .unwrap();
+        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b"))
+            .unwrap();
         g.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
         g.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
 
@@ -1183,9 +1189,18 @@ mod test {
     fn test_parquet_bytes_simple() {
         let g = Graph::new();
 
-        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
-        g.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
-        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
+        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None)
+            .unwrap();
+        g.add_edge(
+            1,
+            2,
+            3,
+            [("test prop 1", Prop::map([("key", "value")]))],
+            Some("layer_a"),
+        )
+        .unwrap();
+        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b"))
+            .unwrap();
         g.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
         g.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
 

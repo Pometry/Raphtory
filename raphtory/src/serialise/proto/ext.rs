@@ -1,6 +1,4 @@
 use super::proto_generated::{
-    prop::Array,
-    prop_type::{Array as ArrayType, Scalar as ScalarType},
     self,
     graph_update::{
         DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
@@ -11,7 +9,8 @@ use super::proto_generated::{
         NewNodeTProp, NewNodeType,
     },
     new_node, prop,
-    prop_type::{PType, PropType as SPropType},
+    prop::Array,
+    prop_type::{Array as ArrayType, PType, PropType as SPropType, Scalar as ScalarType},
     GraphUpdate, NewEdge, NewMeta, NewNode,
 };
 use crate::errors::GraphError;
@@ -65,9 +64,11 @@ fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
             })
         }
         _ => Some(PType {
-            kind: Some(proto_generated::prop_type::p_type::Kind::Scalar(ScalarType {
-                p_type: as_proto_prop_type(p_type)?.into(),
-            })),
+            kind: Some(proto_generated::prop_type::p_type::Kind::Scalar(
+                ScalarType {
+                    p_type: as_proto_prop_type(p_type)?.into(),
+                },
+            )),
         }),
     }
 }

@@ -9,7 +9,6 @@ macro_rules! impl_serialise {
     ($obj:ty, $field:ident: $base_type:ty, $name:literal) => {
         #[pyo3::pymethods]
         impl $obj {
-
             #[doc = concat!(" Load ", $name, " from a parquet file.")]
             ///
             /// Arguments:

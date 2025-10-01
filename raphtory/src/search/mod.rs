@@ -277,7 +277,6 @@ mod test_index {
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
 
-
             graph
                 .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"))
                 .unwrap();

@@ -1,4 +1,6 @@
-use super::{Prop, DST_COL, LAYER_COL, NODE_ID_COL, SRC_COL, TIME_COL, SECONDARY_INDEX_COL, TYPE_COL};
+use super::{
+    Prop, DST_COL, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, SRC_COL, TIME_COL, TYPE_COL,
+};
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
