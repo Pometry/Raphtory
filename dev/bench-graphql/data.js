@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759234037724,
+  "lastUpdate": 1759311097689,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -701,6 +701,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1627,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0f0f9649651f7745648177dc92a969196e9efa18",
+          "message": "James/2250 temporal vs plain filtering (#2286)\n\n* What are windows\n\n* clarify time filters vs filter module\n\n* add filtering topic\n\n* better intro\n\n* motivate filtering\n\n* motivate filtering\n\n* add filtering example\n\n* add filtering example\n\n* improve filtering description\n\n* typo\n\n* review fixes\n\n* review fixes\n\n* autogen\n\n* fix csv file path\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-01T09:54:44+01:00",
+          "tree_id": "02dbaa35dc22778746e5853f66ebcbd57202bee3",
+          "url": "https://github.com/Pometry/Raphtory/commit/0f0f9649651f7745648177dc92a969196e9efa18"
+        },
+        "date": 1759311094813,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1329,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 242,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 168,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1181,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 956,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1233,
             "unit": "req/s"
           }
         ]
