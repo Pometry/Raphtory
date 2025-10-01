@@ -121,7 +121,7 @@ hashbrown = { version = "0.14.5", features = ["raw"] }
 pretty_assertions = "1.4.0"
 quickcheck_macros = "1.0.0"
 streaming-stats = "0.2.3"
-proptest = "1.4.0"
+proptest = "1.8.0"
 proptest-derive = "0.5.1"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.15"

@@ -16,7 +16,11 @@ use raphtory_core::{
 };
 use raphtory_storage::mutation::MutationError;
 use std::{
-    fmt::Debug, io, path::{PathBuf, StripPrefixError}, sync::Arc, time::SystemTimeError
+    fmt::Debug,
+    io,
+    path::{PathBuf, StripPrefixError},
+    sync::Arc,
+    time::SystemTimeError,
 };
 use tracing::error;
 

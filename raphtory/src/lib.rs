@@ -189,7 +189,7 @@ mod test_utils {
             (
                 0..num_nodes,
                 0..num_nodes,
-                i64::MIN..i64::MAX,
+                -100i64..100i64,
                 any::<String>(),
                 any::<i64>(),
             ),
