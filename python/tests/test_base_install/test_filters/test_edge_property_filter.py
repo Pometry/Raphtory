@@ -1358,3 +1358,85 @@ def test_nodes_nested_edges_getitem_property_filter_expr():
         assert result_ids == expected_ids
 
     return check
+
+
+@with_disk_variants(init_graph, variants=["graph"])
+def test_edge_property_temporal_sum():
+    def check(graph):
+        expr = filter.Edge.property("p2").temporal().sum() < 10
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {
+            ("2", "3"),
+            ("3", "1"),
+            ("John Mayer", "Jimmy Page"),
+            ("David Gilmour", "John Mayer"),
+            ("3", "4"),
+            ("1", "2"),
+            ("2", "1"),
+        }
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph"])
+def test_edge_property_temporal_avg():
+    def check(graph):
+        expr = filter.Edge.property("p2").temporal().avg() == 6.0
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {
+            ("3", "4"),
+            ("3", "1"),
+            ("2", "1"),
+            ("John Mayer", "Jimmy Page"),
+            ("David Gilmour", "John Mayer"),
+        }
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph"])
+def test_edge_property_temporal_min():
+    def check(graph):
+        expr = filter.Edge.property("p3").temporal().min() == 1
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {
+            ("3", "4"),
+            ("John Mayer", "Jimmy Page"),
+            ("2", "1"),
+            ("3", "1"),
+            ("David Gilmour", "John Mayer"),
+        }
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph"])
+def test_edge_property_temporal_max():
+    def check(graph):
+        expr = filter.Edge.property("p2").temporal().max() == 6
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {
+            ("3", "4"),
+            ("2", "1"),
+            ("3", "1"),
+            ("David Gilmour", "John Mayer"),
+            ("John Mayer", "Jimmy Page"),
+        }
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph"])
+def test_edge_property_temporal_len():
+    def check(graph):
+        expr = filter.Edge.property("p3").temporal().len() == Prop.u64(1)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {
+            ("3", "4"),
+            ("John Mayer", "Jimmy Page"),
+            ("David Gilmour", "John Mayer"),
+            ("3", "1"),
+            ("2", "1"),
+        }
+
+    return check

@@ -59,6 +59,7 @@ pub enum Temporal {
     Latest,
     First,
     All,
+    Values,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,36 +110,38 @@ pub struct PropertyFilter<M> {
 
 impl<M> Display for PropertyFilter<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let prop_ref_str = match &self.prop_ref {
+        let base = match &self.prop_ref {
             PropertyRef::Property(name) => name.to_string(),
             PropertyRef::Metadata(name) => format!("const({})", name),
-            PropertyRef::TemporalProperty(name, Temporal::Any) => format!("temporal_any({})", name),
-            PropertyRef::TemporalProperty(name, Temporal::Latest) => {
-                format!("temporal_latest({})", name)
-            }
-            PropertyRef::TemporalProperty(name, Temporal::First) => {
-                format!("temporal_first({})", name)
-            }
-            PropertyRef::TemporalProperty(name, Temporal::All) => {
-                format!("temporal_all({})", name)
+            PropertyRef::TemporalProperty(name, t) => {
+                format!("temporal_{:?}({})", t, name)
             }
         };
 
+        let qualified = match self.list_elem_qualifier {
+            Some(ListElemQualifier::Any) => format!("any({})", base),
+            Some(ListElemQualifier::All) => format!("all({})", base),
+            None => base,
+        };
+
+        let decorated = match self.list_agg {
+            Some(ListAgg::Len) => format!("len({})", qualified),
+            Some(ListAgg::Sum) => format!("sum({})", qualified),
+            Some(ListAgg::Avg) => format!("avg({})", qualified),
+            Some(ListAgg::Min) => format!("min({})", qualified),
+            Some(ListAgg::Max) => format!("max({})", qualified),
+            None => qualified,
+        };
+
         match &self.prop_value {
-            PropertyFilterValue::None => {
-                write!(f, "{} {}", prop_ref_str, self.operator)
-            }
+            PropertyFilterValue::None => write!(f, "{} {}", decorated, self.operator),
             PropertyFilterValue::Single(value) => {
-                write!(f, "{} {} {}", prop_ref_str, self.operator, value)
+                write!(f, "{} {} {}", decorated, self.operator, value)
             }
             PropertyFilterValue::Set(values) => {
-                let sorted_values = sort_comparable_props(values.iter().collect_vec());
-                let values_str = sorted_values
-                    .iter()
-                    .map(|v| format!("{}", v))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                write!(f, "{} {} [{}]", prop_ref_str, self.operator, values_str)
+                let sorted = sort_comparable_props(values.iter().collect_vec());
+                let values_str = sorted.iter().map(|v| format!("{}", v)).join(", ");
+                write!(f, "{} {} [{}]", decorated, self.operator, values_str)
             }
         }
     }
@@ -501,7 +504,14 @@ impl<M> PropertyFilter<M> {
 
     fn validate_agg(&self, dtype: &PropType) -> Result<(), GraphError> {
         self.validate_list_agg_operator()?;
-        let eff = self.validate_list_agg_and_effective_dtype(&dtype)?;
+        let agg = self.list_agg.unwrap();
+        let eff = match &self.prop_ref {
+            PropertyRef::TemporalProperty(_, Temporal::Values) => {
+                Self::effective_dtype_for_list_agg_with_inner(agg, dtype)?
+            }
+            _ => self.validate_list_agg_and_effective_dtype(dtype)?,
+        };
+
         match self.operator {
             FilterOperator::Eq
             | FilterOperator::Ne
@@ -571,32 +581,84 @@ impl<M> PropertyFilter<M> {
             PropertyRef::Property(n) | PropertyRef::TemporalProperty(n, _) => (n.as_str(), false),
         };
 
-        match meta.get_prop_id_and_type(name, is_static) {
+        let (id, dtype) = match meta.get_prop_id_and_type(name, is_static) {
             None => {
-                if is_static {
+                return if is_static {
                     Err(GraphError::MetadataMissingError(name.to_string()))
                 } else {
                     Err(GraphError::PropertyMissingError(name.to_string()))
                 }
             }
-            Some((id, dtype)) => {
-                // agg and elem-qualifier cannot both be set
-                if let (Some(agg), Some(_q)) = (self.list_agg, self.list_elem_qualifier) {
-                    return Err(GraphError::InvalidFilter(format!(
-                        "List aggregation {:?} cannot be used after an element qualifier (any/all).",
-                        agg
-                    )));
+            Some((id, dtype)) => (id, dtype),
+        };
+
+        if let (Some(agg), Some(_q)) = (self.list_agg, self.list_elem_qualifier) {
+            return Err(GraphError::InvalidFilter(format!(
+                "List aggregation {:?} cannot be used after an element qualifier (any/all).",
+                agg
+            )));
+        }
+
+        if let PropertyRef::TemporalProperty(_, Temporal::Values) = &self.prop_ref {
+            if let Some(_) = self.list_agg {
+                self.validate_agg(&dtype)?;
+                return Ok(id);
+            }
+
+            if self.list_elem_qualifier.is_some() {
+                return Err(GraphError::InvalidFilter(
+                    "Element qualifiers (any/all) are not supported with temporal aggregation."
+                        .into(),
+                ));
+            }
+
+            return match self.operator {
+                FilterOperator::Eq | FilterOperator::Ne => {
+                    match &self.prop_value {
+                        PropertyFilterValue::Single(Prop::List(list)) => {
+                            // Empty list is allowed; otherwise check homogeneity & dtype compatibility
+                            if let Some(first) = list.first() {
+                                let first_ty = first.dtype();
+                                unify_types(&dtype, &first_ty, &mut false)
+                                    .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
+                                for v in list.iter().skip(1) {
+                                    unify_types(&first_ty, &v.dtype(), &mut false).map_err(
+                                        |e| e.with_name(self.prop_ref.name().to_owned()),
+                                    )?;
+                                }
+                            }
+                            Ok(id)
+                        }
+                        PropertyFilterValue::Single(_) => {
+                            Err(GraphError::InvalidFilter(
+                                "temporal() == / != expects a list value (e.g. [1,2,3])".into(),
+                            ))
+                        }
+                        PropertyFilterValue::Set(_) | PropertyFilterValue::None => {
+                            Err(GraphError::InvalidFilter(
+                                "temporal() == / != expects a single list value".into(),
+                            ))
+                        }
+                    }
                 }
-                if let Some(_) = self.list_agg {
-                    self.validate_agg(&dtype)?;
-                } else if let Some(_) = self.list_elem_qualifier {
-                    self.validate_list_elem_and_operator(&dtype)?;
-                } else {
-                    self.validate(&dtype, is_static && expect_map)?;
+                _ => {
+                    Err(GraphError::InvalidFilter(
+                        "temporal() without aggregation supports only EQ/NE against a list (e.g. [..])."
+                            .into(),
+                    ))
                 }
-                Ok(id)
             }
         }
+
+        if let Some(_) = self.list_agg {
+            self.validate_agg(&dtype)?;
+        } else if let Some(_) = self.list_elem_qualifier {
+            self.validate_list_elem_and_operator(&dtype)?;
+        } else {
+            self.validate(&dtype, is_static && expect_map)?;
+        }
+
+        Ok(id)
     }
 
     fn scan_u64_sum(vals: &[Prop]) -> Option<(bool, u64, u128)> {
@@ -769,27 +831,20 @@ impl<M> PropertyFilter<M> {
         }
     }
 
-    fn aggregate_list_value(&self, list_prop: &Prop, agg: ListAgg) -> Option<Prop> {
-        let vals = match list_prop {
-            Prop::List(v) => v.as_slice(),
-            _ => return None,
-        };
+    fn aggregate_values(vals: &[Prop], agg: ListAgg) -> Option<Prop> {
         if vals.is_empty() {
             return match agg {
                 ListAgg::Len => Some(Prop::U64(0)),
                 _ => None,
             };
         }
-
         if let ListAgg::Len = agg {
             return Some(Prop::U64(vals.len() as u64));
         }
 
-        let inner_ty = match list_prop.dtype() {
-            PropType::List(inner) => *inner,
-            _ => unreachable!(),
-        };
-        match inner_ty {
+        // Assume homogeneity (validated elsewhere). Use the first value's dtype.
+        let inner = vals[0].dtype();
+        match inner {
             PropType::U8 => Self::reduce_unsigned(vals, |x| Prop::U8(x as u8), agg),
             PropType::U16 => Self::reduce_unsigned(vals, |x| Prop::U16(x as u16), agg),
             PropType::U32 => Self::reduce_unsigned(vals, |x| Prop::U32(x as u32), agg),
@@ -801,8 +856,29 @@ impl<M> PropertyFilter<M> {
             PropType::F32 => Self::reduce_float(vals, |x| Prop::F32(x as f32), agg),
             PropType::F64 => Self::reduce_float(vals, |x| Prop::F64(x), agg),
 
+            // Non-numeric: only Len is supported (already handled).
             _ => None,
         }
+    }
+
+    fn aggregate_list_value(&self, list_prop: &Prop, agg: ListAgg) -> Option<Prop> {
+        match list_prop {
+            Prop::List(v) => Self::aggregate_values(v.as_slice(), agg),
+            _ => None,
+        }
+    }
+
+    fn aggregate_temporal_values<'a>(
+        &self,
+        iter: impl Iterator<Item = Prop>,
+        agg: ListAgg,
+    ) -> Option<Prop> {
+        if matches!(agg, ListAgg::Len) {
+            return Some(Prop::U64(iter.into_iter().count() as u64));
+        }
+
+        let values: Vec<Prop> = iter.into_iter().collect();
+        Self::aggregate_values(&values, agg)
     }
 
     pub fn matches(&self, other: Option<&Prop>) -> bool {
@@ -870,6 +946,24 @@ impl<M> PropertyFilter<M> {
                     has_any && all_ok
                 })
                 .is_some(),
+            PropertyRef::TemporalProperty(_, Temporal::Values) => {
+                let tview = match props.temporal().get_by_id(t_prop_id) {
+                    Some(v) => v,
+                    None => return false,
+                };
+
+                if let Some(agg) = self.list_agg {
+                    let agg_prop = self.aggregate_temporal_values(tview.values(), agg);
+                    self.operator
+                        .apply_to_property(&self.prop_value, agg_prop.as_ref())
+                } else {
+                    // No aggregation: compare the full temporal history as a list
+                    let values: Vec<Prop> = tview.values().collect();
+                    let full = Prop::List(Arc::new(values));
+                    self.operator
+                        .apply_to_property(&self.prop_value, Some(&full))
+                }
+            }
         }
     }
 
@@ -1270,6 +1364,30 @@ impl<M> TemporalPropertyFilterBuilder<M> {
 
     pub fn all(self) -> AllTemporalPropertyFilterBuilder<M> {
         AllTemporalPropertyFilterBuilder(self.0, PhantomData)
+    }
+}
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
+    for TemporalPropertyFilterBuilder<M>
+{
+    type Marker = M;
+
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Values)
+    }
+
+    fn list_agg(&self) -> Option<ListAgg> {
+        None
+    }
+
+    fn list_elem_qualifier(&self) -> Option<ListElemQualifier> {
+        None
+    }
+}
+
+impl<M> ListAggOps<M> for TemporalPropertyFilterBuilder<M> {
+    fn property_ref_for_self(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Values)
     }
 }
 

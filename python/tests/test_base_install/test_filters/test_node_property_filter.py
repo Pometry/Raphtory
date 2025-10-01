@@ -2,6 +2,7 @@ from raphtory import filter, Prop
 from filters_setup import init_graph, create_test_graph, create_test_graph2
 from utils import with_disk_variants
 import pytest
+import re
 
 
 @with_disk_variants(init_graph)
@@ -991,6 +992,110 @@ def test_prop_not_found_error():
         with pytest.raises(
             Exception,
             match=r"Property p does not exist",
+        ):
+            graph.filter(filter_expr).nodes.id
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_property_sum():
+    def check(graph):
+        filter_expr = filter.Node.property("p9").temporal().sum() == 15
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_property_avg():
+    def check(graph):
+        filter_expr = filter.Node.property("p2").temporal().avg() < 10.0
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["2", "3"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_property_min():
+    def check(graph):
+        filter_expr = filter.Node.property("p100").temporal().min().is_in([60, 50, 100])
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "3"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_property_max():
+    def check(graph):
+        filter_expr = filter.Node.property("p100").temporal().max().is_not_in([1, 2, 3])
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "3"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_property_len():
+    def check(graph):
+        filter_expr = filter.Node.property("p2").temporal().len() == Prop.u64(1)
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["2", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p10").temporal().len() == Prop.u64(1)
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "2", "3"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_property_eq():
+    def check(graph):
+        filter_expr = filter.Node.property("prop1").temporal() == [60]
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_property_ne():
+    def check(graph):
+        filter_expr = filter.Node.property("prop1").temporal() != [60]
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ['b', 'c', 'd']
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_property_fails():
+    def check(graph):
+        filter_expr = filter.Node.property("prop1").temporal() == 60
+        msg = "Invalid filter: temporal() == / != expects a list value (e.g. [1,2,3])"
+        with pytest.raises(
+                Exception,
+                match=re.escape(msg),
+        ):
+            graph.filter(filter_expr).nodes.id
+
+        filter_expr = filter.Node.property("prop1").temporal() == "pometry"
+        msg = "Invalid filter: temporal() == / != expects a list value (e.g. [1,2,3])"
+        with pytest.raises(
+                Exception,
+                match=re.escape(msg),
         ):
             graph.filter(filter_expr).nodes.id
 

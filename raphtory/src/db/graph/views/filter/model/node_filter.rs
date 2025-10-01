@@ -5,10 +5,7 @@ use crate::{
             internal::CreateFilter,
             model::{
                 edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
-                filter_operator::{
-                    FilterOperator,
-                    FilterOperator::{Eq, IsNone, IsSome, Ne},
-                },
+                filter_operator::FilterOperator,
                 property_filter::PropertyFilter,
                 AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
                 TryAsCompositeFilter,
