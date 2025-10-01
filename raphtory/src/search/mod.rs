@@ -281,6 +281,7 @@ mod test_index {
                 .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"))
                 .unwrap();
 
+            // TODO: Propagate changes to search index
             // This also tests if already existing index is replaced by new index
             // graph.write_updates().unwrap();
 
