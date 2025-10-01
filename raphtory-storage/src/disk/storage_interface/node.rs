@@ -3,8 +3,8 @@ use crate::graph::nodes::{
     node_storage_ops::NodeStorageOps,
     row::{DiskRow, Row},
 };
+use arrow::datatypes::{DataType, Int32Type};
 use itertools::Itertools;
-use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{
     graph::TemporalGraph, timestamps::LayerAdditions, tprops::DiskTProp, GidRef,
 };
@@ -278,20 +278,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
         let cprops = self.graph.node_properties().metadata.as_ref()?;
-        let prop_type = cprops.prop_dtype(prop_id);
-        match prop_type.data_type {
-            ArrowDataType::Int32 => cprops.prop_native::<i32>(self.vid, prop_id).map(Prop::I32),
-            ArrowDataType::Int64 => cprops.prop_native::<i64>(self.vid, prop_id).map(Prop::I64),
-            ArrowDataType::UInt32 => cprops.prop_native::<u32>(self.vid, prop_id).map(Prop::U32),
-            ArrowDataType::UInt64 => cprops.prop_native::<u64>(self.vid, prop_id).map(Prop::U64),
-            ArrowDataType::Float32 => cprops.prop_native::<f32>(self.vid, prop_id).map(Prop::F32),
-            ArrowDataType::Float64 => cprops.prop_native::<f64>(self.vid, prop_id).map(Prop::F64),
-            ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 | ArrowDataType::Utf8View => {
-                cprops.prop_str(self.vid, prop_id).map(Prop::str)
-            }
-            // Add cases for other types, including special handling for complex types
-            _ => None, // Placeholder for unhandled types
-        }
+        cprops.prop_value(self.vid, prop_id)
     }
 
     fn edges_iter(
