@@ -360,7 +360,7 @@ fn import_node_as() {
     let y = gg.node("Y").unwrap();
 
     assert_eq!(y.name(), "Y");
-    assert_eq!(y.history(), vec![1]);
+    assert_eq!(y.history().t(), vec![1]);
     assert_eq!(y.properties().get("temp"), None);
     assert_eq!(y.metadata().get("con"), None);
 }
@@ -383,7 +383,7 @@ fn import_node_as_merge() {
 
     let res = gg.import_node_as(&g_b, "Y", true).unwrap();
     assert_eq!(res.name(), "Y");
-    assert_eq!(res.history(), vec![1]);
+    assert_eq!(res.history(), vec![1, 1]);
     assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
     assert_eq!(res.metadata().get("con").unwrap(), Prop::I64(11));
 }
@@ -442,7 +442,7 @@ fn import_nodes_as_merge() {
     assert_eq!(nodes, vec!["P", "Q"]);
     let y = gg.node("Q").unwrap();
     assert_eq!(y.name(), "Q");
-    assert_eq!(y.history(), vec![1]);
+    assert_eq!(y.history().t().collect(), vec![1, 1]);
     assert_eq!(y.properties().get("temp").unwrap(), Prop::Bool(true));
     assert_eq!(y.metadata().get("con").unwrap(), Prop::I64(11));
 }
@@ -1967,16 +1967,16 @@ impl<'a> TryIntoTime for CustomTime<'a> {
 
 #[test]
 fn test_ingesting_timestamps() {
-    let earliest_time = "2022-06-06 12:34:00".try_into_time().unwrap();
-    let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
+    let earliest_time = "2022-06-06 12:34:00".try_into_time().unwrap().t();
+    let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap().t();
 
     let g = Graph::new();
     g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None)
         .unwrap();
     g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
         .unwrap();
-    assert_eq!(g.earliest_time().unwrap(), earliest_time);
-    assert_eq!(g.latest_time().unwrap(), latest_time);
+    assert_eq!(g.earliest_time().unwrap().t(), earliest_time);
+    assert_eq!(g.latest_time().unwrap().t(), latest_time);
 
     let g = Graph::new();
     let fmt = "%Y-%m-%d %H:%M";

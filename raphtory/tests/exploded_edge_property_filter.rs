@@ -33,10 +33,10 @@ fn build_filtered_graph(
     filter: impl Fn(i64) -> bool,
 ) -> Graph {
     let g = Graph::new();
-    for (src, dst, t, str_prop, int_prop) in edges {
+    for (index, (src, dst, t, str_prop, int_prop)) in edges.iter().enumerate() {
         if filter(*int_prop) {
             g.add_edge(
-                *t,
+                (*t, index),
                 *src,
                 *dst,
                 [
