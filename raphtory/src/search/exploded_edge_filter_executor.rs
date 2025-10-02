@@ -191,7 +191,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        if filter.list_agg.is_some() || filter.list_elem_qualifier.is_some() {
+        if filter.ops.is_empty() {
             return fallback_filter_exploded_edges(graph, filter, limit, offset);
         }
 
@@ -199,7 +199,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
             PropertyRef::Metadata(prop_name) => {
                 self.apply_metadata_filter(graph, prop_name, filter, limit, offset)
             }
-            PropertyRef::TemporalProperty(prop_name, _) | PropertyRef::Property(prop_name) => self
+            PropertyRef::TemporalProperty(prop_name) | PropertyRef::Property(prop_name) => self
                 .apply_temporal_property_filter(
                     graph,
                     prop_name,

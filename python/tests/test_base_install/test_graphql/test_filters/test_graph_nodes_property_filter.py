@@ -953,7 +953,7 @@ def test_graph_nodes_property_filter_starts_with(graph):
                   filter: {
                     temporalProperty: {
                       name: "prop3",
-                      temporal: ALL,
+                      ops: [ALL],
                       operator: STARTS_WITH
                       value: { str: "abc1" }
                     }

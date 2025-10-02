@@ -904,7 +904,7 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
                   filter: {
                     temporalProperty: {
                       name: "prop3",
-                      temporal: FIRST,
+                      ops: [FIRST]
                       operator: STARTS_WITH
                       value: { str: "abc" }
                     }
@@ -940,7 +940,7 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
                   filter: {
                     temporalProperty: {
                       name: "prop3",
-                      temporal: ALL,
+                      ops: [ALL]
                       operator: STARTS_WITH
                       value: { str: "abc1" }
                     }
@@ -967,8 +967,8 @@ def test_nodes_property_filter_list_agg(graph):
              property: {
               name: "prop5"
               operator: EQUAL
+              ops: [SUM]
               value: { i64: 6 }
-              listAgg:SUM
             }
             }) {
               nodes {
@@ -993,8 +993,8 @@ def test_nodes_property_filter_list_qualifier(graph):
              property: {
               name: "prop5"
               operator: EQUAL
+              ops: [ANY]
               value: { i64: 6 }
-              elemQualifier: ANY
             }
             }) {
               nodes {
@@ -1022,9 +1022,8 @@ def test_nodes_temporal_property_filter_agg(graph):
             nodeFilter(filter: {
              temporalProperty: {
               name: "p2"
-              temporal:VALUES
               operator: LESS_THAN
-              listAgg: AVG
+              ops: [AVG]
               value: { f64: 10.0 }
             }
             }) {
@@ -1039,5 +1038,37 @@ def test_nodes_temporal_property_filter_agg(graph):
     """
     expected_output = {
         "graph": {"nodeFilter": {"nodes": {"list": [{"name": "2"}, {"name": "3"}]}}}
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = create_test_graph(Graph())
+PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_temporal_property_filter_any_avg(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+             temporalProperty: {
+              name: "prop5"
+              operator: LESS_THAN
+              ops: [ANY, AVG]
+              value: { f64: 10.0 }
+            }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
     }
     run_graphql_test(query, expected_output, graph)

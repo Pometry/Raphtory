@@ -4,7 +4,7 @@ use crate::{
         model::{
             property_filter::{
                 ElemQualifierOps, InternalPropertyFilterOps, ListAggOps, MetadataFilterBuilder,
-                PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
+                OpChainBuilder, PropertyFilterBuilder, PropertyFilterOps,
             },
             TryAsCompositeFilter,
         },
@@ -140,35 +140,40 @@ pub struct PyPropertyFilterOps {
     ops: Arc<dyn DynPropertyFilterOps>,
     agg: Arc<dyn DynListAggOps>,
     qual: Arc<dyn DynElemQualifierOps>,
+    sel: Arc<dyn DynSelectorOps>,
 }
 
 impl PyPropertyFilterOps {
-    fn from_parts<O, A, Q>(
+    fn from_parts<O, A, Q, S>(
         ops_provider: Arc<O>,
         agg_provider: Arc<A>,
         qual_provider: Arc<Q>,
+        sel_provider: Arc<S>,
     ) -> Self
     where
         O: DynPropertyFilterOps + 'static,
         A: DynListAggOps + 'static,
         Q: DynElemQualifierOps + 'static,
+        S: DynSelectorOps + 'static,
     {
         PyPropertyFilterOps {
             ops: ops_provider,
             agg: agg_provider,
             qual: qual_provider,
+            sel: sel_provider,
         }
     }
 
     fn from_builder<B>(builder: B) -> Self
     where
-        B: DynPropertyFilterOps + DynListAggOps + DynElemQualifierOps + 'static,
+        B: DynPropertyFilterOps + DynListAggOps + DynElemQualifierOps + DynSelectorOps + 'static,
     {
         let shared: Arc<B> = Arc::new(builder);
         PyPropertyFilterOps {
             ops: shared.clone(),
             agg: shared.clone(),
-            qual: shared,
+            qual: shared.clone(),
+            sel: shared,
         }
     }
 }
@@ -241,6 +246,14 @@ impl PyPropertyFilterOps {
             .fuzzy_search(prop_value, levenshtein_distance, prefix_match)
     }
 
+    pub fn first(&self) -> PyResult<PyPropertyFilterOps> {
+        self.sel.first()
+    }
+
+    pub fn last(&self) -> PyResult<PyPropertyFilterOps> {
+        self.sel.last()
+    }
+
     pub fn any(&self) -> PyResult<PyPropertyFilterOps> {
         self.qual.any()
     }
@@ -310,21 +323,25 @@ impl DynListAggOps for NoListAggOps {
             "List aggregation len cannot be used after an element qualifier (any/all).",
         ))
     }
+
     fn sum(&self) -> PyResult<PyPropertyFilterOps> {
         Err(PyTypeError::new_err(
             "List aggregation sum cannot be used after an element qualifier (any/all).",
         ))
     }
+
     fn avg(&self) -> PyResult<PyPropertyFilterOps> {
         Err(PyTypeError::new_err(
             "List aggregation avg cannot be used after an element qualifier (any/all).",
         ))
     }
+
     fn min(&self) -> PyResult<PyPropertyFilterOps> {
         Err(PyTypeError::new_err(
             "List aggregation min cannot be used after an element qualifier (any/all).",
         ))
     }
+
     fn max(&self) -> PyResult<PyPropertyFilterOps> {
         Err(PyTypeError::new_err(
             "List aggregation max cannot be used after an element qualifier (any/all).",
@@ -332,186 +349,190 @@ impl DynListAggOps for NoListAggOps {
     }
 }
 
+trait DynSelectorOps: Send + Sync {
+    fn first(&self) -> PyResult<PyPropertyFilterOps>;
+
+    fn last(&self) -> PyResult<PyPropertyFilterOps>;
+}
+
+#[derive(Clone)]
+struct NoSelector;
+
+impl DynSelectorOps for NoSelector {
+    fn first(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err(
+            "first() is only valid on temporal properties.",
+        ))
+    }
+
+    fn last(&self) -> PyResult<PyPropertyFilterOps> {
+        Err(PyTypeError::new_err(
+            "last() is only valid on temporal properties.",
+        ))
+    }
+}
+
 impl<T> DynListAggOps for T
 where
-    T: ListAggOps<<T as InternalPropertyFilterOps>::Marker>
-        + InternalPropertyFilterOps
-        + Clone
-        + Send
-        + Sync
-        + 'static,
+    T: ListAggOps + InternalPropertyFilterOps + Clone + Send + Sync + 'static,
     PropertyFilter<<T as InternalPropertyFilterOps>::Marker>: CreateFilter + TryAsCompositeFilter,
 {
     fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps<_>>::len(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::len(self.clone()));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
-        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
+        let sel = Arc::new(NoSelector);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual, sel))
     }
+
     fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps<_>>::sum(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::sum(self.clone()));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
-        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
+        let sel = Arc::new(NoSelector);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual, sel))
     }
+
     fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps<_>>::avg(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::avg(self.clone()));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
-        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
+        let sel = Arc::new(NoSelector);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual, sel))
     }
+
     fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps<_>>::min(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::min(self.clone()));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
-        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
+        let sel = Arc::new(NoSelector);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual, sel))
     }
+
     fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps<_>>::max(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::max(self.clone()));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
-        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
+        let sel = Arc::new(NoSelector);
+        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual, sel))
+    }
+}
+
+trait QualifierBehavior:
+    InternalPropertyFilterOps + ElemQualifierOps + Clone + Send + Sync + 'static
+where
+    PropertyFilter<Self::Marker>: CreateFilter + TryAsCompositeFilter,
+{
+    fn build_any(&self) -> PyPropertyFilterOps;
+
+    fn build_all(&self) -> PyPropertyFilterOps;
+}
+
+impl<M> QualifierBehavior for PropertyFilterBuilder<M>
+where
+    M: Clone + Send + Sync + 'static,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+{
+    fn build_any(&self) -> PyPropertyFilterOps {
+        let ops = Arc::new(ElemQualifierOps::any(self.clone()));
+        let agg = Arc::new(NoListAggOps);
+        let qual = Arc::new(NoElemQualifiers);
+        let sel = Arc::new(NoSelector);
+        PyPropertyFilterOps::from_parts(ops, agg, qual, sel)
+    }
+
+    fn build_all(&self) -> PyPropertyFilterOps {
+        let ops = Arc::new(ElemQualifierOps::all(self.clone()));
+        let agg = Arc::new(NoListAggOps);
+        let qual = Arc::new(NoElemQualifiers);
+        let sel = Arc::new(NoSelector);
+        PyPropertyFilterOps::from_parts(ops, agg, qual, sel)
+    }
+}
+
+impl<M> QualifierBehavior for MetadataFilterBuilder<M>
+where
+    M: Clone + Send + Sync + 'static,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+{
+    fn build_any(&self) -> PyPropertyFilterOps {
+        let ops = Arc::new(ElemQualifierOps::any(self.clone()));
+        let agg = Arc::new(NoListAggOps);
+        let qual = Arc::new(NoElemQualifiers);
+        let sel = Arc::new(NoSelector);
+        PyPropertyFilterOps::from_parts(ops, agg, qual, sel)
+    }
+    fn build_all(&self) -> PyPropertyFilterOps {
+        let ops = Arc::new(ElemQualifierOps::all(self.clone()));
+        let agg = Arc::new(NoListAggOps);
+        let qual = Arc::new(NoElemQualifiers);
+        let sel = Arc::new(NoSelector);
+        PyPropertyFilterOps::from_parts(ops, agg, qual, sel)
+    }
+}
+
+impl<M> DynSelectorOps for OpChainBuilder<M>
+where
+    M: Send + Sync + Clone + 'static,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+{
+    fn first(&self) -> PyResult<PyPropertyFilterOps> {
+        Ok(PyPropertyFilterOps::from_builder(self.clone().first()))
+    }
+
+    fn last(&self) -> PyResult<PyPropertyFilterOps> {
+        Ok(PyPropertyFilterOps::from_builder(self.clone().last()))
+    }
+}
+
+impl<M> QualifierBehavior for OpChainBuilder<M>
+where
+    M: Send + Sync + Clone + 'static,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+{
+    fn build_any(&self) -> PyPropertyFilterOps {
+        let chain = self.clone().any();
+        let ops = Arc::new(chain.clone());
+        let agg = Arc::new(chain.clone());
+        let qual = Arc::new(chain.clone());
+        let sel = Arc::new(NoSelector);
+        PyPropertyFilterOps::from_parts(ops, agg, qual, sel)
+    }
+
+    fn build_all(&self) -> PyPropertyFilterOps {
+        let chain = self.clone().all();
+        let ops = Arc::new(chain.clone());
+        let agg = Arc::new(chain.clone());
+        let qual = Arc::new(chain.clone());
+        let sel = Arc::new(NoSelector);
+        PyPropertyFilterOps::from_parts(ops, agg, qual, sel)
     }
 }
 
 impl<T> DynElemQualifierOps for T
 where
-    T: ElemQualifierOps<<T as InternalPropertyFilterOps>::Marker>
-        + InternalPropertyFilterOps
-        + Clone
-        + Send
-        + Sync
-        + 'static,
-    PropertyFilter<<T as InternalPropertyFilterOps>::Marker>: CreateFilter + TryAsCompositeFilter,
+    T: QualifierBehavior,
+    PropertyFilter<T::Marker>: CreateFilter + TryAsCompositeFilter,
 {
     fn any(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ElemQualifierOps<_>>::any(self.clone()));
-        let agg = Arc::new(NoListAggOps);
-        let qual = Arc::new(NoElemQualifiers);
-        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
+        Ok(self.build_any())
     }
+
     fn all(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ElemQualifierOps<_>>::all(self.clone()));
-        let agg = Arc::new(NoListAggOps);
-        let qual = Arc::new(NoElemQualifiers);
-        Ok(PyPropertyFilterOps::from_parts(ops, agg, qual))
-    }
-}
-
-trait DynTemporalPropertyFilterBuilderOps: Send + Sync {
-    fn __eq__(&self, value: Prop) -> PyFilterExpr;
-
-    fn __ne__(&self, value: Prop) -> PyFilterExpr;
-
-    fn any(&self) -> PyPropertyFilterOps;
-
-    fn latest(&self) -> PyPropertyFilterOps;
-
-    fn first(&self) -> PyPropertyFilterOps;
-
-    fn all(&self) -> PyPropertyFilterOps;
-}
-
-impl<M: Clone + Send + Sync + 'static> DynTemporalPropertyFilterBuilderOps
-    for TemporalPropertyFilterBuilder<M>
-where
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-{
-    fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.clone().eq(value)))
-    }
-
-    fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.clone().ne(value)))
-    }
-
-    fn any(&self) -> PyPropertyFilterOps {
-        PyPropertyFilterOps::from_builder(self.clone().any())
-    }
-
-    fn latest(&self) -> PyPropertyFilterOps {
-        PyPropertyFilterOps::from_builder(self.clone().latest())
-    }
-
-    fn first(&self) -> PyPropertyFilterOps {
-        PyPropertyFilterOps::from_builder(self.clone().first())
-    }
-
-    fn all(&self) -> PyPropertyFilterOps {
-        PyPropertyFilterOps::from_builder(self.clone().all())
-    }
-}
-
-#[pyclass(
-    frozen,
-    name = "TemporalPropertyFilterBuilder",
-    module = "raphtory.filter"
-)]
-#[derive(Clone)]
-pub struct PyTemporalPropertyFilterBuilder {
-    t: Arc<dyn DynTemporalPropertyFilterBuilderOps>,
-    agg: Arc<dyn DynListAggOps>,
-}
-
-#[pymethods]
-impl PyTemporalPropertyFilterBuilder {
-    pub fn any(&self) -> PyPropertyFilterOps {
-        self.t.any()
-    }
-
-    pub fn latest(&self) -> PyPropertyFilterOps {
-        self.t.latest()
-    }
-
-    pub fn first(&self) -> PyPropertyFilterOps {
-        self.t.first()
-    }
-
-    pub fn all(&self) -> PyPropertyFilterOps {
-        self.t.all()
-    }
-
-    pub fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        self.agg.len()
-    }
-
-    pub fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        self.agg.sum()
-    }
-
-    pub fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        self.agg.avg()
-    }
-
-    pub fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        self.agg.min()
-    }
-
-    pub fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        self.agg.max()
-    }
-
-    fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        self.t.__eq__(value)
-    }
-
-    fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        self.t.__ne__(value)
+        Ok(self.build_all())
     }
 }
 
 trait DynPropertyFilterBuilderOps: Send + Sync {
-    fn temporal(&self) -> PyTemporalPropertyFilterBuilder;
+    fn temporal(&self) -> PyPropertyFilterOps;
 }
 
 impl<M: Clone + Send + Sync + 'static> DynPropertyFilterBuilderOps for PropertyFilterBuilder<M>
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
-    fn temporal(&self) -> PyTemporalPropertyFilterBuilder {
-        let t = Arc::new(self.clone().temporal()) as Arc<dyn DynTemporalPropertyFilterBuilderOps>;
-        let agg = Arc::new(self.clone().temporal()) as Arc<dyn DynListAggOps>;
-        PyTemporalPropertyFilterBuilder { t, agg }
+    fn temporal(&self) -> PyPropertyFilterOps {
+        PyPropertyFilterOps::from_builder(self.clone().temporal())
     }
 }
 
@@ -538,6 +559,7 @@ where
             ops: inner.clone(),
             agg: inner.clone(),
             qual: inner.clone(),
+            sel: Arc::new(NoSelector),
         };
         let child = PyPropertyFilterBuilder(inner as Arc<dyn DynPropertyFilterBuilderOps>);
         Bound::new(py, (child, parent))
@@ -546,7 +568,7 @@ where
 
 #[pymethods]
 impl PyPropertyFilterBuilder {
-    fn temporal(&self) -> PyTemporalPropertyFilterBuilder {
+    fn temporal(&self) -> PyPropertyFilterOps {
         self.0.temporal()
     }
 }
@@ -573,6 +595,7 @@ where
             ops: Arc::new(self.clone()),
             agg: Arc::new(self.clone()),
             qual: Arc::new(self),
+            sel: Arc::new(NoSelector),
         };
         let child = PyMetadataFilterBuilder;
         Bound::new(py, (child, parent))

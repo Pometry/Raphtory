@@ -96,9 +96,9 @@ def test_temporal_any_semantics_for_secondary_indexes():
 
 
 @with_disk_variants(init_edges_graph, variants=["graph", "event_disk_graph"])
-def test_temporal_latest_semantics():
+def test_temporal_last_semantics():
     def check(graph):
-        filter_expr = filter.Edge.property("p1").temporal().latest() == 1
+        filter_expr = filter.Edge.property("p1").temporal().last() == 1
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [("N1", "N2"), ("N3", "N4"), ("N4", "N5"), ("N6", "N7"), ("N7", "N8")]
@@ -112,9 +112,9 @@ def test_temporal_latest_semantics():
     init_fn=combined([init_edges_graph, init_graph_for_secondary_indexes]),
     variants=["graph", "event_disk_graph"],
 )
-def test_temporal_latest_semantics_for_secondary_indexes3():
+def test_temporal_last_semantics_for_secondary_indexes3():
     def check(graph):
-        filter_expr = filter.Edge.property("p1").temporal().latest() == 1
+        filter_expr = filter.Edge.property("p1").temporal().last() == 1
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [

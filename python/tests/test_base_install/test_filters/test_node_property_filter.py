@@ -155,7 +155,7 @@ def test_filter_nodes_for_property_starts_with():
         expected_ids = []
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p10").temporal().latest().starts_with("P")
+        filter_expr = filter.Node.property("p10").temporal().last().starts_with("P")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
@@ -198,7 +198,7 @@ def test_filter_nodes_for_property_ends_with():
         expected_ids = ["1", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p10").temporal().latest().ends_with("ship")
+        filter_expr = filter.Node.property("p10").temporal().last().ends_with("ship")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["2"]
         assert result_ids == expected_ids
@@ -236,7 +236,7 @@ def test_filter_nodes_for_property_contains():
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p10").temporal().latest().contains("Paper")
+        filter_expr = filter.Node.property("p10").temporal().last().contains("Paper")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
@@ -269,9 +269,7 @@ def test_filter_nodes_for_property_not_contains():
         expected_ids = ["1", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = (
-            filter.Node.property("p10").temporal().latest().not_contains("ship")
-        )
+        filter_expr = filter.Node.property("p10").temporal().last().not_contains("ship")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "3"]
         assert result_ids == expected_ids
@@ -361,9 +359,9 @@ def test_filter_nodes_for_property_len():
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-def test_filter_nodes_for_temporal_latest_property_sum():
+def test_filter_nodes_for_temporal_last_property_sum():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().latest().sum() == 12
+        filter_expr = filter.Node.property("prop6").temporal().last().sum() == 12
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -372,9 +370,9 @@ def test_filter_nodes_for_temporal_latest_property_sum():
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-def test_filter_nodes_for_temporal_latest_property_avg():
+def test_filter_nodes_for_temporal_last_property_avg():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().latest().avg() == 4.0
+        filter_expr = filter.Node.property("prop6").temporal().last().avg() == 4.0
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -383,9 +381,9 @@ def test_filter_nodes_for_temporal_latest_property_avg():
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-def test_filter_nodes_for_temporal_latest_property_min():
+def test_filter_nodes_for_temporal_last_property_min():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().latest().min() == 3
+        filter_expr = filter.Node.property("prop6").temporal().last().min() == 3
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -394,9 +392,9 @@ def test_filter_nodes_for_temporal_latest_property_min():
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-def test_filter_nodes_for_temporal_latest_property_max():
+def test_filter_nodes_for_temporal_last_property_max():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().latest().max() == 5
+        filter_expr = filter.Node.property("prop6").temporal().last().max() == 5
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -405,11 +403,11 @@ def test_filter_nodes_for_temporal_latest_property_max():
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-def test_filter_nodes_for_temporal_latest_property_len():
+def test_filter_nodes_for_temporal_last_property_len():
     def check(graph):
-        filter_expr = filter.Node.property(
-            "prop6"
-        ).temporal().latest().len() == Prop.u64(3)
+        filter_expr = filter.Node.property("prop6").temporal().last().len() == Prop.u64(
+            3
+        )
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -728,9 +726,9 @@ def test_filter_nodes_for_temporary_property_first_all():
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-def test_filter_nodes_for_temporary_property_latest_any():
+def test_filter_nodes_for_temporary_property_last_any():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").temporal().latest().any() == 3
+        filter_expr = filter.Node.property("prop8").temporal().last().any() == 3
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "d"]
         assert result_ids == expected_ids
@@ -739,14 +737,14 @@ def test_filter_nodes_for_temporary_property_latest_any():
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-def test_filter_nodes_for_temporary_property_latest_all():
+def test_filter_nodes_for_temporary_property_last_all():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").temporal().latest().all() > 1
+        filter_expr = filter.Node.property("prop8").temporal().last().all() > 1
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "d"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop8").temporal().latest().all() > 2
+        filter_expr = filter.Node.property("prop8").temporal().last().all() > 2
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["d"]
         assert result_ids == expected_ids
@@ -1074,7 +1072,7 @@ def test_filter_nodes_for_temporal_property_ne():
     def check(graph):
         filter_expr = filter.Node.property("prop1").temporal() != [60]
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ['b', 'c', 'd']
+        expected_ids = ["b", "c", "d"]
         assert result_ids == expected_ids
 
     return check
@@ -1084,18 +1082,18 @@ def test_filter_nodes_for_temporal_property_ne():
 def test_filter_nodes_for_temporal_property_fails():
     def check(graph):
         filter_expr = filter.Node.property("prop1").temporal() == 60
-        msg = "Invalid filter: temporal() == / != expects a list value (e.g. [1,2,3])"
+        msg = "Wrong type for property prop1: expected List(I64) but actual type is I64"
         with pytest.raises(
-                Exception,
-                match=re.escape(msg),
+            Exception,
+            match=re.escape(msg),
         ):
             graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("prop1").temporal() == "pometry"
-        msg = "Invalid filter: temporal() == / != expects a list value (e.g. [1,2,3])"
+        msg = "Wrong type for property prop1: expected List(I64) but actual type is Str"
         with pytest.raises(
-                Exception,
-                match=re.escape(msg),
+            Exception,
+            match=re.escape(msg),
         ):
             graph.filter(filter_expr).nodes.id
 

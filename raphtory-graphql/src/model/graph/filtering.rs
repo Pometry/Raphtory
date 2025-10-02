@@ -11,9 +11,7 @@ use raphtory::{
         edge_filter::CompositeEdgeFilter,
         filter_operator::FilterOperator,
         node_filter::CompositeNodeFilter,
-        property_filter::{
-            ListAgg, ListElemQualifier, PropertyFilter, PropertyFilterValue, PropertyRef, Temporal,
-        },
+        property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         Filter, FilterValue,
     },
     errors::GraphError,
@@ -426,23 +424,23 @@ pub enum GqlListElemQualifier {
     All,
 }
 
-impl From<GqlListElemQualifier> for ListElemQualifier {
+impl From<GqlListElemQualifier> for Op {
     fn from(q: GqlListElemQualifier) -> Self {
         match q {
-            GqlListElemQualifier::Any => ListElemQualifier::Any,
-            GqlListElemQualifier::All => ListElemQualifier::All,
+            GqlListElemQualifier::Any => Op::Any,
+            GqlListElemQualifier::All => Op::All,
         }
     }
 }
 
-impl From<GqlListAgg> for ListAgg {
+impl From<GqlListAgg> for Op {
     fn from(a: GqlListAgg) -> Self {
         match a {
-            GqlListAgg::Len => ListAgg::Len,
-            GqlListAgg::Sum => ListAgg::Sum,
-            GqlListAgg::Avg => ListAgg::Avg,
-            GqlListAgg::Min => ListAgg::Min,
-            GqlListAgg::Max => ListAgg::Max,
+            GqlListAgg::Len => Op::Len,
+            GqlListAgg::Sum => Op::Sum,
+            GqlListAgg::Avg => Op::Avg,
+            GqlListAgg::Min => Op::Min,
+            GqlListAgg::Max => Op::Max,
         }
     }
 }
@@ -455,21 +453,13 @@ pub struct PropertyFilterExpr {
     pub operator: Operator,
     /// Value.
     pub value: Option<Value>,
-    /// List aggregate
-    pub list_agg: Option<GqlListAgg>,
-    /// List qualifier
-    pub elem_qualifier: Option<GqlListElemQualifier>,
+    /// Ops List.
+    pub ops: Option<Vec<OpName>>,
 }
 
 impl PropertyFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, self.value.as_ref())?;
-        if self.elem_qualifier.is_some() && self.list_agg.is_some() {
-            return Err(GraphError::InvalidGqlFilter(
-                "List aggregation and element qualifier cannot be used together".into(),
-            ));
-        }
-        Ok(())
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
@@ -481,21 +471,13 @@ pub struct MetadataFilterExpr {
     pub operator: Operator,
     /// Value.
     pub value: Option<Value>,
-    /// List aggregate
-    pub list_agg: Option<GqlListAgg>,
-    /// List qualifier
-    pub elem_qualifier: Option<GqlListElemQualifier>,
+    /// Ops List.
+    pub ops: Option<Vec<OpName>>,
 }
 
 impl MetadataFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, self.value.as_ref())?;
-        if self.elem_qualifier.is_some() && self.list_agg.is_some() {
-            return Err(GraphError::InvalidGqlFilter(
-                "List aggregation and element qualifier cannot be used together".into(),
-            ));
-        }
-        Ok(())
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
@@ -503,49 +485,47 @@ impl MetadataFilterExpr {
 pub struct TemporalPropertyFilterExpr {
     /// Name.
     pub name: String,
-    /// Type of temporal property. Choose from: any, latest.
-    pub temporal: TemporalType,
     /// Operator.
     pub operator: Operator,
     /// Value.
     pub value: Option<Value>,
-    /// List aggregate
-    pub list_agg: Option<GqlListAgg>,
-    /// List qualifier
-    pub elem_qualifier: Option<GqlListElemQualifier>,
+    /// Ops List.
+    pub ops: Option<Vec<OpName>>,
 }
 
 impl TemporalPropertyFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, self.value.as_ref())?;
-
-        if let TemporalType::Values = self.temporal {
-            if self.list_agg.is_none() {
-                return Err(GraphError::InvalidGqlFilter(
-                    "temporal: VALUES must be used with a list_agg (len/sum/avg/min/max)".into(),
-                ));
-            }
-            if self.elem_qualifier.is_some() {
-                return Err(GraphError::InvalidGqlFilter(
-                    "Element qualifiers (any/all) are not supported with temporal VALUES aggregation"
-                        .into(),
-                ));
-            }
-        }
-
-        Ok(())
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
 #[derive(Enum, Copy, Clone, Debug)]
-pub enum TemporalType {
-    /// Any.
-    Any,
-    /// Latest.
-    Latest,
+pub enum OpName {
     First,
+    Last,
+    Any,
     All,
-    Values,
+    Len,
+    Sum,
+    Avg,
+    Min,
+    Max,
+}
+
+impl From<OpName> for Op {
+    fn from(o: OpName) -> Self {
+        match o {
+            OpName::First => Op::First,
+            OpName::Last => Op::Last,
+            OpName::Any => Op::Any,
+            OpName::All => Op::All,
+            OpName::Len => Op::Len,
+            OpName::Sum => Op::Sum,
+            OpName::Avg => Op::Avg,
+            OpName::Min => Op::Min,
+            OpName::Max => Op::Max,
+        }
+    }
 }
 
 fn field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
@@ -838,8 +818,7 @@ fn build_property_filter<M>(
     prop_ref: PropertyRef,
     operator: Operator,
     value: Option<&Value>,
-    list_agg: Option<GqlListAgg>,
-    list_elem_qualifier: Option<GqlListElemQualifier>,
+    ops: Vec<Op>,
 ) -> Result<PropertyFilter<M>, GraphError> {
     let prop = value.cloned().map(Prop::try_from).transpose()?;
 
@@ -857,8 +836,7 @@ fn build_property_filter<M>(
         prop_ref,
         prop_value,
         operator: operator.into(),
-        list_agg: list_agg.map(Into::into),
-        list_elem_qualifier: list_elem_qualifier.map(Into::into),
+        ops,
         _phantom: PhantomData,
     })
 }
@@ -867,12 +845,15 @@ impl<M> TryFrom<PropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: PropertyFilterExpr) -> Result<Self, Self::Error> {
+        expr.validate()?;
+
+        let ops: Vec<_> = expr.ops.into_iter().flatten().map(Into::into).collect();
+
         build_property_filter(
             PropertyRef::Property(expr.name),
             expr.operator,
             expr.value.as_ref(),
-            expr.list_agg,
-            expr.elem_qualifier,
+            ops,
         )
     }
 }
@@ -881,12 +862,15 @@ impl<M> TryFrom<MetadataFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: MetadataFilterExpr) -> Result<Self, Self::Error> {
+        expr.validate()?;
+
+        let ops: Vec<_> = expr.ops.into_iter().flatten().map(Into::into).collect();
+
         build_property_filter(
             PropertyRef::Metadata(expr.name),
             expr.operator,
             expr.value.as_ref(),
-            expr.list_agg,
-            expr.elem_qualifier,
+            ops,
         )
     }
 }
@@ -895,12 +879,15 @@ impl<M> TryFrom<TemporalPropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: TemporalPropertyFilterExpr) -> Result<Self, Self::Error> {
+        expr.validate()?;
+
+        let ops: Vec<_> = expr.ops.into_iter().flatten().map(Into::into).collect();
+
         build_property_filter(
-            PropertyRef::TemporalProperty(expr.name, expr.temporal.into()),
+            PropertyRef::TemporalProperty(expr.name),
             expr.operator,
             expr.value.as_ref(),
-            expr.list_agg,
-            expr.elem_qualifier,
+            ops,
         )
     }
 }
@@ -933,18 +920,6 @@ impl From<Operator> for FilterOperator {
             Operator::EndsWith => FilterOperator::EndsWith,
             Operator::Contains => FilterOperator::Contains,
             Operator::NotContains => FilterOperator::NotContains,
-        }
-    }
-}
-
-impl From<TemporalType> for Temporal {
-    fn from(temporal: TemporalType) -> Self {
-        match temporal {
-            TemporalType::Any => Temporal::Any,
-            TemporalType::Latest => Temporal::Latest,
-            TemporalType::First => Temporal::First,
-            TemporalType::All => Temporal::All,
-            TemporalType::Values => Temporal::Values,
         }
     }
 }

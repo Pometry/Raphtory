@@ -4,7 +4,6 @@ use crate::python::filter::{
     node_filter_builders::PyNodeFilter,
     property_filter_builders::{
         PyMetadataFilterBuilder, PyPropertyFilterBuilder, PyPropertyFilterOps,
-        PyTemporalPropertyFilterBuilder,
     },
 };
 use pyo3::{
@@ -29,7 +28,6 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
     filter_module.add_class::<PyMetadataFilterBuilder>()?;
-    filter_module.add_class::<PyTemporalPropertyFilterBuilder>()?;
 
     Ok(filter_module)
 }

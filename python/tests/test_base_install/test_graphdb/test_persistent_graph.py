@@ -256,7 +256,7 @@ def test_filtering_valid():
     g.add_edge(2, 1, 3, layer="blue", properties={"weight": 2})
     g.add_edge(3, 1, 3, layer="red", properties={"weight": 3})
 
-    f = filter.Edge.property("weight").temporal().latest() < 3
+    f = filter.Edge.property("weight").temporal().last() < 3
     e = g.filter(f).edge(1, 2)
     assert e is None
     # assert list(e.properties.temporal.get("weight").values) == [1,2] -- this would be the case for filter_edge_layer?

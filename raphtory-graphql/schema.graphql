@@ -1053,19 +1053,6 @@ type LayerSchema {
 	edges: [EdgeSchema!]!
 }
 
-enum ListAgg {
-	LEN
-	SUM
-	AVG
-	MIN
-	MAX
-}
-
-enum ListElemQualifier {
-	ANY
-	ALL
-}
-
 type MetaGraph {
 	"""
 	Returns the graph name.
@@ -1134,13 +1121,9 @@ input MetadataFilterExpr {
 	"""
 	value: Value
 	"""
-	List aggregate
+	Ops List.
 	"""
-	listAgg: ListAgg
-	"""
-	List qualifier
-	"""
-	elemQualifier: ListElemQualifier
+	ops: [OpName!]
 }
 
 type MutRoot {
@@ -1891,6 +1874,18 @@ input ObjectEntry {
 	value: Value!
 }
 
+enum OpName {
+	FIRST
+	LAST
+	ANY
+	ALL
+	LEN
+	SUM
+	AVG
+	MIN
+	MAX
+}
+
 enum Operator {
 	"""
 	Equality operator.
@@ -2161,13 +2156,9 @@ input PropertyFilterExpr {
 	"""
 	value: Value
 	"""
-	List aggregate
+	Ops List.
 	"""
-	listAgg: ListAgg
-	"""
-	List qualifier
-	"""
-	elemQualifier: ListElemQualifier
+	ops: [OpName!]
 }
 
 input PropertyInput {
@@ -2331,10 +2322,6 @@ input TemporalPropertyFilterExpr {
 	"""
 	name: String!
 	"""
-	Type of temporal property. Choose from: any, latest.
-	"""
-	temporal: TemporalType!
-	"""
 	Operator.
 	"""
 	operator: Operator!
@@ -2343,13 +2330,9 @@ input TemporalPropertyFilterExpr {
 	"""
 	value: Value
 	"""
-	List aggregate
+	Ops List.
 	"""
-	listAgg: ListAgg
-	"""
-	List qualifier
-	"""
-	elemQualifier: ListElemQualifier
+	ops: [OpName!]
 }
 
 input TemporalPropertyInput {
@@ -2361,20 +2344,6 @@ input TemporalPropertyInput {
 	Properties.
 	"""
 	properties: [PropertyInput!]
-}
-
-enum TemporalType {
-	"""
-	Any.
-	"""
-	ANY
-	"""
-	Latest.
-	"""
-	LATEST
-	FIRST
-	ALL
-	VALUES
 }
 
 scalar Upload
