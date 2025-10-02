@@ -22,17 +22,15 @@ use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
     prelude::*,
-    serialise::{StableDecode, GRAPH_PATH},
+    serialise::*,
     version,
 };
 use std::{
     error::Error,
     fmt::{Display, Formatter},
-    io::Read,
     path::PathBuf,
     sync::Arc,
 };
-use zip::ZipArchive;
 
 pub(crate) mod graph;
 pub mod plugins;
@@ -203,11 +201,12 @@ impl Mut {
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
+        let folder = data.validate_path_for_insert(&path)?;
         let graph = match graph_type {
             GqlGraphType::Persistent => PersistentGraph::new().materialize()?,
             GqlGraphType::Event => Graph::new().materialize()?,
         };
-        data.insert_graph(&path, graph).await?;
+        data.insert_graph(folder, graph).await?;
         Ok(true)
     }
 
@@ -231,8 +230,9 @@ impl Mut {
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
         let data = ctx.data_unchecked::<Data>();
+        let folder = data.validate_path_for_insert(new_path)?;
         let graph = data.get_graph(path).await?.0.graph;
-        data.insert_graph(new_path, graph).await?;
+        data.insert_graph(folder, graph).await?;
 
         Ok(true)
     }
@@ -249,6 +249,7 @@ impl Mut {
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let in_file = graph.value(ctx)?.content;
+        let folder = data.validate_path_for_insert(&path)?;
 
         if data.has_graph(&path).await && !overwrite {
             return Err(GraphError::GraphNameAlreadyExists(PathBuf::from(path)).into());
@@ -258,7 +259,7 @@ impl Mut {
             data.delete_graph(&path).await?;
         }
 
-        data.insert_graph_as_bytes(&path, in_file).await?;
+        data.insert_graph_as_bytes(folder, in_file).await?;
 
         Ok(path)
     }
@@ -274,11 +275,15 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let g: MaterializedGraph = url_decode_graph(graph)?;
+        let folder = data.validate_path_for_insert(path)?;
+        let path_for_decoded_graph = Some(folder.get_graph_path());
+        let g: MaterializedGraph = url_decode_graph(graph, path_for_decoded_graph)?;
+
         if overwrite {
             let _ignored = data.delete_graph(path).await;
         }
-        data.insert_graph(path, g).await?;
+
+        data.insert_graph(folder, g).await?;
         Ok(path.to_owned())
     }
 
@@ -300,7 +305,8 @@ impl Mut {
         if overwrite {
             let _ignored = data.delete_graph(&new_path).await;
         }
-        data.insert_graph(&new_path, new_subgraph).await?;
+        let folder = data.validate_path_for_insert(&new_path)?;
+        data.insert_graph(folder, new_subgraph).await?;
         Ok(new_path)
     }
 

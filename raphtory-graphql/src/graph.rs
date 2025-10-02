@@ -1,4 +1,5 @@
 use crate::paths::ExistingGraphFolder;
+use std::path::PathBuf;
 use once_cell::sync::OnceCell;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
@@ -76,7 +77,8 @@ impl GraphWithVectors {
         cache: Option<VectorCache>,
         create_index: bool,
     ) -> Result<Self, GraphError> {
-        let graph = MaterializedGraph::decode(folder.clone())?;
+        let path_for_decoded_graph: Option<PathBuf> = None;
+        let graph = MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?;
         let vectors = cache.and_then(|cache| {
             VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
         });

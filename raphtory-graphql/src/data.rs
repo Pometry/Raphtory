@@ -115,59 +115,55 @@ impl Data {
         ExistingGraphFolder::try_from(self.work_dir.clone(), path).is_ok()
     }
 
-    pub async fn insert_graph(
-        &self,
-        path: &str,
-        graph: MaterializedGraph,
-    ) -> Result<(), GraphError> {
-        // TODO: replace ValidGraphFolder with ValidNonExistingGraphFolder !!!!!!!!!
-        // or even a NewGraphFolder, so that we try to create the graph file and if that is sucessful
-        // we can write to it and it is guaranteed to be atomic.
+    pub fn validate_path_for_insert(&self, path: &str) -> Result<ValidGraphFolder, GraphError> {
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
 
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
-            Err(_) => {
-                let graph_clone = graph.clone();
-                let folder_clone = folder.clone();
-
-                blocking_io(move || graph_clone.encode(folder_clone.clone())).await?;
-
-                let vectors = self.vectorise(graph.clone(), &folder).await;
-                let graph = GraphWithVectors::new(graph, vectors);
-
-                graph
-                    .folder
-                    .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
-
-                self.cache.insert(path.into(), graph).await;
-
-                Ok(())
-            }
+            Err(_) => Ok(folder),
         }
+    }
+
+    pub async fn insert_graph(
+        &self,
+        folder: ValidGraphFolder,
+        graph: MaterializedGraph,
+    ) -> Result<(), GraphError> {
+        let path = folder.get_original_path_str();
+        let graph_clone = graph.clone();
+        let folder_clone = folder.clone();
+
+        blocking_io(move || graph_clone.encode(folder_clone.clone())).await?;
+
+        let vectors = self.vectorise(graph.clone(), &folder).await;
+        let graph = GraphWithVectors::new(graph, vectors);
+
+        let folder_for_init = folder.clone();
+
+        graph
+            .folder
+            .get_or_try_init(|| Ok::<_, GraphError>(folder_for_init.into()))?;
+
+        self.cache.insert(path.into(), graph).await;
+
+        Ok(())
     }
 
     /// Insert a graph serialized from a graph folder.
     pub async fn insert_graph_as_bytes<R: Read + Seek>(
         &self,
-        path: &str,
+        folder: ValidGraphFolder,
         bytes: R,
     ) -> Result<(), GraphError> {
-        let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
+        let path = folder.get_original_path_str();
+        folder.unzip_to_folder(bytes)?;
 
-        match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
-            Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
-            Err(_) => {
-                folder.unzip_to_folder(bytes)?;
+        // Can't use '?' directly as get_graph returns Arc<GraphError>
+        self.get_graph(&path)
+            .await
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
-                // Can't use '?' directly as get_graph returns Arc<GraphError>
-                self.get_graph(path)
-                    .await
-                    .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
-
-                Ok(())
-            }
-        }
+        Ok(())
     }
 
     pub async fn delete_graph(&self, path: &str) -> Result<(), GraphError> {

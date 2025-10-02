@@ -576,7 +576,8 @@ mod tests {
             individual_templates: HashMap::new(),
         });
 
-        data.insert_graph("test_graph", graph).await.unwrap();
+        let folder = data.validate_path_for_insert("test_graph").unwrap();
+        data.insert_graph(folder, graph).await.unwrap();
 
         let (graph_with_vectors, path) = data.get_graph("test_graph").await.unwrap();
         let mutable_graph = GqlMutableGraph::new(path, graph_with_vectors);
