@@ -166,7 +166,7 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
-fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, gs: GraphStorage) -> Edges<'graph, G, G> {
+fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G, G> {
     let graph = g.clone();
     let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
         .node_list()
@@ -174,23 +174,29 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, gs: GraphStorage) -> Edges<
         NodeList::All { .. } => Arc::new(move || {
             let layer_ids = graph.layer_ids().clone();
             let graph = graph.clone();
-            GenLockedIter::from(
-                (gs.clone(), layer_ids, graph),
-                move |(gs, layer_ids, graph)| {
-                    let edges = gs.edges();
-                    let iter = edges.iter(layer_ids);
-                    if graph.filtered() {
-                        iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
-                            .into_dyn_boxed()
-                    } else {
-                        iter.map(|e| e.out_ref()).into_dyn_boxed()
-                    }
-                },
-            )
+            let gs = if locked {
+                graph.core_graph().lock()
+            } else {
+                graph.core_graph().clone()
+            };
+            GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
+                let edges = gs.edges();
+                let iter = edges.iter(layer_ids);
+                if graph.filtered() {
+                    iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
+                        .into_dyn_boxed()
+                } else {
+                    iter.map(|e| e.out_ref()).into_dyn_boxed()
+                }
+            })
             .into_dyn_boxed()
         }),
         NodeList::List { elems } => Arc::new(move || {
-            let cg = gs.clone();
+            let cg = if locked {
+                graph.core_graph().lock()
+            } else {
+                graph.core_graph().clone()
+            };
             let graph = graph.clone();
             elems
                 .clone()
@@ -208,13 +214,11 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, gs: GraphStorage) -> Edges<
 
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
-        let storage = self.core_graph().lock();
-        edges_inner(self, storage)
+        edges_inner(self, true)
     }
 
     fn edges_unlocked(&self) -> Edges<'graph, Self, Self> {
-        let storage = self.core_graph().clone();
-        edges_inner(self, storage)
+        edges_inner(self, false)
     }
 
     fn nodes(&self) -> Nodes<'graph, Self, Self> {
