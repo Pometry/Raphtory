@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{
     model::App,
     url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError},
@@ -119,7 +121,8 @@ pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
 /// Union[Graph, PersistentGraph]: the decoded graph
 #[pyfunction]
 pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
-    let result = url_decode_graph(graph, None);
+    let path_for_decoded_graph: Option<PathBuf> = None;
+    let result = url_decode_graph(graph, path_for_decoded_graph);
     match result {
         Ok(g) => Ok(g),
         Err(e) => Err(PyValueError::new_err(format!("Error decoding: {:?}", e))),
