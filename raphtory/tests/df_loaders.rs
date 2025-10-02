@@ -26,6 +26,7 @@ mod io_tests {
             path::{Path, PathBuf},
         };
 
+        use crate::test_utils::build_edge_list;
         use polars_arrow::{
             array::{PrimitiveArray, Utf8Array},
             types::NativeType,
@@ -36,13 +37,12 @@ mod io_tests {
         use prop::sample::SizeRange;
         use proptest::prelude::*;
         use raphtory::{
-            db::graph::graph::assert_graph_equal, io::parquet_loaders::load_edges_from_parquet,
+            db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
+            io::parquet_loaders::load_edges_from_parquet,
             prelude::*,
         };
         use raphtory_storage::{disk::DiskGraphStorage, graph::graph::GraphStorage};
         use tempfile::TempDir;
-
-        use crate::test_utils::build_edge_list;
 
         fn build_edge_list_df(
             len: usize,
@@ -141,10 +141,64 @@ mod io_tests {
             assert_graph_equal(&expected, &actual);
         }
 
+        // DiskGraph appears to have different secondary indices on time entries
+        fn check_layers_from_df_timestamps(input: Vec<DataFrame>, num_threads: usize) {
+            let root_dir = TempDir::new().unwrap();
+            let graph_dir = TempDir::new().unwrap();
+            let layers = input
+                .into_iter()
+                .enumerate()
+                .map(|(i, df)| (i.to_string(), df))
+                .collect::<Vec<_>>();
+            let edge_lists = write_layers(&layers, root_dir.path());
+
+            let expected = Graph::new();
+            for edge_list in &edge_lists {
+                load_edges_from_parquet(
+                    &expected,
+                    &edge_list.path,
+                    "time",
+                    "src",
+                    "dst",
+                    &["int_prop", "str_prop"],
+                    &[],
+                    None,
+                    Some(edge_list.layer),
+                    None,
+                )
+                .unwrap();
+            }
+
+            let g = TemporalGraph::from_parquets(
+                num_threads,
+                13,
+                23,
+                graph_dir.path(),
+                edge_lists,
+                &[],
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+            let actual: Graph = GraphStorage::from(DiskGraphStorage::from(g)).into();
+
+            assert_graph_equal_timestamps(&expected, &actual);
+
+            let g = TemporalGraph::new(graph_dir.path()).unwrap();
+
+            for edge in g.edges_iter() {
+                assert!(g.find_edge(edge.src_id(), edge.dst_id()).is_some());
+            }
+
+            let actual: Graph = GraphStorage::from(DiskGraphStorage::from(g)).into();
+            assert_graph_equal_timestamps(&expected, &actual);
+        }
+
         #[test]
         fn load_from_multiple_layers() {
             proptest!(|(input in build_edge_list_df(50, 1u64..23, 1..10,  ), num_threads in 1usize..2)| {
-                check_layers_from_df(input, num_threads)
+                check_layers_from_df_timestamps(input, num_threads)
             });
         }
 
