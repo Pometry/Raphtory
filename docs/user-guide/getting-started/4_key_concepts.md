@@ -35,11 +35,17 @@ An Edge object contains the combined information for that edge across all points
 
 ## Properties and metadata
 
+Graphs, nodes, and edges can all have properties and metadata. In Raphtory, properties are metrics that can vary in time and each update caries a timestamp, while metadata are metrics that are immutable (you can edit metadata but they have no history). This is system is highly flexible and the main way that you add complex data to the graph structure.
 
+When making a query, entities return [Properties][raphtory.Properties] or [Metadata][raphtory.Metadata] objects that contain all the data within the current view. You can use these objects to fetch and manipulate any individual entries of interest.
 
 ## Layers
 
-## Views
+To further separate different types of relationships between the same types of entities, you can create separate layers in the same graph. The nodes of a graph exist across all layers but edges can be assigned a specific layer. In the [introductionary example](1_intro.md) we use edges on separate layers to distinguish between different behaviours of the baboons.
+
+Queries will show edges across all layers by default and edges that exist on multiple layers are combined into a single edge with the combined properties and history. You can apply an appropriate view to work with a specific layer or layers.
+
+## Views and filters
 
 Views are a kind of object in Raphtory that allow you to perform queries on a subset of your data. 
 
