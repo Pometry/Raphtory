@@ -47,7 +47,12 @@ Queries will show edges across all layers by default and edges that exist on mul
 
 ## Views and filters
 
-Views are a kind of object in Raphtory that allow you to perform queries on a subset of your data. 
+Views are objects in Raphtory that provide read-only of a subsets of your data, this means you can have many views without expensive data duplication. A [GraphView][raphtory.GraphView] provides a view of the graph reduced to a specific subset by a filter or time function. Similarly, many other functions provide filtered views of edges or nodes.
 
+Views can be an instance of a `Node`, `Edge`, `GraphView` or a dedicated class from the [node_state][raphtory.node_state] module.
+
+For example, calling `edge_foo.layer("named_layer")` returns an `Edge` object that acts as a view of the edge restricted to the `named_layer` while calling `node_bar.latest_time` returns a [LatestTimeView][raphtory.node_state.LatestTimeView] object.
 
 ## History
+
+
