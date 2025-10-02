@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::graph_folder::GraphFolder;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
@@ -52,34 +54,36 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array.
-    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError>;
+    // If graph_path is provided, it will be passed to the newly created graph.
+    fn decode_from_bytes(bytes: &[u8], graph_path: Option<PathBuf>) -> Result<Self, GraphError>;
 
     // Decode the graph from the given path.
-    fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
+    // If graph_path is provided, it will be passed to the newly created graph.
+    fn decode(path: impl Into<GraphFolder>, graph_path: Option<PathBuf>) -> Result<Self, GraphError>;
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
-    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
+    fn decode_from_bytes(bytes: &[u8], graph_path: Option<PathBuf>) -> Result<Self, GraphError> {
         // Write bytes to a temp zip file and decode
         let tempdir = tempfile::tempdir()?;
         let zip_path = tempdir.path().join("graph.zip");
         let folder = GraphFolder::new_as_zip(&zip_path);
         std::fs::write(&zip_path, bytes)?;
 
-        let graph = Self::decode(&folder)?;
+        let graph = Self::decode(&folder, graph_path)?;
 
         Ok(graph)
     }
 
-    fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
+    fn decode(path: impl Into<GraphFolder>, graph_path: Option<PathBuf>) -> Result<Self, GraphError> {
         let graph;
         let folder: GraphFolder = path.into();
 
         if folder.is_zip() {
             let reader = std::fs::File::open(&folder.get_base_path())?;
-            graph = Self::decode_parquet_from_zip(reader)?;
+            graph = Self::decode_parquet_from_zip(reader, graph_path)?;
         } else {
-            graph = Self::decode_parquet(&folder.get_graph_path())?;
+            graph = Self::decode_parquet(&folder.get_graph_path(), graph_path)?;
         }
 
         #[cfg(feature = "search")]
@@ -122,7 +126,7 @@ mod tests {
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file).unwrap();
+        let g2 = Graph::decode(&temp_file, None).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -135,7 +139,7 @@ mod tests {
         g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
             .unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file).unwrap();
+        let g2 = Graph::decode(&temp_file, None).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -149,7 +153,7 @@ mod tests {
         let temp_file = TempDir::new().unwrap();
 
         g.encode(&temp_file).unwrap();
-        let g2 = MaterializedGraph::decode(&temp_file).unwrap();
+        let g2 = MaterializedGraph::decode(&temp_file, None).unwrap();
         assert_eq!(g2.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
         let node_names: Vec<_> = g2.nodes().iter().map(|n| n.name()).collect();
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
@@ -517,7 +521,7 @@ mod tests {
         proptest!(|(edges in build_edge_list(100, 100))| {
             let g = build_graph_from_edge_list(&edges);
             let bytes = g.encode_to_bytes();
-            let g2 = Graph::decode_from_bytes(&bytes).unwrap();
+            let g2 = Graph::decode_from_bytes(&bytes, None).unwrap();
             assert_graph_equal(&g, &g2);
         })
     }
