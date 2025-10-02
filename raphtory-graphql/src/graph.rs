@@ -66,12 +66,6 @@ impl GraphWithVectors {
         Ok(())
     }
 
-    pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
-        match self.graph.core_graph() {
-            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => Ok(()),
-        }
-    }
-
     pub(crate) fn read_from_folder(
         folder: &ExistingGraphFolder,
         cache: Option<VectorCache>,
