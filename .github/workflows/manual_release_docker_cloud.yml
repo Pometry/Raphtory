@@ -43,7 +43,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           driver: cloud
-          endpoint: "${{ vars.DOCKER_ACCOUNT }}/${{ vars.CLOUD_BUILDER_NAME }}" # for example, "acme/default"
+          endpoint: "pometry/raphtory" # for example, "acme/default"
           install: true
 
       - name: Build and push
