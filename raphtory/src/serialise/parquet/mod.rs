@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::{storage::storage::Storage, view::MaterializedGraph},
+        api::{storage::storage::Storage, view::{internal::InternalStorageOps, MaterializedGraph}},
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
@@ -404,7 +404,18 @@ fn decode_graph_storage(
     path_for_decoded_graph: Option<impl AsRef<Path>>,
 ) -> Result<Arc<Storage>, GraphError> {
     let g = if let Some(graph_path) = path_for_decoded_graph {
-        Arc::new(Storage::new_at_path(graph_path.as_ref()))
+        let storage = Storage::default();
+
+        // TODO: Currently, in-memory graphs when provided with a path still write
+        // some things to disk (initial folder structures, etc). This can cause
+        // unexpected behavior in the top-level APIs that don't expect it to write
+        // to disk. For now, even if path is provided, don't pass it in unless we're creating
+        // disk graphs.
+        if storage.is_persistent() {
+            Arc::new(Storage::new_at_path(graph_path.as_ref()))
+        } else {
+            Arc::new(Storage::default())
+        }
     } else {
         Arc::new(Storage::default())
     };
