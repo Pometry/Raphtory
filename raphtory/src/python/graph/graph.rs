@@ -136,7 +136,7 @@ impl PyGraphEncoder {
     }
 
     fn __call__(&self, bytes: Vec<u8>) -> Result<MaterializedGraph, GraphError> {
-        MaterializedGraph::decode_from_bytes(&bytes)
+        MaterializedGraph::decode_from_bytes(&bytes, None)
     }
     fn __setstate__(&self) {}
     fn __getstate__(&self) {}

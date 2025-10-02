@@ -119,7 +119,7 @@ pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
 /// Union[Graph, PersistentGraph]: the decoded graph
 #[pyfunction]
 pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
-    let result = url_decode_graph(graph);
+    let result = url_decode_graph(graph, None);
     match result {
         Ok(g) => Ok(g),
         Err(e) => Err(PyValueError::new_err(format!("Error decoding: {:?}", e))),

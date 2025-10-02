@@ -18,7 +18,7 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn load_from_file(path: PathBuf) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::StableDecode>::decode(path)
+                <$base_type as $crate::serialise::StableDecode>::decode(path, None)
             }
 
             #[doc = concat!(" Saves the ", $name, " to the given path in parquet format.")]
@@ -52,7 +52,7 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn deserialise(bytes: &[u8]) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::StableDecode>::decode_from_bytes(bytes)
+                <$base_type as $crate::serialise::StableDecode>::decode_from_bytes(bytes, None)
             }
 
             #[doc = concat!(" Serialise ", $name, " to bytes.")]
