@@ -165,12 +165,5 @@ indexmap = { version = "2.7.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
-#
-## Make sure that transitive dependencies stick to disk_graph 50
-#[patch.crates-io]
-#arrow-buffer = { git = "https://github.com/apache/arrow-rs.git", tag = "53.4.1" }
-#arrow-schema = { git = "https://github.com/apache/arrow-rs.git", tag = "53.4.1" }
-#arrow-data = { git = "https://github.com/apache/arrow-rs.git", tag = "53.4.1" }
-#arrow-array = { git = "https://github.com/apache/arrow-rs.git", tag = "53.4.1" }
-#arrow-csv = { git = "https://github.com/apache/arrow-rs.git", tag = "53.4.1" }
+
 

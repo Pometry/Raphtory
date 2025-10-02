@@ -8,8 +8,10 @@ use raphtory::{
     prelude::*,
 };
 use sqlparser::ast::{
-    self as sql_ast, DuplicateTreatment, FunctionArgumentList, GroupByExpr, OrderByExpr, SetExpr,
-    TableAlias, WildcardAdditionalOptions, With,
+    self as sql_ast, helpers::attached_token::AttachedToken, DuplicateTreatment,
+    FunctionArgumentList, GroupByExpr, LimitClause, ObjectNamePart, OrderByExpr, OrderByKind,
+    OrderByOptions, SelectFlavor, SelectItemQualifiedWildcardKind, SetExpr, TableAlias,
+    WildcardAdditionalOptions, With,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -30,6 +32,11 @@ pub fn to_sql(query: Query, graph: &DiskGraphStorage) -> sql_ast::Statement {
         .collect::<Vec<_>>();
 
     let with = parse_rels_to_ctes(&query, graph);
+    let limit = exprs::parse_limit(&query).map(|limit| LimitClause::LimitOffset {
+        limit: Some(limit),
+        offset: None,
+        limit_by: vec![],
+    });
     sql_ast::Statement::Query(Box::new(sql_ast::Query {
         // WITH (common table expressions, or CTEs)
         with: Some(with),
@@ -38,12 +45,7 @@ pub fn to_sql(query: Query, graph: &DiskGraphStorage) -> sql_ast::Statement {
         // ORDER BY
         order_by: parse_order_by(&query, &rel_binds, &node_binds),
         // `LIMIT { <N> | ALL }`
-        limit: exprs::parse_limit(&query),
-
-        // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
-        limit_by: vec![],
-        // `OFFSET <N> [ { ROW | ROWS } ]`
-        offset: None,
+        limit_clause: limit,
         // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
         fetch: None,
         // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
@@ -54,6 +56,8 @@ pub fn to_sql(query: Query, graph: &DiskGraphStorage) -> sql_ast::Statement {
         for_clause: None,
         settings: None,
         format_clause: None,
+
+        pipe_operators: vec![],
     }))
 }
 
@@ -192,9 +196,11 @@ fn parse_order_by(
                     let sql_expr = cypher_to_sql_expr(expr, rel_binds, node_binds, false);
                     OrderByExpr {
                         expr: sql_expr,
-                        asc: *asc,
-                        nulls_first: None,
                         with_fill: None,
+                        options: OrderByOptions {
+                            asc: *asc,
+                            nulls_first: None,
+                        },
                     }
                 })
                 .collect(),
@@ -205,7 +211,7 @@ fn parse_order_by(
         None
     } else {
         Some(sql_ast::OrderBy {
-            exprs,
+            kind: OrderByKind::Expressions(exprs),
             interpolate: None,
         })
     }
@@ -251,6 +257,7 @@ fn scan_edges_as_sql_cte(
         query: union_query,
         from: None,
         materialized: None,
+        closing_paren_token: AttachedToken::empty(),
     }
 }
 
@@ -300,14 +307,13 @@ fn query_union(q1: Box<sql_ast::Query>, q2: Box<sql_ast::Query>) -> Box<sql_ast:
             right: q2.body,
         }),
         order_by: None,
-        limit: None,
-        limit_by: vec![],
-        offset: None,
+        limit_clause: None,
         fetch: None,
         locks: vec![],
         for_clause: None,
         settings: None,
         format_clause: None,
+        pipe_operators: vec![],
     })
 }
 
@@ -337,7 +343,7 @@ fn select_scan_query(
                 } else {
                     // if the field is missing in the layer schema replace with NULL as field name
                     let item = sql_ast::SelectItem::ExprWithAlias {
-                        expr: sql_ast::Expr::Value(sql_ast::Value::Null),
+                        expr: sql_ast::Expr::Value(sql_ast::Value::Null.into()),
                         alias: sql_ast::Ident::new(field.name()),
                     };
                     select_items.push(item);
@@ -372,12 +378,15 @@ fn select_query_with_projection(
         with: None,
         // SELECT or UNION / EXCEPT / INTERSECT
         body: Box::new(SetExpr::Select(Box::new(sql_ast::Select {
+            select_token: AttachedToken::empty(),
             distinct: None,
             // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
             top: None,
             // projection expressions
+            top_before_distinct: false,
             projection,
             // INTO
+            exclude: None,
             into: None,
             // FROM
             from: vec![sql_ast::TableWithJoins {
@@ -407,15 +416,11 @@ fn select_query_with_projection(
             value_table_mode: None,
             window_before_qualify: false,
             connect_by: None,
+            flavor: SelectFlavor::Standard,
         }))),
         // ORDER BY
         order_by: None,
         // `LIMIT { <N> | ALL }`
-        limit: None,
-        // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
-        limit_by: vec![],
-        // `OFFSET <N> [ { ROW | ROWS } ]`
-        offset: None,
         // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
         fetch: None,
         // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
@@ -426,6 +431,8 @@ fn select_query_with_projection(
         for_clause: None,
         settings: None,
         format_clause: None,
+        limit_clause: None,
+        pipe_operators: vec![],
     })
 }
 
@@ -473,6 +480,7 @@ fn parse_rels_to_ctes(query: &Query, graph: &DiskGraphStorage) -> With {
     }
 
     With {
+        with_token: AttachedToken::empty(),
         recursive: false,
         cte_tables,
     }
@@ -492,6 +500,7 @@ fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
         ),
         from: None,
         materialized: None,
+        closing_paren_token: AttachedToken::empty(),
     }
 }
 
@@ -506,12 +515,15 @@ fn parse_select_body(
     let (from_tables, rel_uniqueness_filters) = parse_tables_2(query);
 
     Box::new(SetExpr::Select(Box::new(sql_ast::Select {
+        select_token: AttachedToken::empty(),
         distinct: None,
         // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
         top: None,
         // projection expressions
+        top_before_distinct: false,
         projection: sql_projection(query, &rel_binds, &node_binds),
         // INTO
+        exclude: None,
         into: None,
         // FROM
         from: from_tables,
@@ -537,6 +549,7 @@ fn parse_select_body(
         value_table_mode: None,
         window_before_qualify: false,
         connect_by: None,
+        flavor: SelectFlavor::Standard,
     })))
 }
 
@@ -795,13 +808,18 @@ fn make_sql_join(
 
 fn table_from_name(name: &str) -> sql_ast::TableFactor {
     sql_ast::TableFactor::Table {
-        name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name.to_string())]),
+        name: sql_ast::ObjectName(vec![sqlparser::ast::ObjectNamePart::Identifier(
+            sql_ast::Ident::new(name.to_string()),
+        )]),
         alias: None,
         args: None,
         with_hints: vec![],
         version: None,
         with_ordinality: false,
         partitions: vec![],
+        json_path: None,
+        sample: None,
+        index_hints: vec![],
     }
 }
 
@@ -829,10 +847,10 @@ fn sql_projection(
                             expr,
                             alias: sql_ast::Ident::new(name),
                         }
-                    } else if let sql_ast::Expr::QualifiedWildcard(name) = expr {
+                    } else if let sql_ast::Expr::QualifiedWildcard(name, ..) = expr {
                         sql_ast::SelectItem::QualifiedWildcard(
-                            name,
-                            sql_ast::WildcardAdditionalOptions::default(),
+                            SelectItemQualifiedWildcardKind::ObjectName(name),
+                            WildcardAdditionalOptions::default(),
                         )
                     } else {
                         sql_ast::SelectItem::UnnamedExpr(expr)
@@ -955,9 +973,12 @@ fn cypher_to_sql_expr(
         Expr::Var { var_name, attrs } => {
             if attrs.is_empty() {
                 if allow_wildcard_edges {
-                    sql_ast::Expr::QualifiedWildcard(sql_ast::ObjectName(vec![
-                        sql_ast::Ident::new(var_name),
-                    ]))
+                    sql_ast::Expr::QualifiedWildcard(
+                        sql_ast::ObjectName(vec![ObjectNamePart::Identifier(sql_ast::Ident::new(
+                            var_name,
+                        ))]),
+                        AttachedToken::empty(),
+                    )
                 } else {
                     // this makes sure that non-wildcard edges are selected with their id when passed down to functions
                     if rel_binds.contains(&var_name) || node_binds.contains(&var_name) {
@@ -1045,16 +1066,16 @@ fn cypher_to_sql_expr(
         }
 
         // literals
-        Expr::Literal(Literal::Null) => sql_ast::Expr::Value(sql_ast::Value::Null),
-        Expr::Literal(Literal::Bool(b)) => sql_ast::Expr::Value(sql_ast::Value::Boolean(*b)),
+        Expr::Literal(Literal::Null) => sql_ast::Expr::Value(sql_ast::Value::Null.into()),
+        Expr::Literal(Literal::Bool(b)) => sql_ast::Expr::Value(sql_ast::Value::Boolean(*b).into()),
         Expr::Literal(Literal::Int(i)) => {
-            sql_ast::Expr::Value(sql_ast::Value::Number(i.to_string(), true))
+            sql_ast::Expr::Value(sql_ast::Value::Number(i.to_string(), true).into())
         }
         Expr::Literal(Literal::Float(f)) => {
-            sql_ast::Expr::Value(sql_ast::Value::Number(f.to_string(), false))
+            sql_ast::Expr::Value(sql_ast::Value::Number(f.to_string(), false).into())
         }
         Expr::Literal(Literal::Str(s)) => {
-            sql_ast::Expr::Value(sql_ast::Value::SingleQuotedString(s.to_string()))
+            sql_ast::Expr::Value(sql_ast::Value::SingleQuotedString(s.to_string()).into())
         }
 
         // functions
@@ -1097,7 +1118,10 @@ fn cypher_to_sql_expr(
 
 fn sql_count_all(table: &str, attr: &str) -> sql_ast::Expr {
     sql_ast::Expr::Function(sql_ast::Function {
-        name: sql_ast::ObjectName(vec![sql_ast::Ident::new("COUNT")]),
+        name: sql_ast::ObjectName(vec![ObjectNamePart::Identifier(sql_ast::Ident::new(
+            "COUNT",
+        ))]),
+        uses_odbc_syntax: false,
         parameters: sql_ast::FunctionArguments::None,
         args: sql_ast::FunctionArguments::List(FunctionArgumentList {
             args: vec![sql_ast::FunctionArg::Unnamed(
@@ -1141,7 +1165,8 @@ fn sql_function_ast(
         clauses: vec![],
     });
     sql_ast::Expr::Function(sql_ast::Function {
-        name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name)]),
+        name: sql_ast::ObjectName(vec![ObjectNamePart::Identifier(sql_ast::Ident::new(name))]),
+        uses_odbc_syntax: false,
         parameters: sql_ast::FunctionArguments::None,
         args,
         over: None,
@@ -1161,10 +1186,11 @@ fn sql_like(
     match right {
         Expr::Literal(Literal::Str(s)) => sql_ast::Expr::Like {
             negated: false,
+            any: false,
             expr: Box::new(cypher_to_sql_expr(left, rel_binds, node_binds, false)),
-            pattern: Box::new(sql_ast::Expr::Value(sql_ast::Value::SingleQuotedString(
-                pattern(s),
-            ))),
+            pattern: Box::new(sql_ast::Expr::Value(
+                sql_ast::Value::SingleQuotedString(pattern(s)).into(),
+            )),
             escape_char: None,
         },
         pattern => unimplemented!(

@@ -46,7 +46,7 @@ impl EdgeListTableProvider {
             .find_layer_id(layer_name)
             .ok_or_else(|| ExecError::LayerNotFound(layer_name.to_string()))?;
 
-        let schema = lift_nested_arrow_schema(&g, layer_id)?;
+        let schema = lift_nested_arrow_schema(&g, layer_id);
 
         let num_partitions = std::thread::available_parallelism()?.get();
 
@@ -94,13 +94,14 @@ impl EdgeListTableProvider {
 
 fn lift_nested_arrow_schema(graph: &DiskGraphStorage, layer_id: usize) -> Arc<Schema> {
     let props_fields = graph.as_ref().layer(layer_id).edges_data_type();
-    let mut schema_builder = SchemaBuilder::from(vec![
+    let mut schema_builder = SchemaBuilder::new();
+    schema_builder.extend([
         Field::new("id", DataType::UInt64, false),
         Field::new("layer_id", DataType::UInt64, false),
         Field::new("src", DataType::UInt64, false),
         Field::new("dst", DataType::UInt64, false),
     ]);
-    schema_builder.extend(props_fields);
+    schema_builder.extend(props_fields.iter().cloned());
     let schema = schema_builder.finish();
     Arc::new(schema)
 }

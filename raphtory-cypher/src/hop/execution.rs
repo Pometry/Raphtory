@@ -21,6 +21,7 @@ use datafusion::{
 };
 use futures::{Stream, StreamExt};
 use pometry_storage::{
+    chunked_array::col::IntoCol,
     graph_fragment::TempColGraphFragment,
     prelude::{ArrayOps, BaseArrayOps},
 };
@@ -225,26 +226,21 @@ fn load_into_primitive_builder_2<T: ArrowPrimitiveType>(
     b: &mut PrimitiveBuilder<T>,
     p_id: usize,
     indices: &[Range<usize>],
-) -> Option<()>
-where
-    T::Native: NativeType,
-{
+) -> Option<()> {
     let col = layer
         .edges_storage()
         .temporal_props()?
         .values()
-        .into_primitive_col::<T::Native>(p_id)?;
+        .into_primitive_col::<T>(p_id)?;
     for r in indices {
-        for i in r.clone() {
-            // FIXME: this is not great, every get will do a dynamic cast
-            let value = col.get(i);
+        for value in col.slice(r.clone()) {
             b.append_option(value);
         }
     }
     Some(())
 }
 
-fn load_into_utf8_builder_2<I: OffsetSizeTrait + Offset>(
+fn load_into_utf8_builder_2<I: OffsetSizeTrait>(
     layer: &TempColGraphFragment,
     b: &mut GenericStringBuilder<I>,
     p_id: usize,
@@ -256,8 +252,7 @@ fn load_into_utf8_builder_2<I: OffsetSizeTrait + Offset>(
         .utf8_col::<I>(p_id)?;
     let col = array.values();
     for r in indices {
-        for i in r.clone() {
-            let value = col.get(i);
+        for value in col.slice(r.clone()) {
             b.append_option(value);
         }
     }
@@ -383,7 +378,7 @@ fn produce_next_record(
                 .edges_data_type()
                 .into_iter()
                 .skip(1) // skip the timestamp
-                .map(|f| f.name.to_string())
+                .map(|f| f.name().to_string())
         })
         .collect();
 

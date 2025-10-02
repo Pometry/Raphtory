@@ -44,4 +44,4 @@ tokio.workspace = true
 clap.workspace = true
 
 [features]
-storage = ["raphtory/storage", "pometry-storage"]
+storage = ["raphtory/storage", "dep:pometry-storage"]

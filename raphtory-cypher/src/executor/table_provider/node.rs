@@ -73,7 +73,7 @@ pub fn lift_arrow_schema(gid_dt: DataType, properties: Option<&ConstProps<VID>>)
 
     schema_builder.push(Field::new("gid", gid_dt, false));
     if let Some(properties) = properties {
-        schema_builder.extend(properties.prop_dtypes());
+        schema_builder.extend(properties.prop_dtypes().iter().cloned());
     }
     Arc::new(schema_builder.finish())
 }
@@ -137,7 +137,7 @@ async fn produce_record_batch(
     let start = chunk_id * chunk_size;
     let end = (chunk_id + 1) * chunk_size;
 
-    let n = chunk.values()[0].len();
+    let n = chunk.len();
     let iter = (start as u64..end as u64).take(n);
     let id = Arc::new(PrimitiveArray::<UInt64Type>::new(
         ScalarBuffer::from_iter(iter),
@@ -159,10 +159,10 @@ async fn produce_record_batch(
             .collect::<Vec<_>>();
 
         RecordBatch::try_new(schema.clone(), columns)
-            .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+            .map_err(|arrow_err| DataFusionError::ArrowError(Box::new(arrow_err), None))
     } else {
         RecordBatch::try_new(schema.clone(), columns)
-            .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+            .map_err(|arrow_err| DataFusionError::ArrowError(Box::new(arrow_err), None))
     }
 }
 
