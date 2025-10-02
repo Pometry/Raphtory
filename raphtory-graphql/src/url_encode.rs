@@ -26,10 +26,10 @@ pub fn url_encode_graph<G: Into<MaterializedGraph>>(graph: G) -> Result<String, 
     Ok(BASE64_URL_SAFE.encode(bytes))
 }
 
-pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T, graph_path: Option<std::path::PathBuf>) -> Result<MaterializedGraph, GraphError> {
+pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T, storage_path: Option<std::path::PathBuf>) -> Result<MaterializedGraph, GraphError> {
     let bytes = BASE64_URL_SAFE.decode(graph.as_ref()).unwrap();
 
-    MaterializedGraph::decode_from_bytes(&bytes, graph_path)
+    MaterializedGraph::decode_from_bytes(&bytes, storage_path)
 }
 
 #[cfg(test)]
@@ -51,8 +51,8 @@ mod tests {
 
         let bytes = url_encode_graph(graph.clone()).unwrap();
         let tempdir = tempfile::tempdir().unwrap();
-        let graph_path = tempdir.path().to_path_buf();
-        let decoded_graph = url_decode_graph(bytes, Some(graph_path)).unwrap();
+        let storage_path = tempdir.path().to_path_buf();
+        let decoded_graph = url_decode_graph(bytes, Some(storage_path)).unwrap();
 
         let g2 = decoded_graph.into_events().unwrap();
 

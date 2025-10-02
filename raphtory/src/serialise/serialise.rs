@@ -54,36 +54,36 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array.
-    // If graph_path is provided, it will be passed to the newly created graph.
-    fn decode_from_bytes(bytes: &[u8], graph_path: Option<PathBuf>) -> Result<Self, GraphError>;
+    // If storage_path is provided, it will be passed to the newly created graph.
+    fn decode_from_bytes(bytes: &[u8], storage_path: Option<PathBuf>) -> Result<Self, GraphError>;
 
     // Decode the graph from the given path.
-    // If graph_path is provided, it will be passed to the newly created graph.
-    fn decode(path: impl Into<GraphFolder>, graph_path: Option<PathBuf>) -> Result<Self, GraphError>;
+    // If storage_path is provided, it will be passed to the newly created graph.
+    fn decode(path: impl Into<GraphFolder>, storage_path: Option<PathBuf>) -> Result<Self, GraphError>;
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
-    fn decode_from_bytes(bytes: &[u8], graph_path: Option<PathBuf>) -> Result<Self, GraphError> {
+    fn decode_from_bytes(bytes: &[u8], storage_path: Option<PathBuf>) -> Result<Self, GraphError> {
         // Write bytes to a temp zip file and decode
         let tempdir = tempfile::tempdir()?;
         let zip_path = tempdir.path().join("graph.zip");
         let folder = GraphFolder::new_as_zip(&zip_path);
         std::fs::write(&zip_path, bytes)?;
 
-        let graph = Self::decode(&folder, graph_path)?;
+        let graph = Self::decode(&folder, storage_path)?;
 
         Ok(graph)
     }
 
-    fn decode(path: impl Into<GraphFolder>, graph_path: Option<PathBuf>) -> Result<Self, GraphError> {
+    fn decode(path: impl Into<GraphFolder>, storage_path: Option<PathBuf>) -> Result<Self, GraphError> {
         let graph;
         let folder: GraphFolder = path.into();
 
         if folder.is_zip() {
             let reader = std::fs::File::open(&folder.get_base_path())?;
-            graph = Self::decode_parquet_from_zip(reader, graph_path)?;
+            graph = Self::decode_parquet_from_zip(reader, storage_path)?;
         } else {
-            graph = Self::decode_parquet(&folder.get_graph_path(), graph_path)?;
+            graph = Self::decode_parquet(&folder.get_graph_path(), storage_path)?;
         }
 
         #[cfg(feature = "search")]
@@ -123,11 +123,11 @@ mod tests {
     fn node_no_props() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -135,13 +135,13 @@ mod tests {
     fn node_with_props() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
             .unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -153,10 +153,10 @@ mod tests {
         g.add_edge(2, "haaroon", "hamza", NO_PROPS, None).unwrap();
         g.add_edge(3, "ben", "haaroon", NO_PROPS, None).unwrap();
         let temp_file = TempDir::new().unwrap();
-        let graph_path = temp_file.path().to_path_buf();
+        let storage_path = temp_file.path().to_path_buf();
 
         g.encode(&temp_file).unwrap();
-        let g2 = MaterializedGraph::decode(&temp_file, Some(graph_path.clone())).unwrap();
+        let g2 = MaterializedGraph::decode(&temp_file, Some(storage_path.clone())).unwrap();
         assert_eq!(g2.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
         let node_names: Vec<_> = g2.nodes().iter().map(|n| n.name()).collect();
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
@@ -171,9 +171,9 @@ mod tests {
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
 
         let temp_file = TempDir::new().unwrap();
-        let graph_path2 = temp_file.path().to_path_buf();
+        let storage_path2 = temp_file.path().to_path_buf();
         g3.encode(&temp_file).unwrap();
-        let g4 = MaterializedGraph::decode(&temp_file, Some(graph_path2)).unwrap();
+        let g4 = MaterializedGraph::decode(&temp_file, Some(storage_path2)).unwrap();
         assert_eq!(g4.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
         let node_names: Vec<_> = g4.nodes().iter().map(|n| n.name()).collect();
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
@@ -183,7 +183,7 @@ mod tests {
     fn node_with_metadata() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         let n1 = g1
@@ -194,7 +194,7 @@ mod tests {
             .expect("Failed to update metadata");
 
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -202,13 +202,13 @@ mod tests {
     fn edge_no_props() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -216,12 +216,12 @@ mod tests {
     fn edge_no_props_delete() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new().persistent_graph();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.delete_edge(19, "Alice", "Bob", None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = PersistentGraph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = PersistentGraph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
@@ -233,7 +233,7 @@ mod tests {
     fn edge_t_props() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
@@ -249,7 +249,7 @@ mod tests {
         )
         .unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -257,13 +257,13 @@ mod tests {
     fn edge_metadata() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         let e1 = g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         e1.update_metadata([("friends", true)], None)
             .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -271,14 +271,14 @@ mod tests {
     fn edge_layers() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         g1.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
             .unwrap();
         g1.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -289,11 +289,11 @@ mod tests {
 
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", props.clone(), None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let node = g2.node("Alice").expect("Failed to get node");
@@ -317,11 +317,11 @@ mod tests {
 
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         g1.add_edge(1, "Alice", "Bob", props.clone(), None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
@@ -345,13 +345,13 @@ mod tests {
 
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         let e = g1.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_metadata(props.clone(), Some("a"))
             .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let edge = g2
@@ -373,13 +373,13 @@ mod tests {
 
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         let g1 = Graph::new();
         let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_metadata(props.clone())
             .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let node = g2.node("Alice").expect("Failed to get node");
@@ -403,9 +403,9 @@ mod tests {
 
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
 
         props.into_iter().for_each(|(name, prop)| {
@@ -427,9 +427,9 @@ mod tests {
 
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
         assert_graph_equal(&g1, &g2);
 
         props
@@ -485,8 +485,8 @@ mod tests {
         g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
 
-        let graph_path = temp_file.path().to_path_buf();
-        let g2 = Graph::decode(&temp_file, Some(graph_path)).unwrap();
+        let storage_path = temp_file.path().to_path_buf();
+        let g2 = Graph::decode(&temp_file, Some(storage_path)).unwrap();
 
         assert_graph_equal(&g, &g2);
         assert_metadata_correct(&folder, &g);
@@ -527,8 +527,8 @@ mod tests {
         g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
 
-        let graph_path = temp_file.path().to_path_buf();
-        let g2 = PersistentGraph::decode(&temp_file, Some(graph_path)).unwrap();
+        let storage_path = temp_file.path().to_path_buf();
+        let g2 = PersistentGraph::decode(&temp_file, Some(storage_path)).unwrap();
 
         assert_graph_equal(&g, &g2);
         assert_metadata_correct(&folder, &g);
@@ -540,8 +540,8 @@ mod tests {
             let g = build_graph_from_edge_list(&edges);
             let bytes = g.encode_to_bytes();
             let tempdir = tempfile::tempdir().unwrap();
-            let graph_path = tempdir.path().to_path_buf();
-            let g2 = Graph::decode_from_bytes(&bytes, Some(graph_path)).unwrap();
+            let storage_path = tempdir.path().to_path_buf();
+            let g2 = Graph::decode_from_bytes(&bytes, Some(storage_path)).unwrap();
             assert_graph_equal(&g, &g2);
         })
     }
@@ -567,10 +567,10 @@ mod tests {
 
         let tempdir = tempfile::tempdir().unwrap();
         let folder = GraphFolder::new_as_zip(&tempdir.path().join("test_graph.zip"));
-        let graph_path = tempdir.path().to_path_buf();
+        let storage_path = tempdir.path().to_path_buf();
 
         g.encode(&folder).unwrap();
-        let g2 = Graph::decode(&folder, Some(graph_path)).unwrap();
+        let g2 = Graph::decode(&folder, Some(storage_path)).unwrap();
 
         assert_graph_equal(&g, &g2);
     }
