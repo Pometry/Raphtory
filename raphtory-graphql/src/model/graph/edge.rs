@@ -294,21 +294,33 @@ impl GqlEdge {
     }
 
     /// Returns the source node of the edge.
+    ///
+    /// Returns:
+    ///     Node:
     async fn src(&self) -> GqlNode {
         self.ee.src().into()
     }
 
     /// Returns the destination node of the edge.
+    ///
+    /// Returns:
+    ///     Node:
     async fn dst(&self) -> GqlNode {
         self.ee.dst().into()
     }
 
     /// Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
+    ///
+    /// Returns:
+    ///     Node:
     async fn nbr(&self) -> GqlNode {
         self.ee.nbr().into()
     }
 
     /// Returns the id of the edge.
+    ///
+    /// Returns:
+    ///     list[str]:
     async fn id(&self) -> Vec<String> {
         let (src_name, dst_name) = self.ee.id();
         vec![src_name.to_string(), dst_name.to_string()]
@@ -351,12 +363,18 @@ impl GqlEdge {
     }
 
     /// Returns a History object with time entries for when an edge is added or change to an edge is made.
+    ///
+    /// Returns:
+    ///     History:
     async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.history().into()).await
     }
 
     /// Returns a history object with time entries for an edge's deletion times.
+    ///
+    /// Returns:
+    ///     History:
     async fn deletions(&self) -> GqlHistory {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.deletions().into()).await

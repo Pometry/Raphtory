@@ -938,6 +938,9 @@ Returns the end time of the window. Returns none if no window is applied.
 
 Returns the source node of the edge.
 
+Returns:
+Node:
+
 </td>
 </tr>
 <tr>
@@ -946,6 +949,9 @@ Returns the source node of the edge.
 <td>
 
 Returns the destination node of the edge.
+
+Returns:
+Node:
 
 </td>
 </tr>
@@ -956,6 +962,9 @@ Returns the destination node of the edge.
 
 Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
 
+Returns:
+Node:
+
 </td>
 </tr>
 <tr>
@@ -964,6 +973,9 @@ Returns the node at the other end of the edge (same as dst() for out-edges and s
 <td>
 
 Returns the id of the edge.
+
+Returns:
+list[str]:
 
 </td>
 </tr>
@@ -1030,6 +1042,9 @@ Each new edge object contains only updates from the respective layers.
 
 Returns a History object with time entries for when an edge is added or change to an edge is made.
 
+Returns:
+List[int]:
+
 </td>
 </tr>
 <tr>
@@ -1038,6 +1053,9 @@ Returns a History object with time entries for when an edge is added or change t
 <td>
 
 Returns a history object with time entries for an edge's deletion times.
+
+Returns:
+List[int]:
 
 </td>
 </tr>
@@ -1514,6 +1532,9 @@ Returns the end time of the window or none if there is no window.
 <td>
 
 Returns the number of edges.
+
+Returns:
+int:
 
 </td>
 </tr>
@@ -2017,6 +2038,9 @@ Returns the latest time that any edge in this graph is valid.
 <td>
 
 Returns the number of edges in the graph.
+
+Returns:
+int:
 
 </td>
 </tr>
@@ -3211,6 +3235,9 @@ Returns the number of nodes in the graph.
 <td>
 
 Returns the number of edges in the graph.
+
+Returns:
+int:
 
 </td>
 </tr>
@@ -7577,6 +7604,8 @@ Some properties and metadata.
 </table>
 
 ### SomePropertySpec
+
+SomePropertySpec object containing lists of metadata and property names.
 
 <table>
 <thead>

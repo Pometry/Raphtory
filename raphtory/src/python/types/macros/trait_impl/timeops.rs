@@ -28,7 +28,7 @@ macro_rules! impl_timeops {
                 self.$field.end().into()
             }
 
-            #[doc = concat!(r" Get the window size (difference between start and end) for this ", $name)]
+            #[doc = concat!(r" Get the window size (difference between start and end) for this ", $name, r".")]
             ///
             /// Returns:
             ///     Optional[int]:

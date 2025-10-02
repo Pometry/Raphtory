@@ -92,7 +92,10 @@ py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 
 #[pymethods]
 impl PyTemporalProperties {
-    /// List the available property keys
+    /// List the available property keys.
+    ///
+    /// Returns:
+    ///     list[str]:
     fn keys(&self) -> Vec<ArcStr> {
         self.props.iter_filtered().map(|(key, _)| key).collect()
     }
@@ -106,6 +109,9 @@ impl PyTemporalProperties {
     }
 
     /// List the property keys together with the corresponding values
+    ///
+    /// Returns:
+    ///     List[Tuple[str, TemporalProperty]]:
     fn items(&self) -> Vec<(ArcStr, DynTemporalProperty)> {
         self.props.iter_filtered().collect()
     }
@@ -140,7 +146,10 @@ impl PyTemporalProperties {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get property value for `key` if it exists
+    /// Get property value for `key` if it exists.
+    ///
+    /// Arguments:
+    ///     key (str): the name of the property.
     ///
     /// Returns:
     ///     TemporalProperty: the property view if it exists, otherwise `None`
@@ -218,41 +227,71 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 
 #[pymethods]
 impl PyTemporalProp {
-    /// Get a history object which contains time entries for when the property was updated
+    /// Returns a history object which contains time entries for when the property was updated.
+    ///
+    /// Returns:
+    ///     History:
     #[getter]
     pub fn history(&self) -> PyHistory {
         self.prop.history().into()
     }
 
-    /// Get the property values for each update
+    /// Get the property values for each update.
+    ///
+    /// Returns:
+    ///     NumpyArray:
     pub fn values(&self) -> NumpyArray {
         self.prop.values().collect()
     }
 
-    /// List update TimeIndexEntry and corresponding property values
+    /// List update time entries and corresponding property values.
+    ///
+    /// Returns:
+    ///     List[Tuple[TimeIndexEntry, PropValue]]:
     pub fn items(&self) -> Vec<(TimeIndexEntry, Prop)> {
         self.prop.iter().collect()
     }
 
-    /// List of unique property values
+    /// List of unique property values.
+    ///
+    /// Returns:
+    ///     List[PropValue]:
     pub fn unique(&self) -> Vec<Prop> {
         self.prop.unique()
     }
 
-    /// List of ordered deduplicated property values
+    /// List of ordered deduplicated property values.
+    ///
+    /// Arguments:
+    ///     latest_time (bool): Enable to check only latest time.
+    ///
+    /// Returns:
+    ///     List[Tuple[TimeIndexEntry, PropValue]]:
     pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(TimeIndexEntry, Prop)> {
         self.prop.ordered_dedupe(latest_time)
     }
 
-    /// Iterate over `items`
+    /// Iterate over items.
+    ///
+    /// Returns:
+    ///     PyBorrowingIterator:
     pub fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(self.prop.clone(), DynTemporalProperty, |inner| inner.iter())
     }
-    /// Get the value of the property at time `t`
+    /// Get the value of the property at a specified time.
+    ///
+    /// Arguments:
+    ///     t (TimeInput): time
+    ///
+    /// Returns:
+    ///     Optional[PropValue]:
     pub fn at(&self, t: TimeIndexEntry) -> Option<Prop> {
         self.prop.at(t.into_time().t())
     }
-    /// Get the latest value of the property
+    /// Get the latest value of the property.
+    ///
+    /// Returns:
+    ///     Optional[PropValue]:
     pub fn value(&self) -> Option<Prop> {
         self.prop.latest()
     }
@@ -845,11 +884,19 @@ impl PyPropHistValueListList {
         (move || builder().map(|it| it.map(|itit| itit.len()))).into()
     }
 
+    /// Median
+    ///
+    ///  Returns:
+    ///     list[list[PropValue]]:
     pub fn median(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(compute_median))).into()
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     list[list[PropValue]]:
     pub fn max(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
@@ -862,6 +909,10 @@ impl PyPropHistValueListList {
         .into()
     }
 
+    /// Min property value.
+    ///
+    /// Returns:
+    ///     list[list[PropValue]]:
     pub fn min(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
@@ -874,6 +925,10 @@ impl PyPropHistValueListList {
         .into()
     }
 
+    /// Sum of property values.
+    ///
+    /// Returns:
+    ///     list[list[PropValue]]:
     pub fn sum(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
@@ -894,10 +949,18 @@ impl PyPropHistValueListList {
 
 #[pymethods]
 impl PropIterable {
+    /// Sum of property values.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn sum(&self) -> PropValue {
         compute_generalised_sum(self.iter(), |a, b| a.add(b), |d| d.dtype().has_add())
     }
 
+    /// Median property values.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn median(&self) -> PropValue {
         compute_median(self.iter().collect())
     }
@@ -906,14 +969,26 @@ impl PropIterable {
         self.iter().count()
     }
 
+    /// Min property value.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn min(&self) -> PropValue {
         compute_generalised_sum(self.iter(), |a, b| a.min(b), |d| d.dtype().has_cmp())
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn max(&self) -> PropValue {
         compute_generalised_sum(self.iter(), |a, b| a.max(b), |d| d.dtype().has_cmp())
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     PropValue: The average of each property values, or None if count is zero.
     pub fn average(&self) -> PropValue {
         self.mean()
     }
@@ -925,6 +1000,10 @@ impl PropIterable {
 
 #[pymethods]
 impl PyPropHistValueList {
+    /// Sum of property values.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn sum(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -934,6 +1013,10 @@ impl PyPropHistValueList {
         .into()
     }
 
+    /// Min property value.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn min(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -943,6 +1026,10 @@ impl PyPropHistValueList {
         .into()
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn max(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -952,15 +1039,25 @@ impl PyPropHistValueList {
         .into()
     }
 
+    /// Returns:
+    ///     list[PropValue]:
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().map(compute_median)).into()
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn average(&self) -> PyPropValueList {
         self.mean()
     }
 
+    /// Compute the mean of all property values.
+    ///
+    /// Returns:
+    ///     list[PropValue]: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().map(compute_mean)).into()
@@ -979,6 +1076,10 @@ impl PyPropHistValueList {
 
 #[pymethods]
 impl PyPropValueList {
+    /// Sum of property values.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn sum(&self) -> Option<Prop> {
         compute_generalised_sum(
             self.iter().flatten(),
@@ -991,6 +1092,10 @@ impl PyPropValueList {
         self.iter().count()
     }
 
+    /// Min property value.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn min(&self) -> PropValue {
         compute_generalised_sum(
             self.iter().flatten(),
@@ -999,6 +1104,10 @@ impl PyPropValueList {
         )
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn max(&self) -> PropValue {
         compute_generalised_sum(
             self.iter().flatten(),
@@ -1007,19 +1116,35 @@ impl PyPropValueList {
         )
     }
 
+    /// Drop none.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn drop_none(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().flatten()).into()
     }
 
+    /// Compute the median of all property values.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn median(&self) -> PropValue {
         compute_median(self.iter().flatten().collect())
     }
 
+    /// Compute the mean of all property values.
+    ///
+    /// Returns:
+    ///     PropValue: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> PropValue {
         compute_mean(self.iter().flatten())
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     PropValue: The average of each property values, or None if count is zero.
     pub fn average(&self) -> PropValue {
         self.mean()
     }
@@ -1027,6 +1152,10 @@ impl PyPropValueList {
 
 #[pymethods]
 impl PyPropValueListList {
+    /// Sum of property values.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn sum(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -1037,6 +1166,10 @@ impl PyPropValueListList {
         .into()
     }
 
+    /// Min property value.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn min(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -1047,6 +1180,10 @@ impl PyPropValueListList {
         .into()
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn max(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -1057,6 +1194,10 @@ impl PyPropValueListList {
         .into()
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn average(&self) -> PyPropValueList {
         self.mean()
     }
@@ -1066,6 +1207,8 @@ impl PyPropValueListList {
         (move || builder().map(|it| compute_mean(it.flatten()))).into()
     }
 
+    /// Returns:
+    ///     list[PropValue]:
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
 
@@ -1082,6 +1225,8 @@ impl PyPropValueListList {
         (move || builder().map(|it| it.count())).into()
     }
 
+    /// Returns:
+    ///     list[list[PropValue]]:
     pub fn drop_none(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.filter(|x| x.is_some()))).into()

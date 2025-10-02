@@ -134,7 +134,6 @@ mod neo_loader_test {
             .unwrap();
 
         while let Ok(Some(row)) = result.next().await {
-            dbg!(&row);
             let node: Node = row.get("p").unwrap();
             let id: i64 = node.get("id").unwrap();
             let label = node.labels().pop().unwrap();

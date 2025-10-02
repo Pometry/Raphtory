@@ -27,6 +27,7 @@ from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
+from raphtory.iterables import *
 
 __all__ = ['random_attachment', 'ba_preferential_attachment']
 def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):

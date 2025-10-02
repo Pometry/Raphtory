@@ -225,7 +225,7 @@ impl GID {
         }
     }
 
-    pub fn to_str(&self) -> Cow<str> {
+    pub fn to_str(&'_ self) -> Cow<'_, str> {
         match self {
             GID::U64(v) => Cow::Owned(v.to_string()),
             GID::Str(v) => Cow::Borrowed(v),

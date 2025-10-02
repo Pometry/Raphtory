@@ -49,6 +49,12 @@ pub struct DiskGraphStorage {
     graph_props: Arc<GraphMeta>,
 }
 
+impl From<TemporalGraph> for DiskGraphStorage {
+    fn from(value: TemporalGraph) -> Self {
+        Self::new(value)
+    }
+}
+
 impl Serialize for DiskGraphStorage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
