@@ -4,17 +4,19 @@ use async_graphql::{
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
     http::{create_multipart_mixed_stream, is_accept_multipart_mixed},
     parser::types::{ExecutableDocument, OperationType},
-    Context, Executor, ServerError, ServerResult, Variables,
+    BatchRequest, Context, Executor, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, Validation};
 use poem::{
-    error::Unauthorized, Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
+    error::{TooManyRequests, Unauthorized},
+    Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
+use tokio::sync::Semaphore;
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -31,12 +33,31 @@ pub(crate) struct TokenClaims {
 pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AuthConfig,
+    semaphore: Option<Semaphore>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
     /// Create a GraphQL endpoint.
     pub fn new(executor: E, config: AuthConfig) -> Self {
-        Self { executor, config }
+        Self {
+            executor,
+            config,
+            semaphore: std::env::var("CONCURRENCY_LIMIT").ok().and_then(|limit| {
+                limit
+                    .parse::<usize>()
+                    .ok()
+                    .map(|limit| Semaphore::new(limit))
+            }),
+        }
+    }
+}
+
+impl<E> AuthenticatedGraphQL<E>
+where
+    E: Executor,
+{
+    async fn execute(&self, request: BatchRequest) -> Response {
+        GraphQLBatchResponse(self.executor.execute_batch(request).await).into_response()
     }
 }
 
@@ -106,9 +127,38 @@ where
             let (req, mut body) = req.split();
             let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
             let req = req.0.data(access);
-            Ok(GraphQLBatchResponse(self.executor.execute_batch(req).await).into_response())
+
+            let is_heavy = match &req {
+                BatchRequest::Single(request) => is_query_heavy(&request.query),
+                BatchRequest::Batch(requests) => requests
+                    .iter()
+                    .any(|request| is_query_heavy(&request.query)),
+            };
+            if is_heavy {
+                if let Some(semaphore) = &self.semaphore {
+                    match semaphore.acquire().await {
+                        Ok(_permit) => Ok(self.execute(req).await),
+                        Err(error) => Err(TooManyRequests(error)),
+                    }
+                } else {
+                    Ok(self.execute(req).await)
+                }
+            } else {
+                Ok(self.execute(req).await)
+            }
         }
     }
+}
+
+fn is_query_heavy(query: &str) -> bool {
+    query.contains("outComponent")
+        || query.contains("inComponent")
+        || query.contains("edges")
+        || query.contains("outEdges")
+        || query.contains("inEdges")
+        || query.contains("neighbours")
+        || query.contains("outNeighbours")
+        || query.contains("inNeighbours")
 }
 
 fn extract_access_from_header(header: &str, public_key: &PublicKey) -> Option<Access> {
