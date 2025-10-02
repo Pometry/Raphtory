@@ -7,7 +7,7 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    routes::{health, ui, version},
+    routes::{health, version, IndexEndpoint},
     server::ServerError::SchemaError,
 };
 use config::ConfigError;
@@ -17,6 +17,7 @@ use poem::{
     get,
     listener::TcpListener,
     middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
+    post,
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
@@ -209,7 +210,7 @@ impl GraphServer {
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
-        info!("Playground live at: http://0.0.0.0:{port}");
+        info!("UI live at: http://0.0.0.0:{port}");
         debug!(
             "Server configurations: {}",
             json!({
@@ -243,14 +244,10 @@ impl GraphServer {
         .map_err(|e| SchemaError(e.to_string()))?;
 
         let app = Route::new()
-            .at(
+            .nest(
                 "/",
-                get(ui).post(AuthenticatedGraphQL::new(schema, self.config.auth)),
+                IndexEndpoint::new(AuthenticatedGraphQL::new(schema, self.config.auth)),
             )
-            .at("/graph", get(ui))
-            .at("/search", get(ui))
-            .at("/saved-graphs", get(ui))
-            .at("/playground", get(ui))
             .at("/health", get(health))
             .at("/version", get(version))
             .with(Cors::new())
