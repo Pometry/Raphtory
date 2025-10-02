@@ -449,8 +449,8 @@ impl DerefMut for NodeSlot {
 
 impl PartialEq for NodeVec {
     fn eq(&self, other: &Self) -> bool {
-        let a = self.data.read();
-        let b = other.data.read();
+        let a = self.data.read_recursive();
+        let b = other.data.read_recursive();
         a.deref() == b.deref()
     }
 }
@@ -470,7 +470,7 @@ impl NodeVec {
 
     #[inline]
     pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<NodeSlot> {
-        RwLock::read_arc(&self.data)
+        RwLock::read_arc_recursive(&self.data)
     }
 
     #[inline]
@@ -480,7 +480,7 @@ impl NodeVec {
 
     #[inline]
     pub fn read(&self) -> impl Deref<Target = NodeSlot> + '_ {
-        self.data.read()
+        self.data.read_recursive()
     }
 }
 

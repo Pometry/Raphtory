@@ -862,7 +862,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         if let Some(storage) = self.get_storage() {
-            let guard = storage.get_index().read();
+            let guard = storage.get_index().read_recursive();
             if let Some(searcher) = guard.searcher() {
                 return searcher.search_nodes(self, filter, limit, offset);
             }
@@ -878,7 +878,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
         if let Some(storage) = self.get_storage() {
-            let guard = storage.get_index().read();
+            let guard = storage.get_index().read_recursive();
             if let Some(searcher) = guard.searcher() {
                 return searcher.search_edges(self, filter, limit, offset);
             }
