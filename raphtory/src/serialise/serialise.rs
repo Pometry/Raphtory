@@ -54,36 +54,36 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array.
-    // If storage_path is provided, it will be passed to the newly created graph.
-    fn decode_from_bytes(bytes: &[u8], storage_path: Option<impl AsRef<Path>>) -> Result<Self, GraphError>;
+    // `path_for_decoded_graph` gets passed to the newly created graph.
+    fn decode_from_bytes(bytes: &[u8], path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError>;
 
     // Decode the graph from the given path.
-    // If storage_path is provided, it will be passed to the newly created graph.
-    fn decode(path: impl Into<GraphFolder>, storage_path: Option<impl AsRef<Path>>) -> Result<Self, GraphError>;
+    // `path_for_decoded_graph` gets passed to the newly created graph.
+    fn decode(path: impl Into<GraphFolder>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError>;
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
-    fn decode_from_bytes(bytes: &[u8], storage_path: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
+    fn decode_from_bytes(bytes: &[u8], path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
         // Write bytes to a temp zip file and decode
         let tempdir = tempfile::tempdir()?;
         let zip_path = tempdir.path().join("graph.zip");
         let folder = GraphFolder::new_as_zip(&zip_path);
         std::fs::write(&zip_path, bytes)?;
 
-        let graph = Self::decode(&folder, storage_path)?;
+        let graph = Self::decode(&folder, path_for_decoded_graph)?;
 
         Ok(graph)
     }
 
-    fn decode(path: impl Into<GraphFolder>, storage_path: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
+    fn decode(path: impl Into<GraphFolder>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
         let graph;
         let folder: GraphFolder = path.into();
 
         if folder.is_zip() {
             let reader = std::fs::File::open(&folder.get_base_path())?;
-            graph = Self::decode_parquet_from_zip(reader, storage_path)?;
+            graph = Self::decode_parquet_from_zip(reader, path_for_decoded_graph)?;
         } else {
-            graph = Self::decode_parquet(&folder.get_graph_path(), storage_path)?;
+            graph = Self::decode_parquet(&folder.get_graph_path(), path_for_decoded_graph)?;
         }
 
         #[cfg(feature = "search")]
