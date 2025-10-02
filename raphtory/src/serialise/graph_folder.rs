@@ -121,7 +121,7 @@ impl GraphFolder {
                         info!(
                             "Metadata file does not exist or is invalid. Attempting to recreate..."
                         );
-                        let graph: MaterializedGraph = MaterializedGraph::decode(self)?;
+                        let graph: MaterializedGraph = MaterializedGraph::decode(self, None::<&std::path::Path>)?;
                         self.write_metadata(&graph)?;
                         Ok(self.try_read_metadata()?)
                     }
@@ -419,7 +419,7 @@ mod zip_tests {
 
         // Verify the output zip contains the same graph
         let zip_folder = GraphFolder::new_as_zip(&output_zip_path);
-        let decoded_graph = Graph::decode(&zip_folder).unwrap();
+        let decoded_graph = Graph::decode(&zip_folder, None::<&std::path::Path>).unwrap();
 
         assert_graph_equal(&graph, &decoded_graph);
     }
@@ -453,7 +453,7 @@ mod zip_tests {
 
         // Verify the output zip contains the same graph
         let zip_folder = GraphFolder::new_as_zip(&output_zip_path);
-        let decoded_graph = Graph::decode(&zip_folder).unwrap();
+        let decoded_graph = Graph::decode(&zip_folder, None::<&std::path::Path>).unwrap();
 
         assert_graph_equal(&graph, &decoded_graph);
     }
@@ -507,7 +507,7 @@ mod zip_tests {
         assert!(unzip_folder.get_meta_path().exists());
 
         // Verify the extracted graph is the same as the original
-        let extracted_graph = Graph::decode(&unzip_folder).unwrap();
+        let extracted_graph = Graph::decode(&unzip_folder, None::<&std::path::Path>).unwrap();
         assert_graph_equal(&graph, &extracted_graph);
     }
 }

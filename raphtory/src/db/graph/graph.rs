@@ -1311,7 +1311,7 @@ mod db_tests {
         g.encode(&graph_path).unwrap();
 
         // Load from files
-        let g2 = Graph::decode(&graph_path).unwrap();
+        let g2 = Graph::decode(&graph_path, None::<&std::path::Path>).unwrap();
 
         assert_eq!(g, g2);
     }
@@ -3439,7 +3439,7 @@ mod db_tests {
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("abcd11");
         g.encode(&file_path).unwrap();
-        let gg = Graph::decode(file_path).unwrap();
+        let gg = Graph::decode(file_path, None::<&std::path::Path>).unwrap();
         assert_graph_equal(&g, &gg);
     }
 
