@@ -387,7 +387,7 @@ impl GqlGraph {
 
     /// Gets the edges in the graph.
     async fn edges<'a>(&self) -> GqlEdges {
-        GqlEdges::new(self.graph.edges())
+        GqlEdges::new(self.graph.edges_unlocked())
     }
 
     ////////////////////////

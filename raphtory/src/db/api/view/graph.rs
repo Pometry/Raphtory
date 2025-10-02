@@ -61,6 +61,9 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Edges<'graph, Self, Self>;
 
+    /// Return an unlocked iterator over all edges in the graph.
+    fn edges_unlocked(&self) -> Edges<'graph, Self, Self>;
+
     /// Return a View of the nodes in the Graph
     fn nodes(&self) -> Nodes<'graph, Self, Self>;
 
@@ -163,46 +166,55 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
+fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, gs: GraphStorage) -> Edges<'graph, G, G> {
+    let graph = g.clone();
+    let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
+        .node_list()
+    {
+        NodeList::All { .. } => Arc::new(move || {
+            let layer_ids = graph.layer_ids().clone();
+            let graph = graph.clone();
+            GenLockedIter::from(
+                (gs.clone(), layer_ids, graph),
+                move |(gs, layer_ids, graph)| {
+                    let edges = gs.edges();
+                    let iter = edges.iter(layer_ids);
+                    if graph.filtered() {
+                        iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
+                            .into_dyn_boxed()
+                    } else {
+                        iter.map(|e| e.out_ref()).into_dyn_boxed()
+                    }
+                },
+            )
+            .into_dyn_boxed()
+        }),
+        NodeList::List { elems } => Arc::new(move || {
+            let cg = gs.clone();
+            let graph = graph.clone();
+            elems
+                .clone()
+                .into_iter()
+                .flat_map(move |node| node_edges(cg.clone(), graph.clone(), node, Direction::OUT))
+                .into_dyn_boxed()
+        }),
+    };
+    Edges {
+        base_graph: g.clone(),
+        graph: g.clone(),
+        edges,
+    }
+}
+
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
-        let graph = self.clone();
-        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
-            match graph.node_list() {
-                NodeList::All { .. } => Arc::new(move || {
-                    let edges = graph.core_graph().owned_edges();
-                    let layer_ids = graph.layer_ids().clone();
-                    let graph = graph.clone();
-                    GenLockedIter::from(
-                        (edges, layer_ids, graph),
-                        move |(edges, layer_ids, graph)| {
-                            let iter = edges.iter(layer_ids);
-                            if graph.filtered() {
-                                iter.filter_map(|e| graph.filter_edge(e).then(|| e.out_ref()))
-                                    .into_dyn_boxed()
-                            } else {
-                                iter.map(|e| e.out_ref()).into_dyn_boxed()
-                            }
-                        },
-                    )
-                    .into_dyn_boxed()
-                }),
-                NodeList::List { elems } => Arc::new(move || {
-                    let cg = graph.core_graph().lock();
-                    let graph = graph.clone();
-                    elems
-                        .clone()
-                        .into_iter()
-                        .flat_map(move |node| {
-                            node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
-                        })
-                        .into_dyn_boxed()
-                }),
-            };
-        Edges {
-            base_graph: self.clone(),
-            graph: self.clone(),
-            edges,
-        }
+        let storage = self.core_graph().lock();
+        edges_inner(self, storage)
+    }
+
+    fn edges_unlocked(&self) -> Edges<'graph, Self, Self> {
+        let storage = self.core_graph().clone();
+        edges_inner(self, storage)
     }
 
     fn nodes(&self) -> Nodes<'graph, Self, Self> {
