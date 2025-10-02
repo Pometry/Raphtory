@@ -962,18 +962,13 @@ mod tests {
         }
 
         fn new_df_from_rows(rows: &[(u64, u64, i64, String, i64)]) -> RecordBatch {
-            let (src, dst, time, str_prop, int_prop): (
-                UInt64Array,
-                UInt64Array,
-                Int64Array,
-                LargeStringArray,
-                Int64Array,
-            ) = rows
-                .iter()
-                .map(|(src, dst, time, str_prop, int_prop)| {
-                    (*src, *dst, *time, str_prop.clone(), *int_prop)
-                })
-                .multiunzip();
+            let src = UInt64Array::from_iter_values(rows.iter().map(|(src, ..)| *src));
+            let dst = UInt64Array::from_iter_values(rows.iter().map(|(_, dst, ..)| *dst));
+            let time = Int64Array::from_iter_values(rows.iter().map(|(_, _, time, ..)| *time));
+            let str_prop =
+                LargeStringArray::from_iter_values(rows.iter().map(|(.., str_prop, _)| str_prop));
+            let int_prop =
+                Int64Array::from_iter_values(rows.iter().map(|(.., int_prop)| *int_prop));
             let batch = RecordBatch::try_from_iter([
                 ("src", src.as_array_ref()),
                 ("dst", dst.as_array_ref()),
