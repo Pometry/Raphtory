@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use crate::test_utils::test_graph;
 use itertools::Itertools;
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
@@ -9,13 +10,13 @@ use raphtory::{
     db::graph::{graph::assert_graph_equal, views::window_graph::WindowedGraph},
     prelude::*,
 };
-use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+use raphtory_api::core::{
+    entities::GID, storage::timeindex::AsTime, utils::logging::global_info_logger,
+};
 use rayon::prelude::*;
 #[cfg(feature = "storage")]
 use tempfile::TempDir;
 use tracing::{error, info};
-
-use crate::test_utils::test_graph;
 
 pub mod test_utils;
 
@@ -543,7 +544,7 @@ fn test_view_resetting() {
             .edges()
             .window(1, 9)
             .earliest_time()
-            .map(|it| it.collect_vec())
+            .map(|it| it.map(|t_opt| t_opt.map(|t| t.t())).collect_vec())
             .collect_vec();
         assert_eq!(
             res,

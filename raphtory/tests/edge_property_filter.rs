@@ -14,7 +14,7 @@ use raphtory::{
     },
     prelude::*,
 };
-use raphtory_api::core::entities::properties::prop::PropType;
+use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 
 use crate::test_utils::{
@@ -366,7 +366,7 @@ fn test_single_unfiltered_edge_window_persistent_2() {
         .unwrap();
     assert!(gwf.has_edge(0, 1));
     assert!(!gwf.has_edge(0, 0));
-    assert_eq!(gwf.node(0).unwrap().earliest_time(), Some(1));
+    assert_eq!(gwf.node(0).unwrap().earliest_time().map(|t| t.t()), Some(1));
     assert_persistent_materialize_graph_equal(&gwf, &gwf.materialize().unwrap());
 
     let gfw = g

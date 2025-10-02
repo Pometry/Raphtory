@@ -34,11 +34,13 @@ use raphtory_api::core::{
     entities::{GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
-        timeindex::TimeIndexEntry,
+        timeindex::{AsTime, TimeIndexEntry},
     },
-    utils::logging::global_info_logger,
+    utils::{
+        logging::global_info_logger,
+        time::{ParseTimeError, TryIntoTime, TryIntoTimeNeedsSecondaryIndex},
+    },
 };
-use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
 use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
 use rayon::{join, prelude::*};
 use std::{
@@ -129,9 +131,7 @@ fn test_empty_graph() {
 
         assert!(graph.start().is_none());
         assert!(graph.end().is_none());
-        assert!(graph.earliest_date_time().is_none());
         assert_eq!(graph.earliest_time(), None);
-        assert!(graph.end_date_time().is_none());
         // assert!(graph.timeline_end().is_none());
 
         assert!(graph.is_empty());
@@ -144,9 +144,10 @@ fn test_empty_graph() {
         assert!(!graph.internal_edge_filtered());
         assert!(graph.edge(1, 2).is_none());
         assert!(graph.latest_time_global().is_none());
-        assert!(graph.latest_time_window(1, 2).is_none());
+        assert!(graph
+            .latest_time_window(TimeIndexEntry::start(1), TimeIndexEntry::start(2))
+            .is_none());
         assert!(graph.latest_time().is_none());
-        assert!(graph.latest_date_time().is_none());
         assert!(graph.latest_time_global().is_none());
         assert!(graph.earliest_time_global().is_none());
     });
@@ -850,14 +851,14 @@ fn test_explode_layers_time() {
         .map_err(|err| error!("{:?}", err))
         .ok();
 
-    assert_eq!(g.latest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 5);
 
     let earliest_times = g
         .edge(1, 2)
         .unwrap()
         .explode_layers()
         .earliest_time()
-        .map(|t| t.unwrap())
+        .map(|t| t.unwrap().t())
         .collect_vec();
 
     assert_eq!(earliest_times, vec![1, 4, 5]);
@@ -867,7 +868,7 @@ fn test_explode_layers_time() {
         .unwrap()
         .explode_layers()
         .latest_time()
-        .map(|t| t.unwrap())
+        .map(|t| t.unwrap().t())
         .collect_vec();
 
     assert_eq!(latest_times, vec![3, 4, 5]);
@@ -885,28 +886,28 @@ fn time_test() {
         .map_err(|err| error!("{:?}", err))
         .ok();
 
-    assert_eq!(g.latest_time(), Some(5));
-    assert_eq!(g.earliest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 5);
+    assert_eq!(g.earliest_time().unwrap().t(), 5);
 
     let g = Graph::new();
 
     g.add_edge(10, 1, 2, NO_PROPS, None).unwrap();
-    assert_eq!(g.latest_time(), Some(10));
-    assert_eq!(g.earliest_time(), Some(10));
+    assert_eq!(g.latest_time().unwrap().t(), 10);
+    assert_eq!(g.earliest_time().unwrap().t(), 10);
 
     g.add_node(5, 1, NO_PROPS, None)
         .map_err(|err| error!("{:?}", err))
         .ok();
-    assert_eq!(g.latest_time(), Some(10));
-    assert_eq!(g.earliest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 10);
+    assert_eq!(g.earliest_time().unwrap().t(), 5);
 
     g.add_edge(20, 3, 4, NO_PROPS, None).unwrap();
-    assert_eq!(g.latest_time(), Some(20));
-    assert_eq!(g.earliest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 20);
+    assert_eq!(g.earliest_time().unwrap().t(), 5);
 
     random_attachment(&g, 100, 10, None);
-    assert_eq!(g.latest_time(), Some(126));
-    assert_eq!(g.earliest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 126);
+    assert_eq!(g.earliest_time().unwrap().t(), 5);
 }
 
 #[test]
@@ -1229,6 +1230,7 @@ fn temporal_props_node() {
             .get("cool")
             .unwrap()
             .iter()
+            .map(|(x, y)| (x.t(), y))
             .collect();
         assert_eq!(hist, vec![(3, Prop::Bool(false))]);
 
@@ -1240,6 +1242,7 @@ fn temporal_props_node() {
             .get("cool")
             .unwrap()
             .iter()
+            .map(|(x, y)| (x.t(), y))
             .collect();
         assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
     });
@@ -1568,7 +1571,7 @@ fn test_edge_earliest_latest() {
         res = graph.after(1).edge(1, 2).unwrap().latest_time().unwrap();
         assert_eq!(res, 2);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<TimeIndexEntry> = graph
             .node(1)
             .unwrap()
             .edges()
@@ -1577,7 +1580,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<TimeIndexEntry> = graph
             .node(1)
             .unwrap()
             .edges()
@@ -1586,7 +1589,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<TimeIndexEntry> = graph
             .node(1)
             .unwrap()
             .at(1)
@@ -1596,7 +1599,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![1, 1]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<TimeIndexEntry> = graph
             .node(1)
             .unwrap()
             .before(1)
@@ -1606,7 +1609,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<TimeIndexEntry> = graph
             .node(1)
             .unwrap()
             .after(1)
@@ -1616,7 +1619,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<TimeIndexEntry> = graph
             .node(1)
             .unwrap()
             .at(1)
@@ -1626,7 +1629,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![1, 1]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<TimeIndexEntry> = graph
             .node(1)
             .unwrap()
             .before(1)
@@ -1636,7 +1639,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<TimeIndexEntry> = graph
             .node(1)
             .unwrap()
             .after(1)
@@ -1951,12 +1954,14 @@ fn check_edge_history_on_multiple_shards() {
 #[derive(Debug)]
 struct CustomTime<'a>(&'a str, &'a str);
 
+impl TryIntoTimeNeedsSecondaryIndex for CustomTime<'_> {}
+
 impl<'a> TryIntoTime for CustomTime<'a> {
-    fn try_into_time(self) -> Result<i64, ParseTimeError> {
+    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
         let CustomTime(time, fmt) = self;
         let time = NaiveDateTime::parse_from_str(time, fmt)?;
         let time = time.and_utc().timestamp_millis();
-        Ok(time)
+        Ok(TimeIndexEntry::from(time))
     }
 }
 
@@ -2184,7 +2189,7 @@ fn test_temporral_edge_props_window() {
             .properties()
             .temporal()
             .iter()
-            .map(|(k, v)| (k.clone(), v.iter().collect()))
+            .map(|(k, v)| (k.clone(), v.iter().map(|(x, y)| (x.t(), y)).collect()))
             .collect();
 
         let mut exp = HashMap::new();
@@ -2205,17 +2210,35 @@ fn test_node_early_late_times() {
 
     // FIXME: Node add without properties not showing up (Issue #46)
     test_graph(&graph, |graph| {
-        assert_eq!(graph.node(1).unwrap().earliest_time(), Some(1));
-        assert_eq!(graph.node(1).unwrap().latest_time(), Some(3));
+        assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().t(), 1);
+        assert_eq!(graph.node(1).unwrap().latest_time().unwrap().t(), 3);
 
-        assert_eq!(graph.at(2).node(1).unwrap().earliest_time(), Some(2));
-        assert_eq!(graph.at(2).node(1).unwrap().latest_time(), Some(2));
+        assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().t(), 2);
+        assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().t(), 2);
 
-        assert_eq!(graph.before(2).node(1).unwrap().earliest_time(), Some(1));
-        assert_eq!(graph.before(2).node(1).unwrap().latest_time(), Some(1));
+        assert_eq!(
+            graph
+                .before(2)
+                .node(1)
+                .unwrap()
+                .earliest_time()
+                .unwrap()
+                .t(),
+            1
+        );
+        assert_eq!(
+            graph.before(2).node(1).unwrap().latest_time().unwrap().t(),
+            1
+        );
 
-        assert_eq!(graph.after(2).node(1).unwrap().earliest_time(), Some(3));
-        assert_eq!(graph.after(2).node(1).unwrap().latest_time(), Some(3));
+        assert_eq!(
+            graph.after(2).node(1).unwrap().earliest_time().unwrap().t(),
+            3
+        );
+        assert_eq!(
+            graph.after(2).node(1).unwrap().latest_time().unwrap().t(),
+            3
+        );
     })
 }
 
@@ -2419,7 +2442,7 @@ fn test_layer_explode_stacking() {
                 e.explode().into_iter().filter_map(|e| {
                     e.layer_name()
                         .ok()
-                        .zip(e.time().ok())
+                        .zip(e.time().ok().map(|t| t.t()))
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                 })
             })
@@ -2459,7 +2482,7 @@ fn test_layer_explode_stacking_window() {
                 e.explode().into_iter().filter_map(|e| {
                     e.layer_name()
                         .ok()
-                        .zip(e.time().ok())
+                        .zip(e.time().ok().map(|t| t.t()))
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                 })
             })
@@ -2701,7 +2724,7 @@ fn check_exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, off
                             ee.earliest_time() == ee.latest_time(),
                             format!("times mismatched for {:?}", ee),
                         ); // times are the same for exploded edge
-                        let t = ee.earliest_time().unwrap();
+                        let t = ee.earliest_time().unwrap().t();
                         check(
                             ee.at(t).is_active(),
                             format!("exploded edge {:?} inactive at {}", ee, t),
@@ -2816,7 +2839,7 @@ fn test_one_hop_filter_reset() {
             .earliest_time()
             .flatten()
             .min();
-        assert_eq!(earliest_time, Some(2));
+        assert_eq!(earliest_time.unwrap().t(), 2);
 
         // dst and src on edge reset the filter
         let degrees: Vec<_> = v
@@ -3447,7 +3470,7 @@ fn test_unique_property() {
         .unwrap()
         .ordered_dedupe(true)
         .into_iter()
-        .map(|(x, y)| (x, y.unwrap_str().to_string()))
+        .map(|(x, y)| (x.t(), y.unwrap_str().to_string()))
         .collect_vec();
 
     assert_eq!(
@@ -3469,7 +3492,7 @@ fn test_unique_property() {
         .unwrap()
         .ordered_dedupe(false)
         .into_iter()
-        .map(|(x, y)| (x, y.unwrap_str().to_string()))
+        .map(|(x, y)| (x.t(), y.unwrap_str().to_string()))
         .collect_vec();
 
     assert_eq!(

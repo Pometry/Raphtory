@@ -1,3 +1,4 @@
+use crate::test_utils::{build_graph, build_graph_strat};
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
@@ -8,10 +9,9 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::ops::Range;
-
-use crate::test_utils::{build_graph, build_graph_strat};
 
 pub mod test_utils;
 
@@ -185,15 +185,21 @@ fn broken_earliest_time2() {
     let w = 1..11;
 
     let gv = g.valid();
-    assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
+    assert_eq!(gv.node(0).unwrap().earliest_time().map(|t| t.t()), Some(0));
 
     let gvw = gv.window(w.start, w.end);
-    assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(10));
+    assert_eq!(
+        gvw.node(0).unwrap().earliest_time().map(|t| t.t()),
+        Some(10)
+    );
 
     assert_eq!(gvw.node(0).unwrap().history(), [10]);
 
     let gvwm = gvw.materialize().unwrap();
-    assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(10));
+    assert_eq!(
+        gvwm.node(0).unwrap().earliest_time().map(|t| t.t()),
+        Some(10)
+    );
 }
 
 #[test]
@@ -203,10 +209,16 @@ fn broken_earliest_time3() {
     g.add_edge(10, 1, 0, NO_PROPS, None).unwrap();
     g.delete_edge(100, 0, 0, None).unwrap();
     let gvw = g.valid().window(2, 20);
-    assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(10));
+    assert_eq!(
+        gvw.node(0).unwrap().earliest_time().map(|t| t.t()),
+        Some(10)
+    );
     let gvwm = gvw.materialize().unwrap();
     println!("{:?}", gvwm);
-    assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(10));
+    assert_eq!(
+        gvwm.node(0).unwrap().earliest_time().map(|t| t.t()),
+        Some(10)
+    );
 }
 
 #[test]
@@ -275,7 +287,7 @@ fn node_earliest_time() {
     let gv = g.valid().window(-1, 10);
     let gvm = gv.materialize().unwrap();
     assert_graph_equal(&gv, &gvm);
-    assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
+    assert_eq!(gv.node(0).unwrap().earliest_time().map(|t| t.t()), Some(0));
 }
 
 #[test]
@@ -291,10 +303,10 @@ fn broken_degree() {
 
     let gv = g.valid().window(0, 20);
     assert!(!gv.default_layer().has_edge(5, 4));
-    assert_eq!(gv.edge(5, 4).unwrap().latest_time(), Some(2));
-    assert_eq!(gv.earliest_time(), Some(0));
-    assert_eq!(gv.latest_time(), Some(2));
-    assert_eq!(gv.node(6).unwrap().latest_time(), Some(0));
+    assert_eq!(gv.edge(5, 4).unwrap().latest_time().map(|t| t.t()), Some(2));
+    assert_eq!(gv.earliest_time().map(|t| t.t()), Some(0));
+    assert_eq!(gv.latest_time().map(|t| t.t()), Some(2));
+    assert_eq!(gv.node(6).unwrap().latest_time().map(|t| t.t()), Some(0));
     let expected = PersistentGraph::new();
     expected.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
     expected.add_edge(0, 4, 6, NO_PROPS, None).unwrap();

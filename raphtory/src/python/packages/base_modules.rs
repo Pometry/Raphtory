@@ -19,8 +19,8 @@ use crate::{
             index::{PyIndexSpec, PyIndexSpecBuilder},
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
-                MetadataView, PropertiesView, PyMetadata, PyPropValueList, PyProperties, PyTemporalProp,
-                PyTemporalProperties,
+                MetadataView, PropertiesView, PyMetadata, PyPropValueList, PyProperties,
+                PyTemporalProp, PyTemporalProperties,
             },
             views::graph_view::PyGraphView,
         },

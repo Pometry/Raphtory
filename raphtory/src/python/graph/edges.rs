@@ -12,7 +12,7 @@ use crate::{
     python::{
         graph::{
             history::{HistoryIterable, NestedHistoryIterable},
-            properties::{MetadataListList, MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
+            properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
         },
         types::{
             repr::{iterator_repr, Repr},

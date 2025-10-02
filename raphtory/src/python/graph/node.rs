@@ -30,7 +30,7 @@ use crate::{
         graph::{
             history::{NestedHistoryIterable, PyHistory},
             node::internal::OneHopFilter,
-            properties::{MetadataListList, MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
+            properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::PyNodeRef,

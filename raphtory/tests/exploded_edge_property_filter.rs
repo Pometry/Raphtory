@@ -1,3 +1,7 @@
+use crate::test_utils::{
+    build_edge_deletions, build_edge_list, build_edge_list_with_deletions,
+    build_graph_from_edge_list, build_window, Update,
+};
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
@@ -18,14 +22,9 @@ use raphtory::{
     },
     prelude::*,
 };
-use raphtory_api::core::entities::properties::prop::PropType;
+use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::collections::HashMap;
-
-use crate::test_utils::{
-    build_edge_deletions, build_edge_list, build_edge_list_with_deletions,
-    build_graph_from_edge_list, build_window, Update,
-};
 
 pub mod test_utils;
 
@@ -422,11 +421,19 @@ fn test_persistent_graph_explode_semantics() {
         .filter_exploded_edges(PropertyFilterBuilder::new("test").ne(2i64))
         .unwrap();
     assert_eq!(
-        gf.edges().explode().earliest_time().collect_vec(),
+        gf.edges()
+            .explode()
+            .earliest_time()
+            .map(|t_opt| t_opt.map(|t| t.t()))
+            .collect_vec(),
         [Some(0i64), Some(5i64)]
     );
     assert_eq!(
-        gf.edges().explode().latest_time().collect_vec(),
+        gf.edges()
+            .explode()
+            .latest_time()
+            .map(|t_opt| t_opt.map(|t| t.t()))
+            .collect_vec(),
         [Some(2i64), Some(10i64)]
     );
 }

@@ -85,7 +85,7 @@ fn test_is_prop_update_latest_w() {
     let g = init_graph(g);
 
     let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
-    let w = 6..9;
+    let w = TimeIndexEntry::start(6)..TimeIndexEntry::start(9);
 
     let node_id = g.node("N1").unwrap().node;
     let bool =

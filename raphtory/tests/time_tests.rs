@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use raphtory::{
-    core::utils::time::TryIntoTime,
     db::{
         api::{mutation::AdditionOps, view::WindowSet},
         graph::{
@@ -10,7 +9,10 @@ use raphtory::{
     },
     prelude::{DeletionOps, GraphViewOps, TimeOps, NO_PROPS},
 };
-use raphtory_core::utils::time::ParseTimeError;
+use raphtory_api::core::{
+    storage::timeindex::AsTime,
+    utils::time::{ParseTimeError, TryIntoTime},
+};
 
 pub mod test_utils;
 
@@ -28,7 +30,9 @@ fn assert_bounds<'graph, G>(
 ) where
     G: GraphViewOps<'graph>,
 {
-    let window_bounds = windows.map(|w| (w.start(), w.end())).collect_vec();
+    let window_bounds = windows
+        .map(|w| (w.start().map(|t| t.t()), w.end().map(|t| t.t())))
+        .collect_vec();
     assert_eq!(window_bounds, expected)
 }
 
@@ -106,37 +110,37 @@ fn expanding() {
 
 #[test]
 fn rolling_dates() {
-    let start = "2020-06-06 00:00:00".try_into_time().unwrap();
-    let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
+    let start = "2020-06-06 00:00:00".try_into_time().unwrap().t();
+    let end = "2020-06-07 23:59:59.999".try_into_time().unwrap().t();
     let graph = graph_with_timeline(start, end);
     test_storage!(&graph, |graph| {
         let windows = graph.rolling("1 day", None).unwrap();
         let expected = vec![
             (
-                "2020-06-06 00:00:00".try_into_time().ok(), // entire 2020-06-06
-                "2020-06-07 00:00:00".try_into_time().ok(),
+                "2020-06-06 00:00:00".try_into_time().ok().map(|t| t.t()), // entire 2020-06-06
+                "2020-06-07 00:00:00".try_into_time().ok().map(|t| t.t()),
             ),
             (
-                "2020-06-07 00:00:00".try_into_time().ok(), // entire 2020-06-06
-                "2020-06-08 00:00:00".try_into_time().ok(),
+                "2020-06-07 00:00:00".try_into_time().ok().map(|t| t.t()), // entire 2020-06-06
+                "2020-06-08 00:00:00".try_into_time().ok().map(|t| t.t()),
             ),
         ];
         assert_bounds(windows, expected);
     });
 
-    let start = "2020-06-06 00:00:00".try_into_time().unwrap();
-    let end = "2020-06-08 00:00:00".try_into_time().unwrap();
+    let start = "2020-06-06 00:00:00".try_into_time().unwrap().t();
+    let end = "2020-06-08 00:00:00".try_into_time().unwrap().t();
     let graph = graph_with_timeline(start, end);
     test_storage!(&graph, |graph| {
         let windows = graph.rolling("1 day", None).unwrap();
         let expected = vec![
             (
-                "2020-06-06 00:00:00".try_into_time().ok(), // entire 2020-06-06
-                "2020-06-07 00:00:00".try_into_time().ok(),
+                "2020-06-06 00:00:00".try_into_time().ok().map(|t| t.t()), // entire 2020-06-06
+                "2020-06-07 00:00:00".try_into_time().ok().map(|t| t.t()),
             ),
             (
-                "2020-06-07 00:00:00".try_into_time().ok(), // entire 2020-06-07
-                "2020-06-08 00:00:00".try_into_time().ok(),
+                "2020-06-07 00:00:00".try_into_time().ok().map(|t| t.t()), // entire 2020-06-07
+                "2020-06-08 00:00:00".try_into_time().ok().map(|t| t.t()),
             ),
         ];
         assert_bounds(windows, expected);
@@ -162,8 +166,8 @@ fn rolling_dates() {
 
 #[test]
 fn test_errors() {
-    let start = "2020-06-06 00:00:00".try_into_time().unwrap();
-    let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
+    let start = "2020-06-06 00:00:00".try_into_time().unwrap().t();
+    let end = "2020-06-07 23:59:59.999".try_into_time().unwrap().t();
     let graph = graph_with_timeline(start, end);
     match graph.rolling("1 day", Some("0 days")) {
         Ok(_) => {
@@ -224,26 +228,38 @@ fn test_errors() {
 
 #[test]
 fn expanding_dates() {
-    let start = "2020-06-06 00:00:00".try_into_time().unwrap();
-    let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
+    let start = "2020-06-06 00:00:00".try_into_time().unwrap().t();
+    let end = "2020-06-07 23:59:59.999".try_into_time().unwrap().t();
     let graph = graph_with_timeline(start, end);
     test_storage!(&graph, |graph| {
         let windows = graph.expanding("1 day").unwrap();
         let expected = vec![
-            (None, "2020-06-07 00:00:00".try_into_time().ok()),
-            (None, "2020-06-08 00:00:00".try_into_time().ok()),
+            (
+                None,
+                "2020-06-07 00:00:00".try_into_time().ok().map(|t| t.t()),
+            ),
+            (
+                None,
+                "2020-06-08 00:00:00".try_into_time().ok().map(|t| t.t()),
+            ),
         ];
         assert_bounds(windows, expected);
     });
 
-    let start = "2020-06-06 00:00:00".try_into_time().unwrap();
-    let end = "2020-06-08 00:00:00".try_into_time().unwrap();
+    let start = "2020-06-06 00:00:00".try_into_time().unwrap().t();
+    let end = "2020-06-08 00:00:00".try_into_time().unwrap().t();
     let graph = graph_with_timeline(start, end);
     test_storage!(&graph, |graph| {
         let windows = graph.expanding("1 day").unwrap();
         let expected = vec![
-            (None, "2020-06-07 00:00:00".try_into_time().ok()),
-            (None, "2020-06-08 00:00:00".try_into_time().ok()),
+            (
+                None,
+                "2020-06-07 00:00:00".try_into_time().ok().map(|t| t.t()),
+            ),
+            (
+                None,
+                "2020-06-08 00:00:00".try_into_time().ok().map(|t| t.t()),
+            ),
         ];
         assert_bounds(windows, expected);
     });
