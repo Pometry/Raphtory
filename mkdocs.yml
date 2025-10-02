@@ -113,6 +113,7 @@ nav:
           - user-guide/views/3_layer.md
           - user-guide/views/4_subgraph.md
           - user-guide/views/5_materialize.md
+          - user-guide/views/6_filtering.md
       - Running Algorithms:
           - user-guide/algorithms/0_dummy_index.md
           - user-guide/algorithms/1_intro.md
