@@ -36,7 +36,7 @@ deactivate-storage:
 	./scripts/deactivate_private_storage.py
 
 pull-storage: activate-storage
-	git submodule update --init --recursive
+	git submodule update --init --recursive pometry-storage-private
 
 install-node-tools:
 	@if command -v npx >/dev/null 2>&1; then \
