@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759430160429,
+  "lastUpdate": 1759509207398,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -917,6 +917,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1306,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a787ddd10fe7bbf9d20295f33300779943c317b2",
+          "message": "fix action to build in docker build cloud (#2315)\n\n* try removing .git\n\n* use context .",
+          "timestamp": "2025-10-03T16:56:58+01:00",
+          "tree_id": "02175d75102f2ab24c7936774d955c3ee8c236bd",
+          "url": "https://github.com/Pometry/Raphtory/commit/a787ddd10fe7bbf9d20295f33300779943c317b2"
+        },
+        "date": 1759509203830,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1417,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 259,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 211,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1238,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 999,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1424,
             "unit": "req/s"
           }
         ]
