@@ -15,6 +15,8 @@ use std::{
     mem,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use disjoint_sets::AUnionFind;
+use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Keeps track of node assignments to weakly-connected components
 ///
@@ -210,4 +212,17 @@ where
     let state = ComponentState::new(g);
     let result = state.run();
     NodeState::new_from_eval(g.clone(), result)
+}
+
+pub fn weakly_connected_components_ds<G>(g: &G) -> NodeState<'static, usize, G>
+where
+    G: StaticGraphViewOps,
+{
+    let dss = AUnionFind::new(g.unfiltered_num_nodes());
+    g.nodes().par_iter().for_each(|node| {
+       node.out_neighbours().iter().for_each(|nbor| {
+           dss.union(node.node.0, nbor.node.0);
+       }) 
+    });
+    NodeState::new_from_eval(g.clone(), dss.to_vec())
 }

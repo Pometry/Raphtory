@@ -1,7 +1,7 @@
 use ahash::HashSet;
 use proptest::{prelude::Strategy, proptest, sample::Index};
 use raphtory::{
-    algorithms::components::weakly_connected_components,
+    algorithms::components::{weakly_connected_components, weakly_connected_components_ds},
     db::api::{mutation::AdditionOps, state::NodeState, view::internal::GraphView},
     prelude::*,
 };
@@ -45,7 +45,7 @@ fn run_loop_simple_connected_components() {
 
     test_storage!(&graph, |graph| {
         for _ in 0..1000 {
-            let results = weakly_connected_components(graph);
+            let results = weakly_connected_components_ds(graph);
             assert_same_partition(results, [1..=6, 7..=8]);
         }
     });
@@ -86,7 +86,7 @@ fn simple_connected_components_2() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = weakly_connected_components(graph);
+        let results = weakly_connected_components_ds(graph);
         assert_same_partition(results, [1..=11]);
     });
 }
@@ -106,7 +106,7 @@ fn test_multiple_components() {
         graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
     }
     for _ in 0..1000 {
-        let result = weakly_connected_components(&graph);
+        let result = weakly_connected_components_ds(&graph);
         assert_same_partition(
             result,
             [vec![1, 2, 3], vec![10, 11], vec![20, 21], vec![30, 31]],
