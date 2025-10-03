@@ -38,12 +38,14 @@ jobs:
       - name: Read rust version
         run: echo "RUST_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> $GITHUB_ENV
 
-      - name: Write dockerfile path
+      - name: Set dockerfile path and cache image
         run: |
           if [ "${{ inputs.python }}" = "true" ]; then
             echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
+            echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-python-${{ matrix.platform }}" >> $GITHUB_ENV
           else
             echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
+            echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-rust-${{ matrix.platform }}" >> $GITHUB_ENV
           fi
 
       - name: Prepare
@@ -77,8 +79,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY_IMAGE }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.CACHE_IMAGE }}
+          cache-to: type=registry,ref=${{ env.CACHE_IMAGE }},mode=max
 
       - name: Export digest
         run: |
