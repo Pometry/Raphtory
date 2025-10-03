@@ -42,10 +42,10 @@ jobs:
         run: |
           if [ "${{ inputs.python }}" = "true" ]; then
             echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
-            echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-python-${{ matrix.platform }}" >> $GITHUB_ENV
+            echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-python-${{ replace(matrix.platform, '/', '-') }}" >> $GITHUB_ENV
           else
             echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
-            echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-rust-${{ matrix.platform }}" >> $GITHUB_ENV
+            echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-rust-${{ replace(matrix.platform, '/', '-') }}" >> $GITHUB_ENV
           fi
 
       - name: Prepare
