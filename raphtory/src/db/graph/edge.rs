@@ -33,7 +33,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
 use raphtory_core::entities::graph::tgraph::InvalidLayer;
@@ -129,7 +129,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> 
         }
     }
 
-    pub fn deletions_hist(&self) -> BoxedLIter<(TimeIndexEntry, usize)> {
+    pub fn deletions_hist(&self) -> BoxedLIter<(EventTime, usize)> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -518,7 +518,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -557,7 +557,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -601,7 +601,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());

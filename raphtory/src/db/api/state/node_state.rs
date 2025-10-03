@@ -17,7 +17,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use indexmap::IndexSet;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{iter::Either, prelude::*};
 use std::{
     borrow::Borrow,
@@ -533,17 +533,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         )
     }
 
-    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest_time(&self) -> Option<EventTime> {
         self.values.iter().filter_map(|h| h.earliest_time()).min()
     }
 
-    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+    pub fn latest_time(&self) -> Option<EventTime> {
         self.values.iter().filter_map(|h| h.latest_time()).max()
     }
 
     /// Collect and return all the contained time entries as a sorted list
-    pub fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
-        let mut entries: Vec<TimeIndexEntry> = self
+    pub fn collect_time_entries(&self) -> Vec<EventTime> {
+        let mut entries: Vec<EventTime> = self
             .par_iter_values()
             .flat_map_iter(|hist| hist.iter())
             .collect();

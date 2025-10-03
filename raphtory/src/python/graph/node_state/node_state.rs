@@ -1,6 +1,6 @@
 use crate::{
     algorithms::dynamics::temporal::epidemics::Infected,
-    api::core::storage::timeindex::TimeIndexEntry,
+    api::core::storage::timeindex::EventTime,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
@@ -518,7 +518,7 @@ impl_lazy_node_state_ord!(
     "Optional[TimeIndexEntry]"
 );
 impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
-impl_node_state_group_by_ops!(EarliestTimeView, Option<TimeIndexEntry>);
+impl_node_state_group_by_ops!(EarliestTimeView, Option<EventTime>);
 // Custom time functions for LazyNodeState<EarliestTime>
 #[pymethods]
 impl EarliestTimeView {
@@ -585,11 +585,11 @@ impl_one_hop!(
 );
 impl_node_state_group_by_ops!(EarliestSecondaryIndexView, Option<usize>);
 impl_node_state_ord!(
-    NodeStateOptionTimeIndexEntry<Option<TimeIndexEntry>>,
+    NodeStateOptionTimeIndexEntry<Option<EventTime>>,
     "NodeStateOptionTimeIndexEntry",
     "Optional[TimeIndexEntry]"
 );
-impl_node_state_group_by_ops!(NodeStateOptionTimeIndexEntry, Option<TimeIndexEntry>);
+impl_node_state_group_by_ops!(NodeStateOptionTimeIndexEntry, Option<EventTime>);
 
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,
@@ -597,7 +597,7 @@ impl_lazy_node_state_ord!(
     "Optional[int]"
 );
 impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
-impl_node_state_group_by_ops!(LatestTimeView, Option<TimeIndexEntry>);
+impl_node_state_group_by_ops!(LatestTimeView, Option<EventTime>);
 // Custom time functions for LazyNodeState<LatestTime>
 #[pymethods]
 impl LatestTimeView {

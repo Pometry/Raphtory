@@ -17,7 +17,7 @@ use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
         entities::{properties::prop::PropType, EID},
-        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+        storage::{dict_mapper::MaybeNew, timeindex::EventTime},
         Direction,
     },
 };
@@ -173,11 +173,7 @@ pub(crate) fn load_nodes_from_df<
 
                         if let Some(caches) = cache_shards.as_ref() {
                             let cache = &caches[shard_id];
-                            cache.add_node_update(
-                                TimeIndexEntry(time, start_id + idx),
-                                *vid,
-                                &t_props,
-                            );
+                            cache.add_node_update(EventTime(time, start_id + idx), *vid, &t_props);
                             cache.add_node_cprops(*vid, &c_props);
                         }
 
@@ -191,7 +187,7 @@ pub(crate) fn load_nodes_from_df<
                     };
 
                     if node_exists {
-                        let t = TimeIndexEntry(time, start_id + idx);
+                        let t = EventTime(time, start_id + idx);
                         update_time(t);
                         let prop_i = shard.t_prop_log_mut().push(t_props.drain(..))?;
                         if let Some(mut_node) = shard.get_mut(*vid) {
@@ -347,7 +343,7 @@ pub fn load_edges_from_df<
                     let shard_id = shard.shard_id();
                     if let Some(src_node) = shard.get_mut(*src) {
                         src_node.init(*src, src_gid);
-                        update_time(TimeIndexEntry(time, start_idx + row));
+                        update_time(EventTime(time, start_idx + row));
                         let eid = match src_node.find_edge_eid(*dst, &LayerIds::All) {
                             None => {
                                 let eid = next_edge_id();
@@ -362,10 +358,8 @@ pub fn load_edges_from_df<
                             }
                             Some(eid) => eid,
                         };
-                        src_node.update_time(
-                            TimeIndexEntry(time, start_idx + row),
-                            eid.with_layer(*layer),
-                        );
+                        src_node
+                            .update_time(EventTime(time, start_idx + row), eid.with_layer(*layer));
                         src_node.add_edge(*dst, Direction::OUT, *layer, eid);
                         eid_col_shared[row].store(eid.0, Ordering::Relaxed);
                     }
@@ -387,10 +381,7 @@ pub fn load_edges_from_df<
                 {
                     if let Some(node) = shard.get_mut(*dst) {
                         node.init(*dst, dst_gid);
-                        node.update_time(
-                            TimeIndexEntry(time, row + start_idx),
-                            eid.with_layer(*layer),
-                        );
+                        node.update_time(EventTime(time, row + start_idx), eid.with_layer(*layer));
                         node.add_edge(*src, Direction::IN, *layer, *eid)
                     }
                 }
@@ -418,7 +409,7 @@ pub fn load_edges_from_df<
                             edge_store.dst = *dst;
                             edge_store.eid = *eid;
                         }
-                        let t = TimeIndexEntry(time, start_idx + idx);
+                        let t = EventTime(time, start_idx + idx);
                         edge.additions_mut(*layer).insert(t);
                         t_props.clear();
                         t_props.extend(prop_cols.iter_row(idx));
@@ -846,7 +837,7 @@ pub(crate) fn load_graph_props_from_df<
             .enumerate()
             .try_for_each(|(id, ((time, t_props), c_props))| {
                 let time = time.ok_or(LoadError::MissingTimeError)?;
-                let t = TimeIndexEntry(time, start_id + id);
+                let t = EventTime(time, start_id + id);
                 let t_props: Vec<_> = t_props.collect();
                 if !t_props.is_empty() {
                     graph

@@ -30,7 +30,7 @@ use pyo3::{
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::storage::timeindex::EventTime;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use std::{collections::HashMap, sync::Arc};
 
@@ -175,8 +175,8 @@ impl HistoryView {
     /// Compute all History objects and return the contained time entries as a sorted list
     ///
     /// Returns:
-    ///     list[TimeIndexEntry]: all time entries as a list
-    fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
+    ///     list[EventTime]: all time entries as a list
+    fn collect_time_entries(&self) -> Vec<EventTime> {
         self.inner.collect_time_entries()
     }
 

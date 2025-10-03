@@ -16,7 +16,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{LayerIds, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     inherit::Base,
 };
@@ -78,12 +78,7 @@ where
     L: NodeHistoryFilter,
     R: NodeHistoryFilter,
 {
-    fn is_node_prop_update_available(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: TimeIndexEntry,
-    ) -> bool {
+    fn is_node_prop_update_available(&self, prop_id: usize, node_id: VID, time: EventTime) -> bool {
         self.left
             .is_node_prop_update_available(prop_id, node_id, time)
             || self
@@ -95,8 +90,8 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
         self.left
             .is_node_prop_update_available_window(prop_id, node_id, time, w.clone())
@@ -105,12 +100,7 @@ where
                 .is_node_prop_update_available_window(prop_id, node_id, time, w)
     }
 
-    fn is_node_prop_update_latest(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: TimeIndexEntry,
-    ) -> bool {
+    fn is_node_prop_update_latest(&self, prop_id: usize, node_id: VID, time: EventTime) -> bool {
         self.left.is_node_prop_update_latest(prop_id, node_id, time)
             || self
                 .right
@@ -121,8 +111,8 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
         self.left
             .is_node_prop_update_latest_window(prop_id, node_id, time, w.clone())

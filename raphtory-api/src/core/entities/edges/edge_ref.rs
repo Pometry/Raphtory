@@ -1,6 +1,6 @@
 use crate::core::{
     entities::{EID, VID},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
 };
 use std::cmp::Ordering;
 
@@ -10,7 +10,7 @@ pub struct EdgeRef {
     src_pid: VID,
     dst_pid: VID,
     e_type: Dir,
-    time: Option<TimeIndexEntry>,
+    time: Option<EventTime>,
     layer_id: Option<usize>,
 }
 
@@ -71,7 +71,7 @@ impl EdgeRef {
     }
 
     #[inline(always)]
-    pub fn time(&self) -> Option<TimeIndexEntry> {
+    pub fn time(&self) -> Option<EventTime> {
         self.time
     }
 
@@ -117,7 +117,7 @@ impl EdgeRef {
     }
 
     #[inline]
-    pub fn at(&self, time: TimeIndexEntry) -> Self {
+    pub fn at(&self, time: EventTime) -> Self {
         let mut e_ref = *self;
         e_ref.time = Some(time);
         e_ref

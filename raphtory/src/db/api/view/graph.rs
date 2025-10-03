@@ -32,7 +32,7 @@ use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
         entities::{properties::meta::PropMapper, EID},
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{arc_str::ArcStr, timeindex::EventTime},
         Direction,
     },
 };
@@ -86,10 +86,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
 
     /// Get the `TimeIndexEntry` of the earliest activity in the graph.
-    fn earliest_time(&self) -> Option<TimeIndexEntry>;
+    fn earliest_time(&self) -> Option<EventTime>;
 
     /// Get the `TimeIndexEntry` of the latest activity in the graph.
-    fn latest_time(&self) -> Option<TimeIndexEntry>;
+    fn latest_time(&self) -> Option<EventTime>;
 
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
@@ -454,9 +454,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     /// Get the `TimeIndexEntry` of the earliest activity in the graph.
     #[inline]
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         match self.filter_state() {
-            FilterState::Neither => self.earliest_time_global().map(TimeIndexEntry::start), // TODO: change earliest_time_global() to return TimeIndexEntry
+            FilterState::Neither => self.earliest_time_global().map(EventTime::start), // TODO: change earliest_time_global() to return TimeIndexEntry
             _ => self
                 .properties()
                 .temporal()
@@ -477,9 +477,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     /// Get the `TimeIndexEntry` of the latest activity in the graph.
     #[inline]
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         match self.filter_state() {
-            FilterState::Neither => self.latest_time_global().map(TimeIndexEntry::end), // TODO: change latest_time_global to return TimeIndexEntry
+            FilterState::Neither => self.latest_time_global().map(EventTime::end), // TODO: change latest_time_global to return TimeIndexEntry
             _ => self
                 .properties()
                 .temporal()

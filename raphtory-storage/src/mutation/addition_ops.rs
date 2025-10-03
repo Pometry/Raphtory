@@ -8,7 +8,7 @@ use raphtory_api::{
             properties::prop::{Prop, PropType},
             GidRef, EID, VID,
         },
-        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+        storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
     inherit::Base,
 };
@@ -61,14 +61,14 @@ pub trait InternalAdditionOps {
     /// add node update
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error>;
     /// add edge update
     fn internal_add_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         props: &[(usize, Prop)],
@@ -77,7 +77,7 @@ pub trait InternalAdditionOps {
     /// add update for an existing edge
     fn internal_add_edge_update(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         edge: EID,
         props: &[(usize, Prop)],
         layer: usize,
@@ -182,7 +182,7 @@ impl InternalAdditionOps for TemporalGraph {
     /// add node update
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
@@ -203,7 +203,7 @@ impl InternalAdditionOps for TemporalGraph {
     /// add edge update
     fn internal_add_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         props: &[(usize, Prop)],
@@ -230,7 +230,7 @@ impl InternalAdditionOps for TemporalGraph {
     /// add update for an existing edge
     fn internal_add_edge_update(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         edge: EID,
         props: &[(usize, Prop)],
         layer: usize,
@@ -326,7 +326,7 @@ impl InternalAdditionOps for GraphStorage {
 
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
@@ -335,7 +335,7 @@ impl InternalAdditionOps for GraphStorage {
 
     fn internal_add_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         props: &[(usize, Prop)],
@@ -346,7 +346,7 @@ impl InternalAdditionOps for GraphStorage {
 
     fn internal_add_edge_update(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         edge: EID,
         props: &[(usize, Prop)],
         layer: usize,
@@ -446,7 +446,7 @@ where
     #[inline]
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
@@ -456,7 +456,7 @@ where
     #[inline]
     fn internal_add_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         props: &[(usize, Prop)],
@@ -468,7 +468,7 @@ where
     #[inline]
     fn internal_add_edge_update(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         edge: EID,
         props: &[(usize, Prop)],
         layer: usize,

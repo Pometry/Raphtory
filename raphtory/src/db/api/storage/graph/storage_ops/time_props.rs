@@ -12,7 +12,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::properties::{prop::PropType, tprop::TPropOps},
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{arc_str::ArcStr, timeindex::EventTime},
     },
     iter::IntoDynBoxed,
 };
@@ -22,7 +22,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
         self.graph_meta().get_temporal_dtype(id).unwrap()
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(id)
             .into_iter()
@@ -30,7 +30,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
             .into_dyn_boxed()
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(id)
             .into_iter()
@@ -41,14 +41,12 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
-        self.graph_meta().get_temporal_prop(id).and_then(|prop| {
-            prop.deref()
-                .last_before(TimeIndexEntry::MAX)
-                .map(|(_, v)| v)
-        })
+        self.graph_meta()
+            .get_temporal_prop(id)
+            .and_then(|prop| prop.deref().last_before(EventTime::MAX).map(|(_, v)| v))
     }
 
-    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         self.graph_meta()
             .get_temporal_prop(id)
             .and_then(|prop| prop.deref().last_before(t.next()).map(|(_, v)| v))

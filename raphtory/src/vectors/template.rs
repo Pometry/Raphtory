@@ -12,7 +12,7 @@ use minijinja::{
 };
 use raphtory_api::core::storage::{
     arc_str::{ArcStr, OptionAsStr},
-    timeindex::TimeIndexEntry,
+    timeindex::EventTime,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -20,7 +20,7 @@ use tracing::error;
 
 #[derive(Debug)]
 struct PropUpdate {
-    time: TimeIndexEntry,
+    time: EventTime,
     value: Value,
 }
 

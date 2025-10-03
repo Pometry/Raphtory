@@ -3,7 +3,7 @@ use crate::{
         graph::{
             filtering::{NodeFilter, NodesViewCollection},
             node::GqlNode,
-            timeindex::{GqlTimeIndexEntry, GqlTimeInput},
+            timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlNodesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -310,12 +310,12 @@ impl GqlNodes {
     ////////////////////////
 
     /// Returns the start time of the window. Errors if there is no window.
-    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+    async fn start(&self) -> Option<GqlEventTime> {
         self.nn.start().map(|t| t.into())
     }
 
     /// Returns the end time of the window. Errors if there is no window.
-    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+    async fn end(&self) -> Option<GqlEventTime> {
         self.nn.end().map(|t| t.into())
     }
 

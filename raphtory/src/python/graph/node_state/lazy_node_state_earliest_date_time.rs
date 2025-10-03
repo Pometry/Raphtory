@@ -20,7 +20,7 @@ use pyo3::{
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
-use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::{EventTime, TimeError};
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use rayon::prelude::*;
 use std::{cmp::Ordering, collections::HashMap};

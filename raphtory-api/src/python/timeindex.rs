@@ -1,8 +1,7 @@
 use crate::core::{
-    storage::timeindex::{AsTime, TimeError, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime, TimeError},
     utils::time::{
-        InputTime, IntoTime, ParseTimeError, TryIntoInputTime, TryIntoTime,
-        TryIntoTimeNeedsSecondaryIndex,
+        InputTime, IntoTime, ParseTimeError, TryIntoInputTime, TryIntoTime, TryIntoTimeNeedsEventId,
     },
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
@@ -15,38 +14,38 @@ use pyo3::{
 use serde::Serialize;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-impl<'py> IntoPyObject<'py> for TimeIndexEntry {
-    type Target = PyTimeIndexEntry;
+impl<'py> IntoPyObject<'py> for EventTime {
+    type Target = PyEventTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyTimeIndexEntry::from(self).into_pyobject(py)
+        PyEventTime::from(self).into_pyobject(py)
     }
 }
 
-impl<'source> FromPyObject<'source> for TimeIndexEntry {
+impl<'source> FromPyObject<'source> for EventTime {
     fn extract_bound(time: &Bound<'source, PyAny>) -> PyResult<Self> {
         InputTime::extract_bound(time).map(|input_time| input_time.as_time())
     }
 }
 
-/// Components that can make a TimeIndexEntry. They can be used as the secondary index as well.
-/// Extract them from Python as individual components so we can support tuples for TimeIndexEntry.
+/// Components that can make an EventTime. They can be used as the event id as well.
+/// Extract them from Python as individual components so we can support tuples for EventTime.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub struct TimeIndexComponent {
+pub struct EventTimeComponent {
     component: i64,
 }
 
-impl IntoTime for TimeIndexComponent {
-    fn into_time(self) -> TimeIndexEntry {
-        TimeIndexEntry::from(self.component)
+impl IntoTime for EventTimeComponent {
+    fn into_time(self) -> EventTime {
+        EventTime::from(self.component)
     }
 }
 
-impl TryIntoTimeNeedsSecondaryIndex for TimeIndexComponent {}
+impl TryIntoTimeNeedsEventId for EventTimeComponent {}
 
-impl TimeIndexComponent {
+impl EventTimeComponent {
     pub fn new(component: i64) -> Self {
         Self { component }
     }
@@ -56,7 +55,7 @@ impl TimeIndexComponent {
     }
 }
 
-impl<'source> FromPyObject<'source> for TimeIndexComponent {
+impl<'source> FromPyObject<'source> for EventTimeComponent {
     fn extract_bound(component: &Bound<'source, PyAny>) -> PyResult<Self> {
         extract_time_index_component(component).map_err(|e| match e {
             ParsingError::Matched(err) => err,
@@ -76,16 +75,16 @@ enum ParsingError {
 
 fn extract_time_index_component<'source>(
     component: &Bound<'source, PyAny>,
-) -> Result<TimeIndexComponent, ParsingError> {
+) -> Result<EventTimeComponent, ParsingError> {
     if let Ok(string) = component.extract::<String>() {
         let timestamp = string.as_str();
         let parsing_result = timestamp.try_into_time().or_else(|e| {
             parse_email_timestamp(timestamp).map_err(|_| ParsingError::Matched(e.into()))
         })?;
-        return Ok(TimeIndexComponent::new(parsing_result.0));
+        return Ok(EventTimeComponent::new(parsing_result.0));
     }
     if let Ok(number) = component.extract::<i64>() {
-        return Ok(TimeIndexComponent::new(number));
+        return Ok(EventTimeComponent::new(number));
     }
     if let Ok(float_time) = component.extract::<f64>() {
         // seconds since Unix epoch as returned by python `timestamp`
@@ -97,15 +96,15 @@ fn extract_time_index_component<'source>(
                 "Float timestamps with more than millisecond precision are not supported.",
             )));
         }
-        return Ok(TimeIndexComponent::new(float_ms_trunc as i64));
+        return Ok(EventTimeComponent::new(float_ms_trunc as i64));
     }
     if let Ok(parsed_datetime) = component.extract::<DateTime<FixedOffset>>() {
-        return Ok(TimeIndexComponent::new(parsed_datetime.timestamp_millis()));
+        return Ok(EventTimeComponent::new(parsed_datetime.timestamp_millis()));
     }
     if let Ok(parsed_datetime) = component.extract::<NaiveDateTime>() {
         // Important, this is needed to prevent inconsistencies by ensuring that naive DateTime objects are always treated as UTC and not local time.
         // TimeIndexEntry and History objects use UTC so everything should be extracted as UTC.
-        return Ok(TimeIndexComponent::new(
+        return Ok(EventTimeComponent::new(
             parsed_datetime.and_utc().timestamp_millis(),
         ));
     }
@@ -116,51 +115,61 @@ fn extract_time_index_component<'source>(
             .extract::<f64>()
             .map_err(ParsingError::Matched)?
             * 1000.0) as i64;
-        return Ok(TimeIndexComponent::new(time));
+        return Ok(EventTimeComponent::new(time));
     }
     Err(ParsingError::Unmatched)
 }
 
-fn parse_email_timestamp(timestamp: &str) -> PyResult<TimeIndexEntry> {
+fn parse_email_timestamp(timestamp: &str) -> PyResult<EventTime> {
     Python::with_gil(|py| {
         let email_utils = PyModule::import(py, "email.utils")?;
         let datetime = email_utils.call_method1("parsedate_to_datetime", (timestamp,))?;
         let py_seconds = datetime.call_method1("timestamp", ())?;
         let seconds = py_seconds.extract::<f64>()?;
-        Ok(TimeIndexEntry::from(seconds as i64 * 1000))
+        Ok(EventTime::from(seconds as i64 * 1000))
     })
 }
 
-/// Raphtory's representation of a timestamp.
-/// Contains a primary timestamp and a secondary index used for ordering between equal timestamps.
-/// Unless specified manually, the secondary indices are generated automatically by Raphtory to
+/// Raphtory’s EventTime.
+/// Represents a unique timepoint in the graph’s history as (epoch, event_id).
+///
+/// - epoch: timestamp in milliseconds since the Unix epoch.
+/// - event_id: id used for ordering between equal timestamps.
+///
+/// Unless specified manually, the event ids are generated automatically by Raphtory to
 /// maintain a unique ordering of events.
-/// You can convert a TimeIndexEntry into a Unix Epoch timestamp or a Python datetime.
-#[pyclass(name = "TimeIndexEntry", module = "raphtory", frozen)]
+/// EventTime can be converted into a Unix Epoch timestamp or a Python datetime, and compared
+/// either by timestamp (against ints/floats/datetimes/strings), by tuple of (epoch, event_id),
+/// or against another EventTime.
+#[pyclass(name = "EventTime", module = "raphtory", frozen)]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
-pub struct PyTimeIndexEntry {
-    time: TimeIndexEntry,
+pub struct PyEventTime {
+    time: EventTime,
 }
 
-impl PyTimeIndexEntry {
-    pub fn inner(&self) -> TimeIndexEntry {
+impl PyEventTime {
+    pub fn inner(&self) -> EventTime {
         self.time
     }
 
-    pub const MIN: PyTimeIndexEntry = PyTimeIndexEntry {
-        time: TimeIndexEntry::MIN,
+    pub fn new(time: EventTime) -> Self {
+        Self { time }
+    }
+
+    pub const MIN: PyEventTime = PyEventTime {
+        time: EventTime::MIN,
     };
-    pub const MAX: PyTimeIndexEntry = PyTimeIndexEntry {
-        time: TimeIndexEntry::MAX,
+    pub const MAX: PyEventTime = PyEventTime {
+        time: EventTime::MAX,
     };
 }
 
 #[pymethods]
-impl PyTimeIndexEntry {
-    /// Return the UTC datetime representation of this time entry.
+impl PyEventTime {
+    /// Returns the UTC datetime representation of this EventTime's timestamp.
     ///
     /// Returns:
-    ///     datetime: The UTC datetime corresponding to this entry's timestamp.
+    ///     datetime: The UTC datetime.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -169,16 +178,16 @@ impl PyTimeIndexEntry {
         self.time.dt()
     }
 
-    /// Return the secondary index associated with this time entry.
+    /// Returns the event id used to order events within the same timestamp.
     ///
     /// Returns:
-    ///     int: The secondary index.
+    ///     int: The event id.
     #[getter]
-    pub fn secondary_index(&self) -> usize {
+    pub fn event_id(&self) -> usize {
         self.time.i()
     }
 
-    /// Return the Unix timestamp in milliseconds.
+    /// Returns the timestamp in milliseconds since the Unix epoch.
     ///
     /// Returns:
     ///     int: Milliseconds since the Unix epoch.
@@ -187,10 +196,10 @@ impl PyTimeIndexEntry {
         self.time.t()
     }
 
-    /// Return this entry as a tuple of (timestamp_ms, secondary_index).
+    /// Return this entry as a tuple of (epoch, event_id), where the epoch is in milliseconds.
     ///
     /// Returns:
-    ///     tuple[int,int]: (timestamp, secondary_index).
+    ///     tuple[int,int]: (epoch, event_id).
     #[getter]
     pub fn as_tuple(&self) -> (i64, usize) {
         self.time.as_tuple()
@@ -198,7 +207,7 @@ impl PyTimeIndexEntry {
 
     pub fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp) -> PyResult<bool> {
         // extract TimeIndexComponent first. If we're dealing with a single i64 (or something that can be converted to an i64), we only compare timestamps
-        if let Ok(component) = other.extract::<TimeIndexComponent>() {
+        if let Ok(component) = other.extract::<EventTimeComponent>() {
             match op {
                 CompareOp::Eq => Ok(self.t() == component.t()),
                 CompareOp::Ne => Ok(self.t() != component.t()),
@@ -207,8 +216,8 @@ impl PyTimeIndexEntry {
                 CompareOp::Ge => Ok(self.t() >= component.t()),
                 CompareOp::Le => Ok(self.t() <= component.t()),
             }
-        // If a TimeIndexEntry was passed, we then compare the secondary index
-        } else if let Ok(time_index) = other.extract::<TimeIndexEntry>() {
+        // If an EventTime was passed, we then compare the event id
+        } else if let Ok(time_index) = other.extract::<EventTime>() {
             match op {
                 CompareOp::Eq => Ok(self.time == time_index),
                 CompareOp::Ne => Ok(self.time != time_index),
@@ -218,12 +227,12 @@ impl PyTimeIndexEntry {
                 CompareOp::Le => Ok(self.time <= time_index),
             }
         } else {
-            Err(PyTypeError::new_err("Unsupported comparison: TimeIndexEntry can only be compared with a str, datetime, float, integer, a tuple/list of two of those types, or another TimeIndexEntry."))
+            Err(PyTypeError::new_err("Unsupported comparison: EventTime can only be compared with a str, datetime, float, integer, a tuple/list of two of those types, or another EventTime."))
         }
     }
 
     pub fn __repr__(&self) -> String {
-        format!("TimeIndexEntry[{}, {}]", self.time.0, self.time.1)
+        format!("EventTime({}, {})", self.time.0, self.time.1)
     }
 
     pub fn __hash__(&self) -> isize {
@@ -236,56 +245,61 @@ impl PyTimeIndexEntry {
         self.t()
     }
 
-    /// Create a new TimeIndexEntry.
+    /// Creates a new EventTime.
     ///
     /// Arguments:
-    ///    time (int | float | datetime | str | tuple): The time entry to be created. Pass a tuple/list of two of these components to specify the secondary index as well.
-
+    ///     timestamp (int | float | datetime | str): A time input convertible to an EventTime.
+    ///     event_id (int | float | datetime | str | None): Optionally, specify the event id. Defaults to 0.
+    ///
     /// Returns:
-    ///     TimeIndexEntry: A new time index entry.
-    #[staticmethod]
-    pub fn new(time: TimeIndexEntry) -> Self {
-        Self { time }
+    ///     EventTime:
+    #[new]
+    #[pyo3(signature = (timestamp, event_id=None))]
+    pub fn py_new(timestamp: EventTimeComponent, event_id: Option<EventTimeComponent>) -> Self {
+        let event_id = event_id.map(|t| t.t() as usize).unwrap_or(0);
+        Self {
+            time: EventTime::new(timestamp.t(), event_id),
+        }
     }
 }
 
-impl IntoTime for PyTimeIndexEntry {
-    fn into_time(self) -> TimeIndexEntry {
+impl IntoTime for PyEventTime {
+    fn into_time(self) -> EventTime {
         self.time
     }
 }
 
-impl TryIntoInputTime for PyTimeIndexEntry {
+impl TryIntoInputTime for PyEventTime {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Indexed(self.t(), self.secondary_index()))
+        Ok(InputTime::Indexed(self.t(), self.event_id()))
     }
 }
 
-impl From<TimeIndexEntry> for PyTimeIndexEntry {
-    fn from(time: TimeIndexEntry) -> Self {
+impl From<EventTime> for PyEventTime {
+    fn from(time: EventTime) -> Self {
         Self { time }
     }
 }
 
-impl From<PyTimeIndexEntry> for TimeIndexEntry {
-    fn from(value: PyTimeIndexEntry) -> Self {
+impl From<PyEventTime> for EventTime {
+    fn from(value: PyEventTime) -> Self {
         value.inner()
     }
 }
 
 impl<'source> FromPyObject<'source> for InputTime {
     fn extract_bound(input: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(py_time) = input.downcast::<PyTimeIndexEntry>() {
+        if let Ok(py_time) = input.downcast::<PyEventTime>() {
             return Ok(py_time.get().try_into_input_time()?);
         }
-        // Handle list/tuple case: [timestamp, secondary_index]
+        // Handle list/tuple case: [timestamp, event_id]
         if input.downcast::<PyTuple>().is_ok() || input.downcast::<PyList>().is_ok() {
             let py = input.py();
             if let Ok(items) = input.extract::<Vec<PyObject>>() {
                 let len = items.len();
                 if len != 2 {
                     return Err(PyTypeError::new_err(format!(
-                        "List/tuple for InputTime must have exactly 2 elements [timestamp, secondary_index], got {} elements.",
+                        "List/tuple for time input must have exactly 2 elements [timestamp, event_id], got {} elements.",
                         len
                     )));
                 }
@@ -311,7 +325,7 @@ impl<'source> FromPyObject<'source> for InputTime {
                 ));
             }
         }
-        // allow errors from TimeIndexComponent extraction to pass through (except if no type has matched at all)
+        // allow errors from EventTimeComponent extraction to pass through (except if no type has matched at all)
         match extract_time_index_component(input) {
             Ok(component) => Ok(InputTime::Simple(component.t())),
             Err(ParsingError::Matched(err)) => Err(err),

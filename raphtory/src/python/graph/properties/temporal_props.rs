@@ -35,7 +35,7 @@ use raphtory_api::core::{
     entities::properties::prop::{Prop, PropUnwrap},
     storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, EventTime},
     },
     utils::time::IntoTime,
 };
@@ -127,8 +127,8 @@ impl PyTemporalProperties {
     /// Get the histories of all properties
     ///
     /// Returns:
-    ///     dict[str, list[Tuple[TimeIndexEntry, PropValue]]]: the mapping of property keys to histories
-    fn histories(&self) -> HashMap<ArcStr, Vec<(TimeIndexEntry, Prop)>> {
+    ///     dict[str, list[Tuple[EventTime, PropValue]]]: the mapping of property keys to histories
+    fn histories(&self) -> HashMap<ArcStr, Vec<(EventTime, Prop)>> {
         self.props
             .iter()
             .map(|(k, v)| (k.clone(), v.iter().collect()))
@@ -211,8 +211,8 @@ impl From<Vec<(i64, Prop)>> for PyTemporalPropCmp {
     }
 }
 
-impl From<Vec<(TimeIndexEntry, Prop)>> for PyTemporalPropCmp {
-    fn from(value: Vec<(TimeIndexEntry, Prop)>) -> Self {
+impl From<Vec<(EventTime, Prop)>> for PyTemporalPropCmp {
+    fn from(value: Vec<(EventTime, Prop)>) -> Self {
         Self(value.into_iter().map(|(t, p)| (t.t(), p)).collect())
     }
 }
@@ -244,11 +244,11 @@ impl PyTemporalProp {
         self.prop.values().collect()
     }
 
-    /// List update time entries and corresponding property values.
+    /// List update times and corresponding property values.
     ///
     /// Returns:
-    ///     List[Tuple[TimeIndexEntry, PropValue]]:
-    pub fn items(&self) -> Vec<(TimeIndexEntry, Prop)> {
+    ///     List[Tuple[EventTime, PropValue]]:
+    pub fn items(&self) -> Vec<(EventTime, Prop)> {
         self.prop.iter().collect()
     }
 
@@ -263,11 +263,11 @@ impl PyTemporalProp {
     /// List of ordered deduplicated property values.
     ///
     /// Arguments:
-    ///     latest_time (bool): Enable to check only latest time.
+    ///     latest_time (bool): Enable to check the latest time only.
     ///
     /// Returns:
-    ///     List[Tuple[TimeIndexEntry, PropValue]]:
-    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(TimeIndexEntry, Prop)> {
+    ///     List[Tuple[EventTime, PropValue]]:
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(EventTime, Prop)> {
         self.prop.ordered_dedupe(latest_time)
     }
 
@@ -285,7 +285,7 @@ impl PyTemporalProp {
     ///
     /// Returns:
     ///     Optional[PropValue]:
-    pub fn at(&self, t: TimeIndexEntry) -> Option<Prop> {
+    pub fn at(&self, t: EventTime) -> Option<Prop> {
         self.prop.at(t.into_time().t())
     }
     /// Get the latest value of the property.
@@ -307,8 +307,8 @@ impl PyTemporalProp {
     /// Find the minimum property value and its associated time.
     ///
     /// Returns:
-    ///     Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the minimum property value.
-    pub fn min(&self) -> Option<(TimeIndexEntry, Prop)> {
+    ///     Tuple[EventTime, PropValue]: A tuple containing the time and the minimum property value.
+    pub fn min(&self) -> Option<(EventTime, Prop)> {
         compute_generalised_sum(
             self.prop.iter(),
             |a, b| {
@@ -325,8 +325,8 @@ impl PyTemporalProp {
     /// Find the maximum property value and its associated time.
     ///
     /// Returns:
-    ///     Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the maximum property value.
-    pub fn max(&self) -> Option<(TimeIndexEntry, Prop)> {
+    ///     Tuple[EventTime, PropValue]: A tuple containing the time and the maximum property value.
+    pub fn max(&self) -> Option<(EventTime, Prop)> {
         compute_generalised_sum(
             self.prop.iter(),
             |a, b| {
@@ -367,9 +367,9 @@ impl PyTemporalProp {
     /// Compute the median of all property values.
     ///
     /// Returns:
-    ///     Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the median property value, or None if empty
-    pub fn median(&self) -> Option<(TimeIndexEntry, Prop)> {
-        let mut sorted: Vec<(TimeIndexEntry, Prop)> = self.prop.iter().collect();
+    ///     Tuple[EventTime, PropValue]: A tuple containing the time and the median property value, or None if empty
+    pub fn median(&self) -> Option<(EventTime, Prop)> {
+        let mut sorted: Vec<(EventTime, Prop)> = self.prop.iter().collect();
         if !sorted.first()?.1.dtype().has_cmp() {
             return None;
         }
@@ -663,7 +663,7 @@ impl PyTemporalPropList {
         (move || builder().map(|p| p.map(|v| v.iter().collect_vec()).unwrap_or_default())).into()
     }
 
-    pub fn at(&self, t: TimeIndexEntry) -> PyPropValueList {
+    pub fn at(&self, t: EventTime) -> PyPropValueList {
         let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |p| p.and_then(|v| v.at(t)))).into()
@@ -855,7 +855,7 @@ impl PyTemporalPropListList {
         .into()
     }
 
-    pub fn at(&self, t: TimeIndexEntry) -> PyPropValueListList {
+    pub fn at(&self, t: EventTime) -> PyPropValueListList {
         let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |it| it.map(move |p| p.and_then(|v| v.at(t))))).into()

@@ -10,9 +10,7 @@ mod test_edge_history_filter_persistent_graph {
         },
         prelude::{AdditionOps, GraphViewOps},
     };
-    use raphtory_api::core::{
-        entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry,
-    };
+    use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
     use raphtory_storage::core_ops::CoreGraphOps;
 
     fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -57,7 +55,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer2").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(7),
+            EventTime::end(7),
         );
         assert!(bool);
 
@@ -67,7 +65,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(6),
+            EventTime::end(6),
         );
         assert!(!bool);
 
@@ -77,7 +75,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(8),
+            EventTime::end(8),
         );
         assert!(bool);
 
@@ -87,7 +85,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(9),
+            EventTime::end(9),
         );
         assert!(bool);
 
@@ -97,7 +95,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(5),
+            EventTime::end(5),
         );
         assert!(!bool);
 
@@ -107,7 +105,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(5),
+            EventTime::end(5),
         );
         assert!(!bool);
         let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
@@ -116,7 +114,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer2").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(6),
+            EventTime::end(6),
         );
         assert!(bool);
 
@@ -126,7 +124,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(3),
+            EventTime::end(3),
         );
         assert!(!bool);
         let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
@@ -135,7 +133,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer2").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(5),
+            EventTime::end(5),
         );
         assert!(bool);
 
@@ -145,7 +143,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(3),
+            EventTime::end(3),
         );
         assert!(!bool);
 
@@ -161,7 +159,7 @@ mod test_edge_history_filter_persistent_graph {
         let g = init_graph(g);
 
         let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
-        let w = TimeIndexEntry::start(6)..TimeIndexEntry::start(9);
+        let w = EventTime::start(6)..EventTime::start(9);
 
         let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
         let bool = g.is_edge_prop_update_latest_window(
@@ -169,7 +167,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(7),
+            EventTime::end(7),
             w.clone(),
         );
         assert!(bool);
@@ -180,7 +178,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(6),
+            EventTime::end(6),
             w.clone(),
         );
         assert!(!bool);
@@ -191,7 +189,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(8),
+            EventTime::end(8),
             w.clone(),
         );
         assert!(bool);
@@ -202,7 +200,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(9),
+            EventTime::end(9),
             w.clone(),
         );
         assert!(!bool);
@@ -213,7 +211,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(5),
+            EventTime::end(5),
             w.clone(),
         );
         assert!(!bool);
@@ -224,7 +222,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(5),
+            EventTime::end(5),
             w.clone(),
         );
         assert!(!bool);
@@ -234,7 +232,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer2").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(6),
+            EventTime::end(6),
             w.clone(),
         );
         assert!(bool);
@@ -245,7 +243,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(3),
+            EventTime::end(3),
             w.clone(),
         );
         assert!(!bool);
@@ -255,7 +253,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer2").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(5),
+            EventTime::end(5),
             w.clone(),
         );
         assert!(bool);
@@ -266,7 +264,7 @@ mod test_edge_history_filter_persistent_graph {
             g.get_layer_id("layer1").unwrap(),
             prop_id,
             edge_id,
-            TimeIndexEntry::end(3),
+            EventTime::end(3),
             w.clone(),
         );
         assert!(!bool);

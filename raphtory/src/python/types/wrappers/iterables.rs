@@ -16,7 +16,7 @@ use raphtory_api::core::{
     entities::GID,
     storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, EventTime},
     },
 };
 use std::iter::Sum;
@@ -107,15 +107,11 @@ py_iterable_comp!(
     NestedOptionI64IterableCmp
 );
 
-py_ordered_iterable!(TimeIndexEntryIterable, TimeIndexEntry);
-py_iterable_comp!(
-    TimeIndexEntryIterable,
-    TimeIndexEntry,
-    TimeIndexEntryIterableCmp
-);
+py_ordered_iterable!(EventTimeIterable, EventTime);
+py_iterable_comp!(EventTimeIterable, EventTime, EventTimeIterableCmp);
 // Custom TimeIndexEntry operations on iterables as well
 #[pymethods]
-impl TimeIndexEntryIterable {
+impl EventTimeIterable {
     /// Change this Iterable of TimeIndexEntry into an Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
@@ -149,19 +145,15 @@ impl TimeIndexEntryIterable {
         (move || builder().map(|t| t.i())).into()
     }
 }
-py_nested_ordered_iterable!(
-    NestedTimeIndexEntryIterable,
-    TimeIndexEntry,
-    OptionTimeIndexEntryIterable
-);
+py_nested_ordered_iterable!(NestedEventTimeIterable, EventTime, OptionEventTimeIterable);
 py_iterable_comp!(
-    NestedTimeIndexEntryIterable,
-    TimeIndexEntryIterableCmp,
-    NestedTimeIndexEntryIterableCmp
+    NestedEventTimeIterable,
+    EventTimeIterableCmp,
+    NestedEventTimeIterableCmp
 );
 // Custom TimeIndexEntry operations on nested iterables as well
 #[pymethods]
-impl NestedTimeIndexEntryIterable {
+impl NestedEventTimeIterable {
     /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
@@ -196,16 +188,16 @@ impl NestedTimeIndexEntryIterable {
     }
 }
 
-py_ordered_iterable!(OptionTimeIndexEntryIterable, Option<TimeIndexEntry>);
+py_ordered_iterable!(OptionEventTimeIterable, Option<EventTime>);
 py_iterable_comp!(
-    OptionTimeIndexEntryIterable,
-    Option<TimeIndexEntry>,
-    OptionTimeIndexEntryIterableCmp
+    OptionEventTimeIterable,
+    Option<EventTime>,
+    OptionEventTimeIterableCmp
 );
 // Custom TimeIndexEntry operations on iterables of Option<TimeIndexEntry> as well
 #[pymethods]
-impl OptionTimeIndexEntryIterable {
-    /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of corresponding Unix timestamps in milliseconds.
+impl OptionEventTimeIterable {
+    /// Change this Iterable of Optional[EventTime] into an Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
     ///     OptionI64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
@@ -215,7 +207,7 @@ impl OptionTimeIndexEntryIterable {
         (move || builder().map(|t_opt| t_opt.map(|t| t.t()))).into()
     }
 
-    /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of corresponding UTC DateTimes.
+    /// Change this Iterable of Optional[EventTime] into an Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
     ///     ResultOptionUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry, if available.
@@ -228,7 +220,7 @@ impl OptionTimeIndexEntryIterable {
         (move || builder().map(|t_opt| t_opt.map(|t| t.dt()).transpose())).into()
     }
 
-    /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of their associated secondary indices.
+    /// Change this Iterable of Optional[EventTime] into an Iterable of their associated secondary indices.
     ///
     /// Returns:
     ///     OptionUsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry, if available.
@@ -238,29 +230,26 @@ impl OptionTimeIndexEntryIterable {
         (move || builder().map(|t_opt| t_opt.map(|t| t.i()))).into()
     }
 }
-py_ordered_iterable!(
-    OptionOptionTimeIndexEntryIterable,
-    Option<Option<TimeIndexEntry>>
-);
+py_ordered_iterable!(OptionOptionEventTimeIterable, Option<Option<EventTime>>);
 py_iterable_comp!(
-    OptionOptionTimeIndexEntryIterable,
-    Option<Option<TimeIndexEntry>>,
-    OptionOptionTimeIndexEntryIterableCmp
+    OptionOptionEventTimeIterable,
+    Option<Option<EventTime>>,
+    OptionOptionEventTimeIterableCmp
 );
 py_nested_ordered_iterable!(
-    NestedOptionTimeIndexEntryIterable,
-    Option<TimeIndexEntry>,
-    OptionOptionTimeIndexEntryIterable
+    NestedOptionEventTimeIterable,
+    Option<EventTime>,
+    OptionOptionEventTimeIterable
 );
 py_iterable_comp!(
-    NestedOptionTimeIndexEntryIterable,
-    OptionTimeIndexEntryIterableCmp,
-    NestedOptionTimeIndexEntryIterableCmp
+    NestedOptionEventTimeIterable,
+    OptionEventTimeIterableCmp,
+    NestedOptionEventTimeIterableCmp
 );
 // Custom TimeIndexEntry operations on nested iterables of Option<TimeIndexEntry> as well
 #[pymethods]
-impl NestedOptionTimeIndexEntryIterable {
-    /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of corresponding Unix timestamps in milliseconds.
+impl NestedOptionEventTimeIterable {
+    /// Change this nested Iterable of Optional[EventTime] into a nested Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
     ///     NestedOptionI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
@@ -270,7 +259,7 @@ impl NestedOptionTimeIndexEntryIterable {
         (move || builder().map(|t_iter| t_iter.map(|t_opt| t_opt.map(|t| t.t())))).into()
     }
 
-    /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of corresponding UTC DateTimes.
+    /// Change this nested Iterable of Optional[EventTime] into a nested Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
     ///     NestedResultOptionUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry, if available.
@@ -284,7 +273,7 @@ impl NestedOptionTimeIndexEntryIterable {
             .into()
     }
 
-    /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of their associated secondary indices.
+    /// Change this nested Iterable of Optional[EventTime] into a nested Iterable of their associated secondary indices.
     ///
     /// Returns:
     ///     NestedOptionUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry, if available.

@@ -2,7 +2,7 @@ use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropType, PropUnwrap},
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -42,7 +42,7 @@ impl<P: InternalPropertiesOps + Clone> PartialEq for TemporalPropertyView<P> {
 
 impl<P: InternalPropertiesOps + Clone, RHS, V> PartialEq<RHS> for TemporalPropertyView<P>
 where
-    for<'a> &'a RHS: IntoIterator<Item = &'a (TimeIndexEntry, V)>,
+    for<'a> &'a RHS: IntoIterator<Item = &'a (EventTime, V)>,
     V: Clone + Into<Prop>,
 {
     fn eq(&self, other: &RHS) -> bool {
@@ -80,25 +80,24 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         self.props.temporal_values_iter_rev(self.id)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (EventTime, Prop)> + '_ {
         self.history().into_iter().zip(self.values())
     }
 
-    pub fn iter_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
+    pub fn iter_rev(&self) -> impl Iterator<Item = (EventTime, Prop)> + '_ {
         self.history().reverse().into_iter().zip(self.values_rev())
     }
 
-    pub fn iter_indexed(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + use<'_, P> {
+    pub fn iter_indexed(&self) -> impl Iterator<Item = (EventTime, Prop)> + use<'_, P> {
         self.props.temporal_iter(self.id)
     }
 
-    pub fn iter_indexed_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + use<'_, P> {
+    pub fn iter_indexed_rev(&self) -> impl Iterator<Item = (EventTime, Prop)> + use<'_, P> {
         self.props.temporal_iter_rev(self.id)
     }
 
     pub fn at(&self, t: i64) -> Option<Prop> {
-        self.props
-            .temporal_value_at(self.id, TimeIndexEntry::end(t))
+        self.props.temporal_value_at(self.id, EventTime::end(t))
     }
     pub fn latest(&self) -> Option<Prop> {
         self.props.temporal_value(self.id)
@@ -109,11 +108,11 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         unique_props.into_iter().collect()
     }
 
-    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(TimeIndexEntry, Prop)> {
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(EventTime, Prop)> {
         let mut last_seen_value: Option<Prop> = None;
-        let mut result: Vec<(TimeIndexEntry, Prop)> = vec![];
+        let mut result: Vec<(EventTime, Prop)> = vec![];
 
-        let mut current_entry: Option<(TimeIndexEntry, Prop)> = None;
+        let mut current_entry: Option<(EventTime, Prop)> = None;
 
         for (t, prop) in self {
             if latest_time {
@@ -141,8 +140,8 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
 }
 
 impl<P: InternalPropertiesOps + Clone> IntoIterator for TemporalPropertyView<P> {
-    type Item = (TimeIndexEntry, Prop);
-    type IntoIter = Zip<std::vec::IntoIter<TimeIndexEntry>, std::vec::IntoIter<Prop>>;
+    type Item = (EventTime, Prop);
+    type IntoIter = Zip<std::vec::IntoIter<EventTime>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
         let hist = self.history().iter().collect::<Vec<_>>();
@@ -152,8 +151,8 @@ impl<P: InternalPropertiesOps + Clone> IntoIterator for TemporalPropertyView<P> 
 }
 
 impl<P: InternalPropertiesOps + Clone> IntoIterator for &TemporalPropertyView<P> {
-    type Item = (TimeIndexEntry, Prop);
-    type IntoIter = Zip<std::vec::IntoIter<TimeIndexEntry>, std::vec::IntoIter<Prop>>;
+    type Item = (EventTime, Prop);
+    type IntoIter = Zip<std::vec::IntoIter<EventTime>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
         let hist = self.history().iter().collect::<Vec<_>>();
@@ -217,7 +216,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalProperties<P> {
         Some(TemporalPropertyView::new(self.props.clone(), id))
     }
 
-    pub fn histories(&self) -> Vec<(ArcStr, (TimeIndexEntry, Prop))> {
+    pub fn histories(&self) -> Vec<(ArcStr, (EventTime, Prop))> {
         self.iter()
             .flat_map(|(k, v)| v.into_iter().map(move |v| (k.clone(), v.clone())))
             .collect()
@@ -229,7 +228,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalProperties<P> {
             .collect()
     }
 
-    pub fn as_map(&self) -> HashMap<ArcStr, Vec<(TimeIndexEntry, Prop)>> {
+    pub fn as_map(&self) -> HashMap<ArcStr, Vec<(EventTime, Prop)>> {
         self.iter()
             .map(|(key, value)| (key, value.iter().collect()))
             .collect()

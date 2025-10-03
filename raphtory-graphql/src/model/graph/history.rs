@@ -1,5 +1,5 @@
 use crate::{
-    model::graph::timeindex::{dt_format_str_is_valid, GqlTimeIndexEntry},
+    model::graph::timeindex::{dt_format_str_is_valid, GqlEventTime},
     rayon::blocking_compute,
 };
 use async_graphql::Error;
@@ -40,25 +40,25 @@ impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for GqlHistory {
 #[ResolvedObjectFields]
 impl GqlHistory {
     /// Get the earliest time entry associated with this history or None if the history is empty.
-    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
+    async fn earliest_time(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.earliest_time().map(|t| t.into())).await
     }
 
     /// Get the latest time entry associated with this history or None if the history is empty.
-    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
+    async fn latest_time(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.latest_time().map(|t| t.into())).await
     }
 
     /// List all time entries present in this history.
-    async fn list(&self) -> Vec<GqlTimeIndexEntry> {
+    async fn list(&self) -> Vec<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.iter().map(|t| t.into()).collect()).await
     }
 
     /// List all time entries present in this history in reverse order.
-    async fn list_rev(&self) -> Vec<GqlTimeIndexEntry> {
+    async fn list_rev(&self) -> Vec<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.iter_rev().map(|t| t.into()).collect()).await
     }
@@ -73,7 +73,7 @@ impl GqlHistory {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Vec<GqlTimeIndexEntry> {
+    ) -> Vec<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
@@ -98,7 +98,7 @@ impl GqlHistory {
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Vec<GqlTimeIndexEntry> {
+    ) -> Vec<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);

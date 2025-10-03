@@ -642,13 +642,13 @@ mod graphql_test {
                 values {
                   od1: orderedDedupe(latestTime: true) {
                     time {
-                      timestamp secondaryIndex
+                      timestamp eventId
                     }
                     value
                   },
                   od2: orderedDedupe(latestTime: false) {
                     time {
-                      timestamp secondaryIndex
+                      timestamp eventId
                     }
                     value
                   }
@@ -661,13 +661,13 @@ mod graphql_test {
                   values {
                     od1: orderedDedupe(latestTime: true) {
                       time {
-                        timestamp secondaryIndex
+                        timestamp eventId
                       }
                       value
                     },
                     od2: orderedDedupe(latestTime: false) {
                       time {
-                        timestamp secondaryIndex
+                        timestamp eventId
                       }
                       value
                     }
@@ -684,13 +684,13 @@ mod graphql_test {
                   values{
                     od1: orderedDedupe(latestTime: true) {
                       time {
-                        timestamp secondaryIndex
+                        timestamp eventId
                       }
                       value
                     },
                     od2: orderedDedupe(latestTime: false) {
                       time {
-                        timestamp secondaryIndex
+                        timestamp eventId
                       }
                       value
                     }
@@ -715,21 +715,21 @@ mod graphql_test {
                         {
                           "time": {
                             "timestamp": 2,
-                            "secondaryIndex": 1
+                            "eventId": 1
                           },
                           "value": "abc"
                         },
                         {
                           "time": {
                             "timestamp": 3,
-                            "secondaryIndex": 2
+                            "eventId": 2
                           },
                           "value": "xyz"
                         },
                         {
                           "time": {
                             "timestamp": 4,
-                            "secondaryIndex": 3
+                            "eventId": 3
                           },
                           "value": "abc"
                         }
@@ -738,21 +738,21 @@ mod graphql_test {
                         {
                           "time": {
                             "timestamp": 1,
-                            "secondaryIndex": 0
+                            "eventId": 0
                           },
                           "value": "abc"
                         },
                         {
                           "time": {
                             "timestamp": 3,
-                            "secondaryIndex": 2
+                            "eventId": 2
                           },
                           "value": "xyz"
                         },
                         {
                           "time": {
                             "timestamp": 4,
-                            "secondaryIndex": 3
+                            "eventId": 3
                           },
                           "value": "abc"
                         }
@@ -770,14 +770,14 @@ mod graphql_test {
                           {
                             "time": {
                               "timestamp": 11,
-                              "secondaryIndex": 13
+                              "eventId": 13
                             },
                             "value": "phone"
                           },
                           {
                             "time": {
                               "timestamp": 13,
-                              "secondaryIndex": 15
+                              "eventId": 15
                             },
                             "value": "fax"
                           }
@@ -786,14 +786,14 @@ mod graphql_test {
                           {
                             "time": {
                               "timestamp": 11,
-                              "secondaryIndex": 13
+                              "eventId": 13
                             },
                             "value": "phone"
                           },
                           {
                             "time": {
                               "timestamp": 12,
-                              "secondaryIndex": 14
+                              "eventId": 14
                             },
                             "value": "fax"
                           }
@@ -812,28 +812,28 @@ mod graphql_test {
                           {
                             "time": {
                               "timestamp": 2,
-                              "secondaryIndex": 5
+                              "eventId": 5
                             },
                             "value": "open"
                           },
                           {
                             "time": {
                               "timestamp": 3,
-                              "secondaryIndex": 6
+                              "eventId": 6
                             },
                             "value": "review"
                           },
                           {
                             "time": {
                               "timestamp": 4,
-                              "secondaryIndex": 7
+                              "eventId": 7
                             },
                             "value": "open"
                           },
                           {
                             "time": {
                               "timestamp": 10,
-                              "secondaryIndex": 9
+                              "eventId": 9
                             },
                             "value": "in-progress"
                           }
@@ -842,28 +842,28 @@ mod graphql_test {
                           {
                             "time": {
                               "timestamp": 1,
-                              "secondaryIndex": 4
+                              "eventId": 4
                             },
                             "value": "open"
                           },
                           {
                             "time": {
                               "timestamp": 3,
-                              "secondaryIndex": 6
+                              "eventId": 6
                             },
                             "value": "review"
                           },
                           {
                             "time": {
                               "timestamp": 4,
-                              "secondaryIndex": 7
+                              "eventId": 7
                             },
                             "value": "open"
                           },
                           {
                             "time": {
                               "timestamp": 5,
-                              "secondaryIndex": 8
+                              "eventId": 8
                             },
                             "value": "in-progress"
                           }
@@ -874,14 +874,14 @@ mod graphql_test {
                           {
                             "time": {
                               "timestamp": 9,
-                              "secondaryIndex": 10
+                              "eventId": 10
                             },
                             "value": true
                           },
                           {
                             "time": {
                               "timestamp": 10,
-                              "secondaryIndex": 11
+                              "eventId": 11
                             },
                             "value": false
                           }
@@ -890,14 +890,14 @@ mod graphql_test {
                           {
                             "time": {
                               "timestamp": 9,
-                              "secondaryIndex": 10
+                              "eventId": 10
                             },
                             "value": true
                           },
                           {
                             "time": {
                               "timestamp": 10,
-                              "secondaryIndex": 11
+                              "eventId": 11
                             },
                             "value": false
                           }

@@ -6,7 +6,7 @@ use crate::{
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
         property::{GqlMetadata, GqlProperties},
-        timeindex::{GqlTimeIndexEntry, GqlTimeInput},
+        timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlNodeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -250,36 +250,36 @@ impl GqlNode {
     ////////////////////////
 
     /// Returns the earliest time that the node exists.
-    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
+    async fn earliest_time(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.earliest_time().map(|t| t.into())).await
     }
 
     /// Returns the time of the first update made to the node.
-    async fn first_update(&self) -> Option<GqlTimeIndexEntry> {
+    async fn first_update(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.history().earliest_time().map(|t| t.into())).await
     }
 
     /// Returns the latest time that the node exists.
-    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
+    async fn latest_time(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.latest_time().map(|t| t.into())).await
     }
 
     /// Returns the time of the last update made to the node.
-    async fn last_update(&self) -> Option<GqlTimeIndexEntry> {
+    async fn last_update(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.history().latest_time().map(|t| t.into())).await
     }
 
     /// Gets the start time for the window. Errors if there is no window.
-    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+    async fn start(&self) -> Option<GqlEventTime> {
         self.vv.start().map(|t| t.into())
     }
 
     /// Gets the end time for the window. Errors if there is no window.
-    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+    async fn end(&self) -> Option<GqlEventTime> {
         self.vv.end().map(|t| t.into())
     }
 

@@ -21,7 +21,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
-use raphtory_api::core::storage::timeindex::{AsTime, TimeError, TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::{AsTime, EventTime, TimeError};
 use rayon::prelude::*;
 use std::{
     borrow::Borrow,
@@ -330,7 +330,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         LazyNodeState::new(op, self.nodes.clone())
     }
 
-    pub fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
+    pub fn collect_time_entries(&self) -> Vec<EventTime> {
         self.flatten().collect()
     }
 }

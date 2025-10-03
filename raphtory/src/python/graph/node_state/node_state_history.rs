@@ -24,7 +24,7 @@ use pyo3::{
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::storage::timeindex::EventTime;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use std::{collections::HashMap, sync::Arc};
 
@@ -148,7 +148,7 @@ impl NodeStateHistory {
     ///
     /// Returns:
     ///     A NodeState of the earliest time of each node as a TimeIndexEntry.
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         self.inner.earliest_time()
     }
 
@@ -156,15 +156,15 @@ impl NodeStateHistory {
     ///
     /// Returns:
     ///     A NodeState of the latest time of each node as a TimeIndexEntry.
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         self.inner.latest_time()
     }
 
     /// Collect and return all the contained time entries as a sorted list.
     ///
     /// Returns:
-    ///     list[TimeIndexEntry]: All time entries as a list.
-    fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
+    ///     list[EventTime]: All time entries as a list.
+    fn collect_time_entries(&self) -> Vec<EventTime> {
         self.inner.collect_time_entries()
     }
 

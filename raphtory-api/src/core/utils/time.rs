@@ -1,4 +1,4 @@
-use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
+use crate::core::storage::timeindex::{AsTime, EventTime};
 #[cfg(feature = "python")]
 use crate::python::error::adapt_err_value;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, ParseError, TimeZone};
@@ -43,45 +43,45 @@ impl From<ParseTimeError> for PyErr {
 }
 
 pub trait IntoTime {
-    fn into_time(self) -> TimeIndexEntry;
+    fn into_time(self) -> EventTime;
 }
 
 impl IntoTime for i64 {
-    fn into_time(self) -> TimeIndexEntry {
-        TimeIndexEntry::from(self)
+    fn into_time(self) -> EventTime {
+        EventTime::from(self)
     }
 }
 
 impl<Tz: TimeZone> IntoTime for DateTime<Tz> {
-    fn into_time(self) -> TimeIndexEntry {
-        TimeIndexEntry::from(self.timestamp_millis())
+    fn into_time(self) -> EventTime {
+        EventTime::from(self.timestamp_millis())
     }
 }
 
 impl IntoTime for NaiveDateTime {
-    fn into_time(self) -> TimeIndexEntry {
-        TimeIndexEntry::from(self.and_utc().timestamp_millis())
+    fn into_time(self) -> EventTime {
+        EventTime::from(self.and_utc().timestamp_millis())
     }
 }
 
-impl IntoTime for TimeIndexEntry {
-    fn into_time(self) -> TimeIndexEntry {
+impl IntoTime for EventTime {
+    fn into_time(self) -> EventTime {
         self
     }
 }
 
 impl<T: IntoTime> IntoTime for (T, usize) {
-    fn into_time(self) -> TimeIndexEntry {
+    fn into_time(self) -> EventTime {
         self.0.into_time().set_index(self.1)
     }
 }
 
 pub trait TryIntoTime {
-    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError>;
+    fn try_into_time(self) -> Result<EventTime, ParseTimeError>;
 }
 
 impl<T: IntoTime> TryIntoTime for T {
-    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
+    fn try_into_time(self) -> Result<EventTime, ParseTimeError> {
         Ok(self.into_time())
     }
 }
@@ -89,15 +89,15 @@ impl<T: IntoTime> TryIntoTime for T {
 impl TryIntoTime for &str {
     /// Tries to parse the timestamp as RFC3339 and then as ISO 8601 with local format and all
     /// fields mandatory except for milliseconds and allows replacing the T with a space
-    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
+    fn try_into_time(self) -> Result<EventTime, ParseTimeError> {
         let rfc_result = DateTime::parse_from_rfc3339(self);
         if let Ok(datetime) = rfc_result {
-            return Ok(TimeIndexEntry::from(datetime.timestamp_millis()));
+            return Ok(EventTime::from(datetime.timestamp_millis()));
         }
 
         let result = DateTime::parse_from_rfc2822(self);
         if let Ok(datetime) = result {
-            return Ok(TimeIndexEntry::from(datetime.timestamp_millis()));
+            return Ok(EventTime::from(datetime.timestamp_millis()));
         }
 
         let result = NaiveDate::parse_from_str(self, "%Y-%m-%d");
@@ -107,42 +107,42 @@ impl TryIntoTime for &str {
                 .unwrap()
                 .and_utc()
                 .timestamp_millis();
-            return Ok(TimeIndexEntry::from(timestamp));
+            return Ok(EventTime::from(timestamp));
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%.3f");
         if let Ok(datetime) = result {
-            return Ok(TimeIndexEntry::from(datetime.and_utc().timestamp_millis()));
+            return Ok(EventTime::from(datetime.and_utc().timestamp_millis()));
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%");
         if let Ok(datetime) = result {
-            return Ok(TimeIndexEntry::from(datetime.and_utc().timestamp_millis()));
+            return Ok(EventTime::from(datetime.and_utc().timestamp_millis()));
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%.3f");
         if let Ok(datetime) = result {
-            return Ok(TimeIndexEntry::from(datetime.and_utc().timestamp_millis()));
+            return Ok(EventTime::from(datetime.and_utc().timestamp_millis()));
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%");
         if let Ok(datetime) = result {
-            return Ok(TimeIndexEntry::from(datetime.and_utc().timestamp_millis()));
+            return Ok(EventTime::from(datetime.and_utc().timestamp_millis()));
         }
 
         Err(ParseTimeError::InvalidDateTimeString(self.to_string()))
     }
 }
 
-pub trait TryIntoTimeNeedsSecondaryIndex: TryIntoTime {}
+pub trait TryIntoTimeNeedsEventId: TryIntoTime {}
 
-impl TryIntoTimeNeedsSecondaryIndex for i64 {}
+impl TryIntoTimeNeedsEventId for i64 {}
 
-impl<Tz: TimeZone> TryIntoTimeNeedsSecondaryIndex for DateTime<Tz> {}
+impl<Tz: TimeZone> TryIntoTimeNeedsEventId for DateTime<Tz> {}
 
-impl TryIntoTimeNeedsSecondaryIndex for NaiveDateTime {}
+impl TryIntoTimeNeedsEventId for NaiveDateTime {}
 
-impl TryIntoTimeNeedsSecondaryIndex for &str {}
+impl TryIntoTimeNeedsEventId for &str {}
 
 /// Used to handle automatic injection of secondary index if not explicitly provided.
 /// In many cases, we will want different behaviour if a secondary index was provided or not.
@@ -159,10 +159,10 @@ impl InputTime {
         }
     }
 
-    pub fn as_time(&self) -> TimeIndexEntry {
+    pub fn as_time(&self) -> EventTime {
         match self {
-            InputTime::Simple(t) => TimeIndexEntry::new(*t, 0),
-            InputTime::Indexed(t, s) => TimeIndexEntry::new(*t, *s),
+            InputTime::Simple(t) => EventTime::new(*t, 0),
+            InputTime::Indexed(t, s) => EventTime::new(*t, *s),
         }
     }
 }
@@ -172,7 +172,7 @@ pub trait AsSingleTimeInput {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
 }
 
-impl<T: TryIntoTimeNeedsSecondaryIndex> AsSingleTimeInput for T {
+impl<T: TryIntoTimeNeedsEventId> AsSingleTimeInput for T {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
         Ok(InputTime::Simple(self.try_into_time()?.t()))
     }
@@ -194,7 +194,7 @@ impl<T: AsSingleTimeInput> TryIntoInputTime for T {
     }
 }
 
-impl TryIntoInputTime for TimeIndexEntry {
+impl TryIntoInputTime for EventTime {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
         Ok(InputTime::Indexed(self.t(), self.i()))
     }

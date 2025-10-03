@@ -2,7 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    api::core::storage::timeindex::TimeIndexEntry,
+    api::core::storage::timeindex::EventTime,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
@@ -58,7 +58,7 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::AsTime},
         utils::hashing::calculate_hash,
     },
-    python::timeindex::TimeIndexComponent,
+    python::timeindex::EventTimeComponent,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
@@ -174,7 +174,7 @@ impl PyNode {
     /// Returns:
     ///     TimeIndexEntry: The earliest time that the node exists.
     #[getter]
-    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest_time(&self) -> Option<EventTime> {
         self.node.earliest_time()
     }
 
@@ -183,7 +183,7 @@ impl PyNode {
     /// Returns:
     ///    TimeIndexEntry: The latest time that the node exists.
     #[getter]
-    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+    pub fn latest_time(&self) -> Option<EventTime> {
         self.node.latest_time()
     }
 
@@ -404,7 +404,7 @@ impl PyMutableNode {
     #[pyo3(signature = (t, properties=None, secondary_index=None))]
     pub fn add_updates(
         &self,
-        t: TimeIndexComponent,
+        t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {
@@ -832,9 +832,9 @@ impl PyPathFromGraph {
     /// The node earliest times.
     ///
     /// Returns:
-    ///     NestedOptionTimeIndexEntryIterable:
+    ///     NestedOptionEventTimeIterable:
     #[getter]
-    fn earliest_time(&self) -> NestedOptionTimeIndexEntryIterable {
+    fn earliest_time(&self) -> NestedOptionEventTimeIterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
@@ -842,9 +842,9 @@ impl PyPathFromGraph {
     /// The node latest times.
     ///
     /// Returns:
-    ///     NestedOptionTimeIndexEntryIterable:
+    ///     NestedOptionEventTimeIterable:
     #[getter]
-    fn latest_time(&self) -> NestedOptionTimeIndexEntryIterable {
+    fn latest_time(&self) -> NestedOptionEventTimeIterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
     }
@@ -1074,9 +1074,9 @@ impl PyPathFromNode {
     /// The earliest time of each node.
     ///
     /// Returns:
-    ///     OptionTimeIndexEntryIterable: An iterable of TimeIndexEntry entries.
+    ///     OptionEventTimeIterable: An iterable of `EventTime`s.
     #[getter]
-    fn earliest_time(&self) -> OptionTimeIndexEntryIterable {
+    fn earliest_time(&self) -> OptionEventTimeIterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
@@ -1084,9 +1084,9 @@ impl PyPathFromNode {
     /// The latest time of each node.
     ///
     /// Returns:
-    ///     OptionTimeIndexEntryIterable: An iterable of TimeIndexEntry entries.
+    ///     OptionEventTimeIterable: An iterable of `EventTime`s.
     #[getter]
-    fn latest_time(&self) -> OptionTimeIndexEntryIterable {
+    fn latest_time(&self) -> OptionEventTimeIterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
     }

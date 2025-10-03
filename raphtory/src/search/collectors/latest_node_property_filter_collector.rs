@@ -1,5 +1,5 @@
 use crate::{db::api::view::StaticGraphViewOps, search::fields};
-use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{entities::VID, storage::timeindex::EventTime};
 use std::collections::HashSet;
 use tantivy::{
     collector::{Collector, SegmentCollector},
@@ -107,7 +107,7 @@ where
                 if self.graph.is_node_prop_update_latest(
                     self.prop_id,
                     VID(entity_id as usize),
-                    TimeIndexEntry::new(time, secondary_time as usize),
+                    EventTime::new(time, secondary_time as usize),
                 ) {
                     self.unique_entity_ids.insert(entity_id);
                 }

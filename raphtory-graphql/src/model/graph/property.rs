@@ -1,5 +1,5 @@
 use crate::{
-    model::graph::{history::GqlHistory, timeindex::GqlTimeIndexEntry},
+    model::graph::{history::GqlHistory, timeindex::GqlEventTime},
     rayon::blocking_compute,
 };
 use async_graphql::{Error, Name, Value as GqlValue};
@@ -17,7 +17,7 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
@@ -218,25 +218,25 @@ impl GqlProperty {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PropertyTuple")]
 pub(crate) struct GqlPropertyTuple {
-    time: TimeIndexEntry,
+    time: EventTime,
     prop: Prop,
 }
 
 impl GqlPropertyTuple {
-    pub(crate) fn new(time: TimeIndexEntry, prop: Prop) -> Self {
+    pub(crate) fn new(time: EventTime, prop: Prop) -> Self {
         Self { time, prop }
     }
 }
 
-impl From<(TimeIndexEntry, Prop)> for GqlPropertyTuple {
-    fn from(value: (TimeIndexEntry, Prop)) -> Self {
+impl From<(EventTime, Prop)> for GqlPropertyTuple {
+    fn from(value: (EventTime, Prop)) -> Self {
         GqlPropertyTuple::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlPropertyTuple {
-    async fn time(&self) -> GqlTimeIndexEntry {
+    async fn time(&self) -> GqlEventTime {
         self.time.into()
     }
 

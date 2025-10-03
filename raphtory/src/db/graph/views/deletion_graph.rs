@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::LayerIds,
-        storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
+        storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
         utils::iter::GenLockedDIter,
     },
     db::{
@@ -68,10 +68,10 @@ impl Display for PersistentGraph {
 /// Get the last update of a property before `t` (exclusive), taking deletions into account.
 /// The update is only returned if the edge was not deleted since.
 fn last_prop_value_before<'a>(
-    t: TimeIndexEntry,
+    t: EventTime,
     props: impl TPropOps<'a>,
-    deletions: impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
-) -> Option<(TimeIndexEntry, Prop)> {
+    deletions: impl TimeIndexOps<'a, IndexType = EventTime>,
+) -> Option<(EventTime, Prop)> {
     props
         .last_before(t) // inclusive
         .filter(|(last_t, _)| !deletions.active(*last_t..t))
@@ -84,12 +84,12 @@ fn last_prop_value_before<'a>(
 fn persisted_prop_value_at<'a>(
     t: i64,
     props: impl TPropOps<'a>,
-    deletions: impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+    deletions: impl TimeIndexOps<'a, IndexType = EventTime>,
 ) -> Option<Prop> {
     if props.active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1)) {
         None
     } else {
-        last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
+        last_prop_value_before(EventTime::start(t), props, deletions).map(|(_, v)| v)
     }
 }
 
@@ -160,11 +160,11 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         TimeSemantics::persistent()
     }
 
-    fn view_start(&self) -> Option<TimeIndexEntry> {
+    fn view_start(&self) -> Option<EventTime> {
         self.0.view_start()
     }
 
-    fn view_end(&self) -> Option<TimeIndexEntry> {
+    fn view_end(&self) -> Option<EventTime> {
         self.0.view_end()
     }
 
@@ -176,13 +176,13 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.latest_time_global()
     }
 
-    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
+    fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.earliest_time_global()
             .map(|t| t.max(start.t()))
             .filter(|&t| t < end.t())
     }
 
-    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
+    fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         if self.0.earliest_time_global()? >= end.t() {
             return None;
         }
@@ -195,12 +195,12 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.has_temporal_prop(prop_id)
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(EventTime, Prop)> {
         self.0.temporal_prop_iter(prop_id)
     }
 
     #[inline]
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
         self.temporal_prop_iter_window(prop_id, w.start, w.end)
             .next()
             .is_some()
@@ -209,9 +209,9 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: TimeIndexEntry,
-        end: TimeIndexEntry,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+        start: EventTime,
+        end: EventTime,
+    ) -> BoxedLDIter<(EventTime, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
             let first =
                 persisted_prop_value_at(start.t(), &*prop, &TimeIndex::Empty).map(|v| (start, v));
@@ -226,20 +226,16 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         }
     }
 
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: TimeIndexEntry,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         self.0.temporal_prop_last_at(prop_id, t)
     }
 
     fn temporal_prop_last_at_window(
         &self,
         prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+        t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
             self.0
                 .temporal_prop_last_at(prop_id, t)
@@ -255,7 +251,7 @@ impl NodeHistoryFilter for PersistentGraph {
         &self,
         _prop_id: usize,
         _node_id: VID,
-        _time: TimeIndexEntry,
+        _time: EventTime,
     ) -> bool {
         true
     }
@@ -264,8 +260,8 @@ impl NodeHistoryFilter for PersistentGraph {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
         if time >= w.end {
             false
@@ -282,12 +278,7 @@ impl NodeHistoryFilter for PersistentGraph {
         }
     }
 
-    fn is_node_prop_update_latest(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: TimeIndexEntry,
-    ) -> bool {
+    fn is_node_prop_update_latest(&self, prop_id: usize, node_id: VID, time: EventTime) -> bool {
         self.0.is_node_prop_update_latest(prop_id, node_id, time)
     }
 
@@ -295,8 +286,8 @@ impl NodeHistoryFilter for PersistentGraph {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
         time < w.end && {
             let nse = self.0.core_node(node_id);
@@ -312,7 +303,7 @@ impl EdgeHistoryFilter for PersistentGraph {
         _layer_id: usize,
         _prop_id: usize,
         _edge_id: EID,
-        _time: TimeIndexEntry,
+        _time: EventTime,
     ) -> bool {
         // let nse = self.0.core_node(node_id);
         // nse.tprop(prop_id).at(&time).is_some()
@@ -324,8 +315,8 @@ impl EdgeHistoryFilter for PersistentGraph {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
         if time >= w.end {
             false
@@ -348,7 +339,7 @@ impl EdgeHistoryFilter for PersistentGraph {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.0
             .is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
@@ -360,8 +351,8 @@ impl EdgeHistoryFilter for PersistentGraph {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
         time < w.end && {
             let time = time.next();

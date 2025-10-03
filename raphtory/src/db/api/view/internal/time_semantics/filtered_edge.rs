@@ -8,7 +8,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds, ELID,
     },
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_storage::graph::edges::{
     edge_ref::EdgeStorageRef,
@@ -42,7 +42,7 @@ impl<'graph, G> FilteredEdgeTimeIndex<'graph, G> {
 impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
     for FilteredEdgeTimeIndex<'graph, G>
 {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     #[inline]
@@ -116,7 +116,7 @@ pub struct InvertedFilteredEdgeTimeIndex<'graph, G> {
 impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
     for InvertedFilteredEdgeTimeIndex<'graph, G>
 {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     #[inline]
@@ -191,9 +191,7 @@ pub struct FilteredEdgeTProp<G, P> {
 impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
     for FilteredEdgeTProp<G, P>
 {
-    fn iter(
-        self,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         let view = self.view.clone();
         let eid = self.eid;
         self.props
@@ -203,8 +201,8 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
 
     fn iter_window(
         self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        r: Range<EventTime>,
+    ) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         let view = self.view.clone();
         let eid = self.eid;
         self.props
@@ -212,7 +210,7 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
             .filter(move |(t, _)| view.internal_filter_exploded_edge(eid, *t, view.layer_ids()))
     }
 
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &EventTime) -> Option<Prop> {
         if self
             .view
             .internal_filter_exploded_edge(self.eid, *ti, self.view.layer_ids())

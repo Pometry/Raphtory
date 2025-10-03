@@ -1,5 +1,5 @@
 use crate::{db::api::view::StaticGraphViewOps, search::fields};
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{entities::EID, storage::timeindex::EventTime};
 use std::collections::HashSet;
 use tantivy::{
     collector::{Collector, SegmentCollector},
@@ -116,7 +116,7 @@ where
                     layer_id as usize,
                     self.prop_id,
                     EID(entity_id as usize),
-                    TimeIndexEntry::new(time, secondary_time as usize),
+                    EventTime::new(time, secondary_time as usize),
                 ) {
                     self.unique_entity_ids.insert(entity_id);
                 }

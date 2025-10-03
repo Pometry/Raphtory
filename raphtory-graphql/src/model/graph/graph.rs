@@ -9,7 +9,7 @@ use crate::{
             node::GqlNode,
             nodes::GqlNodes,
             property::{GqlMetadata, GqlProperties},
-            timeindex::{GqlTimeIndexEntry, GqlTimeInput},
+            timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlGraphWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -279,32 +279,29 @@ impl GqlGraph {
     }
 
     /// Returns the time entry of the earliest activity in the graph.
-    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
+    async fn earliest_time(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.earliest_time().map(|t| t.into())).await
     }
 
     /// Returns the time entry of the latest activity in the graph.
-    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
+    async fn latest_time(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.latest_time().map(|t| t.into())).await
     }
 
     /// Returns the start time of the window. Errors if there is no window.
-    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+    async fn start(&self) -> Option<GqlEventTime> {
         self.graph.start().map(|t| t.into())
     }
 
     /// Returns the end time of the window. Errors if there is no window.
-    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+    async fn end(&self) -> Option<GqlEventTime> {
         self.graph.end().map(|t| t.into())
     }
 
     /// Returns the earliest time that any edge in this graph is valid.
-    async fn earliest_edge_time(
-        &self,
-        include_negative: Option<bool>,
-    ) -> Option<GqlTimeIndexEntry> {
+    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -322,7 +319,7 @@ impl GqlGraph {
     }
 
     /// Returns the latest time that any edge in this graph is valid.
-    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<GqlTimeIndexEntry> {
+    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);

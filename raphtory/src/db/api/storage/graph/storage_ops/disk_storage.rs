@@ -11,7 +11,7 @@ use pometry_storage::interop::GraphLike;
 use raphtory_api::{
     core::{
         entities::{properties::tprop::TPropOps, LayerIds, EID, GID, VID},
-        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+        storage::timeindex::{EventTime, TimeIndexOps},
         Direction,
     },
     iter::IntoDynBoxed,
@@ -73,7 +73,7 @@ impl PersistentGraph {
     }
 }
 
-impl GraphLike<TimeIndexEntry> for Graph {
+impl GraphLike<EventTime> for Graph {
     fn external_ids(&self) -> Vec<GID> {
         self.nodes().id().collect()
     }
@@ -147,7 +147,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
         edges
     }
 
-    fn edge_additions(&self, eid: EID, layer: usize) -> impl Iterator<Item = TimeIndexEntry> + '_ {
+    fn edge_additions(&self, eid: EID, layer: usize) -> impl Iterator<Item = EventTime> + '_ {
         let edge = self.core_edge(eid);
         GenLockedIter::from(edge, |edge| edge.additions(layer).iter().into_dyn_boxed())
     }
@@ -165,7 +165,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
         &self,
         disk_edges: &[u64],
         edge_id_map: &[usize],
-        edge_ts: &[TimeIndexEntry],
+        edge_ts: &[EventTime],
         edge_t_offsets: &[usize],
         layer: usize,
         prop_id: usize,

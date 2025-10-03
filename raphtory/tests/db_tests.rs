@@ -34,11 +34,11 @@ use raphtory_api::core::{
     entities::{GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, EventTime},
     },
     utils::{
         logging::global_info_logger,
-        time::{ParseTimeError, TryIntoTime, TryIntoTimeNeedsSecondaryIndex},
+        time::{ParseTimeError, TryIntoTime, TryIntoTimeNeedsEventId},
     },
 };
 use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
@@ -145,7 +145,7 @@ fn test_empty_graph() {
         assert!(graph.edge(1, 2).is_none());
         assert!(graph.latest_time_global().is_none());
         assert!(graph
-            .latest_time_window(TimeIndexEntry::start(1), TimeIndexEntry::start(2))
+            .latest_time_window(EventTime::start(1), EventTime::start(2))
             .is_none());
         assert!(graph.latest_time().is_none());
         assert!(graph.latest_time_global().is_none());
@@ -1063,8 +1063,8 @@ fn temporal_node_rows_1_node() {
         assert_eq!(
             actual,
             vec![
-                (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-                (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)])
+                (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+                (EventTime::new(0, 1), vec![Prop::U64(9)])
             ]
         );
     });
@@ -1090,12 +1090,9 @@ fn temporal_node_rows_1_node() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)]),
-            (
-                TimeIndexEntry::new(1, 2),
-                vec![Prop::Bool(false), Prop::U64(19)],
-            ),
+            (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+            (EventTime::new(0, 1), vec![Prop::U64(9)]),
+            (EventTime::new(1, 2), vec![Prop::Bool(false), Prop::U64(19)]),
         ];
         assert_eq!(actual, expected);
     });
@@ -1113,13 +1110,10 @@ fn temporal_node_rows_1_node() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)]),
-            (
-                TimeIndexEntry::new(1, 2),
-                vec![Prop::Bool(false), Prop::U64(19)],
-            ),
-            (TimeIndexEntry::new(2, 3), vec![]),
+            (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+            (EventTime::new(0, 1), vec![Prop::U64(9)]),
+            (EventTime::new(1, 2), vec![Prop::Bool(false), Prop::U64(19)]),
+            (EventTime::new(2, 3), vec![]),
         ];
 
         assert_eq!(actual, expected);
@@ -1151,7 +1145,7 @@ fn temporal_node_rows_nodes() {
                 .collect::<Vec<_>>();
 
             let expected = vec![(
-                TimeIndexEntry::new(id as i64, id),
+                EventTime::new(id as i64, id),
                 vec![Some(Prop::U64((id as u64) + 1))],
             )];
             assert_eq!(actual, expected);
@@ -1173,7 +1167,7 @@ fn temporal_node_rows_window() {
         .unwrap();
 
     test_storage!(&graph, |graph| {
-        let get_rows = |vid: VID, range: Range<TimeIndexEntry>| {
+        let get_rows = |vid: VID, range: Range<EventTime>| {
             graph
                 .core_graph()
                 .nodes()
@@ -1182,17 +1176,17 @@ fn temporal_node_rows_window() {
                 .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         };
-        let actual = get_rows(VID(0), TimeIndexEntry::new(2, 0)..TimeIndexEntry::new(3, 0));
+        let actual = get_rows(VID(0), EventTime::new(2, 0)..EventTime::new(3, 0));
 
-        let expected = vec![(TimeIndexEntry::new(2, 2), vec![Some(Prop::U64(3))])];
+        let expected = vec![(EventTime::new(2, 2), vec![Some(Prop::U64(3))])];
 
         assert_eq!(actual, expected);
 
-        let actual = get_rows(VID(0), TimeIndexEntry::new(0, 0)..TimeIndexEntry::new(3, 0));
+        let actual = get_rows(VID(0), EventTime::new(0, 0)..EventTime::new(3, 0));
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Some(Prop::U64(1))]),
-            (TimeIndexEntry::new(1, 1), vec![Some(Prop::U64(2))]),
-            (TimeIndexEntry::new(2, 2), vec![Some(Prop::U64(3))]),
+            (EventTime::new(0, 0), vec![Some(Prop::U64(1))]),
+            (EventTime::new(1, 1), vec![Some(Prop::U64(2))]),
+            (EventTime::new(2, 2), vec![Some(Prop::U64(3))]),
         ];
 
         assert_eq!(actual, expected);
@@ -1571,7 +1565,7 @@ fn test_edge_earliest_latest() {
         res = graph.after(1).edge(1, 2).unwrap().latest_time().unwrap();
         assert_eq!(res, 2);
 
-        let res_list: Vec<TimeIndexEntry> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .edges()
@@ -1580,7 +1574,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<TimeIndexEntry> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .edges()
@@ -1589,7 +1583,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let res_list: Vec<TimeIndexEntry> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .at(1)
@@ -1599,7 +1593,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![1, 1]);
 
-        let res_list: Vec<TimeIndexEntry> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .before(1)
@@ -1609,7 +1603,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<TimeIndexEntry> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .after(1)
@@ -1619,7 +1613,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let res_list: Vec<TimeIndexEntry> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .at(1)
@@ -1629,7 +1623,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![1, 1]);
 
-        let res_list: Vec<TimeIndexEntry> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .before(1)
@@ -1639,7 +1633,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<TimeIndexEntry> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .after(1)
@@ -1753,13 +1747,10 @@ fn node_history_rows() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(1)]),
-            (
-                TimeIndexEntry::new(1, 2),
-                vec![Prop::Bool(true), Prop::I64(2)],
-            ),
-            (TimeIndexEntry::new(1, 4), vec![Prop::U64(3)]),
-            (TimeIndexEntry::new(2, 3), vec![]),
+            (EventTime::new(0, 1), vec![Prop::U64(1)]),
+            (EventTime::new(1, 2), vec![Prop::Bool(true), Prop::I64(2)]),
+            (EventTime::new(1, 4), vec![Prop::U64(3)]),
+            (EventTime::new(2, 3), vec![]),
         ];
 
         assert_eq!(actual, expected);
@@ -1771,7 +1762,7 @@ fn node_history_rows() {
             .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
-        let expected = vec![(TimeIndexEntry::new(1, 0), vec![Prop::U64(1)])];
+        let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
 
         assert_eq!(actual, expected);
     });
@@ -1954,14 +1945,14 @@ fn check_edge_history_on_multiple_shards() {
 #[derive(Debug)]
 struct CustomTime<'a>(&'a str, &'a str);
 
-impl TryIntoTimeNeedsSecondaryIndex for CustomTime<'_> {}
+impl TryIntoTimeNeedsEventId for CustomTime<'_> {}
 
 impl<'a> TryIntoTime for CustomTime<'a> {
-    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
+    fn try_into_time(self) -> Result<EventTime, ParseTimeError> {
         let CustomTime(time, fmt) = self;
         let time = NaiveDateTime::parse_from_str(time, fmt)?;
         let time = time.and_utc().timestamp_millis();
-        Ok(TimeIndexEntry::from(time))
+        Ok(EventTime::from(time))
     }
 }
 

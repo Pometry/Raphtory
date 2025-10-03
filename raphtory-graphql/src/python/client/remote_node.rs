@@ -6,7 +6,7 @@ use pyo3::{pyclass, pymethods, Python};
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ impl PyRemoteNode {
     pub fn add_updates(
         &self,
         py: Python,
-        t: TimeIndexEntry,
+        t: EventTime,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let template = r#"

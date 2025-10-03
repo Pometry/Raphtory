@@ -29,7 +29,7 @@ use raphtory_api::{
         entities::{properties::prop::Prop, GID},
         storage::arc_str::ArcStr,
     },
-    python::timeindex::TimeIndexComponent,
+    python::timeindex::EventTimeComponent,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
@@ -137,7 +137,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
     pub fn add_node(
         &self,
-        timestamp: TimeIndexComponent,
+        timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -173,7 +173,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
     pub fn create_node(
         &self,
-        timestamp: TimeIndexComponent,
+        timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -208,7 +208,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, properties, secondary_index = None))]
     pub fn add_properties(
         &self,
-        timestamp: TimeIndexComponent,
+        timestamp: EventTimeComponent,
         properties: HashMap<String, Prop>,
         secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {
@@ -266,7 +266,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, secondary_index = None))]
     pub fn add_edge(
         &self,
-        timestamp: TimeIndexComponent,
+        timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
@@ -304,7 +304,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, src, dst, layer=None, secondary_index = None))]
     pub fn delete_edge(
         &self,
-        timestamp: TimeIndexComponent,
+        timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
         layer: Option<&str>,

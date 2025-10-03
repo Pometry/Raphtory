@@ -24,9 +24,9 @@ use pyo3::prelude::*;
 use raphtory_api::{
     core::{
         entities::GID,
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{arc_str::ArcStr, timeindex::EventTime},
     },
-    python::timeindex::TimeIndexComponent,
+    python::timeindex::EventTimeComponent,
 };
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
@@ -279,7 +279,7 @@ impl PyEdge {
     /// Returns:
     ///     TimeIndexEntry: The earliest time of an edge
     #[getter]
-    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest_time(&self) -> Option<EventTime> {
         self.edge.earliest_time()
     }
 
@@ -288,7 +288,7 @@ impl PyEdge {
     /// Returns:
     ///     TimeIndexEntry: The latest time of an edge
     #[getter]
-    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+    pub fn latest_time(&self) -> Option<EventTime> {
         self.edge.latest_time()
     }
 
@@ -297,7 +297,7 @@ impl PyEdge {
     /// Returns:
     ///     int: The time of an exploded edge
     #[getter]
-    pub fn time(&self) -> Result<TimeIndexEntry, GraphError> {
+    pub fn time(&self) -> Result<EventTime, GraphError> {
         self.edge.time()
     }
 
@@ -392,7 +392,7 @@ impl PyMutableEdge {
     #[pyo3(signature = (t, properties=None, layer=None, secondary_index=None))]
     fn add_updates(
         &self,
-        t: TimeIndexComponent,
+        t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         secondary_index: Option<usize>,
@@ -423,7 +423,7 @@ impl PyMutableEdge {
     #[pyo3(signature = (t, layer=None, secondary_index=None))]
     fn delete(
         &self,
-        t: TimeIndexComponent,
+        t: EventTimeComponent,
         layer: Option<&str>,
         secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {

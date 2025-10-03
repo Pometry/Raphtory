@@ -1,5 +1,5 @@
 use crate::{
-    api::core::storage::timeindex::{AsTime, TimeIndexEntry},
+    api::core::storage::timeindex::{AsTime, EventTime},
     db::{
         api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
@@ -17,10 +17,10 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable,
-                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
-                NestedGIDGIDIterable, NestedOptionTimeIndexEntryIterable,
-                NestedTimeIndexEntryIterable, OptionTimeIndexEntryIterable, TimeIndexEntryIterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, EventTimeIterable,
+                GIDGIDIterable, NestedArcStringIterable, NestedArcStringVecIterable,
+                NestedBoolIterable, NestedEventTimeIterable, NestedGIDGIDIterable,
+                NestedOptionEventTimeIterable, OptionEventTimeIterable,
             },
         },
         utils::export::{create_row, extract_properties, get_column_names_from_props},
@@ -89,9 +89,9 @@ impl PyEdges {
     /// Returns the earliest time of the edges.
     ///
     /// Returns:
-    ///     OptionTimeIndexEntryIterable: Iterable of TimeIndexEntry entries.
+    ///     OptionEventTimeIterable: Iterable of `EventTime`s.
     #[getter]
-    fn earliest_time(&self) -> OptionTimeIndexEntryIterable {
+    fn earliest_time(&self) -> OptionEventTimeIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
@@ -99,9 +99,9 @@ impl PyEdges {
     /// Returns the latest times of the edges.
     ///
     /// Returns:
-    ///     OptionTimeIndexEntryIterable: Iterable of TimeIndexEntry entries.
+    ///     OptionEventTimeIterable: Iterable of `EventTime`s.
     #[getter]
-    fn latest_time(&self) -> OptionTimeIndexEntryIterable {
+    fn latest_time(&self) -> OptionEventTimeIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
     }
@@ -109,9 +109,9 @@ impl PyEdges {
     /// Returns the times of exploded edges
     ///
     /// Returns:
-    ///   TimeIndexEntryIterable: Iterable of TimeIndexEntry entries.
+    ///   EventTimeIterable: Iterable of `EventTime`s.
     #[getter]
-    fn time(&self) -> Result<TimeIndexEntryIterable, GraphError> {
+    fn time(&self) -> Result<EventTimeIterable, GraphError> {
         match self.edges.time().next() {
             Some(Err(err)) => Err(err),
             _ => {
@@ -384,9 +384,9 @@ impl PyNestedEdges {
     /// Returns the earliest time of the edges.
     ///
     /// Returns:
-    ///     NestedOptionTimeIndexEntryIterable: A nested iterable of TimeIndexEntry entries.
+    ///     NestedOptionEventTimeIterable: A nested iterable of `EventTime`s.
     #[getter]
-    fn earliest_time(&self) -> NestedOptionTimeIndexEntryIterable {
+    fn earliest_time(&self) -> NestedOptionEventTimeIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
@@ -394,9 +394,9 @@ impl PyNestedEdges {
     /// Returns the latest time of the edges.
     ///
     /// Returns:
-    ///     NestedOptionTimeIndexEntryIterable: A nested iterable of TimeIndexEntry entries.
+    ///     NestedOptionEventTimeIterable: A nested iterable of `EventTime`s.
     #[getter]
-    fn latest_time(&self) -> NestedOptionTimeIndexEntryIterable {
+    fn latest_time(&self) -> NestedOptionEventTimeIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
     }
@@ -404,12 +404,12 @@ impl PyNestedEdges {
     /// Returns the times of exploded edges.
     ///
     /// Returns:
-    ///     NestedTimeIndexEntryIterable: A nested iterable of TimeIndexEntry entries.
+    ///     NestedEventTimeIterable: A nested iterable of `EventTime`s.
     ///
     /// Raises:
     ///     GraphError: If a graph error occurs (e.g. the edges are not exploded).
     #[getter]
-    fn time(&self) -> Result<NestedTimeIndexEntryIterable, GraphError> {
+    fn time(&self) -> Result<NestedEventTimeIterable, GraphError> {
         match self.edges.time().flatten().next() {
             Some(Err(err)) => Err(err),
             _ => {

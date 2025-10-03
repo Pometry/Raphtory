@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     db::{
         api::{
@@ -205,19 +205,19 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     ///
     /// Returns:
     ///     int:
-    fn earliest_time(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
+    fn earliest_time(&self) -> Self::ValueType<Option<EventTime>>;
 
     /// Gets the latest time an edge was updated
     ///
     /// Returns:
     ///     int:
-    fn latest_time(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
+    fn latest_time(&self) -> Self::ValueType<Option<EventTime>>;
 
     /// Gets the time stamp of the edge if it is exploded
     ///
     /// Returns:
     ///     int:
-    fn time(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
+    fn time(&self) -> Self::ValueType<Result<EventTime, GraphError>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
     ///
@@ -225,8 +225,8 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     ///     str:
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
-    /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
+    /// Gets the EventTime if the edge is exploded
+    fn time_and_index(&self) -> Self::ValueType<Result<EventTime, GraphError>>;
 
     /// Gets the name of the layer this edge belongs to
     ///
@@ -429,7 +429,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the first time an edge was seen
-    fn earliest_time(&self) -> Self::ValueType<Option<TimeIndexEntry>> {
+    fn earliest_time(&self) -> Self::ValueType<Option<EventTime>> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
                 let time_semantics = g.edge_time_semantics();
@@ -456,7 +456,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the latest time an edge was updated
-    fn latest_time(&self) -> Self::ValueType<Option<TimeIndexEntry>> {
+    fn latest_time(&self) -> Self::ValueType<Option<EventTime>> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
                 let time_semantics = g.edge_time_semantics();
@@ -483,7 +483,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the time of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>> {
+    fn time(&self) -> Self::ValueType<Result<EventTime, GraphError>> {
         self.map(|_, e| e.time().ok_or_else(|| GraphError::TimeAPIError))
     }
 
@@ -496,8 +496,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>> {
+    /// Gets the EventTime if the edge is exploded
+    fn time_and_index(&self) -> Self::ValueType<Result<EventTime, GraphError>> {
         self.map(|_, e| e.time().ok_or(GraphError::TimeAPIError))
     }
 

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Duration, Months};
 use itertools::{Either, Itertools};
-use raphtory_api::core::{storage::timeindex::TimeIndexEntry, utils::time::ParseTimeError};
+use raphtory_api::core::{storage::timeindex::EventTime, utils::time::ParseTimeError};
 use regex::Regex;
 use std::ops::{Add, Sub};
 
@@ -323,11 +323,11 @@ impl Add<Interval> for i64 {
     }
 }
 
-impl Add<Interval> for TimeIndexEntry {
-    type Output = TimeIndexEntry;
+impl Add<Interval> for EventTime {
+    type Output = EventTime;
     fn add(self, rhs: Interval) -> Self::Output {
         match rhs.size {
-            IntervalSize::Discrete(number) => TimeIndexEntry::from(self.0 + (number as i64)),
+            IntervalSize::Discrete(number) => EventTime::from(self.0 + (number as i64)),
             IntervalSize::Temporal { millis, months } => {
                 // first we add the number of months and then the number of milliseconds for
                 // consistency with the implementation of Sub (we revert back the steps) so we
@@ -341,7 +341,7 @@ impl Add<Interval> for TimeIndexEntry {
                     .and_utc()
                     .timestamp_millis()
                     + millis as i64;
-                TimeIndexEntry(timestamp, self.1)
+                EventTime(timestamp, self.1)
             }
         }
     }

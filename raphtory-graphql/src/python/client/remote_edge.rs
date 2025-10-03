@@ -6,7 +6,7 @@ use pyo3::{pyclass, pymethods, Python};
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
 use std::collections::HashMap;
@@ -53,7 +53,7 @@ impl PyRemoteEdge {
     fn add_updates(
         &self,
         py: Python,
-        t: TimeIndexEntry,
+        t: EventTime,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -94,7 +94,7 @@ impl PyRemoteEdge {
     /// Raises:
     ///   GraphError: If the operation fails.
     #[pyo3(signature = (t, layer=None))]
-    fn delete(&self, py: Python, t: TimeIndexEntry, layer: Option<&str>) -> Result<(), GraphError> {
+    fn delete(&self, py: Python, t: EventTime, layer: Option<&str>) -> Result<(), GraphError> {
         let template = r#"
             {
               updateGraph(path: "{{path}}") {

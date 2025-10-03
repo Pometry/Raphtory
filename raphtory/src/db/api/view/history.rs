@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::{AsTime, EventTime},
         utils::iter::GenLockedIter,
     },
     db::{
@@ -34,19 +34,19 @@ use std::{iter, marker::PhantomData, sync::Arc};
 /// Trait declaring the operations needed so that a type's History can be accessed using the `History` object
 pub trait InternalHistoryOps: Send + Sync {
     /// Iterate over temporal entries in chronological order.
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
+    fn iter(&self) -> BoxedLIter<EventTime>;
     /// Iterate over temporal entries in reverse chronological order.
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry>;
+    fn iter_rev(&self) -> BoxedLIter<EventTime>;
     /// Get the earliest time entry for this item.
-    fn earliest_time(&self) -> Option<TimeIndexEntry>;
+    fn earliest_time(&self) -> Option<EventTime>;
     /// Get the latest time entry for this item.
-    fn latest_time(&self) -> Option<TimeIndexEntry>;
+    fn latest_time(&self) -> Option<EventTime>;
     /// Get the first time entry produced by forward iteration.
-    fn first(&self) -> Option<TimeIndexEntry> {
+    fn first(&self) -> Option<EventTime> {
         self.iter().next()
     }
     /// Get the first time entry produced by reverse iteration.
-    fn last(&self) -> Option<TimeIndexEntry> {
+    fn last(&self) -> Option<EventTime> {
         self.iter_rev().next()
     }
     /// Get the number of time entries held by this item.
@@ -101,27 +101,27 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         History::new(MergedHistory::new(self.0, right.0))
     }
 
-    fn into_iter_rev(self) -> BoxedLIter<'a, TimeIndexEntry> {
+    fn into_iter_rev(self) -> BoxedLIter<'a, EventTime> {
         GenLockedIter::from(self.0, |item| item.iter_rev()).into_dyn_boxed()
     }
 
     /// Iterate over `TimeIndexEntry` entries in chronological order.
-    pub fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    pub fn iter(&self) -> BoxedLIter<EventTime> {
         self.0.iter()
     }
 
     /// Iterate over `TimeIndexEntry` entries in reverse chronological order.
-    pub fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    pub fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.0.iter_rev()
     }
 
     /// Collect all `TimeIndexEntry` entries in chronological order.
-    pub fn collect(&self) -> Vec<TimeIndexEntry> {
+    pub fn collect(&self) -> Vec<EventTime> {
         self.0.iter().collect_vec()
     }
 
     /// Collect all `TimeIndexEntry` entries in reverse chronological order.
-    pub fn collect_rev(&self) -> Vec<TimeIndexEntry> {
+    pub fn collect_rev(&self) -> Vec<EventTime> {
         self.0.iter_rev().collect_vec()
     }
 
@@ -136,22 +136,22 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     }
 
     /// Get the earliest `TimeIndexEntry` entry in this `History`.
-    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest_time(&self) -> Option<EventTime> {
         self.0.earliest_time()
     }
 
     /// Get the latest `TimeIndexEntry` entry in this `History`.
-    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+    pub fn latest_time(&self) -> Option<EventTime> {
         self.0.latest_time()
     }
 
     /// Get the first item produced by forward iteration in this `History`.
-    pub fn first(&self) -> Option<TimeIndexEntry> {
+    pub fn first(&self) -> Option<EventTime> {
         self.0.first()
     }
 
     /// Get the first item produced by reverse iteration in this `History`.
-    pub fn last(&self) -> Option<TimeIndexEntry> {
+    pub fn last(&self) -> Option<EventTime> {
         self.0.last()
     }
 
@@ -188,8 +188,8 @@ impl<T: IntoArcDynHistoryOps> History<'_, T> {
 }
 
 impl<'a, T: InternalHistoryOps + 'a> IntoIterator for History<'a, T> {
-    type Item = TimeIndexEntry;
-    type IntoIter = BoxedLIter<'a, TimeIndexEntry>;
+    type Item = EventTime;
+    type IntoIter = BoxedLIter<'a, EventTime>;
 
     fn into_iter(self) -> Self::IntoIter {
         GenLockedIter::from(self.0, |item| item.iter()).into_dyn_boxed()
@@ -199,7 +199,7 @@ impl<'a, T: InternalHistoryOps + 'a> IntoIterator for History<'a, T> {
 impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for History<'b, T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
-    TimeIndexEntry: PartialEq<I>,
+    EventTime: PartialEq<I>,
 {
     fn eq(&self, other: &L) -> bool {
         self.iter().eq(other.into_iter().copied())
@@ -215,27 +215,27 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for History<'a, T> {
 impl<'a, T: InternalHistoryOps + 'a> Eq for History<'a, T> {}
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         T::iter(self)
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         T::iter_rev(self)
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         T::earliest_time(self)
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         T::latest_time(self)
     }
 
-    fn first(&self) -> Option<TimeIndexEntry> {
+    fn first(&self) -> Option<EventTime> {
         T::first(self)
     }
 
-    fn last(&self) -> Option<TimeIndexEntry> {
+    fn last(&self) -> Option<EventTime> {
         T::last(self)
     }
 
@@ -257,27 +257,27 @@ impl IntoArcDynHistoryOps for Box<dyn InternalHistoryOps> {
 }
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         T::iter(self)
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         T::iter_rev(self)
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         T::earliest_time(self)
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         T::latest_time(self)
     }
 
-    fn first(&self) -> Option<TimeIndexEntry> {
+    fn first(&self) -> Option<EventTime> {
         T::first(self)
     }
 
-    fn last(&self) -> Option<TimeIndexEntry> {
+    fn last(&self) -> Option<EventTime> {
         T::last(self)
     }
 
@@ -299,27 +299,27 @@ impl IntoArcDynHistoryOps for Arc<dyn InternalHistoryOps> {
 }
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for &T {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         T::iter(self)
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         T::iter_rev(self)
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         T::earliest_time(self)
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         T::latest_time(self)
     }
 
-    fn first(&self) -> Option<TimeIndexEntry> {
+    fn first(&self) -> Option<EventTime> {
         T::first(self)
     }
 
-    fn last(&self) -> Option<TimeIndexEntry> {
+    fn last(&self) -> Option<EventTime> {
         T::last(self)
     }
 
@@ -344,22 +344,22 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> MergedHistory<L, R> {
 }
 
 impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for MergedHistory<L, R> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         self.left.iter().merge(self.right.iter()).into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.left
             .iter_rev()
             .merge_by(self.right.iter_rev(), |a, b| a >= b)
             .into_dyn_boxed()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         self.left.earliest_time().min(self.right.earliest_time())
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         self.left.latest_time().max(self.right.latest_time())
     }
 
@@ -407,7 +407,7 @@ pub fn compose_history_from_items<'a, T: InternalHistoryOps + 'a>(
 }
 
 impl<'a, T: InternalHistoryOps + 'a> InternalHistoryOps for CompositeHistory<'a, T> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         self.history_objects
             .iter()
             .map(|object| object.iter())
@@ -415,7 +415,7 @@ impl<'a, T: InternalHistoryOps + 'a> InternalHistoryOps for CompositeHistory<'a,
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.history_objects
             .iter()
             .map(|object| object.iter_rev())
@@ -423,14 +423,14 @@ impl<'a, T: InternalHistoryOps + 'a> InternalHistoryOps for CompositeHistory<'a,
             .into_dyn_boxed()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         self.history_objects
             .iter()
             .filter_map(|history| history.earliest_time())
             .min()
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         self.history_objects
             .iter()
             .filter_map(|history| history.latest_time())
@@ -444,27 +444,27 @@ impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for CompositeHistory<
 pub struct EmptyHistory;
 
 impl InternalHistoryOps for EmptyHistory {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         iter::empty().into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         iter::empty().into_dyn_boxed()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         None
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         None
     }
 
-    fn first(&self) -> Option<TimeIndexEntry> {
+    fn first(&self) -> Option<EventTime> {
         None
     }
 
-    fn last(&self) -> Option<TimeIndexEntry> {
+    fn last(&self) -> Option<EventTime> {
         None
     }
 
@@ -478,7 +478,7 @@ impl IntoArcDynHistoryOps for EmptyHistory {}
 impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + Send + Sync>
     InternalHistoryOps for NodeView<'graph, G, GH>
 {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
@@ -489,7 +489,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + S
         .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
@@ -500,14 +500,14 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + S
         .into_dyn_boxed()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         ops::EarliestTime {
             graph: self.graph().clone(),
         }
         .apply(self.graph.core_graph(), self.node)
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         ops::LatestTime {
             graph: self.graph().clone(),
         }
@@ -521,7 +521,7 @@ impl<G: GraphViewOps<'static> + Send + Sync, GH: GraphViewOps<'static> + Send + 
 }
 
 impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -556,7 +556,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(&g, e) {
@@ -591,11 +591,11 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
         }
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         EdgeViewOps::earliest_time(self)
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         EdgeViewOps::latest_time(self)
     }
 
@@ -626,7 +626,7 @@ impl<G: BoxableGraphView + Clone + 'static> IntoArcDynHistoryOps for EdgeView<G>
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
 {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         // consuming the history objects is fine here because they get recreated on subsequent iter() calls
         NodeStateOps::iter_values(self)
             .map(|history| history.into_iter())
@@ -634,7 +634,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         // consuming the history objects is fine here because they get recreated on subsequent iter_rev() calls
         NodeStateOps::iter_values(self)
             .map(|history| history.into_iter_rev())
@@ -642,13 +642,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
             .into_dyn_boxed()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         NodeStateOps::par_iter_values(self)
             .filter_map(|history| history.earliest_time())
             .min()
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         NodeStateOps::par_iter_values(self)
             .filter_map(|history| history.latest_time())
             .max()
@@ -661,25 +661,25 @@ impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
 }
 
 impl<P: InternalPropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         self.props
             .temporal_iter(self.id)
             .map(|(t, _)| t)
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.props
             .temporal_iter_rev(self.id)
             .map(|(t, _)| t)
             .into_dyn_boxed()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         InternalHistoryOps::iter(self).next()
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         InternalHistoryOps::iter_rev(self).next()
     }
 }
@@ -689,27 +689,27 @@ impl<P: InternalPropertiesOps + 'static> IntoArcDynHistoryOps for TemporalProper
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for PathFromNode<'graph, G, GH>
 {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         self.iter()
             .map(|nodeview| GenLockedIter::from(nodeview, move |node| node.iter()))
             .kmerge()
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.iter()
             .map(|nodeview| GenLockedIter::from(nodeview, move |node| node.iter_rev()))
             .kmerge_by(|a, b| a >= b)
             .into_dyn_boxed()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         self.iter()
             .filter_map(|nodeview| InternalHistoryOps::earliest_time(&nodeview))
             .min()
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         self.iter()
             .filter_map(|nodeview| InternalHistoryOps::latest_time(&nodeview))
             .max()
@@ -724,7 +724,7 @@ impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for PathFromGraph<'graph, G, GH>
 {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         self.iter()
             .map(|path_from_node| {
                 GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter(item))
@@ -733,7 +733,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.iter()
             .map(|path_from_node| {
                 GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter_rev(item))
@@ -742,13 +742,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
             .into_dyn_boxed()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         self.iter()
             .filter_map(|path_from_node| InternalHistoryOps::earliest_time(&path_from_node))
             .min()
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         self.iter()
             .filter_map(|path_from_node| InternalHistoryOps::latest_time(&path_from_node))
             .max()
@@ -771,20 +771,20 @@ impl<T: InternalHistoryOps> ReversedHistoryOps<T> {
 }
 
 impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         self.0.iter_rev()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.0.iter()
     }
     // no need to override first() and last() because the iterators are reversed
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         self.0.earliest_time()
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         self.0.latest_time()
     }
 
@@ -1034,19 +1034,19 @@ impl<'a, T: InternalHistoryOps + 'a> Eq for Intervals<T> {}
 /// Trait declaring the operations needed so that a type's deletion history can be accessed using the `History` object
 pub trait InternalDeletionOps: Send + Sync {
     /// Iterate over deletion time entries in chronological order.
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
+    fn iter(&self) -> BoxedLIter<EventTime>;
     /// Iterate over deletion time entries in reverse chronological order.
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry>;
+    fn iter_rev(&self) -> BoxedLIter<EventTime>;
     /// Get the earliest deletion's time entry for this item.
-    fn earliest_time(&self) -> Option<TimeIndexEntry>;
+    fn earliest_time(&self) -> Option<EventTime>;
     /// Get the latest deletion's time entry for this item.
-    fn latest_time(&self) -> Option<TimeIndexEntry>;
+    fn latest_time(&self) -> Option<EventTime>;
     /// Get the first deletion's time entry produced by forward iteration.
-    fn first(&self) -> Option<TimeIndexEntry> {
+    fn first(&self) -> Option<EventTime> {
         self.iter().next()
     }
     /// Get the first deletion's time entry produced by reverse iteration.
-    fn last(&self) -> Option<TimeIndexEntry> {
+    fn last(&self) -> Option<EventTime> {
         self.iter_rev().next()
     }
     /// Get the number of deletion time entries held by this item.
@@ -1067,19 +1067,19 @@ impl<T: InternalDeletionOps> DeletionHistory<T> {
 
 // this way, we can use all the History object functionality (converting to timestamps, dt, intervals)
 impl<T: InternalDeletionOps> InternalHistoryOps for DeletionHistory<T> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         self.0.iter()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.0.iter_rev()
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         self.0.earliest_time()
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         self.0.latest_time()
     }
 }
@@ -1087,7 +1087,7 @@ impl<T: InternalDeletionOps> InternalHistoryOps for DeletionHistory<T> {
 impl<T: InternalDeletionOps + 'static> IntoArcDynHistoryOps for DeletionHistory<T> {}
 
 impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter(&self) -> BoxedLIter<EventTime> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -1130,7 +1130,7 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+    fn iter_rev(&self) -> BoxedLIter<EventTime> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -1173,11 +1173,11 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         }
     }
 
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    fn earliest_time(&self) -> Option<EventTime> {
         InternalDeletionOps::iter(self).next()
     }
 
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
+    fn latest_time(&self) -> Option<EventTime> {
         InternalDeletionOps::iter_rev(self).next()
     }
 }
@@ -1318,19 +1318,19 @@ mod tests {
         let dumbledore_node_history_object = History::new(dumbledore_node.clone());
         assert_eq!(
             dumbledore_node_history_object.iter().collect_vec(),
-            vec![TimeIndexEntry::new(1, 0), TimeIndexEntry::new(3, 2)]
+            vec![EventTime::new(1, 0), EventTime::new(3, 2)]
         );
 
         let harry_node_history_object = History::new(harry_node.clone());
         assert_eq!(
             harry_node_history_object.iter().collect_vec(),
-            vec![TimeIndexEntry::new(2, 1), TimeIndexEntry::new(3, 2)]
+            vec![EventTime::new(2, 1), EventTime::new(3, 2)]
         );
 
         let edge_history_object = History::new(character_edge.clone());
         assert_eq!(
             edge_history_object.iter().collect_vec(),
-            vec![TimeIndexEntry::new(3, 2)]
+            vec![EventTime::new(3, 2)]
         );
 
         let tmp_vector: Vec<Box<dyn InternalHistoryOps>> = vec![
@@ -1342,11 +1342,11 @@ mod tests {
         assert_eq!(
             composite_history_object.iter().collect_vec(),
             vec![
-                TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(3, 2)
+                EventTime::new(1, 0),
+                EventTime::new(2, 1),
+                EventTime::new(3, 2),
+                EventTime::new(3, 2),
+                EventTime::new(3, 2)
             ]
         );
 
@@ -1432,10 +1432,10 @@ mod tests {
         assert_eq!(
             dumbledore_history.iter().collect_vec(),
             vec![
-                TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(5, 7)
+                EventTime::new(1, 0),
+                EventTime::new(3, 2),
+                EventTime::new(4, 5),
+                EventTime::new(5, 7)
             ]
         );
 
@@ -1443,10 +1443,10 @@ mod tests {
         assert_eq!(
             harry_history.iter().collect_vec(),
             vec![
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(5, 6)
+                EventTime::new(2, 1),
+                EventTime::new(3, 2),
+                EventTime::new(4, 4),
+                EventTime::new(5, 6)
             ]
         );
 
@@ -1454,31 +1454,25 @@ mod tests {
         assert_eq!(
             broom_history.iter().collect_vec(),
             vec![
-                TimeIndexEntry::new(4, 3),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(5, 6),
-                TimeIndexEntry::new(5, 7)
+                EventTime::new(4, 3),
+                EventTime::new(4, 4),
+                EventTime::new(4, 5),
+                EventTime::new(5, 6),
+                EventTime::new(5, 7)
             ]
         );
 
         let character_edge_history = History::new(character_edge);
-        assert_eq!(
-            character_edge_history.collect(),
-            [TimeIndexEntry::new(3, 2)]
-        );
+        assert_eq!(character_edge_history.collect(), [EventTime::new(3, 2)]);
 
         // normal history differs from "Magical Object Uses" history
         let broom_harry_normal_history = History::new(broom_harry_normal_edge);
-        assert_eq!(
-            broom_harry_normal_history.collect(),
-            [TimeIndexEntry::new(5, 6)]
-        );
+        assert_eq!(broom_harry_normal_history.collect(), [EventTime::new(5, 6)]);
 
         let broom_harry_magical_history = History::new(broom_harry_magical_edge);
         assert_eq!(
             broom_harry_magical_history.collect(),
-            [TimeIndexEntry::new(4, 4)]
+            [EventTime::new(4, 4)]
         );
 
         // make graphview using layer
@@ -1492,22 +1486,22 @@ mod tests {
         let dumbledore_magical_history = History::new(dumbledore_node_magical_view);
         assert_eq!(
             dumbledore_magical_history.collect(),
-            [TimeIndexEntry::new(1, 0), TimeIndexEntry::new(4, 5)]
+            [EventTime::new(1, 0), EventTime::new(4, 5)]
         );
 
         let harry_magical_history = History::new(harry_node_magical_view);
         assert_eq!(
             harry_magical_history.collect(),
-            [TimeIndexEntry::new(2, 1), TimeIndexEntry::new(4, 4)]
+            [EventTime::new(2, 1), EventTime::new(4, 4)]
         );
 
         let broom_magical_history = History::new(broom_node_magical_view);
         assert_eq!(
             broom_magical_history.collect(),
             [
-                TimeIndexEntry::new(4, 3),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 5)
+                EventTime::new(4, 3),
+                EventTime::new(4, 4),
+                EventTime::new(4, 5)
             ]
         );
 
@@ -1520,7 +1514,7 @@ mod tests {
             History::new(broom_dumbledore_magical_edge_retrieved.clone());
         assert_eq!(
             broom_dumbledore_magical_history.collect(),
-            [TimeIndexEntry::new(4, 5)]
+            [EventTime::new(4, 5)]
         );
 
         Ok(())
@@ -1604,36 +1598,36 @@ mod tests {
 
         // history object orders them automatically bc of kmerge
         let expected_history_all_ordered = [
-            TimeIndexEntry::new(1, 0),
-            TimeIndexEntry::new(2, 1),
-            TimeIndexEntry::new(3, 2),
-            TimeIndexEntry::new(3, 2),
-            TimeIndexEntry::new(4, 3),
-            TimeIndexEntry::new(4, 4),
-            TimeIndexEntry::new(4, 4),
-            TimeIndexEntry::new(4, 5),
-            TimeIndexEntry::new(4, 5),
-            TimeIndexEntry::new(5, 6),
-            TimeIndexEntry::new(5, 6),
-            TimeIndexEntry::new(5, 7),
-            TimeIndexEntry::new(5, 7),
+            EventTime::new(1, 0),
+            EventTime::new(2, 1),
+            EventTime::new(3, 2),
+            EventTime::new(3, 2),
+            EventTime::new(4, 3),
+            EventTime::new(4, 4),
+            EventTime::new(4, 4),
+            EventTime::new(4, 5),
+            EventTime::new(4, 5),
+            EventTime::new(5, 6),
+            EventTime::new(5, 6),
+            EventTime::new(5, 7),
+            EventTime::new(5, 7),
         ];
 
         // lazy_node_state returns an iterator of history objects, not ordered
         let expected_history_all_unordered = [
-            TimeIndexEntry::new(1, 0),
-            TimeIndexEntry::new(3, 2),
-            TimeIndexEntry::new(4, 5),
-            TimeIndexEntry::new(5, 7),
-            TimeIndexEntry::new(2, 1),
-            TimeIndexEntry::new(3, 2),
-            TimeIndexEntry::new(4, 4),
-            TimeIndexEntry::new(5, 6),
-            TimeIndexEntry::new(4, 3),
-            TimeIndexEntry::new(4, 4),
-            TimeIndexEntry::new(4, 5),
-            TimeIndexEntry::new(5, 6),
-            TimeIndexEntry::new(5, 7),
+            EventTime::new(1, 0),
+            EventTime::new(3, 2),
+            EventTime::new(4, 5),
+            EventTime::new(5, 7),
+            EventTime::new(2, 1),
+            EventTime::new(3, 2),
+            EventTime::new(4, 4),
+            EventTime::new(5, 6),
+            EventTime::new(4, 3),
+            EventTime::new(4, 4),
+            EventTime::new(4, 5),
+            EventTime::new(5, 6),
+            EventTime::new(5, 7),
         ];
 
         // Test that the merged history contains all timestamps from all nodes
@@ -1641,13 +1635,13 @@ mod tests {
         assert!(!nodes_history_as_history.is_empty());
         assert_eq!(
             nodes_history_as_history.earliest_time().unwrap(),
-            TimeIndexEntry::new(1, 0)
+            EventTime::new(1, 0)
         );
 
         assert_eq!(nodes_history_as_history, expected_history_all_ordered);
         assert_eq!(
             nodes_history_as_history.latest_time().unwrap(),
-            TimeIndexEntry::new(5, 7)
+            EventTime::new(5, 7)
         );
 
         // Test collect_time_entries method on LazyNodeState<HistoryOp>
@@ -1689,17 +1683,17 @@ mod tests {
         assert_eq!(
             windowed_collected,
             [
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(3, 2)
+                EventTime::new(2, 1),
+                EventTime::new(3, 2),
+                EventTime::new(3, 2)
             ]
         ); // unordered
         assert_eq!(
             windowed_history_as_history,
             [
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(3, 2)
+                EventTime::new(2, 1),
+                EventTime::new(3, 2),
+                EventTime::new(3, 2)
             ]
         ); // ordered
 
@@ -1713,25 +1707,25 @@ mod tests {
         assert_eq!(
             magical_collected,
             [
-                TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(4, 3),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(4, 5),
+                EventTime::new(1, 0),
+                EventTime::new(2, 1),
+                EventTime::new(4, 3),
+                EventTime::new(4, 4),
+                EventTime::new(4, 4),
+                EventTime::new(4, 5),
+                EventTime::new(4, 5),
             ]
         ); // unordered
         assert_eq!(
             magical_history_as_history,
             [
-                TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(4, 3),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(4, 5),
+                EventTime::new(1, 0),
+                EventTime::new(2, 1),
+                EventTime::new(4, 3),
+                EventTime::new(4, 4),
+                EventTime::new(4, 4),
+                EventTime::new(4, 5),
+                EventTime::new(4, 5),
             ]
         ); // ordered
 
@@ -1746,18 +1740,18 @@ mod tests {
                 .map(|t| t.unwrap())
                 .collect_vec(),
             [
-                TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(4, 3)
+                EventTime::new(1, 0),
+                EventTime::new(2, 1),
+                EventTime::new(4, 3)
             ]
         );
 
         assert_eq!(
             latest_times.iter_values().map(|t| t.unwrap()).collect_vec(),
             [
-                TimeIndexEntry::new(5, 7),
-                TimeIndexEntry::new(5, 6),
-                TimeIndexEntry::new(5, 7)
+                EventTime::new(5, 7),
+                EventTime::new(5, 6),
+                EventTime::new(5, 7)
             ]
         );
 
@@ -1796,27 +1790,26 @@ mod tests {
         assert_eq!(
             windowed_layered_collected,
             [
-                TimeIndexEntry::new(4, 3),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(4, 5)
+                EventTime::new(4, 3),
+                EventTime::new(4, 4),
+                EventTime::new(4, 4),
+                EventTime::new(4, 5),
+                EventTime::new(4, 5)
             ]
         ); // unordered
         assert_eq!(
             windowed_layered_history_as_history,
             [
-                TimeIndexEntry::new(4, 3),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(4, 5)
+                EventTime::new(4, 3),
+                EventTime::new(4, 4),
+                EventTime::new(4, 4),
+                EventTime::new(4, 5),
+                EventTime::new(4, 5)
             ]
         ); // ordered
 
         // Test iter and iter_rev on LazyNodeState directly (through InternalHistoryOps)
-        let direct_iter: Vec<TimeIndexEntry> =
-            InternalHistoryOps::iter(&all_nodes_history).collect();
+        let direct_iter: Vec<EventTime> = InternalHistoryOps::iter(&all_nodes_history).collect();
         let direct_iter_rev: Vec<_> = all_nodes_history.iter_rev().collect();
         assert_eq!(
             direct_iter,

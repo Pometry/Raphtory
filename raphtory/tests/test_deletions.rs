@@ -12,7 +12,7 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::GID,
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::ops::Range;
@@ -782,10 +782,7 @@ fn test_graph_property_semantics() {
 
     assert_eq!(
         prop,
-        [
-            (TimeIndexEntry::new(1, 0), 10i64),
-            (TimeIndexEntry::new(3, 1), 20i64)
-        ]
+        [(EventTime::new(1, 0), 10i64), (EventTime::new(3, 1), 20i64)]
     );
 
     let prop = g
@@ -794,7 +791,7 @@ fn test_graph_property_semantics() {
         .temporal()
         .get("weight")
         .unwrap();
-    assert_eq!(prop, [(TimeIndexEntry::new(5, 0), 20i64)])
+    assert_eq!(prop, [(EventTime::new(5, 0), 20i64)])
 }
 
 #[test]

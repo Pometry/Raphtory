@@ -7,7 +7,7 @@ use pyo3::{pyclass, pymethods, Python};
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
 use std::collections::HashMap;
@@ -205,7 +205,7 @@ impl PyRemoteGraph {
     pub fn add_node(
         &self,
         py: Python,
-        timestamp: TimeIndexEntry,
+        timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -252,7 +252,7 @@ impl PyRemoteGraph {
     pub fn create_node(
         &self,
         py: Python,
-        timestamp: TimeIndexEntry,
+        timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -296,7 +296,7 @@ impl PyRemoteGraph {
     pub fn add_property(
         &self,
         py: Python,
-        timestamp: TimeIndexEntry,
+        timestamp: EventTime,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
         let template = r#"
@@ -396,7 +396,7 @@ impl PyRemoteGraph {
     pub fn add_edge(
         &self,
         py: Python,
-        timestamp: TimeIndexEntry,
+        timestamp: EventTime,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
@@ -445,7 +445,7 @@ impl PyRemoteGraph {
     pub fn delete_edge(
         &self,
         py: Python,
-        timestamp: TimeIndexEntry,
+        timestamp: EventTime,
         src: GID,
         dst: GID,
         layer: Option<&str>,

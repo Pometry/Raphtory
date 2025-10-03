@@ -20,7 +20,7 @@ use raphtory_api::core::{
         properties::prop::{Prop, PropType},
         GidRef, EID, VID,
     },
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
 use std::{
     fmt::Debug,
@@ -175,7 +175,7 @@ impl GraphWriter {
         });
     }
 
-    pub fn add_node_update(&self, t: TimeIndexEntry, v: VID, props: &[(usize, Prop)]) {
+    pub fn add_node_update(&self, t: EventTime, v: VID, props: &[(usize, Prop)]) {
         self.proto_delta
             .lock()
             .update_node_tprops(v, t, props.iter().map(|(id, prop)| (*id, prop)))
@@ -185,13 +185,7 @@ impl GraphWriter {
         eid.if_new(|eid| self.proto_delta.lock().new_edge(src, dst, eid));
     }
 
-    pub fn add_edge_update(
-        &self,
-        t: TimeIndexEntry,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) {
+    pub fn add_edge_update(&self, t: EventTime, edge: EID, props: &[(usize, Prop)], layer: usize) {
         self.proto_delta.lock().update_edge_tprops(
             edge,
             t,
@@ -199,7 +193,7 @@ impl GraphWriter {
             props.iter().map(|(id, prop)| (*id, prop)),
         )
     }
-    pub fn add_graph_tprops(&self, t: TimeIndexEntry, props: &[(usize, Prop)]) {
+    pub fn add_graph_tprops(&self, t: EventTime, props: &[(usize, Prop)]) {
         self.proto_delta
             .lock()
             .update_graph_tprops(t, props.iter().map(|(id, prop)| (*id, prop)))
@@ -227,7 +221,7 @@ impl GraphWriter {
         }
     }
 
-    pub fn delete_edge(&self, edge: EID, t: TimeIndexEntry, layer: usize) {
+    pub fn delete_edge(&self, edge: EID, t: EventTime, layer: usize) {
         self.proto_delta.lock().del_edge(edge, layer, t)
     }
 }

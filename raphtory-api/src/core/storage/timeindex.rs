@@ -25,30 +25,24 @@ impl fmt::Display for TimeError {
 impl std::error::Error for TimeError {}
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash)]
-pub struct TimeIndexEntry(pub i64, pub usize);
+pub struct EventTime(pub i64, pub usize);
 
-impl PartialEq<i64> for TimeIndexEntry {
+impl PartialEq<i64> for EventTime {
     fn eq(&self, other: &i64) -> bool {
         self.0 == *other
     }
 }
 
-impl fmt::Display for TimeIndexEntry {
+impl fmt::Display for EventTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TimeIndexEntry[{}, {}]", self.0, self.1)
+        write!(f, "EventTime[{}, {}]", self.0, self.1)
     }
 }
 
 pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn t(&self) -> i64;
 
-    /// Converts the timestamp into a UTC DateTime.
-    ///
-    /// # Returns:
-    ///    `DateTime`:
-    ///
-    /// # Raises:
-    ///  `TimeError`: Returns TimestampError on out-of-range timestamps.
+    /// Tries to convert the timestamp into a UTC DateTime.
     fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         let t = self.t();
         DateTime::from_timestamp_millis(t).ok_or(TimeError::OutOfRange(t))
@@ -211,22 +205,22 @@ impl<'a, L: TimeIndexOps<'a>, R: TimeIndexOps<'a, IndexType = L::IndexType>> Tim
     }
 }
 
-impl From<i64> for TimeIndexEntry {
+impl From<i64> for EventTime {
     fn from(value: i64) -> Self {
         Self::start(value)
     }
 }
 
-impl TimeIndexEntry {
-    pub const MIN: TimeIndexEntry = TimeIndexEntry(i64::MIN, 0);
+impl EventTime {
+    pub const MIN: EventTime = EventTime(i64::MIN, 0);
 
-    pub const MAX: TimeIndexEntry = TimeIndexEntry(i64::MAX, usize::MAX);
+    pub const MAX: EventTime = EventTime(i64::MAX, usize::MAX);
     pub fn new(t: i64, s: usize) -> Self {
         Self(t, s)
     }
 
-    /// Sets the secondary index of the TimeIndexEntry.
-    /// Note that this mutates the TimeIndexEntry in place rather than create and return a new one.
+    /// Sets the secondary index of the EventTime.
+    /// Note that this mutates the EventTime in place rather than create and return a new one.
     pub fn set_index(mut self, i: usize) -> Self {
         self.1 = i;
         self
@@ -279,7 +273,7 @@ impl AsTime for i64 {
     }
 }
 
-impl AsTime for TimeIndexEntry {
+impl AsTime for EventTime {
     fn t(&self) -> i64 {
         self.0
     }

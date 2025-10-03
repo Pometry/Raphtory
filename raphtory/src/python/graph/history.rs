@@ -13,14 +13,14 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
 use raphtory_api::{
-    core::storage::timeindex::{AsTime, TimeError, TimeIndexEntry},
+    core::storage::timeindex::{AsTime, EventTime, TimeError},
     iter::{BoxedIter, BoxedLIter, IntoDynBoxed},
-    python::timeindex::TimeIndexComponent,
+    python::timeindex::EventTimeComponent,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use std::sync::Arc;
 
-impl Repr for TimeIndexEntry {
+impl Repr for EventTime {
     fn repr(&self) -> String {
         self.to_string()
     }
@@ -142,39 +142,39 @@ impl PyHistory {
     /// Get the earliest time entry.
     ///
     /// Returns:
-    ///     Optional[TimeIndexEntry]: Earliest time entry, or None if empty.
-    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+    ///     Optional[EventTime]: Earliest time entry, or None if empty.
+    pub fn earliest_time(&self) -> Option<EventTime> {
         self.history.earliest_time()
     }
 
     /// Get the latest time entry.
     ///
     /// Returns:
-    ///     Optional[TimeIndexEntry]: Latest time entry, or None if empty.
-    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+    ///     Optional[EventTime]: Latest time entry, or None if empty.
+    pub fn latest_time(&self) -> Option<EventTime> {
         self.history.latest_time()
     }
 
     /// Collect all time entries in chronological order.
     ///
     /// Returns:
-    ///     List[TimeIndexEntry]: Collected time entries.
-    pub fn collect(&self) -> Vec<TimeIndexEntry> {
+    ///     List[EventTime]: Collected time entries.
+    pub fn collect(&self) -> Vec<EventTime> {
         self.history.collect()
     }
 
     /// Collect all time entries in reverse chronological order.
     ///
     /// Returns:
-    ///     List[TimeIndexEntry]: Collected time entries in reverse order.
-    pub fn collect_rev(&self) -> Vec<TimeIndexEntry> {
+    ///     List[EventTime]: Collected time entries in reverse order.
+    pub fn collect_rev(&self) -> Vec<EventTime> {
         self.history.collect_rev()
     }
 
     /// Iterate over all time entries in chronological order.
     ///
     /// Returns:
-    ///     Iterator[TimeIndexEntry]: Iterator over time entries.
+    ///     Iterator[EventTime]: Iterator over time entries.
     pub fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history.clone(),
@@ -186,7 +186,7 @@ impl PyHistory {
     /// Iterate over all time entries in reverse chronological order.
     ///
     /// Returns:
-    ///     Iterator[TimeIndexEntry]: Iterator over time entries in reverse order.
+    ///     Iterator[EventTime]: Iterator over time entries in reverse order.
     pub fn __reversed__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history.clone(),
@@ -210,14 +210,14 @@ impl PyHistory {
     ///
     /// Returns:
     ///     bool: True if present, otherwise False.
-    fn __contains__(&self, item: TimeIndexEntry) -> bool {
+    fn __contains__(&self, item: EventTime) -> bool {
         self.history.iter().any(|x| x == item)
     }
 
     /// Compare equality with another History or a list of TimeIndexEntry.
     ///
     /// Arguments:
-    ///     other (History | List[TimeIndexEntry]): The item to compare equality with.
+    ///     other (History | List[EventTime]): The item to compare equality with.
     ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
@@ -226,14 +226,14 @@ impl PyHistory {
             return self.history.eq(&py_hist.get().history);
         }
         // compare timestamps only
-        if let Ok(list) = other.extract::<Vec<TimeIndexComponent>>() {
+        if let Ok(list) = other.extract::<Vec<EventTimeComponent>>() {
             return self
                 .history
                 .iter()
                 .map(|t| t.t())
                 .eq(list.into_iter().map(|c| c.t()));
         }
-        if let Ok(list) = other.extract::<Vec<TimeIndexEntry>>() {
+        if let Ok(list) = other.extract::<Vec<EventTime>>() {
             return self.history.iter().eq(list.into_iter());
         }
         false
@@ -242,7 +242,7 @@ impl PyHistory {
     /// Compare inequality with another History or a list of TimeIndexEntry.
     ///
     /// Arguments:
-    ///     other (History | List[TimeIndexEntry]): The item to compare inequality with.
+    ///     other (History | List[EventTime]): The item to compare inequality with.
     ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
@@ -967,8 +967,8 @@ impl HistoryIterable {
     /// Collect time entries from each history in the iterable.
     ///
     /// Returns:
-    ///     List[List[TimeIndexEntry]]: Collected entries per history.
-    pub fn collect(&self) -> Vec<Vec<TimeIndexEntry>> {
+    ///     List[List[EventTime]]: Collected entries per history.
+    pub fn collect(&self) -> Vec<Vec<EventTime>> {
         self.iter().map(|h| h.collect()).collect()
     }
 }
@@ -1024,8 +1024,8 @@ impl NestedHistoryIterable {
     /// Collect time entries from each history within each nested iterable.
     ///
     /// Returns:
-    ///     List[List[List[TimeIndexEntry]]]: Collected entries per nested history.
-    pub fn collect(&self) -> Vec<Vec<Vec<TimeIndexEntry>>> {
+    ///     List[List[List[EventTime]]]: Collected entries per nested history.
+    pub fn collect(&self) -> Vec<Vec<Vec<EventTime>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
             .collect()

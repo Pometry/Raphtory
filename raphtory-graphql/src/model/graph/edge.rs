@@ -5,7 +5,7 @@ use crate::{
         history::GqlHistory,
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
-        timeindex::{GqlTimeIndexEntry, GqlTimeInput},
+        timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlEdgeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -259,37 +259,37 @@ impl GqlEdge {
     }
 
     /// Returns the earliest time of an edge.
-    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
+    async fn earliest_time(&self) -> Option<GqlEventTime> {
         self.ee.earliest_time().map(|t| t.into())
     }
 
-    async fn first_update(&self) -> Option<GqlTimeIndexEntry> {
+    async fn first_update(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.history().earliest_time().map(|t| t.into())).await
     }
 
     /// Returns the latest time of an edge.
-    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
+    async fn latest_time(&self) -> Option<GqlEventTime> {
         self.ee.latest_time().map(|t| t.into())
     }
 
-    async fn last_update(&self) -> Option<GqlTimeIndexEntry> {
+    async fn last_update(&self) -> Option<GqlEventTime> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.history().latest_time().map(|t| t.into())).await
     }
 
     /// Returns the time of an exploded edge. Errors on an unexploded edge.
-    async fn time(&self) -> Result<GqlTimeIndexEntry, GraphError> {
+    async fn time(&self) -> Result<GqlEventTime, GraphError> {
         self.ee.time().map(|t| t.into())
     }
 
     /// Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
-    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+    async fn start(&self) -> Option<GqlEventTime> {
         self.ee.start().map(|t| t.into())
     }
 
     /// Returns the end time of the window. Returns none if no window is applied.
-    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+    async fn end(&self) -> Option<GqlEventTime> {
         self.ee.end().map(|t| t.into())
     }
 

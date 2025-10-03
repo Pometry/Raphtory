@@ -2,9 +2,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::Prop,
 };
-use raphtory_api::core::{
-    entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,
-};
+use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::EventTime};
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 
 mod addition_ops;
@@ -25,11 +23,11 @@ pub(crate) use raphtory_api::core::utils::time::{InputTime, TryIntoInputTime};
 pub fn time_from_input<G: InternalAdditionOps<Error: Into<GraphError>>, T: TryIntoInputTime>(
     g: &G,
     t: T,
-) -> Result<TimeIndexEntry, GraphError> {
+) -> Result<EventTime, GraphError> {
     let t = t.try_into_input_time()?;
     Ok(match t {
-        InputTime::Simple(t) => TimeIndexEntry::new(t, g.next_event_id().map_err(into_graph_err)?),
-        InputTime::Indexed(t, s) => TimeIndexEntry::new(t, s),
+        InputTime::Simple(t) => EventTime::new(t, g.next_event_id().map_err(into_graph_err)?),
+        InputTime::Indexed(t, s) => EventTime::new(t, s),
     })
 }
 

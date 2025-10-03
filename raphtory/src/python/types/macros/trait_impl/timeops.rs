@@ -13,18 +13,18 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the start time for rolling and expanding windows for this ", $name)]
             ///
             /// Returns:
-            #[doc = concat!(r"    Optional[TimeIndexEntry]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!(r"    Optional[EventTime]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn start(&self) -> Option<TimeIndexEntry> {
+            pub fn start(&self) -> Option<EventTime> {
                 self.$field.start().into()
             }
 
             #[doc = concat!(r" Gets the latest time that this ", $name, r" is valid.")]
             ///
             /// Returns:
-            #[doc = concat!("   Optional[TimeIndexEntry]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!("   Optional[EventTime]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn end(&self) -> Option<TimeIndexEntry> {
+            pub fn end(&self) -> Option<EventTime> {
                 self.$field.end().into()
             }
 
@@ -80,8 +80,8 @@ macro_rules! impl_timeops {
             #[doc = concat!("    ", $name, ":")]
             pub fn window(
                 &self,
-                start: $crate::api::core::storage::timeindex::TimeIndexEntry,
-                end: $crate::api::core::storage::timeindex::TimeIndexEntry,
+                start: $crate::api::core::storage::timeindex::EventTime,
+                end: $crate::api::core::storage::timeindex::EventTime,
             ) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field
                     .window(start, end)
@@ -94,7 +94,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn at(&self, time: $crate::api::core::storage::timeindex::TimeIndexEntry) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn at(&self, time: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.at(time)
             }
 
@@ -115,7 +115,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn snapshot_at(&self, time: $crate::api::core::storage::timeindex::TimeIndexEntry) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn snapshot_at(&self, time: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.snapshot_at(time)
             }
 
@@ -136,7 +136,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn before(&self, end: $crate::api::core::storage::timeindex::TimeIndexEntry) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn before(&self, end: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.before(end)
             }
 
@@ -147,40 +147,40 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn after(&self, start: $crate::api::core::storage::timeindex::TimeIndexEntry) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn after(&self, start: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.after(start)
             }
 
             /// Set the start of the window to the larger of `start` and `self.start()`
             ///
             /// Arguments:
-            ///    start (TimeIndexEntry): the new start time of the window
+            ///    start (TimeInput): the new start time of the window
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn shrink_start(&self, start: $crate::api::core::storage::timeindex::TimeIndexEntry) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn shrink_start(&self, start: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.shrink_start(start)
             }
 
             /// Set the end of the window to the smaller of `end` and `self.end()`
             ///
             /// Arguments:
-            ///     end (TimeIndexEntry): the new end time of the window
+            ///     end (TimeInput): the new end time of the window
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_end(&self, end: $crate::api::core::storage::timeindex::TimeIndexEntry) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            fn shrink_end(&self, end: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                     self.$field.shrink_end(end)
             }
 
             /// Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
             ///
             /// Arguments:
-            ///     start (TimeIndexEntry): the new start time for the window
-            ///     end (TimeIndexEntry): the new end time for the window
+            ///     start (TimeInput): the new start time for the window
+            ///     end (TimeInput): the new end time for the window
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_window(&self, start: $crate::api::core::storage::timeindex::TimeIndexEntry, end: $crate::api::core::storage::timeindex::TimeIndexEntry) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            fn shrink_window(&self, start: $crate::api::core::storage::timeindex::EventTime, end: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.shrink_window(start, end)
             }
         }

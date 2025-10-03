@@ -10,7 +10,7 @@ use crate::{
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::{
     entities::{EID, VID},
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
@@ -383,7 +383,7 @@ impl InternalAdditionOps for Storage {
 
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
@@ -400,7 +400,7 @@ impl InternalAdditionOps for Storage {
 
     fn internal_add_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         props: &[(usize, Prop)],
@@ -422,7 +422,7 @@ impl InternalAdditionOps for Storage {
 
     fn internal_add_edge_update(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         edge: EID,
         props: &[(usize, Prop)],
         layer: usize,
@@ -445,7 +445,7 @@ impl InternalPropertyAdditionOps for Storage {
     type Error = GraphError;
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.graph.internal_add_properties(t, props)?;
@@ -547,7 +547,7 @@ impl InternalDeletionOps for Storage {
     type Error = GraphError;
     fn internal_delete_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         layer: usize,
@@ -565,7 +565,7 @@ impl InternalDeletionOps for Storage {
 
     fn internal_delete_existing_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         eid: EID,
         layer: usize,
     ) -> Result<(), GraphError> {

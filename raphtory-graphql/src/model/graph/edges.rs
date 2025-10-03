@@ -3,7 +3,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             filtering::EdgesViewCollection,
-            timeindex::{GqlTimeIndexEntry, GqlTimeInput},
+            timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlEdgesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -314,12 +314,12 @@ impl GqlEdges {
     ////////////////////////
 
     /// Returns the start time of the window or none if there is no window.
-    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+    async fn start(&self) -> Option<GqlEventTime> {
         self.ee.start().map(|t| t.into())
     }
 
     /// Returns the end time of the window or none if there is no window.
-    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+    async fn end(&self) -> Option<GqlEventTime> {
         self.ee.end().map(|t| t.into())
     }
 

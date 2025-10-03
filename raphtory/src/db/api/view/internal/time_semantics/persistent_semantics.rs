@@ -18,7 +18,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds, ELID,
     },
-    storage::timeindex::{AsTime, MergedTimeIndex, TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
@@ -29,7 +29,7 @@ use std::{iter, ops::Range};
 fn alive_before<'a, G: GraphViewOps<'a>>(
     additions: FilteredEdgeTimeIndex<'a, G>,
     deletions: FilteredEdgeTimeIndex<'a, G>,
-    t: TimeIndexEntry,
+    t: EventTime,
 ) -> bool {
     last_before(additions, deletions, t).is_some()
 }
@@ -37,12 +37,12 @@ fn alive_before<'a, G: GraphViewOps<'a>>(
 fn last_before<'a, G: GraphViewOps<'a>>(
     additions: FilteredEdgeTimeIndex<'a, G>,
     deletions: FilteredEdgeTimeIndex<'a, G>,
-    t: TimeIndexEntry,
-) -> Option<TimeIndexEntry> {
-    let last_addition_before_start = additions.range(TimeIndexEntry::MIN..t).last();
+    t: EventTime,
+) -> Option<EventTime> {
+    let last_addition_before_start = additions.range(EventTime::MIN..t).last();
     let last_deletion_before_start = deletions
         .merge(additions.invert())
-        .range(TimeIndexEntry::MIN..t)
+        .range(EventTime::MIN..t)
         .last();
     if last_addition_before_start > last_deletion_before_start {
         last_addition_before_start
@@ -54,12 +54,12 @@ fn last_before<'a, G: GraphViewOps<'a>>(
 fn persisted_event<'a, G: GraphViewOps<'a>>(
     additions: FilteredEdgeTimeIndex<'a, G>,
     deletions: FilteredEdgeTimeIndex<'a, G>,
-    t: TimeIndexEntry,
-) -> Option<TimeIndexEntry> {
-    let active_at_start = deletions.active(t..TimeIndexEntry::start(t.t().saturating_add(1)))
+    t: EventTime,
+) -> Option<EventTime> {
+    let active_at_start = deletions.active(t..EventTime::start(t.t().saturating_add(1)))
         || additions
             .unfiltered()
-            .active(t..TimeIndexEntry::start(t.t().saturating_add(1)));
+            .active(t..EventTime::start(t.t().saturating_add(1)));
     if active_at_start {
         return None;
     }
@@ -69,7 +69,7 @@ fn persisted_event<'a, G: GraphViewOps<'a>>(
 
 fn edge_alive_at_end<'graph, G: GraphViewOps<'graph>>(
     e: EdgeStorageRef<'graph>,
-    t: TimeIndexEntry,
+    t: EventTime,
     view: G,
 ) -> bool {
     e.filtered_updates_iter(&view, view.layer_ids())
@@ -78,7 +78,7 @@ fn edge_alive_at_end<'graph, G: GraphViewOps<'graph>>(
 
 fn edge_alive_at_start<'graph, G: GraphViewOps<'graph>>(
     e: EdgeStorageRef<'graph>,
-    t: TimeIndexEntry,
+    t: EventTime,
     view: G,
 ) -> bool {
     // The semantics are tricky here, an edge is not alive at the start of the window if the last event at time t is a deletion
@@ -87,18 +87,18 @@ fn edge_alive_at_start<'graph, G: GraphViewOps<'graph>>(
             alive_before(
                 additions,
                 deletions,
-                TimeIndexEntry::start(t.t().saturating_add(1)),
+                EventTime::start(t.t().saturating_add(1)),
             )
         })
 }
 
 fn node_has_valid_edges<'graph, G: GraphView>(
     history: NodeEdgeHistory<'graph, G>,
-    t: TimeIndexEntry,
+    t: EventTime,
 ) -> bool {
     let mut deleted = AHashSet::new();
     history
-        .range(TimeIndexEntry::MIN..t.next())
+        .range(EventTime::MIN..t.next())
         .history_rev()
         .any(|(_, e)| {
             // scan backwards in time over filtered history and keep track of deletions
@@ -124,10 +124,10 @@ fn merged_deletions<'graph, G: GraphViewOps<'graph>>(
 /// Get the last update of a property before `t` (exclusive), taking deletions into account.
 /// The update is only returned if the edge was not deleted since.
 fn last_prop_value_before<'a, 'b>(
-    t: TimeIndexEntry,
+    t: EventTime,
     props: impl TPropOps<'a>,
-    deletions: impl TimeIndexOps<'b, IndexType = TimeIndexEntry>,
-) -> Option<(TimeIndexEntry, Prop)> {
+    deletions: impl TimeIndexOps<'b, IndexType = EventTime>,
+) -> Option<(EventTime, Prop)> {
     props
         .last_before(t) // inclusive
         .filter(|(last_t, _)| !deletions.active(*last_t..t))
@@ -138,12 +138,12 @@ fn last_prop_value_before<'a, 'b>(
 /// Persisted value can only exist if there is no update at time `t` and the edge is not deleted at time `t`
 /// and if it exists it is the last value of the property before `t` as computed by `last_prop_value_before`.
 fn persisted_prop_value_at<'a, 'b>(
-    t: TimeIndexEntry,
+    t: EventTime,
     props: impl TPropOps<'a>,
-    deletions: impl TimeIndexOps<'b, IndexType = TimeIndexEntry>,
+    deletions: impl TimeIndexOps<'b, IndexType = EventTime>,
 ) -> Option<Prop> {
-    if props.active(t..TimeIndexEntry::start(t.t().saturating_add(1)))
-        || deletions.active(t..TimeIndexEntry::start(t.t().saturating_add(1)))
+    if props.active(t..EventTime::start(t.t().saturating_add(1)))
+        || deletions.active(t..EventTime::start(t.t().saturating_add(1)))
     {
         None
     } else {
@@ -153,11 +153,11 @@ fn persisted_prop_value_at<'a, 'b>(
 
 /// Exclude anything from the window that happens before the last deletion at the start of the window
 fn interior_window<'a>(
-    w: Range<TimeIndexEntry>,
-    deletions: &impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
-) -> Range<TimeIndexEntry> {
+    w: Range<EventTime>,
+    deletions: &impl TimeIndexOps<'a, IndexType = EventTime>,
+) -> Range<EventTime> {
     let start = deletions
-        .range(w.start..TimeIndexEntry::start(w.start.t().saturating_add(1)))
+        .range(w.start..EventTime::start(w.start.t().saturating_add(1)))
         .last()
         .map(|t| t.next())
         .unwrap_or(w.start);
@@ -172,7 +172,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<TimeIndexEntry> {
+    ) -> Option<EventTime> {
         node.history(view).first()
     }
 
@@ -180,7 +180,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<TimeIndexEntry> {
+    ) -> Option<EventTime> {
         node.history(view).last()
     }
 
@@ -188,13 +188,10 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<TimeIndexEntry> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         let history = node.history(&view);
-        let prop_earliest = history
-            .prop_history()
-            .range(TimeIndexEntry::MIN..w.end)
-            .first();
+        let prop_earliest = history.prop_history().range(EventTime::MIN..w.end).first();
 
         if let Some(prop_earliest) = prop_earliest {
             if prop_earliest <= w.start {
@@ -202,13 +199,13 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             }
         }
 
-        if node_has_valid_edges(history.edge_history(), TimeIndexEntry::end(w.start.t())) {
+        if node_has_valid_edges(history.edge_history(), EventTime::end(w.start.t())) {
             return Some(w.start);
         }
 
         let edge_earliest = history
             .edge_history()
-            .range(TimeIndexEntry::start(w.start.t().saturating_add(1))..w.end)
+            .range(EventTime::start(w.start.t().saturating_add(1))..w.end)
             .first();
         prop_earliest.into_iter().chain(edge_earliest).min()
     }
@@ -217,19 +214,17 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<TimeIndexEntry> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         let history = node.history(&view);
         history
-            .range(TimeIndexEntry::start(w.start.t().saturating_add(1))..w.end)
+            .range(EventTime::start(w.start.t().saturating_add(1))..w.end)
             .last()
             .or_else(|| {
-                (history.prop_history().active(
-                    TimeIndexEntry::MIN..TimeIndexEntry::start(w.start.t().saturating_add(1)),
-                ) || node_has_valid_edges(
-                    history.edge_history(),
-                    TimeIndexEntry::end(w.start.t()),
-                ))
+                (history
+                    .prop_history()
+                    .active(EventTime::MIN..EventTime::start(w.start.t().saturating_add(1)))
+                    || node_has_valid_edges(history.edge_history(), EventTime::end(w.start.t())))
                 .then_some(w.start)
             })
     }
@@ -238,7 +233,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
         node.history(view).iter()
     }
 
@@ -246,7 +241,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
         node.history(view).iter_rev()
     }
 
@@ -254,8 +249,8 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
         node.history(view).range(w).iter()
     }
 
@@ -263,8 +258,8 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
         node.history(view).range(w).iter_rev()
     }
 
@@ -280,7 +275,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> usize {
         EventSemantics.node_edge_history_count_window(node, view, w)
     }
@@ -289,7 +284,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         EventSemantics.node_edge_history(node, view)
     }
 
@@ -297,8 +292,8 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         EventSemantics.node_edge_history_window(node, view, w)
     }
 
@@ -306,7 +301,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         EventSemantics.node_edge_history_rev(node, view)
     }
 
@@ -314,8 +309,8 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         EventSemantics.node_edge_history_rev_window(node, view, w)
     }
 
@@ -323,7 +318,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         node.temp_prop_rows().map(|(t, row)| {
             (
                 t,
@@ -336,12 +331,12 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         let start = w.start;
         let first_row = if node
             .additions()
-            .range(TimeIndexEntry::MIN..start)
+            .range(EventTime::MIN..start)
             .prop_events()
             .next()
             .is_some()
@@ -349,7 +344,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             Some(
                 node.tprops()
                     .filter_map(|(i, tprop)| {
-                        if tprop.active(start..TimeIndexEntry::start(start.t().saturating_add(1))) {
+                        if tprop.active(start..EventTime::start(start.t().saturating_add(1))) {
                             None
                         } else {
                             tprop.last_before(start).map(|(_, v)| (i, v))
@@ -383,18 +378,18 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> bool {
         if w.end <= w.start {
             // empty window
             return false;
         }
         let history = node.history(&view);
-        history.prop_history().active(TimeIndexEntry::MIN..w.end)
+        history.prop_history().active(EventTime::MIN..w.end)
             || history
                 .edge_history()
-                .active(TimeIndexEntry::start(w.start.t().saturating_add(1))..w.end)
-            || node_has_valid_edges(history.edge_history(), TimeIndexEntry::end(w.start.t()))
+                .active(EventTime::start(w.start.t().saturating_add(1))..w.end)
+            || node_has_valid_edges(history.edge_history(), EventTime::end(w.start.t()))
     }
 
     fn node_tprop_iter<'graph, G: GraphViewOps<'graph>>(
@@ -402,7 +397,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    ) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         node.tprop(prop_id).iter()
     }
 
@@ -411,10 +406,10 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-        w: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         let prop = node.tprop(prop_id);
-        let first = if prop.active(w.start..TimeIndexEntry::start(w.start.t().saturating_add(1))) {
+        let first = if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
             None
         } else {
             prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
@@ -427,8 +422,8 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+        t: EventTime,
+    ) -> Option<(EventTime, Prop)> {
         let prop = node.tprop(prop_id);
         prop.last_before(t.next())
     }
@@ -438,9 +433,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+        t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
             let prop = node.tprop(prop_id);
             prop.last_before(t.next()).map(|(t, v)| (t.max(w.start), v))
@@ -453,10 +448,10 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 impl EdgeTimeSemanticsOps for PersistentSemantics {
     fn handle_edge_update_filter<G: GraphView>(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         eid: ELID,
         view: G,
-    ) -> Option<(TimeIndexEntry, ELID)> {
+    ) -> Option<(EventTime, ELID)> {
         let layer = eid.layer();
         // any update for an edge that is globally filtered (i.e., filtered via edge filter, edge layer filter, or node filter) should still be removed
         // updates filtered via exploded edge filter need to be changed to deletions
@@ -505,14 +500,14 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge: EdgeStorageRef,
         view: G,
         layer_id: usize,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> bool {
         // If an edge has any event in the interior (both end exclusive) of the window it is always included.
         // Additionally, the edge is included if the last event at or before the start of the window was an addition.
         if w.is_empty() {
             return false;
         }
-        let exclusive_start = TimeIndexEntry::start(w.start.t().saturating_add(1));
+        let exclusive_start = EventTime::start(w.start.t().saturating_add(1));
         let additions = edge.filtered_additions(layer_id, &view);
         let deletions = edge.filtered_deletions(layer_id, &view);
         additions.unfiltered().active(exclusive_start..w.end)
@@ -520,16 +515,16 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             || alive_before(additions, deletions, exclusive_start)
     }
 
-    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: TimeIndexEntry, view: G) -> bool {
+    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: EventTime, view: G) -> bool {
         view.filter_exploded_edge_inner(elid, t)
     }
 
     fn include_exploded_edge_window<G: GraphView>(
         &self,
         elid: ELID,
-        t: TimeIndexEntry,
+        t: EventTime,
         view: G,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> bool {
         if t >= w.end {
             return false;
@@ -539,7 +534,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
 
         if view.filter_exploded_edge_inner(elid, t) {
-            if (TimeIndexEntry::start(w.start.t().saturating_add(1))..w.end).contains(&t) {
+            if (EventTime::start(w.start.t().saturating_add(1))..w.end).contains(&t) {
                 return true;
             }
 
@@ -547,10 +542,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             let e = edge.as_ref();
             let layer = elid.layer();
             !e.filtered_deletions(layer, &view)
-                .active(t.next()..TimeIndexEntry::start(w.start.t().saturating_add(1)))
+                .active(t.next()..EventTime::start(w.start.t().saturating_add(1)))
                 && !e
                     .additions(layer) // unfiltered as filtered additions act as deletions
-                    .active(t.next()..TimeIndexEntry::start(w.start.t().saturating_add(1)))
+                    .active(t.next()..EventTime::start(w.start.t().saturating_add(1)))
         } else {
             false
         }
@@ -561,7 +556,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         EventSemantics.edge_history(edge, view, layer_ids)
     }
 
@@ -570,7 +565,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         EventSemantics.edge_history_rev(edge, view, layer_ids)
     }
 
@@ -579,8 +574,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         edge.filtered_updates_iter(view, layer_ids)
             .map(|(layer, additions, deletions)| {
                 let window = interior_window(w.clone(), &deletions);
@@ -594,8 +589,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         edge.filtered_updates_iter(view, layer_ids)
             .map(|(layer, additions, deletions)| {
                 let window = interior_window(w.clone(), &deletions);
@@ -616,7 +611,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> usize {
         edge.filtered_updates_iter(&view, view.layer_ids())
             .map(|(_, additions, deletions)| {
@@ -635,7 +630,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         EventSemantics.edge_exploded(e, view, layer_ids)
     }
 
@@ -653,8 +648,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         if w.end <= w.start {
             Either::Left(iter::empty())
         } else {
@@ -663,7 +658,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     .map(|(layer, additions, deletions)| {
                         let window = interior_window(w.clone(), &deletions);
                         let first = persisted_event(additions.clone(), deletions, w.start)
-                            .map(|TimeIndexEntry(_, s)| (TimeIndexEntry(w.start.t(), s), layer));
+                            .map(|EventTime(_, s)| (EventTime(w.start.t(), s), layer));
                         first
                             .into_iter()
                             .chain(additions.range(window).iter().map(move |t| (t, layer)))
@@ -678,9 +673,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'graph {
-        let exclusive_start = TimeIndexEntry::start(w.start.t().saturating_add(1));
+        let exclusive_start = EventTime::start(w.start.t().saturating_add(1));
         e.filtered_updates_iter(view, layer_ids)
             .filter_map(move |(layer, additions, deletions)| {
                 if additions.unfiltered().active(exclusive_start..w.end)
@@ -698,7 +693,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<TimeIndexEntry> {
+    ) -> Option<EventTime> {
         e.filtered_additions_iter(&view, view.layer_ids())
             .flat_map(|(_, additions)| additions.unfiltered().first())
             .chain(
@@ -712,8 +707,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<TimeIndexEntry> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         if edge_alive_at_start(e, w.start, &view) {
             Some(w.start)
         } else {
@@ -736,9 +731,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-    ) -> Option<TimeIndexEntry> {
+    ) -> Option<EventTime> {
         EventSemantics.edge_exploded_earliest_time(e, view, t, layer)
     }
 
@@ -746,10 +741,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<TimeIndexEntry> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         // past the end of the window
         if t >= w.end {
             return None;
@@ -777,7 +772,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<TimeIndexEntry> {
+    ) -> Option<EventTime> {
         e.filtered_additions_iter(&view, view.layer_ids())
             .flat_map(|(_, additions)| additions.unfiltered().last())
             .chain(
@@ -791,9 +786,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<TimeIndexEntry> {
-        let interior_window = TimeIndexEntry::start(w.start.t().saturating_add(1))..w.end;
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        let interior_window = EventTime::start(w.start.t().saturating_add(1))..w.end;
         let last_update_in_window = e
             .filtered_additions_iter(&view, view.layer_ids())
             .flat_map(|(_, additions)| additions.unfiltered().range(interior_window.clone()).last())
@@ -814,28 +809,28 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-    ) -> Option<TimeIndexEntry> {
+    ) -> Option<EventTime> {
         let deletions = e.filtered_deletions(layer, &view);
         let additions = e.additions(layer); // unfiltered as filtered additions act like deletions
         deletions
-            .range(t.next()..TimeIndexEntry::MAX)
+            .range(t.next()..EventTime::MAX)
             .first()
             .into_iter()
-            .chain(additions.range(t.next()..TimeIndexEntry::MAX).first())
+            .chain(additions.range(t.next()..EventTime::MAX).first())
             .min()
-            .or_else(|| view.latest_time_global().map(TimeIndexEntry::end))
+            .or_else(|| view.latest_time_global().map(EventTime::end))
     }
 
     fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<TimeIndexEntry> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         // past the end of the window
         if t >= w.end {
             return None;
@@ -865,7 +860,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         e.filtered_updates_iter(view, layer_ids)
             .map(|(layer, additions, deletions)| {
                 deletions
@@ -881,7 +876,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         e.filtered_updates_iter(view, layer_ids)
             .map(|(layer, additions, deletions)| {
                 deletions
@@ -897,10 +892,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         // window for deletions has exclusive start as deletions at the start are not considered part of the window
-        let w = TimeIndexEntry::start(w.start.t().saturating_add(1))..w.end;
+        let w = EventTime::start(w.start.t().saturating_add(1))..w.end;
         e.filtered_updates_iter(view, layer_ids)
             .map(|(layer, additions, deletions)| {
                 deletions
@@ -917,10 +912,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         // window for deletions has exclusive start as deletions at the start are not considered part of the window
-        let w = TimeIndexEntry::start(w.start.t().saturating_add(1))..w.end;
+        let w = EventTime::start(w.start.t().saturating_add(1))..w.end;
         e.filtered_updates_iter(view, layer_ids)
             .map(|(layer, additions, deletions)| {
                 deletions
@@ -937,14 +932,14 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
     ) -> bool {
-        edge_alive_at_end(e, TimeIndexEntry::MAX, view)
+        edge_alive_at_end(e, EventTime::MAX, view)
     }
 
     fn edge_is_valid_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        r: Range<TimeIndexEntry>,
+        r: Range<EventTime>,
     ) -> bool {
         edge_alive_at_end(e, r.end, view)
     }
@@ -954,14 +949,14 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
     ) -> bool {
-        !edge_alive_at_end(e, TimeIndexEntry::MAX, view)
+        !edge_alive_at_end(e, EventTime::MAX, view)
     }
 
     fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> bool {
         !edge_alive_at_end(e, w.end, view)
     }
@@ -981,7 +976,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> bool {
         e.filtered_updates_iter(&view, view.layer_ids())
             .any(|(_, additions, deletions)| {
@@ -997,7 +992,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
     ) -> bool {
         EventSemantics.edge_is_active_exploded(e, view, t, layer)
@@ -1007,9 +1002,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> bool {
         EventSemantics.edge_is_active_exploded_window(e, view, t, layer, w)
     }
@@ -1019,14 +1014,14 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
     ) -> bool {
         !e.filtered_deletions(layer, &view)
-            .active(t.next()..TimeIndexEntry::MAX)
+            .active(t.next()..EventTime::MAX)
             && !e
                 .additions(layer) // unfiltered as filtered additions act as deletions
-                .active(t.next()..TimeIndexEntry::MAX)
+                .active(t.next()..EventTime::MAX)
     }
 
     /// An exploded edge is valid in a window if it is the last exploded
@@ -1036,9 +1031,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> bool {
         !e.filtered_deletions(layer, &view).active(t.next()..w.end)
             && !e
@@ -1050,14 +1045,14 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-    ) -> Option<TimeIndexEntry> {
+    ) -> Option<EventTime> {
         let deletions = merged_deletions(e, &view, layer);
-        let next_deletion = deletions.range(t.next()..TimeIndexEntry::MAX).first()?;
+        let next_deletion = deletions.range(t.next()..EventTime::MAX).first()?;
         if let Some(next_addition) = e
             .filtered_additions(layer, &view)
-            .range(t.next()..TimeIndexEntry::MAX)
+            .range(t.next()..EventTime::MAX)
             .first()
         {
             if next_deletion <= next_addition {
@@ -1074,10 +1069,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<TimeIndexEntry>,
-    ) -> Option<TimeIndexEntry> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         let deletions = merged_deletions(e, &view, layer);
         let next_deletion = deletions.range(t.next()..w.end).first()?;
         if let Some(next_addition) = e
@@ -1100,13 +1095,13 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer_id: usize,
     ) -> Option<Prop> {
         let search_start = merged_deletions(e, &view, layer_id)
-            .range(TimeIndexEntry::MIN..t)
+            .range(EventTime::MIN..t)
             .last()
-            .unwrap_or(TimeIndexEntry::MIN);
+            .unwrap_or(EventTime::MIN);
         e.filtered_temporal_prop_layer(layer_id, prop_id, &view)
             .iter_window(search_start..t.next())
             .next_back()
@@ -1117,18 +1112,18 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        edge_time: TimeIndexEntry,
+        edge_time: EventTime,
         layer_id: usize,
         prop_id: usize,
-        at: TimeIndexEntry,
+        at: EventTime,
     ) -> Option<Prop> {
         if at < edge_time {
             return None;
         }
         let deletion = merged_deletions(e, &view, layer_id)
-            .range(edge_time.next()..TimeIndexEntry::MAX)
+            .range(edge_time.next()..EventTime::MAX)
             .first()
-            .unwrap_or(TimeIndexEntry::MAX);
+            .unwrap_or(EventTime::MAX);
         if at < deletion {
             self.temporal_edge_prop_exploded(e, view, prop_id, at, layer_id)
         } else {
@@ -1140,11 +1135,11 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        edge_time: TimeIndexEntry,
+        edge_time: EventTime,
         layer_id: usize,
         prop_id: usize,
-        at: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
+        at: EventTime,
+        w: Range<EventTime>,
     ) -> Option<Prop> {
         if w.contains(&edge_time) {
             self.temporal_edge_prop_exploded_last_at(e, view, edge_time, layer_id, prop_id, at)
@@ -1158,7 +1153,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
+        t: EventTime,
     ) -> Option<Prop> {
         EventSemantics.temporal_edge_prop_last_at(e, view, prop_id, t) // TODO: double check this
     }
@@ -1168,18 +1163,18 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef,
         view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<TimeIndexEntry>,
+        t: EventTime,
+        w: Range<EventTime>,
     ) -> Option<Prop> {
         if w.contains(&t) {
             e.filtered_updates_iter(&view, view.layer_ids())
                 .filter_map(|(layer, additions, deletions)| {
                     let start = deletions
                         .merge(additions.invert())
-                        .range(TimeIndexEntry::MIN..t.next())
+                        .range(EventTime::MIN..t.next())
                         .last()
                         .map(|t| t.next())
-                        .unwrap_or(TimeIndexEntry::MIN);
+                        .unwrap_or(EventTime::MIN);
                     e.filtered_temporal_prop_layer(layer, prop_id, &view)
                         .iter_window(start..t.next())
                         .next_back()
@@ -1197,7 +1192,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         EventSemantics.temporal_edge_prop_hist(e, view, layer_ids, prop_id)
     }
 
@@ -1207,7 +1202,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         EventSemantics.temporal_edge_prop_hist_rev(e, view, layer_ids, prop_id)
     }
 
@@ -1217,8 +1212,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view.clone(), layer_ids)
             .map(|(layer, props)| {
                 let deletions = e
@@ -1241,8 +1236,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view.clone(), layer_ids)
             .map(|(layer, props)| {
                 let deletions = merged_deletions(e, &view, layer);
@@ -1279,9 +1274,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef,
         view: G,
         prop_id: usize,
-        w: Range<TimeIndexEntry>,
+        w: Range<EventTime>,
     ) -> Option<Prop> {
-        let exclusive_start = TimeIndexEntry::start(w.start.t().saturating_add(1));
+        let exclusive_start = EventTime::start(w.start.t().saturating_add(1));
         let layer_filter = |layer| {
             let additions = e.filtered_additions(layer, &view);
             let deletions = e.filtered_deletions(layer, &view);
