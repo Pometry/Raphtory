@@ -678,6 +678,55 @@ impl NodeStorage {
         }
     }
 
+    pub fn loop_pair_entry_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
+        let i = i.into();
+        let j = j.into();
+        let (bucket_i, offset_i) = self.resolve(i);
+        let (bucket_j, offset_j) = self.resolve(j);
+        loop {
+            if bucket_i < bucket_j {
+                let guard_i = self.data[bucket_i].data.try_write();
+                let guard_j = self.data[bucket_j].data.try_write();
+                let maybe_guards =
+                    guard_i
+                        .zip(guard_j)
+                        .map(|(guard_i, guard_j)| PairEntryMut::Different {
+                            i: offset_i,
+                            j: offset_j,
+                            guard1: guard_i,
+                            guard2: guard_j,
+                        });
+                if let Some(guards) = maybe_guards {
+                    return guards;
+                }
+            } else if bucket_i > bucket_j {
+                let guard_j = self.data[bucket_j].data.try_write();
+                let guard_i = self.data[bucket_i].data.try_write();
+                let maybe_guards =
+                    guard_i
+                        .zip(guard_j)
+                        .map(|(guard_i, guard_j)| PairEntryMut::Different {
+                            i: offset_i,
+                            j: offset_j,
+                            guard1: guard_i,
+                            guard2: guard_j,
+                        });
+                if let Some(guards) = maybe_guards {
+                    return guards;
+                }
+            } else {
+                let maybe_guard = self.data[bucket_i].data.try_write();
+                if let Some(guard) = maybe_guard {
+                    return PairEntryMut::Same {
+                        i: offset_i,
+                        j: offset_j,
+                        guard,
+                    };
+                }
+            }
+        }
+    }
+
     #[inline]
     pub fn len(&self) -> usize {
         self.len.load(Ordering::SeqCst)
