@@ -34,7 +34,7 @@ pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AuthConfig,
     semaphore: Option<Semaphore>,
-    lock: RwLock<()>,
+    lock: Option<RwLock<()>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
@@ -44,12 +44,20 @@ impl<E> AuthenticatedGraphQL<E> {
             executor,
             config,
             semaphore: std::env::var("CONCURRENCY_LIMIT").ok().and_then(|limit| {
-                limit
-                    .parse::<usize>()
-                    .ok()
-                    .map(|limit| Semaphore::new(limit))
+                let limit = limit.parse::<usize>().ok()?;
+                println!("Server running with concurrency limited to {limit} for heavy queries");
+                Some(Semaphore::new(limit))
             }),
-            lock: RwLock::new(()),
+            lock: std::env::var("RAPHTORY_THREADSAFE")
+                .ok()
+                .and_then(|thread_safe| {
+                    if thread_safe == "1" {
+                        println!("Server running in threadsafe mode");
+                        Some(RwLock::new(()))
+                    } else {
+                        None
+                    }
+                }),
         }
     }
 }
@@ -60,6 +68,27 @@ where
 {
     async fn execute(&self, request: BatchRequest) -> Response {
         GraphQLBatchResponse(self.executor.execute_batch(request).await).into_response()
+    }
+
+    async fn execute_read_query(&self, req: BatchRequest) -> Result<Response> {
+        let is_heavy = match &req {
+            BatchRequest::Single(request) => is_query_heavy(&request.query),
+            BatchRequest::Batch(requests) => requests
+                .iter()
+                .any(|request| is_query_heavy(&request.query)),
+        };
+        if is_heavy {
+            if let Some(semaphore) = &self.semaphore {
+                match semaphore.acquire().await {
+                    Ok(_permit) => Ok(self.execute(req).await),
+                    Err(error) => Err(TooManyRequests(error)),
+                }
+            } else {
+                Ok(self.execute(req).await)
+            }
+        } else {
+            Ok(self.execute(req).await)
+        }
     }
 }
 
@@ -130,12 +159,6 @@ where
             let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
             let req = req.0.data(access);
 
-            let is_heavy = match &req {
-                BatchRequest::Single(request) => is_query_heavy(&request.query),
-                BatchRequest::Batch(requests) => requests
-                    .iter()
-                    .any(|request| is_query_heavy(&request.query)),
-            };
             let contains_update = match &req {
                 BatchRequest::Single(request) => request.query.contains("updateGraph"),
                 BatchRequest::Batch(requests) => requests
@@ -143,21 +166,18 @@ where
                     .any(|request| request.query.contains("updateGraph")),
             };
             if contains_update {
-                let _guard = self.lock.write().await;
-                Ok(self.execute(req).await)
-            } else {
-                let _guard = self.lock.read().await;
-                if is_heavy {
-                    if let Some(semaphore) = &self.semaphore {
-                        match semaphore.acquire().await {
-                            Ok(_permit) => Ok(self.execute(req).await),
-                            Err(error) => Err(TooManyRequests(error)),
-                        }
-                    } else {
-                        Ok(self.execute(req).await)
-                    }
+                if let Some(lock) = &self.lock {
+                    let _guard = lock.write().await;
+                    Ok(self.execute(req).await)
                 } else {
                     Ok(self.execute(req).await)
+                }
+            } else {
+                if let Some(lock) = &self.lock {
+                    let _guard = lock.read().await;
+                    self.execute_read_query(req).await
+                } else {
+                    self.execute_read_query(req).await
                 }
             }
         }
