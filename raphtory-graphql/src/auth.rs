@@ -16,7 +16,7 @@ use poem::{
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
-use tokio::sync::Semaphore;
+use tokio::sync::{RwLock, Semaphore};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -34,6 +34,7 @@ pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AuthConfig,
     semaphore: Option<Semaphore>,
+    lock: RwLock<()>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
@@ -48,6 +49,7 @@ impl<E> AuthenticatedGraphQL<E> {
                     .ok()
                     .map(|limit| Semaphore::new(limit))
             }),
+            lock: RwLock::new(()),
         }
     }
 }
@@ -134,17 +136,29 @@ where
                     .iter()
                     .any(|request| is_query_heavy(&request.query)),
             };
-            if is_heavy {
-                if let Some(semaphore) = &self.semaphore {
-                    match semaphore.acquire().await {
-                        Ok(_permit) => Ok(self.execute(req).await),
-                        Err(error) => Err(TooManyRequests(error)),
+            let contains_update = match &req {
+                BatchRequest::Single(request) => request.query.contains("updateGraph"),
+                BatchRequest::Batch(requests) => requests
+                    .iter()
+                    .any(|request| request.query.contains("updateGraph")),
+            };
+            if contains_update {
+                let _guard = self.lock.write().await;
+                Ok(self.execute(req).await)
+            } else {
+                let _guard = self.lock.read().await;
+                if is_heavy {
+                    if let Some(semaphore) = &self.semaphore {
+                        match semaphore.acquire().await {
+                            Ok(_permit) => Ok(self.execute(req).await),
+                            Err(error) => Err(TooManyRequests(error)),
+                        }
+                    } else {
+                        Ok(self.execute(req).await)
                     }
                 } else {
                     Ok(self.execute(req).await)
                 }
-            } else {
-                Ok(self.execute(req).await)
             }
         }
     }
