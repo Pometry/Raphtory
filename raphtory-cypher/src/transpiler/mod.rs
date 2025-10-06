@@ -790,7 +790,7 @@ fn make_sql_join(
     sql_ast::Join {
         relation: table_from_name(right_table),
         global: false,
-        join_operator: sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(
+        join_operator: sql_ast::JoinOperator::Join(sql_ast::JoinConstraint::On(
             sql_ast::Expr::BinaryOp {
                 left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
                     sql_ast::Ident::new(left_table),
