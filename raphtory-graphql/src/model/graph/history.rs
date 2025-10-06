@@ -5,8 +5,7 @@ use crate::{
 use async_graphql::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::api::view::history::{
-    History, HistoryDateTime, HistorySecondaryIndex, HistoryTimestamp, InternalHistoryOps,
-    Intervals,
+    History, HistoryDateTime, HistoryEventId, HistoryTimestamp, InternalHistoryOps, Intervals,
 };
 use raphtory_api::core::storage::timeindex::TimeError;
 use std::{any::Any, sync::Arc};
@@ -63,7 +62,7 @@ impl GqlHistory {
         blocking_compute(move || self_clone.history.iter_rev().map(|t| t.into()).collect()).await
     }
 
-    /// Fetch one page of TimeIndexEntry entries with a number of items up to a specified limit,
+    /// Fetch one page of EventTime entries with a number of items up to a specified limit,
     /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
@@ -88,7 +87,7 @@ impl GqlHistory {
         .await
     }
 
-    /// Fetch one page of TimeIndexEntry entries with a number of items up to a specified limit,
+    /// Fetch one page of EventTime entries with a number of items up to a specified limit,
     /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
     ///
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
@@ -126,7 +125,7 @@ impl GqlHistory {
     }
 
     /// Returns a HistoryTimestamp object which accesses timestamps as Unix epochs in milliseconds
-    /// instead of TimeIndexEntry entries.
+    /// instead of EventTime entries.
     async fn timestamps(&self) -> GqlHistoryTimestamp {
         let self_clone = self.clone();
         blocking_compute(move || GqlHistoryTimestamp {
@@ -135,7 +134,7 @@ impl GqlHistory {
         .await
     }
 
-    /// Returns a HistoryDateTime object which accesses datetimes instead of TimeIndexEntry entries.
+    /// Returns a HistoryDateTime object which accesses datetimes instead of EventTime entries.
     /// Useful for converting millisecond timestamps into easily readable datetime strings.
     /// Optionally, a format string can be passed to format the output. Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
     /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
@@ -148,17 +147,17 @@ impl GqlHistory {
         .await
     }
 
-    /// Returns a HistorySecondaryIndex object which accesses secondary indices of TimeIndexEntry entries.
+    /// Returns a HistoryEventId object which accesses event ids of EventTime entries.
     /// They are used for ordering within the same timestamp.
-    async fn secondary_index(&self) -> GqlHistorySecondaryIndex {
+    async fn event_id(&self) -> GqlHistoryEventId {
         let self_clone = self.clone();
-        blocking_compute(move || GqlHistorySecondaryIndex {
-            history_s: HistorySecondaryIndex::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
+        blocking_compute(move || GqlHistoryEventId {
+            history_s: HistoryEventId::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
         })
         .await
     }
 
-    /// Returns an Intervals object which calculates the intervals between consecutive TimeIndexEntry timestamps.
+    /// Returns an Intervals object which calculates the intervals between consecutive EventTime timestamps.
     async fn intervals(&self) -> GqlIntervals {
         let self_clone = self.clone();
         blocking_compute(move || GqlIntervals {
@@ -168,7 +167,7 @@ impl GqlHistory {
     }
 }
 
-/// History object that provides access to timestamps (as Unix epochs in milliseconds) instead of `TimeIndexEntry` entries.
+/// History object that provides access to timestamps (as Unix epochs in milliseconds) instead of `EventTime` entries.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "HistoryTimestamp")]
 pub struct GqlHistoryTimestamp {
@@ -238,7 +237,7 @@ impl GqlHistoryTimestamp {
     }
 }
 
-/// History object that provides access to datetimes instead of `TimeIndexEntry` entries.
+/// History object that provides access to datetimes instead of `EventTime` entries.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "HistoryDateTime")]
 pub struct GqlHistoryDateTime {
@@ -401,16 +400,16 @@ impl GqlHistoryDateTime {
     }
 }
 
-/// History object that provides access to secondary indices instead of `TimeIndexEntry` entries.
+/// History object that provides access to event ids instead of `EventTime` entries.
 #[derive(ResolvedObject, Clone)]
-#[graphql(name = "HistorySecondaryIndex")]
-pub struct GqlHistorySecondaryIndex {
-    history_s: HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
+#[graphql(name = "HistoryEventId")]
+pub struct GqlHistoryEventId {
+    history_s: HistoryEventId<Arc<dyn InternalHistoryOps>>,
 }
 
 #[ResolvedObjectFields]
-impl GqlHistorySecondaryIndex {
-    /// List secondary indices.
+impl GqlHistoryEventId {
+    /// List event ids.
     async fn list(&self) -> Vec<u64> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -423,7 +422,7 @@ impl GqlHistorySecondaryIndex {
         .await
     }
 
-    /// List secondary indices in reverse order.
+    /// List event ids in reverse order.
     async fn list_rev(&self) -> Vec<u64> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -436,7 +435,7 @@ impl GqlHistorySecondaryIndex {
         .await
     }
 
-    /// Fetch one page of secondary indices with a number of items up to a specified limit,
+    /// Fetch one page of event ids with a number of items up to a specified limit,
     /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
@@ -461,7 +460,7 @@ impl GqlHistorySecondaryIndex {
         .await
     }
 
-    /// Fetch one page of secondary indices in reverse chronological order with a number of items up to a specified limit,
+    /// Fetch one page of event ids in reverse chronological order with a number of items up to a specified limit,
     /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
     ///
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),

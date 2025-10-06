@@ -210,7 +210,7 @@ impl PyEdge {
         self.edge.properties().get(name)
     }
 
-    /// Returns a history object with TimeIndexEntry entries for when an edge is added or change to an edge is made.
+    /// Returns a history object with EventTime entries for when an edge is added or change to an edge is made.
     ///
     /// Returns:
     ///    History:  A history object containing temporal entries about the edge
@@ -219,7 +219,7 @@ impl PyEdge {
         self.edge.history().into_arc_dyn().into()
     }
 
-    /// Returns a history object with TimeIndexEntry entries for an edge's deletion times.
+    /// Returns a history object with EventTime entries for an edge's deletion times.
     ///
     /// Returns:
     ///    History:  A history object containing time entries about the edge's deletions
@@ -277,7 +277,7 @@ impl PyEdge {
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
-    ///     TimeIndexEntry: The earliest time of an edge
+    ///     EventTime: The earliest time of an edge
     #[getter]
     pub fn earliest_time(&self) -> Option<EventTime> {
         self.edge.earliest_time()
@@ -286,7 +286,7 @@ impl PyEdge {
     /// Gets the latest time of an edge.
     ///
     /// Returns:
-    ///     TimeIndexEntry: The latest time of an edge
+    ///     EventTime: The latest time of an edge
     #[getter]
     pub fn latest_time(&self) -> Option<EventTime> {
         self.edge.latest_time()
@@ -382,28 +382,28 @@ impl PyMutableEdge {
     ///    t (TimeInput): The timestamp at which the updates should be applied.
     ///    properties (PropInput, optional): A dictionary of properties to update.
     ///    layer (str, optional): The layer you want these properties to be added on to.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, properties=None, layer=None, secondary_index=None))]
+    #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     fn add_updates(
         &self,
         t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<(), GraphError> {
-        match secondary_index {
+        match event_id {
             None => self
                 .edge
                 .add_updates(t, properties.unwrap_or_default(), layer),
-            Some(secondary_index) => {
+            Some(event_id) => {
                 self.edge
-                    .add_updates((t, secondary_index), properties.unwrap_or_default(), layer)
+                    .add_updates((t, event_id), properties.unwrap_or_default(), layer)
             }
         }
     }
@@ -413,21 +413,21 @@ impl PyMutableEdge {
     /// Arguments:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to.
-    ///     secondary_index (int, optional): The secondary index for the deletion's time entry.
+    ///     event_id (int, optional): The event id for the deletion's time entry.
     ///
     /// Returns:
     ///     None:
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, layer=None, secondary_index=None))]
+    #[pyo3(signature = (t, layer=None, event_id=None))]
     fn delete(
         &self,
         t: EventTimeComponent,
         layer: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<(), GraphError> {
-        match secondary_index {
+        match event_id {
             None => self.edge.delete(t, layer),
             Some(index) => self.edge.delete((t, index), layer),
         }

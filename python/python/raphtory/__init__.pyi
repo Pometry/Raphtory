@@ -28,7 +28,7 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'NodeFilterBuilder', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'Metadata', 'MetadataView', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'EventTime', 'History', 'HistoryTimestamp', 'HistoryDateTime', 'HistorySecondaryIndex', 'Intervals', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'NodeFilterBuilder', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'Metadata', 'MetadataView', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'EventTime', 'History', 'HistoryTimestamp', 'HistoryDateTime', 'HistoryEventId', 'Intervals', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -2035,12 +2035,12 @@ class Node(object):
         """
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> EventTime:
         """
         Returns the earliest time that the node exists.
 
         Returns:
-            TimeIndexEntry: The earliest time that the node exists.
+            EventTime: The earliest time that the node exists.
         """
 
     def edge_history_count(self) -> int:
@@ -2235,12 +2235,12 @@ class Node(object):
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> EventTime:
         """
         Returns the latest time that the node exists.
 
         Returns:
-           TimeIndexEntry: The latest time that the node exists.
+           EventTime: The latest time that the node exists.
         """
 
     def layer(self, name: str) -> Node:
@@ -3149,7 +3149,7 @@ class PathFromNode(object):
         """
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> OptionEventTimeIterable:
         """
         The earliest time of each node.
 
@@ -3331,7 +3331,7 @@ class PathFromNode(object):
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> OptionEventTimeIterable:
         """
         The latest time of each node.
 
@@ -3640,7 +3640,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> NestedOptionEventTimeIterable:
         """
         The node earliest times.
 
@@ -3777,7 +3777,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def history(self):
+    def history(self) -> NestedHistoryIterable:
         """
         Returns a history object for each node with time entries for when a node is added or change to a node is made.
 
@@ -3831,7 +3831,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> NestedOptionEventTimeIterable:
         """
         The node latest times.
 
@@ -4079,7 +4079,7 @@ class MutableNode(Node):
             None:
         """
 
-    def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, secondary_index: Optional[int] = None) -> None:
+    def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, event_id: Optional[int] = None) -> None:
         """
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -4090,7 +4090,7 @@ class MutableNode(Node):
                                              string representing the property name, and each value
                                              is of type Prop representing the property value.
                                              If None, no properties are updated.
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -4200,7 +4200,7 @@ class Edge(object):
     @property
     def deletions(self) -> History:
         """
-        Returns a history object with TimeIndexEntry entries for an edge's deletion times.
+        Returns a history object with EventTime entries for an edge's deletion times.
 
         Returns:
            History:  A history object containing time entries about the edge's deletions
@@ -4216,12 +4216,12 @@ class Edge(object):
         """
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> EventTime:
         """
         Gets the earliest time of an edge.
 
         Returns:
-            TimeIndexEntry: The earliest time of an edge
+            EventTime: The earliest time of an edge
         """
 
     @property
@@ -4320,7 +4320,7 @@ class Edge(object):
     @property
     def history(self) -> History:
         """
-        Returns a history object with TimeIndexEntry entries for when an edge is added or change to an edge is made.
+        Returns a history object with EventTime entries for when an edge is added or change to an edge is made.
 
         Returns:
            History:  A history object containing temporal entries about the edge
@@ -4372,12 +4372,12 @@ class Edge(object):
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> EventTime:
         """
         Gets the latest time of an edge.
 
         Returns:
-            TimeIndexEntry: The latest time of an edge
+            EventTime: The latest time of an edge
         """
 
     def layer(self, name: str) -> Edge:
@@ -4652,7 +4652,7 @@ class Edges(object):
         """
 
     @property
-    def deletions(self):
+    def deletions(self) -> HistoryIterable:
         """
         Returns a history object for each edge containing their deletion times.
 
@@ -4670,7 +4670,7 @@ class Edges(object):
         """
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> OptionEventTimeIterable:
         """
         Returns the earliest time of the edges.
 
@@ -4772,7 +4772,7 @@ class Edges(object):
         """
 
     @property
-    def history(self):
+    def history(self) -> HistoryIterable:
         """
         Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
 
@@ -4830,7 +4830,7 @@ class Edges(object):
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> OptionEventTimeIterable:
         """
         Returns the latest times of the edges.
 
@@ -4997,7 +4997,7 @@ class Edges(object):
         """
 
     @property
-    def time(self):
+    def time(self) -> EventTimeIterable:
         """
         Returns the times of exploded edges
 
@@ -5121,7 +5121,7 @@ class NestedEdges(object):
         """
 
     @property
-    def deletions(self):
+    def deletions(self) -> NestedHistoryIterable:
         """
         Returns a history object for each edge containing their deletion times.
 
@@ -5139,7 +5139,7 @@ class NestedEdges(object):
         """
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> NestedOptionEventTimeIterable:
         """
         Returns the earliest time of the edges.
 
@@ -5241,7 +5241,7 @@ class NestedEdges(object):
         """
 
     @property
-    def history(self):
+    def history(self) -> NestedHistoryIterable:
         """
         Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
 
@@ -5299,7 +5299,7 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> NestedOptionEventTimeIterable:
         """
         Returns the latest time of the edges.
 
@@ -5320,7 +5320,7 @@ class NestedEdges(object):
         """
 
     @property
-    def layer_name(self):
+    def layer_name(self) -> NestedArcStringIterable:
         """
         Returns the name of the layer the edges belong to - assuming they only belong to one layer.
 
@@ -5466,7 +5466,7 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self):
+    def time(self) -> NestedEventTimeIterable:
         """
         Returns the times of exploded edges.
 
@@ -5529,7 +5529,7 @@ class MutableEdge(Edge):
             None:
         """
 
-    def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
+    def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, layer: Optional[str] = None, event_id: Optional[int] = None) -> None:
         """
         Add updates to an edge in the graph at a specified time.
         This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -5538,7 +5538,7 @@ class MutableEdge(Edge):
            t (TimeInput): The timestamp at which the updates should be applied.
            properties (PropInput, optional): A dictionary of properties to update.
            layer (str, optional): The layer you want these properties to be added on to.
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           event_id (int, optional): The optional integer which will be used as an event id
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -5547,14 +5547,14 @@ class MutableEdge(Edge):
             GraphError: If the operation fails.
         """
 
-    def delete(self, t: TimeInput, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
+    def delete(self, t: TimeInput, layer: Optional[str] = None, event_id: Optional[int] = None) -> None:
         """
         Mark the edge as deleted at the specified time.
 
         Arguments:
             t (TimeInput): The timestamp at which the deletion should be applied.
             layer (str, optional): The layer you want the deletion applied to.
-            secondary_index (int, optional): The secondary index for the deletion's time entry.
+            event_id (int, optional): The event id for the deletion's time entry.
 
         Returns:
             None:
@@ -6286,7 +6286,7 @@ class EventTime(object):
         """
 
 class History(object): 
-    """History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, secondary indices, and intervals."""
+    """History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, event ids, and intervals."""
 
     def __contains__(self, key):
         """Return bool(key in self)."""
@@ -6372,6 +6372,15 @@ class History(object):
         """
 
     @property
+    def event_id(self) -> HistoryEventId:
+        """
+        Access the unique event id of each time entry.
+
+        Returns:
+            HistoryEventId: Event id view of this history.
+        """
+
+    @property
     def intervals(self) -> Intervals:
         """
         Access the intervals between consecutive timestamps in milliseconds.
@@ -6413,15 +6422,6 @@ class History(object):
 
         Returns:
             History: History that yields items in reverse chronological order.
-        """
-
-    @property
-    def secondary_index(self) -> HistorySecondaryIndex:
-        """
-        Access the unique secondary index of each time entry.
-
-        Returns:
-            HistorySecondaryIndex: Secondary index view of this history.
         """
 
     @property
@@ -6550,8 +6550,8 @@ class HistoryDateTime(object):
             TimeError: If a timestamp cannot be converted to a datetime.
         """
 
-class HistorySecondaryIndex(object): 
-    """History view that exposes secondary indices of time entries. They are used for ordering within the same timestamp."""
+class HistoryEventId(object): 
+    """History view that exposes event ids of time entries. They are used for ordering within the same timestamp."""
 
     def __contains__(self, key):
         """Return bool(key in self)."""
@@ -6582,26 +6582,26 @@ class HistorySecondaryIndex(object):
 
     def __reversed__(self) -> Iterator[int]:
         """
-        Iterate over all secondary indices in reverse order.
+        Iterate over all event ids in reverse order.
 
         Returns:
-            Iterator[int]: Iterator over secondary indices in reverse order.
+            Iterator[int]: Iterator over event ids in reverse order.
         """
 
     def collect(self) -> NDArray[np.uintp]:
         """
-        Collect all secondary indices.
+        Collect all event ids.
 
         Returns:
-            NDArray[np.uintp]: Secondary indices.
+            NDArray[np.uintp]: Event ids.
         """
 
     def collect_rev(self) -> NDArray[np.uintp]:
         """
-        Collect all secondary indices in reverse order.
+        Collect all event ids in reverse order.
 
         Returns:
-            NDArray[np.uintp]: Secondary indices in reverse order.
+            NDArray[np.uintp]: Event ids in reverse order.
         """
 
 class Intervals(object): 

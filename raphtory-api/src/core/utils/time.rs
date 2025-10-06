@@ -144,8 +144,8 @@ impl TryIntoTimeNeedsEventId for NaiveDateTime {}
 
 impl TryIntoTimeNeedsEventId for &str {}
 
-/// Used to handle automatic injection of secondary index if not explicitly provided.
-/// In many cases, we will want different behaviour if a secondary index was provided or not.
+/// Used to handle automatic injection of event id if not explicitly provided.
+/// In many cases, we will want different behaviour if an event id was provided or not.
 pub enum InputTime {
     Simple(i64),
     Indexed(i64, usize),
@@ -167,7 +167,7 @@ impl InputTime {
     }
 }
 
-/// Single time input only refers to the i64 component of a TimeIndexEntry (no secondary index).
+/// Single time input only refers to the i64 component of an EventTime (no event id).
 pub trait AsSingleTimeInput {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
 }

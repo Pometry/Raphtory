@@ -6,7 +6,7 @@ use crate::{
             view::{
                 history::{
                     compose_history_from_items, CompositeHistory, History, HistoryDateTime,
-                    HistorySecondaryIndex, HistoryTimestamp,
+                    HistoryEventId, HistoryTimestamp,
                 },
                 internal::{FilterOps, NodeList},
                 DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -518,12 +518,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
 
     pub fn secondary_index(
         &self,
-    ) -> NodeState<'graph, HistorySecondaryIndex<NodeView<'graph, DynamicGraph>>, G, GH> {
+    ) -> NodeState<'graph, HistoryEventId<NodeView<'graph, DynamicGraph>>, G, GH> {
         let values = self
             .values
             .iter()
-            .map(|h| h.clone().secondary_index())
-            .collect::<Vec<HistorySecondaryIndex<NodeView<DynamicGraph, DynamicGraph>>>>()
+            .map(|h| h.clone().event_id())
+            .collect::<Vec<HistoryEventId<NodeView<DynamicGraph, DynamicGraph>>>>()
             .into();
         NodeState::new(
             self.base_graph.clone(),

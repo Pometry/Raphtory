@@ -85,10 +85,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
 
-    /// Get the `TimeIndexEntry` of the earliest activity in the graph.
+    /// Get the `EventTime` of the earliest activity in the graph.
     fn earliest_time(&self) -> Option<EventTime>;
 
-    /// Get the `TimeIndexEntry` of the latest activity in the graph.
+    /// Get the `EventTime` of the latest activity in the graph.
     fn latest_time(&self) -> Option<EventTime>;
 
     /// Return the number of nodes in the graph.
@@ -452,11 +452,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
-    /// Get the `TimeIndexEntry` of the earliest activity in the graph.
+    /// Get the `EventTime` of the earliest activity in the graph.
     #[inline]
     fn earliest_time(&self) -> Option<EventTime> {
         match self.filter_state() {
-            FilterState::Neither => self.earliest_time_global().map(EventTime::start), // TODO: change earliest_time_global() to return TimeIndexEntry
+            FilterState::Neither => self.earliest_time_global().map(EventTime::start), // TODO: change earliest_time_global() to return EventTime
             _ => self
                 .properties()
                 .temporal()
@@ -475,11 +475,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         }
     }
 
-    /// Get the `TimeIndexEntry` of the latest activity in the graph.
+    /// Get the `EventTime` of the latest activity in the graph.
     #[inline]
     fn latest_time(&self) -> Option<EventTime> {
         match self.filter_state() {
-            FilterState::Neither => self.latest_time_global().map(EventTime::end), // TODO: change latest_time_global to return TimeIndexEntry
+            FilterState::Neither => self.latest_time_global().map(EventTime::end), // TODO: change latest_time_global to return EventTime
             _ => self
                 .properties()
                 .temporal()

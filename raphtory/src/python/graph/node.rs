@@ -172,7 +172,7 @@ impl PyNode {
     /// Returns the earliest time that the node exists.
     ///
     /// Returns:
-    ///     TimeIndexEntry: The earliest time that the node exists.
+    ///     EventTime: The earliest time that the node exists.
     #[getter]
     pub fn earliest_time(&self) -> Option<EventTime> {
         self.node.earliest_time()
@@ -181,7 +181,7 @@ impl PyNode {
     /// Returns the latest time that the node exists.
     ///
     /// Returns:
-    ///    TimeIndexEntry: The latest time that the node exists.
+    ///    EventTime: The latest time that the node exists.
     #[getter]
     pub fn latest_time(&self) -> Option<EventTime> {
         self.node.latest_time()
@@ -394,25 +394,25 @@ impl PyMutableNode {
     ///                                      string representing the property name, and each value
     ///                                      is of type Prop representing the property value.
     ///                                      If None, no properties are updated.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, properties=None, secondary_index=None))]
+    #[pyo3(signature = (t, properties=None, event_id=None))]
     pub fn add_updates(
         &self,
         t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<(), GraphError> {
-        match secondary_index {
+        match event_id {
             None => self.node.add_updates(t, properties.unwrap_or_default()),
-            Some(secondary_index) => self
+            Some(event_id) => self
                 .node
-                .add_updates((t, secondary_index), properties.unwrap_or_default()),
+                .add_updates((t, event_id), properties.unwrap_or_default()),
         }
     }
 

@@ -633,7 +633,7 @@ def test_node_properties():
                     [value]
                 ]
 
-        # we're comparing TimeIndexEntry values so we need to pass the secondary index, here as a tuple
+        # we're comparing EventTime values so we need to pass the secondary index, here as a tuple
         history_test("prop 1", [((1, 1), 1), ((2, 2), 2)])
         history_test("prop 2", [((2, 2), 0.6), ((3, 3), 0.9)])
         history_test("prop 3", [((1, 1), "hi"), ((3, 3), "hello")])

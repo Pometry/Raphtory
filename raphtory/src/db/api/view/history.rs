@@ -76,19 +76,19 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         History(ReversedHistoryOps(self.0), PhantomData)
     }
 
-    /// Convert this `History` object to return timestamps (milliseconds since Unix epoch) instead of `TimeIndexEntry`.
+    /// Convert this `History` object to return timestamps (milliseconds since Unix epoch) instead of `EventTime`.
     pub fn t(self) -> HistoryTimestamp<T> {
         HistoryTimestamp(self.0)
     }
 
-    /// Convert this `History` object to return datetimes instead of `TimeIndexEntry`.
+    /// Convert this `History` object to return datetimes instead of `EventTime`.
     pub fn dt(self) -> HistoryDateTime<T> {
         HistoryDateTime(self.0)
     }
 
-    /// Convert this `History` object to return the secondary indices from `TimeIndexEntry` entries.
-    pub fn secondary_index(self) -> HistorySecondaryIndex<T> {
-        HistorySecondaryIndex(self.0)
+    /// Convert this `History` object to return the event ids from `EventTime` entries.
+    pub fn event_id(self) -> HistoryEventId<T> {
+        HistoryEventId(self.0)
     }
 
     /// Access the intervals (differences in milliseconds) between consecutive timestamps in this `History` object.
@@ -105,22 +105,22 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         GenLockedIter::from(self.0, |item| item.iter_rev()).into_dyn_boxed()
     }
 
-    /// Iterate over `TimeIndexEntry` entries in chronological order.
+    /// Iterate over `EventTime` entries in chronological order.
     pub fn iter(&self) -> BoxedLIter<EventTime> {
         self.0.iter()
     }
 
-    /// Iterate over `TimeIndexEntry` entries in reverse chronological order.
+    /// Iterate over `EventTime` entries in reverse chronological order.
     pub fn iter_rev(&self) -> BoxedLIter<EventTime> {
         self.0.iter_rev()
     }
 
-    /// Collect all `TimeIndexEntry` entries in chronological order.
+    /// Collect all `EventTime` entries in chronological order.
     pub fn collect(&self) -> Vec<EventTime> {
         self.0.iter().collect_vec()
     }
 
-    /// Collect all `TimeIndexEntry` entries in reverse chronological order.
+    /// Collect all `EventTime` entries in reverse chronological order.
     pub fn collect_rev(&self) -> Vec<EventTime> {
         self.0.iter_rev().collect_vec()
     }
@@ -135,12 +135,12 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         self.0.len()
     }
 
-    /// Get the earliest `TimeIndexEntry` entry in this `History`.
+    /// Get the earliest `EventTime` entry in this `History`.
     pub fn earliest_time(&self) -> Option<EventTime> {
         self.0.earliest_time()
     }
 
-    /// Get the latest `TimeIndexEntry` entry in this `History`.
+    /// Get the latest `EventTime` entry in this `History`.
     pub fn latest_time(&self) -> Option<EventTime> {
         self.0.latest_time()
     }
@@ -889,11 +889,11 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryDateTime<T> {
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryDateTime<T> {}
 
-/// History view that exposes secondary indices of time entries. They are used for ordering within the same timestamp.
+/// History view that exposes event ids of time entries. They are used for ordering within the same timestamp.
 #[derive(Debug, Clone, Copy)]
-pub struct HistorySecondaryIndex<T>(pub(crate) T);
+pub struct HistoryEventId<T>(pub(crate) T);
 
-impl<T: InternalHistoryOps> HistorySecondaryIndex<T> {
+impl<T: InternalHistoryOps> HistoryEventId<T> {
     pub fn new(item: T) -> Self {
         Self(item)
     }
@@ -915,7 +915,7 @@ impl<T: InternalHistoryOps> HistorySecondaryIndex<T> {
     }
 }
 
-impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistorySecondaryIndex<T>
+impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistoryEventId<T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
     usize: PartialEq<I>,
@@ -925,13 +925,13 @@ where
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistorySecondaryIndex<T> {
+impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryEventId<T> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> Eq for HistorySecondaryIndex<T> {}
+impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryEventId<T> {}
 
 /// View over the intervals between consecutive timestamps, expressed in milliseconds.
 #[derive(Debug, Clone, Copy)]
@@ -1764,21 +1764,15 @@ mod tests {
             history_rev.into_iter().rev().collect::<Vec<_>>()
         );
 
-        // Test secondary time access
-        let secondary_times_lazy: Vec<_> = all_nodes_history
-            .secondary_index()
+        // Test event id access
+        let event_ids_lazy: Vec<_> = all_nodes_history
+            .event_id()
             .iter_values()
             .flat_map(|s| s.collect())
             .collect();
-        let secondary_times_normal: Vec<_> = nodes_history_as_history.secondary_index().collect();
-        assert_eq!(
-            secondary_times_lazy,
-            [0, 2, 5, 7, 1, 2, 4, 6, 3, 4, 5, 6, 7]
-        ); // unordered
-        assert_eq!(
-            secondary_times_normal,
-            [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7]
-        ); // ordered
+        let event_ids_normal: Vec<_> = nodes_history_as_history.event_id().collect();
+        assert_eq!(event_ids_lazy, [0, 2, 5, 7, 1, 2, 4, 6, 3, 4, 5, 6, 7]); // unordered
+        assert_eq!(event_ids_normal, [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7]); // ordered
 
         // Test combined window and layer filtering
         let windowed_layered_graph = graph.window(3, 6).layers("Magical Object Uses").unwrap();

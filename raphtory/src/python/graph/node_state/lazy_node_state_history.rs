@@ -18,7 +18,7 @@ use crate::{
     prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
     python::{
         graph::history::{
-            PyHistory, PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals,
+            PyHistory, PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals,
         },
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -92,24 +92,20 @@ impl HistoryView {
         LazyNodeState::new(op, self.inner.nodes())
     }
 
-    /// Access the unique secondary index of each time entry.
+    /// Access the unique event id of each time entry.
     ///
     /// Returns:
-    ///     A lazy view over HistorySecondaryIndex objects for each node.
+    ///     A lazy view over HistoryEventId objects for each node.
     #[getter]
-    fn secondary_index(
+    fn event_id(
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistorySecondaryIndex>,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryEventId>,
         DynamicGraph,
         DynamicGraph,
     > {
-        let op = self
-            .inner
-            .op
-            .clone()
-            .map(|hist| hist.secondary_index().into());
+        let op = self.inner.op.clone().map(|hist| hist.event_id().into());
         LazyNodeState::new(op, self.inner.nodes())
     }
 
@@ -133,7 +129,7 @@ impl HistoryView {
     /// Get the earliest time entry.
     ///
     /// Returns:
-    ///     A lazy view over the earliest time of each node as a TimeIndexEntry.
+    ///     A lazy view over the earliest time of each node as an EventTime.
     fn earliest_time(
         &self,
     ) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
@@ -142,7 +138,7 @@ impl HistoryView {
 
     /// Get the latest time entry.
     /// Returns:
-    ///     A lazy view over the latest time of each node as a TimeIndexEntry.
+    ///     A lazy view over the latest time of each node as an EventTime.
     fn latest_time(
         &self,
     ) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {

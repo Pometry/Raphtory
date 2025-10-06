@@ -149,7 +149,7 @@ mod test_edge_history_filter_persistent_graph {
 
         // TODO: Revisit this test
         // let edge_id = g.edge("N9", "N2").unwrap().edge.pid();
-        // let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
+        // let bool = g.is_edge_prop_update_latest(prop_id, edge_id, EventTime::end(3));
         // assert!(!bool);
     }
 
@@ -271,7 +271,7 @@ mod test_edge_history_filter_persistent_graph {
 
         // TODO: Revisit this test
         // let edge_id = g.edge("N9", "N2").unwrap().edge.pid();
-        // let bool = g.is_edge_prop_update_latest_window(prop_id, edge_id, TimeIndexEntry::end(3), w.clone());
+        // let bool = g.is_edge_prop_update_latest_window(prop_id, edge_id, EventTime::end(3), w.clone());
         // assert!(!bool);
     }
 }

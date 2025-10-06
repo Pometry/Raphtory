@@ -927,8 +927,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -1072,7 +1072,7 @@ type History {
 	"""
 	listRev: [EventTime!]!
 	"""
-	Fetch one page of TimeIndexEntry entries with a number of items up to a specified limit,
+	Fetch one page of EventTime entries with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
@@ -1080,7 +1080,7 @@ type History {
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [EventTime!]!
 	"""
-	Fetch one page of TimeIndexEntry entries with a number of items up to a specified limit,
+	Fetch one page of EventTime entries with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
@@ -1097,29 +1097,29 @@ type History {
 	count: Int!
 	"""
 	Returns a HistoryTimestamp object which accesses timestamps as Unix epochs in milliseconds
-	instead of TimeIndexEntry entries.
+	instead of EventTime entries.
 	"""
 	timestamps: HistoryTimestamp!
 	"""
-	Returns a HistoryDateTime object which accesses datetimes instead of TimeIndexEntry entries.
+	Returns a HistoryDateTime object which accesses datetimes instead of EventTime entries.
 	Useful for converting millisecond timestamps into easily readable datetime strings.
 	Optionally, a format string can be passed to format the output. Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
 	Refer to chrono::format::strftime for formatting specifiers and escape sequences.
 	"""
 	datetimes(formatString: String): HistoryDateTime!
 	"""
-	Returns a HistorySecondaryIndex object which accesses secondary indices of TimeIndexEntry entries.
+	Returns a HistoryEventId object which accesses event ids of EventTime entries.
 	They are used for ordering within the same timestamp.
 	"""
-	secondaryIndex: HistorySecondaryIndex!
+	eventId: HistoryEventId!
 	"""
-	Returns an Intervals object which calculates the intervals between consecutive TimeIndexEntry timestamps.
+	Returns an Intervals object which calculates the intervals between consecutive EventTime timestamps.
 	"""
 	intervals: Intervals!
 }
 
 """
-History object that provides access to datetimes instead of `TimeIndexEntry` entries.
+History object that provides access to datetimes instead of `EventTime` entries.
 """
 type HistoryDateTime {
 	"""
@@ -1157,19 +1157,19 @@ type HistoryDateTime {
 }
 
 """
-History object that provides access to secondary indices instead of `TimeIndexEntry` entries.
+History object that provides access to event ids instead of `EventTime` entries.
 """
-type HistorySecondaryIndex {
+type HistoryEventId {
 	"""
-	List secondary indices.
+	List event ids.
 	"""
 	list: [Int!]!
 	"""
-	List secondary indices in reverse order.
+	List event ids in reverse order.
 	"""
 	listRev: [Int!]!
 	"""
-	Fetch one page of secondary indices with a number of items up to a specified limit,
+	Fetch one page of event ids with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
@@ -1177,7 +1177,7 @@ type HistorySecondaryIndex {
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Int!]!
 	"""
-	Fetch one page of secondary indices in reverse chronological order with a number of items up to a specified limit,
+	Fetch one page of event ids in reverse chronological order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
@@ -1187,7 +1187,7 @@ type HistorySecondaryIndex {
 }
 
 """
-History object that provides access to timestamps (as Unix epochs in milliseconds) instead of `TimeIndexEntry` entries.
+History object that provides access to timestamps (as Unix epochs in milliseconds) instead of `EventTime` entries.
 """
 type HistoryTimestamp {
 	"""
@@ -2748,3 +2748,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

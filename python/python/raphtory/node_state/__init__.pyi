@@ -25,7 +25,7 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['NodeGroups', 'DegreeView', 'NodeStateUsize', 'NodeStateOptionUsize', 'NodeStateU64', 'NodeStateOptionI64', 'NodeStateOptionTimeIndexEntry', 'NodeStateOptionDateTime', 'IdView', 'NodeStateGID', 'EarliestTimeView', 'EarliestTimestampView', 'EarliestSecondaryIndexView', 'EarliestDateTimeView', 'LatestTimeView', 'LatestTimestampView', 'LatestSecondaryIndexView', 'LatestDateTimeView', 'NameView', 'NodeStateString', 'HistoryView', 'HistoryTimestampView', 'HistoryDateTimeView', 'HistorySecondaryIndexView', 'IntervalsView', 'EdgeHistoryCountView', 'UsizeIterable', 'NodeTypeView', 'NodeStateOptionStr', 'NodeStateListDateTime', 'NodeStateWeightedSP', 'NodeStateF64', 'NodeStateNodes', 'NodeStateReachability', 'NodeStateListF64', 'NodeStateMotifs', 'NodeStateHits', 'NodeStateHistory', 'NodeStateHistoryTimestamp', 'NodeStateHistoryDateTime', 'NodeStateHistorySecondaryIndex', 'NodeStateIntervals', 'NodeStateSEIR', 'NodeLayout', 'NodeStateF64String']
+__all__ = ['NodeGroups', 'DegreeView', 'NodeStateUsize', 'NodeStateOptionUsize', 'NodeStateU64', 'NodeStateOptionI64', 'NodeStateOptionEventTime', 'NodeStateOptionDateTime', 'IdView', 'NodeStateGID', 'EarliestTimeView', 'EarliestTimestampView', 'EarliestEventIdView', 'EarliestDateTimeView', 'LatestTimeView', 'LatestTimestampView', 'LatestEventIdView', 'LatestDateTimeView', 'NameView', 'NodeStateString', 'HistoryView', 'HistoryTimestampView', 'HistoryDateTimeView', 'HistoryEventIdView', 'IntervalsView', 'EdgeHistoryCountView', 'UsizeIterable', 'NodeTypeView', 'NodeStateOptionStr', 'NodeStateListDateTime', 'NodeStateWeightedSP', 'NodeStateF64', 'NodeStateNodes', 'NodeStateReachability', 'NodeStateListF64', 'NodeStateMotifs', 'NodeStateHits', 'NodeStateHistory', 'NodeStateHistoryTimestamp', 'NodeStateHistoryDateTime', 'NodeStateHistoryEventId', 'NodeStateIntervals', 'NodeStateSEIR', 'NodeLayout', 'NodeStateF64String']
 class NodeGroups(object): 
 
     def __bool__(self):
@@ -1277,7 +1277,7 @@ class NodeStateOptionI64(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class NodeStateOptionTimeIndexEntry(object): 
+class NodeStateOptionEventTime(object): 
 
     def __eq__(self, value):
         """Return self==value."""
@@ -1309,7 +1309,7 @@ class NodeStateOptionTimeIndexEntry(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def bottom_k(self, k: int) -> NodeStateOptionTimeIndexEntry:
+    def bottom_k(self, k: int) -> NodeStateOptionEventTime:
         """
         Compute the k smallest values
 
@@ -1317,19 +1317,19 @@ class NodeStateOptionTimeIndexEntry(object):
             k (int): The number of values to return
 
         Returns:
-             NodeStateOptionTimeIndexEntry: The k smallest values as a node state
+             NodeStateOptionEventTime: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[Optional[EventTime]] = None) -> Optional[Optional[EventTime]]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-            default (Optional[Optional[TimeIndexEntry]]): the default value. Defaults to None.
+            default (Optional[Optional[EventTime]]): the default value. Defaults to None.
 
         Returns:
-            Optional[Optional[TimeIndexEntry]]: the value for the node or the default value
+            Optional[Optional[EventTime]]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -1340,28 +1340,28 @@ class NodeStateOptionTimeIndexEntry(object):
             NodeGroups: The grouped nodes
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, Optional[EventTime]]]:
         """
         Iterate over items
 
         Returns:
-             Iterator[Tuple[Node, Optional[TimeIndexEntry]]]: Iterator over items
+             Iterator[Tuple[Node, Optional[EventTime]]]: Iterator over items
         """
 
-    def max(self):
+    def max(self) -> Optional[Optional[EventTime]]:
         """
         Return the maximum value
 
         Returns:
-             Optional[Optional[TimeIndexEntry]]: The maximum value or `None` if empty
+             Optional[Optional[EventTime]]: The maximum value or `None` if empty
         """
 
-    def max_item(self):
+    def max_item(self) -> Optional[Tuple[Node, Optional[EventTime]]]:
         """
         Return largest value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The Node and maximum value or `None` if empty
+             Optional[Tuple[Node, Optional[EventTime]]]: The Node and maximum value or `None` if empty
         """
 
     def median(self) -> PropValue:
@@ -1370,31 +1370,31 @@ class NodeStateOptionTimeIndexEntry(object):
 
         Returns:
             PropValue:
-             Optional[Optional[TimeIndexEntry]]:
+             Optional[Optional[EventTime]]:
         """
 
-    def median_item(self):
+    def median_item(self) -> Optional[Tuple[Node, Optional[EventTime]]]:
         """
         Return median value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The median value or `None` if empty
+             Optional[Tuple[Node, Optional[EventTime]]]: The median value or `None` if empty
         """
 
-    def min(self):
+    def min(self) -> Optional[Optional[EventTime]]:
         """
         Return the minimum value
 
         Returns:
-             Optional[Optional[TimeIndexEntry]]: The minimum value or `None` if empty
+             Optional[Optional[EventTime]]: The minimum value or `None` if empty
         """
 
-    def min_item(self):
+    def min_item(self) -> Optional[Tuple[Node, Optional[EventTime]]]:
         """
         Return smallest value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The Node and minimum value or `None` if empty
+             Optional[Tuple[Node, Optional[EventTime]]]: The Node and minimum value or `None` if empty
         """
 
     def nodes(self) -> Nodes:
@@ -1405,7 +1405,7 @@ class NodeStateOptionTimeIndexEntry(object):
             Nodes: The nodes
         """
 
-    def sorted(self, reverse: bool = False) -> NodeStateOptionTimeIndexEntry:
+    def sorted(self, reverse: bool = False) -> NodeStateOptionEventTime:
         """
         Sort by value
 
@@ -1413,15 +1413,15 @@ class NodeStateOptionTimeIndexEntry(object):
             reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
-             NodeStateOptionTimeIndexEntry: Sorted node state
+             NodeStateOptionEventTime: Sorted node state
         """
 
-    def sorted_by_id(self) -> NodeStateOptionTimeIndexEntry:
+    def sorted_by_id(self) -> NodeStateOptionEventTime:
         """
         Sort results by node id
 
         Returns:
-             NodeStateOptionTimeIndexEntry: The sorted node state
+             NodeStateOptionEventTime: The sorted node state
         """
 
     def to_df(self) -> DataFrame:
@@ -1435,7 +1435,7 @@ class NodeStateOptionTimeIndexEntry(object):
             DataFrame: the pandas DataFrame
         """
 
-    def top_k(self, k: int) -> NodeStateOptionTimeIndexEntry:
+    def top_k(self, k: int) -> NodeStateOptionEventTime:
         """
         Compute the k largest values
 
@@ -1443,15 +1443,15 @@ class NodeStateOptionTimeIndexEntry(object):
             k (int): The number of values to return
 
         Returns:
-             NodeStateOptionTimeIndexEntry: The k largest values as a node state
+             NodeStateOptionEventTime: The k largest values as a node state
         """
 
-    def values(self):
+    def values(self) -> Iterator[Optional[EventTime]]:
         """
         Iterate over values
 
         Returns:
-             Iterator[Optional[TimeIndexEntry]]: Iterator over values
+             Iterator[Optional[EventTime]]: Iterator over values
         """
 
 class NodeStateOptionDateTime(object): 
@@ -2052,7 +2052,7 @@ class EarliestTimeView(object):
              EarliestTimeView:
         """
 
-    def bottom_k(self, k: int) -> NodeStateOptionTimeIndexEntry:
+    def bottom_k(self, k: int) -> NodeStateOptionEventTime:
         """
         Compute the k smallest values
 
@@ -2060,23 +2060,23 @@ class EarliestTimeView(object):
             k (int): The number of values to return
 
         Returns:
-             NodeStateOptionTimeIndexEntry: The k smallest values as a node state
+             NodeStateOptionEventTime: The k smallest values as a node state
         """
 
-    def collect(self):
+    def collect(self) -> list[Optional[EventTime]]:
         """
         Compute all values and return the result as a list
 
         Returns:
-             list[Optional[TimeIndexEntry]]: all values as a list
+             list[Optional[EventTime]]: all values as a list
         """
 
-    def compute(self) -> NodeStateOptionTimeIndexEntry:
+    def compute(self) -> NodeStateOptionEventTime:
         """
         Compute all values and return the result as a node view
 
         Returns:
-             NodeStateOptionTimeIndexEntry: the computed `NodeState`
+             NodeStateOptionEventTime: the computed `NodeState`
         """
 
     def default_layer(self) -> EarliestTimeView:
@@ -2102,6 +2102,15 @@ class EarliestTimeView(object):
 
         Returns:
            Optional[EventTime]: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+        """
+
+    @property
+    def event_id(self):
+        """
+        Access the event ids of the earliest times.
+
+        Returns:
+            A lazy view over the event ids of the earliest times for each node.
         """
 
     def exclude_layer(self, name: str) -> EarliestTimeView:
@@ -2161,16 +2170,16 @@ class EarliestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[Optional[EventTime]] = None) -> Optional[Optional[EventTime]]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-            default (Optional[Optional[TimeIndexEntry]]): the default value. Defaults to None.
+            default (Optional[Optional[EventTime]]): the default value. Defaults to None.
 
         Returns:
-            Optional[Optional[TimeIndexEntry]]: the value for the node or the default value
+            Optional[Optional[EventTime]]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -2192,12 +2201,12 @@ class EarliestTimeView(object):
             bool:
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, Optional[EventTime]]]:
         """
         Iterate over items
 
         Returns:
-             Iterator[Tuple[Node, Optional[TimeIndexEntry]]]: Iterator over items
+             Iterator[Tuple[Node, Optional[EventTime]]]: Iterator over items
         """
 
     def latest(self) -> EarliestTimeView:
@@ -2232,20 +2241,20 @@ class EarliestTimeView(object):
              EarliestTimeView: The layered view
         """
 
-    def max(self):
+    def max(self) -> Optional[Optional[EventTime]]:
         """
         Return the maximum value
 
         Returns:
-             Optional[Optional[TimeIndexEntry]]: The maximum value or `None` if empty
+             Optional[Optional[EventTime]]: The maximum value or `None` if empty
         """
 
-    def max_item(self):
+    def max_item(self) -> Optional[Tuple[Node, Optional[EventTime]]]:
         """
         Return largest value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The Node and maximum value or `None` if empty
+             Optional[Tuple[Node, Optional[EventTime]]]: The Node and maximum value or `None` if empty
         """
 
     def median(self) -> PropValue:
@@ -2254,31 +2263,31 @@ class EarliestTimeView(object):
 
         Returns:
             PropValue:
-             Optional[Optional[TimeIndexEntry]]:
+             Optional[Optional[EventTime]]:
         """
 
-    def median_item(self):
+    def median_item(self) -> Optional[Tuple[Node, Optional[EventTime]]]:
         """
         Return median value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The median value or `None` if empty
+             Optional[Tuple[Node, Optional[EventTime]]]: The median value or `None` if empty
         """
 
-    def min(self):
+    def min(self) -> Optional[Optional[EventTime]]:
         """
         Return the minimum value
 
         Returns:
-             Optional[Optional[TimeIndexEntry]]: The minimum value or `None` if empty
+             Optional[Optional[EventTime]]: The minimum value or `None` if empty
         """
 
-    def min_item(self):
+    def min_item(self) -> Optional[Tuple[Node, Optional[EventTime]]]:
         """
         Return smallest value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The Node and minimum value or `None` if empty
+             Optional[Tuple[Node, Optional[EventTime]]]: The Node and minimum value or `None` if empty
         """
 
     def nodes(self) -> Nodes:
@@ -2302,15 +2311,6 @@ class EarliestTimeView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
-        """
-
-    @property
-    def secondary_index(self):
-        """
-        Access the secondary indices of the earliest times.
-
-        Returns:
-            A lazy view over the secondary indices of the earliest times for each node.
         """
 
     def shrink_end(self, end: TimeInput) -> EarliestTimeView:
@@ -2369,7 +2369,7 @@ class EarliestTimeView(object):
              EarliestTimeView:
         """
 
-    def sorted(self, reverse: bool = False) -> NodeStateOptionTimeIndexEntry:
+    def sorted(self, reverse: bool = False) -> NodeStateOptionEventTime:
         """
         Sort by value
 
@@ -2377,15 +2377,15 @@ class EarliestTimeView(object):
             reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
-             NodeStateOptionTimeIndexEntry: Sorted node state
+             NodeStateOptionEventTime: Sorted node state
         """
 
-    def sorted_by_id(self) -> NodeStateOptionTimeIndexEntry:
+    def sorted_by_id(self) -> NodeStateOptionEventTime:
         """
         Sort results by node id
 
         Returns:
-             NodeStateOptionTimeIndexEntry: The sorted node state
+             NodeStateOptionEventTime: The sorted node state
         """
 
     @property
@@ -2417,7 +2417,7 @@ class EarliestTimeView(object):
             DataFrame: the pandas DataFrame
         """
 
-    def top_k(self, k: int) -> NodeStateOptionTimeIndexEntry:
+    def top_k(self, k: int) -> NodeStateOptionEventTime:
         """
         Compute the k largest values
 
@@ -2425,7 +2425,7 @@ class EarliestTimeView(object):
             k (int): The number of values to return
 
         Returns:
-             NodeStateOptionTimeIndexEntry: The k largest values as a node state
+             NodeStateOptionEventTime: The k largest values as a node state
         """
 
     def valid_layers(self, names: list[str]) -> EarliestTimeView:
@@ -2440,12 +2440,12 @@ class EarliestTimeView(object):
              EarliestTimeView: The layered view
         """
 
-    def values(self):
+    def values(self) -> Iterator[Optional[EventTime]]:
         """
         Iterate over values
 
         Returns:
-             Iterator[Optional[TimeIndexEntry]]: Iterator over values
+             Iterator[Optional[EventTime]]: Iterator over values
         """
 
     def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestTimeView:
@@ -2925,7 +2925,7 @@ class EarliestTimestampView(object):
             Optional[int]:
         """
 
-class EarliestSecondaryIndexView(object): 
+class EarliestEventIdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2958,37 +2958,37 @@ class EarliestSecondaryIndexView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> EarliestSecondaryIndexView:
+    def after(self, start: TimeInput) -> EarliestEventIdView:
         """
-         Create a view of the EarliestSecondaryIndexView including all events after `start` (exclusive).
+         Create a view of the EarliestEventIdView including all events after `start` (exclusive).
 
         Arguments:
             start (TimeInput): The start time of the window.
 
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
-    def at(self, time: TimeInput) -> EarliestSecondaryIndexView:
+    def at(self, time: TimeInput) -> EarliestEventIdView:
         """
-         Create a view of the EarliestSecondaryIndexView including all events at `time`.
+         Create a view of the EarliestEventIdView including all events at `time`.
 
         Arguments:
             time (TimeInput): The time of the window.
 
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
-    def before(self, end: TimeInput) -> EarliestSecondaryIndexView:
+    def before(self, end: TimeInput) -> EarliestEventIdView:
         """
-         Create a view of the EarliestSecondaryIndexView including all events before `end` (exclusive).
+         Create a view of the EarliestEventIdView including all events before `end` (exclusive).
 
         Arguments:
             end (TimeInput): The end time of the window.
 
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
     def bottom_k(self, k: int) -> NodeStateOptionUsize:
@@ -3018,64 +3018,64 @@ class EarliestSecondaryIndexView(object):
              NodeStateOptionUsize: the computed `NodeState`
         """
 
-    def default_layer(self) -> EarliestSecondaryIndexView:
+    def default_layer(self) -> EarliestEventIdView:
         """
-         Return a view of EarliestSecondaryIndexView containing only the default edge layer
+         Return a view of EarliestEventIdView containing only the default edge layer
         Returns:
-             EarliestSecondaryIndexView: The layered view
+             EarliestEventIdView: The layered view
         """
 
     @property
     def end(self) -> Optional[EventTime]:
         """
-         Gets the latest time that this EarliestSecondaryIndexView is valid.
+         Gets the latest time that this EarliestEventIdView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this EarliestSecondaryIndexView is valid or None if the EarliestSecondaryIndexView is valid for all times.
+           Optional[EventTime]: The latest time that this EarliestEventIdView is valid or None if the EarliestEventIdView is valid for all times.
         """
 
-    def exclude_layer(self, name: str) -> EarliestSecondaryIndexView:
+    def exclude_layer(self, name: str) -> EarliestEventIdView:
         """
-         Return a view of EarliestSecondaryIndexView containing all layers except the excluded `name`
+         Return a view of EarliestEventIdView containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
 
         Arguments:
             name (str): layer name that is excluded for the new view
 
         Returns:
-             EarliestSecondaryIndexView: The layered view
+             EarliestEventIdView: The layered view
         """
 
-    def exclude_layers(self, names: list[str]) -> EarliestSecondaryIndexView:
+    def exclude_layers(self, names: list[str]) -> EarliestEventIdView:
         """
-         Return a view of EarliestSecondaryIndexView containing all layers except the excluded `names`
+         Return a view of EarliestEventIdView containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
 
         Arguments:
             names (list[str]): list of layer names that are excluded for the new view
 
         Returns:
-             EarliestSecondaryIndexView: The layered view
+             EarliestEventIdView: The layered view
         """
 
-    def exclude_valid_layer(self, name: str) -> EarliestSecondaryIndexView:
+    def exclude_valid_layer(self, name: str) -> EarliestEventIdView:
         """
-         Return a view of EarliestSecondaryIndexView containing all layers except the excluded `name`
+         Return a view of EarliestEventIdView containing all layers except the excluded `name`
         Arguments:
             name (str): layer name that is excluded for the new view
 
         Returns:
-             EarliestSecondaryIndexView: The layered view
+             EarliestEventIdView: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]) -> EarliestSecondaryIndexView:
+    def exclude_valid_layers(self, names: list[str]) -> EarliestEventIdView:
         """
-         Return a view of EarliestSecondaryIndexView containing all layers except the excluded `names`
+         Return a view of EarliestEventIdView containing all layers except the excluded `names`
         Arguments:
             names (list[str]): list of layer names that are excluded for the new view
 
         Returns:
-             EarliestSecondaryIndexView: The layered view
+             EarliestEventIdView: The layered view
         """
 
     def expanding(self, step: int | str) -> WindowSet:
@@ -3113,7 +3113,7 @@ class EarliestSecondaryIndexView(object):
 
     def has_layer(self, name: str) -> bool:
         """
-         Check if EarliestSecondaryIndexView has the layer `"name"`
+         Check if EarliestEventIdView has the layer `"name"`
 
         Arguments:
             name (str): the name of the layer to check
@@ -3130,36 +3130,36 @@ class EarliestSecondaryIndexView(object):
              Iterator[Tuple[Node, Optional[int]]]: Iterator over items
         """
 
-    def latest(self) -> EarliestSecondaryIndexView:
+    def latest(self) -> EarliestEventIdView:
         """
-         Create a view of the EarliestSecondaryIndexView including all events at the latest time.
+         Create a view of the EarliestEventIdView including all events at the latest time.
 
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
-    def layer(self, name: str) -> EarliestSecondaryIndexView:
+    def layer(self, name: str) -> EarliestEventIdView:
         """
-         Return a view of EarliestSecondaryIndexView containing the layer `"name"`
+         Return a view of EarliestEventIdView containing the layer `"name"`
         Errors if the layer does not exist
 
         Arguments:
             name (str): then name of the layer.
 
         Returns:
-             EarliestSecondaryIndexView: The layered view
+             EarliestEventIdView: The layered view
         """
 
-    def layers(self, names: list[str]) -> EarliestSecondaryIndexView:
+    def layers(self, names: list[str]) -> EarliestEventIdView:
         """
-         Return a view of EarliestSecondaryIndexView containing all layers `names`
+         Return a view of EarliestEventIdView containing all layers `names`
         Errors if any of the layers do not exist.
 
         Arguments:
             names (list[str]): list of layer names for the new view
 
         Returns:
-             EarliestSecondaryIndexView: The layered view
+             EarliestEventIdView: The layered view
         """
 
     def max(self) -> Optional[Optional[int]]:
@@ -3234,17 +3234,17 @@ class EarliestSecondaryIndexView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> EarliestSecondaryIndexView:
+    def shrink_end(self, end: TimeInput) -> EarliestEventIdView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
             end (TimeInput): the new end time of the window
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
-    def shrink_start(self, start: TimeInput) -> EarliestSecondaryIndexView:
+    def shrink_start(self, start: TimeInput) -> EarliestEventIdView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
@@ -3252,10 +3252,10 @@ class EarliestSecondaryIndexView(object):
            start (TimeInput): the new start time of the window
 
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> EarliestSecondaryIndexView:
+    def shrink_window(self, start: TimeInput, end: TimeInput) -> EarliestEventIdView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
@@ -3264,12 +3264,12 @@ class EarliestSecondaryIndexView(object):
             end (TimeInput): the new end time for the window
 
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
-    def snapshot_at(self, time: TimeInput) -> EarliestSecondaryIndexView:
+    def snapshot_at(self, time: TimeInput) -> EarliestEventIdView:
         """
-         Create a view of the EarliestSecondaryIndexView including all events that have not been explicitly deleted at `time`.
+         Create a view of the EarliestEventIdView including all events that have not been explicitly deleted at `time`.
 
         This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
@@ -3277,17 +3277,17 @@ class EarliestSecondaryIndexView(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
-    def snapshot_latest(self) -> EarliestSecondaryIndexView:
+    def snapshot_latest(self) -> EarliestEventIdView:
         """
-         Create a view of the EarliestSecondaryIndexView including all events that have not been explicitly deleted at the latest time.
+         Create a view of the EarliestEventIdView including all events that have not been explicitly deleted at the latest time.
 
         This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
-             EarliestSecondaryIndexView:
+             EarliestEventIdView:
         """
 
     def sorted(self, reverse: bool = False) -> NodeStateOptionUsize:
@@ -3312,10 +3312,10 @@ class EarliestSecondaryIndexView(object):
     @property
     def start(self) -> Optional[EventTime]:
         """
-         Gets the start time for rolling and expanding windows for this EarliestSecondaryIndexView
+         Gets the start time for rolling and expanding windows for this EarliestEventIdView
 
         Returns:
-            Optional[EventTime]: The earliest time that this EarliestSecondaryIndexView is valid or None if the EarliestSecondaryIndexView is valid for all times.
+            Optional[EventTime]: The earliest time that this EarliestEventIdView is valid or None if the EarliestEventIdView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -3340,16 +3340,16 @@ class EarliestSecondaryIndexView(object):
              NodeStateOptionUsize: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> EarliestSecondaryIndexView:
+    def valid_layers(self, names: list[str]) -> EarliestEventIdView:
         """
-         Return a view of EarliestSecondaryIndexView containing all layers `names`
+         Return a view of EarliestEventIdView containing all layers `names`
         Any layers that do not exist are ignored
 
         Arguments:
             names (list[str]): list of layer names for the new view
 
         Returns:
-             EarliestSecondaryIndexView: The layered view
+             EarliestEventIdView: The layered view
         """
 
     def values(self) -> Iterator[Optional[int]]:
@@ -3360,22 +3360,22 @@ class EarliestSecondaryIndexView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestSecondaryIndexView:
+    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestEventIdView:
         """
-         Create a view of the EarliestSecondaryIndexView including all events between `start` (inclusive) and `end` (exclusive)
+         Create a view of the EarliestEventIdView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
             start (TimeInput | None): The start time of the window (unbounded if `None`).
             end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
-            EarliestSecondaryIndexView:
+            EarliestEventIdView:
         """
 
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EarliestSecondaryIndexView.
+         Get the window size (difference between start and end) for this EarliestEventIdView.
 
         Returns:
             Optional[int]:
@@ -4002,6 +4002,15 @@ class LatestTimeView(object):
            Optional[EventTime]: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
+    @property
+    def event_id(self):
+        """
+        Access the event ids of the latest times.
+
+        Returns:
+            A lazy view over the event ids of the latest times for each node.
+        """
+
     def exclude_layer(self, name: str) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing all layers except the excluded `name`
@@ -4200,15 +4209,6 @@ class LatestTimeView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
-        """
-
-    @property
-    def secondary_index(self):
-        """
-        Access the secondary indices of the latest times.
-
-        Returns:
-            A lazy view over the secondary indices of the latest times for each node.
         """
 
     def shrink_end(self, end: TimeInput) -> LatestTimeView:
@@ -4823,7 +4823,7 @@ class LatestTimestampView(object):
             Optional[int]:
         """
 
-class LatestSecondaryIndexView(object): 
+class LatestEventIdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4856,37 +4856,37 @@ class LatestSecondaryIndexView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> LatestSecondaryIndexView:
+    def after(self, start: TimeInput) -> LatestEventIdView:
         """
-         Create a view of the LatestSecondaryIndexView including all events after `start` (exclusive).
+         Create a view of the LatestEventIdView including all events after `start` (exclusive).
 
         Arguments:
             start (TimeInput): The start time of the window.
 
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
-    def at(self, time: TimeInput) -> LatestSecondaryIndexView:
+    def at(self, time: TimeInput) -> LatestEventIdView:
         """
-         Create a view of the LatestSecondaryIndexView including all events at `time`.
+         Create a view of the LatestEventIdView including all events at `time`.
 
         Arguments:
             time (TimeInput): The time of the window.
 
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
-    def before(self, end: TimeInput) -> LatestSecondaryIndexView:
+    def before(self, end: TimeInput) -> LatestEventIdView:
         """
-         Create a view of the LatestSecondaryIndexView including all events before `end` (exclusive).
+         Create a view of the LatestEventIdView including all events before `end` (exclusive).
 
         Arguments:
             end (TimeInput): The end time of the window.
 
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
     def bottom_k(self, k: int) -> NodeStateOptionUsize:
@@ -4916,64 +4916,64 @@ class LatestSecondaryIndexView(object):
              NodeStateOptionUsize: the computed `NodeState`
         """
 
-    def default_layer(self) -> LatestSecondaryIndexView:
+    def default_layer(self) -> LatestEventIdView:
         """
-         Return a view of LatestSecondaryIndexView containing only the default edge layer
+         Return a view of LatestEventIdView containing only the default edge layer
         Returns:
-             LatestSecondaryIndexView: The layered view
+             LatestEventIdView: The layered view
         """
 
     @property
     def end(self) -> Optional[EventTime]:
         """
-         Gets the latest time that this LatestSecondaryIndexView is valid.
+         Gets the latest time that this LatestEventIdView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this LatestSecondaryIndexView is valid or None if the LatestSecondaryIndexView is valid for all times.
+           Optional[EventTime]: The latest time that this LatestEventIdView is valid or None if the LatestEventIdView is valid for all times.
         """
 
-    def exclude_layer(self, name: str) -> LatestSecondaryIndexView:
+    def exclude_layer(self, name: str) -> LatestEventIdView:
         """
-         Return a view of LatestSecondaryIndexView containing all layers except the excluded `name`
+         Return a view of LatestEventIdView containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
 
         Arguments:
             name (str): layer name that is excluded for the new view
 
         Returns:
-             LatestSecondaryIndexView: The layered view
+             LatestEventIdView: The layered view
         """
 
-    def exclude_layers(self, names: list[str]) -> LatestSecondaryIndexView:
+    def exclude_layers(self, names: list[str]) -> LatestEventIdView:
         """
-         Return a view of LatestSecondaryIndexView containing all layers except the excluded `names`
+         Return a view of LatestEventIdView containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
 
         Arguments:
             names (list[str]): list of layer names that are excluded for the new view
 
         Returns:
-             LatestSecondaryIndexView: The layered view
+             LatestEventIdView: The layered view
         """
 
-    def exclude_valid_layer(self, name: str) -> LatestSecondaryIndexView:
+    def exclude_valid_layer(self, name: str) -> LatestEventIdView:
         """
-         Return a view of LatestSecondaryIndexView containing all layers except the excluded `name`
+         Return a view of LatestEventIdView containing all layers except the excluded `name`
         Arguments:
             name (str): layer name that is excluded for the new view
 
         Returns:
-             LatestSecondaryIndexView: The layered view
+             LatestEventIdView: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]) -> LatestSecondaryIndexView:
+    def exclude_valid_layers(self, names: list[str]) -> LatestEventIdView:
         """
-         Return a view of LatestSecondaryIndexView containing all layers except the excluded `names`
+         Return a view of LatestEventIdView containing all layers except the excluded `names`
         Arguments:
             names (list[str]): list of layer names that are excluded for the new view
 
         Returns:
-             LatestSecondaryIndexView: The layered view
+             LatestEventIdView: The layered view
         """
 
     def expanding(self, step: int | str) -> WindowSet:
@@ -5011,7 +5011,7 @@ class LatestSecondaryIndexView(object):
 
     def has_layer(self, name: str) -> bool:
         """
-         Check if LatestSecondaryIndexView has the layer `"name"`
+         Check if LatestEventIdView has the layer `"name"`
 
         Arguments:
             name (str): the name of the layer to check
@@ -5028,36 +5028,36 @@ class LatestSecondaryIndexView(object):
              Iterator[Tuple[Node, Optional[int]]]: Iterator over items
         """
 
-    def latest(self) -> LatestSecondaryIndexView:
+    def latest(self) -> LatestEventIdView:
         """
-         Create a view of the LatestSecondaryIndexView including all events at the latest time.
+         Create a view of the LatestEventIdView including all events at the latest time.
 
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
-    def layer(self, name: str) -> LatestSecondaryIndexView:
+    def layer(self, name: str) -> LatestEventIdView:
         """
-         Return a view of LatestSecondaryIndexView containing the layer `"name"`
+         Return a view of LatestEventIdView containing the layer `"name"`
         Errors if the layer does not exist
 
         Arguments:
             name (str): then name of the layer.
 
         Returns:
-             LatestSecondaryIndexView: The layered view
+             LatestEventIdView: The layered view
         """
 
-    def layers(self, names: list[str]) -> LatestSecondaryIndexView:
+    def layers(self, names: list[str]) -> LatestEventIdView:
         """
-         Return a view of LatestSecondaryIndexView containing all layers `names`
+         Return a view of LatestEventIdView containing all layers `names`
         Errors if any of the layers do not exist.
 
         Arguments:
             names (list[str]): list of layer names for the new view
 
         Returns:
-             LatestSecondaryIndexView: The layered view
+             LatestEventIdView: The layered view
         """
 
     def max(self) -> Optional[Optional[int]]:
@@ -5132,17 +5132,17 @@ class LatestSecondaryIndexView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> LatestSecondaryIndexView:
+    def shrink_end(self, end: TimeInput) -> LatestEventIdView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
             end (TimeInput): the new end time of the window
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
-    def shrink_start(self, start: TimeInput) -> LatestSecondaryIndexView:
+    def shrink_start(self, start: TimeInput) -> LatestEventIdView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
@@ -5150,10 +5150,10 @@ class LatestSecondaryIndexView(object):
            start (TimeInput): the new start time of the window
 
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> LatestSecondaryIndexView:
+    def shrink_window(self, start: TimeInput, end: TimeInput) -> LatestEventIdView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
@@ -5162,12 +5162,12 @@ class LatestSecondaryIndexView(object):
             end (TimeInput): the new end time for the window
 
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
-    def snapshot_at(self, time: TimeInput) -> LatestSecondaryIndexView:
+    def snapshot_at(self, time: TimeInput) -> LatestEventIdView:
         """
-         Create a view of the LatestSecondaryIndexView including all events that have not been explicitly deleted at `time`.
+         Create a view of the LatestEventIdView including all events that have not been explicitly deleted at `time`.
 
         This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
 
@@ -5175,17 +5175,17 @@ class LatestSecondaryIndexView(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
-    def snapshot_latest(self) -> LatestSecondaryIndexView:
+    def snapshot_latest(self) -> LatestEventIdView:
         """
-         Create a view of the LatestSecondaryIndexView including all events that have not been explicitly deleted at the latest time.
+         Create a view of the LatestEventIdView including all events that have not been explicitly deleted at the latest time.
 
         This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
 
         Returns:
-             LatestSecondaryIndexView:
+             LatestEventIdView:
         """
 
     def sorted(self, reverse: bool = False) -> NodeStateOptionUsize:
@@ -5210,10 +5210,10 @@ class LatestSecondaryIndexView(object):
     @property
     def start(self) -> Optional[EventTime]:
         """
-         Gets the start time for rolling and expanding windows for this LatestSecondaryIndexView
+         Gets the start time for rolling and expanding windows for this LatestEventIdView
 
         Returns:
-            Optional[EventTime]: The earliest time that this LatestSecondaryIndexView is valid or None if the LatestSecondaryIndexView is valid for all times.
+            Optional[EventTime]: The earliest time that this LatestEventIdView is valid or None if the LatestEventIdView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -5238,16 +5238,16 @@ class LatestSecondaryIndexView(object):
              NodeStateOptionUsize: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> LatestSecondaryIndexView:
+    def valid_layers(self, names: list[str]) -> LatestEventIdView:
         """
-         Return a view of LatestSecondaryIndexView containing all layers `names`
+         Return a view of LatestEventIdView containing all layers `names`
         Any layers that do not exist are ignored
 
         Arguments:
             names (list[str]): list of layer names for the new view
 
         Returns:
-             LatestSecondaryIndexView: The layered view
+             LatestEventIdView: The layered view
         """
 
     def values(self) -> Iterator[Optional[int]]:
@@ -5258,22 +5258,22 @@ class LatestSecondaryIndexView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestSecondaryIndexView:
+    def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestEventIdView:
         """
-         Create a view of the LatestSecondaryIndexView including all events between `start` (inclusive) and `end` (exclusive)
+         Create a view of the LatestEventIdView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
             start (TimeInput | None): The start time of the window (unbounded if `None`).
             end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
-            LatestSecondaryIndexView:
+            LatestEventIdView:
         """
 
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this LatestSecondaryIndexView.
+         Get the window size (difference between start and end) for this LatestEventIdView.
 
         Returns:
             Optional[int]:
@@ -6264,7 +6264,7 @@ class HistoryView(object):
         Get the earliest time entry.
 
         Returns:
-            A lazy view over the earliest time of each node as a TimeIndexEntry.
+            A lazy view over the earliest time of each node as an EventTime.
         """
 
     @property
@@ -6274,6 +6274,15 @@ class HistoryView(object):
 
         Returns:
            Optional[EventTime]: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
+        """
+
+    @property
+    def event_id(self):
+        """
+        Access the unique event id of each time entry.
+
+        Returns:
+            A lazy view over HistoryEventId objects for each node.
         """
 
     def exclude_layer(self, name: str) -> HistoryView:
@@ -6393,7 +6402,7 @@ class HistoryView(object):
         """
         Get the latest time entry.
         Returns:
-            A lazy view over the latest time of each node as a TimeIndexEntry.
+            A lazy view over the latest time of each node as an EventTime.
         """
 
     def layer(self, name: str) -> HistoryView:
@@ -6441,15 +6450,6 @@ class HistoryView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
-        """
-
-    @property
-    def secondary_index(self):
-        """
-        Access the unique secondary index of each time entry.
-
-        Returns:
-            A lazy view over HistorySecondaryIndex objects for each node.
         """
 
     def shrink_end(self, end: TimeInput) -> HistoryView:
@@ -6794,7 +6794,7 @@ class HistoryDateTimeView(object):
              Iterator[HistoryDateTime]: Iterator over values
         """
 
-class HistorySecondaryIndexView(object): 
+class HistoryEventIdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -6827,40 +6827,40 @@ class HistorySecondaryIndexView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> list[HistorySecondaryIndex]:
+    def collect(self) -> list[HistoryEventId]:
         """
         Compute all values and return the result as a list
 
         Returns:
-             list[HistorySecondaryIndex]: all values as a list
+             list[HistoryEventId]: all values as a list
         """
 
-    def compute(self) -> NodeStateHistorySecondaryIndex:
+    def compute(self) -> NodeStateHistoryEventId:
         """
         Compute all values and return the result as a node view
 
         Returns:
-             NodeStateHistorySecondaryIndex: the computed `NodeState`
+             NodeStateHistoryEventId: the computed `NodeState`
         """
 
-    def get(self, node: NodeInput, default: Optional[HistorySecondaryIndex] = None) -> Optional[HistorySecondaryIndex]:
+    def get(self, node: NodeInput, default: Optional[HistoryEventId] = None) -> Optional[HistoryEventId]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-            default (Optional[HistorySecondaryIndex]): the default value. Defaults to None.
+            default (Optional[HistoryEventId]): the default value. Defaults to None.
 
         Returns:
-            Optional[HistorySecondaryIndex]: the value for the node or the default value
+            Optional[HistoryEventId]: the value for the node or the default value
         """
 
-    def items(self) -> Iterator[Tuple[Node, HistorySecondaryIndex]]:
+    def items(self) -> Iterator[Tuple[Node, HistoryEventId]]:
         """
         Iterate over items
 
         Returns:
-             Iterator[Tuple[Node, HistorySecondaryIndex]]: Iterator over items
+             Iterator[Tuple[Node, HistoryEventId]]: Iterator over items
         """
 
     def nodes(self) -> Nodes:
@@ -6871,12 +6871,12 @@ class HistorySecondaryIndexView(object):
             Nodes: The nodes
         """
 
-    def sorted_by_id(self) -> NodeStateHistorySecondaryIndex:
+    def sorted_by_id(self) -> NodeStateHistoryEventId:
         """
         Sort results by node id
 
         Returns:
-             NodeStateHistorySecondaryIndex: The sorted node state
+             NodeStateHistoryEventId: The sorted node state
         """
 
     def to_df(self) -> DataFrame:
@@ -6890,12 +6890,12 @@ class HistorySecondaryIndexView(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self) -> Iterator[HistorySecondaryIndex]:
+    def values(self) -> Iterator[HistoryEventId]:
         """
         Iterate over values
 
         Returns:
-             Iterator[HistorySecondaryIndex]: Iterator over values
+             Iterator[HistoryEventId]: Iterator over values
         """
 
 class IntervalsView(object): 
@@ -8978,7 +8978,16 @@ class NodeStateHistory(object):
         Get the earliest time entry.
 
         Returns:
-            A NodeState of the earliest time of each node as a TimeIndexEntry.
+            A NodeState of the earliest time of each node as an EventTime.
+        """
+
+    @property
+    def event_id(self):
+        """
+        Access the unique event id of each time entry.
+
+        Returns:
+            A NodeState of HistoryEventId objects for each node.
         """
 
     def flatten(self) -> History:
@@ -9023,7 +9032,7 @@ class NodeStateHistory(object):
         Get the latest time entry.
 
         Returns:
-            A NodeState of the latest time of each node as a TimeIndexEntry.
+            A NodeState of the latest time of each node as an EventTime.
         """
 
     def nodes(self) -> Nodes:
@@ -9032,15 +9041,6 @@ class NodeStateHistory(object):
 
         Returns:
             Nodes: The nodes.
-        """
-
-    @property
-    def secondary_index(self):
-        """
-        Access the unique secondary index of each time entry.
-
-        Returns:
-            A NodeState of HistorySecondaryIndex objects for each node.
         """
 
     def sorted_by_id(self) -> NodeStateHistory:
@@ -9253,7 +9253,7 @@ class NodeStateHistoryDateTime(object):
              Iterator[HistoryDateTime]: Iterator over values
         """
 
-class NodeStateHistorySecondaryIndex(object): 
+class NodeStateHistoryEventId(object): 
 
     def __eq__(self, value):
         """Return self==value."""
@@ -9285,24 +9285,24 @@ class NodeStateHistorySecondaryIndex(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Optional[HistorySecondaryIndex] = None) -> Optional[HistorySecondaryIndex]:
+    def get(self, node: NodeInput, default: Optional[HistoryEventId] = None) -> Optional[HistoryEventId]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-            default (Optional[HistorySecondaryIndex]): the default value. Defaults to None.
+            default (Optional[HistoryEventId]): the default value. Defaults to None.
 
         Returns:
-            Optional[HistorySecondaryIndex]: the value for the node or the default value
+            Optional[HistoryEventId]: the value for the node or the default value
         """
 
-    def items(self) -> Iterator[Tuple[Node, HistorySecondaryIndex]]:
+    def items(self) -> Iterator[Tuple[Node, HistoryEventId]]:
         """
         Iterate over items
 
         Returns:
-             Iterator[Tuple[Node, HistorySecondaryIndex]]: Iterator over items
+             Iterator[Tuple[Node, HistoryEventId]]: Iterator over items
         """
 
     def nodes(self) -> Nodes:
@@ -9313,12 +9313,12 @@ class NodeStateHistorySecondaryIndex(object):
             Nodes: The nodes
         """
 
-    def sorted_by_id(self) -> NodeStateHistorySecondaryIndex:
+    def sorted_by_id(self) -> NodeStateHistoryEventId:
         """
         Sort results by node id
 
         Returns:
-             NodeStateHistorySecondaryIndex: The sorted node state
+             NodeStateHistoryEventId: The sorted node state
         """
 
     def to_df(self) -> DataFrame:
@@ -9332,12 +9332,12 @@ class NodeStateHistorySecondaryIndex(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self) -> Iterator[HistorySecondaryIndex]:
+    def values(self) -> Iterator[HistoryEventId]:
         """
         Iterate over values
 
         Returns:
-             Iterator[HistorySecondaryIndex]: Iterator over values
+             Iterator[HistoryEventId]: Iterator over values
         """
 
 class NodeStateIntervals(object): 

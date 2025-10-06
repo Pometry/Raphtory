@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone
-from raphtory import Graph, History, PersistentGraph, TimeIndexEntry
+from raphtory import Graph, History, PersistentGraph
 
 
 @pytest.fixture()
@@ -71,7 +71,7 @@ def test_history_equality(example_graph):
         "1970-01-01 00:00:00.300",
         "1970-01-01 00:00:00.350"
     ]
-    # compare with tuples where secondary index is string
+    # compare with tuples where event id is string
     assert history == [
         (datetime(1970, 1, 1, 0, 0, 0, 150_000), "1970-01-01 00:00:00.006"),
         (datetime(1970, 1, 1, 0, 0, 0, 200_000), "1970-01-01 00:00:00.007"),
@@ -164,7 +164,7 @@ def test_intervals_stats():
     assert inter2.min() is None
 
 
-def test_secondary_index_ordering_with_same_timestamp():
+def test_event_id_ordering_with_same_timestamp():
     g: Graph = Graph()
 
     g.add_node(1, "A", secondary_index=3)
@@ -173,8 +173,8 @@ def test_secondary_index_ordering_with_same_timestamp():
 
     assert g.node("A").history.t == [1, 1, 1]
 
-    # Secondary index should be ascending
-    assert g.node("A").history.secondary_index == [1, 2, 3]
+    # Event id should be ascending
+    assert g.node("A").history.event_id == [1, 2, 3]
     assert g.node("A").history == [(1, 1), (1, 2), (1, 3)]
 
 

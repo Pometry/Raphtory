@@ -26,7 +26,7 @@ impl Repr for EventTime {
     }
 }
 
-/// History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, secondary indices, and intervals.
+/// History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, event ids, and intervals.
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyHistory {
@@ -117,14 +117,14 @@ impl PyHistory {
         }
     }
 
-    /// Access the unique secondary index of each time entry.
+    /// Access the unique event id of each time entry.
     ///
     /// Returns:
-    ///     HistorySecondaryIndex: Secondary index view of this history.
+    ///     HistoryEventId: Event id view of this history.
     #[getter]
-    pub fn secondary_index(&self) -> PyHistorySecondaryIndex {
-        PyHistorySecondaryIndex {
-            history_s: HistorySecondaryIndex::new(self.history.0.clone()), // clone the Arc, not the underlying object
+    pub fn event_id(&self) -> PyHistoryEventId {
+        PyHistoryEventId {
+            history_s: HistoryEventId::new(self.history.0.clone()), // clone the Arc, not the underlying object
         }
     }
 
@@ -206,7 +206,7 @@ impl PyHistory {
     /// Check if this History object contains a time entry.
     ///
     /// Arguments:
-    ///     item (TimeIndexEntry): Time entry to check.
+    ///     item (EventTime): Time entry to check.
     ///
     /// Returns:
     ///     bool: True if present, otherwise False.
@@ -214,7 +214,7 @@ impl PyHistory {
         self.history.iter().any(|x| x == item)
     }
 
-    /// Compare equality with another History or a list of TimeIndexEntry.
+    /// Compare equality with another History or a list of EventTime.
     ///
     /// Arguments:
     ///     other (History | List[EventTime]): The item to compare equality with.
@@ -239,7 +239,7 @@ impl PyHistory {
         false
     }
 
-    /// Compare inequality with another History or a list of TimeIndexEntry.
+    /// Compare inequality with another History or a list of EventTime.
     ///
     /// Arguments:
     ///     other (History | List[EventTime]): The item to compare inequality with.
@@ -607,61 +607,61 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryDateTime
     }
 }
 
-/// History view that exposes secondary indices of time entries. They are used for ordering within the same timestamp.
-#[pyclass(name = "HistorySecondaryIndex", module = "raphtory", frozen)]
+/// History view that exposes event ids of time entries. They are used for ordering within the same timestamp.
+#[pyclass(name = "HistoryEventId", module = "raphtory", frozen)]
 #[derive(Clone, PartialEq, Eq)]
-pub struct PyHistorySecondaryIndex {
-    history_s: HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
+pub struct PyHistoryEventId {
+    history_s: HistoryEventId<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
-impl PyHistorySecondaryIndex {
-    /// Collect all secondary indices.
+impl PyHistoryEventId {
+    /// Collect all event ids.
     ///
     /// Returns:
-    ///     NDArray[np.uintp]: Secondary indices.
+    ///     NDArray[np.uintp]: Event ids.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
         let u = self.history_s.collect();
         u.into_pyarray(py)
     }
 
-    /// Collect all secondary indices in reverse order.
+    /// Collect all event ids in reverse order.
     ///
     /// Returns:
-    ///     NDArray[np.uintp]: Secondary indices in reverse order.
+    ///     NDArray[np.uintp]: Event ids in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
         let u = self.history_s.collect_rev();
         u.into_pyarray(py)
     }
 
-    /// Iterate over all secondary indices.
+    /// Iterate over all event ids.
     ///
     /// Returns:
-    ///     Iterator[int]: Iterator over secondary indices.
+    ///     Iterator[int]: Iterator over event ids.
     pub fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history_s.clone(),
-            HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
+            HistoryEventId<Arc<dyn InternalHistoryOps>>,
             |history_s| history_s.iter()
         )
     }
 
-    /// Iterate over all secondary indices in reverse order.
+    /// Iterate over all event ids in reverse order.
     ///
     /// Returns:
-    ///     Iterator[int]: Iterator over secondary indices in reverse order.
+    ///     Iterator[int]: Iterator over event ids in reverse order.
     pub fn __reversed__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history_s.clone(),
-            HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
+            HistoryEventId<Arc<dyn InternalHistoryOps>>,
             |history_s| history_s.iter_rev()
         )
     }
 
-    /// Check if this HistorySecondaryIndex object contains a secondary index.
+    /// Check if this HistoryEventId object contains an event id.
     ///
     /// Arguments:
-    ///     item (int): Secondary index to check.
+    ///     item (int): Event id to check.
     ///
     /// Returns:
     ///     bool: True if present, otherwise False.
@@ -669,15 +669,15 @@ impl PyHistorySecondaryIndex {
         self.history_s.iter().any(|x| x == item)
     }
 
-    /// Compare equality with another HistorySecondaryIndex or a list of integers.
+    /// Compare equality with another HistoryEventId or a list of integers.
     ///
     /// Arguments:
-    ///     other (HistorySecondaryIndex | List[int]): The other item to compare equality with.
+    ///     other (HistoryEventId | List[int]): The other item to compare equality with.
     ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyHistorySecondaryIndex>() {
+        if let Ok(py_hist) = other.downcast::<PyHistoryEventId>() {
             return self.history_s.iter().eq(py_hist.get().history_s.iter());
         }
         if let Ok(list) = other.extract::<Vec<usize>>() {
@@ -686,10 +686,10 @@ impl PyHistorySecondaryIndex {
         false
     }
 
-    /// Compare inequality with another HistorySecondaryIndex or a list of integers.
+    /// Compare inequality with another HistoryEventId or a list of integers.
     ///
     /// Arguments:
-    ///     other (HistorySecondaryIndex | List[int]): The other item to compare inequality with.
+    ///     other (HistoryEventId | List[int]): The other item to compare inequality with.
     ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
@@ -706,7 +706,7 @@ impl PyHistorySecondaryIndex {
     }
 }
 
-impl IntoIterator for PyHistorySecondaryIndex {
+impl IntoIterator for PyHistoryEventId {
     type Item = usize;
     type IntoIter = BoxedIter<usize>;
 
@@ -715,33 +715,33 @@ impl IntoIterator for PyHistorySecondaryIndex {
     }
 }
 
-impl<T: InternalHistoryOps> Repr for HistorySecondaryIndex<T> {
+impl<T: InternalHistoryOps> Repr for HistoryEventId<T> {
     fn repr(&self) -> String {
-        format!("HistorySecondaryIndex({})", iterator_repr(self.iter()))
+        format!("HistoryEventId({})", iterator_repr(self.iter()))
     }
 }
 
-impl Repr for PyHistorySecondaryIndex {
+impl Repr for PyHistoryEventId {
     fn repr(&self) -> String {
         self.history_s.repr()
     }
 }
 
-impl<T: InternalHistoryOps + 'static> From<HistorySecondaryIndex<T>> for PyHistorySecondaryIndex {
-    fn from(value: HistorySecondaryIndex<T>) -> Self {
-        PyHistorySecondaryIndex {
-            history_s: HistorySecondaryIndex::new(Arc::new(value.0)),
+impl<T: InternalHistoryOps + 'static> From<HistoryEventId<T>> for PyHistoryEventId {
+    fn from(value: HistoryEventId<T>) -> Self {
+        PyHistoryEventId {
+            history_s: HistoryEventId::new(Arc::new(value.0)),
         }
     }
 }
 
-impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistorySecondaryIndex<T> {
-    type Target = PyHistorySecondaryIndex;
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryEventId<T> {
+    type Target = PyHistoryEventId;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyHistorySecondaryIndex::from(self).into_pyobject(py)
+        PyHistoryEventId::from(self).into_pyobject(py)
     }
 }
 
@@ -944,14 +944,14 @@ impl HistoryIterable {
         (move || builder().map(|h| h.dt())).into()
     }
 
-    /// Access secondary indices of history items.
+    /// Access event ids of history items.
     ///
     /// Returns:
-    ///     HistorySecondaryIndexIterable: Iterable of HistorySecondaryIndex objects, one for each item.
+    ///     HistoryEventIdIterable: Iterable of HistoryEventId objects, one for each item.
     #[getter]
-    pub fn secondary_index(&self) -> HistorySecondaryIndexIterable {
+    pub fn event_id(&self) -> HistoryEventIdIterable {
         let builder = self.0.builder.clone();
-        (move || builder().map(|h| h.secondary_index())).into()
+        (move || builder().map(|h| h.event_id())).into()
     }
 
     /// Access intervals between consecutive timestamps in milliseconds.
@@ -1001,14 +1001,14 @@ impl NestedHistoryIterable {
         (move || builder().map(|it| it.map(|h| h.dt()))).into()
     }
 
-    /// Access nested histories as secondary index views.
+    /// Access nested histories as event id views.
     ///
     /// Returns:
-    ///     NestedHistorySecondaryIndexIterable: Iterable of iterables of HistorySecondaryIndex objects.
+    ///     NestedHistoryEventIdIterable: Iterable of iterables of HistoryEventId objects.
     #[getter]
-    pub fn secondary_index(&self) -> NestedHistorySecondaryIndexIterable {
+    pub fn event_id(&self) -> NestedHistoryEventIdIterable {
         let builder = self.0.builder.clone();
-        (move || builder().map(|it| it.map(|h| h.secondary_index()))).into()
+        (move || builder().map(|it| it.map(|h| h.event_id()))).into()
     }
 
     /// Access nested histories as intervals views.
@@ -1111,34 +1111,34 @@ impl NestedHistoryDateTimeIterable {
 }
 
 py_iterable_base!(
-    HistorySecondaryIndexIterable,
-    HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>
+    HistoryEventIdIterable,
+    HistoryEventId<Arc<dyn InternalHistoryOps>>
 );
-py_iterable_base_methods!(HistorySecondaryIndexIterable, PyGenericIterator);
+py_iterable_base_methods!(HistoryEventIdIterable, PyGenericIterator);
 
 #[pymethods]
-impl HistorySecondaryIndexIterable {
-    /// Collect secondary indices for each history.
+impl HistoryEventIdIterable {
+    /// Collect event ids for each history.
     ///
     /// Returns:
-    ///     List[List[int]]: Secondary indices per history.
+    ///     List[List[int]]: Event ids per history.
     pub fn collect(&self) -> Vec<Vec<usize>> {
         Iterable::iter(self).map(|h| h.collect()).collect()
     }
 }
 
 py_nested_iterable_base!(
-    NestedHistorySecondaryIndexIterable,
-    HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>
+    NestedHistoryEventIdIterable,
+    HistoryEventId<Arc<dyn InternalHistoryOps>>
 );
-py_iterable_base_methods!(NestedHistorySecondaryIndexIterable, PyNestedGenericIterator);
+py_iterable_base_methods!(NestedHistoryEventIdIterable, PyNestedGenericIterator);
 
 #[pymethods]
-impl NestedHistorySecondaryIndexIterable {
-    /// Collect secondary indices for each history in each nested iterable.
+impl NestedHistoryEventIdIterable {
+    /// Collect event ids for each history in each nested iterable.
     ///
     /// Returns:
-    ///     List[List[List[int]]]: Secondary indices per nested history.
+    ///     List[List[List[int]]]: Event ids per nested history.
     pub fn collect(&self) -> Vec<Vec<Vec<usize>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())

@@ -12,7 +12,7 @@ use crate::{
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
     python::{
         graph::history::{
-            PyHistory, PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals,
+            PyHistory, PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals,
         },
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -102,19 +102,17 @@ impl NodeStateHistory {
         )
     }
 
-    /// Access the unique secondary index of each time entry.
+    /// Access the unique event id of each time entry.
     ///
     /// Returns:
-    ///     A NodeState of HistorySecondaryIndex objects for each node.
+    ///     A NodeState of HistoryEventId objects for each node.
     #[getter]
-    fn secondary_index(
-        &self,
-    ) -> NodeState<'static, PyHistorySecondaryIndex, DynamicGraph, DynamicGraph> {
+    fn event_id(&self) -> NodeState<'static, PyHistoryEventId, DynamicGraph, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
-            .map(|h| h.clone().secondary_index().into())
-            .collect::<Vec<PyHistorySecondaryIndex>>()
+            .map(|h| h.clone().event_id().into())
+            .collect::<Vec<PyHistoryEventId>>()
             .into();
         NodeState::new(
             self.inner.base_graph().clone(),
@@ -147,7 +145,7 @@ impl NodeStateHistory {
     /// Get the earliest time entry.
     ///
     /// Returns:
-    ///     A NodeState of the earliest time of each node as a TimeIndexEntry.
+    ///     A NodeState of the earliest time of each node as an EventTime.
     fn earliest_time(&self) -> Option<EventTime> {
         self.inner.earliest_time()
     }
@@ -155,7 +153,7 @@ impl NodeStateHistory {
     /// Get the latest time entry.
     ///
     /// Returns:
-    ///     A NodeState of the latest time of each node as a TimeIndexEntry.
+    ///     A NodeState of the latest time of each node as an EventTime.
     fn latest_time(&self) -> Option<EventTime> {
         self.inner.latest_time()
     }

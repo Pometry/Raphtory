@@ -103,7 +103,7 @@ fn extract_time_index_component<'source>(
     }
     if let Ok(parsed_datetime) = component.extract::<NaiveDateTime>() {
         // Important, this is needed to prevent inconsistencies by ensuring that naive DateTime objects are always treated as UTC and not local time.
-        // TimeIndexEntry and History objects use UTC so everything should be extracted as UTC.
+        // EventId and History objects use UTC so everything should be extracted as UTC.
         return Ok(EventTimeComponent::new(
             parsed_datetime.and_utc().timestamp_millis(),
         ));

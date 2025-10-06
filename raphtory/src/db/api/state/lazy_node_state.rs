@@ -8,9 +8,7 @@ use crate::{
                 Index, NodeState, NodeStateOps,
             },
             view::{
-                history::{
-                    History, HistoryDateTime, HistorySecondaryIndex, HistoryTimestamp, Intervals,
-                },
+                history::{History, HistoryDateTime, HistoryEventId, HistoryTimestamp, Intervals},
                 internal::{FilterOps, NodeList, OneHopFilter},
                 BoxedLIter, IntoDynBoxed,
             },
@@ -318,15 +316,15 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         LazyNodeState::new(op, self.nodes.clone())
     }
 
-    pub fn secondary_index(
+    pub fn event_id(
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<HistoryOp<'graph, GH>, HistorySecondaryIndex<NodeView<GH, GH>>>,
+        ops::Map<HistoryOp<'graph, GH>, HistoryEventId<NodeView<GH, GH>>>,
         G,
         GH,
     > {
-        let op = self.op.clone().map(|hist| hist.secondary_index());
+        let op = self.op.clone().map(|hist| hist.event_id());
         LazyNodeState::new(op, self.nodes.clone())
     }
 
@@ -358,7 +356,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         LazyNodeState::new(op, self.nodes())
     }
 
-    pub fn secondary_index(
+    pub fn event_id(
         &self,
     ) -> LazyNodeState<'graph, ops::Map<EarliestTime<GH>, Option<usize>>, G, GH> {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
@@ -389,7 +387,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         LazyNodeState::new(op, self.nodes())
     }
 
-    pub fn secondary_index(
+    pub fn event_id(
         &self,
     ) -> LazyNodeState<'graph, ops::Map<LatestTime<GH>, Option<usize>>, G, GH> {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));

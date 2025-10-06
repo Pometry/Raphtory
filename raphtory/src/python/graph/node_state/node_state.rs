@@ -18,9 +18,7 @@ use crate::{
     prelude::*,
     py_borrowing_iter,
     python::{
-        graph::history::{
-            PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals,
-        },
+        graph::history::{PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals},
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -514,8 +512,8 @@ impl_node_state_ord!(NodeStateGID<GID>, "NodeStateGID", "GID");
 
 impl_lazy_node_state_ord!(
     EarliestTimeView<ops::EarliestTime<DynamicGraph>>,
-    "NodeStateOptionTimeIndexEntry",
-    "Optional[TimeIndexEntry]"
+    "NodeStateOptionEventTime",
+    "Optional[EventTime]"
 );
 impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
 impl_node_state_group_by_ops!(EarliestTimeView, Option<EventTime>);
@@ -549,16 +547,15 @@ impl EarliestTimeView {
         self.inner.dt()
     }
 
-    /// Access the secondary indices of the earliest times.
+    /// Access the event ids of the earliest times.
     ///
     /// Returns:
-    ///     A lazy view over the secondary indices of the earliest times for each node.
+    ///     A lazy view over the event ids of the earliest times for each node.
     #[getter]
-    fn secondary_index(
+    fn event_id(
         &self,
-    ) -> LazyNodeState<'static, EarliestSecondaryIndex<DynamicGraph>, DynamicGraph, DynamicGraph>
-    {
-        self.inner.secondary_index()
+    ) -> LazyNodeState<'static, EarliestEventId<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.inner.event_id()
     }
 }
 type EarliestTimestamp<G> = ops::Map<ops::EarliestTime<G>, Option<i64>>;
@@ -573,23 +570,20 @@ impl_one_hop!(
 );
 impl_node_state_group_by_ops!(EarliestTimestampView, Option<i64>);
 
-type EarliestSecondaryIndex<G> = ops::Map<ops::EarliestTime<G>, Option<usize>>;
+type EarliestEventId<G> = ops::Map<ops::EarliestTime<G>, Option<usize>>;
 impl_lazy_node_state_ord!(
-    EarliestSecondaryIndexView<EarliestSecondaryIndex<DynamicGraph>>,
+    EarliestEventIdView<EarliestEventId<DynamicGraph>>,
     "NodeStateOptionUsize",
     "Optional[int]"
 ); // usize gets converted to int in python
-impl_one_hop!(
-    EarliestSecondaryIndexView<EarliestSecondaryIndex>,
-    "EarliestSecondaryIndexView"
-);
-impl_node_state_group_by_ops!(EarliestSecondaryIndexView, Option<usize>);
+impl_one_hop!(EarliestEventIdView<EarliestEventId>, "EarliestEventIdView");
+impl_node_state_group_by_ops!(EarliestEventIdView, Option<usize>);
 impl_node_state_ord!(
-    NodeStateOptionTimeIndexEntry<Option<EventTime>>,
-    "NodeStateOptionTimeIndexEntry",
-    "Optional[TimeIndexEntry]"
+    NodeStateOptionEventTime<Option<EventTime>>,
+    "NodeStateOptionEventTime",
+    "Optional[EventTime]"
 );
-impl_node_state_group_by_ops!(NodeStateOptionTimeIndexEntry, Option<EventTime>);
+impl_node_state_group_by_ops!(NodeStateOptionEventTime, Option<EventTime>);
 
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,
@@ -628,16 +622,15 @@ impl LatestTimeView {
         self.inner.dt()
     }
 
-    /// Access the secondary indices of the latest times.
+    /// Access the event ids of the latest times.
     ///
     /// Returns:
-    ///     A lazy view over the secondary indices of the latest times for each node.
+    ///     A lazy view over the event ids of the latest times for each node.
     #[getter]
-    fn secondary_index(
+    fn event_id(
         &self,
-    ) -> LazyNodeState<'static, LatestSecondaryIndex<DynamicGraph>, DynamicGraph, DynamicGraph>
-    {
-        self.inner.secondary_index()
+    ) -> LazyNodeState<'static, LatestEventId<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.inner.event_id()
     }
 }
 type LatestTimestamp<G> = ops::Map<ops::LatestTime<G>, Option<i64>>;
@@ -649,17 +642,14 @@ impl_lazy_node_state_ord!(
 impl_one_hop!(LatestTimestampView<LatestTimestamp>, "LatestTimestampView");
 impl_node_state_group_by_ops!(LatestTimestampView, Option<i64>);
 
-type LatestSecondaryIndex<G> = ops::Map<ops::LatestTime<G>, Option<usize>>;
+type LatestEventId<G> = ops::Map<ops::LatestTime<G>, Option<usize>>;
 impl_lazy_node_state_ord!(
-    LatestSecondaryIndexView<LatestSecondaryIndex<DynamicGraph>>,
+    LatestEventIdView<LatestEventId<DynamicGraph>>,
     "NodeStateOptionUsize",
     "Optional[int]"
 ); // usize gets converted to int in python
-impl_one_hop!(
-    LatestSecondaryIndexView<LatestSecondaryIndex>,
-    "LatestSecondaryIndexView"
-);
-impl_node_state_group_by_ops!(LatestSecondaryIndexView, Option<usize>);
+impl_one_hop!(LatestEventIdView<LatestEventId>, "LatestEventIdView");
+impl_node_state_group_by_ops!(LatestEventIdView, Option<usize>);
 impl_node_state_ord!(
     NodeStateOptionI64<Option<i64>>,
     "NodeStateOptionI64",
@@ -690,16 +680,16 @@ impl_node_state!(
     "HistoryTimestamp"
 );
 
-type HistoryU64<G> = ops::Map<HistoryOp<'static, G>, PyHistorySecondaryIndex>;
+type HistoryU64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryEventId>;
 impl_lazy_node_state!(
-    HistorySecondaryIndexView<HistoryU64<DynamicGraph>>,
-    "NodeStateHistorySecondaryIndex",
-    "HistorySecondaryIndex"
+    HistoryEventIdView<HistoryU64<DynamicGraph>>,
+    "NodeStateHistoryEventId",
+    "HistoryEventId"
 );
 impl_node_state!(
-    NodeStateHistorySecondaryIndex<PyHistorySecondaryIndex>,
-    "NodeStateHistorySecondaryIndex",
-    "HistorySecondaryIndex"
+    NodeStateHistoryEventId<PyHistoryEventId>,
+    "NodeStateHistoryEventId",
+    "HistoryEventId"
 );
 
 type HistoryDT<G> = ops::Map<HistoryOp<'static, G>, PyHistoryDateTime>;

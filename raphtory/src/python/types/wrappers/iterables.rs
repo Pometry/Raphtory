@@ -109,23 +109,23 @@ py_iterable_comp!(
 
 py_ordered_iterable!(EventTimeIterable, EventTime);
 py_iterable_comp!(EventTimeIterable, EventTime, EventTimeIterableCmp);
-// Custom TimeIndexEntry operations on iterables as well
+// Custom EventTime operations on iterables as well
 #[pymethods]
 impl EventTimeIterable {
-    /// Change this Iterable of TimeIndexEntry into an Iterable of corresponding Unix timestamps in milliseconds.
+    /// Change this Iterable of EventTime into an Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
-    ///     I64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
+    ///     I64Iterable: Iterable of millisecond timestamps since the Unix epoch for each EventTime.
     #[getter]
     fn t(&self) -> I64Iterable {
         let builder = self.builder.clone();
         (move || builder().map(|t| t.t())).into()
     }
 
-    /// Change this Iterable of TimeIndexEntry into an Iterable of corresponding UTC DateTimes.
+    /// Change this Iterable of EventTime into an Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
-    ///     ResultUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry.
+    ///     ResultUtcDateTimeIterable: Iterable of UTC datetimes for each EventTime.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -135,12 +135,12 @@ impl EventTimeIterable {
         (move || builder().map(|t| t.dt())).into()
     }
 
-    /// Change this Iterable of TimeIndexEntry into an Iterable of their associated secondary indices.
+    /// Change this Iterable of EventTime into an Iterable of their associated event ids.
     ///
     /// Returns:
-    ///     UsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry.
+    ///     UsizeIterable: Iterable of event ids associated to each EventTime.
     #[getter]
-    fn secondary_index(&self) -> UsizeIterable {
+    fn event_id(&self) -> UsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|t| t.i())).into()
     }
@@ -151,23 +151,23 @@ py_iterable_comp!(
     EventTimeIterableCmp,
     NestedEventTimeIterableCmp
 );
-// Custom TimeIndexEntry operations on nested iterables as well
+// Custom EventTime operations on nested iterables as well
 #[pymethods]
 impl NestedEventTimeIterable {
-    /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding Unix timestamps in milliseconds.
+    /// Change this nested Iterable of EventTime into a nested Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
-    ///     NestedI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
+    ///     NestedI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each EventTime.
     #[getter]
     fn t(&self) -> NestedI64Iterable {
         let builder = self.builder.clone();
         (move || builder().map(|t_iter| t_iter.map(|t| t.t()))).into()
     }
 
-    /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding UTC DateTimes.
+    /// Change this nested Iterable of EventTime into a nested Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
-    ///     NestedResultUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry.
+    ///     NestedResultUtcDateTimeIterable: Nested iterable of UTC datetimes for each EventTime.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -177,12 +177,12 @@ impl NestedEventTimeIterable {
         (move || builder().map(|t_iter| t_iter.map(|t| t.dt()))).into()
     }
 
-    /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of their associated secondary indices.
+    /// Change this nested Iterable of EventTime into a nested Iterable of their associated event ids.
     ///
     /// Returns:
-    ///     NestedUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry.
+    ///     NestedUsizeIterable: Nested iterable of event ids associated to each EventTime.
     #[getter]
-    fn secondary_index(&self) -> NestedUsizeIterable {
+    fn event_id(&self) -> NestedUsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|t_iter| t_iter.map(|t| t.i()))).into()
     }
@@ -194,13 +194,13 @@ py_iterable_comp!(
     Option<EventTime>,
     OptionEventTimeIterableCmp
 );
-// Custom TimeIndexEntry operations on iterables of Option<TimeIndexEntry> as well
+// Custom EventTime operations on iterables of Option<EventTime> as well
 #[pymethods]
 impl OptionEventTimeIterable {
     /// Change this Iterable of Optional[EventTime] into an Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
-    ///     OptionI64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
+    ///     OptionI64Iterable: Iterable of millisecond timestamps since the Unix epoch for each EventTime, if available.
     #[getter]
     fn t(&self) -> OptionI64Iterable {
         let builder = self.builder.clone();
@@ -210,7 +210,7 @@ impl OptionEventTimeIterable {
     /// Change this Iterable of Optional[EventTime] into an Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
-    ///     ResultOptionUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry, if available.
+    ///     ResultOptionUtcDateTimeIterable: Iterable of UTC datetimes for each EventTime, if available.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -220,12 +220,12 @@ impl OptionEventTimeIterable {
         (move || builder().map(|t_opt| t_opt.map(|t| t.dt()).transpose())).into()
     }
 
-    /// Change this Iterable of Optional[EventTime] into an Iterable of their associated secondary indices.
+    /// Change this Iterable of Optional[EventTime] into an Iterable of their associated event ids.
     ///
     /// Returns:
-    ///     OptionUsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry, if available.
+    ///     OptionUsizeIterable: Iterable of event ids associated to each EventTime, if available.
     #[getter]
-    fn secondary_index(&self) -> OptionUsizeIterable {
+    fn event_id(&self) -> OptionUsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|t_opt| t_opt.map(|t| t.i()))).into()
     }
@@ -246,13 +246,13 @@ py_iterable_comp!(
     OptionEventTimeIterableCmp,
     NestedOptionEventTimeIterableCmp
 );
-// Custom TimeIndexEntry operations on nested iterables of Option<TimeIndexEntry> as well
+// Custom EventTime operations on nested iterables of Option<EventTime> as well
 #[pymethods]
 impl NestedOptionEventTimeIterable {
     /// Change this nested Iterable of Optional[EventTime] into a nested Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
-    ///     NestedOptionI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
+    ///     NestedOptionI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each EventTime, if available.
     #[getter]
     fn t(&self) -> NestedOptionI64Iterable {
         let builder = self.builder.clone();
@@ -262,7 +262,7 @@ impl NestedOptionEventTimeIterable {
     /// Change this nested Iterable of Optional[EventTime] into a nested Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
-    ///     NestedResultOptionUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry, if available.
+    ///     NestedResultOptionUtcDateTimeIterable: Nested iterable of UTC datetimes for each EventTime, if available.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -273,12 +273,12 @@ impl NestedOptionEventTimeIterable {
             .into()
     }
 
-    /// Change this nested Iterable of Optional[EventTime] into a nested Iterable of their associated secondary indices.
+    /// Change this nested Iterable of Optional[EventTime] into a nested Iterable of their associated event ids.
     ///
     /// Returns:
-    ///     NestedOptionUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry, if available.
+    ///     NestedOptionUsizeIterable: Nested iterable of event ids associated to each EventTime, if available.
     #[getter]
-    fn secondary_index(&self) -> NestedOptionUsizeIterable {
+    fn event_id(&self) -> NestedOptionUsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|t_iter| t_iter.map(|t_opt| t_opt.map(|t| t.i())))).into()
     }
