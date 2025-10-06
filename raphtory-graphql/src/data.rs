@@ -68,7 +68,13 @@ impl Data {
         let cache = Cache::<PathBuf, GraphWithVectors>::builder()
             .max_capacity(cache_configs.capacity)
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
-            .eviction_listener(|_, graph, _| {
+            .eviction_listener(|_, graph, cause| {
+                // The eviction listener gets called any time a graph is removed from the cache,
+                // not just when it is evicted.
+                if !cause.was_evicted() {
+                    return;
+                }
+
                 // On eviction, serialize graphs that don't have underlying persistence.
                 // FIXME: don't have currently a way to know which embedding updates are pending
                 if !graph.graph.disk_storage_enabled() {
