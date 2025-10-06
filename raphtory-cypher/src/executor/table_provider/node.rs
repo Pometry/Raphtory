@@ -68,9 +68,6 @@ impl NodeTableProvider {
 pub fn lift_arrow_schema(gid_dt: DataType, properties: Option<&ConstProps<VID>>) -> SchemaRef {
     let mut schema_builder = SchemaBuilder::new();
     schema_builder.push(Field::new("id", DataType::UInt64, false));
-
-    schema_builder.push(Field::new("id", DataType::UInt64, false));
-
     schema_builder.push(Field::new("gid", gid_dt, false));
     if let Some(properties) = properties {
         schema_builder.extend(properties.prop_dtypes().iter().cloned());
