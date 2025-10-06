@@ -133,7 +133,18 @@ impl Data {
         let graph_clone = graph.clone();
         let folder_clone = folder.clone();
 
-        blocking_io(move || graph_clone.encode(folder_clone.clone())).await?;
+        blocking_io(move || {
+            // Graphs with underlying storage persistence already write data to disk.
+            // They just need to write metadata, primarily to infer the graph type.
+            // Graphs without persistence are encoded to the folder.
+            if graph_clone.is_persistent() {
+                folder_clone.write_metadata(&graph_clone)?;
+            } else {
+                graph_clone.encode(folder_clone.clone())?;
+            }
+
+            Ok::<(), GraphError>(())
+        }).await?;
 
         let vectors = self.vectorise(graph.clone(), &folder).await;
         let graph = GraphWithVectors::new(graph, vectors);

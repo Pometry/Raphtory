@@ -202,11 +202,14 @@ impl Mut {
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         let folder = data.validate_path_for_insert(&path)?;
+        let path = folder.get_graph_path();
         let graph = match graph_type {
-            GqlGraphType::Persistent => PersistentGraph::new().materialize()?,
-            GqlGraphType::Event => Graph::new().materialize()?,
+            GqlGraphType::Persistent => PersistentGraph::new_at_path(path).materialize()?,
+            GqlGraphType::Event => Graph::new_at_path(path).materialize()?,
         };
+
         data.insert_graph(folder, graph).await?;
+
         Ok(true)
     }
 

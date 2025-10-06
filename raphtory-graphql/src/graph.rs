@@ -4,22 +4,22 @@ use once_cell::sync::OnceCell;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::view::{
+        api::{storage::storage::Storage, view::{
             internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, InternalStorageOps, Static
             },
             Base, InheritViewOps, MaterializedGraph,
-        },
-        graph::{edge::EdgeView, node::NodeView},
+        }},
+        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, IndexMutationOps, NodeViewOps, StableDecode},
+    prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, StableDecode},
     serialise::GraphFolder,
-    storage::core_ops::CoreGraphOps,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
+use raphtory_api::GraphType;
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
+    core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
 };
 
@@ -72,7 +72,33 @@ impl GraphWithVectors {
         create_index: bool,
     ) -> Result<Self, GraphError> {
         let path_for_decoded_graph: Option<PathBuf> = None;
-        let graph = MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?;
+        let graph = {
+            // Create an empty graph just to test is_persistent
+            let test = Graph::new();
+
+            if test.is_persistent() {
+                let metadata = folder.read_metadata()?;
+
+                let graph = match metadata.graph_type {
+                    GraphType::EventGraph => {
+                        let graph = Graph::load_from_path(folder.get_graph_path());
+                        MaterializedGraph::EventGraph(graph)
+                    }
+                    GraphType::PersistentGraph => {
+                        let graph = PersistentGraph::load_from_path(folder.get_graph_path());
+                        MaterializedGraph::PersistentGraph(graph)
+                    }
+                };
+
+                #[cfg(feature = "search")]
+                graph.load_index(&folder)?;
+
+                graph
+            } else {
+                MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?
+            }
+        };
+
         let vectors = cache.and_then(|cache| {
             VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
         });
