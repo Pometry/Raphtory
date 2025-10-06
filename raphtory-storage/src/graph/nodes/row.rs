@@ -1,11 +1,11 @@
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::node_entry::MemRow;
 
-use pometry_storage::tprops::PropCol;
 #[cfg(feature = "storage")]
 use {
     pometry_storage::{
         graph::TemporalGraph, properties::TemporalProps, timestamps::TimeStamps, tprops::DiskTProp,
+        tprops::PropCol,
     },
     raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry},
 };
