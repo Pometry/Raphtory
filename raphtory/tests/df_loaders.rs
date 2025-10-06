@@ -2,9 +2,11 @@ pub mod test_utils;
 
 #[cfg(feature = "io")]
 mod io_tests {
-
+    use crate::test_utils::{build_edge_list, build_edge_list_str};
+    use arrow_array::builder::{
+        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
+    };
     use itertools::Itertools;
-    use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
     use proptest::proptest;
     use raphtory::{
         db::graph::graph::assert_graph_equal,
@@ -15,9 +17,8 @@ mod io_tests {
         },
         prelude::*,
     };
+    use raphtory_storage::core_ops::CoreGraphOps;
     use tempfile::TempDir;
-
-    use crate::test_utils::build_edge_list;
 
     #[cfg(feature = "storage")]
     mod load_multi_layer {
@@ -116,8 +117,7 @@ mod io_tests {
                 None,
             )
             .unwrap();
-            let actual =
-                Graph::from_internal_graph(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
+            let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
 
             assert_graph_equal(&expected, &actual);
 
@@ -127,8 +127,7 @@ mod io_tests {
                 assert!(g.find_edge(edge.src_id(), edge.dst_id()).is_some());
             }
 
-            let actual =
-                Graph::from_internal_graph(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
+            let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
             assert_graph_equal(&expected, &actual);
         }
 

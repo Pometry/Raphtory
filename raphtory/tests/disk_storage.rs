@@ -685,8 +685,11 @@ mod test {
         let graph = Graph::new();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let mut dg = DiskGraphStorage::from_graph(&graph, graph_dir.path()).unwrap();
-        dg.load_node_types_from_arrays([Ok(Utf8Array::<i32>::from_slice(["1", "2"]).boxed())], 100)
-            .unwrap();
+        dg.load_node_types_from_arrays(
+            [Ok(StringArray::from_iter_values(["1", "2"]).as_array_ref())],
+            100,
+        )
+        .unwrap();
         assert_eq!(
             dg.into_graph().nodes().node_type().collect_vec(),
             [Some("1".into()), Some("2".into())]

@@ -15,7 +15,7 @@ use std::fmt::{Debug, Formatter};
 
 pub struct DFView<I> {
     pub names: Vec<String>,
-    pub(crate) chunks: I,
+    pub chunks: I,
     pub num_rows: usize,
 }
 
@@ -50,7 +50,6 @@ where
             .position(|n| n == name)
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
     }
-
 
     pub fn is_empty(&self) -> bool {
         self.num_rows == 0
@@ -102,11 +101,11 @@ impl TimeCol {
 
 #[derive(Clone, Debug)]
 pub struct DFChunk {
-    pub(crate) chunk: Vec<ArrayRef>,
+    pub chunk: Vec<ArrayRef>,
 }
 
 impl DFChunk {
-    pub fn new(chunk: Vec<Box<dyn Array>>) -> Self {
+    pub fn new(chunk: Vec<ArrayRef>) -> Self {
         Self { chunk }
     }
 
