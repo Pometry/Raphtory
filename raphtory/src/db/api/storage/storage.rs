@@ -258,8 +258,8 @@ impl InternalStorageOps for Storage {
         Some(self)
     }
 
-    fn is_persistent(&self) -> bool {
-        self.graph.is_persistent()
+    fn disk_storage_enabled(&self) -> bool {
+        self.graph.disk_storage_enabled()
     }
 }
 

@@ -22,7 +22,7 @@ pub trait PersistentStrategy: Default + Clone + std::fmt::Debug + Send + Sync + 
         Self: Sized;
 
     /// Indicate whether the strategy persists to disk or not.
-    fn is_persistent() -> bool;
+    fn disk_storage_enabled() -> bool;
 }
 
 impl PersistentStrategy for () {
@@ -45,7 +45,7 @@ impl PersistentStrategy for () {
         // No operation
     }
 
-    fn is_persistent() -> bool {
+    fn disk_storage_enabled() -> bool {
         false
     }
 }

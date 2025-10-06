@@ -421,7 +421,7 @@ fn decode_graph_storage(
         // unexpected behavior in the top-level APIs that don't expect it to write
         // to disk. For now, even if path is provided, don't pass it in unless we're creating
         // disk graphs.
-        if storage.is_persistent() {
+        if storage.disk_storage_enabled() {
             Arc::new(Storage::new_at_path(graph_path.as_ref()))
         } else {
             Arc::new(Storage::default())

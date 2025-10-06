@@ -100,8 +100,8 @@ impl InternalStorageOps for MaterializedGraph {
         for_all!(self, g => g.get_storage())
     }
 
-    fn is_persistent(&self) -> bool {
-        for_all!(self, g => g.is_persistent())
+    fn disk_storage_enabled(&self) -> bool {
+        for_all!(self, g => g.disk_storage_enabled())
     }
 }
 

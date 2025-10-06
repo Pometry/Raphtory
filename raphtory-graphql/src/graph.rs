@@ -76,7 +76,7 @@ impl GraphWithVectors {
             // Create an empty graph just to test is_persistent
             let test = Graph::new();
 
-            if test.is_persistent() {
+            if test.disk_storage_enabled() {
                 let metadata = folder.read_metadata()?;
 
                 let graph = match metadata.graph_type {

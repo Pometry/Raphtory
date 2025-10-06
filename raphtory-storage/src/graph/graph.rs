@@ -93,10 +93,10 @@ impl GraphStorage {
         }
     }
 
-    pub fn is_persistent(&self) -> bool {
+    pub fn disk_storage_enabled(&self) -> bool {
         match self {
-            GraphStorage::Mem(graph) => graph.graph.is_persistent(),
-            GraphStorage::Unlocked(graph) => graph.is_persistent(),
+            GraphStorage::Mem(graph) => graph.graph.disk_storage_enabled(),
+            GraphStorage::Unlocked(graph) => graph.disk_storage_enabled(),
         }
     }
 

@@ -106,7 +106,7 @@ pub trait InternalStorageOps {
 
     /// Returns `true` if the underlying storage saves data to disk,
     /// or `false` if the storage is in-memory only.
-    fn is_persistent(&self) -> bool;
+    fn disk_storage_enabled(&self) -> bool;
 }
 
 impl<G: InheritStorageOps> InternalStorageOps for G
@@ -117,8 +117,8 @@ where
         self.base().get_storage()
     }
 
-    fn is_persistent(&self) -> bool {
-        self.base().is_persistent()
+    fn disk_storage_enabled(&self) -> bool {
+        self.base().disk_storage_enabled()
     }
 }
 

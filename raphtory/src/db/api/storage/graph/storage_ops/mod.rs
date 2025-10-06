@@ -14,7 +14,7 @@ impl InternalStorageOps for GraphStorage {
         None
     }
 
-    fn is_persistent(&self) -> bool {
-        self.is_persistent()
+    fn disk_storage_enabled(&self) -> bool {
+        self.disk_storage_enabled()
     }
 }

@@ -201,8 +201,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         })
     }
 
-    pub fn is_persistent(&self) -> bool {
-        Extension::is_persistent()
+    pub fn disk_storage_enabled(&self) -> bool {
+        Extension::disk_storage_enabled()
     }
 
     pub fn read_event_counter(&self) -> usize {
