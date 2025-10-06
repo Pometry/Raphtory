@@ -1,5 +1,5 @@
 use chrono::{DateTime, Datelike, Duration, Months, NaiveDate, NaiveDateTime, TimeZone};
-use itertools::{Either, Itertools};
+use itertools::Itertools;
 use regex::Regex;
 use std::{
     convert::Infallible,

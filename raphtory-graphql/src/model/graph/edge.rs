@@ -5,14 +5,13 @@ use crate::{
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
         windowset::GqlEdgeWindowSet,
-        WindowDuration,
-        WindowDuration::{Duration, Epoch},
+        GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::time::{AlignmentUnit, TryIntoInterval},
+    core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
@@ -98,23 +97,23 @@ impl GqlEdge {
     ///
     /// A rolling window is a window that moves forward by step size at each iteration.
     ///
-    /// align_start defaults to true and aligns the start of the first window to the smallest unit of time passed as input.
+    /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+    /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
     /// e.g. "1 month and 1 day" will align at the start of the day.
-    /// Note that passing a step larger than window while align_start is true can lead to some entries appearing before
+    /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
     async fn rolling(
         &self,
         window: WindowDuration,
         step: Option<WindowDuration>,
-        align_start: Option<bool>,
+        alignment_unit: Option<GqlAlignmentUnit>,
     ) -> Result<GqlEdgeWindowSet, GraphError> {
         let window = window.try_into_interval()?;
         let step = step.map(|x| x.try_into_interval()).transpose()?;
-        let ws = if align_start.unwrap_or(true) {
-            self.ee.rolling(window, step)?
+        let ws = if let Some(unit) = alignment_unit {
+            self.ee.rolling_aligned(window, step, unit.into())?
         } else {
-            self.ee
-                .rolling_aligned(window, step, AlignmentUnit::Unaligned)?
+            self.ee.rolling(window, step)?
         };
         Ok(GqlEdgeWindowSet::new(ws))
     }
@@ -123,18 +122,19 @@ impl GqlEdge {
     ///
     /// An expanding window is a window that grows by step size at each iteration.
     ///
-    /// align_start aligns the start of the first window to the smallest unit of time passed as input.
-    /// e.g. "1 month and 1 day" will align at the start of the day. Defaults to true.
+    /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+    /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+    /// e.g. "1 month and 1 day" will align at the start of the day.
     async fn expanding(
         &self,
         step: WindowDuration,
-        align_start: Option<bool>,
+        alignment_unit: Option<GqlAlignmentUnit>,
     ) -> Result<GqlEdgeWindowSet, GraphError> {
         let step = step.try_into_interval()?;
-        let ws = if align_start.unwrap_or(true) {
-            self.ee.expanding(step)?
+        let ws = if let Some(unit) = alignment_unit {
+            self.ee.expanding_aligned(step, unit.into())?
         } else {
-            self.ee.expanding_aligned(step, AlignmentUnit::Unaligned)?
+            self.ee.expanding(step)?
         };
         Ok(GqlEdgeWindowSet::new(ws))
     }

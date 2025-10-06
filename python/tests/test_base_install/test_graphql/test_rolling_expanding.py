@@ -3278,7 +3278,7 @@ def test_alignment():
     query = """
     {
       graph(path: "g") {
-        rolling(window: {duration: "1 month"}, alignStart: true) {
+        rolling(window: {duration: "1 month"}) {
           page(limit: 3) {
             start
             end
@@ -3293,7 +3293,7 @@ def test_alignment():
     query = """
     {
       graph(path: "g") {
-        rolling(window: {duration: "1 month"}, alignStart: false) {
+        rolling(window: {duration: "1 month"}, alignmentUnit: UNALIGNED) {
           page(limit: 3) {
             start
             end

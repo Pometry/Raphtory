@@ -386,8 +386,8 @@ class DegreeView(object):
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
-        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -1787,8 +1787,8 @@ class EarliestTimeView(object):
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
-        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -2275,8 +2275,8 @@ class LatestTimeView(object):
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
-        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -3132,8 +3132,8 @@ class EarliestDateTimeView(object):
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
-        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -3620,8 +3620,8 @@ class LatestDateTimeView(object):
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
-        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -4276,8 +4276,8 @@ class HistoryView(object):
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
-        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -4764,8 +4764,8 @@ class EdgeHistoryCountView(object):
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
-        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -5420,8 +5420,8 @@ class HistoryDateTimeView(object):
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `align_start` is set to True and a `step` larger than `window` is provided, some time entries
-        can appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
