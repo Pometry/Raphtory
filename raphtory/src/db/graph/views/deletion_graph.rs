@@ -27,10 +27,7 @@ use raphtory_storage::{
     mutation::InheritMutationOps,
 };
 use std::{
-    fmt::{Display, Formatter},
-    iter,
-    ops::{Deref, Range},
-    sync::Arc,
+    fmt::{Display, Formatter}, iter, ops::{Deref, Range}, path::Path, sync::Arc
 };
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
@@ -95,6 +92,14 @@ fn persisted_prop_value_at<'a>(
 impl PersistentGraph {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn new_at_path(path: impl AsRef<Path>) -> Self {
+        Self(Arc::new(Storage::new_at_path(path)))
+    }
+
+    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
+        Self(Arc::new(Storage::load_from(path)))
     }
 
     pub fn from_storage(storage: Arc<Storage>) -> Self {
