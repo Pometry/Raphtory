@@ -45,4 +45,11 @@ impl<T: Clone> Iterator for LockedIter<T> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.len - self.pos;
+        (remaining, Some(remaining))
+    }
 }
+
+impl<T: Clone> ExactSizeIterator for LockedIter<T> {}
