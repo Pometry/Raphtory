@@ -398,7 +398,7 @@ mod cypher {
             print_batches(&data).expect("failed to print batches");
 
             let df = run_cypher(
-                "match ()-[e]->() where e.rap_time >2 and e.weight<7 RETURN *",
+                "match ()-[e]->() where e.time >2 and e.weight<7 RETURN *",
                 &graph,
                 true,
             )
