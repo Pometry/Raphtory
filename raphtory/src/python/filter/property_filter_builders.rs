@@ -378,7 +378,7 @@ where
     PropertyFilter<<T as InternalPropertyFilterOps>::Marker>: CreateFilter + TryAsCompositeFilter,
 {
     fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps>::len(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::len(&self));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);
@@ -386,7 +386,7 @@ where
     }
 
     fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps>::sum(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::sum(&self));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);
@@ -394,7 +394,7 @@ where
     }
 
     fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps>::avg(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::avg(&self));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);
@@ -402,7 +402,7 @@ where
     }
 
     fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps>::min(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::min(&self));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);
@@ -410,7 +410,7 @@ where
     }
 
     fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        let ops = Arc::new(<T as ListAggOps>::max(self.clone()));
+        let ops = Arc::new(<T as ListAggOps>::max(&self));
         let agg = Arc::new(self.clone());
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);
@@ -434,7 +434,7 @@ where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
     fn build_any(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(ElemQualifierOps::any(self.clone()));
+        let ops = Arc::new(ElemQualifierOps::any(self));
         let agg = Arc::new(NoListAggOps);
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);
@@ -442,7 +442,7 @@ where
     }
 
     fn build_all(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(ElemQualifierOps::all(self.clone()));
+        let ops = Arc::new(ElemQualifierOps::all(self));
         let agg = Arc::new(NoListAggOps);
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);
@@ -456,14 +456,14 @@ where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
     fn build_any(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(ElemQualifierOps::any(self.clone()));
+        let ops = Arc::new(ElemQualifierOps::any(self));
         let agg = Arc::new(NoListAggOps);
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);
         PyPropertyFilterOps::from_parts(ops, agg, qual, sel)
     }
     fn build_all(&self) -> PyPropertyFilterOps {
-        let ops = Arc::new(ElemQualifierOps::all(self.clone()));
+        let ops = Arc::new(ElemQualifierOps::all(self));
         let agg = Arc::new(NoListAggOps);
         let qual = Arc::new(NoElemQualifiers);
         let sel = Arc::new(NoSelector);

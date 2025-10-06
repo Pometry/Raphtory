@@ -1519,7 +1519,7 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for OpChainBuil
 }
 
 pub trait ElemQualifierOps: InternalPropertyFilterOps {
-    fn any(self) -> OpChainBuilder<Self::Marker>
+    fn any(&self) -> OpChainBuilder<Self::Marker>
     where
         Self: Sized,
     {
@@ -1530,7 +1530,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterOps {
         }
     }
 
-    fn all(self) -> OpChainBuilder<Self::Marker>
+    fn all(&self) -> OpChainBuilder<Self::Marker>
     where
         Self: Sized,
     {
@@ -1554,7 +1554,7 @@ impl<M> PropertyFilterBuilder<M> {
 }
 
 pub trait ListAggOps: InternalPropertyFilterOps + Sized {
-    fn len(self) -> OpChainBuilder<Self::Marker> {
+    fn len(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Len]).collect(),
@@ -1562,7 +1562,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         }
     }
 
-    fn sum(self) -> OpChainBuilder<Self::Marker> {
+    fn sum(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Sum]).collect(),
@@ -1570,7 +1570,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         }
     }
 
-    fn avg(self) -> OpChainBuilder<Self::Marker> {
+    fn avg(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Avg]).collect(),
@@ -1578,7 +1578,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         }
     }
 
-    fn min(self) -> OpChainBuilder<Self::Marker> {
+    fn min(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Min]).collect(),
@@ -1586,7 +1586,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         }
     }
 
-    fn max(self) -> OpChainBuilder<Self::Marker> {
+    fn max(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Max]).collect(),
