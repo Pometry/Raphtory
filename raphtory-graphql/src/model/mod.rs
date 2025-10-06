@@ -257,7 +257,7 @@ impl Mut {
         let folder = data.validate_path_for_insert(&path, overwrite)?;
 
         if overwrite {
-            data.delete_graph(&path).await?;
+            let _ignored = data.delete_graph(&path).await;
         }
 
         data.insert_graph_as_bytes(folder, in_file).await?;
