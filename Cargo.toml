@@ -30,7 +30,7 @@ edition = "2021"
 # debug symbols are using a lot of resources
 [profile.dev]
 split-debuginfo = "unpacked"
-debug = false
+debug = true
 
 [profile.release-with-debug]
 inherits = "release"

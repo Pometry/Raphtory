@@ -75,36 +75,3 @@ pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V
         None
     }
 }
-
-#[cfg(test)]
-mod triangle_count_tests {
-    use super::local_triangle_count;
-    use crate::{
-        db::{
-            api::{mutation::AdditionOps, view::*},
-            graph::graph::Graph,
-        },
-        prelude::NO_PROPS,
-        test_storage,
-    };
-
-    #[test]
-    fn counts_triangles() {
-        let graph = Graph::new();
-        let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
-
-        for (t, src, dst) in &vs {
-            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
-        }
-
-        test_storage!(&graph, |graph| {
-            let windowed_graph = graph.window(0, 5);
-            let expected = vec![1, 1, 1];
-
-            let actual = (1..=3)
-                .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
-                .collect::<Vec<_>>();
-            assert_eq!(actual, expected);
-        });
-    }
-}

@@ -13,7 +13,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};
 
-pub(crate) struct DFView<I> {
+pub struct DFView<I> {
     pub names: Vec<String>,
     pub(crate) chunks: I,
     pub num_rows: usize,
@@ -54,6 +54,14 @@ where
 
     pub fn is_empty(&self) -> bool {
         self.num_rows == 0
+    }
+
+    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+        Self {
+            names,
+            chunks,
+            num_rows,
+        }
     }
 }
 
@@ -98,6 +106,10 @@ pub struct DFChunk {
 }
 
 impl DFChunk {
+    pub fn new(chunk: Vec<Box<dyn Array>>) -> Self {
+        Self { chunk }
+    }
+
     pub fn len(&self) -> usize {
         self.chunk.first().map(|c| c.len()).unwrap_or(0)
     }
