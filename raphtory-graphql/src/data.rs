@@ -121,11 +121,17 @@ impl Data {
         ExistingGraphFolder::try_from(self.work_dir.clone(), path).is_ok()
     }
 
-    pub fn validate_path_for_insert(&self, path: &str) -> Result<ValidGraphFolder, GraphError> {
+    pub fn validate_path_for_insert(&self, path: &str, overwrite: bool) -> Result<ValidGraphFolder, GraphError> {
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
 
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
-            Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
+            Ok(_) => {
+                if overwrite {
+                    Ok(folder)
+                } else {
+                    Err(GraphError::GraphNameAlreadyExists(folder.to_error_path()))
+                }
+            }
             Err(_) => Ok(folder),
         }
     }

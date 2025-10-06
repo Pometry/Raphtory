@@ -201,7 +201,8 @@ impl Mut {
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let folder = data.validate_path_for_insert(&path)?;
+        let overwrite = false;
+        let folder = data.validate_path_for_insert(&path, overwrite)?;
         let path = folder.get_graph_path();
         let graph = match graph_type {
             GqlGraphType::Persistent => PersistentGraph::new_at_path(path).materialize()?,
@@ -233,7 +234,8 @@ impl Mut {
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
         let data = ctx.data_unchecked::<Data>();
-        let folder = data.validate_path_for_insert(new_path)?;
+        let overwrite = false;
+        let folder = data.validate_path_for_insert(new_path, overwrite)?;
         let graph = data.get_graph(path).await?.0.graph;
         data.insert_graph(folder, graph).await?;
 
@@ -252,11 +254,7 @@ impl Mut {
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let in_file = graph.value(ctx)?.content;
-        let folder = data.validate_path_for_insert(&path)?;
-
-        if data.has_graph(&path).await && !overwrite {
-            return Err(GraphError::GraphNameAlreadyExists(PathBuf::from(path)).into());
-        }
+        let folder = data.validate_path_for_insert(&path, overwrite)?;
 
         if overwrite {
             data.delete_graph(&path).await?;
@@ -278,7 +276,7 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let folder = data.validate_path_for_insert(path)?;
+        let folder = data.validate_path_for_insert(path, overwrite)?;
         let path_for_decoded_graph = Some(folder.get_graph_path());
         let g: MaterializedGraph = url_decode_graph(graph, path_for_decoded_graph)?;
 
@@ -305,10 +303,12 @@ impl Mut {
         let parent_graph = data.get_graph(parent_path).await?.0.graph;
         let new_subgraph =
             blocking_compute(move || parent_graph.subgraph(nodes).materialize()).await?;
+        let folder = data.validate_path_for_insert(&new_path, overwrite)?;
+
         if overwrite {
             let _ignored = data.delete_graph(&new_path).await;
         }
-        let folder = data.validate_path_for_insert(&new_path)?;
+
         data.insert_graph(folder, new_subgraph).await?;
         Ok(new_path)
     }
