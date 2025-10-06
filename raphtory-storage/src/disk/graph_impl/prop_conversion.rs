@@ -1,9 +1,10 @@
 use crate::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
 use arrow::{
     array::ArrayRef,
-    datatypes::{DataType, Field, Schema},
+    datatypes::{DataType, Field, Schema, DECIMAL128_MAX_PRECISION},
 };
 use arrow_array::{
+    builder::BooleanBuilder,
     types::{Decimal128Type, Int32Type, Int64Type, UInt16Type, UInt8Type},
     BooleanArray, Decimal128Array, Float32Array, Float64Array, GenericStringArray, Int32Array,
     Int64Array, LargeStringArray, PrimitiveArray, UInt16Array, UInt32Array, UInt64Array,
@@ -139,7 +140,10 @@ pub fn arrow_array_from_props(
             (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::Bool => {
-            let array: BooleanArray = props.map(|prop| prop.into_bool()).collect();
+            // direct collect requires known size for the iterator which we do not have
+            let mut builder = BooleanBuilder::new();
+            builder.extend(props.map(|prop| prop.into_bool()));
+            let array = builder.finish();
             (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::Decimal { scale } => {
@@ -151,7 +155,12 @@ pub fn arrow_array_from_props(
                     })
                 })
                 .collect();
-            (array.null_count() != array.len()).then_some(array.as_array_ref())
+            (array.null_count() != array.len()).then_some(
+                array
+                    .with_precision_and_scale(DECIMAL128_MAX_PRECISION, scale as i8)
+                    .expect("valid decimal")
+                    .as_array_ref(),
+            )
         }
         PropType::Empty
         | PropType::List(_)
