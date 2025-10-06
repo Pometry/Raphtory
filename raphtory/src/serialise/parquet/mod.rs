@@ -397,9 +397,19 @@ fn collect_prop_columns(
     Ok((prop_columns, g_type))
 }
 
+fn decode_graph_type(
+    path: impl AsRef<Path>,
+) -> Result<GraphType, GraphError> {
+    let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
+
+    let exclude = vec![TIME_COL];
+    let (_, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
+
+    g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))
+}
+
 fn decode_graph_storage(
     path: impl AsRef<Path>,
-    expected_gt: GraphType,
     batch_size: Option<usize>,
     path_for_decoded_graph: Option<impl AsRef<Path>>,
 ) -> Result<Arc<Storage>, GraphError> {
@@ -427,11 +437,12 @@ fn decode_graph_storage(
         return Ok(g);
     }
 
+
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
-    let g_type = {
+    {
         let exclude = vec![TIME_COL];
-        let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
+        let (c_props, _) = collect_prop_columns(&c_graph_path, &exclude)?;
         let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
 
         load_graph_props_from_parquet(
@@ -443,14 +454,6 @@ fn decode_graph_storage(
             &c_props,
             batch_size,
         )?;
-
-        g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))?
-    };
-
-    if g_type != expected_gt {
-        return Err(GraphError::LoadFailure(format!(
-            "Expected graph type {expected_gt:?}, got {g_type:?}"
-        )));
     }
 
     let t_graph_path = path.as_ref().join(GRAPH_T_PATH);
@@ -585,33 +588,32 @@ fn decode_graph_storage(
 
     Ok(g)
 }
+
 impl ParquetDecoder for Graph {
     fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
         let batch_size = None;
-        let gs = decode_graph_storage(path, GraphType::EventGraph, batch_size, path_for_decoded_graph)?;
-        Ok(Graph::from_storage(gs))
+        let storage = decode_graph_storage(path, batch_size, path_for_decoded_graph)?;
+        Ok(Graph::from_storage(storage))
     }
 }
 
 impl ParquetDecoder for PersistentGraph {
     fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
         let batch_size = None;
-        let gs = decode_graph_storage(path, GraphType::PersistentGraph, batch_size, path_for_decoded_graph)?;
-        Ok(PersistentGraph(gs))
+        let storage = decode_graph_storage(path, batch_size, path_for_decoded_graph)?;
+        Ok(PersistentGraph(storage))
     }
 }
 
 impl ParquetDecoder for MaterializedGraph {
     fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
         let batch_size = None;
-        // Try to decode as EventGraph first
-        match decode_graph_storage(path.as_ref(), GraphType::EventGraph, batch_size, path_for_decoded_graph.as_ref()) {
-            Ok(gs) => Ok(MaterializedGraph::EventGraph(Graph::from_storage(gs))),
-            Err(_) => {
-                // If that fails, try PersistentGraph
-                let gs = decode_graph_storage(path.as_ref(), GraphType::PersistentGraph, batch_size, path_for_decoded_graph)?;
-                Ok(MaterializedGraph::PersistentGraph(PersistentGraph(gs)))
-            }
+        let graph_type = decode_graph_type(&path)?;
+        let storage = decode_graph_storage(path, batch_size, path_for_decoded_graph)?;
+
+        match graph_type {
+            GraphType::EventGraph => Ok(MaterializedGraph::EventGraph(Graph::from_storage(storage))),
+            GraphType::PersistentGraph => Ok(MaterializedGraph::PersistentGraph(PersistentGraph(storage))),
         }
     }
 }
