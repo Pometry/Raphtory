@@ -30,6 +30,7 @@ pub(crate) struct TokenClaims {
     pub(crate) a: Access,
 }
 
+// TODO: maybe this should be renamed as it doens't only take care of auth anymore
 pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AuthConfig,
@@ -43,11 +44,15 @@ impl<E> AuthenticatedGraphQL<E> {
         Self {
             executor,
             config,
-            semaphore: std::env::var("CONCURRENCY_LIMIT").ok().and_then(|limit| {
-                let limit = limit.parse::<usize>().ok()?;
-                println!("Server running with concurrency limited to {limit} for heavy queries");
-                Some(Semaphore::new(limit))
-            }),
+            semaphore: std::env::var("RAPHTORY_CONCURRENCY_LIMIT")
+                .ok()
+                .and_then(|limit| {
+                    let limit = limit.parse::<usize>().ok()?;
+                    println!(
+                        "Server running with concurrency limited to {limit} for heavy queries"
+                    );
+                    Some(Semaphore::new(limit))
+                }),
             lock: std::env::var("RAPHTORY_THREADSAFE")
                 .ok()
                 .and_then(|thread_safe| {
