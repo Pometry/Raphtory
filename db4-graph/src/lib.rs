@@ -169,9 +169,17 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         node_meta: Meta,
         edge_meta: Meta,
     ) -> Result<Self, StorageError> {
+        let mut graph_dir = graph_dir;
+
+        // Short-circuit graph_dir to None if disk storage is not enabled
+        if !Extension::disk_storage_enabled() {
+            graph_dir = None;
+        }
+
         if let Some(dir) = graph_dir.as_ref() {
             std::fs::create_dir_all(dir)?
         }
+
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
         let logical_to_physical = match gid_resolver_dir {
             Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir)?,

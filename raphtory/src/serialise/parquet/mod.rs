@@ -413,19 +413,8 @@ fn decode_graph_storage(
     batch_size: Option<usize>,
     path_for_decoded_graph: Option<impl AsRef<Path>>,
 ) -> Result<Arc<Storage>, GraphError> {
-    let g = if let Some(graph_path) = path_for_decoded_graph {
-        let storage = Storage::default();
-
-        // TODO: Currently, in-memory graphs when provided with a path still write
-        // some things to disk (initial folder structures, etc). This can cause
-        // unexpected behavior in the top-level APIs that don't expect it to write
-        // to disk. For now, even if path is provided, don't pass it in unless we're creating
-        // disk graphs.
-        if storage.disk_storage_enabled() {
-            Arc::new(Storage::new_at_path(graph_path.as_ref()))
-        } else {
-            Arc::new(Storage::default())
-        }
+    let graph = if let Some(storage_path) = path_for_decoded_graph {
+        Arc::new(Storage::new_at_path(storage_path))
     } else {
         Arc::new(Storage::default())
     };
@@ -434,9 +423,8 @@ fn decode_graph_storage(
 
     // If the directory is empty, immediately return an empty graph
     if dir.next().is_none() {
-        return Ok(g);
+        return Ok(graph);
     }
-
 
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
@@ -446,7 +434,7 @@ fn decode_graph_storage(
         let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
 
         load_graph_props_from_parquet(
-            &g,
+            &graph,
             &c_graph_path,
             TIME_COL,
             None,
@@ -464,7 +452,7 @@ fn decode_graph_storage(
         let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
 
         load_graph_props_from_parquet(
-            &g,
+            &graph,
             &t_graph_path,
             TIME_COL,
             Some(SECONDARY_INDEX_COL),
@@ -485,7 +473,7 @@ fn decode_graph_storage(
             .collect::<Vec<_>>();
 
         load_nodes_from_parquet(
-            &g,
+            &graph,
             &t_node_path,
             TIME_COL,
             Some(SECONDARY_INDEX_COL),
@@ -510,7 +498,7 @@ fn decode_graph_storage(
             .collect::<Vec<_>>();
 
         load_node_props_from_parquet(
-            &g,
+            &graph,
             &c_node_path,
             NODE_ID_COL,
             None,
@@ -532,7 +520,7 @@ fn decode_graph_storage(
             .collect::<Vec<_>>();
 
         load_edges_from_parquet(
-            &g,
+            &graph,
             &t_edge_path,
             TIME_COL,
             Some(SECONDARY_INDEX_COL),
@@ -551,7 +539,7 @@ fn decode_graph_storage(
 
     if std::fs::exists(&d_edge_path)? {
         load_edge_deletions_from_parquet(
-            g.core_graph(),
+            graph.core_graph(),
             &d_edge_path,
             TIME_COL,
             Some(SECONDARY_INDEX_COL),
@@ -574,7 +562,7 @@ fn decode_graph_storage(
             .collect::<Vec<_>>();
 
         load_edge_props_from_parquet(
-            &g,
+            &graph,
             &c_edge_path,
             SRC_COL,
             DST_COL,
@@ -586,7 +574,7 @@ fn decode_graph_storage(
         )?;
     }
 
-    Ok(g)
+    Ok(graph)
 }
 
 impl ParquetDecoder for Graph {

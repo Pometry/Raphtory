@@ -73,7 +73,7 @@ impl GraphWithVectors {
     ) -> Result<Self, GraphError> {
         let path_for_decoded_graph: Option<PathBuf> = None;
         let graph = {
-            // Create an empty graph just to test is_persistent
+            // Create an empty graph just to test disk_storage_enabled
             let test = Graph::new();
 
             if test.disk_storage_enabled() {
