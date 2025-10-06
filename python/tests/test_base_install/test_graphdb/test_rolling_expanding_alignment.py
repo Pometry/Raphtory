@@ -189,6 +189,7 @@ def test_rolling_align_start_false(example_graph):
         2025, 12, 15, 14, 37, 52, tzinfo=timezone.utc
     )
 
+
 def test_rolling_custom_align_day(example_graph):
     g: Graph = example_graph
     windows = list(g.rolling("1 month", alignment_unit="day"))
@@ -268,6 +269,7 @@ def test_expanding_align_start_false(example_graph):
     assert ws[0].end_date_time == exp_end0
     assert ws[-1].end_date_time == exp_end_last
 
+
 def test_expanding_custom_align_month(example_graph):
     g: Graph = example_graph
     ws = list(g.expanding("1 day", alignment_unit="month"))
@@ -275,6 +277,7 @@ def test_expanding_custom_align_month(example_graph):
     exp_end_last = datetime(2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc)
     assert ws[0].end_date_time == exp_end0
     assert ws[-1].end_date_time == exp_end_last
+
 
 def test_expanding_custom_align_week(example_graph):
     g: Graph = example_graph

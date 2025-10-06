@@ -3825,28 +3825,30 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "expanding": {
-            "page": [
-                {
-                    "end": int(
-                        datetime(
-                            2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc
-                        ).timestamp()
-                    )
-                    * 1000
-                },
-                {
-                    "end": int(
-                        datetime(
-                            2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc
-                        ).timestamp()
-                    )
-                    * 1000
-                }
-            ]
+    expected_output = {
+        "graph": {
+            "expanding": {
+                "page": [
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -3860,28 +3862,30 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "expanding": {
-            "page": [
-                {
-                    "end": int(
-                        datetime(
-                            2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
-                        ).timestamp()
-                    )
-                           * 1000
-                },
-                {
-                    "end": int(
-                        datetime(
-                            2025, 5, 15, 0, 0, 0, tzinfo=timezone.utc
-                        ).timestamp()
-                    )
-                           * 1000
-                }
-            ]
+    expected_output = {
+        "graph": {
+            "expanding": {
+                "page": [
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 5, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
@@ -3895,28 +3899,30 @@ def test_alignment():
       }
     }
     """
-    expected_output = {"graph": {
-        "expanding": {
-            "page": [
-                {
-                    "end": int(
-                        datetime(
-                            2025, 4, 13, 0, 0, 0, tzinfo=timezone.utc
-                        ).timestamp()
-                    )
-                    * 1000
-                },
-                {
-                    "end": int(
-                        datetime(
-                            2025, 5, 13, 0, 0, 0, tzinfo=timezone.utc
-                        ).timestamp()
-                    )
-                    * 1000
-                }
-            ]
+    expected_output = {
+        "graph": {
+            "expanding": {
+                "page": [
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 4, 13, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                    {
+                        "end": int(
+                            datetime(
+                                2025, 5, 13, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000
+                    },
+                ]
+            }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """
