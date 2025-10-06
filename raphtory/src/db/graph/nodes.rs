@@ -192,6 +192,10 @@ where
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.graph.core_graph().lock();
+        self.iter_vids(g)
+    }
+
+    fn iter_vids(&self, g: GraphStorage) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let node_types_filter = self.node_types_filter.clone();
         let view = self.graph.clone();
         self.node_list().into_iter().filter(move |&vid| {
@@ -203,8 +207,21 @@ where
         })
     }
 
+    #[inline]
+    pub(crate) fn iter_refs_unlocked(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
+        let g = self.graph.core_graph().clone();
+        self.iter_vids(g)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {
         self.iter_refs()
+            .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
+    }
+
+    pub fn iter_unlocked(
+        &self,
+    ) -> impl Iterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {
+        self.iter_refs_unlocked()
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
@@ -212,6 +229,14 @@ where
         let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
         self.iter_refs()
+            .map(move |v| NodeView::new_one_hop_filtered(base_graph.clone(), g.clone(), v))
+            .into_dyn_boxed()
+    }
+
+    pub fn iter_owned_unlocked(&self) -> BoxedLIter<'graph, NodeView<'graph, G, GH>> {
+        let base_graph = self.base_graph.clone();
+        let g = self.graph.clone();
+        self.iter_refs_unlocked()
             .map(move |v| NodeView::new_one_hop_filtered(base_graph.clone(), g.clone(), v))
             .into_dyn_boxed()
     }

@@ -449,8 +449,8 @@ impl DerefMut for NodeSlot {
 
 impl PartialEq for NodeVec {
     fn eq(&self, other: &Self) -> bool {
-        let a = self.data.read();
-        let b = other.data.read();
+        let a = self.data.read_recursive();
+        let b = other.data.read_recursive();
         a.deref() == b.deref()
     }
 }
@@ -470,7 +470,7 @@ impl NodeVec {
 
     #[inline]
     pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<NodeSlot> {
-        RwLock::read_arc(&self.data)
+        RwLock::read_arc_recursive(&self.data)
     }
 
     #[inline]
@@ -480,7 +480,7 @@ impl NodeVec {
 
     #[inline]
     pub fn read(&self) -> impl Deref<Target = NodeSlot> + '_ {
-        self.data.read()
+        self.data.read_recursive()
     }
 }
 
@@ -674,6 +674,55 @@ impl NodeStorage {
                 i: offset_i,
                 j: offset_j,
                 guard: self.data[bucket_i].data.write(),
+            }
+        }
+    }
+
+    pub fn loop_pair_entry_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
+        let i = i.into();
+        let j = j.into();
+        let (bucket_i, offset_i) = self.resolve(i);
+        let (bucket_j, offset_j) = self.resolve(j);
+        loop {
+            if bucket_i < bucket_j {
+                let guard_i = self.data[bucket_i].data.try_write();
+                let guard_j = self.data[bucket_j].data.try_write();
+                let maybe_guards =
+                    guard_i
+                        .zip(guard_j)
+                        .map(|(guard_i, guard_j)| PairEntryMut::Different {
+                            i: offset_i,
+                            j: offset_j,
+                            guard1: guard_i,
+                            guard2: guard_j,
+                        });
+                if let Some(guards) = maybe_guards {
+                    return guards;
+                }
+            } else if bucket_i > bucket_j {
+                let guard_j = self.data[bucket_j].data.try_write();
+                let guard_i = self.data[bucket_i].data.try_write();
+                let maybe_guards =
+                    guard_i
+                        .zip(guard_j)
+                        .map(|(guard_i, guard_j)| PairEntryMut::Different {
+                            i: offset_i,
+                            j: offset_j,
+                            guard1: guard_i,
+                            guard2: guard_j,
+                        });
+                if let Some(guards) = maybe_guards {
+                    return guards;
+                }
+            } else {
+                let maybe_guard = self.data[bucket_i].data.try_write();
+                if let Some(guard) = maybe_guard {
+                    return PairEntryMut::Same {
+                        i: offset_i,
+                        j: offset_j,
+                        guard,
+                    };
+                }
             }
         }
     }
