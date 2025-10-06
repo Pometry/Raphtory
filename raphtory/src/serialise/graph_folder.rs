@@ -158,6 +158,7 @@ impl GraphFolder {
             node_count,
             edge_count,
             metadata: properties.as_vec(),
+            graph_type: graph.graph_type(),
         };
 
         if self.write_as_zip_format {
@@ -303,6 +304,7 @@ mod zip_tests {
         prelude::{AdditionOps, Graph, Prop, StableEncode, NO_PROPS},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
+    use raphtory_api::GraphType;
 
     /// Verify that the metadata is re-created if it does not exist.
     #[test]
@@ -331,7 +333,8 @@ mod zip_tests {
             GraphMetadata {
                 node_count: 1,
                 edge_count: 0,
-                metadata: vec![]
+                metadata: vec![],
+                graph_type: GraphType::EventGraph,
             }
         );
     }
@@ -390,7 +393,8 @@ mod zip_tests {
             GraphMetadata {
                 node_count: 1,
                 edge_count: 0,
-                metadata: vec![]
+                metadata: vec![],
+                graph_type: GraphType::EventGraph,
             }
         );
     }
