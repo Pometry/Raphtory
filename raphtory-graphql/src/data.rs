@@ -328,6 +328,7 @@ pub(crate) mod data_tests {
     fn create_graph_folder(path: &Path) {
         let folder = GraphFolder::from(path);
         folder.reserve().unwrap();
+        folder.write_metadata(&Graph::new()).unwrap();
     }
 
     pub(crate) fn save_graphs_to_work_dir(

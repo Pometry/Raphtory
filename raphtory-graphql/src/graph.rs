@@ -71,7 +71,6 @@ impl GraphWithVectors {
         cache: Option<VectorCache>,
         create_index: bool,
     ) -> Result<Self, GraphError> {
-        let path_for_decoded_graph: Option<PathBuf> = None;
         let graph = {
             // Create an empty graph just to test disk_storage_enabled
             let test = Graph::new();
@@ -95,6 +94,8 @@ impl GraphWithVectors {
 
                 graph
             } else {
+                let path_for_decoded_graph: Option<PathBuf> = None;
+
                 MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?
             }
         };

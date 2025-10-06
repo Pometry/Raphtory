@@ -402,6 +402,11 @@ fn decode_graph_type(
 ) -> Result<GraphType, GraphError> {
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
+    // Assume event graph as default
+    if !std::fs::exists(&c_graph_path)? {
+        return Ok(GraphType::EventGraph);
+    }
+
     let exclude = vec![TIME_COL];
     let (_, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
 
