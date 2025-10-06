@@ -3357,6 +3357,198 @@ def test_alignment():
     query = """
     {
       graph(path: "g") {
+        rolling(window: {duration: "1 month"}, alignmentUnit: DAY) {
+          page(limit: 3) {
+            start
+            end
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 5, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 5, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 6, 15, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                ]
+            }
+        }
+    }
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        rolling(window: {duration: "1 month"}, alignmentUnit: HOUR) {
+          page(limit: 3) {
+            start
+            end
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 15, 14, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 4, 15, 14, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 4, 15, 14, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 5, 15, 14, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 5, 15, 14, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 6, 15, 14, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                ]
+            }
+        }
+    }
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        rolling(window: {duration: "1 month"}, step: {duration: "2 weeks"}, alignmentUnit: DAY) {
+          page(limit: 3) {
+            start
+            end
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "rolling": {
+                "page": [
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 3, 29, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 12, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 4, 12, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                    {
+                        "start": int(
+                            datetime(
+                                2025, 3, 26, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                        "end": int(
+                            datetime(
+                                2025, 4, 26, 0, 0, 0, tzinfo=timezone.utc
+                            ).timestamp()
+                        )
+                        * 1000,
+                    },
+                ]
+            }
+        }
+    }
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
         rolling(window: {duration: "1 day"}) {
           page(limit: 3) {
             start
@@ -3620,6 +3812,111 @@ def test_alignment():
             }
         }
     }
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        expanding(step: {duration: "1 month"}, alignmentUnit: UNALIGNED) {
+          page(limit: 2) {
+            end
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "expanding": {
+            "page": [
+                {
+                    "end": int(
+                        datetime(
+                            2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc
+                        ).timestamp()
+                    )
+                    * 1000
+                },
+                {
+                    "end": int(
+                        datetime(
+                            2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc
+                        ).timestamp()
+                    )
+                    * 1000
+                }
+            ]
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        expanding(step: {duration: "1 month"}, alignmentUnit: DAY) {
+          page(limit: 2) {
+            end
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "expanding": {
+            "page": [
+                {
+                    "end": int(
+                        datetime(
+                            2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
+                        ).timestamp()
+                    )
+                           * 1000
+                },
+                {
+                    "end": int(
+                        datetime(
+                            2025, 5, 15, 0, 0, 0, tzinfo=timezone.utc
+                        ).timestamp()
+                    )
+                           * 1000
+                }
+            ]
+        }
+    }}
+    queries_and_expected_outputs.append((query, expected_output))
+
+    query = """
+    {
+      graph(path: "g") {
+        expanding(step: {duration: "1 month"}, alignmentUnit: WEEK) {
+          page(limit: 2) {
+            end
+          }
+        }
+      }
+    }
+    """
+    expected_output = {"graph": {
+        "expanding": {
+            "page": [
+                {
+                    "end": int(
+                        datetime(
+                            2025, 4, 13, 0, 0, 0, tzinfo=timezone.utc
+                        ).timestamp()
+                    )
+                    * 1000
+                },
+                {
+                    "end": int(
+                        datetime(
+                            2025, 5, 13, 0, 0, 0, tzinfo=timezone.utc
+                        ).timestamp()
+                    )
+                    * 1000
+                }
+            ]
+        }
+    }}
     queries_and_expected_outputs.append((query, expected_output))
 
     query = """

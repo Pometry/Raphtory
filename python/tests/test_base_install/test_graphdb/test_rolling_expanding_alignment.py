@@ -189,6 +189,62 @@ def test_rolling_align_start_false(example_graph):
         2025, 12, 15, 14, 37, 52, tzinfo=timezone.utc
     )
 
+def test_rolling_custom_align_day(example_graph):
+    g: Graph = example_graph
+    windows = list(g.rolling("1 month", alignment_unit="day"))
+    # no month alignment
+    assert windows[0].start_date_time == datetime(
+        2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[0].end_date_time == datetime(
+        2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
+    )
+    # Latest time is 2025-11-22 21:45:30
+    assert windows[-1].start_date_time == datetime(
+        2025, 11, 15, 0, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[-1].end_date_time == datetime(
+        2025, 12, 15, 0, 0, 0, tzinfo=timezone.utc
+    )
+
+
+def test_rolling_custom_align_hour(example_graph):
+    g: Graph = example_graph
+    windows = list(g.rolling("1 month", alignment_unit="hours"))
+    # no month alignment
+    assert windows[0].start_date_time == datetime(
+        2025, 3, 15, 14, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[0].end_date_time == datetime(
+        2025, 4, 15, 14, 0, 0, tzinfo=timezone.utc
+    )
+    # Latest time is 2025-11-22 21:45:30
+    assert windows[-1].start_date_time == datetime(
+        2025, 11, 15, 14, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[-1].end_date_time == datetime(
+        2025, 12, 15, 14, 0, 0, tzinfo=timezone.utc
+    )
+
+
+def test_rolling_custom_align_day_with_step(example_graph):
+    g: Graph = example_graph
+    windows = list(g.rolling("1 month", step="1 week", alignment_unit="day"))
+    # no month alignment
+    assert windows[0].start_date_time == datetime(
+        2025, 2, 22, 0, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[0].end_date_time == datetime(
+        2025, 3, 22, 0, 0, 0, tzinfo=timezone.utc
+    )
+    # Latest time is 2025-11-22 21:45:30
+    assert windows[-1].start_date_time == datetime(
+        2025, 10, 29, 0, 0, 0, tzinfo=timezone.utc
+    )
+    assert windows[-1].end_date_time == datetime(
+        2025, 11, 29, 0, 0, 0, tzinfo=timezone.utc
+    )
+
 
 def test_expanding_day_alignment_default_true(example_graph):
     g: Graph = example_graph
@@ -209,6 +265,22 @@ def test_expanding_align_start_false(example_graph):
     ws = list(g.expanding("1 day", alignment_unit="unaligned"))
     exp_end0 = datetime(2025, 3, 16, 14, 37, 52, tzinfo=timezone.utc)
     exp_end_last = datetime(2025, 11, 23, 14, 37, 52, tzinfo=timezone.utc)
+    assert ws[0].end_date_time == exp_end0
+    assert ws[-1].end_date_time == exp_end_last
+
+def test_expanding_custom_align_month(example_graph):
+    g: Graph = example_graph
+    ws = list(g.expanding("1 day", alignment_unit="month"))
+    exp_end0 = datetime(2025, 3, 2, 0, 0, 0, tzinfo=timezone.utc)
+    exp_end_last = datetime(2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc)
+    assert ws[0].end_date_time == exp_end0
+    assert ws[-1].end_date_time == exp_end_last
+
+def test_expanding_custom_align_week(example_graph):
+    g: Graph = example_graph
+    ws = list(g.expanding("1 day", alignment_unit="weeks"))
+    exp_end0 = datetime(2025, 3, 14, 0, 0, 0, tzinfo=timezone.utc)
+    exp_end_last = datetime(2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc)
     assert ws[0].end_date_time == exp_end0
     assert ws[-1].end_date_time == exp_end_last
 
@@ -254,7 +326,7 @@ def test_rolling_month_alignment_with_layers():
     assert w_last.start_date_time == exp2_start and w_last.end_date_time == exp2_end
 
 
-def test_node_rolling_alignment(example_graph_with_edges):
+def test_node_alignment(example_graph_with_edges):
     g: Graph = example_graph_with_edges
     n1 = g.node(1)
     assert n1 is not None
@@ -286,7 +358,7 @@ def test_node_rolling_alignment(example_graph_with_edges):
     assert expand_windows[-1].end_date_time == exp_end_last
 
 
-def test_nodes_rolling_alignment(example_graph_with_edges):
+def test_nodes_alignment(example_graph_with_edges):
     g: Graph = example_graph_with_edges
     # there is only one node "1"
     ws = list(g.nodes.rolling("1 day"))
@@ -304,7 +376,7 @@ def test_nodes_rolling_alignment(example_graph_with_edges):
     assert exp_ws[-1].end_date_time == datetime(2025, 11, 23, 0, 0, tzinfo=timezone.utc)
 
 
-def test_edge_rolling_alignment(example_graph_with_edges):
+def test_edge_alignment(example_graph_with_edges):
     g: Graph = example_graph_with_edges
     e = g.edge(1, 2)
     assert e is not None
@@ -324,7 +396,7 @@ def test_edge_rolling_alignment(example_graph_with_edges):
     assert exp_ws[-1].end_date_time == datetime(2025, 11, 23, 0, 0, tzinfo=timezone.utc)
 
 
-def test_edges_rolling_alignment(example_graph_with_edges):
+def test_edges_alignment(example_graph_with_edges):
     g: Graph = example_graph_with_edges
     ws = list(g.edges.rolling("1 day"))
     assert ws[0].start_date_time == datetime(2025, 3, 15, 0, 0, tzinfo=timezone.utc)
@@ -342,7 +414,7 @@ def test_edges_rolling_alignment(example_graph_with_edges):
     assert exp_ws[-1].end_date_time == datetime(2025, 11, 23, 0, 0, tzinfo=timezone.utc)
 
 
-def test_path_from_node_neighbours_rolling_alignment(example_graph_with_edges):
+def test_path_from_node_neighbours_alignment(example_graph_with_edges):
     g: Graph = example_graph_with_edges
     n1 = g.node(1)
     assert n1 is not None
@@ -364,7 +436,7 @@ def test_path_from_node_neighbours_rolling_alignment(example_graph_with_edges):
     )
 
 
-def test_path_from_graph_neighbours_rolling_alignment(example_graph_with_edges):
+def test_path_from_graph_neighbours_alignment(example_graph_with_edges):
     g: Graph = example_graph_with_edges
     # there is only one node
     neigh = g.nodes.neighbours
