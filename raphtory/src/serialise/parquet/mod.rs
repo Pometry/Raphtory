@@ -424,13 +424,6 @@ fn decode_graph_storage(
         Arc::new(Storage::default())
     };
 
-    let mut dir = std::fs::read_dir(&path)?;
-
-    // If the directory is empty, immediately return an empty graph
-    if dir.next().is_none() {
-        return Ok(graph);
-    }
-
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
     {

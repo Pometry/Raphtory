@@ -309,6 +309,7 @@ pub(crate) mod data_tests {
     use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
     use tokio::time::sleep;
 
+    // TODO: Change this to work for new diskgraph
     // This function creates files that mimic disk graph for tests
     fn create_ipc_files_in_dir(dir_path: &Path) -> io::Result<()> {
         if !dir_path.exists() {
@@ -326,9 +327,9 @@ pub(crate) mod data_tests {
     }
 
     fn create_graph_folder(path: &Path) {
-        let folder = GraphFolder::from(path);
-        folder.reserve().unwrap();
-        folder.write_metadata(&Graph::new()).unwrap();
+        // Use empty graph to create folder structure
+        let graph = Graph::new();
+        graph.encode(path).unwrap();
     }
 
     pub(crate) fn save_graphs_to_work_dir(
