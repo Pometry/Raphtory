@@ -104,6 +104,10 @@ pub fn register_mutation_plugin<
 }
 
 impl GraphServer {
+    /// Creates a new server and returns a corresponding GraphServer object.
+    ///
+    /// Returns:
+    ///     IoResult:
     pub fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,

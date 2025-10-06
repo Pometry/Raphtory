@@ -21,6 +21,7 @@ from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
+from raphtory.iterables import *
 
 __all__ = ['NodeGroups', 'DegreeView', 'NodeStateUsize', 'NodeStateU64', 'NodeStateOptionI64', 'IdView', 'NodeStateGID', 'EarliestTimeView', 'LatestTimeView', 'NameView', 'NodeStateString', 'EarliestDateTimeView', 'LatestDateTimeView', 'NodeStateOptionDateTime', 'HistoryView', 'EdgeHistoryCountView', 'NodeStateListI64', 'HistoryDateTimeView', 'NodeStateOptionListDateTime', 'NodeTypeView', 'NodeStateOptionStr', 'NodeStateListDateTime', 'NodeStateWeightedSP', 'NodeStateF64', 'NodeStateNodes', 'NodeStateReachability', 'NodeStateListF64', 'NodeStateMotifs', 'NodeStateHits', 'NodeStateSEIR', 'NodeLayout', 'NodeStateF64String']
 class NodeGroups(object): 
@@ -343,11 +344,12 @@ class DegreeView(object):
             float: mean value
         """
 
-    def median(self) -> Optional[int]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[int]:
         """
 
@@ -500,11 +502,12 @@ class DegreeView(object):
              Optional[datetime]: The earliest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
 
-    def sum(self) -> int:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 int: the sum
         """
 
@@ -565,7 +568,7 @@ class DegreeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this DegreeView
+         Get the window size (difference between start and end) for this DegreeView.
 
         Returns:
             Optional[int]:
@@ -666,11 +669,12 @@ class NodeStateUsize(object):
             float: mean value
         """
 
-    def median(self) -> Optional[int]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[int]:
         """
 
@@ -725,11 +729,12 @@ class NodeStateUsize(object):
              NodeStateUsize: The sorted node state
         """
 
-    def sum(self) -> int:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 int: the sum
         """
 
@@ -850,11 +855,12 @@ class NodeStateU64(object):
             float: mean value
         """
 
-    def median(self) -> Optional[int]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[int]:
         """
 
@@ -909,11 +915,12 @@ class NodeStateU64(object):
              NodeStateU64: The sorted node state
         """
 
-    def sum(self) -> int:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 int: the sum
         """
 
@@ -1034,11 +1041,12 @@ class NodeStateOptionI64(object):
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[int]]:
         """
 
@@ -1219,11 +1227,12 @@ class IdView(object):
              Optional[Tuple[Node, GID]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[GID]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[GID]:
         """
 
@@ -1387,11 +1396,12 @@ class NodeStateGID(object):
              Optional[Tuple[Node, GID]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[GID]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[GID]:
         """
 
@@ -1744,11 +1754,12 @@ class EarliestTimeView(object):
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[int]]:
         """
 
@@ -1958,7 +1969,7 @@ class EarliestTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EarliestTimeView
+         Get the window size (difference between start and end) for this EarliestTimeView.
 
         Returns:
             Optional[int]:
@@ -2232,11 +2243,12 @@ class LatestTimeView(object):
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[int]]:
         """
 
@@ -2446,7 +2458,7 @@ class LatestTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this LatestTimeView
+         Get the window size (difference between start and end) for this LatestTimeView.
 
         Returns:
             Optional[int]:
@@ -2556,11 +2568,12 @@ class NameView(object):
              Optional[Tuple[Node, str]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[str]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[str]:
         """
 
@@ -2732,11 +2745,12 @@ class NodeStateString(object):
              Optional[Tuple[Node, str]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[str]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[str]:
         """
 
@@ -3089,11 +3103,12 @@ class EarliestDateTimeView(object):
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[datetime]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[datetime]]:
         """
 
@@ -3303,7 +3318,7 @@ class EarliestDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EarliestDateTimeView
+         Get the window size (difference between start and end) for this EarliestDateTimeView.
 
         Returns:
             Optional[int]:
@@ -3577,11 +3592,12 @@ class LatestDateTimeView(object):
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[datetime]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[datetime]]:
         """
 
@@ -3791,7 +3807,7 @@ class LatestDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this LatestDateTimeView
+         Get the window size (difference between start and end) for this LatestDateTimeView.
 
         Returns:
             Optional[int]:
@@ -3884,11 +3900,12 @@ class NodeStateOptionDateTime(object):
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[datetime]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[datetime]]:
         """
 
@@ -4233,11 +4250,12 @@ class HistoryView(object):
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[list[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[list[int]]:
         """
 
@@ -4447,7 +4465,7 @@ class HistoryView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this HistoryView
+         Get the window size (difference between start and end) for this HistoryView.
 
         Returns:
             Optional[int]:
@@ -4721,11 +4739,12 @@ class EdgeHistoryCountView(object):
             float: mean value
         """
 
-    def median(self) -> Optional[int]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[int]:
         """
 
@@ -4878,11 +4897,12 @@ class EdgeHistoryCountView(object):
              Optional[datetime]: The earliest datetime that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
         """
 
-    def sum(self) -> int:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 int: the sum
         """
 
@@ -4943,7 +4963,7 @@ class EdgeHistoryCountView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EdgeHistoryCountView
+         Get the window size (difference between start and end) for this EdgeHistoryCountView.
 
         Returns:
             Optional[int]:
@@ -5028,11 +5048,12 @@ class NodeStateListI64(object):
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[list[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[list[int]]:
         """
 
@@ -5377,11 +5398,12 @@ class HistoryDateTimeView(object):
              Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[list[datetime]]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[list[datetime]]]:
         """
 
@@ -5591,7 +5613,7 @@ class HistoryDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this HistoryDateTimeView
+         Get the window size (difference between start and end) for this HistoryDateTimeView.
 
         Returns:
             Optional[int]:
@@ -5676,11 +5698,12 @@ class NodeStateOptionListDateTime(object):
              Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[list[datetime]]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[list[datetime]]]:
         """
 
@@ -5869,11 +5892,12 @@ class NodeTypeView(object):
              Optional[Tuple[Node, Optional[str]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[str]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[str]]:
         """
 
@@ -6045,11 +6069,12 @@ class NodeStateOptionStr(object):
              Optional[Tuple[Node, Optional[str]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[str]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[str]]:
         """
 
@@ -6213,11 +6238,12 @@ class NodeStateListDateTime(object):
              Optional[Tuple[Node, list[datetime]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[list[datetime]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[list[datetime]]:
         """
 
@@ -6476,11 +6502,12 @@ class NodeStateF64(object):
             float: mean value
         """
 
-    def median(self) -> Optional[float]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[float]:
         """
 
@@ -6535,11 +6562,12 @@ class NodeStateF64(object):
              NodeStateF64: The sorted node state
         """
 
-    def sum(self) -> float:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 float: the sum
         """
 
@@ -6913,11 +6941,12 @@ class NodeStateMotifs(object):
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[list[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[list[int]]:
         """
 
@@ -7081,11 +7110,12 @@ class NodeStateHits(object):
              Optional[Tuple[Node, Tuple[float, float]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Tuple[float, float]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Tuple[float, float]]:
         """
 
@@ -7249,11 +7279,12 @@ class NodeStateSEIR(object):
              Optional[Tuple[Node, Infected]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Infected]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Infected]:
         """
 
