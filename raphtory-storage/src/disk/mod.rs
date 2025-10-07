@@ -2,7 +2,7 @@ use crate::{
     core_ops::CoreGraphOps, disk::graph_impl::prop_conversion::make_node_properties_from_graph,
 };
 use arrow::datatypes::{DataType, Field};
-use arrow_array::{ArrayRef, Float64Array, Int64Array, PrimitiveArray, StructArray, UInt64Array};
+use arrow_array::{ArrayRef, Float64Array, Int64Array, StructArray, UInt64Array};
 use pometry_storage::{
     graph::TemporalGraph, graph_fragment::TempColGraphFragment, interop::GraphLike,
     load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
@@ -372,7 +372,7 @@ impl DiskGraphStorage {
 #[cfg(test)]
 mod test {
     use arrow::datatypes::{DataType, Field, Schema};
-    use arrow_array::{Int64Array, PrimitiveArray, StructArray, UInt64Array};
+    use arrow_array::{Int64Array, StructArray, UInt64Array};
     use itertools::Itertools;
     use pometry_storage::{
         chunked_array::array_like::{BaseArrayLike, FromVec},

@@ -3,7 +3,6 @@ use crate::graph::nodes::{
     node_storage_ops::NodeStorageOps,
     row::{DiskRow, Row},
 };
-use arrow::datatypes::{DataType, Int32Type};
 use itertools::Itertools;
 use pometry_storage::{
     graph::TemporalGraph, timestamps::LayerAdditions, tprops::DiskTProp, GidRef,

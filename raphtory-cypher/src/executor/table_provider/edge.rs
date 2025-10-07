@@ -1,7 +1,7 @@
 use super::plan_properties;
 use crate::executor::ExecError;
 use arrow::datatypes::*;
-use arrow_array::{make_array, Array, Int64Array, PrimitiveArray, StructArray};
+use arrow_array::{Array, Int64Array, PrimitiveArray, StructArray};
 use arrow_buffer::{OffsetBuffer, ScalarBuffer};
 use arrow_schema::Field;
 use async_trait::async_trait;

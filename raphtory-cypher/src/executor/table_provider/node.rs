@@ -1,9 +1,9 @@
 use super::plan_properties;
 use crate::executor::ExecError;
 use arrow::datatypes::UInt64Type;
-use arrow_array::{make_array, Array, PrimitiveArray};
+use arrow_array::{Array, PrimitiveArray};
 use arrow_buffer::ScalarBuffer;
-use arrow_schema::{DataType, Field, Schema, SchemaBuilder};
+use arrow_schema::{DataType, Field, SchemaBuilder};
 use async_trait::async_trait;
 use datafusion::{
     arrow::{array::RecordBatch, datatypes::SchemaRef},
@@ -20,10 +20,7 @@ use datafusion::{
     },
 };
 use futures::Stream;
-use pometry_storage::{
-    prelude::{BaseArrayOps, Chunked},
-    properties::ConstProps,
-};
+use pometry_storage::{prelude::Chunked, properties::ConstProps};
 use raphtory::{core::entities::VID, prelude::DiskGraphStorage};
 use std::{any::Any, fmt::Formatter, sync::Arc};
 

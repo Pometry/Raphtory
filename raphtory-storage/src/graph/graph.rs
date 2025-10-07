@@ -126,7 +126,7 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn nodes(&self) -> NodesStorageEntry {
+    pub fn nodes(&self) -> NodesStorageEntry<'_> {
         match self {
             GraphStorage::Mem(storage) => NodesStorageEntry::Mem(&storage.nodes),
             GraphStorage::Unlocked(storage) => {
@@ -214,7 +214,7 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn edges(&self) -> EdgesStorageRef {
+    pub fn edges(&self) -> EdgesStorageRef<'_> {
         match self {
             GraphStorage::Mem(storage) => EdgesStorageRef::Mem(&storage.edges),
             GraphStorage::Unlocked(storage) => {
@@ -238,7 +238,7 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn edge_entry(&self, eid: EID) -> EdgeStorageEntry {
+    pub fn edge_entry(&self, eid: EID) -> EdgeStorageEntry<'_> {
         match self {
             GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.get_mem(eid)),
             GraphStorage::Unlocked(storage) => {

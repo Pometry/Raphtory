@@ -406,13 +406,13 @@ impl NodeSlot {
         &mut self.t_props_log
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodePtr> {
+    pub fn iter(&self) -> impl Iterator<Item = NodePtr<'_>> {
         self.nodes
             .iter()
             .map(|ns| NodePtr::new(ns, &self.t_props_log))
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr<'_>> {
         self.nodes
             .par_iter()
             .map(|ns| NodePtr::new(ns, &self.t_props_log))
@@ -536,17 +536,17 @@ impl ReadLockedStorage {
     }
 
     #[inline]
-    pub fn get_entry(&self, index: VID) -> NodePtr {
+    pub fn get_entry(&self, index: VID) -> NodePtr<'_> {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         NodePtr::new(&bucket[offset], &bucket.t_props_log)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodePtr> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = NodePtr<'_>> + '_ {
         self.locks.iter().flat_map(|v| v.iter())
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> + '_ {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr<'_>> + '_ {
         self.locks.par_iter().flat_map(|v| v.par_iter())
     }
 }
@@ -576,7 +576,7 @@ impl NodeStorage {
         }
     }
 
-    pub fn write_lock(&self) -> WriteLockedNodes {
+    pub fn write_lock(&self) -> WriteLockedNodes<'_> {
         WriteLockedNodes {
             guards: self.data.iter().map(|lock| lock.data.write()).collect(),
             global_len: &self.len,
@@ -595,7 +595,7 @@ impl NodeStorage {
         }
     }
 
-    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<NodeStore, NodeSlot> {
+    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<'_, NodeStore, NodeSlot> {
         let index = self.len.fetch_add(1, Ordering::Relaxed);
         value.vid = VID(index);
         let (bucket, offset) = self.resolve(index);
@@ -774,7 +774,7 @@ where
 impl<'a> WriteLockedNodes<'a> {
     pub fn par_iter_mut(
         &mut self,
-    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<&mut NodeSlot>> + '_ {
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'_, &mut NodeSlot>> + '_ {
         let num_shards = self.guards.len();
         let global_len = self.global_len;
         let shards: Vec<&mut NodeSlot> = self

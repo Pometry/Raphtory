@@ -5,7 +5,7 @@ use crate::{
 use arrow_array::{
     cast::AsArray,
     types::{Int64Type, TimestampMillisecondType},
-    Array, ArrayRef, ArrowPrimitiveType, Int64Array, PrimitiveArray,
+    Array, ArrayRef, PrimitiveArray,
 };
 use arrow_cast::cast;
 use arrow_schema::{DataType, TimeUnit};

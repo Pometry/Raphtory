@@ -4,11 +4,8 @@ use arrow::{
     datatypes::{DataType, Field, Schema, DECIMAL128_MAX_PRECISION},
 };
 use arrow_array::{
-    builder::BooleanBuilder,
-    types::{Decimal128Type, Int32Type, Int64Type, UInt16Type, UInt8Type},
-    BooleanArray, Decimal128Array, Float32Array, Float64Array, GenericStringArray, Int32Array,
-    Int64Array, LargeStringArray, PrimitiveArray, UInt16Array, UInt32Array, UInt64Array,
-    UInt8Array,
+    builder::BooleanBuilder, Decimal128Array, Float32Array, Float64Array, Int32Array, Int64Array,
+    LargeStringArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
 };
 use itertools::Itertools;
 use num_traits::ToPrimitive;

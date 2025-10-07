@@ -269,15 +269,15 @@ impl InheritViewOps for Storage {}
 impl InternalAdditionOps for Storage {
     type Error = GraphError;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_>, Self::Error> {
         Ok(self.graph.write_lock()?)
     }
 
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes<'_>, Self::Error> {
         Ok(self.graph.write_lock_nodes()?)
     }
 
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges<'_>, Self::Error> {
         Ok(self.graph.write_lock_edges()?)
     }
 
@@ -478,7 +478,7 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
         #[cfg(feature = "proto")]
@@ -494,7 +494,7 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
         let lock = self.graph.internal_update_node_metadata(vid, props)?;
 
         #[cfg(feature = "proto")]
@@ -511,7 +511,7 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWGuard<'_>, Self::Error> {
         let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
 
         #[cfg(feature = "proto")]
@@ -528,7 +528,7 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWGuard<'_>, Self::Error> {
         let lock = self
             .graph
             .internal_update_edge_metadata(eid, layer, props)?;

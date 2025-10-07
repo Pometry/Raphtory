@@ -21,9 +21,7 @@ use datafusion::{
 };
 use futures::{Stream, StreamExt};
 use pometry_storage::{
-    chunked_array::col::IntoCol,
-    graph_fragment::TempColGraphFragment,
-    prelude::{ArrayOps, BaseArrayOps},
+    chunked_array::col::IntoCol, graph_fragment::TempColGraphFragment, prelude::BaseArrayOps,
 };
 use raphtory::{api::core::Direction, core::entities::VID, prelude::DiskGraphStorage};
 use std::{

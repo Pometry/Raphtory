@@ -3,8 +3,7 @@ use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
 use rand::prelude::*;
 use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
-    db::graph::{graph::assert_graph_equal, views::window_graph::WindowedGraph},
-    prelude::*,
+    db::graph::graph::assert_graph_equal, prelude::*,
 };
 use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
 use rayon::prelude::*;

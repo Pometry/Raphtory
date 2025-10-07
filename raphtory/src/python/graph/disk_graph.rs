@@ -61,7 +61,7 @@ struct PyParquetLayerCols {
 }
 
 impl PyParquetLayerCols {
-    pub fn as_deref(&self) -> ParquetLayerCols {
+    pub fn as_deref(&self) -> ParquetLayerCols<'_> {
         ParquetLayerCols {
             parquet_dir: self.parquet_dir.deref(),
             layer: self.layer.deref(),

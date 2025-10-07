@@ -203,7 +203,7 @@ where
         })
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {
+    pub fn iter(&self) -> impl Iterator<Item = NodeView<'_, &G, &GH>> + use<'_, 'graph, G, GH> {
         self.iter_refs()
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
@@ -218,7 +218,7 @@ where
 
     pub fn par_iter(
         &self,
-    ) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {
+    ) -> impl ParallelIterator<Item = NodeView<'_, &G, &GH>> + use<'_, 'graph, G, GH> {
         self.par_iter_refs()
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }

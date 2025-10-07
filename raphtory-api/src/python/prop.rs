@@ -5,8 +5,7 @@ use pyo3::{
     prelude::*,
     sync::GILOnceCell,
     types::{PyBool, PyType},
-    Bound, BoundObject, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult,
-    Python,
+    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 use std::{ops::Deref, str::FromStr, sync::Arc};
 

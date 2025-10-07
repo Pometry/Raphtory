@@ -1,5 +1,3 @@
-use arrow::datatypes::ArrowPrimitiveType;
-
 pub(crate) mod table_provider;
 
 #[derive(thiserror::Error, Debug)]

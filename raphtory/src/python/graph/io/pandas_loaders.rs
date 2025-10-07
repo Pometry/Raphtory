@@ -3,12 +3,11 @@ use crate::{
     errors::GraphError,
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::{AdditionOps, PropertyAdditionOps},
-    python::graph::io::*,
     serialise::incremental::InternalCache,
 };
 use arrow_array::ArrayRef;
 use pyo3::{
-    ffi::{c_str, Py_uintptr_t},
+    ffi::c_str,
     prelude::*,
     pybacked::PyBackedStr,
     types::{IntoPyDict, PyDict},

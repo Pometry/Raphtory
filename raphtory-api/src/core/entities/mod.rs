@@ -246,7 +246,7 @@ impl GID {
         }
     }
 
-    pub fn as_ref(&self) -> GidRef {
+    pub fn as_ref(&self) -> GidRef<'_> {
         match self {
             GID::U64(v) => GidRef::U64(*v),
             GID::Str(v) => GidRef::Str(v),
@@ -454,7 +454,7 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<LayerIds> {
+    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<'_, LayerIds> {
         match e.layer() {
             None => Cow::Borrowed(self),
             Some(l) => self

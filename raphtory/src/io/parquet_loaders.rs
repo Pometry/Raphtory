@@ -6,12 +6,7 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use arrow_array::StructArray;
-use arrow_schema::Field;
-use itertools::Itertools;
-use parquet::{
-    arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask},
-    file::reader::FileReader,
-};
+use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
 #[cfg(feature = "storage")]
 use pometry_storage::RAError;
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -349,13 +344,12 @@ pub fn read_struct_arrays(
     let readers = get_parquet_file_paths(path)?
         .into_iter()
         .map(|path| {
-            read_parquet_file(path, col_names).and_then(|(col_names, reader, _)| {
-                Ok::<_, GraphError>((col_names, reader.build()?))
-            })
+            read_parquet_file(path, col_names)
+                .and_then(|(_, reader, _)| Ok::<_, GraphError>(reader.build()?))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let chunks = readers.into_iter().flat_map(|(field_names, iter)| {
+    let chunks = readers.into_iter().flat_map(|iter| {
         iter.map(move |cols| {
             cols.map(|col| StructArray::from(col))
                 .map_err(RAError::ArrowRs)
@@ -367,9 +361,8 @@ pub fn read_struct_arrays(
 #[cfg(test)]
 mod test {
     use super::*;
-    use arrow_array::{
-        ArrayRef, Float64Array, Int64Array, PrimitiveArray, StringArray, StringViewArray,
-    };
+    use arrow_array::{ArrayRef, Float64Array, Int64Array, StringArray};
+    use itertools::Itertools;
     use std::{path::PathBuf, sync::Arc};
 
     #[test]
