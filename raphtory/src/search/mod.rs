@@ -226,8 +226,7 @@ mod test_index {
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(!is_indexed);
         }
@@ -248,8 +247,7 @@ mod test_index {
             graph.encode(path).unwrap();
 
             // Loaded index that was persisted
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(is_indexed);
 
@@ -290,8 +288,7 @@ mod test_index {
             // TODO: This test currently fails since graph updates are not propagated
             // to the search index.
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             assert_search_results(&graph, &NodeFilter::name().eq("Ozai"), vec!["Ozai"]);
         }
 
@@ -323,8 +320,7 @@ mod test_index {
             assert_search_results(&graph, &filter2, vec!["Tommy"]);
 
             // Loaded index that was persisted
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(is_indexed);
             assert_search_results(&graph, &filter1, vec!["Alice"]);
@@ -350,7 +346,7 @@ mod test_index {
 
             // Should load the updated graph and index
             let storage_path = path.parent().unwrap().to_path_buf();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(is_indexed);
             assert_search_results(&graph, &filter1, vec!["Alice"]);
@@ -367,7 +363,7 @@ mod test_index {
             graph.encode(&folder).unwrap();
 
             let storage_path = tmp_dir.path().to_path_buf();
-            let graph = Graph::decode(folder, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(folder, None).unwrap();
             let node = graph.node("Alice").unwrap();
             let node_type = node.node_type();
             assert_eq!(node_type, Some(ArcStr::from("fire_nation")));
@@ -411,16 +407,14 @@ mod test_index {
             graph.encode(path).unwrap();
 
             // This gives us immutable index
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
 
             // This tests that we are able to persist the immutable index
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let filter1 = NodeFilter::name().eq("Alice");
             assert_search_results(&graph, &filter1, vec!["Alice"]);
         }
@@ -435,8 +429,7 @@ mod test_index {
             graph.encode(path).unwrap();
 
             // This gives us immutable index
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
 
             // This converts immutable index to mutable index
             graph
@@ -448,8 +441,7 @@ mod test_index {
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let filter = NodeFilter::name().eq("Ozai");
             assert_search_results(&graph, &filter, vec!["Ozai"]);
         }
@@ -463,8 +455,7 @@ mod test_index {
             let folder = GraphFolder::new_as_zip(&zip_path);
             graph.encode(&folder).unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(folder, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(folder, None).unwrap();
             let immutable = graph.get_storage().unwrap().index.read().is_immutable();
             assert! {!immutable};
         }
@@ -477,8 +468,7 @@ mod test_index {
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let immutable = graph.get_storage().unwrap().index.read().is_immutable();
             assert! {immutable};
         }
@@ -497,8 +487,7 @@ mod test_index {
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(!is_indexed);
 
@@ -523,8 +512,7 @@ mod test_index {
                 )
                 .unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
             assert_search_results(&graph, &filter, vec!["Tommy"]);
         }
@@ -548,8 +536,7 @@ mod test_index {
                 )
                 .unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
             assert_search_results(&graph, &filter, vec!["Tommy"]);
         }
@@ -614,8 +601,7 @@ mod test_index {
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().to_path_buf();
             graph.encode(&path).unwrap();
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(&path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(&path, None).unwrap();
 
             let spec = graph.get_index_spec().unwrap().props(&graph);
             assert_eq!(
@@ -651,8 +637,7 @@ mod test_index {
         }
 
         fn init_graph() -> Graph {
-            let storage_path = temp_storage_path();
-            let graph = Graph::new_at_path(storage_path);
+            let graph = Graph::new();
 
             let nodes = vec![
                 (
@@ -902,8 +887,7 @@ mod test_index {
             let tmp_graph_dir = tempfile::tempdir().unwrap();
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path.clone(), Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path.clone(), None).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let results = search_nodes(&graph, PropertyFilter::metadata("y").eq(false));
@@ -923,8 +907,7 @@ mod test_index {
             let tmp_graph_dir = tempfile::tempdir().unwrap();
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let results = search_nodes(&graph, PropertyFilter::metadata("y").eq(false));
@@ -953,8 +936,7 @@ mod test_index {
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let index_spec2 = graph.get_index_spec().unwrap();
 
             assert_eq!(index_spec, index_spec2);
@@ -979,8 +961,7 @@ mod test_index {
             let folder = GraphFolder::new_as_zip(path);
             graph.encode(folder.root_folder).unwrap();
 
-            let storage_path = temp_storage_path();
-            let graph = Graph::decode(path, Some(&storage_path)).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
         }
 
