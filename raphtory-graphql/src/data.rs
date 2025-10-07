@@ -181,10 +181,8 @@ impl Data {
         let path = folder.get_original_path_str();
         folder.unzip_to_folder(bytes)?;
 
-        // Can't use '?' directly as get_graph returns Arc<GraphError>
-        self.get_graph(&path)
-            .await
-            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
+        let existing_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
+        self.vectorise_folder(&existing_folder).await;
 
         Ok(())
     }
