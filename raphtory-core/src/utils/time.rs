@@ -247,7 +247,7 @@ impl AlignmentUnit {
             AlignmentUnit::Hour => Self::floor_ms(timestamp, HOUR_MS),
             AlignmentUnit::Day => Self::floor_ms(timestamp, DAY_MS),
             AlignmentUnit::Week => Self::floor_ms(timestamp, WEEK_MS),
-            // Month and Year are variable (28, 30, or 31 days/ 365 or 366 days so we can't simply use division)
+            // Month and Year are variable (28, 30, or 31 days / 365 or 366 days so we can't simply use division)
             AlignmentUnit::Month => {
                 let naive = DateTime::from_timestamp_millis(timestamp)
                     .unwrap_or_else(|| {
