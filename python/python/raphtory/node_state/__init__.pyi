@@ -112,6 +112,14 @@ class DegreeView(object):
              DegreeView:
         """
 
+    def arrrow_compute(self) -> NodeStateUsize:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateUsize: the computed `OutputNodeState`
+        """
+
     def at(self, time: TimeInput) -> DegreeView:
         """
          Create a view of the DegreeView including all events at `time`.
@@ -1149,6 +1157,14 @@ class IdView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrrow_compute(self) -> NodeStateGID:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateGID: the computed `OutputNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateGID:
         """
         Compute the k smallest values
@@ -1513,6 +1529,14 @@ class EarliestTimeView(object):
 
         Returns:
              EarliestTimeView:
+        """
+
+    def arrrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputNodeState`
         """
 
     def at(self, time: TimeInput) -> EarliestTimeView:
@@ -1989,6 +2013,14 @@ class LatestTimeView(object):
              LatestTimeView:
         """
 
+    def arrrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputNodeState`
+        """
+
     def at(self, time: TimeInput) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events at `time`.
@@ -2452,6 +2484,14 @@ class NameView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrrow_compute(self) -> NodeStateString:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateString: the computed `OutputNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateString:
         """
         Compute the k smallest values
@@ -2832,6 +2872,14 @@ class EarliestDateTimeView(object):
 
         Returns:
              EarliestDateTimeView:
+        """
+
+    def arrrow_compute(self) -> NodeStateOptionDateTime:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateOptionDateTime: the computed `OutputNodeState`
         """
 
     def at(self, time: TimeInput) -> EarliestDateTimeView:
@@ -3306,6 +3354,14 @@ class LatestDateTimeView(object):
 
         Returns:
              LatestDateTimeView:
+        """
+
+    def arrrow_compute(self) -> NodeStateOptionDateTime:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateOptionDateTime: the computed `OutputNodeState`
         """
 
     def at(self, time: TimeInput) -> LatestDateTimeView:
@@ -3959,6 +4015,14 @@ class HistoryView(object):
              HistoryView:
         """
 
+    def arrrow_compute(self) -> NodeStateListI64:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateListI64: the computed `OutputNodeState`
+        """
+
     def at(self, time: TimeInput) -> HistoryView:
         """
          Create a view of the HistoryView including all events at `time`.
@@ -4423,6 +4487,14 @@ class EdgeHistoryCountView(object):
 
         Returns:
              EdgeHistoryCountView:
+        """
+
+    def arrrow_compute(self) -> EdgeHistoryCountView:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             EdgeHistoryCountView: the computed `OutputNodeState`
         """
 
     def at(self, time: TimeInput) -> EdgeHistoryCountView:
@@ -5077,6 +5149,14 @@ class HistoryDateTimeView(object):
              HistoryDateTimeView:
         """
 
+    def arrrow_compute(self) -> NodeStateOptionListDateTime:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateOptionListDateTime: the computed `OutputNodeState`
+        """
+
     def at(self, time: TimeInput) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events at `time`.
@@ -5700,6 +5780,14 @@ class NodeTypeView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrrow_compute(self) -> NodeStateOptionStr:
+        """
+        Compute all values and return the result as a OutputNodeState
+
+        Returns:
+             NodeStateOptionStr: the computed `OutputNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateOptionStr:
         """

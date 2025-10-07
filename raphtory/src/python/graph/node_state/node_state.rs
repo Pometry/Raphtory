@@ -5,7 +5,7 @@ use crate::{
         api::{
             state::{
                 ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
-                OrderedNodeStateOps,
+                OrderedNodeStateOps, TypedNodeState,
             },
             view::{
                 internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
@@ -17,6 +17,7 @@ use crate::{
     prelude::*,
     py_borrowing_iter,
     python::{
+        graph::node_state::PyOutputNodeState,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -341,6 +342,16 @@ macro_rules! impl_lazy_node_state {
                 &self,
             ) -> NodeState<'static, <$op as NodeOp>::Output, DynamicGraph, DynamicGraph> {
                 self.inner.compute()
+            }
+
+            /// Compute all values and return the result as a OutputNodeState
+            ///
+            /// Returns:
+            #[doc = concat!("     ", $computed, ": the computed `OutputNodeState`")]
+            fn arrrow_compute(
+                &self,
+            ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
+                self.inner.arrow_compute().transform()
             }
 
             /// Compute all values and return the result as a list

@@ -17,6 +17,7 @@ use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use indexmap::IndexSet;
 use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
 
+use crate::db::api::view::internal::{GraphView, OneHopFilter};
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -47,6 +48,10 @@ impl<T> NodeStateValue for T where
     T: Clone + PartialEq + Serialize + DeserializeOwned + Send + Sync + Debug
 {
 }
+
+pub trait InputNodeStateValue: Clone + Serialize {}
+
+impl<T> InputNodeStateValue for T where T: Clone + Serialize {}
 
 #[derive(Clone, PartialEq)]
 pub enum MergePriority {
@@ -380,6 +385,29 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             tgt_idx_set.cloned(),
         )
     }
+
+    fn convert_recordbatch(
+        recordbatch: RecordBatch,
+    ) -> Result<RecordBatch, arrow_schema::ArrowError> {
+        // Cast all arrays to nullable
+        let new_columns: Vec<Arc<dyn Array>> = recordbatch
+            .columns()
+            .iter()
+            .map(|col| cast_with_options(col, &col.data_type().clone(), &CastOptions::default()))
+            .collect::<arrow::error::Result<_>>()?;
+
+        // Rebuild schema with nullable fields
+        let new_fields: Vec<Field> = recordbatch
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| Field::new(f.name(), f.data_type().clone(), true))
+            .collect();
+
+        let new_schema = Arc::new(Schema::new(new_fields));
+
+        RecordBatch::try_new(new_schema.clone(), new_columns)
+    }
 }
 
 impl<'graph, V: NodeStateValue, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
@@ -665,13 +693,57 @@ impl<
     }
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState<'graph, G, GH> {
+    pub fn new_from_eval_with_index<V: InputNodeStateValue>(
+        graph: G,
+        filtered_graph: GH,
+        values: Vec<V>,
+        index: Option<Index<VID>>,
+    ) -> Self {
+        Self::new_from_eval_with_index_mapped(graph, filtered_graph, values, index, |v| v)
+    }
+
+    pub fn new_from_eval_with_index_mapped<R: InputNodeStateValue, V: InputNodeStateValue>(
+        graph: G,
+        filtered_graph: GH,
+        values: Vec<R>,
+        index: Option<Index<VID>>,
+        map: impl Fn(R) -> V,
+    ) -> Self {
+        let values: Vec<V> = match &index {
+            None => values.into_iter().map(map).collect(),
+            Some(index) => index
+                .iter()
+                .map(|vid| map(values[vid.index()].clone()))
+                .collect(),
+        };
+        let mut fields: Vec<FieldRef> = vec![];
+        if values.len() > 0 {
+            fields = Vec::<FieldRef>::from_value(&values[0]).unwrap();
+        }
+        let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
+
+        Self::new(graph, filtered_graph, values, index)
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
+    /// create a new empty NodeState
+    pub fn new_empty(graph: G) -> Self {
+        Self::new(
+            graph.clone(),
+            graph,
+            RecordBatch::new_empty(Schema::empty().into()),
+            Some(Index::default()),
+        )
+    }
+
     /// Construct a node state from an eval result
     ///
     /// # Arguments
     /// - `graph`: the graph view
     /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
-    pub fn new_from_eval<V: NodeStateValue>(graph: G, values: Vec<V>) -> Self {
+    pub fn new_from_eval<V: InputNodeStateValue>(graph: G, values: Vec<V>) -> Self {
         Self::new_from_eval_mapped(graph, values, |v| v)
     }
 
@@ -681,33 +753,13 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// - `graph`: the graph view
     /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
     /// - `map`: Closure mapping input to output values
-    pub fn new_from_eval_mapped<R: NodeStateValue, V: NodeStateValue>(
+    pub fn new_from_eval_mapped<R: InputNodeStateValue, V: InputNodeStateValue>(
         graph: G,
         values: Vec<R>,
         map: impl Fn(R) -> V,
     ) -> Self {
         let index = Index::for_graph(graph.clone());
-        let values: Vec<V> = match &index {
-            None => values.into_iter().map(map).collect(),
-            Some(index) => index
-                .iter()
-                .map(|vid| map(values[vid.index()].clone()))
-                .collect(),
-        };
-        let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
-        let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
-
-        Self::new(graph.clone(), graph, values, index)
-    }
-
-    /// create a new empty NodeState
-    pub fn new_empty(graph: G) -> Self {
-        Self::new(
-            graph.clone(),
-            graph,
-            RecordBatch::new_empty(Schema::empty().into()),
-            Some(Index::default()),
-        )
+        Self::new_from_eval_with_index_mapped(graph.clone(), graph, values, index, map)
     }
 
     /// create a new NodeState from a list of values for the node (takes care of creating an index for
@@ -746,28 +798,5 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             let values = to_record_batch(&fields, &values).unwrap();
             Self::new(graph.clone(), graph, values, Some(Index::new(index)))
         }
-    }
-
-    fn convert_recordbatch(
-        recordbatch: RecordBatch,
-    ) -> Result<RecordBatch, arrow_schema::ArrowError> {
-        // Cast all arrays to nullable
-        let new_columns: Vec<Arc<dyn Array>> = recordbatch
-            .columns()
-            .iter()
-            .map(|col| cast_with_options(col, &col.data_type().clone(), &CastOptions::default()))
-            .collect::<arrow::error::Result<_>>()?;
-
-        // Rebuild schema with nullable fields
-        let new_fields: Vec<Field> = recordbatch
-            .schema()
-            .fields()
-            .iter()
-            .map(|f| Field::new(f.name(), f.data_type().clone(), true))
-            .collect();
-
-        let new_schema = Arc::new(Schema::new(new_fields));
-
-        RecordBatch::try_new(new_schema.clone(), new_columns)
     }
 }

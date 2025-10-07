@@ -1,16 +1,20 @@
 use crate::{
     db::{
         api::{
-            properties::{Metadata, Properties},
+            properties::{internal::InternalPropertiesOps, Metadata, Properties},
             state::NodeOp,
         },
         graph::node::NodeView,
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, PropertiesOps},
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, VID},
+    storage::arc_str::ArcStr,
+};
 use raphtory_storage::graph::graph::GraphStorage;
-use std::marker::PhantomData;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Clone)]
 pub struct GetProperties<'graph, G> {
@@ -29,9 +33,14 @@ impl<'graph, G> GetProperties<'graph, G> {
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetProperties<'graph, G> {
     type Output = Properties<NodeView<'graph, G, G>>;
+    type ArrowOutput = HashMap<ArcStr, Option<Prop>>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Properties::new(NodeView::new_internal(self.graph.clone(), node))
+    }
+
+    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
+        HashMap::from_iter(self.apply(storage, node).iter())
     }
 }
 
@@ -52,8 +61,13 @@ impl<'graph, G> GetMetadata<'graph, G> {
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetMetadata<'graph, G> {
     type Output = Metadata<'graph, NodeView<'graph, G, G>>;
+    type ArrowOutput = HashMap<ArcStr, Option<Prop>>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Metadata::new(NodeView::new_internal(self.graph.clone(), node))
+    }
+
+    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
+        HashMap::from_iter(self.apply(storage, node).iter())
     }
 }
