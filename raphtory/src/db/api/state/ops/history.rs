@@ -8,14 +8,14 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct EarliestTime<G> {
     pub(crate) graph: G,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct EarliestTimeStruct {
     earliest_time: Option<i64>,
 }
@@ -60,7 +60,7 @@ pub struct LatestTime<G> {
     pub(crate) graph: G,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LatestTimeStruct {
     latest_time: Option<i64>,
 }
@@ -105,7 +105,7 @@ pub struct History<G> {
     pub(crate) graph: G,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct HistoryStruct {
     history: Vec<i64>,
 }
@@ -153,7 +153,7 @@ pub struct EdgeHistoryCount<G> {
     pub(crate) graph: G,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct EdgeHistoryCountStruct {
     edge_history_count: usize,
 }
