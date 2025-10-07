@@ -315,7 +315,7 @@ pub(crate) mod data_tests {
         errors::GraphError,
         prelude::*,
     };
-    use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
+    use std::{collections::HashMap, fs, path::Path, time::Duration};
     use tokio::time::sleep;
 
     fn create_graph_folder(path: &Path) {

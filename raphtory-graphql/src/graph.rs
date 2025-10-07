@@ -22,6 +22,7 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
 };
+use tracing::info;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
@@ -103,6 +104,8 @@ impl GraphWithVectors {
         let vectors = cache.and_then(|cache| {
             VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
         });
+
+        info!("Graph loaded = {}", folder.get_original_path_str());
 
         if create_index {
             graph.create_index()?;
