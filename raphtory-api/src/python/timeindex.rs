@@ -232,7 +232,10 @@ impl PyEventTime {
     }
 
     pub fn __repr__(&self) -> String {
-        format!("EventTime({}, {})", self.time.0, self.time.1)
+        format!(
+            "EventTime(timestamp={}, event_id={})",
+            self.time.0, self.time.1
+        )
     }
 
     pub fn __hash__(&self) -> isize {

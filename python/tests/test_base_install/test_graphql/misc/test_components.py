@@ -40,7 +40,7 @@ def test_in_out_components():
                 }
               }
             }
-            window(start: {simpleTime: 1}, end: {simpleTime: 6}){
+            window(start: 1, end: 6){
               node(name:"3"){
                 inComponent{
                   list {
@@ -49,7 +49,7 @@ def test_in_out_components():
                 }
               }
             }
-            at(time: {simpleTime: 4}){
+            at(time: 4){
               node(name:"4"){
                 outComponent{
                   list {

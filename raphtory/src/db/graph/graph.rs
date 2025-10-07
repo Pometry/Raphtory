@@ -528,8 +528,6 @@ pub fn assert_edges_equal_layer<
             "mismatched is_deleted for edge {:?}{layer_tag}",
             e1.id()
         );
-
-        // FIXME: DiskGraph does not currently preserve event id
     }
 }
 
