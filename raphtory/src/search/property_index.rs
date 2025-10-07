@@ -19,7 +19,7 @@ use tantivy::{
 pub struct PropertyIndex {
     pub(crate) index: Arc<Index>,
     pub(crate) time_field: Option<Field>,
-    pub(crate) secondary_time_field: Option<Field>,
+    pub(crate) event_id_field: Option<Field>,
     pub(crate) layer_field: Option<Field>,
     pub(crate) entity_id_field: Field,
 }
@@ -34,9 +34,9 @@ impl PropertyIndex {
             .map_err(|_| GraphError::IndexErrorMsg("Missing required field: TIME".into()))
             .ok();
 
-        let secondary_time_field = schema
-            .get_field(fields::SECONDARY_TIME)
-            .map_err(|_| GraphError::IndexErrorMsg("Missing required field: SECONDARY_TIME".into()))
+        let event_id_field = schema
+            .get_field(fields::EVENT_ID)
+            .map_err(|_| GraphError::IndexErrorMsg("Missing required field: EVENT_ID".into()))
             .ok();
 
         let layer_field = if is_edge {
@@ -64,12 +64,7 @@ impl PropertyIndex {
                 ))
             })?;
 
-        Ok((
-            time_field,
-            secondary_time_field,
-            layer_field,
-            entity_id_field,
-        ))
+        Ok((time_field, event_id_field, layer_field, entity_id_field))
     }
 
     fn new_property(
@@ -77,7 +72,7 @@ impl PropertyIndex {
         is_edge: bool,
         path: &Option<PathBuf>,
     ) -> Result<Self, GraphError> {
-        let (time_field, secondary_time_field, layer_field, entity_id_field) =
+        let (time_field, event_id_field, layer_field, entity_id_field) =
             Self::fetch_fields(&schema, is_edge)?;
 
         let index = new_index(schema, path)?;
@@ -85,7 +80,7 @@ impl PropertyIndex {
         Ok(Self {
             index: Arc::new(index),
             time_field,
-            secondary_time_field,
+            event_id_field,
             layer_field,
             entity_id_field,
         })
@@ -108,13 +103,13 @@ impl PropertyIndex {
     fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
         let index = Index::open_in_dir(path)?;
         let schema = index.schema();
-        let (time_field, secondary_time_field, layer_field, entity_id_field) =
+        let (time_field, event_id_field, layer_field, entity_id_field) =
             Self::fetch_fields(&schema, is_edge)?;
 
         Ok(Self {
             index: Arc::new(index),
             time_field,
-            secondary_time_field,
+            event_id_field,
             layer_field,
             entity_id_field,
         })
@@ -266,11 +261,11 @@ impl PropertyIndex {
         let mut document = TantivyDocument::new();
         document.add_u64(field_entity_id, entity_id);
 
-        if let (Some(time), Some(field_time), Some(secondary_time_field)) =
-            (time, self.time_field, self.secondary_time_field)
+        if let (Some(time), Some(field_time), Some(event_id_field)) =
+            (time, self.time_field, self.event_id_field)
         {
             document.add_i64(field_time, time.0);
-            document.add_u64(secondary_time_field, time.1 as u64);
+            document.add_u64(event_id_field, time.1 as u64);
         }
 
         if let (Some(layer_id), Some(field_layer_id)) = (layer_id, self.layer_field) {
