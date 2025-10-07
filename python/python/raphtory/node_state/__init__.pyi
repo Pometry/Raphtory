@@ -112,7 +112,7 @@ class DegreeView(object):
              DegreeView:
         """
 
-    def arrrow_compute(self) -> NodeStateUsize:
+    def arrow_compute(self) -> NodeStateUsize:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -1172,7 +1172,7 @@ class IdView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def arrrow_compute(self) -> NodeStateGID:
+    def arrow_compute(self) -> NodeStateGID:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -1546,7 +1546,7 @@ class EarliestTimeView(object):
              EarliestTimeView:
         """
 
-    def arrrow_compute(self) -> NodeStateOptionI64:
+    def arrow_compute(self) -> NodeStateOptionI64:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -2043,7 +2043,7 @@ class LatestTimeView(object):
              LatestTimeView:
         """
 
-    def arrrow_compute(self) -> NodeStateOptionI64:
+    def arrow_compute(self) -> NodeStateOptionI64:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -2529,7 +2529,7 @@ class NameView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def arrrow_compute(self) -> NodeStateString:
+    def arrow_compute(self) -> NodeStateString:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -2919,7 +2919,7 @@ class EarliestDateTimeView(object):
              EarliestDateTimeView:
         """
 
-    def arrrow_compute(self) -> NodeStateOptionDateTime:
+    def arrow_compute(self) -> NodeStateOptionDateTime:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -3416,7 +3416,7 @@ class LatestDateTimeView(object):
              LatestDateTimeView:
         """
 
-    def arrrow_compute(self) -> NodeStateOptionDateTime:
+    def arrow_compute(self) -> NodeStateOptionDateTime:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -4090,7 +4090,7 @@ class HistoryView(object):
              HistoryView:
         """
 
-    def arrrow_compute(self) -> NodeStateListI64:
+    def arrow_compute(self) -> NodeStateListI64:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -4579,7 +4579,7 @@ class EdgeHistoryCountView(object):
              EdgeHistoryCountView:
         """
 
-    def arrrow_compute(self) -> EdgeHistoryCountView:
+    def arrow_compute(self) -> EdgeHistoryCountView:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -5254,7 +5254,7 @@ class HistoryDateTimeView(object):
              HistoryDateTimeView:
         """
 
-    def arrrow_compute(self) -> NodeStateOptionListDateTime:
+    def arrow_compute(self) -> NodeStateOptionListDateTime:
         """
         Compute all values and return the result as a OutputNodeState
 
@@ -5901,7 +5901,7 @@ class NodeTypeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def arrrow_compute(self) -> NodeStateOptionStr:
+    def arrow_compute(self) -> NodeStateOptionStr:
         """
         Compute all values and return the result as a OutputNodeState
 
