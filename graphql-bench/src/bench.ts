@@ -133,7 +133,7 @@ export function setup(): SetupData {
     });
 
     // this is to trigger the load of the empty graph into memory
-    fetchAndParse({
+    fetchAndCheck({
         graph: {
             __args: {
                 path: 'empty',
