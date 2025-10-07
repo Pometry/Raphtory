@@ -143,7 +143,7 @@ same two dataframes for brevity but in real instances these would probably be fo
 function call.
 
 There may be instances where you are adding a dataset which has no timestamps. To handle this when ingesting via
-dataframes, the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions which are shown in this example. 
+dataframes, the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions which are shown in this example.
 
 !!! warning
     Metadata can only be added to nodes and edges which are part of the graph. If you attempt to add a metadata without first adding the node/edge then Raphtory will throw an error.

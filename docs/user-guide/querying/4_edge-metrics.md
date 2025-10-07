@@ -1,12 +1,14 @@
-# Edge metrics and functions 
-Edges can be accessed by storing the object returned from a call to `add_edge()`, by directly asking for a specific edge via `edge()`, or by iterating over all edges with `in-edges`, `out-edges`, or `edges`. 
+# Edge metrics and functions
+
+Edges can be accessed by storing the object returned from a call to `add_edge()`, by directly asking for a specific edge via `edge()`, or by iterating over all edges with `in-edges`, `out-edges`, or `edges`.
 
 ## Edge structure and update history
-By default an edge object in Raphtory will contain all updates over all layers between the given source and destination nodes. As an example, we can look at the two edges between `FELIPE` and `MAKO` (one for each direction). 
+
+By default an edge object in Raphtory will contain all updates over all layers between the given source and destination nodes. As an example, we can look at the two edges between `FELIPE` and `MAKO` (one for each direction).
 
 In the code below we create the two edge objects by requesting them from the graph and then print out the layers each is involved in with `layer_names`. We can see that there are multiple behaviors in each direction represented within the edges.
 
-Following this we access the history to get the earliest and latest update times. This update history consists all interactions across all layers.
+Following this we access the history to get the earliest and latest update times. This update [history][raphtory.History] consists all interactions across all layers.
 
 !!!info
 
@@ -74,13 +76,14 @@ assert str(f"The edge from {e.src.name} to {e.dst.name}") == "The edge from FELI
     ```
 
 ## Exploded edges
+
 Raphtory offers you three different ways to split an edge by layer, depending on your use case:
 
 - `.layers()`: takes a list of layer names and returns a new `Edge View` which contains updates for only the specified layers. This is discussed in more detail in the [Layer views](../views/3_layer.md) chapter
 - `.explode_layers()`: returns an iterable of `Edge Views`, each containing the updates for one layer
-- `.explode()`: returns an `Exploded Edge` containing only the information from one call to `add_edge()`, in this case an edge object for each update. 
+- `.explode()`: returns an `Exploded Edge` containing only the information from one call to `add_edge()`, in this case an edge object for each update.
 
-In the code below you can see an example of each of these functions. We first call `explode_layers()`, to see which layer each edge object represents and output its update history. Next we fully `explode()` the edge and see each update as an individual object. Thirdly we use the `layer()` function to look at only the `Touching` and `Carrying` layers and chain this with a call to `explode()` to see the separate updates. 
+In the code below you can see an example of each of these functions. We first call `explode_layers()`, to see which layer each edge object represents and output its update history. Next we fully `explode()` the edge and see each update as an individual object. Thirdly we use the `layer()` function to look at only the `Touching` and `Carrying` layers and chain this with a call to `explode()` to see the separate updates.
 
 !!! info
 

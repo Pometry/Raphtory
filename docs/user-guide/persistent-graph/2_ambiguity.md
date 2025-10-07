@@ -1,6 +1,6 @@
 # Handling of ambiguous updates
 
-For a *link-stream* graph there is a natural way to construct the graph regardless of the order the updates come in. However, for a *PersistentGraph* where deletions are possible this becomes more difficult. The following examples illustrate this.
+For a link-stream graph there is a natural way to construct the graph regardless of the order the updates come in. However, for a `PersistentGraph `where deletions are possible this becomes more difficult. The following examples illustrate this.
 
 ## Order of resolving additions and deletions
 
@@ -23,9 +23,9 @@ print(G.edges.explode())
 assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[3, 2], layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[3, 2], latest_time=TimeIndexEntry[5, 1], layer(s)=[_default]))"
 ```
 
-Here two edges between Alice and Bob overlap in time: one starting at time 1 and ending at time 5, another starting at time 3 and ending at time 7. 
+Here two edges between Alice and Bob overlap in time: one starting at time 1 and ending at time 5, another starting at time 3 and ending at time 7.
 
-For *link-stream* graphs in Raphtory are allowed to have edges between the same pair of nodes happening at the same instant. However, when we look at the exploded edges of this *PersistentGraph* graph, the following is returned:
+For link-stream graphs in Raphtory are allowed to have edges between the same pair of nodes happening at the same instant. However, when we look at the exploded edges of this `PersistentGraph` graph, the following is returned:
 
 !!! Output
 
@@ -33,9 +33,9 @@ For *link-stream* graphs in Raphtory are allowed to have edges between the same 
     Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[3, 2], layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[3, 2], latest_time=TimeIndexEntry[5, 1], layer(s)=[_default]))
     ```
 
-Two edges are created, one that exists from time 1 to time 3 and another that exists from time 3 to time 5. The second deletion at time 7 is ignored. 
+Two edges are created, one that exists from time 1 to time 3 and another that exists from time 3 to time 5. The second deletion at time 7 is ignored.
 
-The reason for this is that Raphtory's graph updates are inserted in chronological order, so that the same graph is constructed regardless of the order in which the updates are made. With an exception for events which have the same timestamp, which will be covered shortly. 
+The reason for this is that Raphtory's graph updates are inserted in chronological order, so that the same graph is constructed regardless of the order in which the updates are made. With an exception for events which have the same timestamp, which will be covered shortly.
 
 In this example, the order is: edge addition at time 1, edge addition at time 3, edge deletion at time 5 and edge deletion at time 7. This second edge deletion is now redundant.
 
@@ -99,7 +99,7 @@ This graph has an edge which instantaneously appears and disappears at time 1 an
 
 ## Interaction with layers
 
-Layering allows different types of interaction to exist, and edges on different layers can have overlapping times in a way that doesn't make sense for edges in the same layer or for edges with no layer. 
+Layering allows different types of interaction to exist, and edges on different layers can have overlapping times in a way that doesn't make sense for edges in the same layer or for edges with no layer.
 
 Consider an example without layers:
 
@@ -155,4 +155,4 @@ assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_
 
 By adding layer names to the different edge instances we produce a different result.
 
-Here we have two edges, one starting and ending at 1 and 5 respectively with the 'colleague' layer, the other starting and ending at 3 and 7 on the 'friends' layer. 
+Here we have two edges, one starting and ending at 1 and 5 respectively with the 'colleague' layer, the other starting and ending at 3 and 7 on the 'friends' layer.

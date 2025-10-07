@@ -133,7 +133,6 @@ Finally, we call `to_df()` again, turning off the property history and exploding
 each interaction that occurred between `ANGELE` and `FELIPE`.
 
 !!! info
-
     We have further reduced the graph to only one layer (`Grunting-Lipsmacking`) to reduce the output size.
 
 /// tab | :fontawesome-brands-python: Python

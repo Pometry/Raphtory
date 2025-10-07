@@ -5,9 +5,9 @@
   type="text/javascript">
 </script>
 
-When dealing with *link-stream* graphs where edges are formed from instantaneous event streams, views were used to create a temporal bound on the graph to ultimately see how the graph changes over time. Single views were created using `at`, `before`, `after` and `window`, and iterators of windows were created using `expanding` and `rolling`.
+When dealing with link-stream graphs where edges are formed from instantaneous event streams, views were used to create a temporal bound on the graph to ultimately see how the graph changes over time. Single views were created using `at`, `before`, `after` and `window`, and iterators of windows were created using `expanding` and `rolling`.
 
-Functionality with the same name is available for the *PersistentGraph*. This shares similarities with the functionality for *link-stream* graphs but has some important differences. This page covers the differences in time-bounding behavior on the Raphtory `PersistentGraph`.
+Functionality with the same name is available for the `PersistentGraph`. This shares similarities with the functionality for link-stream graphs but has some important differences. This page covers the differences in time-bounding behaviour on the Raphtory `PersistentGraph`.
 
 ## Querying an instant of the graph with `at()`
 
@@ -52,7 +52,7 @@ assert str(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}") == "At time 
 
 As we can see, the edge's presence in the graph is _inclusive_ of the timestamp at which it was added, but _exclusive_ of the timestamp at which it was deleted. Equivalently, it is present on a interval \\(1 \leq t < 5 \subseteq \mathbb{Z}\\). The earliest and latest times for each edge is adjusted to the time bound in the query.
 
-While nodes are not present until they are added (see example at time 1), once they are added they are in the graph forever (see example at time 6). This differs from the `Graph` equivalent where nodes are present only when they contain an update within the time bounds. 
+While nodes are not present until they are added (see example at time 1), once they are added they are in the graph forever (see example at time 6). This differs from the `Graph` equivalent where nodes are present only when they contain an update within the time bounds.
 
 Crucially, this means that while performing a node count on a `Graph` will count the nodes who have activity (a property update, an adjacent edge added) within the time bounds specified. The same is not true for `PersistentGraph`s.
 

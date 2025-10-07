@@ -30,8 +30,8 @@ assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal
 assert str(v) == "Node(name=10, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[1, 0])"
 ```
 
-Printing out the graph and the returned node we can see the update was successful and the earliest/latest time has been
-updated.
+Printing out the graph and the returned node you can see the update was successful and the earliest and latest times have been
+updated. The timestamp you specified is used as the primary index of the `EventTime` object.
 
 !!! Output
 
@@ -170,11 +170,11 @@ assert str(g.node(id=10).history.dt.collect()) == "[datetime.datetime(2021, 1, 1
 In the output we can see the `history` of node `10` contains the two times at which we have added it into the graph (
 maintained in ascending order), returned in both unix epoch (integer) and datetime format.
 
+Internally, the [History][raphtory.History] of events is tracked using [EventTime][raphtory.EventTime] objects. However, in this example we use the `.t` and `.dt` methods to get iterables of epochs and datetimes directly from the `History` object and collect the iterables to display simple lists.
+
 ## Properties
 
-Alongside the structural update history, Raphtory can maintain the changing value of [`Properties`][raphtory.Properties] associated with nodes
-and edges. Both the `add_node()` and `add_edge()` functions have an optional parameter `properties` which takes a
-dictionary of key value pairs to be stored at the given timestamp.
+Alongside the structural update history, Raphtory can maintain the changing value of [`Properties`][raphtory.Properties] associated with nodes and edges. Both the `add_node()` and `add_edge()` functions have an optional parameter `properties` which takes a dictionary of key value pairs to be stored at the given timestamp.
 
 The graph itself may also have its own `global properties` added using the `add_properties()` function which takes only
 a `timestamp` and a `properties` dictionary.
@@ -183,7 +183,7 @@ Properties can consist of primitives (`Integer`, `Float`, `String`, `Boolean`, `
 `List`). This allows you to store both basic values as well as do complex hierarchical modelling depending on your use
 case.
 
-In the example below, we are using all of these functions to add a mixture of properties to a node, an edge, and the
+In the example below, we use all of these functions to add a mixture of properties to a node, an edge, and the
 graph.
 
 !!! warning
@@ -269,7 +269,7 @@ assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=TimeIndexEntr
 
 ## Metadata
 
-Raphtory also provides [`metadata`][raphtory.Metadata] associated with nodes and edges which have immutable values. These are useful when you know a value won't change or is not  associated with a specific time. 
+Raphtory also provides [`metadata`][raphtory.Metadata] associated with nodes and edges which have immutable values. These are useful when you know a value won't change or is not associated with a specific time.
 
 You can use the `add_metadata()` function, which takes a single `dictionary` argument, to add metadata to a `graph`, `node` and `edge` as demonstrated below.
 

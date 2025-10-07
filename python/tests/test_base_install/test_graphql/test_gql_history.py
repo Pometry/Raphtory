@@ -498,29 +498,21 @@ def test_gql_event_time():
       }
     }
     """
-    expected_output = {"graph": {
-        "edge": {
-            "history": {
-                "list": [
-                    {
-                        "datetime": "1970-01-01 00:00:00 150ms"
-                    },
-                    {
-                        "datetime": "1970-01-01 00:00:00 200ms"
-                    },
-                    {
-                        "datetime": "1970-01-01 00:00:00 300ms"
-                    },
-                    {
-                        "datetime": "1970-01-01 00:00:00 350ms"
-                    },
-                    {
-                        "datetime": "2025-01-20 00:00:00 000ms"
-                    }
-                ]
+    expected_output = {
+        "graph": {
+            "edge": {
+                "history": {
+                    "list": [
+                        {"datetime": "1970-01-01 00:00:00 150ms"},
+                        {"datetime": "1970-01-01 00:00:00 200ms"},
+                        {"datetime": "1970-01-01 00:00:00 300ms"},
+                        {"datetime": "1970-01-01 00:00:00 350ms"},
+                        {"datetime": "2025-01-20 00:00:00 000ms"},
+                    ]
+                }
             }
         }
-    }}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # invalid format string should return error but not crash server
@@ -537,7 +529,9 @@ def test_gql_event_time():
       }
     }
     """
-    queries_and_expected_errors.append((query, "Invalid datetime format string: '%Y-%m-%d %H:%M:%S %4fms'"))
+    queries_and_expected_errors.append(
+        (query, "Invalid datetime format string: '%Y-%m-%d %H:%M:%S %4fms'")
+    )
 
     # error when we call datetime on individual EventTimes
     query = """
@@ -553,7 +547,9 @@ def test_gql_event_time():
       }
     }
     """
-    queries_and_expected_errors.append((query, "Invalid datetime format string: '%Y-%m-%d %H:%M:%S %4fms'"))
+    queries_and_expected_errors.append(
+        (query, "Invalid datetime format string: '%Y-%m-%d %H:%M:%S %4fms'")
+    )
 
     query = """
     {

@@ -40,6 +40,7 @@ def test_node_and_edge_history_timestamps(example_graph):
     assert g.window(150, 300).edge("Dumbledore", "Harry").history.t == [150, 200]
     assert g.window(300, 450).edge("Dumbledore", "Harry").history.t == [300, 350]
 
+
 def test_history_equality(example_graph):
     g: Graph = example_graph
     history = g.edge("Dumbledore", "Harry").history
@@ -55,21 +56,21 @@ def test_history_equality(example_graph):
         datetime(1970, 1, 1, 0, 0, 0, 150_000),
         datetime(1970, 1, 1, 0, 0, 0, 200_000),
         datetime(1970, 1, 1, 0, 0, 0, 300_000),
-        datetime(1970, 1, 1, 0, 0, 0, 350_000)
+        datetime(1970, 1, 1, 0, 0, 0, 350_000),
     ]
     # compare with tuples of datetime
     assert history == [
         (datetime(1970, 1, 1, 0, 0, 0, 150_000), 6),
         (datetime(1970, 1, 1, 0, 0, 0, 200_000), 7),
         (datetime(1970, 1, 1, 0, 0, 0, 300_000), 8),
-        (datetime(1970, 1, 1, 0, 0, 0, 350_000), 9)
+        (datetime(1970, 1, 1, 0, 0, 0, 350_000), 9),
     ]
     # compare with datetime strings
     assert history == [
         "1970-01-01 00:00:00.150",
         "1970-01-01 00:00:00.200",
         "1970-01-01 00:00:00.300",
-        "1970-01-01 00:00:00.350"
+        "1970-01-01 00:00:00.350",
     ]
     # compare with tuples where event id is string
     assert history == [
@@ -83,14 +84,14 @@ def test_history_equality(example_graph):
         150,
         datetime(1970, 1, 1, 0, 0, 0, 200_000),
         "1970-01-01 00:00:00.300",
-        "1970-01-01T00:00:00.350Z"
+        "1970-01-01T00:00:00.350Z",
     ]
     # compare mismatched tuples
     assert history == [
         (150, 6),
         (datetime(1970, 1, 1, 0, 0, 0, 200_000), "1970-01-01 00:00:00.007"),
         ("1970-01-01 00:00:00.300", 0.008),
-        ("1970-01-01T00:00:00.350Z", "1970-01-01T00:00:00.009")
+        ("1970-01-01T00:00:00.350Z", "1970-01-01T00:00:00.009"),
     ]
 
 

@@ -1,6 +1,6 @@
 # Introduction and dataset
 
-After reading data into Raphtory we can now make use of the graph representation to ask some interesting questions. This example will use a dataset from [SocioPatterns](http://www.sociopatterns.org/datasets/baboons-interactions/), comprising different behavioral interactions between a group of 22 baboons over a month. 
+After reading data into Raphtory we can now make use of the graph representation to ask some interesting questions. This example will use a dataset from [SocioPatterns](http://www.sociopatterns.org/datasets/baboons-interactions/), comprising different behavioral interactions between a group of 22 baboons over a month.
 
 !!! info
 
@@ -9,7 +9,7 @@ After reading data into Raphtory we can now make use of the graph representation
 In the below code loads this dataset into a dataframe and does a small amount of preprocessing to prepare it for loading into Raphtory. This includes dropping rows with blank fields and mapping the values of the `behavior category` into a `weight` which can be aggregated. The mapping consists of the following conversions:
 
 - Affiliative (positive interaction) → `+1`
-- Agonistic (negative interaction) → `-1` 
+- Agonistic (negative interaction) → `-1`
 - Other (neutral interaction) → `0`
 
 /// tab | :fontawesome-brands-python: Python
@@ -42,7 +42,7 @@ print(edges_df.head())
     21 2019-06-13 09:51:00  ANGELE    FELIPE  Grooming  Affiliative       1
     ```
 
-Next we load this into Raphtory using the `load_edges_from_pandas` function, modelling it as a weighted multi-layer graph, with a layer per unique `behavior`. 
+Next we load this into Raphtory using the `load_edges_from_pandas` function, modelling it as a weighted multi-layer graph, with a layer per unique `behavior`.
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
@@ -70,4 +70,3 @@ assert str(g) == "Graph(number_of_nodes=22, number_of_edges=290, number_of_tempo
     ```output
     Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=TimeIndexEntry[1560419400000, 0], latest_time=TimeIndexEntry[1562756700000, 18446744073709551615])
     ```
- 
