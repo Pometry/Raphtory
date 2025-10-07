@@ -314,27 +314,9 @@ pub(crate) mod data_tests {
         db::api::view::MaterializedGraph,
         errors::GraphError,
         prelude::*,
-        serialise::{GraphFolder, GRAPH_PATH},
     };
     use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
     use tokio::time::sleep;
-
-    // TODO: Change this to work for new diskgraph
-    // This function creates files that mimic disk graph for tests
-    fn create_ipc_files_in_dir(dir_path: &Path) -> io::Result<()> {
-        if !dir_path.exists() {
-            fs::create_dir_all(dir_path)?;
-        }
-
-        let file_paths = ["file1.ipc", "file2.txt", "file3.ipc"];
-
-        for &file_name in &file_paths {
-            let file_path = dir_path.join(file_name);
-            File::create(file_path)?;
-        }
-
-        Ok(())
-    }
 
     fn create_graph_folder(path: &Path) {
         // Use empty graph to create folder structure
@@ -439,9 +421,6 @@ pub(crate) mod data_tests {
         create_graph_folder(&g2_path);
         create_graph_folder(&g3_path);
         create_graph_folder(&g4_path);
-
-        // Simulate disk graph
-        create_ipc_files_in_dir(&g4_path.join(GRAPH_PATH)).unwrap();
 
         // Empty, non-graph folder
         fs::create_dir_all(&g5_path).unwrap();
