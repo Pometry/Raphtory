@@ -31,7 +31,7 @@ impl ScalarValue for GqlTimeInput {
 
             GqlValue::String(dt) => dt
                 .try_into_time()
-                .map(|t| GqlTimeInput(t.set_index(0)))
+                .map(|t| GqlTimeInput(t.set_event_id(0)))
                 .map_err(|e| Error::new(e.to_string())),
 
             // TimeInput: Object { epoch: Number | String, eventId: Number }

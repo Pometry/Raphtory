@@ -380,7 +380,7 @@ def test_history():
     run_group_graphql_test(queries_and_expected_outputs, graph)
 
 
-def test_gql_time_index():
+def test_gql_event_time():
     graph = create_graph()
     graph.add_edge(
         datetime(2025, 1, 20, 0, 0, tzinfo=timezone.utc), "Dumbledore", "Harry"
@@ -484,7 +484,7 @@ def test_gql_time_index():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
-    # call datetime on individual TimeIndexEntries
+    # call datetime on individual EventTimes
     query = """
     {
       graph(path: "g") {
@@ -539,7 +539,7 @@ def test_gql_time_index():
     """
     queries_and_expected_errors.append((query, "Invalid datetime format string: '%Y-%m-%d %H:%M:%S %4fms'"))
 
-    # error when we call datetime on individual TimeIndexEntries
+    # error when we call datetime on individual EventTimes
     query = """
     {
       graph(path: "g") {
@@ -560,7 +560,7 @@ def test_gql_time_index():
       graph(path: "g") {
         edge(src: "Dumbledore", dst: "Harry") {
           history {
-            secondaryIndex {
+            eventId {
               list
             }
           }
@@ -569,7 +569,7 @@ def test_gql_time_index():
     }
     """
     expected_output = {
-        "graph": {"edge": {"history": {"secondaryIndex": {"list": [6, 7, 8, 9, 10]}}}}
+        "graph": {"edge": {"history": {"eventId": {"list": [6, 7, 8, 9, 10]}}}}
     }
     queries_and_expected_outputs.append((query, expected_output))
 
@@ -594,19 +594,19 @@ def test_gql_time_index():
     }
     queries_and_expected_outputs.append((query, expected_output))
 
-    # test indexed time parsing and windowing behaviour
+    # test eventId time parsing and windowing behaviour
     query = """
     {
       graph(path: "g") {
         window(
-          start: {epoch: "1970-01-01T00:00:00.150+00:00", index: 0}
-          end: {time: "1970-01-01T00:00:00.350+00:00", secondaryIndex: 10}
+          start: {epoch: "1970-01-01T00:00:00.150+00:00", id: 0}
+          end: {time: "1970-01-01T00:00:00.350+00:00", eventId: 10}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               list {
                 timestamp
-                secondaryIndex
+                eventId
               }
             }
           }
@@ -620,10 +620,10 @@ def test_gql_time_index():
                 "edge": {
                     "history": {
                         "list": [
-                            {"timestamp": 150, "secondaryIndex": 6},
-                            {"timestamp": 200, "secondaryIndex": 7},
-                            {"timestamp": 300, "secondaryIndex": 8},
-                            {"timestamp": 350, "secondaryIndex": 9},
+                            {"timestamp": 150, "eventId": 6},
+                            {"timestamp": 200, "eventId": 7},
+                            {"timestamp": 300, "eventId": 8},
+                            {"timestamp": 350, "eventId": 9},
                         ]
                     }
                 }
@@ -637,14 +637,14 @@ def test_gql_time_index():
     {
       graph(path: "g") {
         window(
-          start: {epoch: 150, secondaryIndex: 6}
-          end: {time: "1970-01-01 00:00:00.350", index: 9}
+          start: {epoch: 150, eventId: 6}
+          end: {time: "1970-01-01 00:00:00.350", id: 9}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               list {
                 timestamp
-                secondaryIndex
+                eventId
               }
             }
           }
@@ -658,9 +658,9 @@ def test_gql_time_index():
                 "edge": {
                     "history": {
                         "list": [
-                            {"timestamp": 150, "secondaryIndex": 6},
-                            {"timestamp": 200, "secondaryIndex": 7},
-                            {"timestamp": 300, "secondaryIndex": 8},
+                            {"timestamp": 150, "eventId": 6},
+                            {"timestamp": 200, "eventId": 7},
+                            {"timestamp": 300, "eventId": 8},
                         ]
                     }
                 }
@@ -674,14 +674,14 @@ def test_gql_time_index():
     {
       graph(path: "g") {
         window(
-          start: {epoch: 150, index: 7}
-          end: {time: "1970-01-01T00:00:00.351", secondaryIndex: 8}
+          start: {epoch: 150, id: 7}
+          end: {time: "1970-01-01T00:00:00.351", eventId: 8}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               list {
                 timestamp
-                secondaryIndex
+                eventId
               }
             }
           }
@@ -695,9 +695,9 @@ def test_gql_time_index():
                 "edge": {
                     "history": {
                         "list": [
-                            {"timestamp": 200, "secondaryIndex": 7},
-                            {"timestamp": 300, "secondaryIndex": 8},
-                            {"timestamp": 350, "secondaryIndex": 9},
+                            {"timestamp": 200, "eventId": 7},
+                            {"timestamp": 300, "eventId": 8},
+                            {"timestamp": 350, "eventId": 9},
                         ]
                     }
                 }

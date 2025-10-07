@@ -72,7 +72,7 @@ impl IntoTime for EventTime {
 
 impl<T: IntoTime> IntoTime for (T, usize) {
     fn into_time(self) -> EventTime {
-        self.0.into_time().set_index(self.1)
+        self.0.into_time().set_event_id(self.1)
     }
 }
 

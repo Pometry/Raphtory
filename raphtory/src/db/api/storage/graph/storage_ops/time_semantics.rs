@@ -305,7 +305,7 @@ mod test_graph_storage {
             (5, "N7", "N8", vec![("p1", Prop::U64(1u64))], Some("layer2")),
             (3, "N8", "N1", vec![("p1", Prop::U64(1u64))], Some("layer1")),
             (4, "N8", "N1", vec![("p1", Prop::U64(2u64))], Some("layer2")),
-            // Tests secondary indexes
+            // Tests event ids
             (3, "N9", "N2", vec![("p1", Prop::U64(1u64))], Some("layer1")),
             (3, "N9", "N2", vec![("p1", Prop::U64(2u64))], Some("layer2")),
         ];

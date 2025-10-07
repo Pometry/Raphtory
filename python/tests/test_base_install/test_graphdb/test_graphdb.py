@@ -633,7 +633,7 @@ def test_node_properties():
                     [value]
                 ]
 
-        # we're comparing EventTime values so we need to pass the secondary index, here as a tuple
+        # we're comparing EventTime values so we need to pass the event id, here as a tuple
         history_test("prop 1", [((1, 1), 1), ((2, 2), 2)])
         history_test("prop 2", [((2, 2), 0.6), ((3, 3), 0.9)])
         history_test("prop 3", [((1, 1), "hi"), ((3, 3), "hello")])
@@ -3097,11 +3097,11 @@ def test_edge_layer_properties():
     assert g.edge("A", "B").properties == {"greeting": "namaste"}
 
 
-def test_add_node_properties_ordered_by_secondary_index():
+def test_add_node_properties_ordered_by_event_id():
     g = Graph()
-    g.add_node(1, "A", properties={"prop": 1}, secondary_index=3)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 1}, event_id=3)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=2)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3110,27 +3110,27 @@ def test_add_node_properties_ordered_by_secondary_index():
     ]
 
 
-def test_add_node_properties_overwritten_for_same_secondary_index():
+def test_add_node_properties_overwritten_for_same_event_id():
     g = Graph()
-    g.add_node(1, "A", properties={"prop": 1}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 1}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
-    g.add_node(1, "A", properties={"prop": 1}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=2)
+    g.add_node(1, "A", properties={"prop": 1}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=2)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=2)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_create_node_properties_ordered_by_secondary_index():
+def test_create_node_properties_ordered_by_event_id():
     g = Graph()
-    g.create_node(1, "A", properties={"prop": 1}, secondary_index=3)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+    g.create_node(1, "A", properties={"prop": 1}, event_id=3)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=2)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3139,27 +3139,27 @@ def test_create_node_properties_ordered_by_secondary_index():
     ]
 
 
-def test_create_node_properties_overwritten_for_same_secondary_index():
+def test_create_node_properties_overwritten_for_same_event_id():
     g = Graph()
-    g.create_node(1, "A", properties={"prop": 1}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+    g.create_node(1, "A", properties={"prop": 1}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
-    g.create_node(1, "A", properties={"prop": 1}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=2)
+    g.create_node(1, "A", properties={"prop": 1}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=2)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=2)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_add_edge_properties_ordered_by_secondary_index():
+def test_add_edge_properties_ordered_by_event_id():
     g = Graph()
-    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=3)
-    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=2)
-    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=1)
+    g.add_edge(1, "A", "B", properties={"prop": 1}, event_id=3)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, event_id=2)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, event_id=1)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3168,53 +3168,53 @@ def test_add_edge_properties_ordered_by_secondary_index():
     ]
 
 
-def test_add_edge_properties_overwritten_for_same_secondary_index():
+def test_add_edge_properties_overwritten_for_same_event_id():
     g = Graph()
-    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=1)
-    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=1)
-    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=1)
+    g.add_edge(1, "A", "B", properties={"prop": 1}, event_id=1)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, event_id=1)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, event_id=1)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
-    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=1)
-    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=2)
-    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=2)
+    g.add_edge(1, "A", "B", properties={"prop": 1}, event_id=1)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, event_id=2)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, event_id=2)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_add_properties_properties_ordered_by_secondary_index():
+def test_add_properties_properties_ordered_by_event_id():
     g = Graph()
-    g.add_properties(1, properties={"prop": 1}, secondary_index=3)
-    g.add_properties(1, properties={"prop": 2}, secondary_index=2)
-    g.add_properties(1, properties={"prop": 3}, secondary_index=1)
+    g.add_properties(1, properties={"prop": 1}, event_id=3)
+    g.add_properties(1, properties={"prop": 2}, event_id=2)
+    g.add_properties(1, properties={"prop": 3}, event_id=1)
 
     assert g.properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
 
 
-def test_add_properties_properties_overwritten_for_same_secondary_index():
+def test_add_properties_properties_overwritten_for_same_event_id():
     g = Graph()
-    g.add_properties(1, properties={"prop": 1}, secondary_index=1)
-    g.add_properties(1, properties={"prop": 2}, secondary_index=1)
-    g.add_properties(1, properties={"prop": 3}, secondary_index=1)
+    g.add_properties(1, properties={"prop": 1}, event_id=1)
+    g.add_properties(1, properties={"prop": 2}, event_id=1)
+    g.add_properties(1, properties={"prop": 3}, event_id=1)
 
     assert g.properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
-    g.add_properties(1, properties={"prop": 1}, secondary_index=1)
-    g.add_properties(1, properties={"prop": 2}, secondary_index=2)
-    g.add_properties(1, properties={"prop": 3}, secondary_index=2)
+    g.add_properties(1, properties={"prop": 1}, event_id=1)
+    g.add_properties(1, properties={"prop": 2}, event_id=2)
+    g.add_properties(1, properties={"prop": 3}, event_id=2)
 
     assert g.properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_node_add_updates_properties_ordered_by_secondary_index():
+def test_node_add_updates_properties_ordered_by_event_id():
     g = Graph()
     g.add_node(1, "A")
-    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=3)
-    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=2)
-    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=1)
+    g.node("A").add_updates(1, properties={"prop": 1}, event_id=3)
+    g.node("A").add_updates(1, properties={"prop": 2}, event_id=2)
+    g.node("A").add_updates(1, properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3223,30 +3223,30 @@ def test_node_add_updates_properties_ordered_by_secondary_index():
     ]
 
 
-def test_node_add_updates_properties_overwritten_for_same_secondary_index():
+def test_node_add_updates_properties_overwritten_for_same_event_id():
     g = Graph()
     g.add_node(1, "A")
-    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=1)
-    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=1)
-    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=1)
+    g.node("A").add_updates(1, properties={"prop": 1}, event_id=1)
+    g.node("A").add_updates(1, properties={"prop": 2}, event_id=1)
+    g.node("A").add_updates(1, properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
     g.add_node(1, "A")
-    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=1)
-    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=2)
-    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=2)
+    g.node("A").add_updates(1, properties={"prop": 1}, event_id=1)
+    g.node("A").add_updates(1, properties={"prop": 2}, event_id=2)
+    g.node("A").add_updates(1, properties={"prop": 3}, event_id=2)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_edge_add_updates_properties_ordered_by_secondary_index():
+def test_edge_add_updates_properties_ordered_by_event_id():
     g = Graph()
     g.add_edge(1, "A", "B")
-    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=3)
-    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=2)
-    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, event_id=3)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, event_id=2)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, event_id=1)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3255,20 +3255,20 @@ def test_edge_add_updates_properties_ordered_by_secondary_index():
     ]
 
 
-def test_edge_add_updates_properties_overwritten_for_same_secondary_index():
+def test_edge_add_updates_properties_overwritten_for_same_event_id():
     g = Graph()
     g.add_edge(1, "A", "B")
-    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=1)
-    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=1)
-    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, event_id=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, event_id=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, event_id=1)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
     g.add_edge(1, "A", "B")
-    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=1)
-    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=2)
-    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=2)
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, event_id=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, event_id=2)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, event_id=2)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 

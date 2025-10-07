@@ -16,7 +16,7 @@ def test_latest_and_active():
                 history {
                   list {
                     timestamp
-                    secondaryIndex
+                    eventId
                   }
                 }
               }
@@ -27,7 +27,7 @@ def test_latest_and_active():
                 history {
                   list {
                     timestamp
-                    secondaryIndex
+                    eventId
                   }
                 }
               }
@@ -38,7 +38,7 @@ def test_latest_and_active():
                 history {
                   list {
                     timestamp
-                    secondaryIndex
+                    eventId
                   }
                 }
               }
@@ -52,7 +52,7 @@ def test_latest_and_active():
                       history {
                         list {
                           timestamp
-                          secondaryIndex
+                          eventId
                         }
                       }
                     }
@@ -65,7 +65,7 @@ def test_latest_and_active():
                   history {
                     list {
                       timestamp
-                      secondaryIndex
+                      eventId
                     }
                   }
                 }
@@ -77,7 +77,7 @@ def test_latest_and_active():
                   history {
                     list {
                       timestamp
-                      secondaryIndex
+                      eventId
                     }
                   }
                 }
@@ -95,8 +95,8 @@ def test_latest_and_active():
                 "latest": {
                     "history": {
                         "list": [
-                            {"timestamp": 3, "secondaryIndex": 2},
-                            {"timestamp": 3, "secondaryIndex": 5},
+                            {"timestamp": 3, "eventId": 2},
+                            {"timestamp": 3, "eventId": 5},
                         ]
                     }
                 },
@@ -104,7 +104,7 @@ def test_latest_and_active():
             "e12": {
                 "isActive": True,
                 "latest": {
-                    "history": {"list": [{"timestamp": 3, "secondaryIndex": 2}]}
+                    "history": {"list": [{"timestamp": 3, "eventId": 2}]}
                 },
             },
             "e13": {"latest": {"isActive": False, "history": {"list": []}}},
@@ -118,7 +118,7 @@ def test_latest_and_active():
                                     {
                                         "history": {
                                             "list": [
-                                                {"timestamp": 3, "secondaryIndex": 2}
+                                                {"timestamp": 3, "eventId": 2}
                                             ]
                                         }
                                     },
@@ -126,7 +126,7 @@ def test_latest_and_active():
                                     {
                                         "history": {
                                             "list": [
-                                                {"timestamp": 3, "secondaryIndex": 5}
+                                                {"timestamp": 3, "eventId": 5}
                                             ]
                                         }
                                     },
@@ -142,7 +142,7 @@ def test_latest_and_active():
                                     {
                                         "history": {
                                             "list": [
-                                                {"timestamp": 3, "secondaryIndex": 2}
+                                                {"timestamp": 3, "eventId": 2}
                                             ]
                                         }
                                     }
@@ -162,7 +162,7 @@ def test_latest_and_active():
                                     {
                                         "history": {
                                             "list": [
-                                                {"timestamp": 3, "secondaryIndex": 5}
+                                                {"timestamp": 3, "eventId": 5}
                                             ]
                                         }
                                     }
@@ -177,21 +177,21 @@ def test_latest_and_active():
                             "name": "1",
                             "history": {
                                 "list": [
-                                    {"timestamp": 3, "secondaryIndex": 2},
-                                    {"timestamp": 3, "secondaryIndex": 5},
+                                    {"timestamp": 3, "eventId": 2},
+                                    {"timestamp": 3, "eventId": 5},
                                 ]
                             },
                         },
                         {
                             "name": "2",
                             "history": {
-                                "list": [{"timestamp": 3, "secondaryIndex": 2}]
+                                "list": [{"timestamp": 3, "eventId": 2}]
                             },
                         },
                         {
                             "name": "4",
                             "history": {
-                                "list": [{"timestamp": 3, "secondaryIndex": 5}]
+                                "list": [{"timestamp": 3, "eventId": 5}]
                             },
                         },
                     ]
@@ -200,9 +200,9 @@ def test_latest_and_active():
             "edges": {
                 "latest": {
                     "list": [
-                        {"history": {"list": [{"timestamp": 3, "secondaryIndex": 2}]}},
+                        {"history": {"list": [{"timestamp": 3, "eventId": 2}]}},
                         {"history": {"list": []}},
-                        {"history": {"list": [{"timestamp": 3, "secondaryIndex": 5}]}},
+                        {"history": {"list": [{"timestamp": 3, "eventId": 5}]}},
                     ]
                 }
             },

@@ -674,7 +674,7 @@ class Graph(GraphView):
     def __reduce__(self):
         ...
 
-    def add_edge(self, timestamp: TimeInput, src: str|int, dst: str|int, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableEdge:
+    def add_edge(self, timestamp: TimeInput, src: str|int, dst: str|int, properties: Optional[PropInput] = None, layer: Optional[str] = None, event_id: Optional[int] = None) -> MutableEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -684,7 +684,7 @@ class Graph(GraphView):
            dst (str|int): The id of the destination node.
            properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
            layer (str, optional): The layer of the edge.
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
             MutableEdge: The added edge.
@@ -707,7 +707,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
+    def add_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, event_id: Optional[int] = None) -> MutableNode:
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -715,8 +715,8 @@ class Graph(GraphView):
            timestamp (TimeInput): The timestamp of the node.
            id (str|int): The id of the node.
            properties (PropInput, optional): The properties of the node.
-           node_type (str, optional): The optional string which will be used as a node type
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           node_type (str, optional): The optional string which will be used as a node type.
+           event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
             MutableNode: The added node.
@@ -725,14 +725,14 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_properties(self, timestamp: TimeInput, properties: PropInput, secondary_index: Optional[int] = None) -> None:
+    def add_properties(self, timestamp: TimeInput, properties: PropInput, event_id: Optional[int] = None) -> None:
         """
         Adds properties to the graph.
 
         Arguments:
            timestamp (TimeInput): The timestamp of the temporal property.
            properties (PropInput): The temporal properties of the graph.
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -802,7 +802,7 @@ class Graph(GraphView):
             None:
         """
 
-    def create_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
+    def create_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, event_id: Optional[int] = None) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
 
@@ -810,8 +810,8 @@ class Graph(GraphView):
            timestamp (TimeInput): The timestamp of the node.
            id (str|int): The id of the node.
            properties (PropInput, optional): The properties of the node.
-           node_type (str, optional): The optional string which will be used as a node type
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           node_type (str, optional): The optional string which will be used as a node type.
+           event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
             MutableNode: The created node.
@@ -1306,7 +1306,7 @@ class PersistentGraph(GraphView):
     def __reduce__(self):
         ...
 
-    def add_edge(self, timestamp: int, src: str | int, dst: str | int, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
+    def add_edge(self, timestamp: int, src: str | int, dst: str | int, properties: Optional[PropInput] = None, layer: Optional[str] = None, event_id: Optional[int] = None) -> None:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -1314,9 +1314,9 @@ class PersistentGraph(GraphView):
             timestamp (int): The timestamp of the edge.
             src (str | int): The id of the source node.
             dst (str | int): The id of the destination node.
-            properties (PropInput, optional): The properties of the edge, as a dict of string and properties
+            properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
             layer (str, optional): The layer of the edge.
-            secondary_index (int, optional): The optional integer which will be used as a secondary index
+            event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1339,7 +1339,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
+    def add_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, event_id: Optional[int] = None) -> None:
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -1347,8 +1347,8 @@ class PersistentGraph(GraphView):
            timestamp (TimeInput): The timestamp of the node.
            id (str | int): The id of the node.
            properties (PropInput, optional): The properties of the node.
-           node_type (str, optional) : The optional string which will be used as a node type
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           node_type (str, optional) : The optional string which will be used as a node type.
+           event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1357,14 +1357,14 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_properties(self, timestamp: TimeInput, properties: dict, secondary_index: Optional[int] = None) -> None:
+    def add_properties(self, timestamp: TimeInput, properties: dict, event_id: Optional[int] = None) -> None:
         """
         Adds properties to the graph.
 
         Arguments:
            timestamp (TimeInput): The timestamp of the temporal property.
            properties (dict): The temporal properties of the graph.
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1433,7 +1433,7 @@ class PersistentGraph(GraphView):
             None:
         """
 
-    def create_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
+    def create_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, event_id: Optional[int] = None) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
 
@@ -1441,8 +1441,8 @@ class PersistentGraph(GraphView):
            timestamp (TimeInput): The timestamp of the node.
            id (str | int): The id of the node.
            properties (PropInput, optional): The properties of the node.
-           node_type (str, optional) : The optional string which will be used as a node type
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+           node_type (str, optional) : The optional string which will be used as a node type.
+           event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
           MutableNode: the newly created node.
@@ -1451,16 +1451,16 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableEdge:
+    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: Optional[str] = None, event_id: Optional[int] = None) -> MutableEdge:
         """
-        Deletes an edge given the timestamp, src and dst nodes and layer (optional)
+        Deletes an edge given the timestamp, src and dst nodes and layer (optional).
 
         Arguments:
           timestamp (int): The timestamp of the edge.
           src (str | int): The id of the source node.
           dst (str | int): The id of the destination node.
           layer (str, optional): The layer of the edge.
-          secondary_index (int, optional): The optional integer which will be used as a secondary index.
+          event_id (int, optional): The optional integer which will be used as an event id.
 
         Returns:
           MutableEdge: The deleted edge

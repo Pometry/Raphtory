@@ -38,7 +38,7 @@ use std::{
 ///
 /// Note that the graph will give you access to all edges that were added at any point in time, even those that are marked as deleted.
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
-/// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by secondary index) is a deletion,
+/// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by event id) is a deletion,
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
 ///
 ///

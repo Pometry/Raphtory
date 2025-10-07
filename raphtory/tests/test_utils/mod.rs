@@ -462,13 +462,13 @@ pub fn build_graph_from_edge_list<'a>(
     g
 }
 
-pub(crate) fn build_graph_from_edge_list_with_secondary<'a>(
+pub(crate) fn build_graph_from_edge_list_with_event_id<'a>(
     edge_list: impl IntoIterator<Item = (u64, u64, i64, usize, &'a String, i64)>,
 ) -> Graph {
     let g = Graph::new();
-    for (src, dst, time, secondary_index, str_prop, int_prop) in edge_list {
+    for (src, dst, time, event_id, str_prop, int_prop) in edge_list {
         g.add_edge(
-            (time, secondary_index),
+            (time, event_id),
             src,
             dst,
             [
@@ -595,18 +595,18 @@ pub fn add_node_props<'a>(
     }
 }
 
-pub(crate) fn add_node_props_with_secondary<'a>(
+pub(crate) fn add_node_props_with_event_id<'a>(
     graph: &'a Graph,
     nodes: impl IntoIterator<Item = (u64, usize, Option<&'a String>, Option<i64>)>,
 ) {
-    for (node, sec_idx, str_prop, int_prop) in nodes {
+    for (node, event_id, str_prop, int_prop) in nodes {
         let props = [
             str_prop.as_ref().map(|v| ("str_prop", v.into_prop())),
             int_prop.as_ref().map(|v| ("int_prop", (*v).into())),
         ]
         .into_iter()
         .flatten();
-        graph.add_node((0, sec_idx), node, props, None).unwrap();
+        graph.add_node((0, event_id), node, props, None).unwrap();
     }
 }
 
@@ -619,7 +619,7 @@ pub fn node_filtered_graph(
         .iter()
         .map(|(n, str_v, int_v)| (n, (str_v.as_ref(), int_v.as_ref())))
         .collect();
-    let g = build_graph_from_edge_list_with_secondary(
+    let g = build_graph_from_edge_list_with_event_id(
         edge_list
             .iter()
             .enumerate()
@@ -630,13 +630,13 @@ pub fn node_filtered_graph(
                 filter(src_str_v, src_int_v) && filter(dst_str_v, dst_int_v)
             }),
     );
-    add_node_props_with_secondary(
+    add_node_props_with_event_id(
         &g,
         nodes
             .iter()
             .enumerate()
-            .map(|(sec_idx, (n, str_v, int_v))| {
-                (*n, sec_idx + edge_list.len(), str_v.as_ref(), *int_v)
+            .map(|(event_id, (n, str_v, int_v))| {
+                (*n, event_id + edge_list.len(), str_v.as_ref(), *int_v)
             })
             .filter(|(.., str_v, int_v)| filter(*str_v, int_v.as_ref())),
     );

@@ -219,9 +219,9 @@ impl EventTime {
         Self(t, s)
     }
 
-    /// Sets the secondary index of the EventTime.
+    /// Sets the event id of the EventTime.
     /// Note that this mutates the EventTime in place rather than create and return a new one.
-    pub fn set_index(mut self, i: usize) -> Self {
+    pub fn set_event_id(mut self, i: usize) -> Self {
         self.1 = i;
         self
     }

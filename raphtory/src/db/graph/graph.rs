@@ -137,7 +137,7 @@ pub fn assert_node_equal_layer<
         n2.node_type(),
         "mismatched node type{layer_tag}"
     );
-    // PersistentGraph is known to have mismatched secondary indices at the start of a window
+    // PersistentGraph is known to have mismatched event ids at the start of a window
     if persistent || only_timestamps {
         assert_eq!(
             n1.earliest_time().map(|t| t.t()),
@@ -529,7 +529,7 @@ pub fn assert_edges_equal_layer<
             e1.id()
         );
 
-        // FIXME: DiskGraph does not currently preserve secondary index
+        // FIXME: DiskGraph does not currently preserve event id
     }
 }
 

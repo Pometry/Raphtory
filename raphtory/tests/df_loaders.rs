@@ -141,7 +141,7 @@ mod io_tests {
             assert_graph_equal(&expected, &actual);
         }
 
-        // DiskGraph appears to have different secondary indices on time entries
+        // DiskGraph appears to have different event ids on time entries
         fn check_layers_from_df_timestamps(input: Vec<DataFrame>, num_threads: usize) {
             let root_dir = TempDir::new().unwrap();
             let graph_dir = TempDir::new().unwrap();

@@ -357,7 +357,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
                         for e in edge.explode() {
-                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let t = e
+                                .time_and_event_id()
+                                .expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
                             src_node.update_time(t, EID(eid).with_layer(l));
                         }
@@ -372,7 +374,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
                         for e in edge.explode() {
-                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let t = e
+                                .time_and_event_id()
+                                .expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
                             dst_node.update_time(t, EID(eid).with_layer(l));
                         }

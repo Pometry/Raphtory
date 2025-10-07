@@ -681,7 +681,7 @@ mod test {
         graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
         graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
         let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        // persisted graphs have different secondary indices on time entries
+        // persisted graphs have different event ids on time entries
         assert_graph_equal_timestamps(&disk_graph, &graph);
 
         let reloaded_graph = DiskGraphStorage::load_from_dir(graph_dir.path())
@@ -739,7 +739,7 @@ mod test {
             g.add_edge(1, 2, 3, [("test", "test2")], Some("2")).unwrap();
             let test_dir = TempDir::new().unwrap();
             let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-            // persisted graphs have different secondary indices on time entries
+            // persisted graphs have different event ids on time entries
             assert_graph_equal_timestamps(&disk_g, &g);
         }
 
@@ -749,7 +749,7 @@ mod test {
                 let g = build_graph_from_edge_list(&edges);
                 let test_dir = TempDir::new().unwrap();
                 let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-                // persisted graphs have different secondary indices on time entries
+                // persisted graphs have different event ids on time entries
                 assert_graph_equal_timestamps(&disk_g, &g);
                 let reloaded_disk_g = DiskGraphStorage::load_from_dir(test_dir.path()).unwrap().into_graph();
                 assert_graph_equal_timestamps(&reloaded_disk_g, &g);
@@ -968,7 +968,7 @@ mod storage_tests {
         let merged_g_disk = left_g_disk
             .merge_by_sorted_gids(&right_g_disk, &merged_dir)
             .unwrap();
-        // only check timestamps because secondary indices might be different based on order of edge added
+        // only check timestamps because event ids might be different based on order of edge added
         assert_graph_equal_timestamps(&merged_g_disk.into_graph(), &merged_g_expected)
     }
 

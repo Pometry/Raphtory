@@ -226,7 +226,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the EventTime if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Result<EventTime, GraphError>>;
+    fn time_and_event_id(&self) -> Self::ValueType<Result<EventTime, GraphError>>;
 
     /// Gets the name of the layer this edge belongs to
     ///
@@ -497,7 +497,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the EventTime if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Result<EventTime, GraphError>> {
+    fn time_and_event_id(&self) -> Self::ValueType<Result<EventTime, GraphError>> {
         self.map(|_, e| e.time().ok_or(GraphError::TimeAPIError))
     }
 

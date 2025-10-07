@@ -167,9 +167,9 @@ def test_intervals_stats():
 def test_event_id_ordering_with_same_timestamp():
     g: Graph = Graph()
 
-    g.add_node(1, "A", secondary_index=3)
-    g.add_node(1, "A", secondary_index=2)
-    g.add_node(1, "A", secondary_index=1)
+    g.add_node(1, "A", event_id=3)
+    g.add_node(1, "A", event_id=2)
+    g.add_node(1, "A", event_id=1)
 
     assert g.node("A").history.t == [1, 1, 1]
 

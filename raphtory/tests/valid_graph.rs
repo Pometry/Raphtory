@@ -246,7 +246,7 @@ fn wrong_temporal_edge_count() {
     g.add_edge(3, 1, 0, NO_PROPS, Some("b")).unwrap();
     let gw = g.valid().window(0, 9);
     let gwm = gw.materialize().unwrap();
-    assert_persistent_materialize_graph_equal(&gw, &gwm); // PersistentGraph ignores the earliest time's secondary index
+    assert_persistent_materialize_graph_equal(&gw, &gwm); // PersistentGraph ignores the earliest time's event id
 }
 
 #[test]
@@ -320,13 +320,13 @@ fn broken_degree() {
         .add_edge((2, 5), 5, 4, NO_PROPS, Some("a"))
         .unwrap();
 
-    assert_persistent_materialize_graph_equal(&gv, &expected); // PersistentGraph ignores the earliest time's secondary index
+    assert_persistent_materialize_graph_equal(&gv, &expected); // PersistentGraph ignores the earliest time's event id
 
     let n4 = gv.node(4).unwrap();
     assert_eq!(n4.out_degree(), 2);
     assert_eq!(n4.in_degree(), 1);
 
-    assert_persistent_materialize_graph_equal(&gv, &gv.materialize().unwrap()); // PersistentGraph ignores the earliest time's secondary index
+    assert_persistent_materialize_graph_equal(&gv, &gv.materialize().unwrap()); // PersistentGraph ignores the earliest time's event id
 }
 
 #[test]

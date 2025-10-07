@@ -219,23 +219,23 @@ def test_graph_windows_and_layers_query():
         q = """
         query GetEdges {
           graph(path: "lotr") {
-            window(start: {simpleTime: 200}, end: {simpleTime: 800}) {
+            window(start: 200, end: 800) {
               node(name: "Frodo") {
-                after(time: {simpleTime: 500}) {
+                after(time: 500) {
                   history {
                     list {
                       timestamp
-                      secondaryIndex
+                      eventId
                     }
                   }
                   neighbours {
                     list {
                       name
-                        before(time: {simpleTime: 300}) { 
+                        before(time: 300) { 
                         history {
                           list {
                             timestamp
-                            secondaryIndex
+                            eventId
                           }
                         }
                       }
@@ -257,27 +257,27 @@ def test_graph_windows_and_layers_query():
                     "list": [
                       {
                         "timestamp": 555,
-                        "secondaryIndex": 93
+                        "eventId": 93
                       },
                       {
                         "timestamp": 555,
-                        "secondaryIndex": 95
+                        "eventId": 95
                       },
                       {
                         "timestamp": 555,
-                        "secondaryIndex": 96
+                        "eventId": 96
                       },
                       {
                         "timestamp": 555,
-                        "secondaryIndex": 98
+                        "eventId": 98
                       },
                       {
                         "timestamp": 562,
-                        "secondaryIndex": 102
+                        "eventId": 102
                       },
                       {
                         "timestamp": 562,
-                        "secondaryIndex": 104
+                        "eventId": 104
                       }
                     ]
                   },
@@ -290,19 +290,19 @@ def test_graph_windows_and_layers_query():
                             "list": [
                               {
                                 "timestamp": 270,
-                                "secondaryIndex": 13
+                                "eventId": 13
                               },
                               {
                                 "timestamp": 270,
-                                "secondaryIndex": 14
+                                "eventId": 14
                               },
                               {
                                 "timestamp": 270,
-                                "secondaryIndex": 18
+                                "eventId": 18
                               },
                               {
                                 "timestamp": 270,
-                                "secondaryIndex": 20
+                                "eventId": 20
                               }
                             ]
                           }
@@ -315,35 +315,35 @@ def test_graph_windows_and_layers_query():
                             "list": [
                               {
                                 "timestamp": 205,
-                                "secondaryIndex": 10
+                                "eventId": 10
                               },
                               {
                                 "timestamp": 205,
-                                "secondaryIndex": 11
+                                "eventId": 11
                               },
                               {
                                 "timestamp": 270,
-                                "secondaryIndex": 16
+                                "eventId": 16
                               },
                               {
                                 "timestamp": 270,
-                                "secondaryIndex": 17
+                                "eventId": 17
                               },
                               {
                                 "timestamp": 270,
-                                "secondaryIndex": 19
+                                "eventId": 19
                               },
                               {
                                 "timestamp": 270,
-                                "secondaryIndex": 20
+                                "eventId": 20
                               },
                               {
                                 "timestamp": 286,
-                                "secondaryIndex": 22
+                                "eventId": 22
                               },
                               {
                                 "timestamp": 286,
-                                "secondaryIndex": 23
+                                "eventId": 23
                               }
                             ]
                           }
@@ -430,7 +430,7 @@ def test_graph_properties_query():
                         history {
                           list {
                             timestamp
-                            secondaryIndex
+                            eventId
                           }
                         }
                       }
@@ -462,15 +462,15 @@ def test_graph_properties_query():
                                                 "list": [
                                                     {
                                                         "timestamp": 1,
-                                                        "secondaryIndex": 0,
+                                                        "eventId": 0,
                                                     },
                                                     {
                                                         "timestamp": 2,
-                                                        "secondaryIndex": 1,
+                                                        "eventId": 1,
                                                     },
                                                     {
                                                         "timestamp": 3,
-                                                        "secondaryIndex": 2,
+                                                        "eventId": 2,
                                                     },
                                                 ]
                                             },
