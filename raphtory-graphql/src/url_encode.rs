@@ -26,7 +26,10 @@ pub fn url_encode_graph<G: Into<MaterializedGraph>>(graph: G) -> Result<String, 
     Ok(BASE64_URL_SAFE.encode(bytes))
 }
 
-pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T, storage_path: Option<&Path>) -> Result<MaterializedGraph, GraphError> {
+pub fn url_decode_graph<T: AsRef<[u8]>>(
+    graph: T,
+    storage_path: Option<&Path>,
+) -> Result<MaterializedGraph, GraphError> {
     let bytes = BASE64_URL_SAFE.decode(graph.as_ref()).unwrap();
 
     MaterializedGraph::decode_from_bytes(&bytes, storage_path)

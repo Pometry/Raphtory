@@ -1,15 +1,18 @@
 use crate::paths::ExistingGraphFolder;
-use std::path::PathBuf;
 use once_cell::sync::OnceCell;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::{storage::storage::Storage, view::{
-            internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, InternalStorageOps, Static
+        api::{
+            storage::storage::Storage,
+            view::{
+                internal::{
+                    InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                    InternalStorageOps, Static,
+                },
+                Base, InheritViewOps, MaterializedGraph,
             },
-            Base, InheritViewOps, MaterializedGraph,
-        }},
+        },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::{GraphError, GraphResult},
@@ -19,9 +22,9 @@ use raphtory::{
 };
 use raphtory_api::GraphType;
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps,
+    core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
+use std::path::PathBuf;
 use tracing::info;
 
 #[derive(Clone)]

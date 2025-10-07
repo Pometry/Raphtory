@@ -79,7 +79,7 @@ impl Data {
                 // FIXME: don't have currently a way to know which embedding updates are pending
                 if !graph.graph.disk_storage_enabled() {
                     let _ = Self::encode_graph_to_disk(graph.clone())
-                                .map_err(|e| warn!("Error encoding graph to disk on eviction: {e}"));
+                        .map_err(|e| warn!("Error encoding graph to disk on eviction: {e}"));
                 }
             })
             .build();
@@ -113,7 +113,11 @@ impl Data {
         ExistingGraphFolder::try_from(self.work_dir.clone(), path).is_ok()
     }
 
-    pub fn validate_path_for_insert(&self, path: &str, overwrite: bool) -> Result<ValidGraphFolder, GraphError> {
+    pub fn validate_path_for_insert(
+        &self,
+        path: &str,
+        overwrite: bool,
+    ) -> Result<ValidGraphFolder, GraphError> {
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
 
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
@@ -148,7 +152,8 @@ impl Data {
             }
 
             Ok::<(), GraphError>(())
-        }).await?;
+        })
+        .await?;
 
         let vectors = self.vectorise(graph.clone(), &folder).await;
         let graph = GraphWithVectors::new(graph, vectors);
@@ -294,7 +299,7 @@ impl Drop for Data {
         for (_, graph) in self.cache.iter() {
             if !graph.graph.disk_storage_enabled() {
                 let _ = Self::encode_graph_to_disk(graph.clone())
-                            .map_err(|e| warn!("Error encoding graph to disk on drop: {e}"));
+                    .map_err(|e| warn!("Error encoding graph to disk on drop: {e}"));
             }
         }
     }
@@ -308,11 +313,7 @@ pub(crate) mod data_tests {
         data::Data,
     };
     use itertools::Itertools;
-    use raphtory::{
-        db::api::view::MaterializedGraph,
-        errors::GraphError,
-        prelude::*,
-    };
+    use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
     use std::{collections::HashMap, fs, path::Path, time::Duration};
     use tokio::time::sleep;
 

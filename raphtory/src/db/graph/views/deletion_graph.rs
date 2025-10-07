@@ -27,7 +27,11 @@ use raphtory_storage::{
     mutation::InheritMutationOps,
 };
 use std::{
-    fmt::{Display, Formatter}, iter, ops::{Deref, Range}, path::Path, sync::Arc
+    fmt::{Display, Formatter},
+    iter,
+    ops::{Deref, Range},
+    path::Path,
+    sync::Arc,
 };
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.

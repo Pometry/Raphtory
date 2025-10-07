@@ -19,7 +19,10 @@ use dynamic_graphql::{
     Result, Upload,
 };
 use raphtory::{
-    db::{api::view::{internal::InternalStorageOps, MaterializedGraph}, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::view::{internal::InternalStorageOps, MaterializedGraph},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     errors::{GraphError, InvalidPathReason},
     prelude::*,
     serialise::*,

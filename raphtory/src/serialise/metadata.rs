@@ -2,8 +2,10 @@ use crate::{
     prelude::{GraphViewOps, PropertiesOps},
     serialise::GraphFolder,
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
-use raphtory_api::GraphType;
+use raphtory_api::{
+    core::{entities::properties::prop::Prop, storage::arc_str::ArcStr},
+    GraphType,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Serialize, Deserialize, Debug)]

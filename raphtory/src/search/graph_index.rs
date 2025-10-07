@@ -7,7 +7,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
-    serialise::{INDEX_PATH, GraphFolder},
+    serialise::{GraphFolder, INDEX_PATH},
 };
 use parking_lot::RwLock;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;

@@ -121,7 +121,8 @@ impl GraphFolder {
                         info!(
                             "Metadata file does not exist or is invalid. Attempting to recreate..."
                         );
-                        let graph: MaterializedGraph = MaterializedGraph::decode(self, None::<&std::path::Path>)?;
+                        let graph: MaterializedGraph =
+                            MaterializedGraph::decode(self, None::<&std::path::Path>)?;
                         self.write_metadata(&graph)?;
                         Ok(self.try_read_metadata()?)
                     }
@@ -303,8 +304,7 @@ mod zip_tests {
         db::graph::graph::assert_graph_equal,
         prelude::{AdditionOps, Graph, Prop, StableEncode, NO_PROPS},
     };
-    use raphtory_api::core::utils::logging::global_info_logger;
-    use raphtory_api::GraphType;
+    use raphtory_api::{core::utils::logging::global_info_logger, GraphType};
 
     /// Verify that the metadata is re-created if it does not exist.
     #[test]
