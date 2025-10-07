@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::{storage::storage::Storage, view::{internal::InternalStorageOps, MaterializedGraph}},
+        api::{storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
@@ -109,14 +109,14 @@ pub trait ParquetEncoder {
 }
 
 pub trait ParquetDecoder: Sized {
-    fn decode_parquet_from_bytes(bytes: &[u8], path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
+    fn decode_parquet_from_bytes(bytes: &[u8], path_for_decoded_graph: Option<&Path>) -> Result<Self, GraphError> {
         // Read directly from an in-memory cursor
         let reader = std::io::Cursor::new(bytes);
 
         Self::decode_parquet_from_zip(reader, path_for_decoded_graph)
     }
 
-    fn decode_parquet_from_zip<R: Read + Seek>(reader: R, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
+    fn decode_parquet_from_zip<R: Read + Seek>(reader: R, path_for_decoded_graph: Option<&Path>) -> Result<Self, GraphError> {
         // Unzip to a temp dir and decode parquet from there
         let mut zip = zip::ZipArchive::new(reader)?;
         let temp_dir = tempfile::tempdir()?;
@@ -157,7 +157,7 @@ pub trait ParquetDecoder: Sized {
         Self::decode_parquet(temp_dir.path(), path_for_decoded_graph)
     }
 
-    fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError>;
+    fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<&Path>) -> Result<Self, GraphError>;
 }
 
 const NODE_ID_COL: &str = "rap_node_id";
@@ -416,7 +416,7 @@ fn decode_graph_type(
 fn decode_graph_storage(
     path: impl AsRef<Path>,
     batch_size: Option<usize>,
-    path_for_decoded_graph: Option<impl AsRef<Path>>,
+    path_for_decoded_graph: Option<&Path>,
 ) -> Result<Arc<Storage>, GraphError> {
     let graph = if let Some(storage_path) = path_for_decoded_graph {
         Arc::new(Storage::new_at_path(storage_path))
@@ -576,26 +576,26 @@ fn decode_graph_storage(
 }
 
 impl ParquetDecoder for Graph {
-    fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
+    fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<&Path>) -> Result<Self, GraphError> {
         let batch_size = None;
-        let storage = decode_graph_storage(path, batch_size, path_for_decoded_graph)?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph)?;
         Ok(Graph::from_storage(storage))
     }
 }
 
 impl ParquetDecoder for PersistentGraph {
-    fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
+    fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<&Path>) -> Result<Self, GraphError> {
         let batch_size = None;
-        let storage = decode_graph_storage(path, batch_size, path_for_decoded_graph)?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph)?;
         Ok(PersistentGraph(storage))
     }
 }
 
 impl ParquetDecoder for MaterializedGraph {
-    fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<impl AsRef<Path>>) -> Result<Self, GraphError> {
+    fn decode_parquet(path: impl AsRef<Path>, path_for_decoded_graph: Option<&Path>) -> Result<Self, GraphError> {
         let batch_size = None;
         let graph_type = decode_graph_type(&path)?;
-        let storage = decode_graph_storage(path, batch_size, path_for_decoded_graph)?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph)?;
 
         match graph_type {
             GraphType::EventGraph => Ok(MaterializedGraph::EventGraph(Graph::from_storage(storage))),

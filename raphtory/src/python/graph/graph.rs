@@ -136,7 +136,7 @@ impl PyGraphEncoder {
     }
 
     fn __call__(&self, bytes: Vec<u8>) -> Result<MaterializedGraph, GraphError> {
-        let path_for_decoded_graph: Option<PathBuf> = None;
+        let path_for_decoded_graph: Option<&std::path::Path> = None;
 
         MaterializedGraph::decode_from_bytes(&bytes, path_for_decoded_graph)
     }
@@ -191,9 +191,9 @@ impl PyGraph {
     ///
     #[staticmethod]
     pub fn from_parquet(graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        let path_for_decoded_graph: Option<PathBuf> = None;
+        let path_for_decoded_graph = None;
 
-        Graph::decode_parquet(graph_dir, path_for_decoded_graph)
+        Graph::decode_parquet(&graph_dir, path_for_decoded_graph)
     }
 
     /// Adds a new node with the given id and properties to the graph.

@@ -1028,7 +1028,8 @@ mod graphql_test {
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
         let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
-        let path_for_decoded_graph = Some(tempdir().unwrap());
+        let temp_dir = tempdir().unwrap();
+        let path_for_decoded_graph = Some(temp_dir.path());
         let graph_roundtrip = url_decode_graph(graph_encoded, path_for_decoded_graph).unwrap().into_dynamic();
         assert_eq!(g, graph_roundtrip);
     }

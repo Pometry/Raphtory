@@ -411,7 +411,7 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
         match data.get("receiveGraph") {
             Some(JsonValue::String(graph)) => {
-                let path_for_decoded_graph: Option<PathBuf> = None;
+                let path_for_decoded_graph = None;
                 let mat_graph = url_decode_graph(graph, path_for_decoded_graph)?;
                 Ok(mat_graph)
             }

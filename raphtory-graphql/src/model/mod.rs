@@ -278,7 +278,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let folder = data.validate_path_for_insert(path, overwrite)?;
         let path_for_decoded_graph = Some(folder.get_graph_path());
-        let g: MaterializedGraph = url_decode_graph(graph, path_for_decoded_graph)?;
+        let g: MaterializedGraph = url_decode_graph(graph, path_for_decoded_graph.as_deref())?;
 
         if overwrite {
             let _ignored = data.delete_graph(path).await;

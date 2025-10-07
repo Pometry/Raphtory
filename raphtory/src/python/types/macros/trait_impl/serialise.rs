@@ -18,7 +18,7 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn load_from_file(path: PathBuf) -> Result<$base_type, GraphError> {
-                let path_for_decoded_graph: Option<PathBuf> = None;
+                let path_for_decoded_graph = None;
 
                 <$base_type as $crate::serialise::StableDecode>::decode(path, path_for_decoded_graph)
             }
@@ -54,7 +54,7 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn deserialise(bytes: &[u8]) -> Result<$base_type, GraphError> {
-                let path_for_decoded_graph: Option<PathBuf> = None;
+                let path_for_decoded_graph = None;
 
                 <$base_type as $crate::serialise::StableDecode>::decode_from_bytes(bytes, path_for_decoded_graph)
             }

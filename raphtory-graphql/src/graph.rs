@@ -95,7 +95,7 @@ impl GraphWithVectors {
 
                 graph
             } else {
-                let path_for_decoded_graph: Option<PathBuf> = None;
+                let path_for_decoded_graph = None;
 
                 MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?
             }
