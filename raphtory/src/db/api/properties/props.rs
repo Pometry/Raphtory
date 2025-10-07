@@ -4,13 +4,14 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 use raphtory_core::utils::iter::GenLockedIter;
+use serde::Serialize;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
 };
 
 /// View of the properties of an entity (graph|node|edge)
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Properties<P: InternalPropertiesOps + Clone> {
     pub(crate) props: P,
 }

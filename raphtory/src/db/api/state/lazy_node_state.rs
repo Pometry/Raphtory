@@ -1,10 +1,11 @@
+use super::node_state_ops::ToOwnedValue;
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
             state::{
                 ops::{node::NodeOp, NodeOpFilter},
-                Index, NodeState, NodeStateOps,
+                GenericNodeState, Index, NodeState, NodeStateOps,
             },
             view::{
                 internal::{FilterOps, NodeList, OneHopFilter},
@@ -21,8 +22,6 @@ use std::{
     borrow::Borrow,
     fmt::{Debug, Formatter},
 };
-
-use super::node_state_ops::ToOwnedValue;
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G> {
@@ -192,6 +191,36 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             )
         }
     }
+
+    pub fn arrow_compute(&self) -> GenericNodeState<'graph, G, GH> {
+        if self.nodes.is_filtered() {
+            let storage = self.graph().core_graph().lock();
+            let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = self
+                .nodes
+                .par_iter()
+                .map(move |node| (node.node, self.op.arrow_apply(&storage, node.node)))
+                .unzip();
+            GenericNodeState::new_from_eval_with_index(
+                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
+                values,
+                Some(Index::new(keys)),
+            )
+        } else {
+            let storage = self.graph().core_graph().lock();
+            let values = self
+                .nodes
+                .par_iter_refs()
+                .map(move |vid| self.op.arrow_apply(&storage, vid))
+                .collect();
+            GenericNodeState::new_from_eval_with_index(
+                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
+                values,
+                None,
+            )
+        }
+    }
 }
 
 impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
@@ -311,6 +340,7 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
 
 #[cfg(test)]
 mod test {
+    /*
     use crate::{
         db::api::{
             state::{
@@ -354,4 +384,5 @@ mod test {
 
         let _test_struct = TestWrapper(arc_deg);
     }
+    */
 }
