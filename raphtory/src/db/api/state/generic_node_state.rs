@@ -49,9 +49,9 @@ impl<T> NodeStateValue for T where
 {
 }
 
-pub trait InputNodeStateValue: Clone + Serialize {}
+pub trait InputNodeStateValue: Clone + Serialize + DeserializeOwned {}
 
-impl<T> InputNodeStateValue for T where T: Clone + Serialize {}
+impl<T> InputNodeStateValue for T where T: Clone + Serialize + DeserializeOwned {}
 
 #[derive(Clone, PartialEq)]
 pub enum MergePriority {
@@ -717,10 +717,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 .map(|vid| map(values[vid.index()].clone()))
                 .collect(),
         };
-        let mut fields: Vec<FieldRef> = vec![];
-        if values.len() > 0 {
-            fields = Vec::<FieldRef>::from_value(&values[0]).unwrap();
-        }
+        let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
 
         Self::new(graph, filtered_graph, values, index)
