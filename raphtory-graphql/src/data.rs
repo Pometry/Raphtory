@@ -70,7 +70,7 @@ impl Data {
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
             .eviction_listener(|_, graph, cause| {
                 // The eviction listener gets called any time a graph is removed from the cache,
-                // not just when it is evicted.
+                // not just when it is evicted. Only serialize on evictions.
                 if !cause.was_evicted() {
                     return;
                 }
@@ -78,16 +78,8 @@ impl Data {
                 // On eviction, serialize graphs that don't have underlying persistence.
                 // FIXME: don't have currently a way to know which embedding updates are pending
                 if !graph.graph.disk_storage_enabled() {
-                    if let Some(folder) = graph.folder.get() {
-                        let _ = folder
-                            .clear()
-                            .map_err(|e| warn!("Error clearing graph folder on eviction: {e}"));
-
-                        let _ = graph
-                            .graph
-                            .encode(folder.clone())
-                            .map_err(|e| warn!("Error serializing graph on eviction: {e}"));
-                    }
+                    let _ = Self::encode_graph_to_disk(graph.clone())
+                                .map_err(|e| warn!("Error encoding graph to disk on eviction: {e}"));
                 }
             })
             .build();
@@ -280,6 +272,20 @@ impl Data {
         let create_index = self.create_index;
         blocking_io(move || GraphWithVectors::read_from_folder(&folder, cache, create_index)).await
     }
+
+    fn encode_graph_to_disk(graph: GraphWithVectors) -> Result<(), GraphError> {
+        if let Some(folder) = graph.folder.get() {
+            let tmp = tempfile::tempdir()?;
+            let src_path = tmp.path().join("graph");
+
+            graph.graph.encode(&src_path)?;
+
+            let target_path = folder.get_base_path();
+            std::fs::rename(src_path, target_path)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Drop for Data {
@@ -287,16 +293,8 @@ impl Drop for Data {
         // On drop, serialize graphs that don't have underlying persistence.
         for (_, graph) in self.cache.iter() {
             if !graph.graph.disk_storage_enabled() {
-                if let Some(folder) = graph.folder.get() {
-                    let _ = folder
-                        .clear()
-                        .map_err(|e| warn!("Error clearing graph folder on drop: {e}"));
-
-                    let _ = graph
-                        .graph
-                        .encode(folder.clone())
-                        .map_err(|e| warn!("Error serializing graph on drop: {e}"));
-                }
+                let _ = Self::encode_graph_to_disk(graph.clone())
+                            .map_err(|e| warn!("Error encoding graph to disk on drop: {e}"));
             }
         }
     }
