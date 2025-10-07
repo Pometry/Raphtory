@@ -204,9 +204,9 @@ impl Mut {
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         let path = folder.get_graph_path();
-        let graph = match graph_type {
-            GqlGraphType::Persistent => PersistentGraph::new_at_path(path).materialize()?,
-            GqlGraphType::Event => Graph::new_at_path(path).materialize()?,
+        let graph: MaterializedGraph = match graph_type {
+            GqlGraphType::Persistent => PersistentGraph::new_at_path(path).into(),
+            GqlGraphType::Event => Graph::new_at_path(path).into(),
         };
 
         data.insert_graph(folder, graph).await?;
