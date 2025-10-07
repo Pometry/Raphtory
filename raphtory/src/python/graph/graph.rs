@@ -210,8 +210,8 @@ impl PyGraph {
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str|int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
-    ///    node_type (str, optional): The optional string which will be used as a node type
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    node_type (str, optional): The optional string which will be used as a node type.
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     MutableNode: The added node.
@@ -219,7 +219,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (timestamp, id, properties = None, node_type = None, secondary_index = None)
+        signature = (timestamp, id, properties = None, node_type = None, event_id = None)
     )]
     pub fn add_node(
         &self,
@@ -227,7 +227,7 @@ impl PyGraph {
         id: GID,
         properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
         let props = properties
             .into_iter()
@@ -238,12 +238,11 @@ impl PyGraph {
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        match secondary_index {
+        match event_id {
             None => self.graph.add_node(timestamp, id, props, node_type),
-            Some(secondary_index) => {
-                self.graph
-                    .add_node((timestamp, secondary_index), id, props, node_type)
-            }
+            Some(event_id) => self
+                .graph
+                .add_node((timestamp, event_id), id, props, node_type),
         }
     }
 
@@ -253,30 +252,30 @@ impl PyGraph {
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str|int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
-    ///    node_type (str, optional): The optional string which will be used as a node type
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    node_type (str, optional): The optional string which will be used as a node type.
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     MutableNode: The created node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None))]
     pub fn create_node(
         &self,
         timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
-        match secondary_index {
+        match event_id {
             None => {
                 self.graph
                     .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
             }
-            Some(secondary_index) => self.graph.create_node(
-                (timestamp, secondary_index),
+            Some(event_id) => self.graph.create_node(
+                (timestamp, event_id),
                 id,
                 properties.unwrap_or_default(),
                 node_type,
@@ -289,25 +288,23 @@ impl PyGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the temporal property.
     ///    properties (PropInput): The temporal properties of the graph.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, properties, secondary_index = None))]
+    #[pyo3(signature = (timestamp, properties, event_id = None))]
     pub fn add_properties(
         &self,
         timestamp: EventTimeComponent,
         properties: HashMap<String, Prop>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<(), GraphError> {
-        match secondary_index {
+        match event_id {
             None => self.graph.add_properties(timestamp, properties),
-            Some(secondary_index) => self
-                .graph
-                .add_properties((timestamp, secondary_index), properties),
+            Some(event_id) => self.graph.add_properties((timestamp, event_id), properties),
         }
     }
 
@@ -347,14 +344,14 @@ impl PyGraph {
     ///    dst (str|int): The id of the destination node.
     ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
     ///    layer (str, optional): The layer of the edge.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     MutableEdge: The added edge.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, secondary_index = None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, event_id = None))]
     pub fn add_edge(
         &self,
         timestamp: EventTimeComponent,
@@ -362,14 +359,14 @@ impl PyGraph {
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
-        match secondary_index {
+        match event_id {
             None => self
                 .graph
                 .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer),
-            Some(secondary_index) => self.graph.add_edge(
-                (timestamp, secondary_index),
+            Some(event_id) => self.graph.add_edge(
+                (timestamp, event_id),
                 src,
                 dst,
                 properties.unwrap_or_default(),

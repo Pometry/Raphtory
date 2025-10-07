@@ -126,29 +126,29 @@ impl PyPersistentGraph {
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str | int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
-    ///    node_type (str, optional) : The optional string which will be used as a node type
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    node_type (str, optional) : The optional string which will be used as a node type.
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None))]
     pub fn add_node(
         &self,
         timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
-        match secondary_index {
+        match event_id {
             None => self
                 .graph
                 .add_node(timestamp, id, properties.unwrap_or_default(), node_type),
-            Some(secondary_index) => self.graph.add_node(
-                (timestamp, secondary_index),
+            Some(event_id) => self.graph.add_node(
+                (timestamp, event_id),
                 id,
                 properties.unwrap_or_default(),
                 node_type,
@@ -162,30 +162,30 @@ impl PyPersistentGraph {
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str | int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
-    ///    node_type (str, optional) : The optional string which will be used as a node type
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    node_type (str, optional) : The optional string which will be used as a node type.
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///   MutableNode: the newly created node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None))]
     pub fn create_node(
         &self,
         timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
-        match secondary_index {
+        match event_id {
             None => {
                 self.graph
                     .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
             }
-            Some(secondary_index) => self.graph.create_node(
-                (timestamp, secondary_index),
+            Some(event_id) => self.graph.create_node(
+                (timestamp, event_id),
                 id,
                 properties.unwrap_or_default(),
                 node_type,
@@ -198,25 +198,23 @@ impl PyPersistentGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the temporal property.
     ///    properties (dict): The temporal properties of the graph.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, properties, secondary_index = None))]
+    #[pyo3(signature = (timestamp, properties, event_id = None))]
     pub fn add_properties(
         &self,
         timestamp: EventTimeComponent,
         properties: HashMap<String, Prop>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<(), GraphError> {
-        match secondary_index {
+        match event_id {
             None => self.graph.add_properties(timestamp, properties),
-            Some(secondary_index) => self
-                .graph
-                .add_properties((timestamp, secondary_index), properties),
+            Some(event_id) => self.graph.add_properties((timestamp, event_id), properties),
         }
     }
 
@@ -254,16 +252,16 @@ impl PyPersistentGraph {
     ///     timestamp (int): The timestamp of the edge.
     ///     src (str | int): The id of the source node.
     ///     dst (str | int): The id of the destination node.
-    ///     properties (PropInput, optional): The properties of the edge, as a dict of string and properties
+    ///     properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
     ///     layer (str, optional): The layer of the edge.
-    ///     secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///     event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, secondary_index = None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, event_id = None))]
     pub fn add_edge(
         &self,
         timestamp: EventTimeComponent,
@@ -271,14 +269,14 @@ impl PyPersistentGraph {
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
-        match secondary_index {
+        match event_id {
             None => self
                 .graph
                 .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer),
-            Some(secondary_index) => self.graph.add_edge(
-                (timestamp, secondary_index),
+            Some(event_id) => self.graph.add_edge(
+                (timestamp, event_id),
                 src,
                 dst,
                 properties.unwrap_or_default(),
@@ -287,35 +285,34 @@ impl PyPersistentGraph {
         }
     }
 
-    /// Deletes an edge given the timestamp, src and dst nodes and layer (optional)
+    /// Deletes an edge given the timestamp, src and dst nodes and layer (optional).
     ///
     /// Arguments:
     ///   timestamp (int): The timestamp of the edge.
     ///   src (str | int): The id of the source node.
     ///   dst (str | int): The id of the destination node.
     ///   layer (str, optional): The layer of the edge.
-    ///   secondary_index (int, optional): The optional integer which will be used as a secondary index.
+    ///   event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///   MutableEdge: The deleted edge
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, src, dst, layer=None, secondary_index = None))]
+    #[pyo3(signature = (timestamp, src, dst, layer=None, event_id = None))]
     pub fn delete_edge(
         &self,
         timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
         layer: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<EdgeView<PersistentGraph>, GraphError> {
-        match secondary_index {
+        match event_id {
             None => self.graph.delete_edge(timestamp, src, dst, layer),
-            Some(secondary_index) => {
-                self.graph
-                    .delete_edge((timestamp, secondary_index), src, dst, layer)
-            }
+            Some(event_id) => self
+                .graph
+                .delete_edge((timestamp, event_id), src, dst, layer),
         }
     }
 

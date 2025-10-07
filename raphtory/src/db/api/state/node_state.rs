@@ -516,7 +516,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         )
     }
 
-    pub fn secondary_index(
+    pub fn event_id(
         &self,
     ) -> NodeState<'graph, HistoryEventId<NodeView<'graph, DynamicGraph>>, G, GH> {
         let values = self
