@@ -62,11 +62,11 @@ print(g)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=TimeIndexEntry[1560419400000, 0], latest_time=TimeIndexEntry[1562756700000, 18446744073709551615])"
+assert str(g) == "Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=EventTime[1560419400000, 0], latest_time=EventTime[1562756700000, 18446744073709551615])"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=TimeIndexEntry[1560419400000, 0], latest_time=TimeIndexEntry[1562756700000, 18446744073709551615])
+    Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=EventTime[1560419400000, 0], latest_time=EventTime[1562756700000, 18446744073709551615])
     ```

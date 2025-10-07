@@ -44,8 +44,8 @@ assert str(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}") == "At time 
 
     ```output
     At time 0: Nodes() Edges()
-    At time 2: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[2, 0]), Node(name=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[2, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[3, 0], layer(s)=[_default]))
-    At time 3: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[3, 0]), Node(name=Bob, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[3, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[4, 0], layer(s)=[_default]))
+    At time 2: Nodes(Node(name=Alice, earliest_time=EventTime[2, 0], latest_time=EventTime[2, 0]), Node(name=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[2, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[3, 0], layer(s)=[_default]))
+    At time 3: Nodes(Node(name=Alice, earliest_time=EventTime[3, 0], latest_time=EventTime[3, 0]), Node(name=Bob, earliest_time=EventTime[3, 0], latest_time=EventTime[3, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 0], latest_time=EventTime[4, 0], layer(s)=[_default]))
     At time 5: Nodes() Edges()
     At time 6: Nodes() Edges()
     ```
@@ -84,7 +84,7 @@ print(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1]), Node(name=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1], layer(s)=[_default]))"
+assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1]), Node(name=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1], layer(s)=[_default]))"
 ```
 
 !!! Output
@@ -92,9 +92,9 @@ assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") 
     ```output
     Before time 1: Nodes() Edges()
     Before time 2: Nodes() Edges()
-    Before time 3: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[2, 0]), Node(name=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[2, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[3, 0], layer(s)=[_default]))
-    Before time 5: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[2, 0]), Node(name=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[2, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 0], layer(s)=[_default]))
-    Before time 6: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1]), Node(name=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1], layer(s)=[_default]))
+    Before time 3: Nodes(Node(name=Alice, earliest_time=EventTime[2, 0], latest_time=EventTime[2, 0]), Node(name=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[2, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[3, 0], layer(s)=[_default]))
+    Before time 5: Nodes(Node(name=Alice, earliest_time=EventTime[2, 0], latest_time=EventTime[2, 0]), Node(name=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[2, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 0], layer(s)=[_default]))
+    Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1]), Node(name=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1], layer(s)=[_default]))
     ```
 
 Here we see that the `before(T)` bound is exclusive of the end point \\(T\\), creating an intersection between the time interval \\(-\infty < t < T\\) and \\(2 \leq t < 5\\) where \\(T\\) is the argument of `before`.
@@ -133,9 +133,9 @@ assert str(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}") == 
 !!! Output
 
     ```output
-    After time 1: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1]), Node(name=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1], layer(s)=[_default]))
-    After time 2: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[5, 1]), Node(name=Bob, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[5, 1], layer(s)=[_default]))
-    After time 3: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[4, 0], latest_time=TimeIndexEntry[5, 1]), Node(name=Bob, earliest_time=TimeIndexEntry[4, 0], latest_time=TimeIndexEntry[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[4, 0], latest_time=TimeIndexEntry[5, 1], layer(s)=[_default]))
+    After time 1: Nodes(Node(name=Alice, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1]), Node(name=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1], layer(s)=[_default]))
+    After time 2: Nodes(Node(name=Alice, earliest_time=EventTime[3, 0], latest_time=EventTime[5, 1]), Node(name=Bob, earliest_time=EventTime[3, 0], latest_time=EventTime[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 0], latest_time=EventTime[5, 1], layer(s)=[_default]))
+    After time 3: Nodes(Node(name=Alice, earliest_time=EventTime[4, 0], latest_time=EventTime[5, 1]), Node(name=Bob, earliest_time=EventTime[4, 0], latest_time=EventTime[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[4, 0], latest_time=EventTime[5, 1], layer(s)=[_default]))
     After time 5: Nodes() Edges()
     After time 6: Nodes() Edges()
     ```
@@ -180,10 +180,10 @@ assert str(f"Window 6,10: {G.window(6,10).nodes} {G.window(6,10).edges.explode()
 
     ```output
     Window 0,2: Nodes() Edges()
-    Window 0,4: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[2, 0]), Node(name=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[2, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[4, 0], layer(s)=[_default]))
-    Window 3,4: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[3, 0]), Node(name=Bob, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[3, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[3, 0], latest_time=TimeIndexEntry[4, 0], layer(s)=[_default]))
+    Window 0,4: Nodes(Node(name=Alice, earliest_time=EventTime[2, 0], latest_time=EventTime[2, 0]), Node(name=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[2, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[4, 0], layer(s)=[_default]))
+    Window 3,4: Nodes(Node(name=Alice, earliest_time=EventTime[3, 0], latest_time=EventTime[3, 0]), Node(name=Bob, earliest_time=EventTime[3, 0], latest_time=EventTime[3, 0])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 0], latest_time=EventTime[4, 0], layer(s)=[_default]))
     Window 5,8: Nodes() Edges()
-    Window 1,8: Nodes(Node(name=Alice, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1]), Node(name=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=TimeIndexEntry[2, 0], latest_time=TimeIndexEntry[5, 1], layer(s)=[_default]))
+    Window 1,8: Nodes(Node(name=Alice, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1]), Node(name=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1])) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[2, 0], latest_time=EventTime[5, 1], layer(s)=[_default]))
     Window 6,10: Nodes() Edges()
     ```
 
