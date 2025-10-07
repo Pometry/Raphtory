@@ -49,7 +49,7 @@ pub enum Op {
     Avg,
     Min,
     Max,
-    // Qualifiers
+    // Qualifiers (quantifiers)
     Any,
     All,
 }
@@ -59,16 +59,98 @@ impl Op {
     pub fn is_selector(self) -> bool {
         matches!(self, Op::First | Op::Last)
     }
-
     #[inline]
     pub fn is_aggregator(self) -> bool {
         matches!(self, Op::Len | Op::Sum | Op::Avg | Op::Min | Op::Max)
     }
-
     #[inline]
     pub fn is_qualifier(self) -> bool {
         matches!(self, Op::Any | Op::All)
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Shape {
+    Scalar(PropType),
+    List(Box<PropType>),
+    Seq(Box<Shape>),
+    /// A pending quantifier (any/all) over elements of the inner shape.
+    /// We keep the element dtype available so the final operator can be
+    /// validated against element type (predicate-after-quantifier).
+    Quantified(Box<Shape>, Op),
+}
+
+impl Shape {
+    #[inline]
+    fn elem_dtype(&self) -> Option<PropType> {
+        match self {
+            Shape::Scalar(t) => Some(t.clone()),
+            Shape::List(t) => Some(*t.clone()),
+            Shape::Seq(inner) => inner.elem_dtype(),
+            Shape::Quantified(inner, _) => inner.elem_dtype(),
+        }
+    }
+}
+
+/// Count consecutive Quantified wrappers and return (base shape, depth).
+fn flatten_quantified_depth<'a>(mut s: &'a Shape) -> (&'a Shape, usize) {
+    let mut depth = 0;
+    while let Shape::Quantified(inner, _) = s {
+        depth += 1;
+        s = inner;
+    }
+    (s, depth)
+}
+
+/// Unwrap `n` list layers from a PropType::List nesting.
+fn unwrap_list_n(mut t: PropType, mut n: usize) -> Option<PropType> {
+    while n > 0 {
+        if let PropType::List(inner) = t {
+            t = *inner;
+            n -= 1;
+        } else {
+            return None;
+        }
+    }
+    Some(t)
+}
+
+#[inline]
+fn agg_result_dtype(inner: &PropType, op: Op, ctx: &str) -> Result<PropType, GraphError> {
+    use PropType::*;
+    Ok(match op {
+        Op::Len => U64,
+        Op::Sum => match inner {
+            U8 | U16 | U32 | U64 => U64,
+            I32 | I64 => I64,
+            F32 | F64 => F64,
+            _ => {
+                return Err(GraphError::InvalidFilter(format!(
+                    "sum() {} requires numeric",
+                    ctx
+                )))
+            }
+        },
+        Op::Avg => match inner {
+            U8 | U16 | U32 | U64 | I32 | I64 | F32 | F64 => F64,
+            _ => {
+                return Err(GraphError::InvalidFilter(format!(
+                    "avg() {} requires numeric",
+                    ctx
+                )))
+            }
+        },
+        Op::Min | Op::Max => match inner {
+            U8 | U16 | U32 | U64 | I32 | I64 | F32 | F64 => inner.clone(),
+            _ => {
+                return Err(GraphError::InvalidFilter(format!(
+                    "{:?} {} requires numeric",
+                    op, ctx
+                )))
+            }
+        },
+        _ => unreachable!(),
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -110,7 +192,7 @@ pub struct PropertyFilter<M> {
     pub prop_ref: PropertyRef,
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,
-    pub ops: Vec<Op>, // at most 2 (validated)
+    pub ops: Vec<Op>, // validated by validate_chain_and_infer_effective_dtype
     pub _phantom: PhantomData<M>,
 }
 
@@ -356,6 +438,23 @@ impl<M> PropertyFilter<M> {
         dtype: &PropType,
         expect_map: bool,
     ) -> Result<(), GraphError> {
+        if self.ops.iter().copied().any(Op::is_aggregator) {
+            match self.operator {
+                FilterOperator::StartsWith
+                | FilterOperator::EndsWith
+                | FilterOperator::Contains
+                | FilterOperator::NotContains
+                | FilterOperator::IsNone
+                | FilterOperator::IsSome => {
+                    return Err(GraphError::InvalidFilter(format!(
+                        "Operator {} is not supported with list aggregation",
+                        self.operator
+                    )));
+                }
+                _ => {}
+            }
+        }
+
         match self.operator {
             FilterOperator::Eq | FilterOperator::Ne => {
                 self.validate_single_dtype(dtype, expect_map)?;
@@ -394,301 +493,222 @@ impl<M> PropertyFilter<M> {
                 }
             },
         }
+
         Ok(())
     }
 
-    /// Enforce the OK/NOK matrix and compute the **effective dtype**
-    /// after applying the op chain (used to validate the final operator).
-    ///
-    /// Op Pair Validity Matrix (first op × second op)
-    ///                 Selector     Aggregator     Qualifier
-    /// Selector           NOK          OK             OK
-    /// Aggregator         NOK          NOK            NOK
-    /// Qualifier          NOK          OK             OK
-    ///
-    /// Single-op cases (standalone):
-    ///   Selector   → OK
-    ///   Aggregator → OK
-    ///   Qualifier  → OK
+    /// Validate the op chain via a **right-to-left** fold over a Shape model and
+    /// return the effective dtype against which the final operator is checked.
+    /// Selectors (`first/last`) are applied *before* any other ops regardless of
+    /// source order to ensure chains like `.temporal().first().avg()` work as intended.
     fn validate_chain_and_infer_effective_dtype(
         &self,
         src_dtype: &PropType,
         is_temporal: bool,
     ) -> Result<PropType, GraphError> {
-        fn agg_result_dtype(
-            inner: &PropType,
-            op: Op,
-            ctx: &'static str,
-        ) -> Result<PropType, GraphError> {
-            use PropType::*;
-            Ok(match op {
-                Op::Len => U64,
+        use Shape::*;
 
-                Op::Sum => match inner {
-                    U8 | U16 | U32 | U64 => U64,
-                    I32 | I64 => I64,
-                    F32 | F64 => F64,
-                    _ => {
-                        return Err(GraphError::InvalidFilter(format!(
-                            "sum() {} requires numeric",
-                            ctx
-                        )))
-                    }
-                },
-
-                Op::Avg => match inner {
-                    U8 | U16 | U32 | U64 | I32 | I64 | F32 | F64 => F64,
-                    _ => {
-                        return Err(GraphError::InvalidFilter(format!(
-                            "avg() {} requires numeric",
-                            ctx
-                        )))
-                    }
-                },
-
-                Op::Min | Op::Max => match inner {
-                    U8 | U16 | U32 | U64 | I32 | I64 | F32 | F64 => inner.clone(),
-                    _ => {
-                        return Err(GraphError::InvalidFilter(format!(
-                            "{:?} {} requires numeric",
-                            op, ctx
-                        )))
-                    }
-                },
-
-                _ => unreachable!(),
-            })
-        }
-
-        if self.ops.len() > 2 {
-            return Err(GraphError::InvalidFilter(
-                "At most two list/temporal operations are allowed.".into(),
-            ));
-        }
-
-        let used_qualifier = self.ops.iter().any(|o| o.is_qualifier());
-        if used_qualifier && !is_temporal {
-            if matches!(
-                self.operator,
-                FilterOperator::IsSome | FilterOperator::IsNone
-            ) {
-                return Err(GraphError::InvalidFilter(
-                    "Operator IS_SOME/IS_NONE is not supported with element qualifiers; apply it to the list itself (without elem qualifiers).".into()
-                ));
-            }
-        }
-
-        let used_agg = self.ops.iter().any(|o| o.is_aggregator());
-        let disallowed_with_agg = matches!(
-            self.operator,
-            FilterOperator::StartsWith
-                | FilterOperator::EndsWith
-                | FilterOperator::Contains
-                | FilterOperator::NotContains
-                | FilterOperator::FuzzySearch { .. }
-                | FilterOperator::IsNone
-                | FilterOperator::IsSome
-        );
-        if used_agg && disallowed_with_agg {
-            return Err(GraphError::InvalidFilter(format!(
-                "Operator {} is not supported with list aggregation",
-                self.operator
-            )));
-        }
-
-        let require_iterable =
-            |op: Op, shape_is_seq: bool, shape_is_list: bool| -> Result<(), GraphError> {
-                if op.is_selector() {
-                    if !shape_is_seq {
-                        return Err(GraphError::InvalidFilter(format!(
-                            "{:?} requires list or temporal source",
-                            op
-                        )));
-                    }
-                } else if op.is_aggregator() {
-                    if !(shape_is_seq || shape_is_list) {
-                        return Err(GraphError::InvalidFilter(format!(
-                            "{:?} requires list or temporal source",
-                            op
-                        )));
-                    }
-                } else if op.is_qualifier() {
-                    if !(shape_is_seq || shape_is_list) {
-                        return Err(GraphError::InvalidFilter(format!(
-                            "{:?} requires list or temporal source",
-                            op
-                        )));
-                    }
-                }
-                Ok(())
+        // Build the base shape from the underlying property type.
+        let base_shape: Shape = if is_temporal {
+            let inner: Shape = match src_dtype {
+                PropType::List(inner) => List(inner.clone()),
+                t => Scalar(t.clone()),
             };
-
-        let (shape_is_list, elem_ty) = (matches!(src_dtype, PropType::List(_)), src_dtype.clone());
-
-        // Pair rules (OK/NOK)
-        let pair_ok = |a: Op, b: Op| -> bool {
-            // NOK
-            if a.is_selector() && b.is_selector() {
-                return false;
-            } // [Sel, Sel]
-            if a.is_aggregator() && (b.is_selector() || b.is_qualifier() || b.is_aggregator()) {
-                return false; // [Agg, Sel] / [Agg, Qual] / [Agg, Agg]
+            Seq(Box::new(inner))
+        } else {
+            match src_dtype {
+                PropType::List(inner) => List(inner.clone()),
+                t => Scalar(t.clone()),
             }
-            if a.is_qualifier() && b.is_selector() {
-                return false;
-            } // [Qual, Sel]
-              // OK
-            if a.is_selector() && (b.is_aggregator() || b.is_qualifier()) {
-                return true;
-            } // [Sel, Agg] / [Sel, Qual]
-            if a.is_qualifier() && (b.is_aggregator() || b.is_qualifier()) {
-                return true;
-            } // [Qual, Agg] / [Qual, Qual]
-            true
         };
 
-        match (is_temporal, self.ops.as_slice()) {
-            // Catch-all: if 3 or more ops are present, reject
-            (false, &[_, _, _, ..]) | (true, &[_, _, _, ..]) => Err(GraphError::InvalidFilter(
-                "At most two list/temporal operations are allowed.".into(),
-            )),
+        #[inline]
+        fn agg_out(inner: &PropType, op: Op, ctx: &str) -> Result<PropType, GraphError> {
+            agg_result_dtype(inner, op, ctx)
+        }
 
-            // No ops
-            (true, []) => {
-                // effective dtype: List<elem_ty> (comparing to the full time-series)
-                Ok(PropType::List(Box::new(elem_ty.clone())))
-            }
-            (false, []) => Ok(elem_ty),
-
-            // Non-temporal: exactly one op (must be Agg or Qual) on List<T>
-            (false, [op]) => {
-                if !op.is_aggregator() && !op.is_qualifier() {
-                    return Err(GraphError::InvalidFilter(format!(
-                        "Non-temporal properties support only aggregators/qualifiers; got {:?}",
-                        op
-                    )));
-                }
-                if !shape_is_list {
-                    return Err(GraphError::InvalidFilter(format!(
-                        "{:?} requires list; property is {:?}",
-                        op, elem_ty
-                    )));
-                }
-                let inner = elem_ty.inner().ok_or_else(|| {
-                    GraphError::InvalidFilter(format!("Expected list type, got {:?}", elem_ty))
-                })?;
-                if op.is_aggregator() {
-                    agg_result_dtype(inner, *op, "requires numeric list")
-                } else {
-                    Ok(inner.clone())
-                }
-            }
-
-            // Non-temporal: two ops -> not allowed
-            (false, [_a, _b]) => Err(GraphError::InvalidFilter(
-                "Non-temporal properties support at most one op.".into(),
-            )),
-
-            // Temporal: one op
-            (true, [op]) => {
-                require_iterable(*op, true, shape_is_list)?;
-                if op.is_selector() {
-                    // Selecting a single instant from the temporal sequence.
-                    // If the temporal element type is T, `first/last` yields T.
-                    // If the temporal element type is List<U>, it yields List<U>.
-                    let eff = elem_ty.clone();
-                    return Ok(eff);
-                }
-
-                let eff = if op.is_aggregator() {
-                    if shape_is_list {
-                        return Err(GraphError::InvalidFilter(format!(
-                            "{:?} over temporal requires scalar elements; got List",
-                            op
-                        )));
-                    }
-                    return agg_result_dtype(&elem_ty, *op, "over time");
-                } else {
-                    if let PropType::List(inner) = &elem_ty {
-                        inner.as_ref().clone()
-                    } else {
-                        elem_ty.clone()
-                    }
-                };
-                Ok(eff)
-            }
-
-            // Temporal: two ops
-            (true, [a, b]) => {
-                if !pair_ok(*a, *b) {
-                    return Err(GraphError::InvalidFilter(format!(
-                        "Invalid op pair: {:?} then {:?}",
-                        a, b
-                    )));
-                }
-                match (*a, *b) {
-                    (sa, sb) if sa.is_selector() && sb.is_aggregator() => {
-                        if !shape_is_list {
-                            return Err(GraphError::InvalidFilter(
-                                "Selector then aggregator requires Seq[List[T]] (temporal of lists)".into(),
-                            ));
-                        }
-                        let inner = elem_ty.inner().ok_or_else(|| {
-                            GraphError::InvalidFilter(format!(
-                                "Expected list type, got {:?}",
-                                elem_ty
-                            ))
-                        })?;
-                        agg_result_dtype(inner, sb, "requires numeric")
-                    }
-                    (sa, sb) if sa.is_selector() && sb.is_qualifier() => {
-                        if !shape_is_list {
-                            return Err(GraphError::InvalidFilter(
-                                "Selector then qualifier requires Seq[List[T]]".into(),
-                            ));
-                        }
-                        let inner = elem_ty.inner().ok_or_else(|| {
-                            GraphError::InvalidFilter(format!(
-                                "Expected list type, got {:?}",
-                                elem_ty
-                            ))
-                        })?;
-                        Ok(inner.clone())
-                    }
-                    (qa, qb) if qa.is_qualifier() && qb.is_aggregator() => {
-                        if !shape_is_list {
-                            return Err(GraphError::InvalidFilter(
-                                "Qualifier then aggregator requires Seq[List[T]]".into(),
-                            ));
-                        }
-                        let inner = elem_ty.inner().ok_or_else(|| {
-                            GraphError::InvalidFilter(format!(
-                                "Expected list type, got {:?}",
-                                elem_ty
-                            ))
-                        })?;
-                        agg_result_dtype(inner, qb, "requires numeric")
-                    }
-                    (qa, qb) if qa.is_qualifier() && qb.is_qualifier() => {
-                        // Two qualifiers on a temporal property: operator applies to INNER ELEMENTS.
-                        // We must validate the operator against the *inner element type*, not Bool.
-                        if !shape_is_list {
-                            return Err(GraphError::InvalidFilter(
-                                "Two qualifiers on a temporal property require Seq[List[T]]".into(),
-                            ));
-                        }
-                        let inner = elem_ty.inner().ok_or_else(|| {
-                            GraphError::InvalidFilter(format!(
-                                "Expected list type, got {:?}",
-                                elem_ty
-                            ))
-                        })?;
-                        Ok(inner.clone())
-                    }
-                    _ => unreachable!(),
-                }
+        // ---- IMPORTANT: selector precedence --------------------------------------
+        // To preserve RTL validation but apply selectors first, we reorder ops so that
+        // selectors come *last* in the vector (closest to the source), which means they
+        // are processed *first* when we iterate in reverse.
+        let mut selectors: Vec<Op> = Vec::new();
+        let mut others: Vec<Op> = Vec::new();
+        for &op in &self.ops {
+            if op.is_selector() {
+                selectors.push(op);
+            } else {
+                others.push(op);
             }
         }
+        let mut ops_for_validation: Vec<Op> = Vec::with_capacity(self.ops.len());
+        ops_for_validation.extend(others);
+        ops_for_validation.extend(selectors);
+        // ---------------------------------------------------------------------------
+
+        // Right-to-left fold over ops_for_validation.
+        let mut shape = base_shape;
+        for &op in ops_for_validation.iter().rev() {
+            shape = match op {
+                // --- Selectors collapse one temporal layer ---
+                Op::First | Op::Last => match shape {
+                    Seq(inner) => *inner,
+                    other => {
+                        return Err(GraphError::InvalidFilter(format!(
+                            "{:?} requires temporal sequence (Seq), got {:?}",
+                            op, other
+                        )))
+                    }
+                },
+
+                // --- Quantifiers wrap current list level (or per-time list).
+                // Allow singleton policy for scalars.
+                Op::Any | Op::All => match shape {
+                    List(_) => Quantified(Box::new(shape), op),
+
+                    Seq(inner) => match *inner {
+                        List(_) | Quantified(_, _) => {
+                            Seq(Box::new(Quantified(Box::new(*inner), op)))
+                        }
+                        Scalar(t) => Seq(Box::new(Quantified(Box::new(Scalar(t)), op))),
+                        other => {
+                            return Err(GraphError::InvalidFilter(format!(
+                                "{:?} requires list elements over time; got Seq({:?})",
+                                op, other
+                            )))
+                        }
+                    },
+
+                    Scalar(t) => Quantified(Box::new(Scalar(t)), op),
+
+                    _ => {
+                        return Err(GraphError::InvalidFilter(format!(
+                            "{:?} requires a list (or temporal list); got {:?}",
+                            op, shape
+                        )))
+                    }
+                },
+
+                // --- Aggregators map list/temporal(list|scalar) to a scalar dtype ---
+                Op::Len | Op::Sum | Op::Avg | Op::Min | Op::Max => match shape {
+                    // Aggregate a plain list
+                    List(inner) => {
+                        let t = *inner;
+                        let out = agg_out(&t, op, "over list")?;
+                        Scalar(out)
+                    }
+
+                    // Aggregate over time
+                    Seq(inner) => match *inner {
+                        Scalar(t) => {
+                            let out = agg_out(&t, op, "over time")?;
+                            Scalar(out)
+                        }
+                        List(t) => {
+                            let elem_t = *t;
+                            let out = agg_out(&elem_t, op, "over time of lists")?;
+                            Scalar(out)
+                        }
+                        // time series with quantifier on the payload: preserve the quantifier,
+                        // map the inner list dtype through the aggregator.
+                        Quantified(qinner, qop) => {
+                            let mapped_inner = match *qinner {
+                                List(t) => {
+                                    let out =
+                                        agg_out(&*t, op, "under temporal quantifier over list")?;
+                                    Scalar(out)
+                                }
+                                Scalar(t) => {
+                                    return Err(GraphError::InvalidFilter(format!(
+                                        "{:?} under temporal quantifier requires list elements; got Scalar({:?})",
+                                        op, t
+                                    )));
+                                }
+                                Seq(_) | Quantified(_, _) => unreachable!(),
+                            };
+                            Seq(Box::new(Quantified(Box::new(mapped_inner), qop)))
+                        }
+                        Seq(_) => unreachable!(),
+                    },
+
+                    // Aggregator under a non-temporal quantifier: preserve the quantifier.
+                    Quantified(qinner, qop) => {
+                        let mapped_inner = match *qinner {
+                            List(t) => {
+                                let out = agg_out(&*t, op, "under quantifier over list")?;
+                                Scalar(out)
+                            }
+                            Scalar(t) => {
+                                return Err(GraphError::InvalidFilter(format!(
+                                    "{:?} under quantifier requires list elements; got Scalar({:?})",
+                                    op, t
+                                )));
+                            }
+                            Seq(_) | Quantified(_, _) => unreachable!(),
+                        };
+                        Quantified(Box::new(mapped_inner), qop)
+                    }
+
+                    // Aggregators require a collection or temporal sequence before them.
+                    Scalar(t) => {
+                        return Err(GraphError::InvalidFilter(format!(
+                            "{:?} requires list or temporal sequence, got Scalar({:?})",
+                            op, t
+                        )));
+                    }
+                },
+            };
+        }
+
+        // Effective dtype seen by the final operator.
+        let effective_dtype: PropType = match shape {
+            Scalar(t) => t,
+            List(t) => PropType::List(t),
+
+            // Non-temporal quantified input:
+            // Any depth of quantifiers over a list exposes the element dtype.
+            // Any depth over a scalar (singleton policy) exposes the scalar dtype.
+            Quantified(_, _) => {
+                let (base, _qdepth) = flatten_quantified_depth(&shape);
+                match base {
+                    List(t) => (**t).clone(),
+                    Scalar(t) => t.clone(),
+                    _ => {
+                        return Err(GraphError::InvalidFilter(
+                            "Quantifier requires list or scalar input".into(),
+                        ))
+                    }
+                }
+            }
+
+            // Temporal payload
+            Seq(inner) => match *inner {
+                // time series of scalars -> List<T> effective dtype
+                Scalar(t) => PropType::List(Box::new(t)),
+                // time series of lists -> List<List<T>> effective dtype
+                List(t) => PropType::List(Box::new(PropType::List(t))),
+
+                // Quantified per-time payload: same expose-as-element/singleton semantics.
+                Quantified(_, _) => {
+                    let (base, _qdepth) = flatten_quantified_depth(&*inner);
+                    match base {
+                        List(t) => (**t).clone(),
+                        Scalar(t) => t.clone(),
+                        _ => {
+                            return Err(GraphError::InvalidFilter(
+                                "Temporal quantifier requires list or scalar elements per time"
+                                    .into(),
+                            ))
+                        }
+                    }
+                }
+                Seq(_) => unreachable!(),
+            },
+        };
+
+        // NOTE: Do **not** validate the final operator here.
+        // The caller (resolve_prop_id) will validate using the correct `expect_map_now`
+        // to support metadata map semantics.
+        Ok(effective_dtype)
     }
 
     pub fn resolve_prop_id(&self, meta: &Meta, expect_map: bool) -> Result<usize, GraphError> {
@@ -922,152 +942,270 @@ impl<M> PropertyFilter<M> {
         }
     }
 
-    fn apply_two_qualifiers_temporal(&self, prop: &[Prop], outer: Op, inner: Op) -> bool {
-        debug_assert!(outer.is_qualifier() && inner.is_qualifier());
+    /// Recursive reducer for nested quantifiers: applies the final predicate
+    /// at the innermost level and bubbles results back using each quantifier.
+    fn reduce_qualifiers_rec(
+        &self,
+        quals: &[Op],
+        v: &Prop,
+        predicate: &dyn Fn(&Prop) -> bool,
+    ) -> bool {
+        if quals.is_empty() {
+            return predicate(v);
+        }
+        let (q, rest) = (quals[0], &quals[1..]);
 
-        let mut per_time: Vec<bool> = Vec::with_capacity(prop.len());
-        for v in prop {
-            // Only lists participate. Non-lists => "no elements" at that time.
-            let elems: &[Prop] = match v {
-                Prop::List(inner_vals) => inner_vals.as_slice(),
-                _ => &[], // <-- do NOT coerce a scalar into a 1-element list
-            };
-
-            let inner_ok = match inner {
-                Op::Any => elems
-                    .iter()
-                    .any(|e| self.operator.apply_to_property(&self.prop_value, Some(e))),
-                Op::All => {
-                    // All requires at least one element.
-                    !elems.is_empty()
-                        && elems
-                            .iter()
-                            .all(|e| self.operator.apply_to_property(&self.prop_value, Some(e)))
+        // If we have a list, descend normally.
+        if let Prop::List(inner) = v {
+            let elems = inner.as_slice();
+            let check = |e: &Prop| {
+                if rest.is_empty() {
+                    predicate(e)
+                } else {
+                    self.reduce_qualifiers_rec(rest, e, predicate)
                 }
+            };
+            return match q {
+                Op::Any => elems.iter().any(check),
+                Op::All => !elems.is_empty() && elems.iter().all(check),
                 _ => unreachable!(),
             };
-
-            per_time.push(inner_ok);
         }
 
-        match outer {
-            Op::Any => per_time.into_iter().any(|b| b),
-            Op::All => !per_time.is_empty() && per_time.into_iter().all(|b| b),
-            _ => unreachable!(),
+        // No list at this level: apply singleton semantics.
+        // Consuming ANY/ALL over a single value is equivalent to just
+        // continuing with the remaining quantifiers on the same value.
+        if rest.is_empty() {
+            // Last quantifier => apply to the single value.
+            return match q {
+                Op::Any | Op::All => predicate(v),
+                _ => unreachable!(),
+            };
+        }
+        // Still have deeper quantifiers: keep consuming them on the same value.
+        self.reduce_qualifiers_rec(rest, v, predicate)
+    }
+
+    /// Apply a list-style aggregator to a single Prop, with singleton semantics for scalars.
+    fn apply_agg_to_prop(p: &Prop, op: Op) -> Option<Prop> {
+        match (op, p) {
+            // ----- Lists -----
+            (Op::Len, Prop::List(inner)) => Some(Prop::U64(inner.len() as u64)),
+            (Op::Sum, Prop::List(inner))
+            | (Op::Avg, Prop::List(inner))
+            | (Op::Min, Prop::List(inner))
+            | (Op::Max, Prop::List(inner)) => Self::aggregate_values(inner.as_slice(), op),
+
+            // ----- Scalars (singleton semantics) -----
+            (Op::Len, _) => Some(Prop::U64(1)),
+
+            (Op::Sum, Prop::U8(x)) => Some(Prop::U8(*x)),
+            (Op::Sum, Prop::U16(x)) => Some(Prop::U16(*x)),
+            (Op::Sum, Prop::U32(x)) => Some(Prop::U32(*x)),
+            (Op::Sum, Prop::U64(x)) => Some(Prop::U64(*x)),
+            (Op::Sum, Prop::I32(x)) => Some(Prop::I32(*x)),
+            (Op::Sum, Prop::I64(x)) => Some(Prop::I64(*x)),
+            (Op::Sum, Prop::F32(x)) => {
+                if x.is_finite() {
+                    Some(Prop::F32(*x))
+                } else {
+                    None
+                }
+            }
+            (Op::Sum, Prop::F64(x)) => {
+                if x.is_finite() {
+                    Some(Prop::F64(*x))
+                } else {
+                    None
+                }
+            }
+
+            (Op::Avg, Prop::U8(x)) => Some(Prop::F64(*x as f64)),
+            (Op::Avg, Prop::U16(x)) => Some(Prop::F64(*x as f64)),
+            (Op::Avg, Prop::U32(x)) => Some(Prop::F64(*x as f64)),
+            (Op::Avg, Prop::U64(x)) => Some(Prop::F64(*x as f64)),
+            (Op::Avg, Prop::I32(x)) => Some(Prop::F64(*x as f64)),
+            (Op::Avg, Prop::I64(x)) => Some(Prop::F64(*x as f64)),
+            (Op::Avg, Prop::F32(x)) => {
+                if x.is_finite() {
+                    Some(Prop::F32(*x))
+                } else {
+                    None
+                }
+            }
+            (Op::Avg, Prop::F64(x)) => {
+                if x.is_finite() {
+                    Some(Prop::F64(*x))
+                } else {
+                    None
+                }
+            }
+
+            (Op::Min, Prop::U8(x)) => Some(Prop::U8(*x)),
+            (Op::Min, Prop::U16(x)) => Some(Prop::U16(*x)),
+            (Op::Min, Prop::U32(x)) => Some(Prop::U32(*x)),
+            (Op::Min, Prop::U64(x)) => Some(Prop::U64(*x)),
+            (Op::Min, Prop::I32(x)) => Some(Prop::I32(*x)),
+            (Op::Min, Prop::I64(x)) => Some(Prop::I64(*x)),
+            (Op::Min, Prop::F32(x)) => {
+                if x.is_finite() {
+                    Some(Prop::F32(*x))
+                } else {
+                    None
+                }
+            }
+            (Op::Min, Prop::F64(x)) => {
+                if x.is_finite() {
+                    Some(Prop::F64(*x))
+                } else {
+                    None
+                }
+            }
+
+            (Op::Max, Prop::U8(x)) => Some(Prop::U8(*x)),
+            (Op::Max, Prop::U16(x)) => Some(Prop::U16(*x)),
+            (Op::Max, Prop::U32(x)) => Some(Prop::U32(*x)),
+            (Op::Max, Prop::U64(x)) => Some(Prop::U64(*x)),
+            (Op::Max, Prop::I32(x)) => Some(Prop::I32(*x)),
+            (Op::Max, Prop::I64(x)) => Some(Prop::I64(*x)),
+            (Op::Max, Prop::F32(x)) => {
+                if x.is_finite() {
+                    Some(Prop::F32(*x))
+                } else {
+                    None
+                }
+            }
+            (Op::Max, Prop::F64(x)) => {
+                if x.is_finite() {
+                    Some(Prop::F64(*x))
+                } else {
+                    None
+                }
+            }
+
+            // Non-numeric scalars for numeric aggs => None
+            (Op::Sum, _) | (Op::Avg, _) | (Op::Min, _) | (Op::Max, _) => None,
+
+            // Selectors/qualifiers are handled elsewhere.
+            _ => None,
         }
     }
 
-    fn eval_ops(&self, mut state: ValueType) -> (Option<Prop>, Option<Vec<Prop>>, Option<Op>) {
-        let mut qualifier: Option<Op> = None;
+    /// Evaluate ops left-to-right to produce either a reduced scalar,
+    /// or a sequence plus quantifiers to apply. We also track whether
+    /// the produced sequence is truly *temporal* (came from a temporal
+    /// property) or just a normalized wrapper for element-quantifiers.
+    fn eval_ops(&self, mut state: ValueType) -> (Option<Prop>, Option<Vec<Prop>>, Vec<Op>, bool) {
+        // Collect quantifiers in source order.
+        let mut qualifiers: Vec<Op> = Vec::new();
+        // Whether current sequence represents *time*.
+        let mut seq_is_temporal = matches!(state, ValueType::Seq(..));
+        // Track whether we've seen ANY/ALL before the first aggregator.
+        let mut seen_qual_before_agg = false;
 
-        let has_later_reduce = |ops: &[Op], i: usize| -> bool {
-            ops.iter()
-                .enumerate()
-                .skip(i + 1)
-                .any(|(_, op)| op.is_selector() || op.is_aggregator() || op.is_qualifier())
-        };
-
-        let flatten_one = |vals: Vec<Prop>| -> Vec<Prop> {
-            let mut out = Vec::new();
-            for p in vals {
-                if let Prop::List(inner) = p {
-                    out.extend(inner.as_slice().iter().cloned());
-                } else {
-                    out.push(p);
-                }
-            }
-            out
-        };
-
-        let per_elem_map = |vals: Vec<Prop>, op: Op| -> Vec<Prop> {
+        // Apply list-style aggregator to a single Prop (list or scalar).
+        let per_step_map = |vals: Vec<Prop>, op: Op| -> Vec<Prop> {
             vals.into_iter()
-                .filter_map(|p| match (op, p) {
-                    (Op::Len, Prop::List(inner)) => Some(Prop::U64(inner.len() as u64)),
-                    (Op::Sum, Prop::List(inner)) => {
-                        Self::aggregate_values(inner.as_slice(), Op::Sum)
-                    }
-                    (Op::Avg, Prop::List(inner)) => {
-                        Self::aggregate_values(inner.as_slice(), Op::Avg)
-                    }
-                    (Op::Min, Prop::List(inner)) => {
-                        Self::aggregate_values(inner.as_slice(), Op::Min)
-                    }
-                    (Op::Max, Prop::List(inner)) => {
-                        Self::aggregate_values(inner.as_slice(), Op::Max)
-                    }
-                    _ => None,
-                })
+                .filter_map(|p| Self::apply_agg_to_prop(&p, op))
                 .collect()
         };
 
-        for (i, op) in self.ops.iter().enumerate() {
+        // Collapse the temporal sequence itself (aggregate OVER TIME).
+        let reduce_over_seq = |vs: Vec<Prop>, op: Op| -> Option<Prop> {
+            match op {
+                Op::Len => Some(Prop::U64(vs.len() as u64)), // number of time steps
+                Op::Sum | Op::Avg | Op::Min | Op::Max => {
+                    if vs.is_empty() {
+                        return None;
+                    }
+                    // Only defined for sequences of scalars; if steps hold lists, return None.
+                    if matches!(vs.first(), Some(Prop::List(_))) {
+                        return None;
+                    }
+                    Self::aggregate_values(&vs, op)
+                }
+                _ => None,
+            }
+        };
+
+        for op in &self.ops {
             match *op {
                 Op::First => {
                     state = match state {
-                        ValueType::Seq(vs) => ValueType::Scalar(vs.first().cloned()),
+                        ValueType::Seq(vs) => {
+                            // Collapsing time: after this, no temporal sequence remains.
+                            seq_is_temporal = false;
+                            ValueType::Scalar(vs.first().cloned())
+                        }
                         ValueType::Scalar(s) => ValueType::Scalar(s),
                     };
                 }
                 Op::Last => {
                     state = match state {
-                        ValueType::Seq(vs) => ValueType::Scalar(vs.last().cloned()),
+                        ValueType::Seq(vs) => {
+                            seq_is_temporal = false;
+                            ValueType::Scalar(vs.last().cloned())
+                        }
                         ValueType::Scalar(s) => ValueType::Scalar(s),
                     };
                 }
+
                 Op::Len | Op::Sum | Op::Avg | Op::Min | Op::Max => {
                     state = match state {
-                        ValueType::Seq(vs) => {
-                            if matches!(vs.first(), Some(Prop::List(_))) {
-                                ValueType::Seq(per_elem_map(vs, *op))
-                            } else {
-                                ValueType::Scalar(Self::aggregate_values(&vs, *op))
-                            }
+                        // If a quantifier already occurred, aggregate per time step (do NOT collapse time).
+                        ValueType::Seq(vs) if seen_qual_before_agg => {
+                            ValueType::Seq(per_step_map(vs, *op))
                         }
+                        // Otherwise, aggregate ACROSS time to one scalar.
+                        ValueType::Seq(vs) => {
+                            seq_is_temporal = false;
+                            ValueType::Scalar(reduce_over_seq(vs, *op))
+                        }
+                        // Non-temporal list -> reduce to scalar.
                         ValueType::Scalar(Some(Prop::List(inner))) => {
                             ValueType::Scalar(Self::aggregate_values(inner.as_slice(), *op))
                         }
-                        ValueType::Scalar(Some(_)) => ValueType::Scalar(None),
+                        // Non-temporal scalar -> singleton semantics.
+                        ValueType::Scalar(Some(p)) => {
+                            ValueType::Scalar(Self::apply_agg_to_prop(&p, *op))
+                        }
                         ValueType::Scalar(None) => ValueType::Scalar(None),
                     };
                 }
+
                 Op::Any | Op::All => {
-                    qualifier = Some(*op);
-                    let later = has_later_reduce(&self.ops, i);
+                    qualifiers.push(*op);
+                    seen_qual_before_agg = true;
+
+                    // If we *already* have a temporal sequence, keep it (temporal stays true).
+                    // Otherwise, normalize the current (non-temporal) value into a 1-step sequence,
+                    // but mark that sequence as NON-TEMPORAL so we don't treat the first quantifier
+                    // as temporal in apply_eval.
                     state = match state {
                         ValueType::Seq(vs) => {
-                            if later {
-                                ValueType::Seq(vs)
-                            } else {
-                                ValueType::Seq(flatten_one(vs))
-                            }
+                            // remains temporal
+                            ValueType::Seq(vs)
                         }
                         ValueType::Scalar(Some(Prop::List(inner))) => {
-                            if later {
-                                ValueType::Seq(vec![Prop::List(inner)])
-                            } else {
-                                ValueType::Seq(inner.as_slice().to_vec())
-                            }
+                            seq_is_temporal = false;
+                            ValueType::Seq(vec![Prop::List(inner)])
                         }
-                        ValueType::Scalar(Some(p)) => ValueType::Seq(vec![p]),
-                        ValueType::Scalar(None) => ValueType::Seq(vec![]),
+                        ValueType::Scalar(Some(p)) => {
+                            seq_is_temporal = false;
+                            ValueType::Seq(vec![p])
+                        }
+                        ValueType::Scalar(None) => {
+                            seq_is_temporal = false;
+                            ValueType::Seq(vec![])
+                        }
                     };
                 }
             }
         }
 
-        if let Some(q) = qualifier {
-            let elems = match state {
-                ValueType::Seq(vs) => vs,
-                ValueType::Scalar(Some(Prop::List(inner))) => inner.as_slice().to_vec(),
-                ValueType::Scalar(Some(p)) => vec![p],
-                ValueType::Scalar(None) => vec![],
-            };
-            return (None, Some(elems), Some(q));
-        }
-
         match state {
-            ValueType::Scalar(v) => (v, None, None),
-            ValueType::Seq(vs) => (None, Some(vs), None),
+            ValueType::Scalar(v) => (v, None, qualifiers, seq_is_temporal),
+            ValueType::Seq(vs) => (None, Some(vs), qualifiers, seq_is_temporal),
         }
     }
 
@@ -1075,40 +1213,86 @@ impl<M> PropertyFilter<M> {
         &self,
         reduced: Option<Prop>,
         maybe_seq: Option<Vec<Prop>>,
-        qualifier: Option<Op>,
+        qualifiers: Vec<Op>,
+        seq_is_temporal: bool,
     ) -> bool {
-        // 1) Reduced scalar -> compare directly
-        // For example:
-        //   1. NodeFilter::property("temp").temporal().avg().ge(Prop::F64(10.0))
-        //   2. NodeFilter::property("readings").temporal().first().len().eq(Prop::U64(3))
-        //   3. NodeFilter::property("scores").avg().gt(Prop::F64(0.5))
+        // 1) Reduced to a single scalar -> compare directly.
         if let Some(value) = reduced {
             return self
                 .operator
                 .apply_to_property(&self.prop_value, Some(&value));
         }
 
-        // 2) Qualifier over a sequence (ANY/ALL)
-        // For example:
-        //   1. NodeFilter::property("tags").any().eq(Prop::Str("gold".into()))
-        //   2. NodeFilter::property("price").temporal().any().gt(Prop::F64(100.0))
-        if let Some(q) = qualifier {
-            let vals = maybe_seq.unwrap_or_default();
-            if vals.is_empty() {
+        // 2) Quantifiers present
+        if !qualifiers.is_empty() {
+            // If the sequence is truly temporal, treat the **first** qualifier as temporal;
+            // otherwise, treat *all* qualifiers as element-level.
+            let (temporal_q_opt, elem_quals): (Option<Op>, &[Op]) = if seq_is_temporal {
+                (Some(qualifiers[0]), &qualifiers[1..])
+            } else {
+                (None, &qualifiers[..])
+            };
+
+            let pred = |p: &Prop| self.operator.apply_to_property(&self.prop_value, Some(p));
+
+            if let Some(seq) = maybe_seq {
+                // If there's a temporal quantifier, combine across time with it.
+                if let Some(temporal_q) = temporal_q_opt {
+                    let mut saw_step = false;
+                    match temporal_q {
+                        Op::All => {
+                            for p in &seq {
+                                saw_step = true;
+                                let ok = if elem_quals.is_empty() {
+                                    pred(p)
+                                } else {
+                                    self.reduce_qualifiers_rec(elem_quals, p, &pred)
+                                };
+                                if !ok {
+                                    return false;
+                                }
+                            }
+                            return saw_step;
+                        }
+                        Op::Any => {
+                            for p in &seq {
+                                saw_step = true;
+                                let ok = if elem_quals.is_empty() {
+                                    pred(p)
+                                } else {
+                                    self.reduce_qualifiers_rec(elem_quals, p, &pred)
+                                };
+                                if ok {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
+                        _ => unreachable!(),
+                    }
+                } else {
+                    // No temporal combinator: just apply *element* quantifiers to the single value
+                    // each seq item represents (this seq is non-temporal normalization).
+                    // Since it's a non-temporal normalization, there is exactly one item (by construction),
+                    // but handling multiple is harmless.
+                    for p in &seq {
+                        let ok = if elem_quals.is_empty() {
+                            pred(p)
+                        } else {
+                            self.reduce_qualifiers_rec(elem_quals, p, &pred)
+                        };
+                        if ok {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            } else {
                 return false;
             }
-            let chk = |v: &Prop| self.operator.apply_to_property(&self.prop_value, Some(v));
-            return match q {
-                Op::Any => vals.iter().any(chk),
-                Op::All => vals.iter().all(chk),
-                _ => unreachable!(),
-            };
         }
 
-        // 3) Compare whole sequence as a List, or missing value
-        // For example:
-        //   1. NodeFilter::property("temperature").temporal().eq(Prop::List(vec![...]))
-        //   2. NodeFilter::property("tags").eq(Prop::List(vec!["gold", "silver"]))
+        // 3) No quantifiers and not reduced: compare the whole sequence as a list.
         if let Some(seq) = maybe_seq {
             let full = Prop::List(Arc::new(seq));
             self.operator
@@ -1119,20 +1303,15 @@ impl<M> PropertyFilter<M> {
     }
 
     fn eval_scalar_and_apply(&self, prop: Option<Prop>) -> bool {
-        let (reduced, maybe_seq, qualifier) = self.eval_ops(ValueType::Scalar(prop));
-        self.apply_eval(reduced, maybe_seq, qualifier)
+        let (reduced, maybe_seq, qualifiers, seq_is_temporal) =
+            self.eval_ops(ValueType::Scalar(prop));
+        self.apply_eval(reduced, maybe_seq, qualifiers, seq_is_temporal)
     }
 
     fn eval_temporal_and_apply(&self, props: Vec<Prop>) -> bool {
-        // Special-case: two qualifiers on temporal -> directly compute final bool.
-        // For example:
-        //   1. NodeFilter::property("p_flags").temporal().all().all().eq(Prop::u64(1))
-        //   2. NodeFilter::property("p_flags").temporal().any().all().eq(Prop::bool(true))
-        if self.ops.len() == 2 && self.ops[0].is_qualifier() && self.ops[1].is_qualifier() {
-            return self.apply_two_qualifiers_temporal(&props, self.ops[0], self.ops[1]);
-        }
-        let (reduced, maybe_seq, qualifier) = self.eval_ops(ValueType::Seq(props));
-        self.apply_eval(reduced, maybe_seq, qualifier)
+        let (reduced, maybe_seq, qualifiers, seq_is_temporal) =
+            self.eval_ops(ValueType::Seq(props));
+        self.apply_eval(reduced, maybe_seq, qualifiers, seq_is_temporal)
     }
 
     pub fn matches(&self, other: Option<&Prop>) -> bool {
@@ -1307,33 +1486,19 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
 
 pub trait PropertyFilterOps: InternalPropertyFilterOps {
     fn eq(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn ne(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn le(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn ge(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn lt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn gt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker>;
-
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker>;
-
     fn is_none(&self) -> PropertyFilter<Self::Marker>;
-
     fn is_some(&self) -> PropertyFilter<Self::Marker>;
-
     fn starts_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn ends_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
-
     fn fuzzy_search(
         &self,
         prop_value: impl Into<String>,
@@ -1346,63 +1511,49 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
     fn eq(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::eq(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
-
     fn ne(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::ne(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
-
     fn le(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::le(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
-
     fn ge(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::ge(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
-
     fn lt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::lt(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
-
     fn gt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::gt(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
-
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::is_in(self.property_ref(), values).with_ops(self.ops().iter().copied())
     }
-
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::is_not_in(self.property_ref(), values).with_ops(self.ops().iter().copied())
     }
-
     fn is_none(&self) -> PropertyFilter<Self::Marker> {
         PropertyFilter::is_none(self.property_ref()).with_ops(self.ops().iter().copied())
     }
-
     fn is_some(&self) -> PropertyFilter<Self::Marker> {
         PropertyFilter::is_some(self.property_ref()).with_ops(self.ops().iter().copied())
     }
-
     fn starts_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::starts_with(self.property_ref(), value.into())
             .with_ops(self.ops().iter().copied())
     }
-
     fn ends_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::ends_with(self.property_ref(), value.into())
             .with_ops(self.ops().iter().copied())
     }
-
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::contains(self.property_ref(), value.into())
             .with_ops(self.ops().iter().copied())
     }
-
     fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::not_contains(self.property_ref(), value.into())
             .with_ops(self.ops().iter().copied())
     }
-
     fn fuzzy_search(
         &self,
         prop_value: impl Into<String>,
@@ -1472,35 +1623,27 @@ impl<M> OpChainBuilder<M> {
     pub fn first(self) -> Self {
         self.with_op(Op::First)
     }
-
     pub fn last(self) -> Self {
         self.with_op(Op::Last)
     }
-
     pub fn any(self) -> Self {
         self.with_op(Op::Any)
     }
-
     pub fn all(self) -> Self {
         self.with_op(Op::All)
     }
-
     pub fn len(self) -> Self {
         self.with_op(Op::Len)
     }
-
     pub fn sum(self) -> Self {
         self.with_op(Op::Sum)
     }
-
     pub fn avg(self) -> Self {
         self.with_op(Op::Avg)
     }
-
     pub fn min(self) -> Self {
         self.with_op(Op::Min)
     }
-
     pub fn max(self) -> Self {
         self.with_op(Op::Max)
     }
@@ -1508,11 +1651,9 @@ impl<M> OpChainBuilder<M> {
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for OpChainBuilder<M> {
     type Marker = M;
-
     fn property_ref(&self) -> PropertyRef {
         self.prop_ref.clone()
     }
-
     fn ops(&self) -> &[Op] {
         &self.ops
     }
@@ -1561,7 +1702,6 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
-
     fn sum(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
@@ -1569,7 +1709,6 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
-
     fn avg(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
@@ -1577,7 +1716,6 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
-
     fn min(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
@@ -1585,7 +1723,6 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
-
     fn max(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
