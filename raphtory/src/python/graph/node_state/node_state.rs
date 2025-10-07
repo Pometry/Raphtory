@@ -348,7 +348,7 @@ macro_rules! impl_lazy_node_state {
             ///
             /// Returns:
             #[doc = concat!("     ", $computed, ": the computed `OutputNodeState`")]
-            fn arrrow_compute(
+            fn arrow_compute(
                 &self,
             ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
                 self.inner.arrow_compute().transform()
