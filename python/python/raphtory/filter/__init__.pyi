@@ -169,19 +169,6 @@ class ExplodedEdge(object):
     def property(name): ...
 
 class Property(PropertyFilterOps):
-    """
-    Construct a property filter
-
-    Arguments:
-        name (str): the name of the property to filter
-    """
-
     def temporal(self): ...
 
-class Metadata(PropertyFilterOps):
-    """
-    Construct a metadata filter
-
-    Arguments:
-        name (str): the name of the property to filter
-    """
+class Metadata(PropertyFilterOps): ...

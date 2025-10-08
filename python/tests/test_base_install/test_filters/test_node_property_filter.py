@@ -810,18 +810,24 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     return check
 
 
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
 def test_filter_nodes_with_with_qualifier_alongside_illegal_agg_operators():
-    with pytest.raises(
-        Exception,
-        match=r"List aggregation len cannot be used after an element qualifier \(any/all\)",
-    ):
-        filter.Node.property("prop8").all().len()
+    def check(graph):
+        filter_expr = filter.Node.property("prop8").all().len()
+        with pytest.raises(
+            Exception,
+            match=r"List aggregation len cannot be used after an element qualifier \(any/all\)",
+        ):
+            graph.filter(filter_expr).nodes.id
 
-    with pytest.raises(
-        Exception,
-        match=r"Element qualifiers \(any/all\) cannot be used after a list aggregation \(len/sum/avg/min/max\).",
-    ):
-        filter.Node.property("prop8").sum().any()
+        filter_expr = filter.Node.property("prop8").sum().any()
+        with pytest.raises(
+            Exception,
+            match=r"Element qualifiers \(any/all\) cannot be used after a list aggregation \(len/sum/avg/min/max\).",
+        ):
+            graph.filter(filter_expr).nodes.id
+
+    return check
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))

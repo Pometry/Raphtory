@@ -528,6 +528,70 @@ impl<M> PropertyFilter<M> {
     ) -> Result<PropType, GraphError> {
         use Shape::*;
 
+        // Ordering guard for qualifiers/aggregators/selectors ===
+        // Disallow:
+        //  1) aggregator after qualifier, unless the *first* qualifier is temporal
+        //  2) qualifier after aggregator (always illegal)
+        //
+        // Ensures:
+        //   - property(...).all().len() -> error
+        //   - property(...).sum().any() -> error
+        //   - property(...).temporal().all().len() -> OK
+        //   - property(...).temporal().first().all().len() -> error
+        let mut saw_agg = false;
+        let mut saw_qual = false;
+        let mut saw_selector_before_first_qual = false;
+        let mut first_qual_is_temporal = false;
+
+        #[inline]
+        fn agg_name(op: Op) -> &'static str {
+            match op {
+                Op::Len => "len",
+                Op::Sum => "sum",
+                Op::Avg => "avg",
+                Op::Min => "min",
+                Op::Max => "max",
+                _ => unreachable!(),
+            }
+        }
+
+        for &op in &self.ops {
+            match op {
+                Op::First | Op::Last => {
+                    if !saw_qual {
+                        // A selector before the first qualifier collapses the temporal sequence,
+                        // so the upcoming first qualifier cannot be considered temporal.
+                        saw_selector_before_first_qual = true;
+                    }
+                }
+                Op::Any | Op::All => {
+                    // Qualifier after any aggregation is always illegal.
+                    if saw_agg {
+                        return Err(GraphError::InvalidFilter(
+                            "Element qualifiers (any/all) cannot be used after a list aggregation (len/sum/avg/min/max).".into()
+                        ));
+                    }
+                    // Record once whether the very first qualifier is "temporal-first"
+                    // (chain is temporal and no selector has run yet).
+                    if !saw_qual && is_temporal && !saw_selector_before_first_qual {
+                        first_qual_is_temporal = true;
+                    }
+                    saw_qual = true;
+                }
+                Op::Len | Op::Sum | Op::Avg | Op::Min | Op::Max => {
+                    // Aggregator after a qualifier is illegal unless that first qualifier is temporal.
+                    if saw_qual && !first_qual_is_temporal {
+                        return Err(GraphError::InvalidFilter(format!(
+                            "List aggregation {} cannot be used after an element qualifier (any/all)",
+                            agg_name(op)
+                        )));
+                    }
+                    saw_agg = true;
+                }
+            }
+        }
+
+        // Build base shape
         let base_shape: Shape = if is_temporal {
             let inner: Shape = match src_dtype {
                 PropType::List(inner) => List(inner.clone()),
@@ -541,6 +605,7 @@ impl<M> PropertyFilter<M> {
             }
         };
 
+        // Defer selectors to the end of validation
         let mut selectors: Vec<Op> = Vec::new();
         let mut others: Vec<Op> = Vec::new();
         for &op in &self.ops {
@@ -554,6 +619,7 @@ impl<M> PropertyFilter<M> {
         ops_for_validation.extend(others);
         ops_for_validation.extend(selectors);
 
+        // Walk the shape backwards through the ops
         let mut shape = base_shape;
         for &op in ops_for_validation.iter().rev() {
             shape = match op {
@@ -653,6 +719,7 @@ impl<M> PropertyFilter<M> {
             };
         }
 
+        // Compute effective dtype
         let eff = match shape {
             Scalar(t) => t,
             List(t) => PropType::List(t),
@@ -676,10 +743,10 @@ impl<M> PropertyFilter<M> {
                 Scalar(t) => PropType::List(Box::new(t)),
                 List(t) => PropType::List(Box::new(PropType::List(t))),
                 Quantified(_, _) => {
-                    let (base, qdepth_total) = flatten_quantified_depth(&*inner);
-                    let qdepth_lists = qdepth_total.saturating_sub(1); // skip the temporal one
+                    let (base, q_depth_total) = flatten_quantified_depth(&*inner);
+                    let q_depth_lists = q_depth_total.saturating_sub(1); // skip the temporal one
                     match base {
-                        List(t) => Self::peel_list_n(PropType::List(t.clone()), qdepth_lists)?,
+                        List(t) => Self::peel_list_n(PropType::List(t.clone()), q_depth_lists)?,
                         Scalar(t) => t.clone(),
                         _ => {
                             return Err(GraphError::InvalidFilter(

@@ -33,7 +33,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
-        filter::filter_expr::PyFilterExpr,
+        filter::filter_expr::{AcceptFilter, PyFilterExpr},
         graph::{edge::PyEdge, node::PyNode},
         types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
