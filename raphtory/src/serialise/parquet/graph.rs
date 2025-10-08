@@ -29,21 +29,26 @@ pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
             ]
         },
         |_, g, decoder, writer| {
-            // Each prop key can have multiple values over time.
-            // Flatten into (time, key, value) tuples to group by time.
-            let merged_props = g
+            // Collect into owned props here to avoid lifetime issues on prop_view.
+            // Ideally we want to be returning refs to the props but this
+            // is not possible with the current API.
+            let collect_props = g
                 .properties()
                 .temporal()
-                .into_iter()
+                .iter()
+                .collect::<Vec<_>>();
+
+            // Each prop key can have multiple values over time.
+            // Flatten into (time, key, value) tuples to group by time.
+            let merged_props = collect_props
+                .iter()
                 .map(|(prop_key, prop_view)| {
                     // Collect all the props for a given prop key
                     prop_view
                         .iter_indexed()
                         .map(move |(time, prop_value)| (time, prop_key.clone(), prop_value))
-                        .collect::<Vec<_>>() // Need to collect to avoid ref issues with prop_view
-                        .into_iter()
                 })
-                .flatten();
+                .kmerge_by(|(left_t, _, _), (right_t, _, _)| left_t <= right_t);
 
             // Group property (key, value) tuples by time to create rows.
             let rows: Vec<Row> = merged_props
