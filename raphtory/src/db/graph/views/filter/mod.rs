@@ -1379,10 +1379,7 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::db::graph::{
-        assertions::GraphTransformer,
-        views::filter::{internal::CreateFilter, model::TryAsCompositeFilter},
-    };
+    use crate::db::graph::assertions::GraphTransformer;
 
     fn init_nodes_graph<
         G: StaticGraphViewOps
@@ -2786,7 +2783,7 @@ pub(crate) mod test_filters {
             );
 
             let filter = NodeFilter::property("p1").temporal().all().ne("Gold_ship");
-            let expected_results = vec!["1", "2"];
+            let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2894,7 +2891,7 @@ pub(crate) mod test_filters {
             );
 
             let filter = NodeFilter::property("p2").temporal().all().le(10u64);
-            let expected_results = vec!["2", "3"];
+            let expected_results = vec!["3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -3077,7 +3074,7 @@ pub(crate) mod test_filters {
 
             let filter = NodeFilter::property("p2")
                 .temporal()
-                .all()
+                .any()
                 .is_in(vec![Prop::U64(2)]);
             let expected_results = vec!["2"];
             assert_filter_nodes_results(
@@ -4275,7 +4272,10 @@ pub(crate) mod test_filters {
             },
             prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps},
         };
-        use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+        use raphtory_api::core::{
+            entities::properties::prop::{IntoProp, Prop},
+            storage::arc_str::ArcStr,
+        };
         use raphtory_storage::mutation::{
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };
@@ -4314,6 +4314,11 @@ pub(crate) mod test_filters {
             Prop::List(Arc::new(xs.iter().copied().map(Prop::Bool).collect()))
         }
 
+        #[inline]
+        fn list(v: Vec<Prop>) -> Prop {
+            Prop::List(Arc::new(v))
+        }
+
         pub fn init_nodes_graph<
             G: StaticGraphViewOps
                 + AdditionOps
@@ -4342,6 +4347,19 @@ pub(crate) mod test_filters {
                         ("p_i64s", list_i64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                         ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5,  avg: 2.1666666666666665, len: 3
                         ("p_f64s", list_f64(&[50.0, 40.0])), // min: 40.0, max: 50.0, sum: 90.0, avg: 45.0, len: 2
+                        (
+                            "nested_list",
+                            list(vec![
+                                list(vec![
+                                    list(vec![
+                                        list(vec![50.0.into_prop(), 40.0.into_prop()]),
+                                        list(vec![60.0.into_prop()]),
+                                    ]),
+                                    list(vec![list(vec![46.0.into_prop()])]),
+                                ]),
+                                list(vec![list(vec![list(vec![90.0.into_prop()])])]),
+                            ]),
+                        ),
                     ],
                 ),
                 (
@@ -4393,6 +4411,19 @@ pub(crate) mod test_filters {
                         ("p_i64s", list_i64(&[0, 3, -3])), // min: -3, max: 3,  sum: 0,   avg: 0.0,  len: 3
                         ("p_f32s", list_f32(&[1.0, 2.5, 3.0])), // min: 1.0, max: 3.0, sum: 6.5, avg: 2.1666666666666665, len: 3
                         ("p_f64s", list_f64(&[30.0, 60.0])), // min: 30.0, max: 60.0, sum: 90.0, avg: 45.0, len: 2
+                        (
+                            "nested_list",
+                            list(vec![
+                                list(vec![
+                                    list(vec![
+                                        list(vec![50.0.into_prop(), 40.0.into_prop()]),
+                                        list(vec![60.0.into_prop()]),
+                                    ]),
+                                    list(vec![list(vec![46.0.into_prop()])]),
+                                ]),
+                                list(vec![list(vec![list(vec![90.0.into_prop()])])]),
+                            ]),
+                        ),
                     ],
                 ),
                 (
@@ -4409,6 +4440,19 @@ pub(crate) mod test_filters {
                         ("p_i64s", list_i64(&[1, 2, -3])), // min: -3, max: 2,  sum: 0,   avg: 0.0,  len: 3
                         ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5, avg: 2.1666666666666665, len: 3
                         ("p_f64s", list_f64(&[50.0, 40.0])), // min: 40.0, max: 50.0, sum: 90.0, avg: 45.0, len: 2
+                        (
+                            "nested_list",
+                            list(vec![
+                                list(vec![
+                                    list(vec![
+                                        list(vec![50.0.into_prop(), 40.0.into_prop()]),
+                                        list(vec![60.0.into_prop()]),
+                                    ]),
+                                    list(vec![list(vec![46.0.into_prop()])]),
+                                ]),
+                                list(vec![list(vec![list(vec![90.0.into_prop()])])]),
+                            ]),
+                        ),
                     ],
                 ),
                 (
@@ -7466,6 +7510,34 @@ pub(crate) mod test_filters {
                 .all()
                 .eq(false);
             let expected = vec!["n2", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_nested_list_property_all_all_all_any() {
+            let filter = NodeFilter::property("nested_list")
+                .all()
+                .all()
+                .all()
+                .any()
+                .gt(45.0);
+
+            let expected = vec!["n1", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_nested_list_temporal_property_all_all_all_all_any() {
+            let filter = NodeFilter::property("nested_list")
+                .temporal()
+                .all()
+                .all()
+                .all()
+                .all()
+                .any()
+                .gt(45.0);
+
+            let expected = vec!["n3"];
             apply_assertion(filter, &expected);
         }
 

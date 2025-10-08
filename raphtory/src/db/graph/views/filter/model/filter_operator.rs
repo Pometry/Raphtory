@@ -113,55 +113,98 @@ impl FilterOperator {
     }
 
     pub fn apply_to_property(&self, left: &PropertyFilterValue, right: Option<&Prop>) -> bool {
+        use std::cmp::Ordering::*;
+        use FilterOperator::*;
+        use PropertyFilterValue::*;
+
+        let cmp = |op: &FilterOperator, r: &Prop, l: &Prop| -> bool {
+            match op {
+                Eq => r == l,
+                Ne => r != l,
+                Lt => r.partial_cmp(l).map(|o| o == Less).unwrap_or(false),
+                Le => r.partial_cmp(l).map(|o| o != Greater).unwrap_or(false),
+                Gt => r.partial_cmp(l).map(|o| o == Greater).unwrap_or(false),
+                Ge => r.partial_cmp(l).map(|o| o != Less).unwrap_or(false),
+                _ => false,
+            }
+        };
+
         match left {
-            PropertyFilterValue::None => match self {
-                FilterOperator::IsSome => right.is_some(),
-                FilterOperator::IsNone => right.is_none(),
-                _ => unreachable!(),
+            None => match self {
+                IsSome => right.is_some(),
+                IsNone => right.is_none(),
+                _ => false, // Missing RHS never matches for other ops
             },
-            PropertyFilterValue::Single(l) => match self {
-                FilterOperator::Eq
-                | FilterOperator::Ne
-                | FilterOperator::Lt
-                | FilterOperator::Le
-                | FilterOperator::Gt
-                | FilterOperator::Ge => right.is_some_and(|r| {
-                    // println!("right: {:?}, left: {:?}", r, l);
-                    self.operation()(r, l)
-                }),
-                FilterOperator::StartsWith => right.is_some_and(|r| match (l, r) {
-                    (Prop::Str(l), Prop::Str(r)) => r.deref().starts_with(l.deref()),
-                    _ => unreachable!(),
-                }),
-                FilterOperator::EndsWith => right.is_some_and(|r| match (l, r) {
-                    (Prop::Str(l), Prop::Str(r)) => r.deref().ends_with(l.deref()),
-                    _ => unreachable!(),
-                }),
-                FilterOperator::Contains => right.is_some_and(|r| match (l, r) {
-                    (Prop::Str(l), Prop::Str(r)) => r.deref().contains(l.deref()),
-                    _ => unreachable!(),
-                }),
-                FilterOperator::NotContains => right.is_some_and(|r| match (l, r) {
-                    (Prop::Str(l), Prop::Str(r)) => !r.deref().contains(l.deref()),
-                    _ => unreachable!(),
-                }),
-                FilterOperator::FuzzySearch {
+
+            Single(lv) => match self {
+                Eq | Ne | Lt | Le | Gt | Ge => {
+                    if let Some(r) = right {
+                        cmp(self, r, lv)
+                    } else {
+                        false
+                    }
+                }
+
+                StartsWith => {
+                    if let (Some(Prop::Str(rs)), Prop::Str(ls)) = (right, lv) {
+                        rs.deref().starts_with(ls.deref())
+                    } else {
+                        false
+                    }
+                }
+                EndsWith => {
+                    if let (Some(Prop::Str(rs)), Prop::Str(ls)) = (right, lv) {
+                        rs.deref().ends_with(ls.deref())
+                    } else {
+                        false
+                    }
+                }
+                Contains => {
+                    if let (Some(Prop::Str(rs)), Prop::Str(ls)) = (right, lv) {
+                        rs.deref().contains(ls.deref())
+                    } else {
+                        false
+                    }
+                }
+                NotContains => {
+                    if let (Some(Prop::Str(rs)), Prop::Str(ls)) = (right, lv) {
+                        !rs.deref().contains(ls.deref())
+                    } else {
+                        false
+                    }
+                }
+
+                FuzzySearch {
                     levenshtein_distance,
                     prefix_match,
-                } => right.is_some_and(|r| match (l, r) {
-                    (Prop::Str(l), Prop::Str(r)) => {
-                        let fuzzy_fn = self.fuzzy_search(*levenshtein_distance, *prefix_match);
-                        fuzzy_fn(l, r)
+                } => {
+                    if let (Some(Prop::Str(rs)), Prop::Str(ls)) = (right, lv) {
+                        let f = self.fuzzy_search(*levenshtein_distance, *prefix_match);
+                        f(ls, rs)
+                    } else {
+                        false
                     }
-                    _ => unreachable!(),
-                }),
-                _ => unreachable!(),
-            },
-            PropertyFilterValue::Set(l) => match self {
-                FilterOperator::In | FilterOperator::NotIn => {
-                    right.is_some_and(|r| self.collection_operation()(l, r))
                 }
-                _ => unreachable!(),
+
+                In | NotIn | IsSome | IsNone => false,
+            },
+
+            Set(set) => match self {
+                In => {
+                    if let Some(r) = right {
+                        set.contains(r)
+                    } else {
+                        false
+                    }
+                }
+                NotIn => {
+                    if let Some(r) = right {
+                        !set.contains(r)
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
             },
         }
     }
