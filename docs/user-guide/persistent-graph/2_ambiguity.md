@@ -20,7 +20,7 @@ print(G.edges.explode())
 
 
 ```{.python continuation hide}
-assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[1, 0], latest_time=EventTime[3, 2], layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 2], latest_time=EventTime[5, 1], layer(s)=[_default]))"
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=3, event_id=2), layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=3, event_id=2), latest_time=EventTime(epoch=5, event_id=1), layer(s)=[_default]))"
 ```
 
 Here two edges between Alice and Bob overlap in time: one starting at time 1 and ending at time 5, another starting at time 3 and ending at time 7.
@@ -30,7 +30,7 @@ For link-stream graphs in Raphtory are allowed to have edges between the same pa
 !!! Output
 
     ```output
-    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[1, 0], latest_time=EventTime[3, 2], layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 2], latest_time=EventTime[5, 1], layer(s)=[_default]))
+    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=3, event_id=2), layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=3, event_id=2), latest_time=EventTime(epoch=5, event_id=1), layer(s)=[_default]))
     ```
 
 Two edges are created, one that exists from time 1 to time 3 and another that exists from time 3 to time 5. The second deletion at time 7 is ignored.
@@ -56,7 +56,7 @@ print(f"G's edges are {G.edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"G's edges are {G.edges.explode()}") == "G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[1, 1], latest_time=EventTime[5, 0], layer(s)=[_default]))"
+assert str(f"G's edges are {G.edges.explode()}") == "G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=1, event_id=1), latest_time=EventTime(epoch=5, event_id=0), layer(s)=[_default]))"
 ```
 
 Which results in the following:
@@ -64,7 +64,7 @@ Which results in the following:
 
     ```output
     G's edges are Edges()
-    G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[1, 1], latest_time=EventTime[5, 0], layer(s)=[_default]))
+    G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=1, event_id=1), latest_time=EventTime(epoch=5, event_id=0), layer(s)=[_default]))
     ```
 
 ## Additions and deletions in the same instant
@@ -86,13 +86,13 @@ print(f"G1's edges are {G1.edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"G1's edges are {G1.edges.explode()}") == "G1's edges are Edges(Edge(source=1, target=2, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 1], properties={message: hi}, layer(s)=[_default]))"
+assert str(f"G1's edges are {G1.edges.explode()}") == "G1's edges are Edges(Edge(source=1, target=2, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=1), properties={message: hi}, layer(s)=[_default]))"
 ```
 
 !!! Output
 
     ```output
-    G1's edges are Edges(Edge(source=1, target=2, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 1], properties={message: hi}, layer(s)=[_default]))
+    G1's edges are Edges(Edge(source=1, target=2, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=1), properties={message: hi}, layer(s)=[_default]))
     ```
 
 This graph has an edge which instantaneously appears and disappears at time 1 and therefore the order of its history is determined by the execution order.
@@ -118,13 +118,13 @@ print(G.edges.explode())
 ///
 
 ```{.python continuation hide}
-assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[1, 0], latest_time=EventTime[3, 2], layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 2], latest_time=EventTime[5, 1], layer(s)=[_default]))"
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=3, event_id=2), layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=3, event_id=2), latest_time=EventTime(epoch=5, event_id=1), layer(s)=[_default]))"
 ```
 
 !!! Output
 
     ```output
-    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[1, 0], latest_time=EventTime[3, 2], layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 2], latest_time=EventTime[5, 1], layer(s)=[_default]))
+    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=3, event_id=2), layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=3, event_id=2), latest_time=EventTime(epoch=5, event_id=1), layer(s)=[_default]))
     ```
 
 Now take a look at a  modified example with layers:
@@ -144,13 +144,13 @@ print(G.edges.explode())
 ///
 
 ```{.python continuation hide}
-assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[1, 0], latest_time=EventTime[5, 1], layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 2], latest_time=EventTime[7, 3], layer(s)=[friends]))"
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=5, event_id=1), layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=3, event_id=2), latest_time=EventTime(epoch=7, event_id=3), layer(s)=[friends]))"
 ```
 
 !!! Output
 
     ```output
-    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime[1, 0], latest_time=EventTime[5, 1], layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=EventTime[3, 2], latest_time=EventTime[7, 3], layer(s)=[friends]))
+    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=5, event_id=1), layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=EventTime(epoch=3, event_id=2), latest_time=EventTime(epoch=7, event_id=3), layer(s)=[friends]))
     ```
 
 By adding layer names to the different edge instances we produce a different result.

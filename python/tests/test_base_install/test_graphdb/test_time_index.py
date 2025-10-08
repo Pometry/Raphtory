@@ -14,7 +14,7 @@ def example_graph() -> Graph:
 
 
 def test_time_index():
-    t = EventTime.new((5, 1))
+    t = EventTime(5, 1)
     # check equality with int
     assert t > 4
     assert t == 5
@@ -32,7 +32,7 @@ def test_time_index():
     assert t == (datetime(1970, 1, 1, 0, 0, 0, 5000), 1)
     assert t < (datetime(1970, 1, 1, 0, 0, 0, 5000), 2)
     # check equality with string
-    t2 = EventTime.new((1000, 1))
+    t2 = EventTime(1000, 1)
     assert t2 > "1970-01-01 00:00:00"
     assert t2 == "1970-01-01 00:00:01"
     assert t2 < "1970-01-01 00:00:02"
@@ -57,8 +57,8 @@ def test_time_input_parsing(example_graph):
         "1970-01-01T00:00:00",  # naive ISO T
         "1970-01-01 00:00:00.000",  # naive space with ms
         "1970-01-01 00:00:00",  # naive space
-        EventTime.new(0),
-        EventTime.new((0, 0)),
+        EventTime(0),
+        EventTime(0, 0),
         # tuple/list indexed forms
         (0, 0),
         [0, 0],
@@ -77,8 +77,8 @@ def test_time_input_parsing(example_graph):
         "Thu, 01 Jan 1970 00:00:01 +0000",  # RFC2822 (1s)
         "1970-01-01T00:00:00.010",  # naive ISO T with ms
         "1970-01-01 00:00:00.010",  # naive space with ms
-        EventTime.new(10),
-        EventTime.new((10, 0)),
+        EventTime(10),
+        EventTime(10, 0),
         # tuple/list indexed forms
         (10, 0),
         [10, 0],

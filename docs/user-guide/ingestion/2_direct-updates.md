@@ -26,8 +26,8 @@ print(v)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 18446744073709551615])"
-assert str(v) == "Node(name=10, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 0])"
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=18446744073709551615))"
+assert str(v) == "Node(name=10, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=0))"
 ```
 
 Printing out the graph and the returned node you can see the update was successful and the earliest and latest times have been
@@ -36,8 +36,8 @@ updated. The timestamp you specified is used as the primary index of the `EventT
 !!! Output
 
     ```output
-    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 18446744073709551615])
-    Node(name=10, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 0])
+    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=18446744073709551615))
+    Node(name=10, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=0))
     ```
 
 ## Adding edges
@@ -63,15 +63,15 @@ print(e)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 18446744073709551615])"
-assert str(e) == "Edge(source=15, target=16, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 0], layer(s)=[_default])"
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=18446744073709551615))"
+assert str(e) == "Edge(source=15, target=16, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=0), layer(s)=[_default])"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 18446744073709551615])
-    Edge(source=15, target=16, earliest_time=EventTime[1, 0], latest_time=EventTime[1, 0], layer(s)=[_default])
+    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=18446744073709551615))
+    Edge(source=15, target=16, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=1, event_id=0), layer(s)=[_default])
     ```
 
 You will notice in the output that the graph has two nodes as well as the edge. Raphtory automatically creates the source and destination nodes at the same time if they do not currently exist in the graph. This is to keep the graph consistent and avoid `hanging edges`. These nodes are empty other than the history of their edges, therefore if you apply filters to exclude all edges these empty nodes will also be excluded from your graph.
@@ -103,17 +103,17 @@ print(g.edge("User 1", "User 2"))
 ///
 
 ```{.python continuation hide}
-assert str(g.node("User 1")) == "Node(name=User 1, earliest_time=EventTime[123, 0], latest_time=EventTime[789, 2])"
-assert str(g.node("User 2")) == "Node(name=User 2, earliest_time=EventTime[456, 1], latest_time=EventTime[789, 2])"
-assert str(g.edge("User 1", "User 2")) == "Edge(source=User 1, target=User 2, earliest_time=EventTime[789, 2], latest_time=EventTime[789, 2], layer(s)=[_default])"
+assert str(g.node("User 1")) == "Node(name=User 1, earliest_time=EventTime(epoch=123, event_id=0), latest_time=EventTime(epoch=789, event_id=2))"
+assert str(g.node("User 2")) == "Node(name=User 2, earliest_time=EventTime(epoch=456, event_id=1), latest_time=EventTime(epoch=789, event_id=2))"
+assert str(g.edge("User 1", "User 2")) == "Edge(source=User 1, target=User 2, earliest_time=EventTime(epoch=789, event_id=2), latest_time=EventTime(epoch=789, event_id=2), layer(s)=[_default])"
 ```
 
 !!! Output
 
     ```output
-    Node(name=User 1, earliest_time=EventTime[123, 0], latest_time=EventTime[789, 2])
-    Node(name=User 2, earliest_time=EventTime[456, 1], latest_time=EventTime[789, 2])
-    Edge(source=User 1, target=User 2, earliest_time=EventTime[789, 2], latest_time=EventTime[789, 2], layer(s)=[_default])
+    Node(name=User 1, earliest_time=EventTime(epoch=123, event_id=0), latest_time=EventTime(epoch=789, event_id=2))
+    Node(name=User 2, earliest_time=EventTime(epoch=456, event_id=1), latest_time=EventTime(epoch=789, event_id=2))
+    Edge(source=User 1, target=User 2, earliest_time=EventTime(epoch=789, event_id=2), latest_time=EventTime(epoch=789, event_id=2), layer(s)=[_default])
     ```
 
 !!! warning
@@ -154,7 +154,7 @@ print(g.node(id=10).history.dt.collect())
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=EventTime[1609504320000, 0], latest_time=EventTime[1612360860000, 18446744073709551615])"
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=EventTime(epoch=1609504320000, event_id=0), latest_time=EventTime(epoch=1612360860000, event_id=18446744073709551615))"
 assert str(g.node(id=10).history.t.collect()) == "[1609504320000 1612360860000]"
 assert str(g.node(id=10).history.dt.collect()) == "[datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]"
 ```
@@ -162,7 +162,7 @@ assert str(g.node(id=10).history.dt.collect()) == "[datetime.datetime(2021, 1, 1
 !!! Output
 
     ```output
-    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=EventTime[1609504320000, 0], latest_time=EventTime[1612360860000, 18446744073709551615])
+    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=EventTime(epoch=1609504320000, event_id=0), latest_time=EventTime(epoch=1612360860000, event_id=18446744073709551615))
     [1609504320000 1612360860000]
     [datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]
     ```
@@ -250,15 +250,15 @@ print(e)
 ///
 
 ```{.python continuation hide}
-assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=EventTime[4, 5], latest_time=EventTime[4, 5], properties={weights: [1, 2, 3]}, layer(s)=[_default])"
+assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=EventTime(epoch=4, event_id=5), latest_time=EventTime(epoch=4, event_id=5), properties={weights: [1, 2, 3]}, layer(s)=[_default])"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime[1, 0], latest_time=EventTime[4, 18446744073709551615], properties=Properties({inner data: {fruits: {apple: 5, banana: 3}, date of birth: 2021-01-01 12:32:00}, favourite greetings: [hi, hello, howdy]}))
-    Node(name=User 1, earliest_time=EventTime[1, 0], latest_time=EventTime[4, 5], properties=Properties({count: 2, greeting: hello, encrypted: true, balance: 0.9}))
-    Edge(source=User 1, target=User 2, earliest_time=EventTime[4, 5], latest_time=EventTime[4, 5], properties={weights: [1, 2, 3]}, layer(s)=[_default])
+    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=4, event_id=18446744073709551615), properties=Properties({inner data: {fruits: {apple: 5, banana: 3}, date of birth: 2021-01-01 12:32:00}, favourite greetings: [hi, hello, howdy]}))
+    Node(name=User 1, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=4, event_id=5), properties=Properties({count: 2, greeting: hello, encrypted: true, balance: 0.9}))
+    Edge(source=User 1, target=User 2, earliest_time=EventTime(epoch=4, event_id=5), latest_time=EventTime(epoch=4, event_id=5), properties={weights: [1, 2, 3]}, layer(s)=[_default])
     ```
 
 !!! info
@@ -297,17 +297,17 @@ print(e)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime[1, 0], latest_time=EventTime[2, 18446744073709551615])"
-assert str(v) == "Node(name=User 1, earliest_time=EventTime[1, 0], latest_time=EventTime[2, 1])"
-assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=EventTime[2, 1], latest_time=EventTime[2, 1], layer(s)=[_default])"
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=2, event_id=18446744073709551615))"
+assert str(v) == "Node(name=User 1, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=2, event_id=1))"
+assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=EventTime(epoch=2, event_id=1), latest_time=EventTime(epoch=2, event_id=1), layer(s)=[_default])"
 ```
 
 !!! output
 
     ```output
-    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime[1, 0], latest_time=EventTime[2, 18446744073709551615])
-    Node(name=User 1, earliest_time=EventTime[1, 0], latest_time=EventTime[2, 1])
-    Edge(source=User 1, target=User 2, earliest_time=EventTime[2, 1], latest_time=EventTime[2, 1], layer(s)=[_default])
+    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=2, event_id=18446744073709551615))
+    Node(name=User 1, earliest_time=EventTime(epoch=1, event_id=0), latest_time=EventTime(epoch=2, event_id=1))
+    Edge(source=User 1, target=User 2, earliest_time=EventTime(epoch=2, event_id=1), latest_time=EventTime(epoch=2, event_id=1), layer(s)=[_default])
     ```    
 
 ## Edge Layers

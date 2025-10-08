@@ -124,16 +124,16 @@ print(g.edge("ServerA", "ServerB"))
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime[1693555200000, 0], latest_time=EventTime[1693557000000, 18446744073709551615])"
+assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(epoch=1693555200000, event_id=0), latest_time=EventTime(epoch=1693557000000, event_id=18446744073709551615))"
 ```
 
 !!! Output
 
     ```output
     The resulting graphs and example node/edge:
-    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime[1693555200000, 0], latest_time=EventTime[1693557000000, 18446744073709551615])
-    Node(name=ServerA, earliest_time=EventTime[1693555200000, 0], latest_time=EventTime[1693556400000, 4], properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))
-    Edge(source=ServerA, target=ServerB, earliest_time=EventTime[1693555200000, 0], latest_time=EventTime[1693555200000, 0], properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(epoch=1693555200000, event_id=0), latest_time=EventTime(epoch=1693557000000, event_id=18446744073709551615))
+    Node(name=ServerA, earliest_time=EventTime(epoch=1693555200000, event_id=0), latest_time=EventTime(epoch=1693556400000, event_id=4), properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))
+    Edge(source=ServerA, target=ServerB, earliest_time=EventTime(epoch=1693555200000, event_id=0), latest_time=EventTime(epoch=1693555200000, event_id=0), properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])
     ```
 
 ## Adding metadata via dataframes
@@ -201,13 +201,13 @@ print(g.edge("ServerA", "ServerB"))
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime[1693555200000, 0], latest_time=EventTime[1693557000000, 18446744073709551615])"
+assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(epoch=1693555200000, event_id=0), latest_time=EventTime(epoch=1693557000000, event_id=18446744073709551615))"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime[1693555200000, 0], latest_time=EventTime[1693557000000, 18446744073709551615])
-    Node(name=ServerA, earliest_time=EventTime[1693555200000, 0], latest_time=EventTime[1693556400000, 4], properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))
-    Edge(source=ServerA, target=ServerB, earliest_time=EventTime[1693555200000, 0], latest_time=EventTime[1693555200000, 0], properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(epoch=1693555200000, event_id=0), latest_time=EventTime(epoch=1693557000000, event_id=18446744073709551615))
+    Node(name=ServerA, earliest_time=EventTime(epoch=1693555200000, event_id=0), latest_time=EventTime(epoch=1693556400000, event_id=4), properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))
+    Edge(source=ServerA, target=ServerB, earliest_time=EventTime(epoch=1693555200000, event_id=0), latest_time=EventTime(epoch=1693555200000, event_id=0), properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])
     ```

@@ -232,7 +232,7 @@ impl PyEventTime {
     }
 
     pub fn __repr__(&self) -> String {
-        format!("EventTime(epoch={}, event_id={})", self.time.0, self.time.1)
+        self.time.to_string()
     }
 
     pub fn __hash__(&self) -> isize {

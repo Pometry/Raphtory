@@ -112,7 +112,7 @@ def test_in_out_component_hop_reset():
         {
           graph(path: "graph") {
             node(name: "1") {
-              window(start: {simpleTime: 2}, end: {simpleTime: 4}) {
+              window(start: 2, end: 4) {
                 outComponent {
                   list {
                     name
@@ -150,7 +150,7 @@ def test_in_out_component_hop_reset():
         {
           graph(path: "graph") {
             node(name: "3") {
-              window(start: {simpleTime: 2}, end: {simpleTime: 4}) {
+              window(start: 2, end: 4) {
                 inComponent {
                   list {
                     name

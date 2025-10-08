@@ -36,10 +36,10 @@ def test_snapshot():
         g.add_edge(2, 1, 3)
 
         for time in range(0, 4):
-            assert query("event", f"before(time: {{simpleTime: {time + 1}}})") == query(
-                "event", f"snapshotAt(time: {{simpleTime: {time}}})"
+            assert query("event", f"before(time: {time + 1})") == query(
+                "event", f"snapshotAt(time: {time})"
             )
-        assert query("event", f"before(time: {{simpleTime: 1000}})") == query(
+        assert query("event", f"before(time: 1000)") == query(
             "event", f"snapshotLatest"
         )
 
@@ -50,7 +50,7 @@ def test_snapshot():
         g.delete_edge(3, 1, 2)
 
         for time in range(0, 5):
-            assert query("persistent", f"at(time: {{simpleTime: {time}}})") == query(
-                "persistent", f"snapshotAt(time: {{simpleTime: {time}}})"
+            assert query("persistent", f"at(time: {time})") == query(
+                "persistent", f"snapshotAt(time: {time})"
             )
         assert query("persistent", f"latest") == query("persistent", f"snapshotLatest")
