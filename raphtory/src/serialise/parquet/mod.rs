@@ -163,6 +163,17 @@ pub trait ParquetDecoder: Sized {
         Self::decode_parquet(temp_dir.path(), path_for_decoded_graph)
     }
 
+    fn is_parquet_decodable(path: impl AsRef<Path>) -> bool {
+        // Considered to be decodable if there is at least one .parquet
+        WalkDir::new(path)
+            .into_iter()
+            .filter_map(Result::ok)
+            .any(|entry| {
+                entry.path().is_file()
+                    && entry.path().extension().is_some_and(|ext| ext == "parquet")
+            })
+    }
+
     fn decode_parquet(
         path: impl AsRef<Path>,
         path_for_decoded_graph: Option<&Path>,

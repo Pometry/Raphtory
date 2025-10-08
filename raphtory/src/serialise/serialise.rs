@@ -67,6 +67,9 @@ pub trait StableDecode: StaticGraphViewOps + AdditionOps {
         path: impl Into<GraphFolder>,
         path_for_decoded_graph: Option<&Path>,
     ) -> Result<Self, GraphError>;
+
+    /// Returns true if the graph can be decoded from the given path.
+    fn is_decodable(path: impl AsRef<Path>) -> bool;
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
@@ -103,6 +106,10 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         graph.load_index(&folder)?;
 
         Ok(graph)
+    }
+
+    fn is_decodable(path: impl AsRef<Path>) -> bool {
+        Self::is_parquet_decodable(path)
     }
 }
 
@@ -564,6 +571,31 @@ mod tests {
         let g2 = Graph::decode(&folder, None).unwrap();
 
         assert_graph_equal(&g, &g2);
+    }
+
+    #[test]
+    fn test_is_decodable() {
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
+
+        // Test with non-existent path - should return false
+        assert!(!Graph::is_parquet_decodable(&temp_file));
+
+        // Test with directory containing parquet files - should return true
+        let g1 = Graph::new();
+        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        g1.encode(&temp_file).unwrap();
+        assert!(Graph::is_parquet_decodable(&temp_file));
+
+        // Test with directory containing only IPC files - should return false
+        let ipc_tempdir = TempDir::new().unwrap();
+        let edges_dir = ipc_tempdir.path().join("edges");
+        std::fs::create_dir_all(&edges_dir).unwrap();
+        let adj_out_dsts = edges_dir.join("AdjOutDsts.ipc");
+        let adj_out_srcs = edges_dir.join("AdjOutSrcs.ipc");
+        std::fs::write(&adj_out_dsts, "fake ipc content").unwrap();
+        std::fs::write(&adj_out_srcs, "fake ipc content").unwrap();
+        assert!(!Graph::is_parquet_decodable(&ipc_tempdir.path()));
     }
 
     fn write_props_to_vec(props: &mut Vec<(&str, Prop)>) {

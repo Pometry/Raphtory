@@ -4,7 +4,6 @@ use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            storage::storage::Storage,
             view::{
                 internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
@@ -24,7 +23,6 @@ use raphtory_api::GraphType;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
-use std::path::PathBuf;
 use tracing::info;
 
 #[derive(Clone)]
@@ -76,12 +74,12 @@ impl GraphWithVectors {
         create_index: bool,
     ) -> Result<Self, GraphError> {
         let graph = {
-            // Create an empty graph just to test disk_storage_enabled
-            let test = Graph::new();
-
-            if test.disk_storage_enabled() {
+            // Either decode a graph serialized using encode or load using underlying storage.
+            if MaterializedGraph::is_decodable(folder.get_graph_path()) {
+                let path_for_decoded_graph = None;
+                MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?
+            } else {
                 let metadata = folder.read_metadata()?;
-
                 let graph = match metadata.graph_type {
                     GraphType::EventGraph => {
                         let graph = Graph::load_from_path(folder.get_graph_path());
@@ -97,10 +95,6 @@ impl GraphWithVectors {
                 graph.load_index(&folder)?;
 
                 graph
-            } else {
-                let path_for_decoded_graph = None;
-
-                MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?
             }
         };
 

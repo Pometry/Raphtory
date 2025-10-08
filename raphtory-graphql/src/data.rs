@@ -75,7 +75,7 @@ impl Data {
                     return;
                 }
 
-                // On eviction, serialize graphs that don't have underlying persistence.
+                // On eviction, serialize graphs that don't have underlying storage.
                 // FIXME: don't have currently a way to know which embedding updates are pending
                 if !graph.graph.disk_storage_enabled() {
                     let _ = Self::encode_graph_to_disk(graph.clone())
@@ -142,9 +142,9 @@ impl Data {
         let folder_clone = folder.clone();
 
         blocking_io(move || {
-            // Graphs with underlying storage persistence already write data to disk.
+            // Graphs with underlying storage already write data to disk.
             // They just need to write metadata, primarily to infer the graph type.
-            // Graphs without persistence are encoded to the folder.
+            // Graphs without storage are encoded to the folder.
             if graph_clone.disk_storage_enabled() {
                 folder_clone.write_metadata(&graph_clone)?;
             } else {
@@ -295,7 +295,7 @@ impl Data {
 
 impl Drop for Data {
     fn drop(&mut self) {
-        // On drop, serialize graphs that don't have underlying persistence.
+        // On drop, serialize graphs that don't have underlying storage.
         for (_, graph) in self.cache.iter() {
             if !graph.graph.disk_storage_enabled() {
                 let _ = Self::encode_graph_to_disk(graph.clone())
