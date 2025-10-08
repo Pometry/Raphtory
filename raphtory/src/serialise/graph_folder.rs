@@ -121,8 +121,9 @@ impl GraphFolder {
                         info!(
                             "Metadata file does not exist or is invalid. Attempting to recreate..."
                         );
-                        let graph: MaterializedGraph =
-                            MaterializedGraph::decode(self, None::<&std::path::Path>)?;
+
+                        let graph: MaterializedGraph = MaterializedGraph::decode(self, None)?;
+
                         self.write_metadata(&graph)?;
                         Ok(self.try_read_metadata()?)
                     }

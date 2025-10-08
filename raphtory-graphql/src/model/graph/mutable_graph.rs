@@ -262,7 +262,6 @@ impl GqlMutableGraph {
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
         let edge =
             blocking_compute(move || self_clone.graph.delete_edge(time, src, dst, layer.as_str()))
                 .await;

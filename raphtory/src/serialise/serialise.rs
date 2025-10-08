@@ -9,6 +9,7 @@ use crate::{
     serialise::parquet::{ParquetDecoder, ParquetEncoder},
 };
 use tempfile;
+use std::{fs, fs::File};
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     /// Encode the graph into bytes.
@@ -26,14 +27,14 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         let folder = GraphFolder::new_as_zip(&zip_path);
 
         self.encode(&folder).unwrap();
-        std::fs::read(&zip_path).unwrap()
+        fs::read(&zip_path).unwrap()
     }
 
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder: GraphFolder = path.into();
 
         if folder.write_as_zip_format {
-            let file = std::fs::File::create(&folder.get_base_path())?;
+            let file = File::create(&folder.get_base_path())?;
             self.encode_parquet_to_zip(file)?;
 
             #[cfg(feature = "search")]
