@@ -16,7 +16,7 @@ use crate::db::api::{
     properties::internal::InternalPropertiesOps,
     view::{history::History, BoxedLIter},
 };
-use raphtory_api::core::storage::timeindex::AsTime;
+use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
 #[cfg(feature = "arrow")]
 use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 
@@ -96,8 +96,9 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         self.props.temporal_iter_rev(self.id)
     }
 
-    pub fn at(&self, t: i64) -> Option<Prop> {
-        self.props.temporal_value_at(self.id, EventTime::end(t))
+    pub fn at<T: IntoTime>(&self, t: T) -> Option<Prop> {
+        let t = EventTime::end(t.into_time().t());
+        self.props.temporal_value_at(self.id, t)
     }
     pub fn latest(&self) -> Option<Prop> {
         self.props.temporal_value(self.id)

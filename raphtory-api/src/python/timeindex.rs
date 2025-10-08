@@ -138,7 +138,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<EventTime> {
 ///
 /// Unless specified manually, the event ids are generated automatically by Raphtory to
 /// maintain a unique ordering of events.
-/// EventTime can be converted into a Unix Epoch timestamp or a Python datetime, and compared
+/// EventTime can be converted into a timestamp (milliseconds since the Unix epoch) or a Python datetime, and compared
 /// either by timestamp (against ints/floats/datetimes/strings), by tuple of (epoch, event_id),
 /// or against another EventTime.
 #[pyclass(name = "EventTime", module = "raphtory", frozen)]
@@ -232,10 +232,7 @@ impl PyEventTime {
     }
 
     pub fn __repr__(&self) -> String {
-        format!(
-            "EventTime(timestamp={}, event_id={})",
-            self.time.0, self.time.1
-        )
+        format!("EventTime(epoch={}, event_id={})", self.time.0, self.time.1)
     }
 
     pub fn __hash__(&self) -> isize {
@@ -251,17 +248,17 @@ impl PyEventTime {
     /// Creates a new EventTime.
     ///
     /// Arguments:
-    ///     timestamp (int | float | datetime | str): A time input convertible to an EventTime.
+    ///     epoch (int | float | datetime | str): A time input convertible to an EventTime.
     ///     event_id (int | float | datetime | str | None): Optionally, specify the event id. Defaults to 0.
     ///
     /// Returns:
     ///     EventTime:
     #[new]
-    #[pyo3(signature = (timestamp, event_id=None))]
-    pub fn py_new(timestamp: EventTimeComponent, event_id: Option<EventTimeComponent>) -> Self {
+    #[pyo3(signature = (epoch, event_id=None))]
+    pub fn py_new(epoch: EventTimeComponent, event_id: Option<EventTimeComponent>) -> Self {
         let event_id = event_id.map(|t| t.t() as usize).unwrap_or(0);
         Self {
-            time: EventTime::new(timestamp.t(), event_id),
+            time: EventTime::new(epoch.t(), event_id),
         }
     }
 }

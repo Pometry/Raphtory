@@ -14,7 +14,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::utils::time::TryIntoTime;
+use raphtory_api::core::utils::time::IntoTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
@@ -113,13 +113,13 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
-    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<Self, GraphError> {
-        Ok(self.update(self.nn.window(start.try_into_time()?, end.try_into_time()?)))
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.update(self.nn.window(start.into_time(), end.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events at time.
-    async fn at(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
-        Ok(self.update(self.nn.at(time.try_into_time()?)))
+    async fn at(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.at(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the latest time.
@@ -129,8 +129,8 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
-        Ok(self.update(self.nn.snapshot_at(time.try_into_time()?)))
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.snapshot_at(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events at the latest time.
@@ -140,35 +140,28 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events before the specified end (exclusive).
-    async fn before(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
-        Ok(self.update(self.nn.before(time.try_into_time()?)))
+    async fn before(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.before(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events after the specified start (exclusive).
-    async fn after(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
-        Ok(self.update(self.nn.after(time.try_into_time()?)))
+    async fn after(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.after(time.into_time()))
     }
 
     /// Shrink both the start and end of the window.
-    async fn shrink_window(
-        &self,
-        start: GqlTimeInput,
-        end: GqlTimeInput,
-    ) -> Result<Self, GraphError> {
-        Ok(self.update(
-            self.nn
-                .shrink_window(start.try_into_time()?, end.try_into_time()?),
-        ))
+    async fn shrink_window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_window(start.into_time(), end.into_time()))
     }
 
     /// Set the start of the window to the larger of the specified start and self.start().
-    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
-        Ok(self.update(self.nn.shrink_start(start.try_into_time()?)))
+    async fn shrink_start(&self, start: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_start(start.into_time()))
     }
 
     /// Set the end of the window to the smaller of the specified end and self.end().
-    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
-        Ok(self.update(self.nn.shrink_end(end.try_into_time()?)))
+    async fn shrink_end(&self, end: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_end(end.into_time()))
     }
 
     /// Filter nodes by type.
@@ -248,16 +241,16 @@ impl GqlPathFromNode {
                     return_view.exclude_layer(layer).await
                 }
                 PathFromNodeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await?
+                    return_view.window(window.start, window.end).await
                 }
                 PathFromNodeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await?
+                    return_view.shrink_window(window.start, window.end).await
                 }
                 PathFromNodeViewCollection::ShrinkStart(time) => {
-                    return_view.shrink_start(time).await?
+                    return_view.shrink_start(time).await
                 }
-                PathFromNodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await?,
-                PathFromNodeViewCollection::At(time) => return_view.at(time).await?,
+                PathFromNodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                PathFromNodeViewCollection::At(time) => return_view.at(time).await,
                 PathFromNodeViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await
@@ -265,9 +258,7 @@ impl GqlPathFromNode {
                         return_view
                     }
                 }
-                PathFromNodeViewCollection::SnapshotAt(time) => {
-                    return_view.snapshot_at(time).await?
-                }
+                PathFromNodeViewCollection::SnapshotAt(time) => return_view.snapshot_at(time).await,
                 PathFromNodeViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
@@ -275,8 +266,8 @@ impl GqlPathFromNode {
                         return_view
                     }
                 }
-                PathFromNodeViewCollection::Before(time) => return_view.before(time).await?,
-                PathFromNodeViewCollection::After(time) => return_view.after(time).await?,
+                PathFromNodeViewCollection::Before(time) => return_view.before(time).await,
+                PathFromNodeViewCollection::After(time) => return_view.after(time).await,
             }
         }
         Ok(return_view)

@@ -1,14 +1,9 @@
 use async_graphql::{Error, Value as GqlValue};
-use chrono::{
-    format::{Item, StrftimeItems},
-    DateTime, Utc,
-};
-use dynamic_graphql::{
-    InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
-};
+use chrono::format::{Item, StrftimeItems};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory_api::core::{
-    storage::timeindex::{AsTime, EventTime, TimeError},
-    utils::time::{IntoTime, ParseTimeError, TryIntoTime},
+    storage::timeindex::{AsTime, EventTime},
+    utils::time::{IntoTime, TryIntoTime},
 };
 
 /// Input for primary time component. Expects Int, DateTime formatted String, or Object {epoch, eventId}

@@ -1,5 +1,8 @@
 use crate::{
-    model::graph::{history::GqlHistory, timeindex::GqlEventTime},
+    model::graph::{
+        history::GqlHistory,
+        timeindex::{GqlEventTime, GqlTimeInput},
+    },
     rayon::blocking_compute,
 };
 use async_graphql::{Error, Name, Value as GqlValue};
@@ -18,6 +21,7 @@ use raphtory::{
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
     storage::{arc_str::ArcStr, timeindex::EventTime},
+    utils::time::IntoTime,
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
@@ -285,9 +289,9 @@ impl GqlTemporalProperty {
         blocking_compute(move || self_clone.prop.values().map(|x| x.to_string()).collect()).await
     }
 
-    async fn at(&self, t: i64) -> Option<String> {
+    async fn at(&self, t: GqlTimeInput) -> Option<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.at(t).map(|x| x.to_string())).await
+        blocking_compute(move || self_clone.prop.at(t.into_time()).map(|x| x.to_string())).await
     }
 
     async fn latest(&self) -> Option<String> {

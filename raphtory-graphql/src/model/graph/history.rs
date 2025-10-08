@@ -7,7 +7,6 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::api::view::history::{
     History, HistoryDateTime, HistoryEventId, HistoryTimestamp, InternalHistoryOps, Intervals,
 };
-use raphtory_api::core::storage::timeindex::TimeError;
 use std::{any::Any, sync::Arc};
 
 /// History of updates for an object in Raphtory.

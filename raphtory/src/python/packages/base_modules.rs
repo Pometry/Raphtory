@@ -55,7 +55,7 @@ use crate::{
                 },
             },
         },
-        utils::{PyGenericIterable, PyWindowSet},
+        utils::PyWindowSet,
     },
 };
 use pyo3::prelude::*;

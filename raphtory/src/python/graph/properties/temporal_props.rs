@@ -37,7 +37,6 @@ use raphtory_api::core::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
     },
-    utils::time::IntoTime,
 };
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
@@ -286,7 +285,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     Optional[PropValue]:
     pub fn at(&self, t: EventTime) -> Option<Prop> {
-        self.prop.at(t.into_time().t())
+        self.prop.at(t)
     }
     /// Get the latest value of the property.
     ///
@@ -664,7 +663,6 @@ impl PyTemporalPropList {
     }
 
     pub fn at(&self, t: EventTime) -> PyPropValueList {
-        let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |p| p.and_then(|v| v.at(t)))).into()
     }
@@ -856,7 +854,6 @@ impl PyTemporalPropListList {
     }
 
     pub fn at(&self, t: EventTime) -> PyPropValueListList {
-        let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |it| it.map(move |p| p.and_then(|v| v.at(t))))).into()
     }
