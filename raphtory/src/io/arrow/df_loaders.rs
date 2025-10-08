@@ -16,7 +16,7 @@ use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::{properties::prop::PropType, EID},
+        entities::{properties::{prop::PropType, meta::STATIC_GRAPH_LAYER_ID}, EID},
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     },
 };
@@ -181,7 +181,7 @@ pub(crate) fn load_nodes_from_df<
                     if let Some(mut_node) = shard.resolve_pos(*vid) {
                         let mut writer = shard.writer();
                         let t = TimeIndexEntry(time, secondary_index as usize);
-                        let layer_id = 0;
+                        let layer_id = STATIC_GRAPH_LAYER_ID;
                         let lsn = 0;
 
                         update_time(t);

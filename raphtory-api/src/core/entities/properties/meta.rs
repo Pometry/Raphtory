@@ -25,6 +25,8 @@ pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 pub const NODE_TYPE_IDX: usize = 1;
 
 pub const STATIC_GRAPH_LAYER: &str = "_static_graph";
+pub const STATIC_GRAPH_LAYER_ID: usize = 0;
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Meta {
     temporal_prop_mapper: PropMapper,
