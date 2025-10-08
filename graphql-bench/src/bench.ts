@@ -18,18 +18,10 @@ export const errorRate = new Rate('errors');
 
 const duration = 1;
 const stagesInMinutes: { duration: number; target: number }[] = [
-    // { duration, target: 50 },
     { duration, target: 100 },
-    // { duration, target: 200 },
     { duration, target: 400 },
-    // { duration, target: 800 },
     { duration, target: 1600 },
-    // { duration, target: 3200 },
     { duration, target: 6400 },
-    // { duration, target: 12800 },
-    // { duration, target: 25600 },
-    // { duration, target: 51200 },
-    // { duration, target: 102400 },
 ];
 
 // +1 to leave enough time for the server to recover from prev scenario
@@ -137,6 +129,16 @@ export function setup(): SetupData {
                 path: 'empty',
                 graphType: 'EVENT',
             },
+        },
+    });
+
+    // this is to trigger the load of the empty graph into memory
+    fetchAndParse({
+        graph: {
+            __args: {
+                path: 'empty',
+            },
+            countNodes: true,
         },
     });
 
