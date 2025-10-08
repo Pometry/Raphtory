@@ -7,6 +7,10 @@ import {
     generateMutationOp,
     QueryRootGenqlSelection,
     MutRootGenqlSelection,
+    GraphGenqlSelection,
+    EdgeGenqlSelection,
+    NodeGenqlSelection,
+    PathFromNodeViewCollection,
 } from './__generated';
 
 const TIME_RANGE = 2000 * 365 * 24 * 60 * 60 * 1000;
@@ -88,18 +92,6 @@ function checkResponse<RT extends "binary" | "none" | "text"| undefined>(respons
               const result = 'data' in body &&
                 body.data !== undefined &&
                 body.data !== null; // FIXME: improve query checking, I wish I could just rely on genql
-              if (!result) {
-                console.log({
-                  dataInBody: 'data' in body,
-                  dataDefined: body.data !== undefined,
-                  dataNotNull: body.data !== null
-                })
-                if (body.data === null) {
-                  console.log(">>> data", body.data)
-                  console.log(">>> body", JSON.stringify(body, null, 2))
-                  console.log(">>> response", JSON.stringify(r, null, 2))
-                }
-              }
               return result;
           } else {
               return false;
@@ -107,7 +99,6 @@ function checkResponse<RT extends "binary" | "none" | "text"| undefined>(respons
       },
   });
   errorRate.add(!result);
-  // console.log("error on request:", JSON.stringify(JSON.parse(response.body as string), null, 2))
 }
 
 export function setup() {
@@ -127,8 +118,6 @@ export function setup() {
         },
     });
 }
-
-
 
 function addEdge() {
   fetchAndCheck({
@@ -305,6 +294,7 @@ function readNodePage() {
   });
 }
 
+
 function readEdgePage() {
   const { numEdges } = queryGraphSize("empty");
   const edgeIndex = Math.floor(numEdges * Math.random());
@@ -339,9 +329,10 @@ const QUERIES: ({ query: () => void, weight: number })[] = [
   { query: addEdge, weight: 1 },
   { query: addNode, weight: 1 },
   { query: deleteEdge, weight: 1 },
-  { query: readNode, weight: 2 },
-  { query: readNodePage, weight: 2 },
-  { query: readEdgePage, weight: 2 },
+  // { query: readNode, weight: 2 },
+  // { query: readNodePage, weight: 2 },
+  // { query: readEdgePage, weight: 2 },
+  { query: randomComposedReadQuery, weight: 6 },
 ]
 
 const INDICES = QUERIES.flatMap(({weight}, index) => [...Array(weight).keys()].map(() => index))
@@ -354,4 +345,329 @@ export default function randomReadWriteQuery() {
   const index = INDICES[indexPosition]
   const { query } = QUERIES[index]
   query()
+}
+
+function getRandomEntityIds({ numEdges }: {numEdges: number}) {
+  const response = fetchAndParse({
+    graph: {
+      __args: {
+        path: "empty"
+      },
+      edges: {
+        page: {
+          __args: {
+            limit: 1,
+            offset: Math.floor(Math.random() * numEdges)
+          },
+          src: {
+            name: true,
+          },
+          dst: {
+            name: true,
+          }
+        }
+      }
+    }
+  })
+  const edge = response.data.graph.edges.page[0];
+  console.log(">>> edge: ", edge);
+  return {
+    src: edge?.src?.name as string | undefined,
+    dst: edge?.dst?.name as string | undefined,
+    name: edge?.src?.name as string | undefined, // TODO: maybe query a node independenty so not only node with edges are returned, so that they can have properties?
+    // TODO: or instead, create edges only among existing nodes??
+  }
+}
+
+function pickRandom<T>(choices: T[]) {
+  return choices[randomInt(choices.length)]
+}
+
+function randomComposedReadQuery() {
+  const view = randomView();
+  const entity = randomEntityQuery()
+  const query = {
+    graph: {
+      __args: {
+        path: "empty"
+      },
+      applyViews: {
+        ...view,
+        ...entity
+      }
+    }
+  };
+  console.log("--------------------------------------------")
+  console.log(JSON.stringify(query, null, 2));
+  console.log("--------------------------------------------")
+  fetchAndCheck(query)
+}
+
+
+function randomInt(n: number) {
+  return Math.floor(Math.random() * n)
+}
+
+function randomEntityQuery(): GraphGenqlSelection {
+  const { numNodes, numEdges } = queryGraphSize("empty")
+  const { src, dst, name } = getRandomEntityIds({numEdges})
+  console.log({src, dst, name})
+  if (src === undefined || dst === undefined || name === undefined) {
+    console.log(">>>>>>>>>>>>>>> early return")
+    return {}
+  }
+  const properties = randomPropertyQuery()
+  const traversal = randomTraversal()
+  const view = randomView();
+  const queries: GraphGenqlSelection[] = [{
+    nodes: {
+      page: {
+        __args: {
+          limit: 20,
+          offset: randomInt(numNodes),
+        },
+        applyViews: {
+          ...view,
+          ...properties,
+          ...traversal
+        }
+      }
+    }
+  },
+  {
+    node: {
+      __args: {
+        name,
+      },
+      applyViews: {
+        ...view,
+        ...properties,
+        ...traversal
+      }
+    }
+  }, {
+    edges: {
+      applyViews: {
+        ...view,
+        page: {
+          __args: {
+            limit: 20,
+            offset: randomInt(numEdges),
+          },
+            ...properties
+        }
+      },
+    }
+  }, {
+    edge: {
+      __args: {
+        src,
+        dst,
+      },
+      applyViews: {
+        ...view,
+        ...properties,
+      }
+    }
+  }];
+  return pickRandom(queries);
+}
+
+const LAYERS = ["a", "b", "c"]
+
+function randomLayer() {
+  return pickRandom(LAYERS)
+}
+
+function randomView() {
+  const views: PathFromNodeViewCollection[] = [
+    {
+      // NO VIEW AT ALL
+    },
+    {
+      layer: randomLayer()
+    }, {
+      latest: true,
+    }
+  ];
+
+  // TODO: return more than just one sometimes?
+
+  const view = pickRandom(views);
+  return {
+    __args: {
+      views: [view]
+    }
+  }
+}
+
+function randomTraversal(): NodeGenqlSelection {
+  const view = randomView();
+  const nodeInner = {
+    applyViews: {
+      ...view,
+      page: {
+        __args: {
+          limit: 20
+        },
+        ...randomNodeQuery()
+      }
+    },
+  }
+  const edgeInner = {
+    applyViews: {
+      ...view,
+      page: {
+        __args: {
+          limit: 20
+        },
+        ...randomEdgeQuery()
+      }
+    },
+  }
+
+  const queries: NodeGenqlSelection[] = [{
+    // NO TRAVERSAL AT ALL IS ALSO AN OPTION
+  }, {
+    neighbours: {
+      ...nodeInner
+    }
+  }, {
+    inNeighbours: {
+      ...nodeInner
+    }
+  }, {
+    outNeighbours: {
+      ...nodeInner
+    }
+  }, {
+    inComponent: {
+      ...nodeInner
+    }
+  }, {
+    outComponent: {
+      ...nodeInner
+    }
+  }, {
+    edges: {
+      ...edgeInner
+    }
+  }, {
+    outEdges: {
+      ...edgeInner
+    }
+  }, {
+    inEdges: {
+      ...edgeInner
+    }
+  }]
+  return pickRandom(queries);
+}
+
+function randomNodeQuery(): NodeGenqlSelection {
+  let traversal: NodeGenqlSelection = {}
+  if (Math.random() > 0.7) { // this is a fire line to avoid infinite recursions
+    traversal = randomTraversal();
+  }
+  const properties = randomPropertyQuery()
+  const degree = randomDegree()
+  const inner = {
+    name: true,
+    ...properties,
+    ...degree,
+    ...traversal,
+  }
+
+  const queries: NodeGenqlSelection[] = [{
+    applyViews: {
+      ...randomView(),
+      ...inner
+    }
+  },{
+    ...inner
+  }]
+  return pickRandom(queries)
+}
+
+function randomDegree(): NodeGenqlSelection {
+  const queries: NodeGenqlSelection[] = [{
+    // nothing
+  }, {
+    degree: true,
+    inDegree: true,
+    outDegree: true,
+  }]
+  return pickRandom(queries)
+}
+
+function randomEdgeQuery(): EdgeGenqlSelection {
+  const properties = randomPropertyQuery();
+  const view = randomView();
+  const inner = {
+    ...view,
+    ...properties,
+  }
+
+  const nodeQuery = randomNodeQuery();
+
+  const queries: EdgeGenqlSelection[] = [
+    {
+      applyViews: {
+        ...inner,
+        // no src nor dst
+      },
+    }, {
+      applyViews: {
+        ...inner,
+        src: nodeQuery,
+      },
+    }, {
+      applyViews: {
+        ...inner,
+        dst: nodeQuery,
+      }
+    }, {
+      applyViews: {
+        ...inner,
+        src: nodeQuery,
+        dst: nodeQuery,
+      }
+    }
+  ]
+  return pickRandom(queries)
+}
+
+
+
+type PropertyGenqlSelection = NodeGenqlSelection & EdgeGenqlSelection;
+function randomPropertyQuery(): PropertyGenqlSelection {
+  const queries: PropertyGenqlSelection[] = [{
+    // no query at all
+  }, {
+    metadata: {
+      values: {
+        key: true,
+        value: true,
+      }
+    }
+  },
+  {
+    properties: {
+      values: {
+        key: true,
+        value: true,
+      }
+    }
+  }, {
+    properties: {
+      temporal: {
+        values: {
+          key: true,
+          values: true,
+          history: true,
+        }
+      }
+    }
+  }];
+  return pickRandom(queries);
 }
