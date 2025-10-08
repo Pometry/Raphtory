@@ -254,7 +254,7 @@ pub(crate) fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + A
 
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
     let _ = pb.update(0);
-    let mut start_idx = session
+    let mut start_id = session
         .reserve_event_ids(df_view.num_rows)
         .map_err(into_graph_err)?;
 
@@ -396,7 +396,7 @@ pub(crate) fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + A
         // Load the secondary index column if it exists, otherwise generate from start_idx.
         let secondary_index_col = match secondary_index_index {
             Some(col_index) => df.secondary_index_col(col_index)?,
-            None => SecondaryIndexCol::new_from_range(start_idx, start_idx + df.len()),
+            None => SecondaryIndexCol::new_from_range(start_id, start_id + df.len()),
         };
 
         write_locked_graph.resize_chunks_to_num_nodes(num_nodes.load(Ordering::Relaxed));
@@ -541,7 +541,7 @@ pub(crate) fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + A
             });
         });
 
-        start_idx += df.len();
+        start_id += df.len();
         let _ = pb.update(df.len());
     }
 
