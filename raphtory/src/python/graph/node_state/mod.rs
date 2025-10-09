@@ -1,18 +1,17 @@
 mod group_by;
-mod lazy_node_state_earliest_date_time;
-mod lazy_node_state_history;
-mod lazy_node_state_latest_date_time;
 mod node_state;
+mod node_state_earliest_date_time;
 mod node_state_history;
+mod node_state_latest_date_time;
 
 use crate::{
     add_classes,
     python::{
         graph::node_state::{
-            group_by::PyNodeGroups, lazy_node_state_earliest_date_time::EarliestDateTimeView,
-            lazy_node_state_history::HistoryView,
-            lazy_node_state_latest_date_time::LatestDateTimeView,
-            node_state_history::NodeStateHistory,
+            group_by::PyNodeGroups,
+            node_state_earliest_date_time::EarliestDateTimeView,
+            node_state_history::{HistoryView, NodeStateHistory},
+            node_state_latest_date_time::LatestDateTimeView,
         },
         types::wrappers::iterables::UsizeIterable,
     },

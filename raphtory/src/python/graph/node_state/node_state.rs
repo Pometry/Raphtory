@@ -523,7 +523,7 @@ impl EarliestTimeView {
     /// Access earliest times as timestamps (milliseconds since Unix epoch).
     ///
     /// Returns:
-    ///     A lazy view over the earliest times for each node as timestamps.
+    ///     EarliestTimestampView: A lazy view over the earliest times for each node as timestamps.
     #[getter]
     fn t(
         &self,
@@ -534,7 +534,7 @@ impl EarliestTimeView {
     /// Access earliest times as UTC DateTimes.
     ///
     /// Returns:
-    ///     A lazy view over the earliest times for each node as datetimes.
+    ///     EarliestDateTimeView: A lazy view over the earliest times for each node as datetimes.
     #[getter]
     fn dt(
         &self,
@@ -550,7 +550,7 @@ impl EarliestTimeView {
     /// Access the event ids of the earliest times.
     ///
     /// Returns:
-    ///     A lazy view over the event ids of the earliest times for each node.
+    ///     EarliestEventIdView: A lazy view over the event ids of the earliest times for each node.
     #[getter]
     fn event_id(
         &self,
@@ -598,7 +598,7 @@ impl LatestTimeView {
     /// Access latest times as timestamps (milliseconds since Unix epoch).
     ///
     /// Returns:
-    ///     A lazy view over the latest times for each node as timestamps.
+    ///     LatestTimestampView: A lazy view over the latest times for each node as timestamps.
     #[getter]
     fn t(
         &self,
@@ -609,7 +609,7 @@ impl LatestTimeView {
     /// Access latest times as UTC DateTimes.
     ///
     /// Returns:
-    ///     A lazy view over the latest times for each node as datetimes.
+    ///     LatestDateTimeView: A lazy view over the latest times for each node as datetimes.
     #[getter]
     fn dt(
         &self,
@@ -625,7 +625,7 @@ impl LatestTimeView {
     /// Access the event ids of the latest times.
     ///
     /// Returns:
-    ///     A lazy view over the event ids of the latest times for each node.
+    ///     LatestEventIdView: A lazy view over the event ids of the latest times for each node.
     #[getter]
     fn event_id(
         &self,

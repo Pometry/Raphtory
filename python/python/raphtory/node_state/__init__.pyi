@@ -2087,12 +2087,12 @@ class EarliestTimeView(object):
         """
 
     @property
-    def dt(self):
+    def dt(self) -> EarliestDateTimeView:
         """
         Access earliest times as UTC DateTimes.
 
         Returns:
-            A lazy view over the earliest times for each node as datetimes.
+            EarliestDateTimeView: A lazy view over the earliest times for each node as datetimes.
         """
 
     @property
@@ -2105,12 +2105,12 @@ class EarliestTimeView(object):
         """
 
     @property
-    def event_id(self):
+    def event_id(self) -> EarliestEventIdView:
         """
         Access the event ids of the earliest times.
 
         Returns:
-            A lazy view over the event ids of the earliest times for each node.
+            EarliestEventIdView: A lazy view over the event ids of the earliest times for each node.
         """
 
     def exclude_layer(self, name: str) -> EarliestTimeView:
@@ -2398,12 +2398,12 @@ class EarliestTimeView(object):
         """
 
     @property
-    def t(self):
+    def t(self) -> EarliestTimestampView:
         """
         Access earliest times as timestamps (milliseconds since Unix epoch).
 
         Returns:
-            A lazy view over the earliest times for each node as timestamps.
+            EarliestTimestampView: A lazy view over the earliest times for each node as timestamps.
         """
 
     def to_df(self) -> DataFrame:
@@ -3985,12 +3985,12 @@ class LatestTimeView(object):
         """
 
     @property
-    def dt(self):
+    def dt(self) -> LatestDateTimeView:
         """
         Access latest times as UTC DateTimes.
 
         Returns:
-            A lazy view over the latest times for each node as datetimes.
+            LatestDateTimeView: A lazy view over the latest times for each node as datetimes.
         """
 
     @property
@@ -4003,12 +4003,12 @@ class LatestTimeView(object):
         """
 
     @property
-    def event_id(self):
+    def event_id(self) -> LatestEventIdView:
         """
         Access the event ids of the latest times.
 
         Returns:
-            A lazy view over the event ids of the latest times for each node.
+            LatestEventIdView: A lazy view over the event ids of the latest times for each node.
         """
 
     def exclude_layer(self, name: str) -> LatestTimeView:
@@ -4296,12 +4296,12 @@ class LatestTimeView(object):
         """
 
     @property
-    def t(self):
+    def t(self) -> LatestTimestampView:
         """
         Access latest times as timestamps (milliseconds since Unix epoch).
 
         Returns:
-            A lazy view over the latest times for each node as timestamps.
+            LatestTimestampView: A lazy view over the latest times for each node as timestamps.
         """
 
     def to_df(self) -> DataFrame:
@@ -6154,7 +6154,7 @@ class NodeStateString(object):
         """
 
 class HistoryView(object): 
-    """A lazy view over History values for each node."""
+    """A lazy view over History objects for each node."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -6251,20 +6251,20 @@ class HistoryView(object):
         """
 
     @property
-    def dt(self):
+    def dt(self) -> HistoryDateTimeView:
         """
         Access history events as UTC datetimes.
 
         Returns:
-            A lazy view over HistoryDateTime objects for each node.
+            HistoryDateTimeView: A lazy view over HistoryDateTime objects for each node.
         """
 
-    def earliest_time(self):
+    def earliest_time(self) -> EarliestTimeView:
         """
         Get the earliest time entry.
 
         Returns:
-            A lazy view over the earliest time of each node as an EventTime.
+            EarliestTimeView: A lazy view over the earliest time of each node as an EventTime.
         """
 
     @property
@@ -6277,12 +6277,12 @@ class HistoryView(object):
         """
 
     @property
-    def event_id(self):
+    def event_id(self) -> HistoryEventIdView:
         """
         Access the unique event id of each time entry.
 
         Returns:
-            A lazy view over HistoryEventId objects for each node.
+            HistoryEventIdView: A lazy view over HistoryEventId objects for each node.
         """
 
     def exclude_layer(self, name: str) -> HistoryView:
@@ -6374,12 +6374,12 @@ class HistoryView(object):
         """
 
     @property
-    def intervals(self):
+    def intervals(self) -> IntervalsView:
         """
         Access the intervals between consecutive timestamps in milliseconds.
 
         Returns:
-            A lazy view over Intervals objects for each node.
+            IntervalsView: A lazy view over Intervals objects for each node.
         """
 
     def items(self) -> Iterator[Tuple[Node, History]]:
@@ -6398,11 +6398,11 @@ class HistoryView(object):
              HistoryView:
         """
 
-    def latest_time(self):
+    def latest_time(self) -> LatestTimeView:
         """
         Get the latest time entry.
         Returns:
-            A lazy view over the latest time of each node as an EventTime.
+            LatestTimeView: A lazy view over the latest time of each node as an EventTime.
         """
 
     def layer(self, name: str) -> HistoryView:
@@ -6526,12 +6526,12 @@ class HistoryView(object):
         """
 
     @property
-    def t(self):
+    def t(self) -> HistoryTimestampView:
         """
         Access history events as timestamps (milliseconds since Unix epoch).
 
         Returns:
-            A lazy view over HistoryTimestamp objects for each node.
+            HistoryTimestampView: A lazy view over HistoryTimestamp objects for each node.
         """
 
     def to_df(self) -> DataFrame:
