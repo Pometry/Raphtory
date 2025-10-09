@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760006068804,
+  "lastUpdate": 1760017217718,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1025,6 +1025,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1524,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "23f65c8be945341596af1446f8c407986feaeea6",
+          "message": "timeline start/end should use global earliest and latest time (#2319)\n\n* add tests for layers and rolling\n\n* timeline start/end should use global earliest and latest time in fallback, not filtered time as rolling/expanding for different layers etc. should align by default\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-09T15:03:53+02:00",
+          "tree_id": "05a1ff6b2c6dd5b67d03cc10e26b2e61d6177962",
+          "url": "https://github.com/Pometry/Raphtory/commit/23f65c8be945341596af1446f8c407986feaeea6"
+        },
+        "date": 1760017214881,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 0,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 256,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 214,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1233,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1007,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1575,
             "unit": "req/s"
           }
         ]
