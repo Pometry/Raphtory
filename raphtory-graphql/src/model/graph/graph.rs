@@ -81,13 +81,13 @@ impl GqlGraph {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Returns the names of all layers in the graph.
+    /// Returns the names of all layers in the graphview.
     async fn unique_layers(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await
     }
 
-    /// Returns a view containing only the default edge layer.
+    /// Returns a view containing only the default layer.
     async fn default_layer(&self) -> GqlGraph {
         self.apply(|g| g.default_layer())
     }
@@ -114,7 +114,7 @@ impl GqlGraph {
         self.apply(|g| g.exclude_valid_layers(name.clone()))
     }
 
-    /// Returns a subgraph of a specified set of nodes.
+    /// Returns a subgraph of a specified set of nodes which contains only the edges that connect nodes of the subgraph to each other.
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.subgraph(nodes.clone()))).await
@@ -142,7 +142,7 @@ impl GqlGraph {
         .await
     }
 
-    /// Creates a rolling window with the specified window size and an optional step..
+    /// Creates a rolling window with the specified window size and an optional step.
     async fn rolling(
         &self,
         window: WindowDuration,
@@ -192,7 +192,7 @@ impl GqlGraph {
         }
     }
 
-    /// Return a graph containing only the activity between  start  and  end  measured as milliseconds from epoch
+    /// Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         self.apply(|g| g.window(start, end))
     }
@@ -208,12 +208,12 @@ impl GqlGraph {
         blocking_compute(move || self_clone.apply(|g| g.latest())).await
     }
 
-    /// Create a view including all events that have not been explicitly deleted at the specified time.
+    /// Create a view including all events that are valid at the specified time.
     async fn snapshot_at(&self, time: i64) -> GqlGraph {
         self.apply(|g| g.snapshot_at(time))
     }
 
-    /// Create a view including all events that have not been explicitly deleted at the latest time.
+    /// Create a view including all events that are valid at the latest time.
     async fn snapshot_latest(&self) -> GqlGraph {
         self.apply(|g| g.snapshot_latest())
     }
@@ -233,12 +233,12 @@ impl GqlGraph {
         self.apply(|g| g.shrink_window(start, end))
     }
 
-    /// Set the start of the window to the larger of start and self.start().
+    /// Set the start of the window to the larger of the specified value or current start.
     async fn shrink_start(&self, start: i64) -> Self {
         self.apply(|g| g.shrink_start(start))
     }
 
-    /// Set the end of the window to the smaller of end and self.end()
+    /// Set the end of the window to the smaller of the specified value or current end.
     async fn shrink_end(&self, end: i64) -> Self {
         self.apply(|g| g.shrink_end(end))
     }
@@ -252,7 +252,7 @@ impl GqlGraph {
         self.path.created_async().await
     }
 
-    /// Returns the graph's last opened timestamp.
+    /// Returns the graph's last opened timestamp according to system time.
     async fn last_opened(&self) -> Result<i64, GraphError> {
         self.path.last_opened_async().await
     }
@@ -324,6 +324,9 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns the number of edges in the graph.
+    ///
+    /// Returns:
+    ///     int:
     async fn count_edges(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.count_edges()).await
@@ -336,6 +339,8 @@ impl GqlGraph {
     }
 
     /// Returns the number of nodes in the graph.
+    ///
+    /// Optionally takes a list of node ids to return a subset.
     async fn count_nodes(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.count_nodes()).await
@@ -350,7 +355,7 @@ impl GqlGraph {
         self.graph.has_node(name)
     }
 
-    /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id.
+    /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. You can restrict the search to a specified layer.
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
         match layer {
             Some(name) => self
@@ -530,7 +535,7 @@ impl GqlGraph {
     // INDEX SEARCH     ////
     ////////////////////////
 
-    /// Get index specification.
+    /// (Experimental) Get index specification.
     async fn get_index_spec(&self) -> Result<GqlIndexSpec, GraphError> {
         #[cfg(feature = "search")]
         {
@@ -550,7 +555,7 @@ impl GqlGraph {
         }
     }
 
-    /// Searches for nodes which match the given filter expression.
+    /// (Experimental) Searches for nodes which match the given filter expression.
     ///
     /// Uses Tantivy's exact search.
     async fn search_nodes(
@@ -576,7 +581,7 @@ impl GqlGraph {
         }
     }
 
-    /// Searches for edges which match the given filter expression.
+    /// (Experimental) Searches the index for edges which match the given filter expression.
     ///
     /// Uses Tantivy's exact search.
     async fn search_edges(
@@ -602,6 +607,8 @@ impl GqlGraph {
         }
     }
 
+    /// Returns the specified graph view or if none is specified returns the default view.
+    /// This allows you to specify multiple operations together.
     async fn apply_views(&self, views: Vec<GraphViewCollection>) -> Result<GqlGraph, GraphError> {
         let mut return_view: GqlGraph = GqlGraph::new(self.path.clone(), self.graph.clone());
         for view in views {

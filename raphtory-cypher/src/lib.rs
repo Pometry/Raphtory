@@ -289,7 +289,7 @@ mod cypher {
                 let dsts = PrimitiveArray::from_vec(vec![3u64, 3u64, 4u64, 4u64]).boxed();
                 let time = PrimitiveArray::from_vec(vec![2i64, 3i64, 4i64, 5i64]).boxed();
                 let weight =
-                    PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
+                    PrimitiveArray::from_vec(vec![3.15f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
 
                 let chunk = StructArray::new(
                     ArrowDataType::Struct(schema().fields),

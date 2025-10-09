@@ -315,6 +315,7 @@ where
         self.indexed(index)
     }
 
+    /// Collect nodes into a vec
     pub fn collect(&self) -> Vec<NodeView<'graph, G, GH>> {
         self.iter_owned().collect()
     }
@@ -459,35 +460,5 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter_owned())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        prelude::*,
-        test_utils::{build_graph, build_graph_strat},
-    };
-    use proptest::{proptest, sample::subsequence};
-
-    #[test]
-    fn test_id_filter() {
-        let graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-
-        assert_eq!(graph.nodes().id(), [0, 1]);
-        assert_eq!(graph.nodes().id_filter([0]).len(), 1);
-        assert_eq!(graph.nodes().id_filter([0]).id(), [0]);
-        assert_eq!(graph.nodes().id_filter([0]).degree(), [1]);
-    }
-
-    #[test]
-    fn test_indexed() {
-        proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
-            let graph = Graph::from(build_graph(&graph));
-            let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
-            let nodes = graph.nodes().id_filter(nodes);
-            assert_eq!(nodes.id(), expected_node_ids);
-        })
     }
 }

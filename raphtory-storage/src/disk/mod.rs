@@ -49,6 +49,12 @@ pub struct DiskGraphStorage {
     graph_props: Arc<GraphMeta>,
 }
 
+impl From<TemporalGraph> for DiskGraphStorage {
+    fn from(value: TemporalGraph) -> Self {
+        Self::new(value)
+    }
+}
+
 impl Serialize for DiskGraphStorage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -511,11 +517,16 @@ mod test {
 
         let mut expected_node_additions = edges
             .iter()
-            .flat_map(|(src, dst, t)| [(*src, *t), (*dst, *t)])
+            .flat_map(|(src, dst, t)| {
+                if src != dst {
+                    vec![(*src, *t), (*dst, *t)]
+                } else {
+                    vec![(*src, *t)]
+                }
+            })
             .into_group_map();
         for v in expected_node_additions.values_mut() {
             v.sort();
-            v.dedup();
         }
 
         for (v_id, node) in nodes.iter().enumerate() {

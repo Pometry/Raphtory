@@ -63,7 +63,7 @@ impl GqlEdge {
         self.ee.default_layer().into()
     }
 
-    /// Returns a view of Edge containing all layers in the list of  names .
+    /// Returns a view of Edge containing all layers in the list of names.
     ///
     /// Errors if any of the layers do not exist.
     async fn layers(&self, names: Vec<String>) -> GqlEdge {
@@ -71,7 +71,7 @@ impl GqlEdge {
         blocking_compute(move || self_clone.ee.valid_layers(names).into()).await
     }
 
-    /// Returns a view of Edge containing all layers except the excluded list of  names .
+    /// Returns a view of Edge containing all layers except the excluded list of names.
     ///
     /// Errors if any of the layers do not exist.
     async fn exclude_layers(&self, names: Vec<String>) -> GqlEdge {
@@ -137,12 +137,14 @@ impl GqlEdge {
         }
     }
 
-    /// Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
+    /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
+    ///
+    /// For persistent graphs, any edge which exists at any point during the window will be included. You may want to restrict this to only edges that are present at the end of the window using the is_valid function.
     async fn window(&self, start: i64, end: i64) -> GqlEdge {
         self.ee.window(start, end).into()
     }
 
-    /// Creates a view of the Edge including all events at a specified  time .
+    /// Creates a view of the Edge including all events at a specified time.
     async fn at(&self, time: i64) -> GqlEdge {
         self.ee.at(time).into()
     }
@@ -152,46 +154,46 @@ impl GqlEdge {
         self.ee.latest().into()
     }
 
-    /// Creates a view of the Edge including all events that have not been explicitly deleted at time.
+    /// Creates a view of the Edge including all events that are valid at time.
     ///
     /// This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
     async fn snapshot_at(&self, time: i64) -> GqlEdge {
         self.ee.snapshot_at(time).into()
     }
 
-    /// Creates a view of the Edge including all events that have not been explicitly deleted at the latest time.
+    /// Creates a view of the Edge including all events that are valid at the latest time.
     ///
     /// This is equivalent to a no-op for Graph and latest() for PersistentGraph.
     async fn snapshot_latest(&self) -> GqlEdge {
         self.ee.snapshot_latest().into()
     }
 
-    /// Creates a view of the Edge including all events before a specified  end  (exclusive).
+    /// Creates a view of the Edge including all events before a specified end (exclusive).
     async fn before(&self, time: i64) -> GqlEdge {
         self.ee.before(time).into()
     }
 
-    /// Creates a view of the Edge including all events after a specified  start  (exclusive).
+    /// Creates a view of the Edge including all events after a specified start (exclusive).
     async fn after(&self, time: i64) -> GqlEdge {
         self.ee.after(time).into()
     }
 
-    /// Shrinks both the  start  and  end  of the window.
+    /// Shrinks both the start and end of the window.
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
         self.ee.shrink_window(start, end).into()
     }
 
-    /// Set the  start  of the window.
+    /// Set the start of the window.
     async fn shrink_start(&self, start: i64) -> Self {
         self.ee.shrink_start(start).into()
     }
 
-    /// Set the  end  of the window.
+    /// Set the end of the window.
     async fn shrink_end(&self, end: i64) -> Self {
         self.ee.shrink_end(end).into()
     }
 
-    /// Takes a specified selection of views and applies them in order given
+    /// Takes a specified selection of views and applies them in given order.
     async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<GqlEdge, GraphError> {
         let mut return_view: GqlEdge = self.ee.clone().into();
         for view in views {
@@ -279,21 +281,33 @@ impl GqlEdge {
     }
 
     /// Returns the source node of the edge.
+    ///
+    /// Returns:
+    ///     Node:
     async fn src(&self) -> GqlNode {
         self.ee.src().into()
     }
 
     /// Returns the destination node of the edge.
+    ///
+    /// Returns:
+    ///     Node:
     async fn dst(&self) -> GqlNode {
         self.ee.dst().into()
     }
 
     /// Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
+    ///
+    /// Returns:
+    ///     Node:
     async fn nbr(&self) -> GqlNode {
         self.ee.nbr().into()
     }
 
     /// Returns the id of the edge.
+    ///
+    /// Returns:
+    ///     list[str]:
     async fn id(&self) -> Vec<String> {
         let (src_name, dst_name) = self.ee.id();
         vec![src_name.to_string(), dst_name.to_string()]
@@ -336,12 +350,18 @@ impl GqlEdge {
     }
 
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
+    ///
+    /// Returns:
+    ///     List[int]:
     async fn history(&self) -> Vec<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.history()).await
     }
 
     /// Returns a list of timestamps of when an edge is deleted.
+    ///
+    /// Returns:
+    ///     List[int]:
     async fn deletions(&self) -> Vec<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.deletions()).await
@@ -368,7 +388,7 @@ impl GqlEdge {
         self.ee.is_deleted()
     }
 
-    /// Checks if the edge is on the same node.
+    /// Returns true if the edge source and destination nodes are the same.
     ///
     /// Returns: boolean
     async fn is_self_loop(&self) -> bool {

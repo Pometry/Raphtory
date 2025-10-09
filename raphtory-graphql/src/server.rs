@@ -104,6 +104,10 @@ pub fn register_mutation_plugin<
 }
 
 impl GraphServer {
+    /// Creates a new server and returns a corresponding GraphServer object.
+    ///
+    /// Returns:
+    ///     IoResult:
     pub fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
@@ -148,7 +152,7 @@ impl GraphServer {
     ///   * template - the template to use for creating documents.
     ///
     /// Returns:
-    ///    A new server object containing the vectorised graphs.
+    /// A new server object containing the vectorised graphs.
     pub fn with_vectorised_graphs(
         mut self,
         graph_names: Vec<String>,

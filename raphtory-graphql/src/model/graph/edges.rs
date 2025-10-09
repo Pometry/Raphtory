@@ -47,41 +47,45 @@ impl GqlEdges {
     }
 }
 
-/// A collection of edges that can be iterated over.
+/// A collection of edges.
+///
+/// Collections can be filtered and used to create lists.
 #[ResolvedObjectFields]
 impl GqlEdges {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Return a view of Edge containing only the default edge layer.    
+    /// Returns a collection containing only edges in the default edge layer.
     async fn default_layer(&self) -> Self {
         self.update(self.ee.default_layer())
     }
 
-    /// Returns a view of Edge containing all layers in the list of names.
+    /// Returns a collection containing only edges belonging to the listed layers.
     async fn layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
     }
 
-    /// Returns a view of Edge containing all layers except the excluded list of names.
+    /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
     }
 
-    /// Returns a view of Edge containing the specified layer.
+    /// Returns a collection containing edges belonging to the specified layer.
     async fn layer(&self, name: String) -> Self {
         self.update(self.ee.valid_layers(name))
     }
 
-    /// Returns a view of Edge containing all layers except the excluded layer specified.
+    /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
     async fn exclude_layer(&self, name: String) -> Self {
         self.update(self.ee.exclude_valid_layers(name))
     }
 
     /// Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
+    ///
+    /// Returns a collection of collections. This means that item in the window set is a collection of edges.
     async fn rolling(
         &self,
         window: WindowDuration,
@@ -114,6 +118,8 @@ impl GqlEdges {
     }
 
     /// Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
+    ///
+    /// Returns a collection of collections. This means that item in the window set is a collection of edges.
     async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgesWindowSet, GraphError> {
         match step {
             Duration(step) => Ok(GqlEdgesWindowSet::new(self.ee.expanding(step)?)),
@@ -121,12 +127,12 @@ impl GqlEdges {
         }
     }
 
-    /// Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
+    /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
     async fn window(&self, start: i64, end: i64) -> Self {
         self.update(self.ee.window(start, end))
     }
 
-    /// Creates a view of the Edge including all events at a specified  time .
+    /// Creates a view of the Edge including all events at a specified time.
     async fn at(&self, time: i64) -> Self {
         self.update(self.ee.at(time))
     }
@@ -135,37 +141,37 @@ impl GqlEdges {
         self.update(self.ee.latest())
     }
 
-    /// Creates a view of the Edge including all events that have not been explicitly deleted at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+    /// Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
     async fn snapshot_at(&self, time: i64) -> Self {
         self.update(self.ee.snapshot_at(time))
     }
 
-    /// Creates a view of the Edge including all events that have not been explicitly deleted at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+    /// Creates a view of the Edge including all events that are valid at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
     async fn snapshot_latest(&self) -> Self {
         self.update(self.ee.snapshot_latest())
     }
 
-    /// Creates a view of the Edge including all events before a specified  end  (exclusive).
+    /// Creates a view of the Edge including all events before a specified end (exclusive).
     async fn before(&self, time: i64) -> Self {
         self.update(self.ee.before(time))
     }
 
-    /// Creates a view of the Edge including all events after a specified  start  (exclusive).
+    /// Creates a view of the Edge including all events after a specified start (exclusive).
     async fn after(&self, time: i64) -> Self {
         self.update(self.ee.after(time))
     }
 
-    /// Shrinks both the  start  and  end  of the window.
+    /// Shrinks both the start and end of the window.
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
         self.update(self.ee.shrink_window(start, end))
     }
 
-    /// Set the  start  of the window.
+    /// Set the start of the window.
     async fn shrink_start(&self, start: i64) -> Self {
         self.update(self.ee.shrink_start(start))
     }
 
-    /// Set the  end  of the window.
+    /// Set the end of the window.
     async fn shrink_end(&self, end: i64) -> Self {
         self.update(self.ee.shrink_end(end))
     }
@@ -232,7 +238,7 @@ impl GqlEdges {
         self.update(self.ee.explode_layers())
     }
 
-    /// Specify a sort order.
+    /// Specify a sort order from: source, destination, property, time. You can also reverse the ordering.
     async fn sorted(&self, sort_bys: Vec<EdgeSortBy>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -314,6 +320,9 @@ impl GqlEdges {
     /////////////////
 
     /// Returns the number of edges.
+    ///
+    /// Returns:
+    ///     int:
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.len()).await
@@ -322,7 +331,7 @@ impl GqlEdges {
     /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
     /// The page_index sets the number of pages to skip (defaults to 0).
     ///
-    /// For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
     async fn page(
         &self,
@@ -338,6 +347,7 @@ impl GqlEdges {
         .await
     }
 
+    /// Returns a list of all objects in the current selection of the collection. You should filter filter the collection first then call list.
     async fn list(&self) -> Vec<GqlEdge> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.iter().collect()).await

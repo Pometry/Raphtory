@@ -47,43 +47,47 @@ impl MetaGraph {
 }
 
 #[ResolvedObjectFields]
+/// Metagraphs are a GraphQL specific object that wraps  the normal graph functions. Metagraphs exist in memory and reduce the need to load full graphs from disk.
 impl MetaGraph {
-    /// Returns the metagraph name.
+    /// Returns the graph name.
     async fn name(&self) -> Option<String> {
         self.folder.get_graph_name().ok()
     }
 
-    /// Returns path of metagraph.
+    /// Returns path of graph.
     async fn path(&self) -> String {
         self.folder.get_original_path_str().to_owned()
     }
 
-    /// Returns the timestamp for the creation of the metagraph.
+    /// Returns the timestamp for the creation of the graph.
     async fn created(&self) -> Result<i64, GraphError> {
         self.folder.created_async().await
     }
 
-    /// Returns the metagraph's last opened timestamp.
+    /// Returns the graph's last opened timestamp according to system time.
     async fn last_opened(&self) -> Result<i64, GraphError> {
         self.folder.last_opened_async().await
     }
 
-    /// Returns the metagraph's last updated timestamp.
+    /// Returns the graph's last updated timestamp.
     async fn last_updated(&self) -> Result<i64, GraphError> {
         self.folder.last_updated_async().await
     }
 
-    /// Returns the number of nodes in the metagraph.
+    /// Returns the number of nodes in the graph.
     async fn node_count(&self) -> Result<usize, GraphError> {
         Ok(self.meta().await?.node_count)
     }
 
-    /// Returns the number of edges in the metagraph.
+    /// Returns the number of edges in the graph.
+    ///
+    /// Returns:
+    ///     int:
     async fn edge_count(&self) -> Result<usize, GraphError> {
         Ok(self.meta().await?.edge_count)
     }
 
-    /// Returns the metadata of the metagraph.
+    /// Returns the metadata of the graph.
     async fn metadata(&self) -> Result<Vec<GqlProperty>, GraphError> {
         Ok(self
             .meta()

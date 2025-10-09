@@ -11,7 +11,7 @@ data/apache/master/graph:
 bench-local: data/apache/master/graph
 	pnpm install --frozen-lockfile
 	pnpm build
-	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 1 && k6 run --out csv=output.csv.gz dist/bench.js' || :
+	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js' || :
 	python process-k6-output.py
 
 # call this like: make bench-e2-standard-16

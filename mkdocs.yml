@@ -112,28 +112,30 @@ nav:
           - user-guide/views/3_layer.md
           - user-guide/views/4_subgraph.md
           - user-guide/views/5_materialize.md
+          - user-guide/views/6_filtering.md
       - Running Algorithms:
           - user-guide/algorithms/0_dummy_index.md
           - user-guide/algorithms/1_intro.md
           - user-guide/algorithms/2_graph-algorithms.md
           - user-guide/algorithms/3_node-algorithms.md
           - user-guide/algorithms/4_view-algorithms.md
+          - user-guide/algorithms/5_community_detection.md
       - Exporting:
           - user-guide/export/0_dummy_index.md
           - user-guide/export/1_intro.md
           - user-guide/export/2_dataframes.md
           - user-guide/export/3_networkx.md
-      - GraphQL and User Interface:
+      - Making GraphQL queries:
           - user-guide/graphql/0_dummy_index.md
           - user-guide/graphql/1_intro.md
           - user-guide/graphql/2_run-server.md
           - user-guide/graphql/3_writing-queries.md
-          - user-guide/graphql/4_running-ui.md
       - Temporal graph representations:
           - user-guide/persistent-graph/0_dummy_index.md
           - user-guide/persistent-graph/1_intro.md
           - user-guide/persistent-graph/2_ambiguity.md
           - user-guide/persistent-graph/3_views.md
+      - user-guide/troubleshooting.md
   - Python API: reference/python/
   - GraphQL API: reference/graphql/graphql_API.md
   - Rust API: https://docs.rs/raphtory/latest/raphtory/

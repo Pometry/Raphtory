@@ -27,12 +27,13 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumen
 
 /// Document in a vector graph
 #[derive(SimpleObject)]
+#[graphql(name = "Document")]
 pub struct GqlDocument {
     /// Entity associated with document.
     pub(crate) entity: GqlDocumentEntity,
     /// Content of the document.
     pub(crate) content: String,
-    /// Embedding vector.
+    /// Similarity score with a specified query
     pub(crate) embedding: Vec<f32>,
     pub(crate) score: f32,
 }

@@ -25,7 +25,7 @@ type CollectionOfMetaGraph {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [MetaGraph!]!
@@ -46,7 +46,7 @@ type CollectionOfNamespace {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Namespace!]!
@@ -67,7 +67,7 @@ type CollectionOfNamespacedItem {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [NamespacedItem!]!
@@ -75,6 +75,25 @@ type CollectionOfNamespacedItem {
 	Returns a count of collection objects.
 	"""
 	count: Int!
+}
+
+"""
+Document in a vector graph
+"""
+type Document {
+	"""
+	Entity associated with document.
+	"""
+	entity: DocumentEntity!
+	"""
+	Content of the document.
+	"""
+	content: String!
+	"""
+	Similarity score with a specified query
+	"""
+	embedding: [Float!]!
+	score: Float!
 }
 
 """
@@ -91,13 +110,13 @@ type Edge {
 	"""
 	defaultLayer: Edge!
 	"""
-	Returns a view of Edge containing all layers in the list of  names .
+	Returns a view of Edge containing all layers in the list of names.
 	
 	Errors if any of the layers do not exist.
 	"""
 	layers(names: [String!]!): Edge!
 	"""
-	Returns a view of Edge containing all layers except the excluded list of  names .
+	Returns a view of Edge containing all layers except the excluded list of names.
 	
 	Errors if any of the layers do not exist.
 	"""
@@ -127,11 +146,13 @@ type Edge {
 	"""
 	expanding(step: WindowDuration!): EdgeWindowSet!
 	"""
-	Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
+	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
+	
+	For persistent graphs, any edge which exists at any point during the window will be included. You may want to restrict this to only edges that are present at the end of the window using the is_valid function.
 	"""
 	window(start: Int!, end: Int!): Edge!
 	"""
-	Creates a view of the Edge including all events at a specified  time .
+	Creates a view of the Edge including all events at a specified time.
 	"""
 	at(time: Int!): Edge!
 	"""
@@ -139,39 +160,39 @@ type Edge {
 	"""
 	latest: Edge!
 	"""
-	Creates a view of the Edge including all events that have not been explicitly deleted at time.
+	Creates a view of the Edge including all events that are valid at time.
 	
 	This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
 	"""
 	snapshotAt(time: Int!): Edge!
 	"""
-	Creates a view of the Edge including all events that have not been explicitly deleted at the latest time.
+	Creates a view of the Edge including all events that are valid at the latest time.
 	
 	This is equivalent to a no-op for Graph and latest() for PersistentGraph.
 	"""
 	snapshotLatest: Edge!
 	"""
-	Creates a view of the Edge including all events before a specified  end  (exclusive).
+	Creates a view of the Edge including all events before a specified end (exclusive).
 	"""
 	before(time: Int!): Edge!
 	"""
-	Creates a view of the Edge including all events after a specified  start  (exclusive).
+	Creates a view of the Edge including all events after a specified start (exclusive).
 	"""
 	after(time: Int!): Edge!
 	"""
-	Shrinks both the  start  and  end  of the window.
+	Shrinks both the start and end of the window.
 	"""
 	shrinkWindow(start: Int!, end: Int!): Edge!
 	"""
-	Set the  start  of the window.
+	Set the start of the window.
 	"""
 	shrinkStart(start: Int!): Edge!
 	"""
-	Set the  end  of the window.
+	Set the end of the window.
 	"""
 	shrinkEnd(end: Int!): Edge!
 	"""
-	Takes a specified selection of views and applies them in order given
+	Takes a specified selection of views and applies them in given order.
 	"""
 	applyViews(views: [EdgeViewCollection!]!): Edge!
 	"""
@@ -198,18 +219,30 @@ type Edge {
 	end: Int
 	"""
 	Returns the source node of the edge.
+	
+	Returns:
+	Node:
 	"""
 	src: Node!
 	"""
 	Returns the destination node of the edge.
+	
+	Returns:
+	Node:
 	"""
 	dst: Node!
 	"""
 	Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
+	
+	Returns:
+	Node:
 	"""
 	nbr: Node!
 	"""
 	Returns the id of the edge.
+	
+	Returns:
+	list[str]:
 	"""
 	id: [String!]!
 	"""
@@ -240,10 +273,16 @@ type Edge {
 	explodeLayers: Edges!
 	"""
 	Returns a list of timestamps of when an edge is added or change to an edge is made.
+	
+	Returns:
+	List[int]:
 	"""
 	history: [Int!]!
 	"""
 	Returns a list of timestamps of when an edge is deleted.
+	
+	Returns:
+	List[int]:
 	"""
 	deletions: [Int!]!
 	"""
@@ -265,7 +304,7 @@ type Edge {
 	"""
 	isDeleted: Boolean!
 	"""
-	Checks if the edge is on the same node.
+	Returns true if the edge source and destination nodes are the same.
 	
 	Returns: boolean
 	"""
@@ -274,19 +313,19 @@ type Edge {
 
 input EdgeAddition {
 	"""
-	Source node
+	Source node.
 	"""
 	src: String!
 	"""
-	Destination node
+	Destination node.
 	"""
 	dst: String!
 	"""
-	Layer
+	Layer.
 	"""
 	layer: String
 	"""
-	Metadata
+	Metadata.
 	"""
 	metadata: [PropertyInput!]
 	updates: [TemporalPropertyInput!]
@@ -407,27 +446,27 @@ input EdgeViewCollection @oneOf {
 	"""
 	window: Window
 	"""
-	Time.
+	View at a specified time.
 	"""
 	at: Int
 	"""
-	Time.
+	View before a specified time (end exclusive).
 	"""
 	before: Int
 	"""
-	Time.
+	View after a specified time (start exclusive).
 	"""
 	after: Int
 	"""
-	Window between a start and end time.
+	Shrink a Window to a specified start and end time.
 	"""
 	shrinkWindow: Window
 	"""
-	Time.
+	Set the window start to a specified time.
 	"""
 	shrinkStart: Int
 	"""
-	Time.
+	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
 }
@@ -438,7 +477,7 @@ type EdgeWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Edge!]!
@@ -447,68 +486,72 @@ type EdgeWindowSet {
 
 type Edges {
 	"""
-	Return a view of Edge containing only the default edge layer.
+	Returns a collection containing only edges in the default edge layer.
 	"""
 	defaultLayer: Edges!
 	"""
-	Returns a view of Edge containing all layers in the list of names.
+	Returns a collection containing only edges belonging to the listed layers.
 	"""
 	layers(names: [String!]!): Edges!
 	"""
-	Returns a view of Edge containing all layers except the excluded list of names.
+	Returns a collection containing edges belonging to all layers except the excluded list of layers.
 	"""
 	excludeLayers(names: [String!]!): Edges!
 	"""
-	Returns a view of Edge containing the specified layer.
+	Returns a collection containing edges belonging to the specified layer.
 	"""
 	layer(name: String!): Edges!
 	"""
-	Returns a view of Edge containing all layers except the excluded layer specified.
+	Returns a collection containing edges belonging to all layers except the excluded layer specified.
 	"""
 	excludeLayer(name: String!): Edges!
 	"""
 	Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
+	
+	Returns a collection of collections. This means that item in the window set is a collection of edges.
 	"""
 	rolling(window: WindowDuration!, step: WindowDuration): EdgesWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
+	
+	Returns a collection of collections. This means that item in the window set is a collection of edges.
 	"""
 	expanding(step: WindowDuration!): EdgesWindowSet!
 	"""
-	Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
+	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
 	"""
 	window(start: Int!, end: Int!): Edges!
 	"""
-	Creates a view of the Edge including all events at a specified  time .
+	Creates a view of the Edge including all events at a specified time.
 	"""
 	at(time: Int!): Edges!
 	latest: Edges!
 	"""
-	Creates a view of the Edge including all events that have not been explicitly deleted at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+	Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
 	"""
 	snapshotAt(time: Int!): Edges!
 	"""
-	Creates a view of the Edge including all events that have not been explicitly deleted at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+	Creates a view of the Edge including all events that are valid at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
 	"""
 	snapshotLatest: Edges!
 	"""
-	Creates a view of the Edge including all events before a specified  end  (exclusive).
+	Creates a view of the Edge including all events before a specified end (exclusive).
 	"""
 	before(time: Int!): Edges!
 	"""
-	Creates a view of the Edge including all events after a specified  start  (exclusive).
+	Creates a view of the Edge including all events after a specified start (exclusive).
 	"""
 	after(time: Int!): Edges!
 	"""
-	Shrinks both the  start  and  end  of the window.
+	Shrinks both the start and end of the window.
 	"""
 	shrinkWindow(start: Int!, end: Int!): Edges!
 	"""
-	Set the  start  of the window.
+	Set the start of the window.
 	"""
 	shrinkStart(start: Int!): Edges!
 	"""
-	Set the  end  of the window.
+	Set the end of the window.
 	"""
 	shrinkEnd(end: Int!): Edges!
 	"""
@@ -526,7 +569,7 @@ type Edges {
 	"""
 	explodeLayers: Edges!
 	"""
-	Specify a sort order.
+	Specify a sort order from: source, destination, property, time. You can also reverse the ordering.
 	"""
 	sorted(sortBys: [EdgeSortBy!]!): Edges!
 	"""
@@ -539,16 +582,22 @@ type Edges {
 	end: Int
 	"""
 	Returns the number of edges.
+	
+	Returns:
+	int:
 	"""
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Edge!]!
+	"""
+	Returns a list of all objects in the current selection of the collection. You should filter filter the collection first then call list.
+	"""
 	list: [Edge!]!
 }
 
@@ -590,27 +639,27 @@ input EdgesViewCollection @oneOf {
 	"""
 	window: Window
 	"""
-	Time.
+	View at a specified time.
 	"""
 	at: Int
 	"""
-	Time.
+	View before a specified time (end exclusive).
 	"""
 	before: Int
 	"""
-	Time.
+	View after a specified time (start exclusive).
 	"""
 	after: Int
 	"""
-	Window between a start and end time.
+	Shrink a Window to a specified start and end time.
 	"""
 	shrinkWindow: Window
 	"""
-	Time.
+	Set the window start to a specified time.
 	"""
 	shrinkStart: Int
 	"""
-	Time.
+	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
 }
@@ -621,7 +670,7 @@ type EdgesWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Edges!]!
@@ -629,96 +678,13 @@ type EdgesWindowSet {
 }
 
 
-"""
-Document in a vector graph
-"""
-type GqlDocument {
-	"""
-	Entity associated with document.
-	"""
-	entity: DocumentEntity!
-	"""
-	Content of the document.
-	"""
-	content: String!
-	"""
-	Embedding vector.
-	"""
-	embedding: [Float!]!
-	score: Float!
-}
-
-type GqlIndexSpec {
-	"""
-	Returns node metadata.
-	"""
-	nodeMetadata: [String!]!
-	"""
-	Returns node properties.
-	"""
-	nodeProperties: [String!]!
-	"""
-	Returns edge metadata.
-	"""
-	edgeMetadata: [String!]!
-	"""
-	Returns edge properties.
-	"""
-	edgeProperties: [String!]!
-}
-
-type GqlVectorSelection {
-	"""
-	Returns a list of nodes in the current selection.
-	"""
-	nodes: [Node!]!
-	"""
-	Returns a list of edges in the current selection.
-	"""
-	edges: [Edge!]!
-	"""
-	Returns a list of documents in the current selection.
-	"""
-	getDocuments: [GqlDocument!]!
-	"""
-	Adds all the documents associated with the specified nodes to the current selection.
-	
-	Documents added by this call are assumed to have a score of 0.
-	"""
-	addNodes(nodes: [String!]!): GqlVectorSelection!
-	"""
-	Adds all the documents associated with the specified edges to the current selection.
-	
-	Documents added by this call are assumed to have a score of 0.
-	"""
-	addEdges(edges: [InputEdge!]!): GqlVectorSelection!
-	"""
-	Add all the documents a specified number of hops away to the selection.
-	
-	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
-	"""
-	expand(hops: Int!, window: Window): GqlVectorSelection!
-	"""
-	Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
-	"""
-	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-	"""
-	Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
-	"""
-	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-	"""
-	Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
-	"""
-	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-}
-
 type Graph {
 	"""
-	Returns the names of all layers in the graph.
+	Returns the names of all layers in the graphview.
 	"""
 	uniqueLayers: [String!]!
 	"""
-	Returns a view containing only the default edge layer.
+	Returns a view containing only the default layer.
 	"""
 	defaultLayer: Graph!
 	"""
@@ -738,7 +704,7 @@ type Graph {
 	"""
 	excludeLayer(name: String!): Graph!
 	"""
-	Returns a subgraph of a specified set of nodes.
+	Returns a subgraph of a specified set of nodes which contains only the edges that connect nodes of the subgraph to each other.
 	"""
 	subgraph(nodes: [String!]!): Graph!
 	"""
@@ -754,7 +720,7 @@ type Graph {
 	"""
 	excludeNodes(nodes: [String!]!): Graph!
 	"""
-	Creates a rolling window with the specified window size and an optional step..
+	Creates a rolling window with the specified window size and an optional step.
 	"""
 	rolling(window: WindowDuration!, step: WindowDuration): GraphWindowSet!
 	"""
@@ -762,7 +728,7 @@ type Graph {
 	"""
 	expanding(step: WindowDuration!): GraphWindowSet!
 	"""
-	Return a graph containing only the activity between  start  and  end  measured as milliseconds from epoch
+	Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
 	"""
 	window(start: Int!, end: Int!): Graph!
 	"""
@@ -774,11 +740,11 @@ type Graph {
 	"""
 	latest: Graph!
 	"""
-	Create a view including all events that have not been explicitly deleted at the specified time.
+	Create a view including all events that are valid at the specified time.
 	"""
 	snapshotAt(time: Int!): Graph!
 	"""
-	Create a view including all events that have not been explicitly deleted at the latest time.
+	Create a view including all events that are valid at the latest time.
 	"""
 	snapshotLatest: Graph!
 	"""
@@ -794,11 +760,11 @@ type Graph {
 	"""
 	shrinkWindow(start: Int!, end: Int!): Graph!
 	"""
-	Set the start of the window to the larger of start and self.start().
+	Set the start of the window to the larger of the specified value or current start.
 	"""
 	shrinkStart(start: Int!): Graph!
 	"""
-	Set the end of the window to the smaller of end and self.end()
+	Set the end of the window to the smaller of the specified value or current end.
 	"""
 	shrinkEnd(end: Int!): Graph!
 	"""
@@ -806,7 +772,7 @@ type Graph {
 	"""
 	created: Int!
 	"""
-	Returns the graph's last opened timestamp.
+	Returns the graph's last opened timestamp according to system time.
 	"""
 	lastOpened: Int!
 	"""
@@ -839,6 +805,9 @@ type Graph {
 	latestEdgeTime(includeNegative: Boolean): Int
 	"""
 	Returns the number of edges in the graph.
+	
+	Returns:
+	int:
 	"""
 	countEdges: Int!
 	"""
@@ -847,6 +816,8 @@ type Graph {
 	countTemporalEdges: Int!
 	"""
 	Returns the number of nodes in the graph.
+	
+	Optionally takes a list of node ids to return a subset.
 	"""
 	countNodes: Int!
 	"""
@@ -854,7 +825,7 @@ type Graph {
 	"""
 	hasNode(name: String!): Boolean!
 	"""
-	Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id.
+	Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. You can restrict the search to a specified layer.
 	"""
 	hasEdge(src: String!, dst: String!, layer: String): Boolean!
 	"""
@@ -906,27 +877,31 @@ type Graph {
 	nodeFilter(filter: NodeFilter!): Graph!
 	edgeFilter(filter: EdgeFilter!): Graph!
 	"""
-	Get index specification.
+	(Experimental) Get index specification.
 	"""
-	getIndexSpec: GqlIndexSpec!
+	getIndexSpec: IndexSpec!
 	"""
-	Searches for nodes which match the given filter expression.
+	(Experimental) Searches for nodes which match the given filter expression.
 	
 	Uses Tantivy's exact search.
 	"""
 	searchNodes(filter: NodeFilter!, limit: Int!, offset: Int!): [Node!]!
 	"""
-	Searches for edges which match the given filter expression.
+	(Experimental) Searches the index for edges which match the given filter expression.
 	
 	Uses Tantivy's exact search.
 	"""
 	searchEdges(filter: EdgeFilter!, limit: Int!, offset: Int!): [Edge!]!
+	"""
+	Returns the specified graph view or if none is specified returns the default view.
+	This allows you to specify multiple operations together.
+	"""
 	applyViews(views: [GraphViewCollection!]!): Graph!
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
@@ -987,11 +962,11 @@ input GraphViewCollection @oneOf {
 	"""
 	window: Window
 	"""
-	Time.
+	View at a specified time.
 	"""
 	at: Int
 	"""
-	Latest time.
+	View at the latest time.
 	"""
 	latest: Boolean
 	"""
@@ -1003,23 +978,23 @@ input GraphViewCollection @oneOf {
 	"""
 	snapshotLatest: Boolean
 	"""
-	Time.
+	View before a specified time (end exclusive).
 	"""
 	before: Int
 	"""
-	Time.
+	View after a specified time (start exclusive).
 	"""
 	after: Int
 	"""
-	Window between a start and end time.
+	Shrink a Window to a specified start and end time.
 	"""
 	shrinkWindow: Window
 	"""
-	Time.
+	Set the window start to a specified time.
 	"""
 	shrinkStart: Int
 	"""
-	Time.
+	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
 	"""
@@ -1041,13 +1016,32 @@ type GraphWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Graph!]!
 	list: [Graph!]!
 }
 
+
+type IndexSpec {
+	"""
+	Returns node metadata.
+	"""
+	nodeMetadata: [String!]!
+	"""
+	Returns node properties.
+	"""
+	nodeProperties: [String!]!
+	"""
+	Returns edge metadata.
+	"""
+	edgeMetadata: [String!]!
+	"""
+	Returns edge properties.
+	"""
+	edgeProperties: [String!]!
+}
 
 input IndexSpecInput {
 	"""
@@ -1085,35 +1079,38 @@ type LayerSchema {
 
 type MetaGraph {
 	"""
-	Returns the metagraph name.
+	Returns the graph name.
 	"""
 	name: String
 	"""
-	Returns path of metagraph.
+	Returns path of graph.
 	"""
 	path: String!
 	"""
-	Returns the timestamp for the creation of the metagraph.
+	Returns the timestamp for the creation of the graph.
 	"""
 	created: Int!
 	"""
-	Returns the metagraph's last opened timestamp.
+	Returns the graph's last opened timestamp according to system time.
 	"""
 	lastOpened: Int!
 	"""
-	Returns the metagraph's last updated timestamp.
+	Returns the graph's last updated timestamp.
 	"""
 	lastUpdated: Int!
 	"""
-	Returns the number of nodes in the metagraph.
+	Returns the number of nodes in the graph.
 	"""
 	nodeCount: Int!
 	"""
-	Returns the number of edges in the metagraph.
+	Returns the number of edges in the graph.
+	
+	Returns:
+	int:
 	"""
 	edgeCount: Int!
 	"""
-	Returns the metadata of the metagraph.
+	Returns the metadata of the graph.
 	"""
 	metadata: [Property!]!
 }
@@ -1139,7 +1136,7 @@ type Metadata {
 
 input MetadataFilterExpr {
 	"""
-	Name.
+	Node metadata to compare against.
 	"""
 	name: String!
 	"""
@@ -1154,7 +1151,7 @@ input MetadataFilterExpr {
 
 type MutRoot {
 	"""
-	Returns a plugin.
+	Returns a collection of mutation plugins.
 	"""
 	plugins: MutationPlugin!
 	"""
@@ -1180,7 +1177,7 @@ type MutRoot {
 	"""
 	copyGraph(path: String!, newPath: String!): Boolean!
 	"""
-	Upload graph file from a path on the client.
+	Upload a graph file from a path on the client using GQL multipart uploading.
 	
 	Returns::
 	name of the new graph
@@ -1201,50 +1198,50 @@ type MutRoot {
 	"""
 	createSubgraph(parentPath: String!, nodes: [String!]!, newPath: String!, overwrite: Boolean!): String!
 	"""
-	Creates search index.
+	(Experimental) Creates search index.
 	"""
 	createIndex(path: String!, indexSpec: IndexSpecInput, inRam: Boolean!): Boolean!
 }
 
 type MutableEdge {
 	"""
-	Use to check if adding the edge was successful
+	Use to check if adding the edge was successful.
 	"""
 	success: Boolean!
 	"""
-	Get the non-mutable edge for querying
+	Get the non-mutable edge for querying.
 	"""
 	edge: Edge!
 	"""
-	Get the mutable source node of the edge
+	Get the mutable source node of the edge.
 	"""
 	src: MutableNode!
 	"""
-	Get the mutable destination node of the edge
+	Get the mutable destination node of the edge.
 	"""
 	dst: MutableNode!
 	"""
-	Mark the edge as deleted at time  time
+	Mark the edge as deleted at time time.
 	"""
 	delete(time: Int!, layer: String): Boolean!
 	"""
-	Add metadata to the edge (errors if the value already exists)
+	Add metadata to the edge (errors if the value already exists).
 	
-	If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
+	If this is called after add_edge, the layer is inherited from the add_edge and does not
 	need to be specified again.
 	"""
 	addMetadata(properties: [PropertyInput!]!, layer: String): Boolean!
 	"""
-	Update metadata of the edge (existing values are overwritten)
+	Update metadata of the edge (existing values are overwritten).
 	
-	If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
+	If this is called after add_edge, the layer is inherited from the add_edge and does not
 	need to be specified again.
 	"""
 	updateMetadata(properties: [PropertyInput!]!, layer: String): Boolean!
 	"""
-	Add temporal property updates to the edge
+	Add temporal property updates to the edge.
 	
-	If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
+	If this is called after add_edge, the layer is inherited from the add_edge and does not
 	need to be specified again.
 	"""
 	addUpdates(time: Int!, properties: [PropertyInput!], layer: String): Boolean!
@@ -1252,78 +1249,78 @@ type MutableEdge {
 
 type MutableGraph {
 	"""
-	Get the non-mutable graph
+	Get the non-mutable graph.
 	"""
 	graph: Graph!
 	"""
-	Get mutable existing node
+	Get mutable existing node.
 	"""
 	node(name: String!): MutableNode
 	"""
-	Add a new node or add updates to an existing node
+	Add a new node or add updates to an existing node.
 	"""
 	addNode(time: Int!, name: String!, properties: [PropertyInput!], nodeType: String): MutableNode!
 	"""
-	Create a new node or fail if it already exists
+	Create a new node or fail if it already exists.
 	"""
 	createNode(time: Int!, name: String!, properties: [PropertyInput!], nodeType: String): MutableNode!
 	"""
-	Add a batch of nodes
+	Add a batch of nodes.
 	"""
 	addNodes(nodes: [NodeAddition!]!): Boolean!
 	"""
-	Get a mutable existing edge
+	Get a mutable existing edge.
 	"""
 	edge(src: String!, dst: String!): MutableEdge
 	"""
-	Add a new edge or add updates to an existing edge
+	Add a new edge or add updates to an existing edge.
 	"""
 	addEdge(time: Int!, src: String!, dst: String!, properties: [PropertyInput!], layer: String): MutableEdge!
 	"""
-	Add a batch of edges
+	Add a batch of edges.
 	"""
 	addEdges(edges: [EdgeAddition!]!): Boolean!
 	"""
-	Mark an edge as deleted (creates the edge if it did not exist)
+	Mark an edge as deleted (creates the edge if it did not exist).
 	"""
 	deleteEdge(time: Int!, src: String!, dst: String!, layer: String): MutableEdge!
 	"""
-	Add temporal properties to graph
+	Add temporal properties to graph.
 	"""
 	addProperties(t: Int!, properties: [PropertyInput!]!): Boolean!
 	"""
-	Add metadata to graph (errors if the property already exists)
+	Add metadata to graph (errors if the property already exists).
 	"""
 	addMetadata(properties: [PropertyInput!]!): Boolean!
 	"""
-	Update metadata of the graph (overwrites existing values)
+	Update metadata of the graph (overwrites existing values).
 	"""
 	updateMetadata(properties: [PropertyInput!]!): Boolean!
 }
 
 type MutableNode {
 	"""
-	Use to check if adding the node was successful
+	Use to check if adding the node was successful.
 	"""
 	success: Boolean!
 	"""
-	Get the non-mutable  Node
+	Get the non-mutable Node.
 	"""
 	node: Node!
 	"""
-	Add metadata to the node (errors if the property already exists)
+	Add metadata to the node (errors if the property already exists).
 	"""
 	addMetadata(properties: [PropertyInput!]!): Boolean!
 	"""
-	Set the node type (errors if the node already has a non-default type)
+	Set the node type (errors if the node already has a non-default type).
 	"""
 	setNodeType(newType: String!): Boolean!
 	"""
-	Update metadata of the node (overwrites existing property values)
+	Update metadata of the node (overwrites existing property values).
 	"""
 	updateMetadata(properties: [PropertyInput!]!): Boolean!
 	"""
-	Add temporal property updates to the node
+	Add temporal property updates to the node.
 	"""
 	addUpdates(time: Int!, properties: [PropertyInput!]): Boolean!
 }
@@ -1355,7 +1352,7 @@ type Node {
 	"""
 	name: String!
 	"""
-	Return a view of the node containing only the default edge layer.
+	Return a view of the node containing only the default layer.
 	"""
 	defaultLayer: Node!
 	"""
@@ -1363,19 +1360,21 @@ type Node {
 	"""
 	layers(names: [String!]!): Node!
 	"""
-	Return a view of node containing all layers except those specified.
+	Returns a collection containing nodes belonging to all layers except the excluded list of layers.
 	"""
 	excludeLayers(names: [String!]!): Node!
 	"""
-	Return a view of node containing the specified layer.
+	Returns a collection containing nodes belonging to the specified layer.
 	"""
 	layer(name: String!): Node!
 	"""
-	Return a view of node containing all layers except those specified.
+	Returns a collection containing nodes belonging to all layers except the excluded layer.
 	"""
 	excludeLayer(name: String!): Node!
 	"""
 	Creates a WindowSet with the specified window size and optional step using a rolling window.
+	
+	Returns a collection of collections. This means that item in the window set is a collection of nodes.
 	"""
 	rolling(window: WindowDuration!, step: WindowDuration): NodeWindowSet!
 	"""
@@ -1395,11 +1394,11 @@ type Node {
 	"""
 	latest: Node!
 	"""
-	Create a view of the node including all events that have not been explicitly deleted at the specified time.
+	Create a view of the node including all events that are valid at the specified time.
 	"""
 	snapshotAt(time: Int!): Node!
 	"""
-	Create a view of the node including all events that have not been explicitly deleted at the latest time.
+	Create a view of the node including all events that are valid at the latest time.
 	"""
 	snapshotLatest: Node!
 	"""
@@ -1411,11 +1410,11 @@ type Node {
 	"""
 	after(time: Int!): Node!
 	"""
-	Shrink both the start and end of the window.
+	Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
 	"""
 	shrinkWindow(start: Int!, end: Int!): Node!
 	"""
-	Set the start of the window to the larger of a specified start time  and self.start().
+	Set the start of the window to the larger of a specified start time and self.start().
 	"""
 	shrinkStart(start: Int!): Node!
 	"""
@@ -1427,11 +1426,17 @@ type Node {
 	Returns the earliest time that the node exists.
 	"""
 	earliestTime: Int
+	"""
+	Returns the time of the first update made to the node.
+	"""
 	firstUpdate: Int
 	"""
 	Returns the latest time that the node exists.
 	"""
 	latestTime: Int
+	"""
+	Returns the time of the last update made to the node.
+	"""
 	lastUpdate: Int
 	"""
 	Gets the start time for the window. Errors if there is no window.
@@ -1466,7 +1471,7 @@ type Node {
 	"""
 	metadata: Metadata!
 	"""
-	Returns the number of edges connected to this node.
+	Returns the number of unique counter parties for this node.
 	"""
 	degree: Int!
 	"""
@@ -1495,7 +1500,13 @@ type Node {
 	Returns neighbouring nodes.
 	"""
 	neighbours: PathFromNode!
+	"""
+	Returns the number of neighbours that have at least one in-going edge to this node.
+	"""
 	inNeighbours: PathFromNode!
+	"""
+	Returns the number of neighbours that have at least one out-going edge from this node.
+	"""
 	outNeighbours: PathFromNode!
 	nodeFilter(filter: NodeFilter!): Node!
 }
@@ -1532,7 +1543,7 @@ enum NodeField {
 
 input NodeFieldFilter {
 	"""
-	Node Field filter.
+	Node component to compare against.
 	"""
 	field: NodeField!
 	"""
@@ -1610,7 +1621,7 @@ input NodeViewCollection @oneOf {
 	"""
 	defaultLayer: Boolean
 	"""
-	Latest time.
+	View at the latest time.
 	"""
 	latest: Boolean
 	"""
@@ -1642,27 +1653,27 @@ input NodeViewCollection @oneOf {
 	"""
 	window: Window
 	"""
-	Time.
+	View at a specified time.
 	"""
 	at: Int
 	"""
-	Time.
+	View before a specified time (end exclusive).
 	"""
 	before: Int
 	"""
-	Time.
+	View after a specified time (start exclusive).
 	"""
 	after: Int
 	"""
-	Window between a start and end time.
+	Shrink a Window to a specified start and end time.
 	"""
 	shrinkWindow: Window
 	"""
-	Time.
+	Set the window start to a specified time.
 	"""
 	shrinkStart: Int
 	"""
-	Time.
+	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
 	"""
@@ -1677,7 +1688,7 @@ type NodeWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Node!]!
@@ -1726,11 +1737,11 @@ type Nodes {
 	"""
 	latest: Nodes!
 	"""
-	Create a view of the nodes including all events that have not been explicitly deleted at the specified time.
+	Create a view of the nodes including all events that are valid at the specified time.
 	"""
 	snapshotAt(time: Int!): Nodes!
 	"""
-	Create a view of the nodes including all events that have not been explicitly deleted at the latest time.
+	Create a view of the nodes including all events that are valid at the latest time.
 	"""
 	snapshotLatest: Nodes!
 	"""
@@ -1746,7 +1757,7 @@ type Nodes {
 	"""
 	shrinkWindow(start: Int!, end: Int!): Nodes!
 	"""
-	Set the start of the window to the larger of a specified start time  and self.start().
+	Set the start of the window to the larger of a specified start time and self.start().
 	"""
 	shrinkStart(start: Int!): Nodes!
 	"""
@@ -1776,7 +1787,7 @@ type Nodes {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Node!]!
@@ -1793,7 +1804,7 @@ input NodesViewCollection @oneOf {
 	"""
 	defaultLayer: Boolean
 	"""
-	Latest time.
+	View at the latest time.
 	"""
 	latest: Boolean
 	"""
@@ -1821,31 +1832,31 @@ input NodesViewCollection @oneOf {
 	"""
 	window: Window
 	"""
-	Time.
+	View at a specified time.
 	"""
 	at: Int
 	"""
-	Time.
+	Snapshot at specified time.
 	"""
 	snapshotAt: Int
 	"""
-	Time.
+	View before a specified time (end exclusive).
 	"""
 	before: Int
 	"""
-	Time.
+	View after a specified time (start exclusive).
 	"""
 	after: Int
 	"""
-	Window between a start and end time.
+	Shrink a Window to a specified start and end time.
 	"""
 	shrinkWindow: Window
 	"""
-	Time.
+	Set the window start to a specified time.
 	"""
 	shrinkStart: Int
 	"""
-	Time.
+	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
 	"""
@@ -1864,7 +1875,7 @@ type NodesWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Nodes!]!
@@ -1975,11 +1986,11 @@ type PathFromNode {
 	"""
 	at(time: Int!): PathFromNode!
 	"""
-	Create a view of the PathFromNode including all events that have not been explicitly deleted at the latest time.
+	Create a view of the PathFromNode including all events that are valid at the latest time.
 	"""
 	snapshotLatest: PathFromNode!
 	"""
-	Create a view of the PathFromNode including all events that have not been explicitly deleted at  the specified time.
+	Create a view of the PathFromNode including all events that are valid at the specified time.
 	"""
 	snapshotAt(time: Int!): PathFromNode!
 	"""
@@ -2023,7 +2034,7 @@ type PathFromNode {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Node!]!
@@ -2032,6 +2043,9 @@ type PathFromNode {
 	Returns the node ids.
 	"""
 	ids: [String!]!
+	"""
+	Takes a specified selection of views and applies them in given order.
+	"""
 	applyViews(views: [PathFromNodeViewCollection!]!): PathFromNode!
 }
 
@@ -2069,27 +2083,27 @@ input PathFromNodeViewCollection @oneOf {
 	"""
 	window: Window
 	"""
-	Time.
+	View at a specified time.
 	"""
 	at: Int
 	"""
-	Time.
+	View before a specified time (end exclusive).
 	"""
 	before: Int
 	"""
-	Time.
+	View after a specified time (start exclusive).
 	"""
 	after: Int
 	"""
-	Window between a start and end time.
+	Shrink a Window to a specified start and end time.
 	"""
 	shrinkWindow: Window
 	"""
-	Time.
+	Set the window start to a specified time.
 	"""
 	shrinkStart: Int
 	"""
-	Time.
+	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
 }
@@ -2100,7 +2114,7 @@ type PathFromNodeWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [PathFromNode!]!
@@ -2135,7 +2149,7 @@ type Property {
 
 input PropertyFilterExpr {
 	"""
-	Name.
+	Node property to compare against.
 	"""
 	name: String!
 	"""
@@ -2245,6 +2259,9 @@ type ShortestPathOutput {
 	nodes: [String!]!
 }
 
+"""
+SomePropertySpec object containing lists of metadata and property names.
+"""
 input SomePropertySpec {
 	"""
 	List of metadata.
@@ -2309,7 +2326,7 @@ input TemporalPropertyFilterExpr {
 	"""
 	name: String!
 	"""
-	Temporal property type.
+	Type of temporal property. Choose from: any, latest.
 	"""
 	temporal: TemporalType!
 	"""
@@ -2377,23 +2394,68 @@ input Value @oneOf {
 	object: [ObjectEntry!]
 }
 
+type VectorSelection {
+	"""
+	Returns a list of nodes in the current selection.
+	"""
+	nodes: [Node!]!
+	"""
+	Returns a list of edges in the current selection.
+	"""
+	edges: [Edge!]!
+	"""
+	Returns a list of documents in the current selection.
+	"""
+	getDocuments: [Document!]!
+	"""
+	Adds all the documents associated with the specified nodes to the current selection.
+	
+	Documents added by this call are assumed to have a score of 0.
+	"""
+	addNodes(nodes: [String!]!): VectorSelection!
+	"""
+	Adds all the documents associated with the specified edges to the current selection.
+	
+	Documents added by this call are assumed to have a score of 0.
+	"""
+	addEdges(edges: [InputEdge!]!): VectorSelection!
+	"""
+	Add all the documents a specified number of hops away to the selection.
+	
+	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
+	"""
+	expand(hops: Int!, window: Window): VectorSelection!
+	"""
+	Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
+	"""
+	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	"""
+	Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
+	"""
+	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	"""
+	Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
+	"""
+	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+}
+
 type VectorisedGraph {
 	"""
 	Returns an empty selection of documents.
 	"""
-	emptySelection: GqlVectorSelection!
+	emptySelection: VectorSelection!
 	"""
 	Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
 	"""
-	entitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	entitiesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
 	"""
 	Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
 	"""
-	nodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	nodesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
 	"""
 	Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
 	"""
-	edgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	edgesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
 }
 
 input Window {
@@ -2410,6 +2472,8 @@ input Window {
 input WindowDuration @oneOf {
 	"""
 	Duration of window period.
+	
+	Choose from:
 	"""
 	duration: String
 	"""
