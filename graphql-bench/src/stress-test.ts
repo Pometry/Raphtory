@@ -13,6 +13,10 @@ import {
     PathFromNodeViewCollection,
 } from './__generated';
 
+// ------------- CONF PARAMETERS
+const TRAVERSAL_RATIO = 0; // 0.3; // TODO: bring back
+// --------------------------------------------
+
 const TIME_RANGE = 2000 * 365 * 24 * 60 * 60 * 1000;
 const randomTime = () => Math.floor(Math.random() * TIME_RANGE);
 
@@ -333,11 +337,8 @@ function readEdgePage() {
 
 const QUERIES: ({ query: () => void, weight: number })[] = [
   { query: addEdge, weight: 1 },
-  { query: addNode, weight: 1 },
-  { query: deleteEdge, weight: 1 },
-  // { query: readNode, weight: 2 },
-  // { query: readNodePage, weight: 2 },
-  // { query: readEdgePage, weight: 2 },
+  // { query: addNode, weight: 1 },
+  // { query: deleteEdge, weight: 1 },
   { query: randomComposedReadQuery, weight: 6 },
 ]
 
@@ -404,9 +405,6 @@ function randomComposedReadQuery() {
       }
     }
   };
-  // console.log("--------------------------------------------")
-  // console.log(JSON.stringify(query, null, 2));
-  // console.log("--------------------------------------------")
   fetchAndCheck(query)
 }
 
@@ -418,59 +416,59 @@ function randomInt(n: number) {
 function randomEntityQuery(): GraphGenqlSelection {
   const { numNodes, numEdges } = queryGraphSize("empty")
   const { src, dst, name } = getRandomEntityIds({numEdges})
-  // console.log({src, dst, name})
   if (src === undefined || dst === undefined || name === undefined) {
-    // console.log(">>>>>>>>>>>>>>> early return")
     return {}
   }
   const nodeQuery = randomNodeQuery()
   const edgeQuery = randomEdgeQuery()
-  // const properties = randomPropertyQuery()
-  // const traversal = randomTraversal()
   const view = randomView();
-  const queries: GraphGenqlSelection[] = [{
-    nodes: {
-      applyViews: {
-        ...view,
-        page: {
-          __args: {
-            limit: 20,
-            offset: randomInt(numNodes),
-          },
-          ...nodeQuery
-        }
-      },
-    }
-  },
-  {
-    node: {
-      __args: {
-        name,
-      },
-      ...nodeQuery
-    }
-  }, {
-    edges: {
-      applyViews: {
-        ...view,
-        page: {
-          __args: {
-            limit: 20,
-            offset: randomInt(numEdges),
-          },
-            ...edgeQuery,
-        }
-      },
-    }
-  }, {
-    edge: {
-      __args: {
-        src,
-        dst,
-      },
-      ...edgeQuery,
-    }
-  }];
+  const queries: GraphGenqlSelection[] = [
+    // { // just enabling this one causes the first version of the panic
+    //   nodes: {
+    //     applyViews: {
+    //       ...view,
+    //       page: {
+    //         __args: {
+    //           limit: 20,
+    //           offset: randomInt(numNodes),
+    //         },
+    //         ...nodeQuery
+    //       }
+    //     },
+    //   }
+    // },
+    // {
+    //   node: {
+    //     __args: {
+    //       name,
+    //     },
+    //     ...nodeQuery
+    //   }
+    // },
+    { // just enabling this one causes a panic in a different place
+      edges: {
+        applyViews: {
+          ...view,
+          page: {
+            __args: {
+              limit: 20,
+              offset: randomInt(numEdges),
+            },
+              ...edgeQuery,
+          }
+        },
+      }
+    },
+    // {
+    //   edge: {
+    //     __args: {
+    //       src,
+    //       dst,
+    //     },
+    //     ...edgeQuery,
+    //   }
+    // }
+  ];
   return pickRandom(queries);
 }
 
@@ -572,7 +570,7 @@ function randomTraversal(): NodeGenqlSelection {
 
 function randomNodeQuery(): NodeGenqlSelection {
   let traversal: NodeGenqlSelection = {}
-  if (Math.random() > 0.7) { // this is a fire line to avoid infinite recursions
+  if (Math.random() > 1 - TRAVERSAL_RATIO) { // this is a fire line to avoid infinite recursions
     traversal = randomTraversal();
   }
   const properties = randomPropertyQuery()
