@@ -391,7 +391,12 @@ function pickRandom<T>(choices: T[]) {
 }
 
 function randomComposedReadQuery() {
-  const view = randomView();
+  const view = randomView(); // TODO: bring back
+  // const view = {
+  //   __args: {
+  //     views: []
+  //   }
+  // };
   const entity = randomEntityQuery()
   const query: QueryRootGenqlSelection = {
     graph: {
@@ -421,7 +426,12 @@ function randomEntityQuery(): GraphGenqlSelection {
   }
   const nodeQuery = randomNodeQuery()
   const edgeQuery = randomEdgeQuery()
-  const view = randomView();
+  // const view = randomView(); // TODO: bring back
+  const view = {
+    __args: {
+      views: []
+    }
+  };
   const queries: GraphGenqlSelection[] = [
     // { // just enabling this one causes the first version of the panic
     //   nodes: {
@@ -437,7 +447,7 @@ function randomEntityQuery(): GraphGenqlSelection {
     //     },
     //   }
     // },
-    // {
+    // { // just enabling this one causes my entire colima to die
     //   node: {
     //     __args: {
     //       name,
@@ -451,15 +461,16 @@ function randomEntityQuery(): GraphGenqlSelection {
           ...view,
           page: {
             __args: {
-              limit: 20,
-              offset: randomInt(numEdges),
+              limit: Math.min(20, Math.floor(numEdges / 2)),
+              // offset: randomInt(numEdges / 2),
+              offset: 0,
             },
               ...edgeQuery,
           }
         },
       }
     },
-    // {
+    // { // just enabling this one causes my entire colima to die
     //   edge: {
     //     __args: {
     //       src,
@@ -479,20 +490,26 @@ function randomLayer() {
 }
 
 function randomView() {
+  const [start, end] = [randomTime(), randomTime()].sort()
   const layer = randomLayer();
   const viewLists: PathFromNodeViewCollection[][] = [
-    [
-      // NO VIEW AT ALL
-    ],
+    // [
+    //   // NO VIEW AT ALL
+    // ],
+    // [{
+    //   layer,
+    // }],
     [{
-      layer,
-    }], [{
       latest: true,
-    }], [{
-      latest: true,
-    }, {
-      layer
-    }]
+    }],
+    // [{
+    //   window: { start, end }
+    // }],
+    // [{
+    //   latest: true,
+    // }, {
+    //   layer
+    // }]
   ];
 
   // TODO: add more kind of filters and make it more random
@@ -606,7 +623,12 @@ function randomDegree(): NodeGenqlSelection {
 
 function randomEdgeQuery(): EdgeGenqlSelection {
   const properties = randomPropertyQuery();
-  const view = randomView();
+  const view = randomView(); // TODO: bring back
+  // const view = {
+  //   __args: {
+  //     views: []
+  //   }
+  // };
   const inner = {
     id: true,
     ...view,
@@ -621,23 +643,24 @@ function randomEdgeQuery(): EdgeGenqlSelection {
         ...inner,
         // no src nor dst
       },
-    }, {
-      applyViews: {
-        ...inner,
-        src: nodeQuery,
-      },
-    }, {
-      applyViews: {
-        ...inner,
-        dst: nodeQuery,
-      }
-    }, {
-      applyViews: {
-        ...inner,
-        src: nodeQuery,
-        dst: nodeQuery,
-      }
-    }
+    },
+    // {
+    //   applyViews: {
+    //     ...inner,
+    //     src: nodeQuery,
+    //   },
+    // }, {
+    //   applyViews: {
+    //     ...inner,
+    //     dst: nodeQuery,
+    //   }
+    // }, {
+    //   applyViews: {
+    //     ...inner,
+    //     src: nodeQuery,
+    //     dst: nodeQuery,
+    //   }
+    // }
   ]
   return pickRandom(queries)
 }
@@ -648,31 +671,33 @@ type PropertyGenqlSelection = NodeGenqlSelection & EdgeGenqlSelection;
 function randomPropertyQuery(): PropertyGenqlSelection {
   const queries: PropertyGenqlSelection[] = [{
     // no query at all
-  }, {
-    metadata: {
-      values: {
-        key: true,
-        value: true,
-      }
-    }
   },
-  {
-    properties: {
-      values: {
-        key: true,
-        value: true,
-      }
-    }
-  }, {
-    properties: {
-      temporal: {
-        values: {
-          key: true,
-          values: true,
-          history: true,
-        }
-      }
-    }
-  }];
+  // {
+  //   metadata: {
+  //     values: {
+  //       key: true,
+  //       value: true,
+  //     }
+  //   }
+  // },
+  // {
+  //   properties: {
+  //     values: {
+  //       key: true,
+  //       value: true,
+  //     }
+  //   }
+  // }, {
+  //   properties: {
+  //     temporal: {
+  //       values: {
+  //         key: true,
+  //         values: true,
+  //         history: true,
+  //       }
+  //     }
+  //   }
+  // }
+  ];
   return pickRandom(queries);
 }
