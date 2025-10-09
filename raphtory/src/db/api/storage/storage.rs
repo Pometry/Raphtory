@@ -333,10 +333,6 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
         Ok(self.session.next_event_id()?)
     }
 
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
-        Ok(self.session.reserve_event_ids(num_ids)?)
-    }
-
     fn set_max_event_id(&self, value: usize) -> Result<usize, Self::Error> {
         Ok(self.session.set_max_event_id(value)?)
     }
