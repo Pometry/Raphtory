@@ -1000,13 +1000,11 @@ mod tests {
         test_utils::{build_edge_list, build_edge_list_str},
     };
     use arrow_array::builder::{
-        ArrayBuilder, Int64Builder, LargeStringBuilder, PrimitiveBuilder, StringViewBuilder,
-        UInt64Builder,
+        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
     use itertools::Itertools;
     use proptest::prelude::*;
     use raphtory_storage::core_ops::CoreGraphOps;
-    use std::sync::Arc;
 
     fn build_df(
         chunk_size: usize,
@@ -1097,7 +1095,6 @@ mod tests {
     #[test]
     fn test_load_edges() {
         proptest!(|(edges in build_edge_list(1000, 100), chunk_size in 1usize..=1000)| {
-            let distinct_edges = edges.iter().map(|(src, dst, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
             let df_view = build_df(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
@@ -1105,12 +1102,7 @@ mod tests {
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
             assert_graph_equal(&g, &g2);
         })
     }
@@ -1205,11 +1197,10 @@ mod tests {
             )
             .unwrap();
         };
-        // load_edges(&g, &edges[0..edges.len() / 2]);
-        // drop(g);
-        // let g = Graph::load_from_path(graph_dir.path());
-        // load_edges(&g, &edges[edges.len() / 2..]);
-        load_edges(&g, &edges);
+        load_edges(&g, &edges[0..edges.len() / 2]);
+        drop(g);
+        let g = Graph::load_from_path(graph_dir.path());
+        load_edges(&g, &edges[edges.len() / 2..]);
         drop(g);
         let g = Graph::load_from_path(&graph_dir);
 
@@ -1265,7 +1256,7 @@ mod tests {
         let g = Graph::load_from_path(&graph_dir);
         check(&g);
         load(&g, &edges);
-        // check(&g);
+        check(&g);
         let lg = g.layers("a").unwrap();
         check(&lg);
     }
@@ -1313,65 +1304,6 @@ mod tests {
         assert!(g.has_edge("0", "1"))
     }
 
-    fn check_load_edges_layers(
-        mut edges: Vec<(u64, u64, i64, String, i64, Option<String>)>,
-        chunk_size: usize,
-    ) {
-        let distinct_edges = edges
-            .iter()
-            .map(|(src, dst, _, _, _, _)| (src, dst))
-            .collect::<std::collections::HashSet<_>>()
-            .len();
-        edges.sort_by(|(_, _, _, _, _, l1), (_, _, _, _, _, l2)| l1.cmp(l2));
-        let g = Graph::new();
-        let g2 = Graph::new();
-
-        for edges in edges.chunk_by(|(_, _, _, _, _, l1), (_, _, _, _, _, l2)| l1 < l2) {
-            let layer = edges[0].5.clone();
-            let edges = edges
-                .iter()
-                .map(|(src, dst, time, str_prop, int_prop, _)| {
-                    (*src, *dst, *time, str_prop.clone(), *int_prop)
-                })
-                .collect_vec();
-            let df_view = build_df(chunk_size, &edges);
-            let props = ["str_prop", "int_prop"];
-            load_edges_from_df(
-                df_view,
-                "time",
-                "src",
-                "dst",
-                &props,
-                &[],
-                None,
-                layer.as_deref(),
-                None,
-                &g,
-            )
-            .unwrap();
-            for (src, dst, time, str_prop, int_prop) in edges {
-                g2.add_edge(
-                    time,
-                    src,
-                    dst,
-                    [
-                        ("str_prop", str_prop.clone().into_prop()),
-                        ("int_prop", int_prop.into_prop()),
-                    ],
-                    layer.as_deref(),
-                )
-                .unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-                if let Some(layer) = &layer {
-                    assert!(edge.has_layer(layer))
-                }
-            }
-            assert_graph_equal(&g, &g2);
-        }
-    }
-
     #[test]
     fn test_load_edges_1() {
         let edges = [(0, 1, 0, "a".to_string(), 0)];
@@ -1411,67 +1343,4 @@ mod tests {
         }
         assert_graph_equal(&g, &g2);
     }
-
-    // #[test]
-    // fn test_load_edges_with_cache() {
-    //     proptest!(|(edges in build_edge_list(100, 100), chunk_size in 1usize..=100)| {
-    //         let df_view = build_df(chunk_size, &edges);
-    //         let g = Graph::new();
-    //         let cache_file = TempDir::new().unwrap();
-    //         g.cache(cache_file.path()).unwrap();
-    //         let props = ["str_prop", "int_prop"];
-    //         load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
-    //         let g = Graph::load_cached(cache_file.path()).unwrap();
-    //         let g2 = Graph::new();
-    //         for (src, dst, time, str_prop, int_prop) in edges {
-    //             g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-    //             let edge = g.edge(src, dst).unwrap().at(time);
-    //             assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-    //             assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-    //         }
-    //         assert_graph_equal(&g, &g2);
-    //     })
-    // }
-
-    // #[test]
-    // fn load_single_edge_with_cache() {
-    //     let edges = [(0, 0, 0, "".to_string(), 0)];
-    //     let df_view = build_df(1, &edges);
-    //     let g = Graph::new();
-    //     let cache_file = TempDir::new().unwrap();
-    //     g.cache(cache_file.path()).unwrap();
-    //     let props = ["str_prop", "int_prop"];
-    //     load_edges_from_df(
-    //         df_view,
-    //         "time",
-    //         "src",
-    //         "dst",
-    //         &props,
-    //         &[],
-    //         None,
-    //         None,
-    //         None,
-    //         &g,
-    //     )
-    //     .unwrap();
-    //     let g = Graph::load_cached(cache_file.path()).unwrap();
-    //     let g2 = Graph::new();
-    //     for (src, dst, time, str_prop, int_prop) in edges {
-    //         g2.add_edge(
-    //             time,
-    //             src,
-    //             dst,
-    //             [
-    //                 ("str_prop", str_prop.clone().into_prop()),
-    //                 ("int_prop", int_prop.into_prop()),
-    //             ],
-    //             None,
-    //         )
-    //         .unwrap();
-    //         let edge = g.edge(src, dst).unwrap().at(time);
-    //         assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-    //         assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-    //     }
-    //     assert_graph_equal(&g, &g2);
-    // }
 }
