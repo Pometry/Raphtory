@@ -101,7 +101,7 @@ jobs:
         name: Checkout ui-tests submodule
         with:
           submodules: true
-          ref: ${{ github.head_ref }}
+          token: ${{ secrets.CLASSIC_CLONE_PRIVATE_REPOS_KEY }}
       - name: Prepare for testing UI
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         working-directory: ui-tests
