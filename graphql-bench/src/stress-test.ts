@@ -92,6 +92,12 @@ function checkResponse<RT extends "binary" | "none" | "text"| undefined>(respons
               const result = 'data' in body &&
                 body.data !== undefined &&
                 body.data !== null; // FIXME: improve query checking, I wish I could just rely on genql
+
+              if (result === false) {
+                console.log(">>> error:", JSON.stringify(body, null, 2));
+                console.log(">>> request:", JSON.stringify(response.request.body, null, 2))
+              }
+
               return result;
           } else {
               return false;
@@ -370,7 +376,7 @@ function getRandomEntityIds({ numEdges }: {numEdges: number}) {
     }
   })
   const edge = response.data.graph.edges.page[0];
-  console.log(">>> edge: ", edge);
+  // console.log(">>> edge: ", edge);
   return {
     src: edge?.src?.name as string | undefined,
     dst: edge?.dst?.name as string | undefined,
@@ -386,20 +392,21 @@ function pickRandom<T>(choices: T[]) {
 function randomComposedReadQuery() {
   const view = randomView();
   const entity = randomEntityQuery()
-  const query = {
+  const query: QueryRootGenqlSelection = {
     graph: {
       __args: {
         path: "empty"
       },
       applyViews: {
+        name: true,
         ...view,
         ...entity
       }
     }
   };
-  console.log("--------------------------------------------")
-  console.log(JSON.stringify(query, null, 2));
-  console.log("--------------------------------------------")
+  // console.log("--------------------------------------------")
+  // console.log(JSON.stringify(query, null, 2));
+  // console.log("--------------------------------------------")
   fetchAndCheck(query)
 }
 
@@ -411,27 +418,28 @@ function randomInt(n: number) {
 function randomEntityQuery(): GraphGenqlSelection {
   const { numNodes, numEdges } = queryGraphSize("empty")
   const { src, dst, name } = getRandomEntityIds({numEdges})
-  console.log({src, dst, name})
+  // console.log({src, dst, name})
   if (src === undefined || dst === undefined || name === undefined) {
-    console.log(">>>>>>>>>>>>>>> early return")
+    // console.log(">>>>>>>>>>>>>>> early return")
     return {}
   }
-  const properties = randomPropertyQuery()
-  const traversal = randomTraversal()
+  const nodeQuery = randomNodeQuery()
+  const edgeQuery = randomEdgeQuery()
+  // const properties = randomPropertyQuery()
+  // const traversal = randomTraversal()
   const view = randomView();
   const queries: GraphGenqlSelection[] = [{
     nodes: {
-      page: {
-        __args: {
-          limit: 20,
-          offset: randomInt(numNodes),
-        },
-        applyViews: {
-          ...view,
-          ...properties,
-          ...traversal
+      applyViews: {
+        ...view,
+        page: {
+          __args: {
+            limit: 20,
+            offset: randomInt(numNodes),
+          },
+          ...nodeQuery
         }
-      }
+      },
     }
   },
   {
@@ -439,11 +447,7 @@ function randomEntityQuery(): GraphGenqlSelection {
       __args: {
         name,
       },
-      applyViews: {
-        ...view,
-        ...properties,
-        ...traversal
-      }
+      ...nodeQuery
     }
   }, {
     edges: {
@@ -454,7 +458,7 @@ function randomEntityQuery(): GraphGenqlSelection {
             limit: 20,
             offset: randomInt(numEdges),
           },
-            ...properties
+            ...edgeQuery,
         }
       },
     }
@@ -464,10 +468,7 @@ function randomEntityQuery(): GraphGenqlSelection {
         src,
         dst,
       },
-      applyViews: {
-        ...view,
-        ...properties,
-      }
+      ...edgeQuery,
     }
   }];
   return pickRandom(queries);
@@ -480,23 +481,28 @@ function randomLayer() {
 }
 
 function randomView() {
-  const views: PathFromNodeViewCollection[] = [
-    {
+  const layer = randomLayer();
+  const viewLists: PathFromNodeViewCollection[][] = [
+    [
       // NO VIEW AT ALL
-    },
-    {
-      layer: randomLayer()
-    }, {
+    ],
+    [{
+      layer,
+    }], [{
       latest: true,
-    }
+    }], [{
+      latest: true,
+    }, {
+      layer
+    }]
   ];
 
-  // TODO: return more than just one sometimes?
+  // TODO: add more kind of filters and make it more random
 
-  const view = pickRandom(views);
+  const views = pickRandom(viewLists);
   return {
     __args: {
-      views: [view]
+      views
     }
   }
 }
@@ -604,6 +610,7 @@ function randomEdgeQuery(): EdgeGenqlSelection {
   const properties = randomPropertyQuery();
   const view = randomView();
   const inner = {
+    id: true,
     ...view,
     ...properties,
   }
