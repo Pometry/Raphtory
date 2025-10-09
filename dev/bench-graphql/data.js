@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1759509207398,
+  "lastUpdate": 1760006068804,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -971,6 +971,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1424,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b9acb71665ed9c4c40b188b93d3017c0c9cf4f6c",
+          "message": "optimise simple temporal intervals (#2320)",
+          "timestamp": "2025-10-09T11:58:02+02:00",
+          "tree_id": "76882d6ed43f3c418ca8988b056e54b935aab791",
+          "url": "https://github.com/Pometry/Raphtory/commit/b9acb71665ed9c4c40b188b93d3017c0c9cf4f6c"
+        },
+        "date": 1760006065802,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1371,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 253,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 188,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1219,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 912,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1524,
             "unit": "req/s"
           }
         ]
