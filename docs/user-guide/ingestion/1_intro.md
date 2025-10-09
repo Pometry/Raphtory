@@ -4,8 +4,6 @@ You can create graphs from scratch in Raphtory or build a graph from existing da
 
 Using these standard data formats allows you to integrate your existing data sanitisation and normalisation pipelines into creating your Raphtory graphs. It is typically easier to prepare your data before ingestion to ensure the quality of subsequent analysis.
 
-When you have created a graph you can save it to disk to reload quickly in the future.
-
 ## Creating a graph
 
 To get started we first need to create a graph to store our data. Printing this graph will show it as empty with no nodes, edges or update times.
@@ -35,3 +33,14 @@ Once you have a `graph` object you can add data by:
 
 - [Making direct updates](./2_direct-updates.md)
 - [Ingesting a dataframe or Parquet file](./3_dataframes.md)
+
+## Saving a graph
+
+When you have created a graph you can save it to disk to reload quickly in the future.
+
+Raphtory can store a graph as:
+
+- Native Raphtory graph
+- Zip file
+- Parquet
+- Raw bytes
