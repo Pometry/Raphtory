@@ -1,7 +1,5 @@
 use super::properties::{Properties, RowEntry};
 use crate::{LocalPOS, error::StorageError};
-use either::Either;
-use polars_arrow::pushable::Pushable;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
     storage::dict_mapper::MaybeNew,
@@ -13,17 +11,10 @@ use raphtory_core::{
     },
     storage::timeindex::TimeIndexEntry,
 };
-use rayon::{
-    iter::plumbing::{Consumer, Producer, ProducerCallback, UnindexedConsumer, bridge},
-    prelude::*,
-};
-use roaring::{RoaringBitmap, bitmap::Iter};
-use rustc_hash::FxHashMap;
+use rayon::prelude::*;
 use std::{
-    collections::hash_map::Entry,
-    fmt::{Debug, Formatter, Pointer},
+    fmt::{Debug, Formatter},
     iter,
-    ops::Range,
     sync::Arc,
 };
 

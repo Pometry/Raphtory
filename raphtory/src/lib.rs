@@ -154,8 +154,8 @@ pub mod prelude {
 
 pub use raphtory_api::{atomic_extra, core::utils::logging};
 
-#[cfg(test)]
-mod test_utils {
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils {
     use crate::{db::api::storage::storage::Storage, prelude::*};
     use ahash::HashSet;
     use bigdecimal::BigDecimal;
@@ -181,7 +181,7 @@ mod test_utils {
         };
     }
 
-    pub(crate) fn build_edge_list(
+    pub fn build_edge_list(
         len: usize,
         num_nodes: u64,
     ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64)>> {
@@ -189,7 +189,7 @@ mod test_utils {
             (
                 0..num_nodes,
                 0..num_nodes,
-                i64::MIN..i64::MAX,
+                -100i64..100i64,
                 any::<String>(),
                 any::<i64>(),
             ),

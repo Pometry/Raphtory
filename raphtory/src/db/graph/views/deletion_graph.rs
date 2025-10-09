@@ -679,7 +679,6 @@ mod test_deletions {
         let w = 0..10;
         let glw = g.valid_layers("a").window(w.start, w.end);
         let layers = glw.edge(0, 0).unwrap().explode_layers();
-        dbg!(layers);
         let gmlw = glw.materialize().unwrap();
         assert_persistent_materialize_graph_equal(&glw, &gmlw);
     }

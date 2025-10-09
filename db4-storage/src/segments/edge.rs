@@ -3,11 +3,13 @@ use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
+    pages::resolve_pos,
     persist::strategy::PersistentStrategy,
     properties::PropMutEntry,
     segments::edge_entry::MemEdgeRef,
     utils::Iter4,
 };
+use arrow_array::{Array, BooleanArray};
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::entities::{
     VID,
@@ -15,7 +17,7 @@ use raphtory_api::core::entities::{
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::LayerIds,
+    entities::{EID, LayerIds},
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
@@ -140,6 +142,61 @@ impl MemEdgeSegment {
             .map(|entry| (entry.src, entry.dst))
     }
 
+    pub fn bulk_insert_edges_internal(
+        &mut self,
+        mask: &BooleanArray,
+        time: &[i64],
+        time_sec_index: usize,
+        eids: &[EID],
+        srcs: &[VID],
+        dsts: &[VID],
+        layer_id: usize,
+        cols: &[&dyn Array],
+        col_mapping: &[usize], // mapping from cols to the property id
+    ) {
+        self.ensure_layer(layer_id);
+        let est_size = self.layers[layer_id].est_size();
+        let t_col_offset = self.layers[layer_id].properties().t_len();
+
+        let max_page_len = self.layers.get(layer_id).unwrap().max_page_len;
+        eids.iter()
+            .zip(srcs.iter().zip(dsts.iter()))
+            .zip(time)
+            .enumerate()
+            .fold(
+                (t_col_offset, time_sec_index),
+                |(t_col_offset, time_sec_index), (i, ((eid, (src, dst)), time))| {
+                    if mask.value(i) {
+                        let (_, local_pos) = resolve_pos(*eid, max_page_len);
+                        let row = self.reserve_local_row(local_pos, *src, *dst, layer_id);
+                        let mut prop = self.layers[layer_id].properties_mut().get_mut_entry(row);
+                        prop.ensure_times_from_props();
+                        prop.set_time(TimeIndexEntry(*time, time_sec_index), t_col_offset);
+                        (t_col_offset + 1, time_sec_index + 1)
+                    } else {
+                        (t_col_offset, time_sec_index)
+                    }
+                },
+            );
+
+        let props = self.layers[layer_id].properties_mut();
+
+        // ensure the columns are present
+        for prop_id in col_mapping {
+            props.t_properties_mut().ensure_column(*prop_id);
+        }
+
+        for (prop_id, col) in col_mapping.iter().zip(cols) {
+            let column = props.t_column_mut(*prop_id).unwrap();
+            column.append(*col, mask);
+        }
+
+        props.reset_t_len();
+
+        let layer_est_size = self.layers[layer_id].est_size();
+        self.est_size += layer_est_size.saturating_sub(est_size);
+    }
+
     pub fn insert_edge_internal<T: AsTime>(
         &mut self,
         t: T,
@@ -240,9 +297,6 @@ impl MemEdgeSegment {
         let src = src.into();
         let dst = dst.into();
 
-        // Ensure we have enough layers
-        self.ensure_layer(layer_id);
-
         let row = self.layers[layer_id].reserve_local_row(edge_pos).inner();
         row.src = src;
         row.dst = dst;
@@ -332,7 +386,7 @@ impl ArcLockedSegmentView {
     fn edge_par_iter_layer<'a>(
         &'a self,
         layer_id: usize,
-    ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + 'a {
         self.inner
             .layers
             .get(layer_id)
@@ -487,7 +541,6 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
     }
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS) -> Self::Entry<'a> {
-        let edge_pos = edge_pos.into();
         MemEdgeEntry::new(edge_pos, self.head())
     }
 
@@ -497,7 +550,6 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         layer_id: usize,
         locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>> {
-        let edge_pos = edge_pos.into();
         locked_head.and_then(|locked_head| {
             let layer = locked_head.as_ref().get(layer_id)?;
             layer
@@ -519,13 +571,393 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
     fn layer_count(&self, layer_id: usize) -> u32 {
         self.head()
             .get_layer(layer_id)
-            .map_or(0, |layer| layer.len() as u32)
+            .map_or(0, |layer| layer.len())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use raphtory_api::core::entities::properties::prop::PropType;
+    use super::*;
+    use arrow_array::{BooleanArray, Int64Array, StringArray};
+    use raphtory_api::core::entities::properties::{prop::PropType, tprop::TPropOps};
+    use raphtory_core::storage::timeindex::TimeIndexEntry;
+
+    fn create_test_segment() -> MemEdgeSegment {
+        let meta = Arc::new(Meta::default());
+        MemEdgeSegment::new(1, 100, meta)
+    }
+
+    #[test]
+    fn test_insert_edge_internal_baseline() {
+        let mut segment = create_test_segment();
+
+        // Insert a few edges using insert_edge_internal
+        segment.insert_edge_internal(
+            TimeIndexEntry::new(1, 0),
+            LocalPOS(0),
+            VID(1),
+            VID(2),
+            0,
+            vec![(0, Prop::from("test1"))],
+            1,
+        );
+
+        segment.insert_edge_internal(
+            TimeIndexEntry::new(2, 1),
+            LocalPOS(1),
+            VID(3),
+            VID(4),
+            0,
+            vec![(0, Prop::from("test2"))],
+            2,
+        );
+
+        segment.insert_edge_internal(
+            TimeIndexEntry::new(3, 2),
+            LocalPOS(2),
+            VID(5),
+            VID(6),
+            0,
+            vec![(0, Prop::from("test3"))],
+            3,
+        );
+
+        // Verify edges exist
+        assert!(segment.contains_edge(LocalPOS(0), 0));
+        assert!(segment.contains_edge(LocalPOS(1), 0));
+        assert!(segment.contains_edge(LocalPOS(2), 0));
+
+        // Verify edge data
+        assert_eq!(segment.get_edge(LocalPOS(0), 0), Some((VID(1), VID(2))));
+        assert_eq!(segment.get_edge(LocalPOS(1), 0), Some((VID(3), VID(4))));
+        assert_eq!(segment.get_edge(LocalPOS(2), 0), Some((VID(5), VID(6))));
+
+        // Verify time length increased
+        assert_eq!(segment.t_len(), 3);
+    }
+
+    #[test]
+    fn test_bulk_insert_edges_internal_basic() {
+        let mut segment = create_test_segment();
+
+        // Prepare bulk insert data
+        let mask = BooleanArray::from(vec![true, true, true]);
+        let times = vec![1i64, 2i64, 3i64];
+        let eids = vec![EID(0), EID(1), EID(2)];
+        let srcs = vec![VID(1), VID(3), VID(5)];
+        let dsts = vec![VID(2), VID(4), VID(6)];
+        let cols: Vec<Box<dyn Array>> =
+            vec![Box::new(StringArray::from(vec!["test1", "test2", "test3"]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let col_mapping = vec![0]; // property id 0
+
+        // Bulk insert edges
+        segment.bulk_insert_edges_internal(
+            &mask,
+            &times,
+            0, // time_sec_index
+            &eids,
+            &srcs,
+            &dsts,
+            0, // layer_id
+            &cols,
+            &col_mapping,
+        );
+
+        // Verify edges exist
+        assert!(segment.contains_edge(LocalPOS(0), 0));
+        assert!(segment.contains_edge(LocalPOS(1), 0));
+        assert!(segment.contains_edge(LocalPOS(2), 0));
+
+        // Verify edge data
+        assert_eq!(segment.get_edge(LocalPOS(0), 0), Some((VID(1), VID(2))));
+        assert_eq!(segment.get_edge(LocalPOS(1), 0), Some((VID(3), VID(4))));
+        assert_eq!(segment.get_edge(LocalPOS(2), 0), Some((VID(5), VID(6))));
+
+        // Verify time length increased
+        assert_eq!(segment.t_len(), 3);
+
+        for (index, local_pos) in [LocalPOS(0), LocalPOS(1), LocalPOS(2)].iter().enumerate() {
+            let actual = segment.layers[0]
+                .t_prop(*local_pos, 0)
+                .into_iter()
+                .flat_map(|p| p.iter())
+                .collect::<Vec<_>>();
+
+            let i = local_pos.0 as i64;
+            assert_eq!(
+                actual,
+                vec![(
+                    TimeIndexEntry::new(i + 1, index),
+                    Prop::str(format!("test{}", i + 1))
+                )]
+            );
+        }
+    }
+
+    #[test]
+    fn test_bulk_insert_with_mask() {
+        let mut segment = create_test_segment();
+
+        // Prepare bulk insert data with selective mask
+        let mask = BooleanArray::from(vec![true, false, true, false]);
+        let times = vec![1i64, 2i64, 3i64, 4i64];
+        let eids = vec![EID(0), EID(1), EID(2), EID(3)];
+        let srcs = vec![VID(1), VID(3), VID(5), VID(7)];
+        let dsts = vec![VID(2), VID(4), VID(6), VID(8)];
+        let cols: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec![
+            "test1", "test2", "test3", "test4",
+        ]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let col_mapping = vec![0];
+
+        // Bulk insert edges
+        segment.bulk_insert_edges_internal(
+            &mask,
+            &times,
+            0,
+            &eids,
+            &srcs,
+            &dsts,
+            0,
+            &cols,
+            &col_mapping,
+        );
+
+        // Only edges at positions 0 and 2 should exist (mask was true)
+        assert!(segment.contains_edge(LocalPOS(0), 0));
+        assert!(!segment.contains_edge(LocalPOS(1), 0));
+        assert!(segment.contains_edge(LocalPOS(2), 0));
+        assert!(!segment.contains_edge(LocalPOS(3), 0));
+
+        // Verify correct edge data for existing edges
+        assert_eq!(segment.get_edge(LocalPOS(0), 0), Some((VID(1), VID(2))));
+        assert_eq!(segment.get_edge(LocalPOS(2), 0), Some((VID(5), VID(6))));
+
+        // Only 2 edges should contribute to time length
+        assert_eq!(segment.t_len(), 2);
+    }
+
+    #[test]
+    fn test_bulk_vs_individual_equivalence() {
+        let mut segment1 = create_test_segment();
+        let mut segment2 = create_test_segment();
+
+        // Individual insertions
+        segment1.insert_edge_internal(
+            TimeIndexEntry::new(1, 0),
+            LocalPOS(0),
+            VID(1),
+            VID(2),
+            0,
+            vec![(0, Prop::from("test1"))],
+            1,
+        );
+        segment1.insert_edge_internal(
+            TimeIndexEntry::new(2, 1),
+            LocalPOS(1),
+            VID(3),
+            VID(4),
+            0,
+            vec![(0, Prop::from("test2"))],
+            1,
+        );
+        segment1.insert_edge_internal(
+            TimeIndexEntry::new(3, 2),
+            LocalPOS(2),
+            VID(5),
+            VID(6),
+            0,
+            vec![(0, Prop::from("test3"))],
+            1,
+        );
+
+        // Equivalent bulk insertion
+        let mask = BooleanArray::from(vec![true, true, true]);
+        let times = vec![1i64, 2i64, 3i64];
+        let eids = vec![EID(0), EID(1), EID(2)];
+        let srcs = vec![VID(1), VID(3), VID(5)];
+        let dsts = vec![VID(2), VID(4), VID(6)];
+        let cols: Vec<Box<dyn Array>> =
+            vec![Box::new(StringArray::from(vec!["test1", "test2", "test3"]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let col_mapping = vec![0];
+
+        segment2.bulk_insert_edges_internal(
+            &mask,
+            &times,
+            0,
+            &eids,
+            &srcs,
+            &dsts,
+            0,
+            &cols,
+            &col_mapping,
+        );
+
+        // Both segments should have the same edges
+        for pos in [LocalPOS(0), LocalPOS(1), LocalPOS(2)] {
+            assert_eq!(
+                segment1.contains_edge(pos, 0),
+                segment2.contains_edge(pos, 0)
+            );
+            assert_eq!(segment1.get_edge(pos, 0), segment2.get_edge(pos, 0));
+        }
+
+        // Both should have same time length
+        assert_eq!(segment1.t_len(), segment2.t_len());
+    }
+
+    #[test]
+    fn test_interleaved_operations() {
+        let mut segment = create_test_segment();
+
+        // Start with individual insertion
+        segment.insert_edge_internal(
+            TimeIndexEntry::new(1, 0),
+            LocalPOS(0),
+            VID(1),
+            VID(2),
+            0,
+            vec![(0, Prop::from("individual1"))],
+            1,
+        );
+
+        // Bulk insert some edges
+        let mask = BooleanArray::from(vec![true, true]);
+        let times = vec![2i64, 3i64];
+        let eids = vec![EID(1), EID(2)];
+        let srcs = vec![VID(3), VID(5)];
+        let dsts = vec![VID(4), VID(6)];
+        let cols: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec!["bulk1", "bulk2"]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let col_mapping = vec![0];
+
+        segment.bulk_insert_edges_internal(
+            &mask,
+            &times,
+            1, // time_sec_index continues from previous
+            &eids,
+            &srcs,
+            &dsts,
+            0,
+            &cols,
+            &col_mapping,
+        );
+
+        // Insert another individual edge
+        segment.insert_edge_internal(
+            TimeIndexEntry::new(4, 3),
+            LocalPOS(3),
+            VID(7),
+            VID(8),
+            0,
+            vec![(0, Prop::from("individual2"))],
+            1,
+        );
+
+        // Another bulk insert
+        let mask2 = BooleanArray::from(vec![true, false, true]);
+        let times2 = vec![5i64, 6i64, 7i64];
+        let eids2 = vec![EID(4), EID(5), EID(6)];
+        let srcs2 = vec![VID(9), VID(11), VID(13)];
+        let dsts2 = vec![VID(10), VID(12), VID(14)];
+        let cols2: Vec<Box<dyn Array>> =
+            vec![Box::new(StringArray::from(vec!["bulk3", "bulk4", "bulk5"]))];
+        let cols2 = cols2.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+
+        segment.bulk_insert_edges_internal(
+            &mask2,
+            &times2,
+            4, // time_sec_index continues
+            &eids2,
+            &srcs2,
+            &dsts2,
+            0,
+            &cols2,
+            &col_mapping,
+        );
+
+        // Verify all edges exist correctly
+        assert!(segment.contains_edge(LocalPOS(0), 0)); // individual1
+        assert!(segment.contains_edge(LocalPOS(1), 0)); // bulk1
+        assert!(segment.contains_edge(LocalPOS(2), 0)); // bulk2
+        assert!(segment.contains_edge(LocalPOS(3), 0)); // individual2
+        assert!(segment.contains_edge(LocalPOS(4), 0)); // bulk3
+        assert!(!segment.contains_edge(LocalPOS(5), 0)); // masked out
+        assert!(segment.contains_edge(LocalPOS(6), 0)); // bulk5
+
+        // Verify edge data
+        assert_eq!(segment.get_edge(LocalPOS(0), 0), Some((VID(1), VID(2))));
+        assert_eq!(segment.get_edge(LocalPOS(1), 0), Some((VID(3), VID(4))));
+        assert_eq!(segment.get_edge(LocalPOS(2), 0), Some((VID(5), VID(6))));
+        assert_eq!(segment.get_edge(LocalPOS(3), 0), Some((VID(7), VID(8))));
+        assert_eq!(segment.get_edge(LocalPOS(4), 0), Some((VID(9), VID(10))));
+        assert_eq!(segment.get_edge(LocalPOS(6), 0), Some((VID(13), VID(14))));
+
+        // Total time length should be 6 (4 individual + 2 from first bulk + 2 from second bulk)
+        assert_eq!(segment.t_len(), 6);
+    }
+
+    #[test]
+    fn test_bulk_insert_multiple_layers() {
+        let mut segment = create_test_segment();
+
+        // Insert into layer 0
+        let mask = BooleanArray::from(vec![true, true]);
+        let times = vec![1i64, 2i64];
+        let eids = vec![EID(0), EID(1)];
+        let srcs = vec![VID(1), VID(3)];
+        let dsts = vec![VID(2), VID(4)];
+        let cols: Vec<Box<dyn Array>> =
+            vec![Box::new(StringArray::from(vec!["layer0_1", "layer0_2"]))];
+        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let col_mapping = vec![0];
+
+        segment.bulk_insert_edges_internal(
+            &mask,
+            &times,
+            0,
+            &eids,
+            &srcs,
+            &dsts,
+            0, // layer 0
+            &cols,
+            &col_mapping,
+        );
+
+        // Insert into layer 1
+        let mask2 = BooleanArray::from(vec![true]);
+        let times2 = vec![3i64];
+        let eids2 = vec![EID(0)]; // same eid, different layer
+        let srcs2 = vec![VID(5)];
+        let dsts2 = vec![VID(6)];
+        let cols2: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec!["layer1_1"]))];
+        let cols2 = cols2.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+
+        segment.bulk_insert_edges_internal(
+            &mask2,
+            &times2,
+            2,
+            &eids2,
+            &srcs2,
+            &dsts2,
+            1, // layer 1
+            &cols2,
+            &col_mapping,
+        );
+
+        // Verify edges in both layers
+        assert!(segment.contains_edge(LocalPOS(0), 0));
+        assert!(segment.contains_edge(LocalPOS(1), 0));
+        assert!(segment.contains_edge(LocalPOS(0), 1));
+        assert!(!segment.contains_edge(LocalPOS(1), 1));
+
+        // Verify correct layer data
+        assert_eq!(segment.get_edge(LocalPOS(0), 0), Some((VID(1), VID(2))));
+        assert_eq!(segment.get_edge(LocalPOS(1), 0), Some((VID(3), VID(4))));
+        assert_eq!(segment.get_edge(LocalPOS(0), 1), Some((VID(5), VID(6))));
+    }
 
     #[test]
     fn est_size_changes() {

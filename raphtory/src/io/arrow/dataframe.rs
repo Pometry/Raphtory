@@ -11,9 +11,12 @@ use arrow_cast::cast;
 use arrow_schema::{DataType, TimeUnit};
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    ops::Deref,
+};
 
-pub(crate) struct DFView<I> {
+pub struct DFView<I> {
     pub names: Vec<String>,
     pub(crate) chunks: I,
     pub num_rows: usize,
@@ -25,6 +28,16 @@ impl<I> Debug for DFView<I> {
             .field("names", &self.names)
             .field("num_rows", &self.num_rows)
             .finish()
+    }
+}
+
+impl<I> DFView<I> {
+    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+        Self {
+            names,
+            chunks,
+            num_rows,
+        }
     }
 }
 
@@ -91,6 +104,14 @@ impl TimeCol {
     }
 }
 
+impl Deref for TimeCol {
+    type Target = [i64];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.values()
+    }
+}
+
 pub struct SecondaryIndexCol(PrimitiveArray<UInt64Type>);
 
 impl SecondaryIndexCol {
@@ -129,6 +150,10 @@ pub struct DFChunk {
 }
 
 impl DFChunk {
+    pub fn new(chunk: Vec<ArrayRef>) -> Self {
+        Self { chunk }
+    }
+
     pub fn len(&self) -> usize {
         self.chunk.first().map(|c| c.len()).unwrap_or(0)
     }

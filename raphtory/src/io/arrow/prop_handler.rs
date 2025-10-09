@@ -11,8 +11,8 @@ use arrow_array::{
         UInt32Type, UInt64Type, UInt8Type,
     },
     Array as ArrowArray, Array, ArrayRef, ArrowPrimitiveType, BooleanArray, Decimal128Array,
-    FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
-    StructArray,
+    FixedSizeListArray, GenericListArray, GenericStringArray, NullArray, OffsetSizeTrait,
+    PrimitiveArray, StructArray,
 };
 use arrow_buffer::NullBuffer;
 use arrow_schema::{DataType, TimeUnit};
@@ -48,6 +48,14 @@ impl PropCols {
     ) -> impl IndexedParallelIterator<Item = impl Iterator<Item = (usize, Prop)> + '_> + '_ {
         (0..self.len()).into_par_iter().map(|i| self.iter_row(i))
     }
+
+    pub fn prop_ids(&self) -> &[usize] {
+        &self.prop_ids
+    }
+
+    // pub fn cols(&self) -> Vec<&dyn Array> {
+    //     self.cols.iter().map(|col| col.as_array()).collect()
+    // }
 }
 
 pub fn combine_properties_arrow<E>(
@@ -300,9 +308,7 @@ impl PropCol for FixedSizeListArray {
     }
 }
 
-struct EmptyCol;
-
-impl PropCol for EmptyCol {
+impl PropCol for NullArray {
     fn get(&self, _i: usize) -> Option<Prop> {
         None
     }
@@ -471,7 +477,7 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
                 scale: *scale as i64,
             })
         }
-        DataType::Null => Box::new(EmptyCol),
+        DataType::Null => Box::new(arr.as_any().downcast_ref::<NullArray>().unwrap().clone()),
 
         unsupported => panic!("Data type not supported: {:?}", unsupported),
     }

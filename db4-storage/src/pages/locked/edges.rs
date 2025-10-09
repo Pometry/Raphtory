@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 use crate::{
     LocalPOS,
@@ -7,7 +7,7 @@ use crate::{
     segments::edge::MemEdgeSegment,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_core::entities::EID;
+use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
 
 #[derive(Debug)]
@@ -94,5 +94,21 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> WriteLockedEdgePages<'a, ES> 
         for writer in &mut self.writers {
             writer.ensure_layer(layer_id);
         }
+    }
+
+    pub fn exists(&self, elid: ELID) -> bool {
+        let max_page_len = if !self.writers.is_empty() {
+            self.writers[0].max_page_len
+        } else {
+            return false;
+        };
+        let (page_id, pos) = resolve_pos(elid.edge, max_page_len);
+        self.writers
+            .get(page_id)
+            .and_then(|page| {
+                let locked_head = page.lock.deref();
+                page.page.get_edge(pos, elid.layer(), locked_head)
+            })
+            .is_some()
     }
 }
