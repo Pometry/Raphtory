@@ -78,8 +78,9 @@ impl Data {
                 // On eviction, serialize graphs that don't have underlying storage.
                 // FIXME: don't have currently a way to know which embedding updates are pending
                 if !graph.graph.disk_storage_enabled() {
-                    let _ = Self::encode_graph_to_disk(graph.clone())
-                        .map_err(|e| warn!("Error encoding graph to disk on eviction: {e}"));
+                    if let Err(e) = Self::encode_graph_to_disk(graph.clone()) {
+                        warn!("Error encoding graph to disk on eviction: {e}");
+                    }
                 }
             })
             .build();
@@ -298,8 +299,9 @@ impl Drop for Data {
         // On drop, serialize graphs that don't have underlying storage.
         for (_, graph) in self.cache.iter() {
             if !graph.graph.disk_storage_enabled() {
-                let _ = Self::encode_graph_to_disk(graph.clone())
-                    .map_err(|e| warn!("Error encoding graph to disk on drop: {e}"));
+                if let Err(e) = Self::encode_graph_to_disk(graph.clone()) {
+                    warn!("Error encoding graph to disk on drop: {e}");
+                }
             }
         }
     }
