@@ -17,7 +17,6 @@ use poem::{
     get,
     listener::TcpListener,
     middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
-    post,
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
@@ -210,7 +209,7 @@ impl GraphServer {
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
-        info!("UI live at: http://0.0.0.0:{port}");
+        info!("UI live at: http://localhost:{port}");
         debug!(
             "Server configurations: {}",
             json!({

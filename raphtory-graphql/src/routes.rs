@@ -1,15 +1,12 @@
-use crate::auth::AuthenticatedGraphQL;
-use async_graphql::dynamic::Schema;
 use poem::{
-    endpoint::StaticFilesEndpoint,
+    endpoint::{EmbeddedFileEndpoint, EmbeddedFilesEndpoint},
     handler,
     http::{Method, StatusCode},
-    post,
     web::Json,
-    Endpoint, EndpointExt, IntoResponse, Request, Response, RouteMethod,
+    Endpoint, IntoResponse, Request, Response,
 };
+use rust_embed::Embed;
 use serde::Serialize;
-use std::future::Future;
 
 #[derive(Serialize)]
 struct Health {
@@ -35,6 +32,10 @@ pub(crate) async fn version() -> impl IntoResponse {
     (StatusCode::OK, Json(v))
 }
 
+#[derive(Embed)]
+#[folder = "resources/"]
+struct ResourcesFolder;
+
 pub(crate) struct IndexEndpoint<G> {
     gql: G,
 }
@@ -51,15 +52,24 @@ where
 {
     type Output = Response;
 
-    async fn call(&self, req: Request) -> poem::Result<Self::Output> {
+    async fn call(&self, mut req: Request) -> poem::Result<Self::Output> {
         if req.method() == Method::POST {
             self.gql.call(req).await
         } else {
-            StaticFilesEndpoint::new(env!("RAPHTORY_UI_INDEX_PATH"))
-                .index_file("index.html")
-                .fallback_to_index()
-                .call(req)
-                .await
+            let path = req.uri().path().trim_start_matches('/');
+
+            if !path.is_empty()
+                && ResourcesFolder::get(path).is_none()
+                && ResourcesFolder::get(&format!("{path}/index.html")).is_none()
+            {
+                EmbeddedFileEndpoint::<ResourcesFolder>::new("index.html")
+                    .call(req)
+                    .await
+            } else {
+                EmbeddedFilesEndpoint::<ResourcesFolder>::new()
+                    .call(req)
+                    .await
+            }
         }
     }
 }
