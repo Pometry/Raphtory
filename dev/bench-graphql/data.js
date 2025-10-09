@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760017217718,
+  "lastUpdate": 1760020827137,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1079,6 +1079,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1575,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c120365f34769ce1a753d819c7fa96e4f5af35ad",
+          "message": "remove extra newline in macro docstrings (#2323)\n\n* remove extra newline in macro docstrings\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-09T15:04:01+01:00",
+          "tree_id": "f40e2cb6d5779f5a91671f13d8227da3df0e0f65",
+          "url": "https://github.com/Pometry/Raphtory/commit/c120365f34769ce1a753d819c7fa96e4f5af35ad"
+        },
+        "date": 1760020824221,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 19,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 277,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 211,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1006,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 966,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1508,
             "unit": "req/s"
           }
         ]
