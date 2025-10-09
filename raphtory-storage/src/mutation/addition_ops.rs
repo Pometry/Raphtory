@@ -143,10 +143,20 @@ pub trait AtomicNodeAddition: Send + Sync {
 
 pub trait SessionAdditionOps: Send + Sync {
     type Error: From<MutationError>;
+
+    /// Reads the current event id.
+    fn read_event_id(&self) -> Result<usize, Self::Error>;
+
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, Self::Error>;
+
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error>;
+
+    // Sets the event_id to the maximum of the current event_id and the provided event_id.
+    fn set_max_event_id(&self, event_id: usize) -> Result<usize, Self::Error>;
+
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error>;
+
     /// map property key to internal id, allocating new property if needed
     fn resolve_graph_property(
         &self,
@@ -154,6 +164,7 @@ pub trait SessionAdditionOps: Send + Sync {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error>;
+
     /// map property key to internal id, allocating new property if needed and checking property type.
     /// returns `None` if the type does not match
     fn resolve_node_property(
@@ -168,6 +179,7 @@ pub trait SessionAdditionOps: Send + Sync {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error>;
+
     /// add node update
     fn internal_add_node(
         &self,
@@ -175,6 +187,7 @@ pub trait SessionAdditionOps: Send + Sync {
         v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error>;
+
     /// add edge update
     fn internal_add_edge(
         &self,
@@ -184,6 +197,7 @@ pub trait SessionAdditionOps: Send + Sync {
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, Self::Error>;
+
     /// add update for an existing edge
     fn internal_add_edge_update(
         &self,

@@ -92,10 +92,6 @@ impl<
         self.edges.edge_meta()
     }
 
-    pub fn set_event_id(&self, event_id: usize) {
-        self.event_id.store(event_id, atomic::Ordering::Relaxed);
-    }
-
     pub fn node_meta(&self) -> &Meta {
         self.nodes.node_meta()
     }
@@ -265,8 +261,16 @@ impl<
         self.event_id.load(atomic::Ordering::Relaxed)
     }
 
+    pub fn set_event_id(&self, event_id: usize) {
+        self.event_id.store(event_id, atomic::Ordering::Relaxed);
+    }
+
     pub fn next_event_id(&self) -> usize {
         self.event_id.fetch_add(1, atomic::Ordering::Relaxed)
+    }
+
+    pub fn set_max_event_id(&self, value: usize) -> usize {
+        self.event_id.fetch_max(value, atomic::Ordering::Relaxed)
     }
 
     pub fn update_edge_const_props<PN: AsRef<str>>(

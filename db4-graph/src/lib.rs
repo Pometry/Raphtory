@@ -213,10 +213,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         Extension::disk_storage_enabled()
     }
 
-    pub fn read_event_counter(&self) -> usize {
-        self.storage().read_event_id()
-    }
-
     pub fn storage(&self) -> &Arc<Layer<EXT>> {
         &self.storage
     }
@@ -230,8 +226,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     #[inline]
-    pub fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
-        match v {
+    pub fn resolve_node_ref(&self, node: NodeRef) -> Option<VID> {
+        match node {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
             NodeRef::External(GidRef::Str(string)) => self
@@ -239,10 +235,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
                 .get_str(string)
                 .or_else(|| self.logical_to_physical.get_u64(string.id())),
         }
-    }
-
-    pub fn next_event_id(&self) -> usize {
-        self.storage().next_event_id()
     }
 
     #[inline]

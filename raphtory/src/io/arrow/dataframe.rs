@@ -118,8 +118,8 @@ impl SecondaryIndexCol {
         self.0.values().iter().copied()
     }
 
-    pub fn get(&self, i: usize) -> Option<u64> {
-        (i < self.0.len()).then(|| self.0.value(i))
+    pub fn max(&self) -> u64 {
+        self.0.values().iter().max().copied().unwrap_or(0)
     }
 }
 
