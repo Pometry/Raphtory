@@ -116,6 +116,12 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
         Ok(self.graph.storage().next_event_id())
     }
 
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
+        let event_id = self.graph.storage().read_event_id();
+        self.graph.storage().set_event_id(event_id + num_ids);
+        Ok(event_id)
+    }
+
     fn set_max_event_id(&self, value: usize) -> Result<usize, Self::Error> {
         Ok(self.graph.storage().set_max_event_id(value))
     }

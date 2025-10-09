@@ -150,7 +150,11 @@ pub trait SessionAdditionOps: Send + Sync {
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, Self::Error>;
 
-    /// Sets the event_id to the maximum of the current event_id and the provided event_id.
+    /// Reserve a consecutive range of event ids with length num_ids.
+    /// Returns the starting event id of the reserved range.
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error>;
+
+    // Sets the event_id to the maximum of the current event_id and the provided event_id.
     fn set_max_event_id(&self, event_id: usize) -> Result<usize, Self::Error>;
 
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error>;

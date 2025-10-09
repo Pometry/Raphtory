@@ -228,6 +228,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     if df_view.is_empty() {
         return Ok(());
     }
+
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
