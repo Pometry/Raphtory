@@ -1020,7 +1020,7 @@ mod tests {
             df_loaders::{load_edges_from_df, load_nodes_from_df},
         },
         prelude::*,
-        test_utils::{build_edge_list, build_edge_list_str},
+        test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };
     use arrow_array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
@@ -1040,6 +1040,7 @@ mod tests {
         let mut time_col = Int64Builder::new();
         let mut str_prop_col = LargeStringBuilder::new();
         let mut int_prop_col = Int64Builder::new();
+
         let chunks = chunks
             .into_iter()
             .map(|chunk| {
@@ -1057,9 +1058,11 @@ mod tests {
                     ArrayBuilder::finish(&mut str_prop_col),
                     ArrayBuilder::finish(&mut int_prop_col),
                 ];
+
                 Ok(DFChunk { chunk })
             })
             .collect_vec();
+
         DFView {
             names: vec![
                 "src".to_owned(),
@@ -1137,7 +1140,10 @@ mod tests {
                     secondary_index_col.append_value(*secondary_index);
                     str_prop_col.append_value(str_prop);
                     int_prop_col.append_value(*int_prop);
+
+                    println!("src, dst, time, secondary_index, str_prop, int_prop: {}, {}, {}, {}, {}, {}", src, dst, time, secondary_index, str_prop, int_prop);
                 }
+
                 let chunk = vec![
                     ArrayBuilder::finish(&mut src_col),
                     ArrayBuilder::finish(&mut dst_col),
@@ -1146,9 +1152,11 @@ mod tests {
                     ArrayBuilder::finish(&mut str_prop_col),
                     ArrayBuilder::finish(&mut int_prop_col),
                 ];
+
                 Ok(DFChunk { chunk })
             })
             .collect_vec();
+
         DFView {
             names: vec![
                 "src".to_owned(),
@@ -1472,6 +1480,58 @@ mod tests {
         // secondary index.
         assert_graph_equal(&g, &g2);
     }
+
+    #[test]
+    fn test_load_edges_with_secondary_index_proptest() {
+        proptest!(|(edges in build_edge_list_with_secondary_index(1000, 100), chunk_size in 1usize..=1000)| {
+            let distinct_edges = edges.iter().map(|(src, dst, _, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
+            let df_view = build_df_with_secondary_index(chunk_size, &edges);
+            let g = Graph::new();
+            let props = ["str_prop", "int_prop"];
+            let secondary_index = Some("secondary_index");
+
+            load_edges_from_df(
+                df_view,
+                "time",
+                secondary_index,
+                "src",
+                "dst",
+                &props,
+                &[],
+                None,
+                None,
+                None,
+                &g,
+            ).unwrap();
+
+            let g2 = Graph::new();
+
+            for (src, dst, time, secondary_index_val, str_prop, int_prop) in edges {
+                let time_with_secondary_index = TimeIndexEntry(time, secondary_index_val as usize);
+
+                g2.add_edge(
+                    time_with_secondary_index,
+                    src,
+                    dst,
+                    [
+                        ("str_prop", str_prop.clone().into_prop()),
+                        ("int_prop", int_prop.into_prop()),
+                    ],
+                    None,
+                ).unwrap();
+
+                let edge = g.edge(src, dst).unwrap().at(time);
+                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
+                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+            }
+
+            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            assert_graph_equal(&g, &g2);
+        })
+    }
+
+
 
     #[test]
     fn test_load_nodes_with_secondary_index() {

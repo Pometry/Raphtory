@@ -213,6 +213,23 @@ mod test_utils {
         )
     }
 
+    pub(crate) fn build_edge_list_with_secondary_index(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64, u64, String, i64)>> {
+        proptest::collection::vec(
+            (
+                0..num_nodes, // src
+                0..num_nodes, // dst
+                i64::MIN..i64::MAX, // time
+                0..num_nodes, // secondary_index
+                any::<String>(), // str_prop
+                i64::MIN..i64::MAX, // int_prop
+            ),
+            0..=len,
+        )
+    }
+
     pub(crate) fn build_edge_deletions(
         len: usize,
         num_nodes: u64,
