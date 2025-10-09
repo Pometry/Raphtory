@@ -112,13 +112,16 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
         Ok(self.graph.storage().read_event_id())
     }
 
+    fn set_event_id(&self, event_id: usize) -> Result<(), Self::Error> {
+        Ok(self.graph.storage().set_event_id(event_id))
+    }
+
     fn next_event_id(&self) -> Result<usize, Self::Error> {
         Ok(self.graph.storage().next_event_id())
     }
 
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
-        let event_id = self.graph.storage().read_event_id();
-        self.graph.storage().set_event_id(event_id + num_ids);
+        let event_id = self.graph.storage().reserve_event_ids(num_ids);
         Ok(event_id)
     }
 

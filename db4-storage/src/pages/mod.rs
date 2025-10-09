@@ -272,6 +272,10 @@ impl<
         self.event_id.fetch_add(1, atomic::Ordering::Relaxed)
     }
 
+    pub fn reserve_event_ids(&self, num_ids: usize) -> usize {
+        self.event_id.fetch_add(num_ids, atomic::Ordering::Relaxed)
+    }
+
     pub fn set_max_event_id(&self, value: usize) -> usize {
         self.event_id.fetch_max(value, atomic::Ordering::Relaxed)
     }

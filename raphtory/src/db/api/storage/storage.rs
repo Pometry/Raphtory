@@ -329,6 +329,10 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
         Ok(self.session.read_event_id()?)
     }
 
+    fn set_event_id(&self, event_id: usize) -> Result<(), Self::Error> {
+        Ok(self.session.set_event_id(event_id)?)
+    }
+
     fn next_event_id(&self) -> Result<usize, Self::Error> {
         Ok(self.session.next_event_id()?)
     }
