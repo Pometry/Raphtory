@@ -1,4 +1,4 @@
-# Ingesting from dataframes
+# Ingesting from an external source
 
 If you prefer to initially manipulate your data in a `dataframe` before converting into a graph, Raphtory can directly ingest dataframes and convert these into node and edge updates.
 
@@ -135,6 +135,10 @@ assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal
     Node(name=ServerA, earliest_time=1693555200000, latest_time=1693556400000, properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120, datasource: docs/data/network_traffic_edges.csv, server_name: Alpha, hardware_type: Blade Server}))
     Edge(source=ServerA, target=ServerB, earliest_time=1693555200000, latest_time=1693555200000, properties={data_size_MB: 5.6, datasource: {Critical System Request: docs/data/network_traffic_edges.csv}, is_encrypted: {Critical System Request: true}}, layer(s)=[Critical System Request])
     ```
+
+## Creating a graph from a Parquet file
+
+something something
 
 ## Adding metadata via dataframes
 

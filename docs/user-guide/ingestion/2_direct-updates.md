@@ -1,11 +1,10 @@
 # Direct Updates
 
-Now that we have a graph we can directly update it with the `add_node()` and `add_edge()` functions.
+Once you have a graph you can directly update it with the `add_node()` and `add_edge()` functions.
 
 ## Adding nodes
 
-To add a node we need a unique `id` to represent it and an update `timestamp` to specify when it was added to the graph.
-In the below example we are going to add node `10` at timestamp `1`.
+To add a node we need a unique `id` to represent it and an update `timestamp` to specify when it was added to the graph. In the below example we are going to add node `10` at timestamp `1`.
 
 !!! info
 
@@ -269,7 +268,7 @@ assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=4, latest_tim
 
 ## Metadata
 
-Raphtory also provides [`metadata`][raphtory.Metadata] associated with nodes and edges which have immutable values. These are useful when you know a value won't change or is not  associated with a specific time. 
+Raphtory also provides [`metadata`][raphtory.Metadata] associated with nodes and edges which have immutable values. These are useful when you know a value won't change or is not  associated with a specific time.
 
 You can use the `add_metadata()` function, which takes a single `dictionary` argument, to add metadata to a `graph`, `node` and `edge` as demonstrated below.
 
