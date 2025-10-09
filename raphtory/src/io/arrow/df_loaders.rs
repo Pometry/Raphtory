@@ -106,7 +106,6 @@ pub(crate) fn load_nodes_from_df<
     let mut node_type_col_resolved = vec![];
 
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-    let mut start_id = session.read_event_id().map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -129,12 +128,18 @@ pub(crate) fn load_nodes_from_df<
 
         // Load the secondary index column if it exists, otherwise generate from start_id.
         let secondary_index_col = match secondary_index_index {
-            Some(col_index) => df.secondary_index_col(col_index)?,
-            None => SecondaryIndexCol::new_from_range(start_id, start_id + df.len()),
+            Some(col_index) => {
+                // Update the event_id to reflect ingesting new secondary indices.
+                let col = df.secondary_index_col(col_index)?;
+                session.set_max_event_id(col.max() as usize).map_err(into_graph_err)?;
+                col
+            }
+            None => {
+                let start_id = session.reserve_event_ids(df.len()).map_err(into_graph_err)?;
+                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
+                col
+            }
         };
-
-        // Update the event_id to reflect ingesting new secondary indices.
-        session.set_max_event_id(secondary_index_col.max() as usize).map_err(into_graph_err)?;
 
         node_col_resolved.resize_with(df.len(), Default::default);
         node_type_col_resolved.resize_with(df.len(), Default::default);
@@ -205,8 +210,6 @@ pub(crate) fn load_nodes_from_df<
 
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-
-        start_id += df.len();
     }
 
     Ok(())
@@ -265,7 +268,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-    let mut start_id = session.read_event_id().map_err(into_graph_err)?;
 
     // set the type of the resolver;
     let chunks = df_view.chunks.peekable();
@@ -397,12 +399,18 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         // Load the secondary index column if it exists, otherwise generate from start_id.
         let secondary_index_col = match secondary_index_index {
-            Some(col_index) => df.secondary_index_col(col_index)?,
-            None => SecondaryIndexCol::new_from_range(start_id, start_id + df.len()),
+            Some(col_index) => {
+                // Update the event_id to reflect ingesting new secondary indices.
+                let col = df.secondary_index_col(col_index)?;
+                session.set_max_event_id(col.max() as usize).map_err(into_graph_err)?;
+                col
+            }
+            None => {
+                let start_id = session.reserve_event_ids(df.len()).map_err(into_graph_err)?;
+                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
+                col
+            }
         };
-
-        // Update the event_id to reflect ingesting new secondary indices.
-        session.set_max_event_id(secondary_index_col.max() as usize).map_err(into_graph_err)?;
 
         write_locked_graph.resize_chunks_to_num_nodes(num_nodes.load(Ordering::Relaxed));
 
@@ -595,8 +603,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-
-        start_id += df.len();
     }
 
     // put the mapping into the fallback resolver
@@ -684,7 +690,6 @@ pub(crate) fn load_edge_deletions_from_df<
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge deletions".to_string(), df_view.num_rows)?;
     let session = graph.write_session().map_err(into_graph_err)?;
-    let mut start_id = session.read_event_id().map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -695,12 +700,18 @@ pub(crate) fn load_edge_deletions_from_df<
 
         // Load the secondary index column if it exists, otherwise generate from start_id.
         let secondary_index_col = match secondary_index_index {
-            Some(col_index) => df.secondary_index_col(col_index)?,
-            None => SecondaryIndexCol::new_from_range(start_id, start_id + df.len()),
+            Some(col_index) => {
+                // Update the event_id to reflect ingesting new secondary indices.
+                let col = df.secondary_index_col(col_index)?;
+                session.set_max_event_id(col.max() as usize).map_err(into_graph_err)?;
+                col
+            }
+            None => {
+                let start_id = session.reserve_event_ids(df.len()).map_err(into_graph_err)?;
+                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
+                col
+            }
         };
-
-        // Update the event_id to reflect ingesting new secondary indices.
-        session.set_max_event_id(secondary_index_col.max() as usize).map_err(into_graph_err)?;
 
         src_col
             .par_iter()
@@ -717,8 +728,6 @@ pub(crate) fn load_edge_deletions_from_df<
 
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-
-        start_id += df.len();
     }
 
     Ok(())
@@ -998,8 +1007,6 @@ pub(crate) fn load_graph_props_from_df<
     let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
     let session = graph.write_session().map_err(into_graph_err)?;
 
-    let mut start_id = session.read_event_id().map_err(into_graph_err)?;
-
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols =
@@ -1018,12 +1025,18 @@ pub(crate) fn load_graph_props_from_df<
 
         // Load the secondary index column if it exists, otherwise generate from start_id.
         let secondary_index_col = match secondary_index_index {
-            Some(col_index) => df.secondary_index_col(col_index)?,
-            None => SecondaryIndexCol::new_from_range(start_id, start_id + df.len()),
+            Some(col_index) => {
+                // Update the event_id to reflect ingesting new secondary indices.
+                let col = df.secondary_index_col(col_index)?;
+                session.set_max_event_id(col.max() as usize).map_err(into_graph_err)?;
+                col
+            }
+            None => {
+                let start_id = session.reserve_event_ids(df.len()).map_err(into_graph_err)?;
+                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
+                col
+            }
         };
-
-        // Update the event_id to reflect ingesting new secondary indices.
-        session.set_max_event_id(secondary_index_col.max() as usize).map_err(into_graph_err)?;
 
         time_col
             .par_iter()
@@ -1053,8 +1066,6 @@ pub(crate) fn load_graph_props_from_df<
 
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-
-        start_id += df.len();
     }
 
     Ok(())
