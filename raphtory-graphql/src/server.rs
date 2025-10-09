@@ -7,7 +7,7 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    routes::{health, version, IndexEndpoint},
+    routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
 use config::ConfigError;
@@ -245,7 +245,10 @@ impl GraphServer {
         let app = Route::new()
             .nest(
                 "/",
-                IndexEndpoint::new(AuthenticatedGraphQL::new(schema, self.config.auth)),
+                PublicFilesEndpoint::new(
+                    self.config.public_dir,
+                    AuthenticatedGraphQL::new(schema, self.config.auth),
+                ),
             )
             .at("/health", get(health))
             .at("/version", get(version))

@@ -15,6 +15,7 @@ pub struct AppConfig {
     pub cache: CacheConfig,
     pub tracing: TracingConfig,
     pub auth: AuthConfig,
+    pub public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     pub index: IndexConfig,
 }
@@ -24,6 +25,7 @@ pub struct AppConfigBuilder {
     cache: CacheConfig,
     tracing: TracingConfig,
     auth: AuthConfig,
+    public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     index: IndexConfig,
 }
@@ -35,6 +37,7 @@ impl From<AppConfig> for AppConfigBuilder {
             cache: config.cache,
             tracing: config.tracing,
             auth: config.auth,
+            public_dir: config.public_dir,
             #[cfg(feature = "search")]
             index: config.index,
         }
@@ -96,6 +99,11 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_public_dir(mut self, public_dir: Option<PathBuf>) -> Self {
+        self.public_dir = public_dir;
+        self
+    }
+
     #[cfg(feature = "search")]
     pub fn with_create_index(mut self, create_index: bool) -> Self {
         self.index.create_index = create_index;
@@ -108,6 +116,7 @@ impl AppConfigBuilder {
             cache: self.cache,
             tracing: self.tracing,
             auth: self.auth,
+            public_dir: self.public_dir,
             #[cfg(feature = "search")]
             index: self.index,
         }
@@ -173,6 +182,10 @@ pub fn load_config(
     }
     if let Ok(enabled_for_reads) = settings.get::<bool>("auth.enabled_for_reads") {
         app_config_builder = app_config_builder.with_auth_enabled_for_reads(enabled_for_reads);
+    }
+
+    if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {
+        app_config_builder = app_config_builder.with_public_dir(public_dir);
     }
 
     #[cfg(feature = "search")]

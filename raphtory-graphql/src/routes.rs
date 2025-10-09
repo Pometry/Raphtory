@@ -1,5 +1,5 @@
 use poem::{
-    endpoint::{EmbeddedFileEndpoint, EmbeddedFilesEndpoint},
+    endpoint::{EmbeddedFileEndpoint, EmbeddedFilesEndpoint, StaticFilesEndpoint},
     handler,
     http::{Method, StatusCode},
     web::Json,
@@ -7,6 +7,7 @@ use poem::{
 };
 use rust_embed::Embed;
 use serde::Serialize;
+use std::path::PathBuf;
 
 #[derive(Serialize)]
 struct Health {
@@ -34,41 +35,45 @@ pub(crate) async fn version() -> impl IntoResponse {
 
 #[derive(Embed)]
 #[folder = "resources/"]
-struct ResourcesFolder;
+struct PublicFolder;
 
-pub(crate) struct IndexEndpoint<G> {
+pub(crate) struct PublicFilesEndpoint<G> {
+    public_dir: Option<PathBuf>,
     gql: G,
 }
 
-impl<G> IndexEndpoint<G> {
-    pub(crate) fn new(gql: G) -> IndexEndpoint<G> {
-        IndexEndpoint { gql }
+impl<G> PublicFilesEndpoint<G> {
+    pub(crate) fn new(public_dir: Option<PathBuf>, gql: G) -> PublicFilesEndpoint<G> {
+        PublicFilesEndpoint { public_dir, gql }
     }
 }
 
-impl<G> Endpoint for IndexEndpoint<G>
+impl<G> Endpoint for PublicFilesEndpoint<G>
 where
     G: Endpoint<Output = Response>,
 {
     type Output = Response;
 
-    async fn call(&self, mut req: Request) -> poem::Result<Self::Output> {
+    async fn call(&self, req: Request) -> poem::Result<Self::Output> {
         if req.method() == Method::POST {
             self.gql.call(req).await
+        } else if let Some(public_dir) = &self.public_dir {
+            StaticFilesEndpoint::new(public_dir)
+                .fallback_to_index()
+                .call(req)
+                .await
         } else {
             let path = req.uri().path().trim_start_matches('/');
 
             if !path.is_empty()
-                && ResourcesFolder::get(path).is_none()
-                && ResourcesFolder::get(&format!("{path}/index.html")).is_none()
+                && PublicFolder::get(path).is_none()
+                && PublicFolder::get(&format!("{path}/index.html")).is_none()
             {
-                EmbeddedFileEndpoint::<ResourcesFolder>::new("index.html")
+                EmbeddedFileEndpoint::<PublicFolder>::new("index.html")
                     .call(req)
                     .await
             } else {
-                EmbeddedFilesEndpoint::<ResourcesFolder>::new()
-                    .call(req)
-                    .await
+                EmbeddedFilesEndpoint::<PublicFolder>::new().call(req).await
             }
         }
     }
