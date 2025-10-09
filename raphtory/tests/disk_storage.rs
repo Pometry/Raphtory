@@ -475,6 +475,7 @@ mod test {
             num_threads,
             node_type_col,
             None,
+            None,
         )
         .unwrap()
         .into_graph();
@@ -769,6 +770,7 @@ mod test {
             100,
             100,
             1,
+            None,
             None,
             None,
         )

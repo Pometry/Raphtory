@@ -115,6 +115,7 @@ mod io_tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
             let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));

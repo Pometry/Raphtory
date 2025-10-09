@@ -215,7 +215,7 @@ impl PyDiskGraph {
 
     #[staticmethod]
     #[pyo3(
-        signature = (graph_dir, layer_parquet_cols, node_properties=None, chunk_size=10_000_000, t_props_chunk_size=10_000_000, num_threads=4, node_type_col=None, node_id_col=None)
+        signature = (graph_dir, layer_parquet_cols, node_properties=None, chunk_size=10_000_000, t_props_chunk_size=10_000_000, num_threads=4, node_type_col=None, node_id_col=None, num_rows=None)
     )]
     fn load_from_parquets(
         graph_dir: PathBuf,
@@ -226,6 +226,7 @@ impl PyDiskGraph {
         num_threads: usize,
         node_type_col: Option<&str>,
         node_id_col: Option<&str>,
+        num_rows: Option<usize>,
     ) -> Result<PyDiskGraph, GraphError> {
         let layer_cols = layer_parquet_cols
             .iter()
@@ -240,6 +241,7 @@ impl PyDiskGraph {
             num_threads,
             node_type_col,
             node_id_col,
+            num_rows,
         )
         .map_err(|err| {
             GraphError::LoadFailure(format!("Failed to load graph from parquet files: {err:?}"))

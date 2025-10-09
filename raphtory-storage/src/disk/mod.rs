@@ -283,6 +283,7 @@ impl DiskGraphStorage {
         num_threads: usize,
         node_type_col: Option<&str>,
         node_id_col: Option<&str>,
+        num_rows: Option<usize>,
     ) -> Result<DiskGraphStorage, RAError> {
         let edge_lists: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .into_iter()
@@ -318,6 +319,7 @@ impl DiskGraphStorage {
             node_properties.as_ref().map(|p| p.as_ref()),
             node_type_col,
             node_id_col,
+            num_rows,
         )?;
         Ok(Self::new(t_graph))
     }
