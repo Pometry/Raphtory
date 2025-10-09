@@ -52,7 +52,6 @@ roaring = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
 uuid = { workspace = true }
-mimalloc = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
