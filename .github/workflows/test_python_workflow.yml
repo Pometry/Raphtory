@@ -97,6 +97,11 @@ jobs:
       - name: Run mypy
         run: |
           mypy -m raphtory
+      - uses: actions/checkout@v4
+        name: Checkout ui-tests submodule
+        with:
+          submodules: true
+          ref: ${{ github.head_ref }}
       - name: Prepare for testing UI
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         working-directory: ui-tests
