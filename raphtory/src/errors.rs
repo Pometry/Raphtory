@@ -19,6 +19,7 @@ use std::{
     fmt::Debug,
     io,
     path::{PathBuf, StripPrefixError},
+    sync::Arc,
     time::SystemTimeError,
 };
 use tracing::error;
@@ -118,6 +119,9 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[error(transparent)]
+    ExternalError(#[from] Arc<dyn std::error::Error + Send + Sync>),
+
     #[error(transparent)]
     MutationError(#[from] MutationError),
 

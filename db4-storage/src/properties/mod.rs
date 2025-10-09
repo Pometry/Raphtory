@@ -74,6 +74,10 @@ impl Properties {
         self.t_properties.get(prop_id)
     }
 
+    pub fn t_column_mut(&mut self, prop_id: usize) -> Option<&mut PropColumn> {
+        self.t_properties.get_mut(prop_id)
+    }
+
     pub fn c_column(&self, prop_id: usize) -> Option<&PropColumn> {
         self.c_properties.get(prop_id)
     }
@@ -240,6 +244,14 @@ impl Properties {
     pub(crate) fn t_len(&self) -> usize {
         self.t_properties.len()
     }
+
+    pub(crate) fn t_properties_mut(&mut self) -> &mut TColumns {
+        &mut self.t_properties
+    }
+
+    pub(crate) fn reset_t_len(&mut self) {
+        self.t_properties.reset_len();
+    }
 }
 
 impl<'a> PropMutEntry<'a> {
@@ -259,16 +271,24 @@ impl<'a> PropMutEntry<'a> {
             self.properties.t_properties.push_null()
         };
 
+        self.ensure_times_from_props();
+        self.set_time(t, t_prop_row);
+
+        self.properties.has_node_properties = true;
+        self.properties.update_earliest_latest(t);
+    }
+
+    pub(crate) fn ensure_times_from_props(&mut self) {
         if self.properties.times_from_props.len() <= self.row {
             self.properties
                 .times_from_props
                 .resize_with(self.row + 1, Default::default);
         }
+    }
+
+    pub(crate) fn set_time(&mut self, t: TimeIndexEntry, t_prop_row: usize) {
         let prop_timestamps = &mut self.properties.times_from_props[self.row];
         prop_timestamps.set(t, Some(t_prop_row));
-
-        self.properties.has_node_properties = true;
-        self.properties.update_earliest_latest(t);
     }
 
     pub(crate) fn addition_timestamp(&mut self, t: TimeIndexEntry, edge_id: ELID) {

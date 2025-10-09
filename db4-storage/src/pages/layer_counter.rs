@@ -36,6 +36,17 @@ impl GraphStats {
         }
     }
 
+    pub fn load(counts: impl IntoIterator<Item = usize>, earliest: i64, latest: i64) -> Self {
+        let layers = counts.into_iter().map(AtomicUsize::new).collect();
+        let earliest = MinCounter::from(earliest);
+        let latest = MaxCounter::from(latest);
+        Self {
+            layers,
+            earliest,
+            latest,
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.layers.count()
     }

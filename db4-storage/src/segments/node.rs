@@ -207,7 +207,7 @@ impl MemNodeSegment {
         let est_size = layer.est_size();
         layer.set_lsn(lsn);
 
-        let mut add_out = layer.reserve_local_row(src_pos);
+        let add_out = layer.reserve_local_row(src_pos);
         let new_entry = add_out.is_new();
         let add_out = add_out.inner();
         let is_new_edge = add_out.adj.add_edge_out(dst, e_id.edge);
@@ -262,14 +262,24 @@ impl MemNodeSegment {
         prop_mut_entry.addition_timestamp(ts, e_id);
     }
 
-    pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) -> usize {
-        let segment_container = &mut self.layers[e_id.layer()];
-        let est_size = segment_container.est_size();
-        let row = segment_container.reserve_local_row(node_pos).inner().row();
+    pub fn update_timestamp<T: AsTime>(
+        &mut self,
+        t: T,
+        node_pos: LocalPOS,
+        e_id: ELID,
+        lsn: u64,
+    ) -> usize {
+        let layer_id = e_id.layer();
+        let (est_size, row) = {
+            let segment_container = self.get_or_create_layer(layer_id); //&mut self.layers[e_id.layer()];
+            segment_container.set_lsn(lsn);
+            let est_size = segment_container.est_size();
+            let row = segment_container.reserve_local_row(node_pos).inner().row();
+            (est_size, row)
+        };
         self.update_timestamp_inner(t, row, e_id);
-        let layer_est_size = self.layers[e_id.layer()].est_size();
-        let added_size = layer_est_size - est_size;
-        added_size
+        let layer_est_size = self.layers[layer_id].est_size();
+        layer_est_size - est_size
     }
 
     pub fn add_props<T: AsTime>(

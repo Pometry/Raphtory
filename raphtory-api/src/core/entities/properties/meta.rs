@@ -235,6 +235,10 @@ impl PropMapper {
         }
     }
 
+    pub fn d_types(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
+        self.dtypes.read_recursive()
+    }
+
     pub fn deep_clone(&self) -> Self {
         let dtypes = self.dtypes.read().clone();
         Self {

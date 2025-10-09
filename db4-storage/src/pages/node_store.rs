@@ -11,7 +11,10 @@ use crate::{
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::meta::Meta;
-use raphtory_core::entities::{EID, VID};
+use raphtory_core::{
+    entities::{EID, VID},
+    storage::timeindex::AsTime,
+};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -171,7 +174,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     }
 
     pub fn nodes_path(&self) -> Option<&Path> {
-        self.nodes_path.as_ref().map(|path| path.as_path())
+        self.nodes_path.as_deref()
     }
 
     pub fn load(
@@ -253,11 +256,27 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             }
         }
 
+        let earliest = pages
+            .iter()
+            .filter_map(|(_, page)| page.earliest().filter(|t| t.t() != i64::MAX))
+            .map(|t| t.t())
+            .min()
+            .unwrap_or(i64::MAX);
+
+        let latest = pages
+            .iter()
+            .filter_map(|(_, page)| page.latest().filter(|t| t.t() != i64::MIN))
+            .map(|t| t.t())
+            .max()
+            .unwrap_or(i64::MIN);
+
+        let stats = GraphStats::load(layer_counts, earliest, latest);
+
         Ok(Self {
             pages,
             nodes_path: Some(nodes_path.to_path_buf()),
             max_page_len,
-            stats: GraphStats::from(layer_counts).into(),
+            stats: stats.into(),
             node_meta,
             edge_meta,
             ext,

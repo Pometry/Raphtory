@@ -2,7 +2,10 @@ use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
+    pages::{
+        edge_store::ReadLockedEdgeStorage, flush_thread::FlushThread,
+        node_store::ReadLockedNodeStorage,
+    },
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
@@ -47,7 +50,7 @@ pub mod test_utils;
 #[derive(Debug)]
 pub struct GraphStore<NS, ES, EXT> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
-    // node_flush_thread: FlushThread,
+    _node_flush_thread: FlushThread,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -140,7 +143,7 @@ impl<
         let t_len = edges.t_len();
 
         Ok(Self {
-            // node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
+            _node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone(), edges.clone()),
             nodes,
             edges,
             event_id: AtomicUsize::new(t_len),
@@ -182,12 +185,12 @@ impl<
                 max_page_len_edges,
             };
 
-            write_graph_meta(&graph_dir, graph_meta)
+            write_graph_meta(graph_dir, graph_meta)
                 .expect("Unrecoverable! Failed to write graph meta");
         }
 
         Self {
-            // node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
+            _node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone(), edges.clone()),
             nodes,
             edges,
             event_id: AtomicUsize::new(0),

@@ -5,11 +5,7 @@ use crate::{
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
     serialise::incremental::InternalCache,
 };
-use itertools::Itertools;
-use parquet::{
-    arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask},
-    file::reader::FileReader,
-};
+use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::{
     collections::HashMap,
@@ -275,7 +271,7 @@ pub(crate) fn process_parquet_file_to_df(
         .collect();
 
     let chunks = match batch_size {
-        None => chunks,
+        None => chunks.with_batch_size(100_000),
         Some(batch_size) => chunks.with_batch_size(batch_size),
     };
 
@@ -343,6 +339,7 @@ mod test {
     use arrow_array::{
         ArrayRef, Float64Array, Int64Array, PrimitiveArray, StringArray, StringViewArray,
     };
+    use itertools::Itertools;
     use std::{path::PathBuf, sync::Arc};
 
     #[test]

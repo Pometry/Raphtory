@@ -11,6 +11,7 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
+use db4_graph::WriteLockedGraph;
 use either::Either;
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
@@ -244,6 +245,7 @@ pub fn load_edges_from_df<
     let mut dst_col_resolved = vec![];
     let mut eid_col_resolved: Vec<EID> = vec![];
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
+    let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
@@ -379,6 +381,7 @@ pub fn load_edges_from_df<
 
         eid_col_resolved.resize_with(df.len(), Default::default);
         eids_exist.resize_with(df.len(), Default::default);
+        layer_eids_exist.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
         let num_edges: Arc<AtomicUsize> =
@@ -388,9 +391,11 @@ pub fn load_edges_from_df<
         let mut per_segment_edge_count = Vec::with_capacity(write_locked_graph.nodes.len());
         per_segment_edge_count.resize_with(write_locked_graph.nodes.len(), || AtomicUsize::new(0));
 
+        let WriteLockedGraph {
+            nodes, ref edges, ..
+        } = &mut write_locked_graph;
         // Generate all edge_ids + add outbound edges
-        write_locked_graph
-            .nodes
+        nodes
             .iter_mut() // TODO: change to par_iter_mut but preserve edge_id order
             .enumerate()
             .for_each(|(page_id, locked_page)| {
@@ -406,27 +411,35 @@ pub fn load_edges_from_df<
                         let t = TimeIndexEntry(time, start_idx + row);
                         let mut writer = locked_page.writer();
                         writer.store_node_id(src_pos, 0, src_gid, 0);
+                        // find the original EID in the static graph if it exists
+                        // otherwise create a new one
+                        // find the edge id in the layer, first using the EID then using get_out_edge (more expensive)
 
                         let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                             eids_exist[row].store(true, Ordering::Relaxed);
-                            edge_id
+                            edge_id.with_layer(*layer)
                         } else {
                             let edge_id = EID(next_edge_id());
 
                             writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                             eids_exist[row].store(false, Ordering::Relaxed);
-                            edge_id
+                            edge_id.with_layer(*layer)
                         };
 
-                        writer.add_outbound_edge(
-                            Some(t),
-                            src_pos,
-                            *dst,
-                            edge_id.with_layer(*layer),
-                            0,
-                        ); // FIXME: when we update this to work with layers use the correct layer
+                        if edges.exists(edge_id)
+                            || writer.get_out_edge(src_pos, *dst, *layer).is_some()
+                        {
+                            layer_eids_exist[row].store(true, Ordering::Relaxed);
+                            // node additions
+                            writer.update_timestamp(t, src_pos, edge_id, 0);
+                        } else {
+                            layer_eids_exist[row].store(false, Ordering::Relaxed);
+                            // actuall adds the edge
+                            writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id, 0);
+                        }
+
                         per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
                     }
                 }
@@ -442,12 +455,21 @@ pub fn load_edges_from_df<
                     .par_iter_mut()
                     .enumerate()
                     .for_each(|(page_id, shard)| {
-                        for (row, ((((src, (dst, dst_gid)), eid), time), layer)) in src_col_resolved
+                        for (
+                            row,
+                            (
+                                ((((src, (dst, dst_gid)), eid), time), layer),
+                                (edge_exists_in_layer, edge_exists_in_s_graph),
+                            ),
+                        ) in src_col_resolved
                             .iter()
                             .zip(dst_col_resolved.iter().zip(dst_col.iter()))
-                            .zip(eid_col_resolved.iter())
+                            .zip(&eid_col_resolved)
                             .zip(time_col.iter())
                             .zip(layer_col_resolved.iter())
+                            .zip(layer_eids_exist.iter().zip(&eids_exist).map(|(a, b)| {
+                                (a.load(Ordering::Relaxed), b.load(Ordering::Relaxed))
+                            }))
                             .enumerate()
                         {
                             if let Some(dst_pos) = shard.resolve_pos(*dst) {
@@ -455,14 +477,20 @@ pub fn load_edges_from_df<
                                 let mut writer = shard.writer();
 
                                 writer.store_node_id(dst_pos, 0, dst_gid, 0);
-                                writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
-                                writer.add_inbound_edge(
-                                    Some(t),
-                                    dst_pos,
-                                    *src,
-                                    eid.with_layer(*layer),
-                                    0,
-                                );
+                                if !edge_exists_in_s_graph {
+                                    writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
+                                }
+                                if !edge_exists_in_layer {
+                                    writer.add_inbound_edge(
+                                        Some(t),
+                                        dst_pos,
+                                        *src,
+                                        eid.with_layer(*layer),
+                                        0,
+                                    );
+                                } else {
+                                    writer.update_timestamp(t, dst_pos, eid.with_layer(*layer), 0);
+                                }
 
                                 per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
                             }
@@ -473,8 +501,23 @@ pub fn load_edges_from_df<
             // Add temporal & constant properties to edges
             sc.spawn(|_| {
                 write_locked_graph.edges.par_iter_mut().for_each(|shard| {
-                    let mut t_props = vec![];
-                    let mut c_props = vec![];
+                    let mut t_props: Vec<(usize, Prop)> = vec![];
+                    let mut c_props: Vec<(usize, Prop)> = vec![];
+
+                    // let mut writer = shard.writer();
+                    // let cols = prop_cols.cols();
+
+                    // writer.bulk_add_edges(
+                    //     mask,
+                    //     *time_col,
+                    //     start_idx,
+                    //     eid_col_resolved,
+                    //     src_col_resolved,
+                    //     dst_col_resolved,
+                    //     0, // use the mask to select for layer
+                    //     &cols,
+                    //     prop_cols.prop_ids(),
+                    // );
 
                     for (idx, (((((src, dst), time), eid), layer), exists)) in src_col_resolved
                         .iter()
@@ -947,7 +990,7 @@ pub(crate) fn load_graph_props_from_df<
 #[cfg(test)]
 mod tests {
     use crate::{
-        db::graph::graph::assert_graph_equal,
+        db::{api::view::StaticGraphViewOps, graph::graph::assert_graph_equal},
         errors::GraphError,
         io::arrow::{
             dataframe::{DFChunk, DFView},
@@ -957,13 +1000,11 @@ mod tests {
         test_utils::{build_edge_list, build_edge_list_str},
     };
     use arrow_array::builder::{
-        ArrayBuilder, Int64Builder, LargeStringBuilder, PrimitiveBuilder, StringViewBuilder,
-        UInt64Builder,
+        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
     use itertools::Itertools;
-    use proptest::proptest;
+    use proptest::prelude::*;
     use raphtory_storage::core_ops::CoreGraphOps;
-    use std::sync::Arc;
 
     fn build_df(
         chunk_size: usize,
@@ -1054,7 +1095,6 @@ mod tests {
     #[test]
     fn test_load_edges() {
         proptest!(|(edges in build_edge_list(1000, 100), chunk_size in 1usize..=1000)| {
-            let distinct_edges = edges.iter().map(|(src, dst, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
             let df_view = build_df(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
@@ -1062,12 +1102,7 @@ mod tests {
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
             assert_graph_equal(&g, &g2);
         })
     }
@@ -1115,65 +1150,6 @@ mod tests {
         assert!(g.has_edge("0", "1"))
     }
 
-    fn check_load_edges_layers(
-        mut edges: Vec<(u64, u64, i64, String, i64, Option<String>)>,
-        chunk_size: usize,
-    ) {
-        let distinct_edges = edges
-            .iter()
-            .map(|(src, dst, _, _, _, _)| (src, dst))
-            .collect::<std::collections::HashSet<_>>()
-            .len();
-        edges.sort_by(|(_, _, _, _, _, l1), (_, _, _, _, _, l2)| l1.cmp(l2));
-        let g = Graph::new();
-        let g2 = Graph::new();
-
-        for edges in edges.chunk_by(|(_, _, _, _, _, l1), (_, _, _, _, _, l2)| l1 < l2) {
-            let layer = edges[0].5.clone();
-            let edges = edges
-                .iter()
-                .map(|(src, dst, time, str_prop, int_prop, _)| {
-                    (*src, *dst, *time, str_prop.clone(), *int_prop)
-                })
-                .collect_vec();
-            let df_view = build_df(chunk_size, &edges);
-            let props = ["str_prop", "int_prop"];
-            load_edges_from_df(
-                df_view,
-                "time",
-                "src",
-                "dst",
-                &props,
-                &[],
-                None,
-                layer.as_deref(),
-                None,
-                &g,
-            )
-            .unwrap();
-            for (src, dst, time, str_prop, int_prop) in edges {
-                g2.add_edge(
-                    time,
-                    src,
-                    dst,
-                    [
-                        ("str_prop", str_prop.clone().into_prop()),
-                        ("int_prop", int_prop.into_prop()),
-                    ],
-                    layer.as_deref(),
-                )
-                .unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-                if let Some(layer) = &layer {
-                    assert!(edge.has_layer(layer))
-                }
-            }
-            assert_graph_equal(&g, &g2);
-        }
-    }
-
     #[test]
     fn test_load_edges_1() {
         let edges = [(0, 1, 0, "a".to_string(), 0)];
@@ -1213,67 +1189,4 @@ mod tests {
         }
         assert_graph_equal(&g, &g2);
     }
-
-    // #[test]
-    // fn test_load_edges_with_cache() {
-    //     proptest!(|(edges in build_edge_list(100, 100), chunk_size in 1usize..=100)| {
-    //         let df_view = build_df(chunk_size, &edges);
-    //         let g = Graph::new();
-    //         let cache_file = TempDir::new().unwrap();
-    //         g.cache(cache_file.path()).unwrap();
-    //         let props = ["str_prop", "int_prop"];
-    //         load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
-    //         let g = Graph::load_cached(cache_file.path()).unwrap();
-    //         let g2 = Graph::new();
-    //         for (src, dst, time, str_prop, int_prop) in edges {
-    //             g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-    //             let edge = g.edge(src, dst).unwrap().at(time);
-    //             assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-    //             assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-    //         }
-    //         assert_graph_equal(&g, &g2);
-    //     })
-    // }
-
-    // #[test]
-    // fn load_single_edge_with_cache() {
-    //     let edges = [(0, 0, 0, "".to_string(), 0)];
-    //     let df_view = build_df(1, &edges);
-    //     let g = Graph::new();
-    //     let cache_file = TempDir::new().unwrap();
-    //     g.cache(cache_file.path()).unwrap();
-    //     let props = ["str_prop", "int_prop"];
-    //     load_edges_from_df(
-    //         df_view,
-    //         "time",
-    //         "src",
-    //         "dst",
-    //         &props,
-    //         &[],
-    //         None,
-    //         None,
-    //         None,
-    //         &g,
-    //     )
-    //     .unwrap();
-    //     let g = Graph::load_cached(cache_file.path()).unwrap();
-    //     let g2 = Graph::new();
-    //     for (src, dst, time, str_prop, int_prop) in edges {
-    //         g2.add_edge(
-    //             time,
-    //             src,
-    //             dst,
-    //             [
-    //                 ("str_prop", str_prop.clone().into_prop()),
-    //                 ("int_prop", int_prop.into_prop()),
-    //             ],
-    //             None,
-    //         )
-    //         .unwrap();
-    //         let edge = g.edge(src, dst).unwrap().at(time);
-    //         assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-    //         assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-    //     }
-    //     assert_graph_equal(&g, &g2);
-    // }
 }
