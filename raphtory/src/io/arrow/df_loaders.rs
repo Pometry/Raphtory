@@ -1013,7 +1013,7 @@ pub(crate) fn load_graph_props_from_df<
 #[cfg(test)]
 mod tests {
     use crate::{
-        db::graph::graph::assert_graph_equal,
+        db::{api::view::internal::InternalStorageOps, graph::graph::assert_graph_equal},
         errors::GraphError,
         io::arrow::{
             dataframe::{DFChunk, DFView},
@@ -1028,7 +1028,7 @@ mod tests {
     use itertools::Itertools;
     use proptest::proptest;
     use raphtory_core::storage::timeindex::TimeIndexEntry;
-    use raphtory_storage::core_ops::CoreGraphOps;
+    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps}};
 
     fn build_df(
         chunk_size: usize,
@@ -1140,8 +1140,6 @@ mod tests {
                     secondary_index_col.append_value(*secondary_index);
                     str_prop_col.append_value(str_prop);
                     int_prop_col.append_value(*int_prop);
-
-                    println!("src, dst, time, secondary_index, str_prop, int_prop: {}, {}, {}, {}, {}, {}", src, dst, time, secondary_index, str_prop, int_prop);
                 }
 
                 let chunk = vec![
@@ -1461,7 +1459,7 @@ mod tests {
         let g2 = Graph::new();
 
         for (src, dst, time, secondary_index, str_prop, int_prop) in edges {
-            let time_with_secondary_index = TimeIndexEntry(time, secondary_index as usize);
+            let time_with_secondary_index = TimeIndexEntry::new(time, secondary_index as usize);
 
             g2.add_edge(
                 time_with_secondary_index,
@@ -1479,6 +1477,17 @@ mod tests {
         // Internally checks whether temporal props are sorted by
         // secondary index.
         assert_graph_equal(&g, &g2);
+
+        // Both graphs should have the same event_id / secondary_index
+        assert_eq!(
+            g.write_session().unwrap().read_event_id().unwrap(),
+            g2.write_session().unwrap().read_event_id().unwrap(),
+        );
+
+        assert_eq!(
+            g.write_session().unwrap().read_event_id().unwrap(),
+            10 // max secondary index in edges
+        );
     }
 
     #[test]
@@ -1505,6 +1514,7 @@ mod tests {
             ).unwrap();
 
             let g2 = Graph::new();
+            let mut max_secondary_index = 0;
 
             for (src, dst, time, secondary_index_val, str_prop, int_prop) in edges {
                 let time_with_secondary_index = TimeIndexEntry(time, secondary_index_val as usize);
@@ -1523,15 +1533,27 @@ mod tests {
                 let edge = g.edge(src, dst).unwrap().at(time);
                 assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+
+                // Track the maximum secondary_index value to compare later
+                max_secondary_index = max_secondary_index.max(secondary_index_val);
             }
 
             assert_eq!(g.unfiltered_num_edges(), distinct_edges);
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
             assert_graph_equal(&g, &g2);
+
+            // Both graphs should have the same event_id / secondary_index
+            assert_eq!(
+                g.write_session().unwrap().read_event_id().unwrap(),
+                g2.write_session().unwrap().read_event_id().unwrap(),
+            );
+
+            assert_eq!(
+                g.write_session().unwrap().read_event_id().unwrap(),
+                max_secondary_index as usize
+            );
         })
     }
-
-
 
     #[test]
     fn test_load_nodes_with_secondary_index() {
@@ -1590,5 +1612,16 @@ mod tests {
         // Internally checks whether temporal props are sorted by
         // secondary index.
         assert_graph_equal(&g, &g2);
+
+        // Both graphs should have the same event_id / secondary_index
+        assert_eq!(
+            g.write_session().unwrap().read_event_id().unwrap(),
+            g2.write_session().unwrap().read_event_id().unwrap(),
+        );
+
+        assert_eq!(
+            g.write_session().unwrap().read_event_id().unwrap(),
+            10 // max secondary index in nodes
+        );
     }
 }

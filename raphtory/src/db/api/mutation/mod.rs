@@ -18,19 +18,20 @@ use raphtory_api::core::{
     entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,
 };
 pub(crate) use raphtory_core::utils::time::{InputTime, TryIntoInputTime};
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+use raphtory_storage::{mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps}};
 
 pub fn time_from_input<G: InternalAdditionOps<Error: Into<GraphError>>, T: TryIntoInputTime>(
-    g: &G,
-    t: T,
+    graph: &G,
+    time: T,
 ) -> Result<TimeIndexEntry, GraphError> {
-    let t = t.try_into_input_time()?;
-    let session = g.write_session().map_err(|err| err.into())?;
-    Ok(match t {
+    let input_time = time.try_into_input_time()?;
+    let session = graph.write_session().map_err(|err| err.into())?;
+
+    Ok(match input_time {
         InputTime::Simple(t) => {
             TimeIndexEntry::new(t, session.next_event_id().map_err(into_graph_err)?)
         }
-        InputTime::Indexed(t, s) => TimeIndexEntry::new(t, s),
+        InputTime::Indexed(t, secondary_index) => TimeIndexEntry::new(t, secondary_index),
     })
 }
 
@@ -38,13 +39,18 @@ pub fn time_from_input_session<
     G: SessionAdditionOps<Error: Into<GraphError>>,
     T: TryIntoInputTime,
 >(
-    g: &G,
-    t: T,
+    graph: &G,
+    time: T,
 ) -> Result<TimeIndexEntry, GraphError> {
-    let t = t.try_into_input_time()?;
-    Ok(match t {
-        InputTime::Simple(t) => TimeIndexEntry::new(t, g.next_event_id().map_err(into_graph_err)?),
-        InputTime::Indexed(t, s) => TimeIndexEntry::new(t, s),
+    let input_time = time.try_into_input_time()?;
+
+    Ok(match input_time {
+        InputTime::Simple(t) => TimeIndexEntry::new(t, graph.next_event_id().map_err(into_graph_err)?),
+        InputTime::Indexed(t, secondary_index) => {
+            let _ = graph.set_max_event_id(secondary_index).map_err(into_graph_err)?;
+
+            TimeIndexEntry::new(t, secondary_index)
+        }
     })
 }
 
