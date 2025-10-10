@@ -1485,7 +1485,10 @@ mod tests {
 
     #[test]
     fn test_load_edges_with_secondary_index_proptest() {
-        proptest!(|(edges in build_edge_list_with_secondary_index(1000, 100), chunk_size in 1usize..=1000)| {
+        let len = 1000;
+        let num_nodes = 100;
+
+        proptest!(|(edges in build_edge_list_with_secondary_index(len, num_nodes), chunk_size in 1usize..=len)| {
             let distinct_edges = edges.iter().map(|(src, dst, _, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
             let df_view = build_df_with_secondary_index(chunk_size, &edges);
             let g = Graph::new();
