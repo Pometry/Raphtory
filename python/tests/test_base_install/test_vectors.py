@@ -82,7 +82,9 @@ def test_selection():
     nodes = selection.nodes()
     node_names_returned = [node.name for node in nodes]
     assert node_names_returned == nodes_to_select
+    print("before get documents")
     docs = [doc.content for doc in selection.get_documents()]
+    print("after get documents")
     assert docs == ["node1", "node2"]
 
     selection = vg.empty_selection()
