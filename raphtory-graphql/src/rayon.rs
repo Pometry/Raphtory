@@ -1,3 +1,5 @@
+use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::sync::LazyLock;
 use tokio::sync::oneshot;
 
 static WRITE_POOL: LazyLock<ThreadPool> =
