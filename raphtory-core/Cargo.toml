@@ -13,7 +13,7 @@ rust-version.workspace = true
 edition.workspace = true
 
 [dependencies]
-raphtory-api = { path = "../raphtory-api", version = "0.16.1" }
+raphtory-api = { path = "../raphtory-api", version = "0.16.2" }
 dashmap = { workspace = true }
 either = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

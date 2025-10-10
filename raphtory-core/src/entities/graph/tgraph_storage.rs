@@ -77,8 +77,12 @@ impl GraphStorage {
         self.edges.get_edge(eid)
     }
 
+    pub fn try_edge_entry(&self, eid: EID) -> Option<EdgeRGuard<'_>> {
+        self.edges.try_get_edge(eid)
+    }
+
     #[inline]
     pub fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
-        self.nodes.pair_entry_mut(i, j)
+        self.nodes.loop_pair_entry_mut(i, j)
     }
 }
