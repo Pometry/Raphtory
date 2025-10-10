@@ -90,28 +90,13 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
           echo "Installing Raphtory from ./python"
-          RAPHTORY_UI_INDEX_PATH=../raphtory-graphql/resources pip install -e ./python
+          pip install -e ./python
           echo "Installing stubsgen"
           python -m pip install -e stub_gen
           cd python/scripts && python gen-stubs.py
       - name: Run mypy
         run: |
           mypy -m raphtory
-      - uses: actions/checkout@v4
-        name: Checkout ui-tests submodule
-        with:
-          submodules: true
-          token: ${{ secrets.CLASSIC_CLONE_PRIVATE_REPOS_KEY }}
-      - name: Prepare for testing UI
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        working-directory: ui-tests
-        run: npm install && npx playwright --with-deps --only-shell
-      - name: Test UI
-        working-directory: ui-tests
-        run: |
-          python test_server.py &
-          UI_BASE_URL=http://localhost:1736 npm run test
-
 
       - name: Check for uncommitted changes
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'

@@ -1,0 +1,69 @@
+name: Run UI tests
+on:
+  workflow_call:
+jobs:
+  select-strategy:
+    runs-on: ubuntu-latest
+    outputs:
+      python-versions: ${{ steps.set-matrix.outputs.python-versions }}
+    steps:
+      - id: set-matrix
+        run: |
+          echo "python-versions=[\"3.9\",\"3.13\"]" >> $GITHUB_OUTPUT
+  ui-test:
+    name: Python Tests
+    needs: select-strategy
+    strategy:
+      matrix:
+        python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
+        os: [ ubuntu-latest ]
+    runs-on: '${{ matrix.os }}'
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@v2
+        name: Cargo cache
+        with:
+          cache-all-crates: true
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          cache: 'pip'
+      - name: Install Python dependencies
+        run: |
+          echo "Installing test dependencies..."
+          python -m pip install pytest tox
+          python -m pip install -e examples/netflow
+          python -m pip install black
+          echo "Installing linting dependencies from cache..."
+          python -m pip install maturin mypy networkx pyvis pandas-stubs
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Raphtory
+        run: |
+          echo "Installing Raphtory from ./python"
+          pip install -e ./python
+      - uses: actions/checkout@v4
+        name: Checkout ui-tests submodule
+        with:
+          submodules: true
+          token: ${{ secrets.CLASSIC_CLONE_PRIVATE_REPOS_KEY }}
+      - name: Prepare for testing UI
+        working-directory: ui-tests
+        run: npm install && npx playwright --with-deps --only-shell
+      - name: Test UI
+        working-directory: ui-tests
+        run: |
+          python test_server.py &
+          UI_BASE_URL=http://localhost:1736 npm run test
