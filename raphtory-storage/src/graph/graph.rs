@@ -224,6 +224,7 @@ impl GraphStorage {
                 .nodes
                 .try_entry(vid)
                 .map(NodeStorageEntry::Unlocked),
+            #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
                 if vid.index() < storage.inner().num_nodes() {
                     Some(NodeStorageEntry::Disk(DiskNode::new(storage.inner(), vid)))
