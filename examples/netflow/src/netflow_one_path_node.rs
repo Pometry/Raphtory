@@ -1,4 +1,4 @@
-use raphtory_core::{
+use raphtory::{
     core::state::{
         accumulator_id::accumulators::sum,
         compute_state::{ComputeState, ComputeStateVec},
@@ -135,7 +135,7 @@ pub fn netflow_one_path_node<G: StaticGraphViewOps>(
 #[cfg(test)]
 mod one_path_test {
     use super::*;
-    use raphtory_core::{
+    use raphtory::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::{Prop, NO_PROPS},
     };

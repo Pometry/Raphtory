@@ -1,6 +1,5 @@
-extern crate core;
 use pyo3::prelude::*;
-use raphtory_core::python::{
+use raphtory::python::{
     filter::base_filter_module,
     graph::node_state::base_node_state_module,
     packages::base_modules::{

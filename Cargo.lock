@@ -5120,7 +5120,6 @@ dependencies = [
 name = "raphtory-pymodule"
 version = "0.16.2"
 dependencies = [
- "numpy",
  "pyo3",
  "pyo3-build-config",
  "raphtory",
@@ -5134,7 +5133,6 @@ dependencies = [
  "arrow",
  "arrow-array",
  "bigdecimal",
- "either",
  "iter-enum",
  "itertools 0.13.0",
  "num-traits",
@@ -5154,20 +5152,11 @@ name = "raphtory_custom_gql_apis"
 version = "0.9.3"
 dependencies = [
  "async-graphql",
- "chrono",
- "display-error-chain",
- "dynamic-graphql",
  "futures-util",
- "itertools 0.13.0",
  "pyo3",
  "pyo3-build-config",
  "raphtory",
- "raphtory-api",
  "raphtory-graphql",
- "serde",
- "serde_json",
- "thiserror 2.0.17",
- "tokio",
 ]
 
 [[package]]

@@ -14,7 +14,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = { path = "../raphtory" }
+raphtory = { workspace = true }
 pometry-storage = { workspace = true, optional = true }
 arrow.workspace = true
 arrow-buffer.workspace = true
