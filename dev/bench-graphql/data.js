@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760102762031,
+  "lastUpdate": 1760115426555,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1295,6 +1295,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1410,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "43c2835d9e1c4202417572d10124dc3a54a6697e",
+          "message": "Migrate polars-arrow to arrow-rs (#2316)\n\n* can read and write arrow_rs ChunkedArray\n\n* progress with moving to arrow-rs\n\n* update submodule\n\n* test strings in df loaders\n\n* remove polars from parquet and df loading\n\n* add batch_size argument for the low-level functions\n\n* replace all quickcheck with proptest\n\n* add is_empty check for df loaders\n\n* remove polars as a dependency\n\n* update arrow and pyo3\n\n* more fixed tests\n\n* storage compiles\n\n* raphtory compiles\n\n* start working on cypher\n\n* update submodule\n\n* fix cypher\n\n* everything compiles but some tests are failing\n\n* update submodule\n\n* fix the transpiler test failures due to Join vs Inner Join (they are the same as Inner is the default)\n\n* fix storage feature\n\n* don't add the id column to the schema twice\n\n* fix merge issues\n\n* make node type iterator sized to fix conversion to array\n\n* update submodule\n\n* update submodule\n\n* fix bool and decimal property conversions to array\n\n* time column renamed?\n\n* tidy\n\n* tweak the array export for properties to return pyarrow arrays again\n\n* chore: apply tidy-public auto-fixes\n\n* tidy up warnings\n\n* chore: apply tidy-public auto-fixes\n\n* fixes from running on large graphs\n\n* update submodule\n\n* chore: apply tidy-public auto-fixes\n\n* update submodule\n\n* tidy up the versioning\n\n* tidy up the internal dependencies\n\n* chore: apply tidy-public auto-fixes\n\n* tidy up arrow imports\n\n* fix some imports\n\n* add the missing imports\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-10T17:21:03+01:00",
+          "tree_id": "bf16746403a74d60b08ec64f6d19cdb80f57931c",
+          "url": "https://github.com/Pometry/Raphtory/commit/43c2835d9e1c4202417572d10124dc3a54a6697e"
+        },
+        "date": 1760115423702,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1053,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 117,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 141,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 884,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 724,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1094,
             "unit": "req/s"
           }
         ]
