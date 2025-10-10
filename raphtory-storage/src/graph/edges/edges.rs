@@ -43,7 +43,7 @@ impl EdgesStorage {
         match self {
             EdgesStorage::Mem(storage) => {
                 StorageVariants2::Mem((0..storage.len()).map(EID).filter_map(|e| {
-                    let edge = storage.get_mem(e);
+                    let edge = storage.try_get_mem(e)?;
                     edge.has_layer(layers).then_some(EdgeStorageRef::Mem(edge))
                 }))
             }

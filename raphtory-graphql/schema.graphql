@@ -1261,7 +1261,7 @@ type MutableGraph {
 	"""
 	createNode(time: Int!, name: String!, properties: [PropertyInput!], nodeType: String): MutableNode!
 	"""
-	Add a batch of nodes.
+	Add a batch of nodes
 	"""
 	addNodes(nodes: [NodeAddition!]!): Boolean!
 	"""
@@ -1273,7 +1273,7 @@ type MutableGraph {
 	"""
 	addEdge(time: Int!, src: String!, dst: String!, properties: [PropertyInput!], layer: String): MutableEdge!
 	"""
-	Add a batch of edges.
+	Add a batch of edges
 	"""
 	addEdges(edges: [EdgeAddition!]!): Boolean!
 	"""

@@ -106,7 +106,7 @@ impl PartialEq for EdgesStorage {
                 .shards
                 .iter()
                 .zip(other.shards.iter())
-                .all(|(a, b)| a.read().eq(&b.read()))
+                .all(|(a, b)| a.read_recursive().eq(&b.read_recursive()))
     }
 }
 
@@ -146,7 +146,7 @@ impl EdgesStorage {
             shards: self
                 .shards
                 .iter()
-                .map(|shard| Arc::new(shard.read_arc()))
+                .map(|shard| Arc::new(shard.read_arc_recursive()))
                 .collect(),
             len: self.len(),
         }
@@ -187,8 +187,18 @@ impl EdgesStorage {
     pub fn get_edge(&self, eid: EID) -> EdgeRGuard<'_> {
         let (bucket, offset) = self.resolve(eid.into());
         EdgeRGuard {
-            guard: self.shards[bucket].read(),
+            guard: self.shards[bucket].read_recursive(),
             offset,
+        }
+    }
+
+    pub fn try_get_edge(&self, eid: EID) -> Option<EdgeRGuard<'_>> {
+        let (bucket, offset) = self.resolve(eid.into());
+        let guard = self.shards.get(bucket)?.read();
+        if guard.edge_ids.get(offset)?.initialised() {
+            Some(EdgeRGuard { guard, offset })
+        } else {
+            None
         }
     }
 }
@@ -316,6 +326,16 @@ impl LockedEdges {
         MemEdge::new(&self.shards[bucket], offset)
     }
 
+    pub fn try_get_mem(&self, eid: EID) -> Option<MemEdge<'_>> {
+        let (bucket, offset) = resolve(eid.into(), self.shards.len());
+        let guard = self.shards.get(bucket)?;
+        if guard.edge_ids.get(offset)?.initialised() {
+            Some(MemEdge::new(guard, offset))
+        } else {
+            None
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
@@ -326,6 +346,7 @@ impl LockedEdges {
                 .edge_ids
                 .iter()
                 .enumerate()
+                .filter(|(_, e)| e.initialised())
                 .map(move |(offset, _)| MemEdge::new(shard, offset))
         })
     }
@@ -336,6 +357,7 @@ impl LockedEdges {
                 .edge_ids
                 .par_iter()
                 .enumerate()
+                .filter(|(_, e)| e.initialised())
                 .map(move |(offset, _)| MemEdge::new(shard, offset))
         })
     }
