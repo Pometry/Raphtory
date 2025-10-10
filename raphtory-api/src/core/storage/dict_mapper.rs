@@ -103,7 +103,7 @@ impl DictMapper {
     }
 
     pub fn deep_clone(&self) -> Self {
-        let reverse_map = self.reverse_map.read().clone();
+        let reverse_map = self.reverse_map.read_recursive().clone();
 
         Self {
             map: self.map.clone(),
@@ -150,12 +150,12 @@ impl DictMapper {
     }
 
     pub fn has_name(&self, id: usize) -> bool {
-        let guard = self.reverse_map.read();
+        let guard = self.reverse_map.read_recursive();
         guard.get(id).is_some()
     }
 
     pub fn get_name(&self, id: usize) -> ArcStr {
-        let guard = self.reverse_map.read();
+        let guard = self.reverse_map.read_recursive();
         guard
             .get(id)
             .cloned()
@@ -164,7 +164,7 @@ impl DictMapper {
 
     pub fn get_keys(&self) -> ArcReadLockedVec<ArcStr> {
         ArcReadLockedVec {
-            guard: self.reverse_map.read_arc(),
+            guard: self.reverse_map.read_arc_recursive(),
         }
     }
 
@@ -173,11 +173,11 @@ impl DictMapper {
     }
 
     pub fn len(&self) -> usize {
-        self.reverse_map.read().len()
+        self.reverse_map.read_recursive().len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.reverse_map.read().is_empty()
+        self.reverse_map.read_recursive().is_empty()
     }
 }
 

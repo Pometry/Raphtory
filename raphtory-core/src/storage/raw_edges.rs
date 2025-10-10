@@ -106,7 +106,7 @@ impl PartialEq for EdgesStorage {
                 .shards
                 .iter()
                 .zip(other.shards.iter())
-                .all(|(a, b)| a.read().eq(&b.read()))
+                .all(|(a, b)| a.read_recursive().eq(&b.read_recursive()))
     }
 }
 
@@ -146,7 +146,7 @@ impl EdgesStorage {
             shards: self
                 .shards
                 .iter()
-                .map(|shard| Arc::new(shard.read_arc()))
+                .map(|shard| Arc::new(shard.read_arc_recursive()))
                 .collect(),
             len: self.len(),
         }
@@ -187,7 +187,7 @@ impl EdgesStorage {
     pub fn get_edge(&self, eid: EID) -> EdgeRGuard {
         let (bucket, offset) = self.resolve(eid.into());
         EdgeRGuard {
-            guard: self.shards[bucket].read(),
+            guard: self.shards[bucket].read_recursive(),
             offset,
         }
     }

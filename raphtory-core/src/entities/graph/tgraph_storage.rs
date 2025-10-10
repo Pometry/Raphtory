@@ -79,6 +79,6 @@ impl GraphStorage {
 
     #[inline]
     pub fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
-        self.nodes.pair_entry_mut(i, j)
+        self.nodes.loop_pair_entry_mut(i, j)
     }
 }
