@@ -1,35 +1,117 @@
-import { check, fail, sleep } from 'k6';
-import http, { RefinedResponse } from 'k6/http';
 import { Rate } from 'k6/metrics';
 
 import {
-    generateQueryOp,
-    generateMutationOp,
-    QueryRootGenqlSelection,
-    MutRootGenqlSelection,
     GraphGenqlSelection,
     EdgeGenqlSelection,
     NodeGenqlSelection,
     PathFromNodeViewCollection,
 } from './__generated';
+import { fetchAndCheck, fetchAndParse, mutate, mutateAndCheck } from './utils';
 
-// ------------- CONF PARAMETERS
-const TRAVERSAL_RATIO = 0; // 0.3; // TODO: bring back
-// --------------------------------------------
-
+// Global
+const PAGE_SIZE = 20;
+const LAYERS = ["a", "b", "c"];
+const CONST_KEYS = ["ca", "cb", "cc"];
+const TEMP_KEYS = ["ta", "tb", "tc"];
 const TIME_RANGE = 2000 * 365 * 24 * 60 * 60 * 1000;
-const randomTime = () => Math.floor(Math.random() * TIME_RANGE);
 
-const URL = __ENV.RAPHTORY_URL ?? 'http://localhost:1736';
+// CONF PARAMETERS
+const TRAVERSAL_RATIO = 0.3; // chance for the query to continue with a traversal from a node
+
+// query type rates
+const ADD_EDGE_WEIGHT = 1;
+const ADD_NODE_WEIGHT = 1;
+const DELETE_EDGE_WEIGHT = 1;
+const READ_QUERY_RATE = 6;
+
+// Entity query inside of the graph:
+const NODE_BY_NAME_WEIGHT = 1
+const EDGE_BY_SRC_DST_WEIGHT = 1
+const NODE_PAGE_WEIGHT = 1
+const EDGE_PAGE_WEIGHT = 1
+
+// Traversal methods
+const NEIGHBOURS_WEIGHT = 1;
+const IN_NEIGHBOURS_WEIGHT = 1;
+const OUT_NEIGHBOURS_WEIGHT = 1;
+const IN_COMPONENT_WEIGHT = 1;
+const OUT_COMPONENT_WEIGHT = 1;
+const EDGES_WEIGHT = 1;
+const OUT_EDGES_WEIGHT = 1;
+const IN_EDGES_WEIGHT = 1;
+
+// Property rates
+const EDGE_PROPERTY_RATE: PropertyRates = {
+  metadata: 0.3,
+  temporalLatest: 0.3,
+  temporalHistory: 0.2,
+}
+const NODE_PROPERTY_RATE: PropertyRates = {
+  metadata: 0.3,
+  temporalLatest: 0.3,
+  temporalHistory: 0.2,
+}
+const GRAPH_PROPERTY_RATE: PropertyRates = {
+  metadata: 0.3,
+  temporalLatest: 0.3,
+  temporalHistory: 0.2,
+}
+
+// View rates
+const GRAPH_VIEW_RATES: ViewRate = {
+  latest: 0.3,
+  layer: 0.2,
+  window: 0.2
+}
+const NODE_VIEW_RATES: ViewRate = {
+  latest: 0.3,
+  layer: 0.2,
+  window: 0.2
+}
+const EDGE_VIEW_RATES: ViewRate = {
+  latest: 0.3,
+  layer: 0.2,
+  window: 0.2
+}
+const NODE_PAGE_VIEW_RATES: ViewRate = {
+  latest: 0.3,
+  layer: 0.2,
+  window: 0.2
+}
+const EDGE_PAGE_VIEW_RATES: ViewRate = {
+  latest: 0.3,
+  layer: 0.2,
+  window: 0.2
+}
+const TRAVERSAL_VIEW_RATES: ViewRate = {
+  latest: 0.3,
+  layer: 0.2,
+  window: 0.2
+}
+
+type PropertyRates = {
+  metadata: number,
+  temporalLatest: number,
+  temporalHistory: number,
+}
+type ViewRate = {
+  layer: number,
+  latest: number,
+  window: number,
+}
+
+
+const randomTime = () => Math.floor(Math.random() * TIME_RANGE);
+const randomStr = () => Math.random().toString();
+const randomTempKey = () => pickRandom(TEMP_KEYS);
+const randomConstKey = () => pickRandom(CONST_KEYS);
 
 export const errorRate = new Rate('errors');
-
 
 const thresholdConf = {
   abortOnFail: true,
   delayAbortEval: '10s'
 }
-
 export const options = {
   executor: 'constant-vus',
   vus: 500,
@@ -50,67 +132,6 @@ export const options = {
   },
 };
 
-const params = {
-    headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip' },
-};
-function fetch(query: QueryRootGenqlSelection) {
-    const { query: compiledQuery, variables } = generateQueryOp(query);
-    const payload = JSON.stringify({
-        query: compiledQuery,
-        variables: variables,
-    });
-    return http.post(URL, payload, params);
-}
-
-function mutate(query: MutRootGenqlSelection) {
-    const { query: compiledQuery, variables } = generateMutationOp(query);
-    const payload = JSON.stringify({
-        query: compiledQuery,
-        variables: variables,
-    });
-    return http.post(URL, payload, params);
-}
-
-function fetchAndParse(query: QueryRootGenqlSelection) {
-    const response = fetch(query);
-    if (typeof response.body !== 'string') {
-        fail(JSON.stringify(response));
-    }
-    return JSON.parse(response.body);
-}
-
-function fetchAndCheck(query: QueryRootGenqlSelection) {
-    checkResponse(fetch(query));
-}
-
-function mutateAndCheck(query: MutRootGenqlSelection) {
-    checkResponse(mutate(query));
-}
-
-function checkResponse<RT extends "binary" | "none" | "text"| undefined>(response: RefinedResponse<RT>) {
-  const result = check(response, {
-      'response status is 200': (r) => r.status === 200,
-      'response has data field defined': (r) => {
-          if (typeof r.body === 'string') {
-              const body = JSON.parse(r.body);
-              const result = 'data' in body &&
-                body.data !== undefined &&
-                body.data !== null; // FIXME: improve query checking, I wish I could just rely on genql
-
-              if (result === false) {
-                console.log(">>> error:", JSON.stringify(body, null, 2));
-                console.log(">>> request:", JSON.stringify(response.request.body, null, 2))
-              }
-
-              return result;
-          } else {
-              return false;
-          }
-      },
-  });
-  errorRate.add(!result);
-}
-
 export function setup() {
     mutate({
         deleteGraph: {
@@ -119,7 +140,7 @@ export function setup() {
             },
         },
     });
-    mutateAndCheck({
+    mutateAndCheck(errorRate, {
         newGraph: {
             __args: {
                 path: 'empty',
@@ -129,15 +150,27 @@ export function setup() {
     });
 }
 
+const QUERIES: Option<() => void>[] = [
+  { query: addEdge, weight: ADD_EDGE_WEIGHT },
+  { query: addNode, weight: ADD_NODE_WEIGHT },
+  { query: deleteEdge, weight: DELETE_EDGE_WEIGHT },
+  { query: randomComposedReadQuery, weight: READ_QUERY_RATE },
+]
+
+export default function randomReadWriteQuery() {
+  const query = pickRandomOption(QUERIES)
+  query()
+}
+
 function addEdge() {
-  fetchAndCheck({
+  fetchAndCheck(errorRate, {
       updateGraph: {
           __args: {
               path: "empty",
           },
           addEdges: {
             __args: {
-              edges: [{src: Math.random().toString(), dst: Math.random().toString(), updates: [{time: randomTime(), properties: [{key: "key", value: {str: "strvalue"}}]}]}]
+              edges: [{src: randomStr(), dst: randomStr(), layer: randomLayer(), updates: [{time: randomTime(), properties: [{key: randomTempKey(), value: {str: randomStr()}}]}]}]
             }
           }
       },
@@ -145,14 +178,14 @@ function addEdge() {
 }
 
 function addNode() {
-  fetchAndCheck({
+  fetchAndCheck(errorRate, {
       updateGraph: {
           __args: {
               path: "empty",
           },
           addNodes: {
             __args: {
-              nodes: [{name: Math.random().toString(), updates: [{time: randomTime()}]}]
+              nodes: [{name: randomStr(), updates: [{time: randomTime(), properties: [{key: randomTempKey(), value: { str: randomStr()}}]}]}]
             }
           }
       },
@@ -199,7 +232,7 @@ function deleteEdge() {
   });
   const edge = response.data.graph.edges.page[0]
 
-  fetchAndCheck({
+  fetchAndCheck(errorRate, {
       updateGraph: {
           __args: {
               path: "empty",
@@ -214,144 +247,6 @@ function deleteEdge() {
           }
       },
   });
-}
-
-const queryProps = {
-  metadata: {
-    values: {
-      key: true,
-      value: true,
-    }
-  },
-  properties: {
-    temporal: {
-      values: {
-        key: true,
-        values: true,
-        history: true,
-      }
-    }
-  }
-}
-
-// TODO: for all the queries, maybe make it not fail if the entity does not exist when accessing by offset
-
-function readNode() {
-  const { numNodes } = queryGraphSize("empty");
-  const nodeIndex = Math.floor(numNodes / 2 * Math.random()); // just in case, to avoid races, only target the first half
-  const response = fetchAndParse({
-      graph: {
-          __args: {
-              path: "empty",
-          },
-          nodes: {
-            page: {
-              __args: {
-                limit: 1,
-                offset: nodeIndex
-              },
-              name: true,
-            }
-          }
-      },
-  });
-
-  fetchAndCheck({
-      graph: {
-          __args: {
-              path: "empty",
-          },
-          latest: {
-            node: {
-              __args: {
-                name: response.data.graph.nodes.page[0].name,
-              },
-              name: true,
-              outDegree: true,
-              ...queryProps,
-              inNeighbours: {
-                list: {
-                  name: true,
-                    outDegree: true,
-                }
-              }
-            }
-          },
-      },
-  });
-}
-
-function readNodePage() {
-  const { numNodes } = queryGraphSize("empty");
-  const nodeIndex = Math.floor(numNodes / 2 * Math.random()); // just in case, to avoid races, only target the first half
-  fetchAndCheck({
-      graph: {
-          __args: {
-              path: "empty",
-          },
-          nodes: {
-            page: {
-              __args: {
-                limit: 100,
-                offset: nodeIndex
-              },
-              name: true,
-              outDegree: true,
-              ...queryProps,
-            }
-          }
-      },
-  });
-}
-
-
-function readEdgePage() {
-  const { numEdges } = queryGraphSize("empty");
-  const edgeIndex = Math.floor(numEdges * Math.random());
-  fetchAndCheck({
-      graph: {
-          __args: {
-              path: "empty",
-          },
-          edges: {
-            page: {
-              __args: {
-                limit: 10, // TODO: change to 1000 also nodes
-                offset: edgeIndex
-              },
-              src: {
-                name: true,
-                ...queryProps,
-              },
-              dst: {
-                name: true,
-                ...queryProps,
-              },
-              ...queryProps,
-            }
-          }
-      },
-  });
-}
-
-
-const QUERIES: ({ query: () => void, weight: number })[] = [
-  { query: addEdge, weight: 1 },
-  // { query: addNode, weight: 1 },
-  // { query: deleteEdge, weight: 1 },
-  { query: randomComposedReadQuery, weight: 6 },
-]
-
-const INDICES = QUERIES.flatMap(({weight}, index) => [...Array(weight).keys()].map(() => index))
-
-
-
-
-export default function randomReadWriteQuery() {
-  const indexPosition = Math.floor(Math.random() * INDICES.length)
-  const index = INDICES[indexPosition]
-  const { query } = QUERIES[index]
-  query()
 }
 
 function getRandomEntityIds({ numEdges }: {numEdges: number}) {
@@ -377,7 +272,6 @@ function getRandomEntityIds({ numEdges }: {numEdges: number}) {
     }
   })
   const edge = response.data.graph.edges.page[0];
-  // console.log(">>> edge: ", edge);
   return {
     src: edge?.src?.name as string | undefined,
     dst: edge?.dst?.name as string | undefined,
@@ -386,36 +280,58 @@ function getRandomEntityIds({ numEdges }: {numEdges: number}) {
   }
 }
 
+
+// ---------- random decision utilities ----------------
+type Option<T> = {
+  weight: number,
+  query: T
+}
+
+function pickRandomOption<T>(choices: Option<T>[]) {
+  const flattened = choices.flatMap(({weight, query}) => [...Array(weight).keys()].map(() => query))
+  return flattened[randomInt(flattened.length)]
+}
+
 function pickRandom<T>(choices: T[]) {
   return choices[randomInt(choices.length)]
 }
 
+function randomIncl<T>(rate: number, value: T) {
+  if (Math.random() < rate) {
+    return value
+  } else {
+    return {}
+  }
+}
+
+function randomAppend<T>(rate: number, value: T) {
+  if (Math.random() < rate) {
+    return [value]
+  } else {
+    return []
+  }
+}
+
+function randomInt(n: number) {
+  return Math.floor(Math.random() * n)
+}
+// ---------------------------------------------------
+
+
 function randomComposedReadQuery() {
-  const view = randomView(); // TODO: bring back
-  // const view = {
-  //   __args: {
-  //     views: []
-  //   }
-  // };
-  const entity = randomEntityQuery()
-  const query: QueryRootGenqlSelection = {
+  fetchAndCheck(errorRate, {
     graph: {
       __args: {
         path: "empty"
       },
       applyViews: {
         name: true,
-        ...view,
-        ...entity
+        ...randomPropertyQuery(GRAPH_PROPERTY_RATE),
+        ...randomView(GRAPH_VIEW_RATES),
+        ...randomEntityQuery()
       }
     }
-  };
-  fetchAndCheck(query)
-}
-
-
-function randomInt(n: number) {
-  return Math.floor(Math.random() * n)
+  })
 }
 
 function randomEntityQuery(): GraphGenqlSelection {
@@ -426,95 +342,80 @@ function randomEntityQuery(): GraphGenqlSelection {
   }
   const nodeQuery = randomNodeQuery()
   const edgeQuery = randomEdgeQuery()
-  // const view = randomView(); // TODO: bring back
-  const view = {
-    __args: {
-      views: []
-    }
-  };
-  const queries: GraphGenqlSelection[] = [
-    // { // just enabling this one causes the first version of the panic
-    //   nodes: {
-    //     applyViews: {
-    //       ...view,
-    //       page: {
-    //         __args: {
-    //           limit: 20,
-    //           offset: randomInt(numNodes),
-    //         },
-    //         ...nodeQuery
-    //       }
-    //     },
-    //   }
-    // },
-    // { // just enabling this one causes my entire colima to die
-    //   node: {
-    //     __args: {
-    //       name,
-    //     },
-    //     ...nodeQuery
-    //   }
-    // },
-    { // just enabling this one causes a panic in a different place
-      edges: {
-        applyViews: {
-          ...view,
-          page: {
-            __args: {
-              limit: Math.min(20, Math.floor(numEdges / 2)),
-              // offset: randomInt(numEdges / 2),
-              offset: 0,
-            },
-              ...edgeQuery,
-          }
-        },
+  const queries: Option<GraphGenqlSelection>[] = [
+    {
+      weight: NODE_PAGE_WEIGHT,
+      query: {
+        nodes: {
+          applyViews: {
+            ...randomView(NODE_PAGE_VIEW_RATES),
+            page: {
+              __args: {
+                limit: PAGE_SIZE,
+                offset: randomInt(numNodes),
+              },
+              ...nodeQuery
+            }
+          },
+        }
       }
     },
-    // { // just enabling this one causes my entire colima to die
-    //   edge: {
-    //     __args: {
-    //       src,
-    //       dst,
-    //     },
-    //     ...edgeQuery,
-    //   }
-    // }
+    {
+      weight: NODE_BY_NAME_WEIGHT,
+      query: {
+        node: {
+          __args: {
+            name,
+          },
+          ...nodeQuery
+        }
+      }
+    },
+    {
+      weight: EDGE_PAGE_WEIGHT,
+      query: {
+        edges: {
+          applyViews: {
+            ...randomView(EDGE_PAGE_VIEW_RATES),
+            page: {
+              __args: {
+                limit: PAGE_SIZE,
+                offset: randomInt(numEdges),
+              },
+                ...edgeQuery,
+            }
+          },
+        }
+      }
+    },
+    {
+      weight: EDGE_BY_SRC_DST_WEIGHT,
+      query: {
+        edge: {
+          __args: {
+            src,
+            dst,
+          },
+          ...edgeQuery,
+        }
+      }
+    }
   ];
-  return pickRandom(queries);
+  return pickRandomOption(queries);
 }
-
-const LAYERS = ["a", "b", "c"]
 
 function randomLayer() {
   return pickRandom(LAYERS)
 }
 
-function randomView() {
+function randomView(rate: ViewRate) {
   const [start, end] = [randomTime(), randomTime()].sort()
-  const layer = randomLayer();
-  const viewLists: PathFromNodeViewCollection[][] = [
-    // [
-    //   // NO VIEW AT ALL
-    // ],
-    // [{
-    //   layer,
-    // }],
-    [{
-      latest: true,
-    }],
-    // [{
-    //   window: { start, end }
-    // }],
-    // [{
-    //   latest: true,
-    // }, {
-    //   layer
-    // }]
-  ];
-
-  // TODO: add more kind of filters and make it more random
-
-  const views = pickRandom(viewLists);
+  const views: PathFromNodeViewCollection[] = [
+    ...randomAppend(rate.latest, { latest: true }),
+    ...randomAppend(rate.layer, { layer: randomLayer() }),
+    ...randomAppend(rate.window, { window: { start, end } }),
+  ]
+  // TODO: add more kind of filters
   return {
     __args: {
       views
@@ -523,13 +424,13 @@ function randomView() {
 }
 
 function randomTraversal(): NodeGenqlSelection {
-  const view = randomView();
+  const view = randomView(TRAVERSAL_VIEW_RATES);
   const nodeInner = {
     applyViews: {
       ...view,
       page: {
         __args: {
-          limit: 20
+          limit: PAGE_SIZE,
         },
         ...randomNodeQuery()
       }
@@ -540,49 +441,71 @@ function randomTraversal(): NodeGenqlSelection {
       ...view,
       page: {
         __args: {
-          limit: 20
+          limit: PAGE_SIZE,
         },
         ...randomEdgeQuery()
       }
     },
   }
 
-  const queries: NodeGenqlSelection[] = [{
-    // NO TRAVERSAL AT ALL IS ALSO AN OPTION
-  }, {
-    neighbours: {
-      ...nodeInner
+  const queries: Option<NodeGenqlSelection>[] = [{
+    weight: NEIGHBOURS_WEIGHT,
+    query: {
+      neighbours: {
+        ...nodeInner
+      }
     }
   }, {
-    inNeighbours: {
-      ...nodeInner
+    weight: IN_NEIGHBOURS_WEIGHT,
+    query: {
+      inNeighbours: {
+        ...nodeInner
+      }
     }
   }, {
-    outNeighbours: {
-      ...nodeInner
+    weight: OUT_NEIGHBOURS_WEIGHT,
+    query: {
+      outNeighbours: {
+        ...nodeInner
+      }
     }
   }, {
-    inComponent: {
-      ...nodeInner
+    weight: IN_COMPONENT_WEIGHT,
+    query: {
+      inComponent: {
+        ...nodeInner
+      }
     }
   }, {
-    outComponent: {
-      ...nodeInner
+    weight: OUT_COMPONENT_WEIGHT,
+    query: {
+      outComponent: {
+        ...nodeInner
+      }
     }
   }, {
-    edges: {
-      ...edgeInner
+    weight: EDGES_WEIGHT,
+    query: {
+      edges: {
+        ...edgeInner
+      }
     }
   }, {
-    outEdges: {
-      ...edgeInner
+    weight: OUT_EDGES_WEIGHT,
+    query: {
+      outEdges: {
+        ...edgeInner
+      }
     }
   }, {
-    inEdges: {
-      ...edgeInner
+    weight: IN_EDGES_WEIGHT,
+    query: {
+      inEdges: {
+        ...edgeInner
+      }
     }
   }]
-  return pickRandom(queries);
+  return pickRandomOption(queries);
 }
 
 function randomNodeQuery(): NodeGenqlSelection {
@@ -590,114 +513,59 @@ function randomNodeQuery(): NodeGenqlSelection {
   if (Math.random() > 1 - TRAVERSAL_RATIO) { // this is a fire line to avoid infinite recursions
     traversal = randomTraversal();
   }
-  const properties = randomPropertyQuery()
-  const degree = randomDegree()
-  const inner = {
-    name: true,
-    ...properties,
-    ...degree,
-    ...traversal,
-  }
-
-  const queries: NodeGenqlSelection[] = [{
+  return {
     applyViews: {
-      ...randomView(),
-      ...inner
+      name: true,
+      ...randomView(NODE_VIEW_RATES),
+      ...randomPropertyQuery(NODE_PROPERTY_RATE),
+      ...randomIncl(0.5, { degree: true, inDegree: true, outDegree: true}),
+      ...traversal,
     }
-  },{
-    ...inner
-  }]
-  return pickRandom(queries)
-}
-
-function randomDegree(): NodeGenqlSelection {
-  const queries: NodeGenqlSelection[] = [{
-    // nothing
-  }, {
-    degree: true,
-    inDegree: true,
-    outDegree: true,
-  }]
-  return pickRandom(queries)
+  }
 }
 
 function randomEdgeQuery(): EdgeGenqlSelection {
-  const properties = randomPropertyQuery();
-  const view = randomView(); // TODO: bring back
-  // const view = {
-  //   __args: {
-  //     views: []
-  //   }
-  // };
-  const inner = {
-    id: true,
-    ...view,
-    ...properties,
-  }
-
   const nodeQuery = randomNodeQuery();
-
-  const queries: EdgeGenqlSelection[] = [
-    {
-      applyViews: {
-        ...inner,
-        // no src nor dst
-      },
-    },
-    // {
-    //   applyViews: {
-    //     ...inner,
-    //     src: nodeQuery,
-    //   },
-    // }, {
-    //   applyViews: {
-    //     ...inner,
-    //     dst: nodeQuery,
-    //   }
-    // }, {
-    //   applyViews: {
-    //     ...inner,
-    //     src: nodeQuery,
-    //     dst: nodeQuery,
-    //   }
-    // }
-  ]
-  return pickRandom(queries)
+  return {
+    applyViews: {
+      id: true,
+      ...randomView(EDGE_VIEW_RATES),
+      ...randomPropertyQuery(EDGE_PROPERTY_RATE),
+      ...randomIncl(0.5, {src: nodeQuery}),
+      ...randomIncl(0.5, {dst: nodeQuery}),
+    }
+  }
 }
 
-
-
 type PropertyGenqlSelection = NodeGenqlSelection & EdgeGenqlSelection;
-function randomPropertyQuery(): PropertyGenqlSelection {
-  const queries: PropertyGenqlSelection[] = [{
-    // no query at all
-  },
-  // {
-  //   metadata: {
-  //     values: {
-  //       key: true,
-  //       value: true,
-  //     }
-  //   }
-  // },
-  // {
-  //   properties: {
-  //     values: {
-  //       key: true,
-  //       value: true,
-  //     }
-  //   }
-  // }, {
-  //   properties: {
-  //     temporal: {
-  //       values: {
-  //         key: true,
-  //         values: true,
-  //         history: true,
-  //       }
-  //     }
-  //   }
-  // }
-  ];
-  return pickRandom(queries);
+function randomPropertyQuery(rates: PropertyRates): PropertyGenqlSelection {
+  return {
+    ...randomIncl(rates.metadata, {
+      metadata: {
+        values: {
+          key: true,
+          value: true,
+        }
+      }
+    }),
+    ...randomIncl(rates.temporalLatest, {
+      properties: {
+        values: {
+          key: true,
+          value: true,
+        }
+      }
+    }),
+    ...randomIncl(rates.temporalHistory, {
+      properties: {
+        temporal: {
+          values: {
+            key: true,
+            values: true,
+            history: true,
+          }
+        }
+      }
+    })
+  };
 }
