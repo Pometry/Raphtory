@@ -52,15 +52,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
-      - name: Install Python dependencies
-        run: |
-          python -m venv .venv
-          echo "Installing test dependencies..."
-          python -m pip install pytest tox
-          python -m pip install -e examples/netflow
-          python -m pip install black
-          echo "Installing linting dependencies from cache..."
-          python -m pip install maturin mypy networkx pyvis pandas-stubs
+      - name: Create python venv for Maturin
+        run: python -m venv .venv
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
