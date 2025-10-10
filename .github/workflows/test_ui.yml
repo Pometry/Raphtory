@@ -74,3 +74,11 @@ jobs:
           cd ui-tests
           python test_server.py &
           UI_BASE_URL=http://localhost:1736 npm run test
+      - name: Upload UI Report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-with-py-${{ matrix.python }}
+          path: ui-tests/playwright-report
+          retention-days: 7
+
