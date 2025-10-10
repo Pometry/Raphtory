@@ -282,14 +282,29 @@ impl Data {
     /// Serializes a graph to disk, overwriting any existing data in its folder.
     fn encode_graph_to_disk(graph: GraphWithVectors) -> Result<(), GraphError> {
         if let Some(folder) = graph.folder.get() {
-            // Serialize to a temp dir in the same filesystem and then rename to the folder path.
-            let parent_dir = folder.get_base_path().parent().ok_or_else(|| {
-                GraphError::IOErrorMsg("Cannot get parent directory of graph folder".to_string())
-            })?;
-            let temp_dir = tempfile::tempdir_in(parent_dir)?;
+            let folder_path = folder.get_base_path();
 
-            graph.graph.encode(&temp_dir)?;
-            std::fs::rename(temp_dir, folder.get_base_path())?;
+            // Create a backup of the existing folder
+            if folder_path.exists() {
+                let bak_path = folder_path.with_extension("bak");
+
+                // Remove any old backups
+                if bak_path.exists() {
+                    std::fs::remove_dir_all(&bak_path)?;
+                }
+
+                std::fs::rename(&folder_path, &bak_path)?;
+            }
+
+            // Serialize the graph to the original folder path
+            graph.graph.encode(&folder_path)?;
+
+            // Delete the backup
+            let bak_path = folder_path.with_extension("bak");
+
+            if bak_path.exists() {
+                std::fs::remove_dir_all(&bak_path)?;
+            }
         }
 
         Ok(())
