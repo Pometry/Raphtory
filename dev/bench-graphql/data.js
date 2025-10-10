@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760088276928,
+  "lastUpdate": 1760094228761,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1187,6 +1187,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1578,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c62aa568b2acfdcbd9a87b23dc2179eb4980d417",
+          "message": "not all nodes are guaranteed to be initialised in the iterators (#2325)\n\n* not all nodes are guaranteed to be initialised in the iterators\n\n* missing cfg\n\n* fmt\n\n* edges have the same problem\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-10T11:27:29+01:00",
+          "tree_id": "e0093bba97a089239c3ab3dcebcf399fe647ede3",
+          "url": "https://github.com/Pometry/Raphtory/commit/c62aa568b2acfdcbd9a87b23dc2179eb4980d417"
+        },
+        "date": 1760094225180,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1474,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 183,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 170,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1166,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 998,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1527,
             "unit": "req/s"
           }
         ]
