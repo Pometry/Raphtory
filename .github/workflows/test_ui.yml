@@ -71,8 +71,8 @@ jobs:
         working-directory: ui-tests
         run: npm install && npx playwright install --with-deps --only-shell
       - name: Test UI
-        working-directory: ui-tests
         run: |
           source .venv/bin/activate
+          cd ui-tests
           python test_server.py &
           UI_BASE_URL=http://localhost:1736 npm run test
