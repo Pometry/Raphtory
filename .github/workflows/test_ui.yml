@@ -63,7 +63,7 @@ jobs:
           token: ${{ secrets.CLASSIC_CLONE_PRIVATE_REPOS_KEY }}
       - name: Prepare for testing UI
         working-directory: ui-tests
-        run: npm install && npx playwright --with-deps --only-shell
+        run: npm install && npx playwright install --with-deps --only-shell
       - name: Test UI
         working-directory: ui-tests
         run: |
