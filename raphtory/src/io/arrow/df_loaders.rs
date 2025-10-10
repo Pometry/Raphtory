@@ -131,7 +131,7 @@ pub(crate) fn load_nodes_from_df<
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session.set_max_event_id(col.max() as usize).map_err(into_graph_err)?;
+                session.set_max_event_id(col.max()).map_err(into_graph_err)?;
                 col
             }
             None => {
@@ -187,7 +187,7 @@ pub(crate) fn load_nodes_from_df<
                 for (row, (vid, time, secondary_index, node_type, gid)) in zip.enumerate() {
                     if let Some(mut_node) = shard.resolve_pos(*vid) {
                         let mut writer = shard.writer();
-                        let t = TimeIndexEntry(time, secondary_index as usize);
+                        let t = TimeIndexEntry(time, secondary_index);
                         let layer_id = STATIC_GRAPH_LAYER_ID;
                         let lsn = 0;
 
@@ -402,7 +402,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session.set_max_event_id(col.max() as usize).map_err(into_graph_err)?;
+                session.set_max_event_id(col.max()).map_err(into_graph_err)?;
                 col
             }
             None => {
@@ -447,8 +447,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
                 for (row, (src, src_gid, dst, time, secondary_index, layer)) in zip.enumerate() {
                     if let Some(src_pos) = locked_page.resolve_pos(*src) {
-                        let t = TimeIndexEntry(time, secondary_index as usize);
                         let mut writer = locked_page.writer();
+                        let t = TimeIndexEntry(time, secondary_index);
                         writer.store_node_id(src_pos, 0, src_gid, 0);
                         // find the original EID in the static graph if it exists
                         // otherwise create a new one
@@ -519,7 +519,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         ) in zip
                         {
                             if let Some(dst_pos) = shard.resolve_pos(*dst) {
-                                let t = TimeIndexEntry(time, secondary_index as usize);
+                                let t = TimeIndexEntry(time, secondary_index);
                                 let mut writer = shard.writer();
 
                                 writer.store_node_id(dst_pos, 0, dst_gid, 0);
@@ -582,7 +582,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         zip.enumerate()
                     {
                         if let Some(eid_pos) = shard.resolve_pos(*eid) {
-                            let t = TimeIndexEntry(time, secondary_index as usize);
+                            let t = TimeIndexEntry(time, secondary_index);
                             let mut writer = shard.writer();
 
                             t_props.clear();
@@ -703,7 +703,7 @@ pub(crate) fn load_edge_deletions_from_df<
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session.set_max_event_id(col.max() as usize).map_err(into_graph_err)?;
+                session.set_max_event_id(col.max()).map_err(into_graph_err)?;
                 col
             }
             None => {
@@ -722,7 +722,7 @@ pub(crate) fn load_edge_deletions_from_df<
             .try_for_each(|((((src, dst), time), secondary_index), layer)| {
                 let src = src.ok_or(LoadError::MissingSrcError)?;
                 let dst = dst.ok_or(LoadError::MissingDstError)?;
-                graph.delete_edge((time, secondary_index as usize), src, dst, layer)?;
+                graph.delete_edge((time, secondary_index), src, dst, layer)?;
                 Ok::<(), GraphError>(())
             })?;
 
@@ -1028,7 +1028,7 @@ pub(crate) fn load_graph_props_from_df<
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session.set_max_event_id(col.max() as usize).map_err(into_graph_err)?;
+                session.set_max_event_id(col.max()).map_err(into_graph_err)?;
                 col
             }
             None => {
@@ -1044,7 +1044,7 @@ pub(crate) fn load_graph_props_from_df<
             .zip(prop_cols.par_rows())
             .zip(metadata_cols.par_rows())
             .try_for_each(|(((time, secondary_index), t_props), c_props)| {
-                let t = TimeIndexEntry(time, secondary_index as usize);
+                let t = TimeIndexEntry(time, secondary_index);
                 let t_props: Vec<_> = t_props.collect();
 
                 if !t_props.is_empty() {
@@ -1528,7 +1528,7 @@ mod tests {
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
 
                 // Track the maximum secondary_index value to compare later
-                max_secondary_index = max_secondary_index.max(secondary_index_val);
+                max_secondary_index = max_secondary_index.max(secondary_index_val as usize);
             }
 
             assert_eq!(g.unfiltered_num_edges(), distinct_edges);
@@ -1543,7 +1543,7 @@ mod tests {
 
             assert_eq!(
                 g.write_session().unwrap().read_event_id().unwrap(),
-                max_secondary_index as usize
+                max_secondary_index
             );
         })
     }

@@ -9,11 +9,12 @@ use arrow_array::{
 };
 use arrow_cast::cast;
 use arrow_schema::{DataType, TimeUnit};
+use either::Either;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::{
     fmt::{Debug, Formatter},
-    ops::Deref,
+    ops::{Deref, Range},
 };
 
 pub struct DFView<I> {
@@ -112,7 +113,10 @@ impl Deref for TimeCol {
     }
 }
 
-pub struct SecondaryIndexCol(PrimitiveArray<UInt64Type>);
+pub enum SecondaryIndexCol {
+    DataFrame(PrimitiveArray<UInt64Type>),
+    Range(Range<usize>),
+}
 
 impl SecondaryIndexCol {
     /// Load a secondary index column from a dataframe.
@@ -121,26 +125,32 @@ impl SecondaryIndexCol {
             return Err(LoadError::MissingSecondaryIndexError);
         }
 
-        Ok(SecondaryIndexCol(arr.as_primitive::<UInt64Type>().clone()))
+        Ok(SecondaryIndexCol::DataFrame(arr.as_primitive::<UInt64Type>().clone()))
     }
 
     /// Generate a secondary index column with values from `start` to `end` (not inclusive).
     pub fn new_from_range(start: usize, end: usize) -> Self {
-        let start = start as u64;
-        let end = end as u64;
-        SecondaryIndexCol(PrimitiveArray::from_iter_values(start..end))
+        let start = start;
+        let end = end;
+        SecondaryIndexCol::Range(start..end)
     }
 
-    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = u64> + '_ {
-        (0..self.0.len()).into_par_iter().map(|i| self.0.value(i))
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = usize> + '_ {
+        match self {
+            SecondaryIndexCol::DataFrame(arr) => rayon::iter::Either::Left(arr.values().par_iter().copied().map(|v| v as usize)),
+            SecondaryIndexCol::Range(range) => rayon::iter::Either::Right(range.clone().into_par_iter()),
+        }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = u64> + '_ {
-        self.0.values().iter().copied()
+    pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        match self {
+            SecondaryIndexCol::DataFrame(arr) => Either::Left(arr.values().iter().copied().map(|v| v as usize)),
+            SecondaryIndexCol::Range(range) => Either::Right(range.clone()),
+        }
     }
 
-    pub fn max(&self) -> u64 {
-        self.0.values().iter().max().copied().unwrap_or(0)
+    pub fn max(&self) -> usize {
+        self.iter().max().unwrap_or(0)
     }
 }
 
