@@ -148,7 +148,7 @@ def test_graph_epoch():
     query = """
     {
       graph(path: "g") {
-        rolling(window: {timestamp: 1}) {
+        rolling(window: {epoch: 1}) {
           list {
             earliestTime {
               timestamp
@@ -179,7 +179,7 @@ def test_graph_epoch():
     query = """
     {
       graph(path: "g") {
-        rolling(window: {timestamp: 1}, step:{timestamp: 2}) {
+        rolling(window: {epoch: 1}, step:{epoch: 2}) {
           list {
             earliestTime {
               timestamp
@@ -208,7 +208,7 @@ def test_graph_epoch():
     {
   graph(path: "g") {
     window(start: 2, end: 5) {
-      rolling(window: {timestamp: 2}, step: {timestamp: 1}) {
+      rolling(window: {epoch: 2}, step: {epoch: 1}) {
         list {
           start {
             timestamp
@@ -241,7 +241,7 @@ def test_graph_epoch():
    {
   graph(path: "g") {
     window(start: 2, end: 7) {
-      expanding(step: {timestamp: 3}) {
+      expanding(step: {epoch: 3}) {
         list {
           end {
             timestamp
@@ -291,7 +291,7 @@ def test_graph_epoch():
        {
       graph(path: "g") {
         window(start: 2, end: 5) {
-          expanding(step: {timestamp: 1}) {
+          expanding(step: {epoch: 1}) {
             list {
               start {
                 timestamp
@@ -323,7 +323,7 @@ def test_graph_epoch():
     query = """
     {
   graph(path: "g") {
-    rolling(window: {timestamp: 3}, step: {timestamp: 4}) {
+    rolling(window: {epoch: 3}, step: {epoch: 4}) {
       list {
         start {
           timestamp
@@ -362,7 +362,7 @@ def test_graph_epoch():
     query = """
     {
   graph(path: "g") {
-    rolling(window: {timestamp: 3}, step: {timestamp: 1000}) {
+    rolling(window: {epoch: 3}, step: {epoch: 1000}) {
       list {
         start {
           timestamp
@@ -387,7 +387,7 @@ def test_graph_epoch():
     query = """
     {
       graph(path: "g") {
-        rolling(window: {timestamp: 1}, step: {timestamp: 1}) {
+        rolling(window: {epoch: 1}, step: {epoch: 1}) {
           count 
         }
       }
@@ -399,7 +399,7 @@ def test_graph_epoch():
     query = """
     {
   graph(path: "g") {
-    rolling(window: {timestamp: 1}, step: {timestamp: 1}) {
+    rolling(window: {epoch: 1}, step: {epoch: 1}) {
       page(limit: 2, pageIndex: 1, offset: 2) {
         earliestTime {
           timestamp
@@ -431,7 +431,7 @@ def test_node():
 {
   graph(path: "g") {
     node(name:"1"){
-      rolling(window:{timestamp: 1}, step:{timestamp: 1}){
+      rolling(window:{epoch: 1}, step:{epoch: 1}){
         list{
           start {
             timestamp
@@ -453,7 +453,7 @@ def test_node():
         }
       }
       before(time: 4){
-        expanding(step:{timestamp: 1}){
+        expanding(step:{epoch: 1}){
         list{
           end {
             timestamp
@@ -541,7 +541,7 @@ def test_nodes():
 {
   graph(path: "g") {
     nodes {
-      rolling(window: {timestamp: 1}, step: {timestamp: 1}) {
+      rolling(window: {epoch: 1}, step: {epoch: 1}) {
         list {
           page(limit: 1, offset: 0) {
             id
@@ -575,7 +575,7 @@ def test_nodes():
         }
       }
       after(time: 1) {
-        expanding(step: {timestamp: 1}) {
+        expanding(step: {epoch: 1}) {
           list {
             page(limit: 1, offset: 0) {
               id
@@ -802,7 +802,7 @@ def test_path():
   graph(path: "g") {
     node(name: "1") {
       neighbours {
-        rolling(window: {timestamp: 1}, step: {timestamp: 1}) {
+        rolling(window: {epoch: 1}, step: {epoch: 1}) {
           list {
             page(limit: 1, offset: 0) {
               id
@@ -836,7 +836,7 @@ def test_path():
           }
         }
         after(time: 1) {
-          expanding(step: {timestamp: 1}) {
+          expanding(step: {epoch: 1}) {
             list {
               page(limit: 1, offset: 0) {
                 id
@@ -1065,7 +1065,7 @@ def test_edge():
     {
   graph(path: "g") {
     edge(src:"1",dst:"2"){
-      rolling(window:{timestamp: 1},step:{timestamp: 1}){
+      rolling(window:{epoch: 1},step:{epoch: 1}){
         list{
           start {
             timestamp
@@ -1091,7 +1091,7 @@ def test_edge():
         }
       }
       after(time: 1){
-        expanding(step:{timestamp: 1}){
+        expanding(step:{epoch: 1}){
         list{
           start {
             timestamp
@@ -1232,7 +1232,7 @@ def test_edges():
 {
   graph(path: "g") {
     edges {
-      rolling(window: {timestamp: 1}, step: {timestamp: 1}) {
+      rolling(window: {epoch: 1}, step: {epoch: 1}) {
         list {
           page(limit: 1, offset: 0) {
             id
@@ -1264,7 +1264,7 @@ def test_edges():
         }
       }
       after(time: 1) {
-        expanding(step: {timestamp: 1}) {
+        expanding(step: {epoch: 1}) {
           list {
             page(limit: 1, offset: 0) {
               id
@@ -1491,7 +1491,7 @@ def test_zero_step():
     query = """
     {
       graph(path: "g") {
-        rolling(window:{timestamp: 100},step:{timestamp: 0}){
+        rolling(window:{epoch: 100},step:{epoch: 0}){
                 list{
             earliestTime {
               timestamp
@@ -1521,7 +1521,7 @@ def test_zero_step():
     query = """
     {
       graph(path: "g") {
-        rolling(window:{timestamp: 0}){
+        rolling(window:{epoch: 0}){
                 list{
             earliestTime {
               timestamp
@@ -1551,7 +1551,7 @@ def test_zero_step():
     query = """
     {
       graph(path: "g") {
-        expanding(step:{timestamp: 0}){
+        expanding(step:{epoch: 0}){
                 list{
             earliestTime {
               timestamp
@@ -1585,7 +1585,7 @@ def test_zero_step():
         {
       graph(path: "g") {
         node(name: "1") {
-            rolling(window:{timestamp: 100},step:{timestamp: 0}){
+            rolling(window:{epoch: 100},step:{epoch: 0}){
             list {
               earliestTime {
                 timestamp
@@ -1619,7 +1619,7 @@ def test_zero_step():
         {
       graph(path: "g") {
         node(name: "1") {
-            rolling(window:{timestamp: 0}){
+            rolling(window:{epoch: 0}){
             list {
               earliestTime {
                 timestamp
@@ -1653,7 +1653,7 @@ def test_zero_step():
         {
       graph(path: "g") {
         node(name: "1") {
-            expanding(step:{timestamp: 0}){
+            expanding(step:{epoch: 0}){
             list {
               earliestTime {
                 timestamp
@@ -1691,7 +1691,7 @@ def test_zero_step():
   graph(path: "g") {
     nodes {
       list {
-        rolling(window:{timestamp: 100},step:{timestamp: 0}){
+        rolling(window:{epoch: 100},step:{epoch: 0}){
           list {
             earliestTime {
               timestamp
@@ -1729,7 +1729,7 @@ def test_zero_step():
   graph(path: "g") {
     nodes {
       list {
-        rolling(window:{timestamp: 0}){
+        rolling(window:{epoch: 0}){
           list {
             earliestTime {
               timestamp
@@ -1767,7 +1767,7 @@ def test_zero_step():
       graph(path: "g") {
         nodes {
           list {
-            expanding(step:{timestamp: 0}){
+            expanding(step:{epoch: 0}){
               list {
                 earliestTime {
                   timestamp
@@ -1808,7 +1808,7 @@ def test_zero_step():
   graph(path: "g") {
     node(name: "1") {
       neighbours {
-        rolling(window:{timestamp: 100},step:{timestamp: 0}){
+        rolling(window:{epoch: 100},step:{epoch: 0}){
           list {
             list {
               earliestTime {
@@ -1850,7 +1850,7 @@ def test_zero_step():
   graph(path: "g") {
     node(name: "1") {
       neighbours {
-        rolling(window:{timestamp: 0}){
+        rolling(window:{epoch: 0}){
           list {
             list {
               earliestTime {
@@ -1892,7 +1892,7 @@ def test_zero_step():
       graph(path: "g") {
         node(name: "1") {
           neighbours {
-            expanding(step:{timestamp: 0}){
+            expanding(step:{epoch: 0}){
               list {
                 list {
                   earliestTime {
@@ -1930,7 +1930,7 @@ def test_zero_step():
 {
   graph(path: "g") {
     edge(src: "1", dst: "2") {
-        rolling(window:{timestamp: 100},step:{timestamp: 0}){
+        rolling(window:{epoch: 100},step:{epoch: 0}){
             list {
                 earliestTime {
                   timestamp
@@ -1964,7 +1964,7 @@ def test_zero_step():
 {
   graph(path: "g") {
     edge(src: "1", dst: "2") {
-        rolling(window:{timestamp: 0}){
+        rolling(window:{epoch: 0}){
             list {
                 earliestTime {
                   timestamp
@@ -1998,7 +1998,7 @@ def test_zero_step():
     {
       graph(path: "g") {
         edge(src: "1", dst: "2") {
-            expanding(step:{timestamp: 0}){
+            expanding(step:{epoch: 0}){
                 list {
                     earliestTime {
                       timestamp
@@ -2035,7 +2035,7 @@ def test_zero_step():
 {
   graph(path: "g") {
     edges {
-    rolling(window:{timestamp: 100},step:{timestamp: 0}){
+    rolling(window:{epoch: 100},step:{epoch: 0}){
         list {
           list{
             earliestTime {
@@ -2073,7 +2073,7 @@ def test_zero_step():
 {
   graph(path: "g") {
     edges {
-    rolling(window:{timestamp: 0}){
+    rolling(window:{epoch: 0}){
         list {
           list{
             earliestTime {
@@ -2111,7 +2111,7 @@ def test_zero_step():
     {
       graph(path: "g") {
         edges {
-        expanding(step:{timestamp: 0}){
+        expanding(step:{epoch: 0}){
             list {
               list{
                 earliestTime {
@@ -2140,7 +2140,7 @@ def test_wrong_window():
     query = """
     {
       graph(path: "g") {
-        rolling(window:{duration:"1 day"},step:{timestamp: 100}){
+        rolling(window:{duration:"1 day"},step:{epoch: 100}){
                 list{
             earliestTime {
               timestamp
@@ -2155,7 +2155,7 @@ def test_wrong_window():
     query = """
     {
       graph(path: "g") {
-        rolling(window:{timestamp: 100},step:{duration:"1 day"}){
+        rolling(window:{epoch: 100},step:{duration:"1 day"}){
                 list{
             earliestTime {
               timestamp
@@ -2217,7 +2217,7 @@ def test_wrong_window():
     {
   graph(path: "g") {
     node(name: "1") {
-      rolling(window: {duration: "1 day"}, step: {timestamp: 11}) {
+      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
         list {
           earliestTime {
             timestamp
@@ -2234,7 +2234,7 @@ def test_wrong_window():
     {
   graph(path: "g") {
     node(name: "1") {
-      rolling(window: {timestamp: 100}, step: {duration: "1 day"}) {
+      rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
         list {
           earliestTime {
             timestamp
@@ -2253,7 +2253,7 @@ def test_wrong_window():
   graph(path: "g") {
     nodes {
       list {
-      rolling(window: {duration: "1 day"}, step: {timestamp: 11}) {
+      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
           list {
             earliestTime {
               timestamp
@@ -2272,7 +2272,7 @@ def test_wrong_window():
   graph(path: "g") {
     nodes {
       list {
-        rolling(window: {timestamp: 100}, step: {duration: "1 day"}) {
+        rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
           list {
             earliestTime {
               timestamp
@@ -2292,7 +2292,7 @@ def test_wrong_window():
   graph(path: "g") {
     node(name: "1") {
       neighbours {
-      rolling(window: {duration: "1 day"}, step: {timestamp: 11}) {
+      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
           list {
             list {
               earliestTime {
@@ -2313,7 +2313,7 @@ def test_wrong_window():
   graph(path: "g") {
     node(name: "1") {
       neighbours {
-        rolling(window: {timestamp: 100}, step: {duration: "1 day"}) {
+        rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
           list {
             list {
               earliestTime {
@@ -2334,7 +2334,7 @@ def test_wrong_window():
 {
   graph(path: "g") {
     edge(src: "1", dst: "2") {
-      rolling(window: {duration: "1 day"}, step: {timestamp: 11}) {
+      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
         list {
           earliestTime {
             timestamp
@@ -2351,7 +2351,7 @@ def test_wrong_window():
 {
   graph(path: "g") {
     edge(src: "1", dst: "2") {
-      rolling(window: {timestamp: 100}, step: {duration: "1 day"}) {
+      rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
         list {
           earliestTime {
             timestamp
@@ -2369,7 +2369,7 @@ def test_wrong_window():
 {
   graph(path: "g") {
     edges {
-      rolling(window: {duration: "1 day"}, step: {timestamp: 11}) {
+      rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
         list {
           list{
             earliestTime {
@@ -2388,7 +2388,7 @@ def test_wrong_window():
 {
   graph(path: "g") {
     edges {
-      rolling(window: {timestamp: 100}, step: {duration: "1 day"}) {
+      rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
         list {
           list{
             earliestTime {
