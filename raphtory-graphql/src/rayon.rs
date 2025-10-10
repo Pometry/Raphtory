@@ -2,7 +2,8 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::LazyLock;
 use tokio::sync::oneshot;
 
-static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| ThreadPoolBuilder::new().build().unwrap());
+static WRITE_POOL: LazyLock<ThreadPool> =
+    LazyLock::new(|| ThreadPoolBuilder::new().build().unwrap());
 
 /// Use the rayon threadpool to execute a task
 ///
