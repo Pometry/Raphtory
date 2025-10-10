@@ -1,4 +1,6 @@
 name: Run UI tests
+permissions:
+  contents: read
 on:
   workflow_call:
 jobs:
