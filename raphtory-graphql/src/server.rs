@@ -208,7 +208,7 @@ impl GraphServer {
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
-        info!("UI live at: http://localhost:{port}");
+        info!("UI listening on 0.0.0.0:{port}, live at: http://localhost:{port}");
         debug!(
             "Server configurations: {}",
             json!({

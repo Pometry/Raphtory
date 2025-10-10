@@ -34,7 +34,7 @@ pub(crate) async fn version() -> impl IntoResponse {
 }
 
 #[derive(Embed)]
-#[folder = "resources/"]
+#[folder = "$RAPHTORY_UI_INDEX_PATH"]
 struct PublicFolder;
 
 pub(crate) struct PublicFilesEndpoint<G> {

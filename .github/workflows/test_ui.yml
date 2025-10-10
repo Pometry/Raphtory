@@ -34,9 +34,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519                                           
           ssh-keyscan github.com >> ~/.ssh/known_hosts
       - name: Init and update UI tests submodule
-        run: |
-          git submodule sync                                                    
-          git submodule update --init --recursive ui-tests
+        run: make pull-ui-tests
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
