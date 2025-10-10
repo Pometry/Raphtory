@@ -882,13 +882,9 @@ def test_none_columns_edges():
     edges_df = pd.DataFrame(
         {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, None, 4, 5]}
     )
-    with pytest.raises(
-        Exception, match=re.escape("Float64 not supported for time column")
-    ):
+    with pytest.raises(Exception, match=re.escape("Missing value for timestamp")):
         Graph().load_edges_from_pandas(edges_df, "time", "src", "dst")
-    with pytest.raises(
-        Exception, match=re.escape("Float64 not supported for time column")
-    ):
+    with pytest.raises(Exception, match=re.escape("Missing value for timestamp")):
         PersistentGraph().load_edges_from_pandas(edges_df, "time", "src", "dst")
 
 

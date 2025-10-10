@@ -49,11 +49,11 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub fn push_node(&self, node: NodeStore) -> UninitialisedEntry<NodeStore, NodeSlot> {
+    pub fn push_node(&self, node: NodeStore) -> UninitialisedEntry<'_, NodeStore, NodeSlot> {
         self.nodes.push(node)
     }
     #[inline]
-    pub fn push_edge(&self, edge: EdgeStore) -> UninitialisedEdge {
+    pub fn push_edge(&self, edge: EdgeStore) -> UninitialisedEdge<'_> {
         self.edges.push(edge)
     }
 
@@ -63,7 +63,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard {
+    pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard<'_> {
         self.edges.get_edge_mut(eid)
     }
 
@@ -73,7 +73,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub fn edge_entry(&self, eid: EID) -> EdgeRGuard {
+    pub fn edge_entry(&self, eid: EID) -> EdgeRGuard<'_> {
         self.edges.get_edge(eid)
     }
 

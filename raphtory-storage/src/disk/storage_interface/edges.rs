@@ -22,7 +22,7 @@ impl DiskEdges {
         }
     }
 
-    pub fn as_ref(&self) -> DiskEdgesRef {
+    pub fn as_ref(&self) -> DiskEdgesRef<'_> {
         DiskEdgesRef {
             graph: &self.graph.inner,
         }
@@ -82,7 +82,7 @@ impl DiskEdges {
         }
     }
 
-    pub fn get(&self, eid: EID) -> DiskEdge {
+    pub fn get(&self, eid: EID) -> DiskEdge<'_> {
         self.graph.inner.edge(eid)
     }
 }

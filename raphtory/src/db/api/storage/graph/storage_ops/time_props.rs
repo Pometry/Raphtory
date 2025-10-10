@@ -22,7 +22,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
         self.graph_meta().get_temporal_dtype(id).unwrap()
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(id)
             .into_iter()
@@ -30,7 +30,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
             .into_dyn_boxed()
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(id)
             .into_iter()
@@ -66,11 +66,11 @@ impl InternalTemporalPropertiesOps for GraphStorage {
         self.graph_meta().get_temporal_name(id)
     }
 
-    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
         Box::new(self.graph_meta().temporal_ids())
     }
 
-    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
+    fn temporal_prop_keys(&self) -> BoxedLIter<'_, ArcStr> {
         Box::new(self.graph_meta().temporal_names().into_iter())
     }
 }

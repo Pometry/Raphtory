@@ -101,7 +101,7 @@ impl<'a, G: IntoDynamic, GH: IntoDynamic> NodeView<'a, G, GH> {
 }
 
 impl<'graph, G: Send + Sync, GH: Send + Sync> AsNodeRef for NodeView<'graph, G, GH> {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         NodeRef::Internal(self.node)
     }
 }
@@ -272,7 +272,7 @@ impl<'graph, G: GraphView, GH: GraphView> InternalTemporalPropertiesOps
             .clone()
     }
 
-    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
         Box::new(0..self.graph.node_meta().temporal_prop_mapper().len())
     }
 }
@@ -298,7 +298,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         res
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
@@ -309,7 +309,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         .into_dyn_boxed()
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
@@ -360,7 +360,7 @@ impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalMetadataOps for NodeView<
             .clone()
     }
 
-    fn metadata_ids(&self) -> BoxedLIter<usize> {
+    fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
         Box::new(0..self.graph.node_meta().metadata_mapper().len())
         // self.graph.node_metadata_ids(self.node)
     }
