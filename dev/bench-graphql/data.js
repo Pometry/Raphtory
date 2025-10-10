@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760020827137,
+  "lastUpdate": 1760088276928,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1133,6 +1133,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1508,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de3b0b56d96721bdae93eb879a8aa4fc66444b7d",
+          "message": "Deadlock fixes and concurrency configuration from 0.16 (#2324)\n\n* Fix deadlock (#2292)\n\n* make a write pool\n\n* use blocking_write for all graph mutations\n\n* enable tests\n\n* chore: apply tidy-public auto-fixes\n\n* fix the recursive read deadlock\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\n\n* Release v0.16.2 (#2299)\n\nchore: Release\n\nCo-authored-by: Pometry-Team <ben.steer@pometry.com>\n\n* Deadlock fixes and concurrency configuration (#2313)\n\n* make all the rw_lock.read be read_recursive\n\n* fixes deadlocks\n\n* fixes Python deadlock\n\n* add a sempahore in front of the graphql query execution\n\n* sort pr and add env variable to be able to set concurrency limit\n\n* add rwlock in the middleware\n\n* loop when taking the PairEntryMut lock\n\n* make rwlock optional\n\n* chore: apply tidy-public auto-fixes\n\n* rename env var for concurrency limit\n\n---------\n\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: ljeub-pometry <97447091+ljeub-pometry@users.noreply.github.com>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Pometry-Team <ben.steer@pometry.com>\nCo-authored-by: Pedro Rico Pinazo <ricopinazo@gmail.com>\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>",
+          "timestamp": "2025-10-10T09:48:13+01:00",
+          "tree_id": "f325d4c937ba250924193ba71c2826985644e20c",
+          "url": "https://github.com/Pometry/Raphtory/commit/de3b0b56d96721bdae93eb879a8aa4fc66444b7d"
+        },
+        "date": 1760088273400,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1512,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 225,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 149,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1190,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1017,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1578,
             "unit": "req/s"
           }
         ]
