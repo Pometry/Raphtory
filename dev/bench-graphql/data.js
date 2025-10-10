@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760094228761,
+  "lastUpdate": 1760102762031,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1241,6 +1241,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1527,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a466dba1400e6784fa42a24670c396ac0ae6f5ae",
+          "message": "Separate thread pools for reading and writing in graphql (#2326)\n\n* bring back the write pool to avoid deadlocks due to read and write-locked tasks in the same pool\n\n* fmt\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-10T14:49:45+02:00",
+          "tree_id": "f766bc3add42316dfc74b5d9642322b15de462d8",
+          "url": "https://github.com/Pometry/Raphtory/commit/a466dba1400e6784fa42a24670c396ac0ae6f5ae"
+        },
+        "date": 1760102759085,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1482,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 213,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 149,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1245,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 972,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1410,
             "unit": "req/s"
           }
         ]
