@@ -153,6 +153,7 @@ pub enum GraphError {
         #[from]
         source: LoadError,
     },
+
     #[error("Storage feature not enabled")]
     DiskGraphNotFound,
 
@@ -215,6 +216,7 @@ pub enum GraphError {
 
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
+
     // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
@@ -228,10 +230,11 @@ pub enum GraphError {
         src: String,
         dst: String,
     },
+
     #[error("The loaded graph is of the wrong type. Did you mean Graph / PersistentGraph?")]
     GraphLoadError,
 
-    #[error("IO operation failed")]
+    #[error("IO operation failed: {source}")]
     IOError {
         #[from]
         source: io::Error,
