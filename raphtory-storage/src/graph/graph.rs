@@ -213,6 +213,27 @@ impl GraphStorage {
         }
     }
 
+    /// Try to get a node that may not be initialised yet
+    pub fn try_core_node<'a>(&'a self, vid: VID) -> Option<NodeStorageEntry<'a>> {
+        match self {
+            GraphStorage::Mem(storage) => {
+                storage.nodes.try_get_entry(vid).map(NodeStorageEntry::Mem)
+            }
+            GraphStorage::Unlocked(storage) => storage
+                .storage
+                .nodes
+                .try_entry(vid)
+                .map(NodeStorageEntry::Unlocked),
+            GraphStorage::Disk(storage) => {
+                if vid.index() < storage.inner().num_nodes() {
+                    Some(NodeStorageEntry::Disk(DiskNode::new(storage.inner(), vid)))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
     #[inline(always)]
     pub fn edges(&self) -> EdgesStorageRef {
         match self {

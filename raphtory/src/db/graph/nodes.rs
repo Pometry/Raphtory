@@ -172,11 +172,12 @@ where
         let view = self.graph.clone();
         let node_types_filter = self.node_types_filter.clone();
         self.node_list().into_par_iter().filter(move |&vid| {
-            let node = g.core_node(vid);
-            node_types_filter
-                .as_ref()
-                .is_none_or(|type_filter| type_filter[node.node_type_id()])
-                && view.filter_node(node.as_ref())
+            g.try_core_node(vid).is_some_and(|node| {
+                node_types_filter
+                    .as_ref()
+                    .is_none_or(|type_filter| type_filter[node.node_type_id()])
+                    && view.filter_node(node.as_ref())
+            })
         })
     }
 
@@ -199,11 +200,10 @@ where
         let node_types_filter = self.node_types_filter.clone();
         let view = self.graph.clone();
         self.node_list().into_iter().filter(move |&vid| {
-            let node = g.core_node(vid);
-            node_types_filter
+            g.try_core_node(vid).is_some_and(|node| {            node_types_filter
                 .as_ref()
                 .is_none_or(|type_filter| type_filter[node.node_type_id()])
-                && view.filter_node(node.as_ref())
+                && view.filter_node(node.as_ref())})
         })
     }
 

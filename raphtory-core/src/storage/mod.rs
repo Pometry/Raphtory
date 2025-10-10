@@ -409,12 +409,14 @@ impl NodeSlot {
     pub fn iter(&self) -> impl Iterator<Item = NodePtr> {
         self.nodes
             .iter()
+            .filter(|v| v.is_initialised())
             .map(|ns| NodePtr::new(ns, &self.t_props_log))
     }
 
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> {
         self.nodes
             .par_iter()
+            .filter(|v| v.is_initialised())
             .map(|ns| NodePtr::new(ns, &self.t_props_log))
     }
 }
@@ -542,6 +544,18 @@ impl ReadLockedStorage {
         NodePtr::new(&bucket[offset], &bucket.t_props_log)
     }
 
+    #[inline]
+    pub fn try_get_entry(&self, index: VID) -> Option<NodePtr<'_>> {
+        let (bucket, offset) = self.resolve(index);
+        let bucket = self.locks.get(bucket)?;
+        let node = bucket.get(offset)?;
+        if node.is_initialised() {
+            Some(NodePtr::new(node, &bucket.t_props_log))
+        } else {
+            None
+        }
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = NodePtr> + '_ {
         self.locks.iter().flat_map(|v| v.iter())
     }
@@ -624,6 +638,17 @@ impl NodeStorage {
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         NodeEntry { offset, guard }
+    }
+
+    /// Get the node if it is initialised
+    pub fn try_entry(&self, index: VID) -> Option<NodeEntry<'_>> {
+        let (bucket, offset) = self.resolve(index.index());
+        let guard = self.data.get(bucket)?.data.read_recursive();
+        if guard.get(offset)?.is_initialised() {
+            Some(NodeEntry { offset, guard })
+        } else {
+            None
+        }
     }
 
     pub fn entry_mut(&self, index: VID) -> EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>> {
