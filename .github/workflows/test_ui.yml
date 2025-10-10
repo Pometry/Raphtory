@@ -25,6 +25,8 @@ jobs:
         name: Checkout
         with:
           ref: ${{ github.head_ref }}
+          submodules: true
+          token: ${{ secrets.CLASSIC_CLONE_PRIVATE_REPOS_KEY }}
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Install Protoc
@@ -62,11 +64,6 @@ jobs:
           command: develop
           sccache: true
           args: --release
-      - uses: actions/checkout@v4
-        name: Checkout ui-tests submodule
-        with:
-          submodules: true
-          token: ${{ secrets.CLASSIC_CLONE_PRIVATE_REPOS_KEY }}
       - name: Prepare for testing UI
         working-directory: ui-tests
         run: npm install && npx playwright install --with-deps --only-shell
