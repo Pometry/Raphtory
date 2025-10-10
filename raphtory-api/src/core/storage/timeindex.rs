@@ -35,7 +35,7 @@ impl PartialEq<i64> for EventTime {
 
 impl fmt::Display for EventTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "EventTime(epoch={}, event_id={})", self.0, self.1)
+        write!(f, "EventTime(timestamp={}, event_id={})", self.0, self.1)
     }
 }
 

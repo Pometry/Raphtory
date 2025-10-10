@@ -679,14 +679,14 @@ type EdgesWindowSet {
 
 """
 Raphtory’s EventTime.
-Represents a unique timepoint in the graph’s history as (epoch, event_id).
+Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 
-- epoch: timestamp in milliseconds since the Unix epoch.
+- timestamp: number of milliseconds since the Unix epoch.
 - event_id: id used for ordering between equal timestamps.
 """
 type EventTime {
 	"""
-	Get the timestamp in milliseconds since Unix epoch.
+	Get the timestamp in milliseconds since the Unix epoch.
 	"""
 	timestamp: Int!
 	"""
@@ -1096,7 +1096,7 @@ type History {
 	"""
 	count: Int!
 	"""
-	Returns a HistoryTimestamp object which accesses timestamps as Unix epochs in milliseconds
+	Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
 	instead of EventTime entries.
 	"""
 	timestamps: HistoryTimestamp!
@@ -1187,7 +1187,7 @@ type HistoryEventId {
 }
 
 """
-History object that provides access to timestamps (as Unix epochs in milliseconds) instead of `EventTime` entries.
+History object that provides access to timestamps (milliseconds since the Unix epoch) instead of `EventTime` entries.
 """
 type HistoryTimestamp {
 	"""
@@ -2601,8 +2601,8 @@ enum TemporalType {
 }
 
 """
-Input for primary time component. Expects Int, DateTime formatted String, or Object {epoch, eventId}
-where epoch is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
+Input for primary time component. Expects Int, DateTime formatted String, or Object { timestamp, eventId }
+where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
 Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
 %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
 """
@@ -2748,3 +2748,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

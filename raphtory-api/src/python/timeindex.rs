@@ -131,15 +131,15 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<EventTime> {
 }
 
 /// Raphtory’s EventTime.
-/// Represents a unique timepoint in the graph’s history as (epoch, event_id).
+/// Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 ///
-/// - epoch: timestamp in milliseconds since the Unix epoch.
+/// - timestamp: number of milliseconds since the Unix epoch.
 /// - event_id: id used for ordering between equal timestamps.
 ///
 /// Unless specified manually, the event ids are generated automatically by Raphtory to
 /// maintain a unique ordering of events.
-/// EventTime can be converted into a timestamp (milliseconds since the Unix epoch) or a Python datetime, and compared
-/// either by timestamp (against ints/floats/datetimes/strings), by tuple of (epoch, event_id),
+/// EventTime can be converted into a timestamp or a Python datetime, and compared
+/// either by timestamp (against ints/floats/datetimes/strings), by tuple of (timestamp, event_id),
 /// or against another EventTime.
 #[pyclass(name = "EventTime", module = "raphtory", frozen)]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
@@ -196,10 +196,10 @@ impl PyEventTime {
         self.time.t()
     }
 
-    /// Return this entry as a tuple of (epoch, event_id), where the epoch is in milliseconds.
+    /// Return this entry as a tuple of (timestamp, event_id), where the timestamp is in milliseconds.
     ///
     /// Returns:
-    ///     tuple[int,int]: (epoch, event_id).
+    ///     tuple[int,int]: (timestamp, event_id).
     #[getter]
     pub fn as_tuple(&self) -> (i64, usize) {
         self.time.as_tuple()
@@ -248,17 +248,17 @@ impl PyEventTime {
     /// Creates a new EventTime.
     ///
     /// Arguments:
-    ///     epoch (int | float | datetime | str): A time input convertible to an EventTime.
+    ///     timestamp (int | float | datetime | str): A time input convertible to an EventTime.
     ///     event_id (int | float | datetime | str | None): Optionally, specify the event id. Defaults to 0.
     ///
     /// Returns:
     ///     EventTime:
     #[new]
-    #[pyo3(signature = (epoch, event_id=None))]
-    pub fn py_new(epoch: EventTimeComponent, event_id: Option<EventTimeComponent>) -> Self {
+    #[pyo3(signature = (timestamp, event_id=None))]
+    pub fn py_new(timestamp: EventTimeComponent, event_id: Option<EventTimeComponent>) -> Self {
         let event_id = event_id.map(|t| t.t() as usize).unwrap_or(0);
         Self {
-            time: EventTime::new(epoch.t(), event_id),
+            time: EventTime::new(timestamp.t(), event_id),
         }
     }
 }

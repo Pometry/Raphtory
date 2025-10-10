@@ -95,7 +95,7 @@ impl PyHistory {
         }
     }
 
-    /// Access history events as timestamps (milliseconds since Unix epoch).
+    /// Access history events as timestamps (milliseconds since Unix the epoch).
     ///
     /// Returns:
     ///     HistoryTimestamp: Timestamp (as int) view of this history.
@@ -293,7 +293,7 @@ impl<'py> FromPyObject<'py> for History<'static, Arc<dyn InternalHistoryOps>> {
     }
 }
 
-/// History view that exposes timestamps in milliseconds since Unix epoch.
+/// History view that exposes timestamps in milliseconds since the Unix epoch.
 #[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyHistoryTimestamp {
@@ -305,7 +305,7 @@ impl PyHistoryTimestamp {
     /// Collect all timestamps into a numpy ndarray.
     ///
     /// Returns:
-    ///     NDArray[np.int64]: Timestamps in milliseconds since Unix epoch.
+    ///     NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let t = self.history_t.collect();
         t.into_pyarray(py)
@@ -314,7 +314,7 @@ impl PyHistoryTimestamp {
     /// Collect all timestamps into a numpy ndarray in reverse order.
     ///
     /// Returns:
-    ///     NDArray[np.int64]: Timestamps in milliseconds since Unix epoch in reverse order.
+    ///     NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let t = self.history_t.collect_rev();
         t.into_pyarray(py)
@@ -323,7 +323,7 @@ impl PyHistoryTimestamp {
     /// Iterate over all timestamps.
     ///
     /// Returns:
-    ///     Iterator[int]: Iterator over timestamps in milliseconds since Unix epoch.
+    ///     Iterator[int]: Iterator over timestamps in milliseconds since the Unix epoch.
     pub fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history_t.clone(),
@@ -335,7 +335,7 @@ impl PyHistoryTimestamp {
     /// Iterate over all timestamps in reverse order.
     ///
     /// Returns:
-    ///     Iterator[int]: Iterator over timestamps (milliseconds since Unix epoch) in reverse order.
+    ///     Iterator[int]: Iterator over timestamps (milliseconds since the Unix epoch) in reverse order.
     pub fn __reversed__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history_t.clone(),
@@ -347,7 +347,7 @@ impl PyHistoryTimestamp {
     /// Check if this HistoryTimestamp object contains a timestamp.
     ///
     /// Arguments:
-    ///     item (int): Timestamp in milliseconds since Unix epoch.
+    ///     item (int): Timestamp in milliseconds since the Unix epoch.
     ///
     /// Returns:
     ///     bool: True if present, otherwise False.
@@ -924,7 +924,7 @@ py_iterable_base_methods!(HistoryIterable, PyGenericIterator);
 
 #[pymethods]
 impl HistoryIterable {
-    /// Access history items as timestamps (milliseconds since Unix epoch).
+    /// Access history items as timestamps (milliseconds since the Unix epoch).
     ///
     /// Returns:
     ///     HistoryTimestampIterable: Iterable of HistoryTimestamp objects, one for each item.

@@ -520,7 +520,7 @@ impl_node_state_group_by_ops!(EarliestTimeView, Option<EventTime>);
 // Custom time functions for LazyNodeState<EarliestTime>
 #[pymethods]
 impl EarliestTimeView {
-    /// Access earliest times as timestamps (milliseconds since Unix epoch).
+    /// Access earliest times as timestamps (milliseconds since the Unix epoch).
     ///
     /// Returns:
     ///     EarliestTimestampView: A lazy view over the earliest times for each node as timestamps.
@@ -595,7 +595,7 @@ impl_node_state_group_by_ops!(LatestTimeView, Option<EventTime>);
 // Custom time functions for LazyNodeState<LatestTime>
 #[pymethods]
 impl LatestTimeView {
-    /// Access latest times as timestamps (milliseconds since Unix epoch).
+    /// Access latest times as timestamps (milliseconds since the Unix epoch).
     ///
     /// Returns:
     ///     LatestTimestampView: A lazy view over the latest times for each node as timestamps.

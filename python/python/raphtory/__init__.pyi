@@ -6204,15 +6204,15 @@ class TemporalProperty(object):
 class EventTime(object): 
     """
     Raphtory’s EventTime.
-    Represents a unique timepoint in the graph’s history as (epoch, event_id).
+    Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 
-    - epoch: timestamp in milliseconds since the Unix epoch.
+    - timestamp: number of milliseconds since the Unix epoch.
     - event_id: id used for ordering between equal timestamps.
 
     Unless specified manually, the event ids are generated automatically by Raphtory to
     maintain a unique ordering of events.
-    EventTime can be converted into a timestamp (milliseconds since the Unix epoch) or a Python datetime, and compared
-    either by timestamp (against ints/floats/datetimes/strings), by tuple of (epoch, event_id),
+    EventTime can be converted into a timestamp or a Python datetime, and compared
+    either by timestamp (against ints/floats/datetimes/strings), by tuple of (timestamp, event_id),
     or against another EventTime.
     """
 
@@ -6240,7 +6240,7 @@ class EventTime(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def __new__(cls, epoch, event_id=None) -> EventTime:
+    def __new__(cls, timestamp, event_id=None) -> EventTime:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __repr__(self):
@@ -6249,10 +6249,10 @@ class EventTime(object):
     @property
     def as_tuple(self) -> tuple[int,int]:
         """
-        Return this entry as a tuple of (epoch, event_id), where the epoch is in milliseconds.
+        Return this entry as a tuple of (timestamp, event_id), where the timestamp is in milliseconds.
 
         Returns:
-            tuple[int,int]: (epoch, event_id).
+            tuple[int,int]: (timestamp, event_id).
         """
 
     @property
@@ -6427,14 +6427,14 @@ class History(object):
     @property
     def t(self) -> HistoryTimestamp:
         """
-        Access history events as timestamps (milliseconds since Unix epoch).
+        Access history events as timestamps (milliseconds since Unix the epoch).
 
         Returns:
             HistoryTimestamp: Timestamp (as int) view of this history.
         """
 
 class HistoryTimestamp(object): 
-    """History view that exposes timestamps in milliseconds since Unix epoch."""
+    """History view that exposes timestamps in milliseconds since the Unix epoch."""
 
     def __contains__(self, key):
         """Return bool(key in self)."""
@@ -6468,7 +6468,7 @@ class HistoryTimestamp(object):
         Iterate over all timestamps in reverse order.
 
         Returns:
-            Iterator[int]: Iterator over timestamps (milliseconds since Unix epoch) in reverse order.
+            Iterator[int]: Iterator over timestamps (milliseconds since the Unix epoch) in reverse order.
         """
 
     def collect(self) -> NDArray[np.int64]:
@@ -6476,7 +6476,7 @@ class HistoryTimestamp(object):
         Collect all timestamps into a numpy ndarray.
 
         Returns:
-            NDArray[np.int64]: Timestamps in milliseconds since Unix epoch.
+            NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch.
         """
 
     def collect_rev(self) -> NDArray[np.int64]:
@@ -6484,7 +6484,7 @@ class HistoryTimestamp(object):
         Collect all timestamps into a numpy ndarray in reverse order.
 
         Returns:
-            NDArray[np.int64]: Timestamps in milliseconds since Unix epoch in reverse order.
+            NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch in reverse order.
         """
 
 class HistoryDateTime(object): 

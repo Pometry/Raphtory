@@ -2400,7 +2400,7 @@ class EarliestTimeView(object):
     @property
     def t(self) -> EarliestTimestampView:
         """
-        Access earliest times as timestamps (milliseconds since Unix epoch).
+        Access earliest times as timestamps (milliseconds since the Unix epoch).
 
         Returns:
             EarliestTimestampView: A lazy view over the earliest times for each node as timestamps.
@@ -4298,7 +4298,7 @@ class LatestTimeView(object):
     @property
     def t(self) -> LatestTimestampView:
         """
-        Access latest times as timestamps (milliseconds since Unix epoch).
+        Access latest times as timestamps (milliseconds since the Unix epoch).
 
         Returns:
             LatestTimestampView: A lazy view over the latest times for each node as timestamps.
@@ -6528,7 +6528,7 @@ class HistoryView(object):
     @property
     def t(self) -> HistoryTimestampView:
         """
-        Access history events as timestamps (milliseconds since Unix epoch).
+        Access history events as timestamps (milliseconds since the Unix epoch).
 
         Returns:
             HistoryTimestampView: A lazy view over HistoryTimestamp objects for each node.
@@ -9054,7 +9054,7 @@ class NodeStateHistory(object):
     @property
     def t(self):
         """
-        Access history events as timestamps (milliseconds since Unix epoch).
+        Access history events as timestamps (milliseconds since the Unix epoch).
 
         Returns:
             A NodeState of HistoryTimestamp objects for each node.

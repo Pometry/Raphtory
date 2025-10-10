@@ -106,7 +106,7 @@ where
                     window_set
                         .clone()
                         .time_index(center)
-                        .flat_map(|epoch| epoch.dt()),
+                        .flat_map(|timestamp| timestamp.dt()),
                 );
                 iter
             };

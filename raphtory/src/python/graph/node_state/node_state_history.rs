@@ -58,7 +58,7 @@ impl HistoryView {
 // instead of LazyNodeState<HistoryTimestamp<NodeView>> so it matches the node_state macro impls
 #[pymethods]
 impl HistoryView {
-    /// Access history events as timestamps (milliseconds since Unix epoch).
+    /// Access history events as timestamps (milliseconds since the Unix epoch).
     ///
     /// Returns:
     ///     HistoryTimestampView: A lazy view over HistoryTimestamp objects for each node.
@@ -407,7 +407,7 @@ impl NodeStateHistory {
 // instead of NodeState<HistoryTimestamp<NodeView>> so it matches the node_state macro impls
 #[pymethods]
 impl NodeStateHistory {
-    /// Access history events as timestamps (milliseconds since Unix epoch).
+    /// Access history events as timestamps (milliseconds since the Unix epoch).
     ///
     /// Returns:
     ///     A NodeState of HistoryTimestamp objects for each node.

@@ -595,7 +595,7 @@ def test_gql_event_time():
     {
       graph(path: "g") {
         window(
-          start: {epoch: "1970-01-01T00:00:00.150+00:00", id: 0}
+          start: {timestamp: "1970-01-01T00:00:00.150+00:00", id: 0}
           end: {time: "1970-01-01T00:00:00.350+00:00", eventId: 10}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
@@ -633,7 +633,7 @@ def test_gql_event_time():
     {
       graph(path: "g") {
         window(
-          start: {epoch: 150, eventId: 6}
+          start: {timestamp: 150, eventId: 6}
           end: {time: "1970-01-01 00:00:00.350", id: 9}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
@@ -670,7 +670,7 @@ def test_gql_event_time():
     {
       graph(path: "g") {
         window(
-          start: {epoch: 150, id: 7}
+          start: {timestamp: 150, id: 7}
           end: {time: "1970-01-01T00:00:00.351", eventId: 8}
         ) {
           edge(src: "Dumbledore", dst: "Harry") {

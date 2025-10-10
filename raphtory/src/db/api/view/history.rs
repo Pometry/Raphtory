@@ -76,7 +76,7 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         History(ReversedHistoryOps(self.0), PhantomData)
     }
 
-    /// Convert this `History` object to return timestamps (milliseconds since Unix epoch) instead of `EventTime`.
+    /// Convert this `History` object to return timestamps (milliseconds since the Unix epoch) instead of `EventTime`.
     pub fn t(self) -> HistoryTimestamp<T> {
         HistoryTimestamp(self.0)
     }
@@ -795,7 +795,7 @@ impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
 
 impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for ReversedHistoryOps<T> {}
 
-/// History view that exposes timestamps in milliseconds since Unix epoch.
+/// History view that exposes timestamps in milliseconds since the Unix epoch.
 #[derive(Debug, Clone, Copy)]
 pub struct HistoryTimestamp<T>(pub(crate) T);
 

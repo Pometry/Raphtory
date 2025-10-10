@@ -123,7 +123,7 @@ impl GqlHistory {
         blocking_compute(move || self_clone.history.len() as u64).await
     }
 
-    /// Returns a HistoryTimestamp object which accesses timestamps as Unix epochs in milliseconds
+    /// Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
     /// instead of EventTime entries.
     async fn timestamps(&self) -> GqlHistoryTimestamp {
         let self_clone = self.clone();
@@ -166,7 +166,7 @@ impl GqlHistory {
     }
 }
 
-/// History object that provides access to timestamps (as Unix epochs in milliseconds) instead of `EventTime` entries.
+/// History object that provides access to timestamps (milliseconds since the Unix epoch) instead of `EventTime` entries.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "HistoryTimestamp")]
 pub struct GqlHistoryTimestamp {

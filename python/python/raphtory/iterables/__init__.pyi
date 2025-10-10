@@ -1206,7 +1206,7 @@ class HistoryIterable(object):
     @property
     def t(self) -> HistoryTimestampIterable:
         """
-        Access history items as timestamps (milliseconds since Unix epoch).
+        Access history items as timestamps (milliseconds since the Unix epoch).
 
         Returns:
             HistoryTimestampIterable: Iterable of HistoryTimestamp objects, one for each item.

@@ -6,8 +6,8 @@ use raphtory_api::core::{
     utils::time::{IntoTime, TryIntoTime},
 };
 
-/// Input for primary time component. Expects Int, DateTime formatted String, or Object {epoch, eventId}
-/// where epoch is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
+/// Input for primary time component. Expects Int, DateTime formatted String, or Object { timestamp, eventId }
+/// where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
 /// Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
 /// %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
 #[derive(Scalar, Clone, Debug)]
@@ -20,7 +20,7 @@ impl ScalarValue for GqlTimeInput {
             GqlValue::Number(timestamp) => timestamp
                 .as_i64()
                 .ok_or(Error::new(
-                    "Expected Int, DateTime formatted String, or Object { epoch, eventId }.",
+                    "Expected Int, DateTime formatted String, or Object { timestamp, eventId }.",
                 ))
                 .map(|timestamp| GqlTimeInput(EventTime::start(timestamp))),
 
@@ -29,22 +29,22 @@ impl ScalarValue for GqlTimeInput {
                 .map(|t| GqlTimeInput(t.set_event_id(0)))
                 .map_err(|e| Error::new(e.to_string())),
 
-            // TimeInput: Object { epoch: Number | String, eventId: Number }
+            // TimeInput: Object { timestamp: Number | String, eventId: Number }
             GqlValue::Object(obj) => {
-                let epoch_val = obj
-                    .get("epoch")
+                let timestamp_val = obj
+                    .get("timestamp")
                     .or_else(|| obj.get("time")) // optional alias for convenience
-                    .ok_or_else(|| Error::new("Object must contain 'epoch' (or 'time')."))?;
+                    .ok_or_else(|| Error::new("Object must contain 'timestamp' (or 'time')."))?;
 
-                let ts = match epoch_val {
+                let ts = match timestamp_val {
                     GqlValue::Number(n) => n
                         .as_i64()
-                        .ok_or(Error::new("epoch must be an Int or a DateTime String."))?,
+                        .ok_or(Error::new("timestamp must be an Int or a DateTime String."))?,
                     GqlValue::String(s) => s
                         .try_into_time()
                         .map_err(|e| Error::new(e.to_string()))?
                         .t(),
-                    _ => return Err(Error::new("epoch must be an Int or a DateTime String.")),
+                    _ => return Err(Error::new("timestamp must be an Int or a DateTime String.")),
                 };
 
                 let idx_val = obj
@@ -64,7 +64,7 @@ impl ScalarValue for GqlTimeInput {
                 Ok(GqlTimeInput(EventTime::new(ts, idx)))
             }
             _ => Err(Error::new(
-                "Expected Int, DateTime formatted String, or Object { epoch, eventId }.",
+                "Expected Int, DateTime formatted String, or Object { timestamp, eventId }.",
             )),
         }
     }
@@ -87,9 +87,9 @@ impl IntoTime for GqlTimeInput {
 }
 
 /// Raphtory’s EventTime.
-/// Represents a unique timepoint in the graph’s history as (epoch, event_id).
+/// Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 ///
-/// - epoch: timestamp in milliseconds since the Unix epoch.
+/// - timestamp: number of milliseconds since the Unix epoch.
 /// - event_id: id used for ordering between equal timestamps.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "EventTime")]
@@ -117,7 +117,7 @@ impl IntoTime for GqlEventTime {
 
 #[ResolvedObjectFields]
 impl GqlEventTime {
-    /// Get the timestamp in milliseconds since Unix epoch.
+    /// Get the timestamp in milliseconds since the Unix epoch.
     async fn timestamp(&self) -> i64 {
         self.entry.t()
     }
