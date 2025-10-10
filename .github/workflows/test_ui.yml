@@ -25,8 +25,16 @@ jobs:
         name: Checkout
         with:
           ref: ${{ github.head_ref }}
-          submodules: true
-          token: ${{ secrets.CLASSIC_CLONE_PRIVATE_REPOS_KEY }}
+      - name: Setup SSH for UI tests submodule
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.UI_TESTS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+      - name: Init and update UI tests submodule
+        run: |
+          git submodule sync
+          git submodule update --init --recursive ui-tests
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Install Protoc
