@@ -20,7 +20,9 @@ As you get new data you can make global updates, like adding new nodes, using th
 
 The [Node][raphtory.Node] object in Raphtory typically represents some entity in your data. You create nodes using the [.add_node()][raphtory.Graph.add_node] function on your `Graph` object but any subsequent updates must be made using a [MutableNode][raphtory.MutableNode] that you can get by calling `my_graph.node(node_id)`. Any queries are performed using the Node object or an appropriate view.
 
-To make queries more convenient Raphtory provides the [Nodes][raphtory.Nodes] iterable that allows you to make queries over all the nodes in the current view. Typically, queries on an individual Node will return a result directly, while queries over the Nodes iterable will return a view.
+To make queries more convenient Raphtory provides the [Nodes][raphtory.Nodes] iterable that allows you to make queries over all the nodes in the current view. Typically, queries on an individual Node will return a result directly, while queries over the `Nodes` iterable will often return a view or NodeState.
+
+NodeStates are tabular representations of a collection across all nodes in the current view. You can easily transform a NodeState into a dataframe or other tabular format to integrate into your existing workflow.
 
 !!! Info
     The Nodes and Edges iterables have a `.collect()` function that returns list of all the your objects. This is operates on the underlying Rust library and is much faster than creating the list manually in Python.
