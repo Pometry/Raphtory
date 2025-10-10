@@ -23,7 +23,7 @@ mod io_tests {
     #[cfg(feature = "storage")]
     mod load_multi_layer {
         use crate::test_utils::build_edge_list;
-        use arrow_array::{record_batch, Int64Array, LargeStringArray, RecordBatch, UInt64Array};
+        use arrow::array::{record_batch, Int64Array, LargeStringArray, RecordBatch, UInt64Array};
         use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
         use pometry_storage::{
             chunked_array::array_like::BaseArrayLike, graph::TemporalGraph, load::ExternalEdgeList,

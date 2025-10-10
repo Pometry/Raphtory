@@ -3,7 +3,7 @@ pub mod test_utils;
 #[cfg(feature = "storage")]
 #[cfg(test)]
 mod test {
-    use arrow_array::StringArray;
+    use arrow::array::StringArray;
     use bigdecimal::BigDecimal;
     use itertools::Itertools;
     use pometry_storage::{
