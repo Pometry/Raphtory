@@ -1,5 +1,3 @@
-use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::sync::LazyLock;
 use tokio::sync::oneshot;
 
 /// Use the rayon threadpool to execute a task

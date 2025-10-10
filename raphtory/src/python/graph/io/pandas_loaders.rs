@@ -5,7 +5,7 @@ use crate::{
     prelude::{AdditionOps, PropertyAdditionOps},
     serialise::incremental::InternalCache,
 };
-use arrow_array::ArrayRef;
+use arrow::array::ArrayRef;
 use pyo3::{
     ffi::c_str,
     prelude::*,

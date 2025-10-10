@@ -3,7 +3,7 @@ pub mod test_utils;
 #[cfg(feature = "io")]
 mod io_tests {
     use crate::test_utils::{build_edge_list, build_edge_list_str};
-    use arrow_array::builder::{
+    use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
     use itertools::Itertools;
@@ -390,6 +390,8 @@ mod io_tests {
                     assert!(edge.has_layer(layer))
                 }
             }
+            assert_eq!(g.count_edges(), distinct_edges);
+            assert_eq!(g2.count_edges(), distinct_edges);
             assert_graph_equal(&g, &g2);
         }
     }
@@ -483,7 +485,6 @@ mod parquet_tests {
     }
 
     #[test]
-    #[ignore = "This is broken because of polars-parquet"]
     fn node_temp_props_decimal() {
         let nodes = NodeFixture(
             [(

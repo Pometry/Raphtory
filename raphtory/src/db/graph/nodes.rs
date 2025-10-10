@@ -222,7 +222,7 @@ where
 
     pub fn iter_unlocked(
         &self,
-    ) -> impl Iterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {
+    ) -> impl Iterator<Item = NodeView<'_, &G, &GH>> + use<'_, 'graph, G, GH> {
         self.iter_refs_unlocked()
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }

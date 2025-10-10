@@ -2,13 +2,11 @@ use crate::{
     errors::{GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
-use arrow_array::{
-    cast::AsArray,
-    types::{Int64Type, TimestampMillisecondType},
-    Array, ArrayRef, PrimitiveArray,
+use arrow::{
+    array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
+    compute::cast,
+    datatypes::{DataType, Int64Type, TimeUnit, TimestampMillisecondType},
 };
-use arrow_cast::cast;
-use arrow_schema::{DataType, TimeUnit};
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};

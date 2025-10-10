@@ -1,12 +1,9 @@
 use crate::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
-use arrow::{
-    array::ArrayRef,
-    datatypes::{DataType, Field, Schema, DECIMAL128_MAX_PRECISION},
-};
 use arrow_array::{
-    builder::BooleanBuilder, Decimal128Array, Float32Array, Float64Array, Int32Array, Int64Array,
-    LargeStringArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
+    builder::BooleanBuilder, ArrayRef, Decimal128Array, Float32Array, Float64Array, Int32Array,
+    Int64Array, LargeStringArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
 };
+use arrow_schema::{DataType, Field, Schema, DECIMAL128_MAX_PRECISION};
 use itertools::Itertools;
 use num_traits::ToPrimitive;
 use pometry_storage::{

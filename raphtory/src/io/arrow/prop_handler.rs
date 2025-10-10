@@ -3,19 +3,19 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
-use arrow_array::{
-    cast::AsArray,
-    types::{
-        Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type, TimestampMicrosecondType,
-        TimestampMillisecondType, TimestampNanosecondType, TimestampSecondType, UInt16Type,
-        UInt32Type, UInt64Type, UInt8Type,
+use arrow::{
+    array::{
+        Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
+        FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
+        StringViewArray, StructArray,
     },
-    Array as ArrowArray, Array, ArrayRef, ArrowPrimitiveType, BooleanArray, Decimal128Array,
-    FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
-    StructArray,
+    buffer::NullBuffer,
+    datatypes::{
+        DataType, Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type, TimeUnit,
+        TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
+        TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+    },
 };
-use arrow_buffer::NullBuffer;
-use arrow_schema::{DataType, TimeUnit};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use raphtory_api::core::{
@@ -270,7 +270,7 @@ impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
     }
 }
 
-impl PropCol for arrow_array::StringViewArray {
+impl PropCol for StringViewArray {
     fn get(&self, i: usize) -> Option<Prop> {
         if self.is_null(i) || self.len() <= i {
             None

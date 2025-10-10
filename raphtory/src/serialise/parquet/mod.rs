@@ -16,8 +16,8 @@ use crate::{
         nodes::{encode_nodes_cprop, encode_nodes_tprop},
     },
 };
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow_json::{reader::Decoder, ReaderBuilder};
-use arrow_schema::{DataType, Field, Schema, SchemaRef};
 use edges::{encode_edge_cprop, encode_edge_tprop};
 use itertools::Itertools;
 use model::ParquetTEdge;

@@ -5,10 +5,7 @@ use crate::{
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
     serialise::incremental::InternalCache,
 };
-use arrow_array::StructArray;
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::{
     collections::HashMap,
@@ -16,6 +13,9 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
+
+#[cfg(feature = "storage")]
+use {arrow::array::StructArray, pometry_storage::RAError};
 
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
@@ -361,7 +361,7 @@ pub fn read_struct_arrays(
 #[cfg(test)]
 mod test {
     use super::*;
-    use arrow_array::{ArrayRef, Float64Array, Int64Array, StringArray};
+    use arrow::array::{ArrayRef, Float64Array, Int64Array, StringArray};
     use itertools::Itertools;
     use std::{path::PathBuf, sync::Arc};
 

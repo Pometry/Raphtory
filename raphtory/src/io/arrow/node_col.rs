@@ -1,5 +1,11 @@
 use crate::{errors::LoadError, io::arrow::dataframe::DFChunk, prelude::AdditionOps};
-use arrow_array::{Array as ArrowArray, Int32Array, Int64Array};
+use arrow::{
+    array::{
+        Array, AsArray, Int32Array, Int64Array, LargeStringArray, StringArray, StringViewArray,
+        UInt32Array, UInt64Array,
+    },
+    datatypes::{DataType, Int32Type, Int64Type, UInt32Type, UInt64Type},
+};
 use raphtory_api::core::entities::{GidRef, GidType};
 use rayon::prelude::{IndexedParallelIterator, *};
 
@@ -25,10 +31,10 @@ impl NodeColOps for Int32Array {
         GidType::U64
     }
     fn null_count(&self) -> usize {
-        ArrowArray::null_count(self)
+        Array::null_count(self)
     }
     fn len(&self) -> usize {
-        ArrowArray::len(self)
+        Array::len(self)
     }
 }
 
@@ -41,16 +47,16 @@ impl NodeColOps for Int64Array {
         GidType::U64
     }
     fn null_count(&self) -> usize {
-        ArrowArray::null_count(self)
+        Array::null_count(self)
     }
     fn len(&self) -> usize {
-        ArrowArray::len(self)
+        Array::len(self)
     }
 }
 
-impl NodeColOps for arrow_array::StringArray {
+impl NodeColOps for StringArray {
     fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        if i >= ArrowArray::len(self) {
+        if i >= Array::len(self) {
             None
         } else {
             // safety: bounds checked above
@@ -65,16 +71,16 @@ impl NodeColOps for arrow_array::StringArray {
         GidType::Str
     }
     fn null_count(&self) -> usize {
-        ArrowArray::null_count(self)
+        Array::null_count(self)
     }
     fn len(&self) -> usize {
-        ArrowArray::len(self)
+        Array::len(self)
     }
 }
 
-impl NodeColOps for arrow_array::LargeStringArray {
+impl NodeColOps for LargeStringArray {
     fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        if i >= ArrowArray::len(self) {
+        if i >= Array::len(self) {
             None
         } else {
             // safety: bounds checked above
@@ -89,17 +95,17 @@ impl NodeColOps for arrow_array::LargeStringArray {
         GidType::Str
     }
     fn null_count(&self) -> usize {
-        ArrowArray::null_count(self)
+        Array::null_count(self)
     }
 
     fn len(&self) -> usize {
-        ArrowArray::len(self)
+        Array::len(self)
     }
 }
 
-impl NodeColOps for arrow_array::StringViewArray {
+impl NodeColOps for StringViewArray {
     fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        if i >= ArrowArray::len(self) {
+        if i >= Array::len(self) {
             None
         } else {
             // safety: bounds checked above
@@ -114,14 +120,14 @@ impl NodeColOps for arrow_array::StringViewArray {
         GidType::Str
     }
     fn null_count(&self) -> usize {
-        ArrowArray::null_count(self)
+        Array::null_count(self)
     }
     fn len(&self) -> usize {
-        ArrowArray::len(self)
+        Array::len(self)
     }
 }
 
-impl NodeColOps for arrow_array::UInt32Array {
+impl NodeColOps for UInt32Array {
     fn get(&self, i: usize) -> Option<GidRef<'_>> {
         self.values().get(i).map(|v| GidRef::U64(*v as u64))
     }
@@ -130,14 +136,14 @@ impl NodeColOps for arrow_array::UInt32Array {
         GidType::U64
     }
     fn null_count(&self) -> usize {
-        ArrowArray::null_count(self)
+        Array::null_count(self)
     }
     fn len(&self) -> usize {
-        ArrowArray::len(self)
+        Array::len(self)
     }
 }
 
-impl NodeColOps for arrow_array::UInt64Array {
+impl NodeColOps for UInt64Array {
     fn get(&self, i: usize) -> Option<GidRef<'_>> {
         self.values().get(i).map(|v| GidRef::U64(*v))
     }
@@ -146,74 +152,46 @@ impl NodeColOps for arrow_array::UInt64Array {
         GidType::U64
     }
     fn null_count(&self) -> usize {
-        ArrowArray::null_count(self)
+        Array::null_count(self)
     }
     fn len(&self) -> usize {
-        ArrowArray::len(self)
+        Array::len(self)
     }
 }
 
 pub struct NodeCol(Box<dyn NodeColOps>);
 
-impl<'a> TryFrom<&'a dyn arrow_array::Array> for NodeCol {
+impl<'a> TryFrom<&'a dyn Array> for NodeCol {
     type Error = LoadError;
 
-    fn try_from(value: &'a dyn arrow_array::Array) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a dyn Array) -> Result<Self, Self::Error> {
         match value.data_type() {
-            arrow_schema::DataType::Int32 => {
-                let col = value
-                    .as_any()
-                    .downcast_ref::<arrow_array::Int32Array>()
-                    .unwrap()
-                    .clone();
+            DataType::Int32 => {
+                let col = value.as_primitive::<Int32Type>().clone();
                 Ok(NodeCol(Box::new(col)))
             }
-            arrow_schema::DataType::Int64 => {
-                let col = value
-                    .as_any()
-                    .downcast_ref::<arrow_array::Int64Array>()
-                    .unwrap()
-                    .clone();
+            DataType::Int64 => {
+                let col = value.as_primitive::<Int64Type>().clone();
                 Ok(NodeCol(Box::new(col)))
             }
-            arrow_schema::DataType::UInt32 => {
-                let col = value
-                    .as_any()
-                    .downcast_ref::<arrow_array::UInt32Array>()
-                    .unwrap()
-                    .clone();
+            DataType::UInt32 => {
+                let col = value.as_primitive::<UInt32Type>().clone();
                 Ok(NodeCol(Box::new(col)))
             }
-            arrow_schema::DataType::UInt64 => {
-                let col = value
-                    .as_any()
-                    .downcast_ref::<arrow_array::UInt64Array>()
-                    .unwrap()
-                    .clone();
+            DataType::UInt64 => {
+                let col = value.as_primitive::<UInt64Type>().clone();
                 Ok(NodeCol(Box::new(col)))
             }
-            arrow_schema::DataType::Utf8 => {
-                let col = value
-                    .as_any()
-                    .downcast_ref::<arrow_array::StringArray>()
-                    .unwrap()
-                    .clone();
+            DataType::Utf8 => {
+                let col = value.as_string::<i32>().clone();
                 Ok(NodeCol(Box::new(col)))
             }
-            arrow_schema::DataType::LargeUtf8 => {
-                let col = value
-                    .as_any()
-                    .downcast_ref::<arrow_array::LargeStringArray>()
-                    .unwrap()
-                    .clone();
+            DataType::LargeUtf8 => {
+                let col = value.as_string::<i64>().clone();
                 Ok(NodeCol(Box::new(col)))
             }
-            arrow_schema::DataType::Utf8View => {
-                let col = value
-                    .as_any()
-                    .downcast_ref::<arrow_array::StringViewArray>()
-                    .unwrap()
-                    .clone();
+            DataType::Utf8View => {
+                let col = value.as_string_view().clone();
                 Ok(NodeCol(Box::new(col)))
             }
             dtype => Err(LoadError::InvalidNodeIdType(dtype.clone())),

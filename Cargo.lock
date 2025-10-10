@@ -4719,17 +4719,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quickcheck_macros"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f71ee38b42f8459a88d3362be6f9b841ad2d5421844f61eb1c59c11bff3ac14a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.106",
-]
-
-[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4882,11 +4871,8 @@ name = "raphtory"
 version = "0.16.2"
 dependencies = [
  "ahash",
- "arrow-array",
- "arrow-buffer",
- "arrow-cast",
+ "arrow",
  "arrow-json",
- "arrow-schema",
  "arroy",
  "async-openai",
  "async-trait",
@@ -4970,7 +4956,6 @@ dependencies = [
  "chrono",
  "dashmap",
  "display-error-chain",
- "indexmap 2.11.4",
  "iter-enum",
  "itertools 0.13.0",
  "lock_api",
@@ -4980,7 +4965,6 @@ dependencies = [
  "proptest",
  "pyo3",
  "pyo3-arrow",
- "quickcheck_macros",
  "rand 0.8.5",
  "rayon",
  "rustc-hash 2.1.1",
@@ -5130,8 +5114,8 @@ dependencies = [
 name = "raphtory-storage"
 version = "0.16.2"
 dependencies = [
- "arrow",
  "arrow-array",
+ "arrow-schema",
  "bigdecimal",
  "iter-enum",
  "itertools 0.13.0",

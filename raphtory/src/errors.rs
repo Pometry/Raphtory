@@ -27,7 +27,7 @@ use tracing::error;
 use pometry_storage::RAError;
 #[cfg(feature = "arrow")]
 use {
-    arrow_schema::{ArrowError, DataType},
+    arrow::{datatypes::DataType, error::ArrowError},
     parquet::errors::ParquetError,
     raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
 };
@@ -131,7 +131,7 @@ pub enum GraphError {
 
     #[cfg(feature = "arrow")]
     #[error("Arrow-rs error: {0}")]
-    ArrowRs(#[from] arrow_schema::ArrowError),
+    ArrowRs(#[from] ArrowError),
 
     #[cfg(feature = "arrow")]
     #[error("Arrow-rs parquet error: {0}")]

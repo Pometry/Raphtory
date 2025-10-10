@@ -5,7 +5,7 @@ use crate::{
     errors::GraphError,
     prelude::{Graph, GraphViewOps, NodeStateOps, NodeViewOps},
 };
-use arrow_array::ArrayRef;
+use arrow::array::ArrayRef;
 use itertools::Itertools;
 use pometry_storage::interop::GraphLike;
 use raphtory_api::{

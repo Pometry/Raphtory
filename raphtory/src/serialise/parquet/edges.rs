@@ -3,7 +3,7 @@ use crate::{
     core::utils::iter::GenLockedIter, db::graph::edge::EdgeView, errors::GraphError,
     serialise::parquet::model::ParquetDelEdge,
 };
-use arrow_schema::{DataType, Field};
+use arrow::datatypes::{DataType, Field};
 use model::ParquetCEdge;
 use raphtory_api::{
     core::{entities::EID, storage::timeindex::TimeIndexOps},

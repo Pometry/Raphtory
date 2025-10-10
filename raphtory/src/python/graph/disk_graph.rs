@@ -11,8 +11,7 @@ use crate::{
     prelude::Graph,
     python::{graph::graph::PyGraph, types::repr::StructReprBuilder},
 };
-use arrow_array::StructArray;
-use arrow_schema::Field;
+use arrow::{array::StructArray, datatypes::Field};
 use itertools::Itertools;
 use pometry_storage::{
     graph::{load_node_metadata, TemporalGraph},
