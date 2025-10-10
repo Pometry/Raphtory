@@ -21,14 +21,11 @@ jobs:
         os: [ ubuntu-latest ]
     runs-on: '${{ matrix.os }}'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout
         with:
           ref: ${{ github.head_ref }}
-      - name: Init and update UI tests submodule
-        run: |
-          git submodule sync
-          git submodule update --init --recursive ui-tests
+          submodules: true
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Install Protoc
