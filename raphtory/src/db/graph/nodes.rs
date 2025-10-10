@@ -200,10 +200,12 @@ where
         let node_types_filter = self.node_types_filter.clone();
         let view = self.graph.clone();
         self.node_list().into_iter().filter(move |&vid| {
-            g.try_core_node(vid).is_some_and(|node| {            node_types_filter
-                .as_ref()
-                .is_none_or(|type_filter| type_filter[node.node_type_id()])
-                && view.filter_node(node.as_ref())})
+            g.try_core_node(vid).is_some_and(|node| {
+                node_types_filter
+                    .as_ref()
+                    .is_none_or(|type_filter| type_filter[node.node_type_id()])
+                    && view.filter_node(node.as_ref())
+            })
         })
     }
 
