@@ -20,7 +20,9 @@ use std::{
     io::{Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
+    time::Instant,
 };
+use tempfile;
 use tokio::fs;
 use tracing::warn;
 use walkdir::WalkDir;
@@ -138,7 +140,9 @@ impl Data {
         folder: ValidGraphFolder,
         graph: MaterializedGraph,
     ) -> Result<(), GraphError> {
-        let path = folder.get_original_path_str();
+        let vectors = self.vectorise(graph.clone(), &folder).await;
+        let graph = GraphWithVectors::new(graph, vectors);
+
         let graph_clone = graph.clone();
         let folder_clone = folder.clone();
 
@@ -149,15 +153,12 @@ impl Data {
             if graph_clone.disk_storage_enabled() {
                 folder_clone.write_metadata(&graph_clone)?;
             } else {
-                graph_clone.encode(folder_clone.clone())?;
+                Self::encode_graph_to_disk(graph_clone)?;
             }
 
             Ok::<(), GraphError>(())
         })
         .await?;
-
-        let vectors = self.vectorise(graph.clone(), &folder).await;
-        let graph = GraphWithVectors::new(graph, vectors);
 
         let folder_for_init = folder.clone();
 
@@ -165,6 +166,7 @@ impl Data {
             .folder
             .get_or_try_init(|| Ok::<_, GraphError>(folder_for_init.into()))?;
 
+        let path = folder.get_original_path_str();
         self.cache.insert(path.into(), graph).await;
 
         Ok(())
@@ -299,7 +301,7 @@ impl Data {
             // Serialize the graph to the original folder path
             graph.graph.encode(&folder_path)?;
 
-            // Delete the backup
+            // Delete the backup on success
             let bak_path = folder_path.with_extension("bak");
 
             if bak_path.exists() {
