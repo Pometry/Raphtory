@@ -709,7 +709,7 @@ fn graph_save_to_load_from_file() {
     g.encode(&graph_path).unwrap();
 
     // Load from files
-    let g2 = Graph::decode(&graph_path).unwrap();
+    let g2 = Graph::decode(&graph_path, None).unwrap();
 
     assert_eq!(g, g2);
 }
@@ -758,6 +758,7 @@ fn graph_edge() {
             .unwrap()
             .edge(1, 3)
             .unwrap();
+
         assert_eq!(e.src().id().into_u64(), Some(1u64));
         assert_eq!(e.dst().id().into_u64(), Some(3u64));
     });
@@ -2191,7 +2192,7 @@ fn test_graph_temporal_props() {
 }
 
 #[test]
-fn test_temporral_edge_props_window() {
+fn test_temporal_edge_props_window() {
     let graph = Graph::new();
     graph
         .add_edge(1, 1, 2, vec![("weight".to_string(), Prop::I64(1))], None)
@@ -2897,7 +2898,7 @@ fn save_load_serial() {
     let dir = tempfile::tempdir().unwrap();
     let file_path = dir.path().join("abcd11");
     g.encode(&file_path).unwrap();
-    let gg = Graph::decode(file_path).unwrap();
+    let gg = Graph::decode(file_path, None).unwrap();
     assert_graph_equal(&g, &gg);
 }
 

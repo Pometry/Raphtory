@@ -462,7 +462,7 @@ impl GqlMutableNode {
         })
         .await?;
 
-        self_clone.node.graph.set_dirty(true);
+        self.node.graph.set_dirty(true);
         let _ = self.node.update_embeddings().await;
 
         Ok(true)
@@ -480,7 +480,7 @@ impl GqlMutableNode {
         })
         .await?;
 
-        self_clone.node.graph.set_dirty(true);
+        self.node.graph.set_dirty(true);
         let _ = self.node.update_embeddings().await;
 
         Ok(true)
@@ -501,7 +501,7 @@ impl GqlMutableNode {
         })
         .await?;
 
-        self_clone.node.graph.set_dirty(true);
+        self.node.graph.set_dirty(true);
         let _ = self.node.update_embeddings().await;
 
         Ok(true)
@@ -551,7 +551,7 @@ impl GqlMutableEdge {
         })
         .await?;
 
-        self_clone.edge.graph.set_dirty(true);
+        self.edge.graph.set_dirty(true);
         let _ = self.edge.update_embeddings().await;
 
         Ok(true)
@@ -576,7 +576,7 @@ impl GqlMutableEdge {
         })
         .await?;
 
-        self_clone.edge.graph.set_dirty(true);
+        self.edge.graph.set_dirty(true);
         let _ = self.edge.update_embeddings().await;
 
         Ok(true)
@@ -601,7 +601,7 @@ impl GqlMutableEdge {
         })
         .await?;
 
-        self_clone.edge.graph.set_dirty(true);
+        self.edge.graph.set_dirty(true);
         let _ = self.edge.update_embeddings().await;
 
         Ok(true)
@@ -629,7 +629,7 @@ impl GqlMutableEdge {
         })
         .await?;
 
-        self_clone.edge.graph.set_dirty(true);
+        self.edge.graph.set_dirty(true);
         let _ = self.edge.update_embeddings().await;
 
         Ok(true)

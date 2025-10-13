@@ -62,7 +62,7 @@ fn process_shared_properties(
     }
 }
 
-pub(crate) fn load_nodes_from_df<
+pub fn load_nodes_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,

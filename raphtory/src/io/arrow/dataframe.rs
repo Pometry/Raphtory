@@ -7,6 +7,7 @@ use arrow::{
     compute::cast,
     datatypes::{DataType, Int64Type, UInt64Type, TimeUnit, TimestampMillisecondType},
 };
+use either::Either;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::{
