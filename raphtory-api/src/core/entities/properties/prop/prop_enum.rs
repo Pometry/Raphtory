@@ -231,7 +231,7 @@ impl Prop {
                 _ => Err(Error),
             },
             // number check if zero, parse string as normal
-            Prop::Bool(v) => match prop_type {
+            Prop::Bool(_v) => match prop_type {
                 PropType::Str => todo!(),
                 PropType::U8 => todo!(),
                 PropType::U16 => todo!(),
@@ -242,21 +242,22 @@ impl Prop {
                 PropType::F32 => todo!(),
                 PropType::F64 => todo!(),
                 PropType::Bool => todo!(),
-                PropType::Decimal { scale } => todo!(),
+                PropType::Decimal { scale: _ } => todo!(),
                 _ => Err(Error),
             },
             // self
-            Prop::List(v) => todo!(),
+            Prop::List(_v) => todo!(),
             // self
-            Prop::Map(v) => todo!(),
+            Prop::Map(_v) => todo!(),
             // use number as epoch, convert string as normal
-            Prop::NDTime(v) => todo!(),
+            Prop::NDTime(_v) => todo!(),
             // use number as epoch, convert string as normal
-            Prop::DTime(v) => todo!(),
+            Prop::DTime(_v) => todo!(),
             // self
-            Prop::Array(v) => todo!(),
+            #[cfg(feature = "arrow")]
+            Prop::Array(_v) => todo!(),
             // convert number as normal, bool to zero or one
-            Prop::Decimal(v) => todo!(),
+            Prop::Decimal(_v) => todo!(),
             _ => match prop_type {
                 // we know the target and our self is a number
                 PropType::U8 => self.try_into_int::<u8>().map(Prop::U8),

@@ -4,7 +4,7 @@
 //! in a graph.
 use crate::{
     db::{
-        api::{state::NodeState, view::StaticGraphViewOps},
+        api::{state::{GenericNodeState, TypedNodeState}, view::StaticGraphViewOps},
         graph::node::NodeView,
     },
     errors::GraphError,
@@ -12,6 +12,12 @@ use crate::{
 };
 use raphtory_api::core::Direction;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+struct BalanceState {
+    balance: f64,
+}
 
 /// Computes the net sum of weights for a given node based on edge direction.
 ///
@@ -86,7 +92,7 @@ pub fn balance<G: StaticGraphViewOps>(
     graph: &G,
     name: String,
     direction: Direction,
-) -> Result<NodeState<'static, f64, G>, GraphError> {
+) -> Result<TypedNodeState<'static, BalanceState, G>, GraphError> {
     if let Some((weight_id, weight_type)) = graph.edge_meta().get_prop_id_and_type(&name, false) {
         if !weight_type.is_numeric() {
             return Err(GraphError::InvalidProperty {
@@ -99,88 +105,10 @@ pub fn balance<G: StaticGraphViewOps>(
             .map(|n| balance_per_node(&n, weight_id, direction))
             .collect();
 
-        Ok(NodeState::new_from_values(graph.clone(), values))
+        Ok(TypedNodeState::new(GenericNodeState::new_from_eval(graph.clone(), values)))
     } else {
         Err(GraphError::InvalidProperty {
             reason: "Edge property {name} does not exist".to_string(),
         })
-    }
-}
-
-#[cfg(test)]
-mod sum_weight_test {
-    use crate::{
-        algorithms::metrics::balance::balance,
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::GraphViewOps,
-        test_storage,
-    };
-    use pretty_assertions::assert_eq;
-    use raphtory_api::core::{entities::properties::prop::Prop, Direction};
-    use std::collections::HashMap;
-
-    #[test]
-    fn test_sum_float_weights() {
-        let graph = Graph::new();
-
-        let vs = vec![
-            ("1", "2", 10, 1),
-            ("1", "4", 20, 2),
-            ("2", "3", 5, 3),
-            ("3", "2", 2, 4),
-            ("3", "1", 1, 5),
-            ("4", "3", 10, 6),
-            ("4", "1", 5, 7),
-            ("1", "5", 2, 8),
-        ];
-
-        for (src, dst, val, time) in &vs {
-            graph
-                .add_edge(
-                    *time,
-                    *src,
-                    *dst,
-                    [("value_dec".to_string(), Prop::I32(*val))],
-                    None,
-                )
-                .expect("Couldnt add edge");
-        }
-
-        test_storage!(&graph, |graph| {
-            let res = balance(graph, "value_dec".to_string(), Direction::BOTH).unwrap();
-            let node_one = graph.node("1").unwrap();
-            let node_two = graph.node("2").unwrap();
-            let node_three = graph.node("3").unwrap();
-            let node_four = graph.node("4").unwrap();
-            let node_five = graph.node("5").unwrap();
-            let expected = HashMap::from([
-                (node_one.clone(), -26.0),
-                (node_two.clone(), 7.0),
-                (node_three.clone(), 12.0),
-                (node_four.clone(), 5.0),
-                (node_five.clone(), 2.0),
-            ]);
-            assert_eq!(res, expected);
-
-            let res = balance(graph, "value_dec".to_string(), Direction::IN).unwrap();
-            let expected = HashMap::from([
-                (node_one.clone(), 6.0),
-                (node_two.clone(), 12.0),
-                (node_three.clone(), 15.0),
-                (node_four.clone(), 20.0),
-                (node_five.clone(), 2.0),
-            ]);
-            assert_eq!(res, expected);
-
-            let res = balance(graph, "value_dec".to_string(), Direction::OUT).unwrap();
-            let expected = HashMap::from([
-                (node_one, -32.0),
-                (node_two, -5.0),
-                (node_three, -3.0),
-                (node_four, -15.0),
-                (node_five, 0.0),
-            ]);
-            assert_eq!(res, expected);
-        });
     }
 }

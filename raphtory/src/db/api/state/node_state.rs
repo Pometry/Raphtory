@@ -2,7 +2,7 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::node_state_ops::NodeStateOps,
+            state::node_state_ops::{NodeStateOps, ToOwnedValue},
             view::{
                 internal::{FilterOps, NodeList},
                 DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -15,15 +15,12 @@ use crate::{
 use indexmap::IndexSet;
 use rayon::{iter::Either, prelude::*};
 use std::{
-    borrow::Borrow,
     collections::HashMap,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},
     marker::PhantomData,
     sync::Arc,
 };
-
-use super::node_state_ops::ToOwnedValue;
 
 #[derive(Debug, Default)]
 pub struct Index<K> {
@@ -153,25 +150,6 @@ impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
 {
     fn eq(&self, other: &&[RHS]) -> bool {
         self.values.par_iter().eq(*other)
-    }
-}
-
-impl<
-    'graph,
-    V: Clone + Send + Sync + PartialEq + 'graph,
-    G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
-    RHS: NodeStateOps<'graph, OwnedValue = V>,
-> PartialEq<RHS> for NodeState<'graph, V, G, GH>
-{
-    fn eq(&self, other: &RHS) -> bool {
-        self.len() == other.len()
-            && self.par_iter().all(|(node, value)| {
-            other
-                .get_by_node(node)
-                .map(|v| v.borrow() == value)
-                .unwrap_or(false)
-        })
     }
 }
 
@@ -372,10 +350,12 @@ impl<
         self.values.par_iter()
     }
 
+    #[allow(refining_impl_trait)]
     fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
         (0..self.values.len()).map(move |i| self.values[i].clone())
     }
 
+    #[allow(refining_impl_trait)]
     fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         (0..self.values.len())
             .into_par_iter()
@@ -463,7 +443,10 @@ impl<
     fn get_by_index(
         &'a self,
         index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         match &self.keys {
             Some(node_index) => node_index.key(index).map(|n| {
                 (

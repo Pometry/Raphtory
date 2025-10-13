@@ -5,12 +5,18 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
-        api::state::{Index, NodeState},
-        graph::{node::NodeView, nodes::Nodes},
+        api::state::{GenericNodeState, Index, TypedNodeState},
+        graph::node::NodeView,
     },
     prelude::*,
 };
 use std::{collections::HashMap, mem};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+struct PathState {
+    path: Vec<VID>,
+}
 
 /// Calculates the single source shortest paths from a given source node.
 ///
@@ -28,7 +34,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
     g: &G,
     source: T,
     cutoff: Option<usize>,
-) -> NodeState<'graph, Nodes<'graph, G>, G> {
+) -> TypedNodeState<'graph, PathState, G> {
     let mut paths: HashMap<VID, Vec<VID>> = HashMap::new();
     if let Some(source_node) = g.node(source) {
         let node_internal_id = source_node.node;
@@ -57,7 +63,14 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
             level += 1;
         }
     }
-    NodeState::new_from_map(g.clone(), paths, |v| {
-        Nodes::new_filtered(g.clone(), g.clone(), Some(Index::from_iter(v)), None)
-    })
+    let (targets, paths): (Vec<_>, Vec<_>) = paths.into_iter().unzip();
+    TypedNodeState::new(
+    GenericNodeState::new_from_eval_with_index_mapped(
+        g.clone(), 
+        g.clone(),
+        paths, 
+        Some(Index::from_iter(targets)),
+        |value| PathState { path: value }
+        )
+    )
 }

@@ -1,17 +1,15 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::{
-        state::{GenericNodeState, Index, NodeState, TypedNodeState},
+        state::{GenericNodeState, TypedNodeState},
         view::*,
     },
 };
 use indexmap::IndexSet;
 use itertools::Itertools;
-use raphtory_api::core::entities::{properties::prop::Prop, VID};
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 struct LCCState {
@@ -21,8 +19,8 @@ struct LCCState {
 fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
-) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
-    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = v
+) -> TypedNodeState<'static, LCCState, G> {
+    let (_index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = v
         .par_iter()
         .filter_map(|n| {
             let s = (&graph).node(n)?;
@@ -51,7 +49,7 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
         .unzip();
     // let result: Option<_> = Some(Index::new(index));
     // new_from_eval_with_index
-    GenericNodeState::new_from_eval(graph.clone(), values).transform()
+    TypedNodeState::new(GenericNodeState::new_from_eval(graph.clone(), values))
     // NodeState::new(graph.clone(), graph.clone(), values.into(), result)
 }
 /// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
@@ -66,57 +64,10 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
 pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
-) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
+) -> TypedNodeState<'static, LCCState, G> {
     if v.is_empty() {
         calculate_lcc(graph, (0..graph.unfiltered_num_nodes()).map(VID).collect())
     } else {
         calculate_lcc(graph, v)
     }
-}
-
-#[cfg(test)]
-mod clustering_coefficient_tests {
-    /*
-    use super::local_clustering_coefficient_batch;
-    use crate::{
-        db::{
-            api::{mutation::AdditionOps, view::*},
-            graph::graph::Graph,
-        },
-        prelude::NO_PROPS,
-        test_storage,
-    };
-    use std::collections::HashMap;
-
-    #[test]
-    fn clusters_of_triangles() {
-        let graph = Graph::new();
-        let vs = vec![
-            (1, 1, 2),
-            (2, 1, 3),
-            (3, 2, 1),
-            (4, 3, 2),
-            (5, 1, 4),
-            (6, 4, 5),
-            (6, 1, 1),
-            (6, 5, 5),
-        ];
-
-        for (t, src, dst) in &vs {
-            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
-        }
-
-        test_storage!(&graph, |graph| {
-            let expected = [0.3333333333333333, 1.0, 1.0, 0.0, 0.0];
-            let expected: HashMap<String, f64> =
-                (1..=5).map(|v| (v.to_string(), expected[v - 1])).collect();
-            let windowed_graph = graph.window(0, 7);
-            let actual = local_clustering_coefficient_batch(&windowed_graph, (1..=5).collect());
-            let actual: HashMap<String, f64> = (1..=5)
-                .map(|v| (v.to_string(), actual.values()[v - 1]))
-                .collect();
-            assert_eq!(expected, actual);
-        });
-    }
-    */
 }

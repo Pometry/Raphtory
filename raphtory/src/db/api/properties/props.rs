@@ -4,7 +4,6 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use serde::Serialize;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},

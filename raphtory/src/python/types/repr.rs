@@ -1,8 +1,6 @@
 use crate::{
     core::storage::locked_view::LockedView,
-    db::api::state::{
-        GenericNodeState, LazyNodeState, NodeOp, NodeState, NodeStateValue, TypedNodeState,
-    },
+    db::api::state::{LazyNodeState, NodeOp, NodeState, NodeStateValue, TypedNodeState},
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
 use bigdecimal::BigDecimal;

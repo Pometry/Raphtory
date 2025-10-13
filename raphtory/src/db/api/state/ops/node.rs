@@ -1,6 +1,6 @@
 use crate::{
     db::api::{
-        state::{generic_node_state::InputNodeStateValue, NodeStateValue},
+        state::generic_node_state::InputNodeStateValue,
         view::internal::{
             time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
         },
@@ -200,7 +200,7 @@ impl<V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V, ArrowOutput =
         self.deref().apply(storage, node)
     }
 
-    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
+    fn arrow_apply(&self, _storage: &GraphStorage, _node: VID) -> Self::ArrowOutput {
         // TODO: self.deref().arrow_apply(storage, node)
     }
 }
@@ -211,12 +211,6 @@ pub struct Map<Op: NodeOp, V> {
     map: fn(Op::Output) -> V,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct ArrowMap<Op: NodeOp, V> {
-    op: Op,
-    map: fn(Op::ArrowOutput) -> V,
-}
-
 impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
     type Output = V;
     type ArrowOutput = ();
@@ -225,7 +219,7 @@ impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
         (self.map)(self.op.apply(storage, node))
     }
 
-    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
+    fn arrow_apply(&self, _storage: &GraphStorage, _node: VID) -> Self::ArrowOutput {
         // TODO: (self.arrow_map)(self.op.arrow_apply(storage, node))
     }
 }

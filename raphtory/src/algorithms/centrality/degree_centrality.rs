@@ -7,7 +7,6 @@ use crate::{
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct CentralityScore {
@@ -28,10 +27,10 @@ pub struct CentralityScore {
 /// An [AlgorithmResult] containing the degree centrality of each node.
 pub fn degree_centrality<G: StaticGraphViewOps>(
     g: &G,
-) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
+) -> TypedNodeState<'static, CentralityScore, G> {
     // NodeState<'static, f64, G> {
     let max_degree = match g.nodes().degree().max() {
-        None => return GenericNodeState::new_empty(g.clone()).transform(),
+        None => return TypedNodeState::new(GenericNodeState::new_empty(g.clone())),
         Some(v) => v,
     };
 
@@ -44,6 +43,6 @@ pub fn degree_centrality<G: StaticGraphViewOps>(
         })
         .collect();
 
-    // NodeState::new_from_values(g.clone(), values)
-    GenericNodeState::new_from_eval(g.clone(), values).transform()
+    TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values))
+
 }

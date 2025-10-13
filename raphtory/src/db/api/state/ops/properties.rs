@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            properties::{internal::InternalPropertiesOps, Metadata, Properties},
+            properties::{Metadata, Properties},
             state::NodeOp,
         },
         graph::node::NodeView,
@@ -13,7 +13,6 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
 };
 use raphtory_storage::graph::graph::GraphStorage;
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Clone)]

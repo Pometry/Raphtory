@@ -17,7 +17,6 @@ use crate::{
     prelude::*,
     py_borrowing_iter,
     python::{
-        graph::node_state::PyOutputNodeState,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },

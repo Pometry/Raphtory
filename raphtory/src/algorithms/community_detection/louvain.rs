@@ -1,10 +1,16 @@
 use crate::{
     algorithms::community_detection::modularity::{ModularityFunction, Partition},
     core::entities::VID,
-    db::api::state::NodeState,
+    db::api::state::{GenericNodeState, TypedNodeState},
     prelude::GraphViewOps,
 };
 use rand::prelude::SliceRandom;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+struct LouvainState {
+    community_id: usize,
+}
 
 /// Louvain algorithm for community detection
 ///
@@ -23,7 +29,7 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
-) -> NodeState<'graph, usize, G> {
+) -> TypedNodeState<'graph, LouvainState, G> {
     let tol = tol.unwrap_or(1e-8);
     let mut rng = rand::thread_rng();
     let mut modularity_state = M::new(
@@ -64,5 +70,5 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
             *c = partition.com(&VID(*c)).index();
         }
     }
-    NodeState::new_from_values(g.clone(), global_partition)
+    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(g.clone(), global_partition, |value| LouvainState { community_id: value }))
 }
