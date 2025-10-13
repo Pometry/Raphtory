@@ -7,7 +7,7 @@ on:
         type: 'string'
         required: true
       dry_run:
-        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
+        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io.
         However it will still make a PR and a branch to show you what it changed'
         type: boolean
         required: true
@@ -46,8 +46,10 @@ jobs:
       - run: |
           git config --global user.email "ben.steer@pometry.com"
           git config --global user.name "Pometry-Team"
-      - uses: ./.github/actions/setup_rust
-        name: Setup Rust
+      - name: Setup rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
       - name: "Install cargo release"
         uses: actions-rs/cargo@v1
         with:

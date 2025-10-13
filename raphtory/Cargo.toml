@@ -21,7 +21,6 @@ raphtory-storage.workspace = true                            # = { path = "../ra
 db4-graph.workspace = true
 storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
-
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
@@ -71,10 +70,7 @@ prost-types = { workspace = true, optional = true }
 # arrow otional dependencies
 parquet = { workspace = true, optional = true }
 arrow-json = { workspace = true, optional = true }
-arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
-arrow-buffer = { workspace = true, optional = true }
-arrow-cast = { workspace = true, optional = true }
-arrow-schema = { workspace = true, optional = true }
+arrow = { workspace = true, optional = true, features = ["chrono-tz"] }
 
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
@@ -144,7 +140,7 @@ vectors = [
     "dep:arroy",
     "dep:heed",
     "dep:moka",
-    "dep:tempfile",          # also used for the storage feature
+    "dep:tempfile", # also used for the storage feature
 ]
 
 # Enables generating the pyo3 python bindings
@@ -168,10 +164,7 @@ arrow = [
     "raphtory-core/arrow",
     "dep:parquet",
     "dep:arrow-json",
-    "dep:arrow-array",
-    "dep:arrow-buffer",
-    "dep:arrow-cast",
-    "dep:arrow-schema",
+    "dep:arrow",
 ]
 
 proto = [

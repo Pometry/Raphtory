@@ -14,7 +14,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = { path = "../raphtory" }
+raphtory = { workspace = true }
 arrow.workspace = true
 arrow-buffer.workspace = true
 arrow-schema.workspace = true
@@ -22,9 +22,6 @@ arrow-array.workspace = true
 
 pest.workspace = true
 pest_derive.workspace = true
-
-polars-arrow.workspace = true
-
 datafusion.workspace = true
 lazy_static.workspace = true
 sqlparser.workspace = true

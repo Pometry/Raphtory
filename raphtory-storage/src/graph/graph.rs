@@ -34,6 +34,13 @@ impl From<TemporalGraph> for GraphStorage {
     }
 }
 
+#[cfg(feature = "storage")]
+impl From<DiskGraphStorage> for GraphStorage {
+    fn from(value: DiskGraphStorage) -> Self {
+        Self::Disk(Arc::new(value))
+    }
+}
+
 impl Default for GraphStorage {
     fn default() -> Self {
         GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))
@@ -155,6 +162,20 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 NodeStorageEntry::Unlocked(storage.storage().nodes().node(vid))
             }
+        }
+    }
+
+    /// Try to get a node that may not be initialised yet
+    pub fn try_core_node<'a>(&'a self, vid: VID) -> Option<NodeStorageEntry<'a>> {
+        match self {
+            GraphStorage::Mem(storage) => {
+                storage.nodes.try_node_ref(vid).map(NodeStorageEntry::Mem)
+            }
+            GraphStorage::Unlocked(storage) => storage
+                .storage()
+                .nodes()
+                .try_node(vid)
+                .map(NodeStorageEntry::Unlocked),
         }
     }
 

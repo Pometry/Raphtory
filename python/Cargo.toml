@@ -19,14 +19,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { workspace = true }
-numpy = { workspace = true }
 raphtory = { workspace = true, features = [
     "python",
     "search",
     "vectors",
     "proto",
 ] }
-raphtory-graphql = { workspace = true, features = ["python", "search"] }
+raphtory-graphql = { workspace = true, features = [
+    "python", "search"
+] }
 
 [features]
 extension-module = ["pyo3/extension-module"]

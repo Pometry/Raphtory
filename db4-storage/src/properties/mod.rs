@@ -1,6 +1,10 @@
 use crate::error::StorageError;
+use arrow_array::{
+    ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array, Int64Array,
+    StringViewArray, TimestampMillisecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
+};
+use arrow_schema::DECIMAL128_MAX_PRECISION;
 use bigdecimal::ToPrimitive;
-use polars_arrow::array::{Array, BooleanArray, PrimitiveArray, Utf8ViewArray};
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
     prop::{Prop, PropType},
@@ -12,6 +16,7 @@ use raphtory_core::{
     },
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
 };
+use std::sync::Arc;
 
 pub mod props_meta_writer;
 
@@ -120,84 +125,71 @@ impl Properties {
         col_id: usize,
         meta: &PropMapper,
         indices: impl Iterator<Item = usize>,
-    ) -> Option<Box<dyn Array>> {
+    ) -> Option<ArrayRef> {
         match column {
             PropColumn::Empty(_) => None,
-            PropColumn::U32(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed(),
-            ),
-            PropColumn::Bool(lazy_vec) => {
-                Some(BooleanArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed())
-            }
-            PropColumn::U8(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed(),
-            ),
-            PropColumn::U16(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed(),
-            ),
-            PropColumn::U64(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed(),
-            ),
-            PropColumn::I32(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed(),
-            ),
-            PropColumn::I64(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed(),
-            ),
-            PropColumn::F32(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed(),
-            ),
-            PropColumn::F64(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| lazy_vec.get_opt(i).copied())).boxed(),
-            ),
-            PropColumn::Str(lazy_vec) => {
-                let vec = indices
-                    .map(|i| lazy_vec.get_opt(i).map(|str| str.as_ref()))
-                    .collect::<Vec<_>>();
-
-                Some(Utf8ViewArray::from_slice(&vec).boxed())
-            }
-            PropColumn::DTime(lazy_vec) => Some(
-                PrimitiveArray::from_iter(
+            PropColumn::U32(lazy_vec) => Some(Arc::new(UInt32Array::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::Bool(lazy_vec) => Some(Arc::new(BooleanArray::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::U8(lazy_vec) => Some(Arc::new(UInt8Array::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::U16(lazy_vec) => Some(Arc::new(UInt16Array::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::U64(lazy_vec) => Some(Arc::new(UInt64Array::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::I32(lazy_vec) => Some(Arc::new(Int32Array::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::I64(lazy_vec) => Some(Arc::new(Int64Array::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::F32(lazy_vec) => Some(Arc::new(Float32Array::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::F64(lazy_vec) => Some(Arc::new(Float64Array::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).copied()),
+            ))),
+            PropColumn::Str(lazy_vec) => Some(Arc::new(StringViewArray::from_iter(
+                indices.map(|i| lazy_vec.get_opt(i).map(|str| str.as_ref())),
+            ))),
+            PropColumn::DTime(lazy_vec) => Some(Arc::new(
+                TimestampMillisecondArray::from_iter(
                     indices.map(|i| lazy_vec.get_opt(i).copied().map(|dt| dt.timestamp_millis())),
                 )
-                .to(polars_arrow::datatypes::ArrowDataType::Timestamp(
-                    polars_arrow::datatypes::TimeUnit::Millisecond,
-                    Some("UTC".to_string()),
-                ))
-                .boxed(),
-            ),
-            PropColumn::NDTime(lazy_vec) => Some(
-                PrimitiveArray::from_iter(indices.map(|i| {
+                .with_timezone_utc(),
+            )),
+            PropColumn::NDTime(lazy_vec) => Some(Arc::new(TimestampMillisecondArray::from_iter(
+                indices.map(|i| {
                     lazy_vec
                         .get_opt(i)
                         .copied()
                         .map(|dt| dt.and_utc().timestamp_millis())
-                }))
-                .to(polars_arrow::datatypes::ArrowDataType::Timestamp(
-                    polars_arrow::datatypes::TimeUnit::Millisecond,
-                    None,
-                ))
-                .boxed(),
-            ),
+                }),
+            ))),
             PropColumn::Decimal(lazy_vec) => {
                 let scale = meta
                     .get_dtype(col_id)
                     .and_then(|dtype| match dtype {
-                        PropType::Decimal { scale } => Some(scale as usize),
+                        PropType::Decimal { scale } => Some(scale as i8),
                         _ => None,
                     })
                     .unwrap();
-                Some(
-                    PrimitiveArray::from_iter(indices.map(|i| {
+                Some(Arc::new(
+                    Decimal128Array::from_iter(indices.map(|i| {
                         lazy_vec.get_opt(i).and_then(|bd| {
                             let (num, _) = bd.as_bigint_and_scale();
                             num.to_i128()
                         })
                     }))
-                    .to(polars_arrow::datatypes::ArrowDataType::Decimal(38, scale))
-                    .boxed(),
-                )
+                    .with_precision_and_scale(DECIMAL128_MAX_PRECISION, scale)
+                    .unwrap(),
+                ))
             }
             // PropColumn::Array(lazy_vec) => todo!(),
             // PropColumn::List(lazy_vec) => todo!(),
@@ -214,7 +206,7 @@ impl Properties {
         col_id: usize,
         meta: &PropMapper,
         indices: impl ExactSizeIterator<Item = usize>,
-    ) -> Option<Box<dyn Array>> {
+    ) -> Option<ArrayRef> {
         let column = self.t_properties.get(col_id)?;
         self.column_as_array(column, col_id, meta, indices)
     }
@@ -224,7 +216,7 @@ impl Properties {
         col: usize,
         meta: &PropMapper,
         indices: impl Iterator<Item = usize>,
-    ) -> Option<Box<dyn Array>> {
+    ) -> Option<ArrayRef> {
         let column = self.c_properties.get(col)?;
         self.column_as_array(column, col, meta, indices)
     }

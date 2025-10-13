@@ -359,7 +359,7 @@ impl GraphIndex {
     pub fn index_spec(&self) -> IndexSpec {
         match self {
             GraphIndex::Immutable(i) => i.index_spec.deref().clone(),
-            GraphIndex::Mutable(m) => m.index_spec.read().deref().clone(),
+            GraphIndex::Mutable(m) => m.index_spec.read_recursive().deref().clone(),
             GraphIndex::Empty => IndexSpec::default(),
         }
     }

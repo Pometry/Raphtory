@@ -6,7 +6,7 @@ use crate::{
     },
     prelude::*,
 };
-use arrow_schema::DataType;
+use arrow::datatypes::DataType;
 use raphtory_api::core::{
     entities::GidType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},

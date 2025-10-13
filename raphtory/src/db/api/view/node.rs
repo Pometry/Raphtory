@@ -90,6 +90,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<ops::History<Self::Graph>>;
 
+    /// Gets a count of edge history events.
     fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
@@ -97,14 +98,13 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         &self,
     ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>>;
 
-    //Returns true if the node has any updates within the current window, otherwise false
+    /// Returns true if the node has any updates within the current window, otherwise false.
     fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>>;
 
     /// Get a view of the temporal properties of this node.
     ///
     /// Returns:
-    ///
-    /// A view with the names of the properties as keys and the property values as values.
+    ///     A view with the names of the properties as keys and the property values as values.
     fn properties(&self) -> Self::ValueType<ops::GetProperties<'graph, Self::Graph>>;
 
     /// Get a view of the metadata of this node.
@@ -264,6 +264,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         self.map(op)
     }
 
+    /// Returns true if the node has any updates within the current window, otherwise false.
     fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>> {
         let op = ops::History {
             graph: self.graph().clone(),

@@ -173,7 +173,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID, lsn: u64) {
-        let layer_id = e_id.layer();
         self.l_counter.update_time(t.t());
         let add = self.mut_segment.update_timestamp(t, pos, e_id, lsn);
         self.page.increment_est_size(add);

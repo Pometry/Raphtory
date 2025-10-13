@@ -336,9 +336,7 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
 #[cfg(test)]
 mod test {
     use super::*;
-    use arrow_array::{
-        ArrayRef, Float64Array, Int64Array, PrimitiveArray, StringArray, StringViewArray,
-    };
+    use arrow::array::{ArrayRef, Float64Array, Int64Array, StringArray};
     use itertools::Itertools;
     use std::{path::PathBuf, sync::Arc};
 

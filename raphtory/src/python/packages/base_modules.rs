@@ -9,7 +9,9 @@ use crate::{
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
-            properties::{PyMetadata, PyProperties, PyTemporalProp, PyTemporalProperties},
+            properties::{
+                PyMetadata, PyPropValueList, PyProperties, PyTemporalProp, PyTemporalProperties,
+            },
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -18,7 +20,18 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::document::PyDocument,
+        types::wrappers::{
+            document::PyDocument,
+            iterables::{
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, GIDIterable,
+                NestedArcStringVecIterable, NestedBoolIterable, NestedGIDGIDIterable,
+                NestedGIDIterable, NestedI64VecIterable, NestedOptionArcStringIterable,
+                NestedOptionI64Iterable, NestedStringIterable, NestedUsizeIterable,
+                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionArcStringIterable,
+                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                StringIterable, U64Iterable, UsizeIterable,
+            },
+        },
         utils::PyWindowSet,
     },
 };
@@ -42,6 +55,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyNestedEdges,
         PyMutableEdge,
         PyProperties,
+        PyPropValueList,
         PyMetadata,
         PyTemporalProperties,
         PropertiesView,
@@ -52,6 +66,10 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     );
 
     #[pyfunction]
+    /// Return Raphtory version.
+    ///
+    /// Returns:
+    ///     str:
     pub(crate) fn version() -> String {
         String::from(crate::version())
     }
@@ -61,7 +79,38 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-pub fn base_algorithm_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
+    let iterables_module = PyModule::new(py, "iterables")?;
+    add_classes!(
+        iterables_module,
+        NestedUtcDateTimeIterable,
+        NestedGIDIterable,
+        GIDIterable,
+        StringIterable,
+        OptionArcStringIterable,
+        UsizeIterable,
+        OptionI64Iterable,
+        NestedOptionArcStringIterable,
+        NestedStringIterable,
+        NestedOptionI64Iterable,
+        NestedI64VecIterable,
+        NestedUsizeIterable,
+        BoolIterable,
+        ArcStringIterable,
+        NestedVecUtcDateTimeIterable,
+        OptionVecUtcDateTimeIterable,
+        GIDGIDIterable,
+        NestedGIDGIDIterable,
+        NestedBoolIterable,
+        U64Iterable,
+        OptionUtcDateTimeIterable,
+        ArcStringVecIterable,
+        NestedArcStringVecIterable,
+    );
+    Ok(iterables_module)
+}
+
+pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let algorithm_module = PyModule::new(py, "algorithms")?;
     add_functions!(
         &algorithm_module,
@@ -112,7 +161,7 @@ pub fn base_algorithm_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
     Ok(algorithm_module)
 }
 
-pub fn base_graph_loader_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
     add_functions!(
         &graph_loader_module,
@@ -127,7 +176,7 @@ pub fn base_graph_loader_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
     Ok(graph_loader_module)
 }
 
-pub fn base_graph_gen_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let graph_gen_module = PyModule::new(py, "graph_gen")?;
     add_functions!(
         &graph_gen_module,
@@ -137,7 +186,7 @@ pub fn base_graph_gen_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
     Ok(graph_gen_module)
 }
 
-pub fn base_vectors_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;

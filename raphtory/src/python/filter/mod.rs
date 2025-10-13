@@ -18,7 +18,7 @@ pub mod filter_expr;
 pub mod node_filter_builders;
 pub mod property_filter_builders;
 
-pub fn base_filter_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let filter_module = PyModule::new(py, "filter")?;
     filter_module.add_class::<PyFilterExpr>()?;
     filter_module.add_class::<PyPropertyFilterOps>()?;

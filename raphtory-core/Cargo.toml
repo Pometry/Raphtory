@@ -30,7 +30,7 @@ itertools = { workspace = true }
 once_cell = { workspace = true }
 ouroboros = { workspace = true }
 arrow-array = { workspace = true}
-regex = "1.11.1"
+regex = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 
 [dev-dependencies]

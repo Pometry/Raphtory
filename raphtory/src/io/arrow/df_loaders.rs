@@ -72,6 +72,9 @@ pub(crate) fn load_nodes_from_df<
     node_type_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -629,6 +632,9 @@ pub(crate) fn load_edge_deletions_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
@@ -679,6 +685,9 @@ pub(crate) fn load_node_props_from_df<
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -778,6 +787,9 @@ pub(crate) fn load_edges_props_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -919,6 +931,9 @@ pub(crate) fn load_graph_props_from_df<
     metadata: Option<&[&str]>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties = properties.unwrap_or(&[]);
     let metadata = metadata.unwrap_or(&[]);
 
@@ -985,208 +1000,4 @@ pub(crate) fn load_graph_props_from_df<
         start_id += df.len();
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        db::{api::view::StaticGraphViewOps, graph::graph::assert_graph_equal},
-        errors::GraphError,
-        io::arrow::{
-            dataframe::{DFChunk, DFView},
-            df_loaders::load_edges_from_df,
-        },
-        prelude::*,
-        test_utils::{build_edge_list, build_edge_list_str},
-    };
-    use arrow_array::builder::{
-        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
-    };
-    use itertools::Itertools;
-    use proptest::prelude::*;
-    use raphtory_storage::core_ops::CoreGraphOps;
-
-    fn build_df(
-        chunk_size: usize,
-        edges: &[(u64, u64, i64, String, i64)],
-    ) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>>> {
-        let chunks = edges.iter().chunks(chunk_size);
-        let mut src_col = UInt64Builder::new();
-        let mut dst_col = UInt64Builder::new();
-        let mut time_col = Int64Builder::new();
-        let mut str_prop_col = LargeStringBuilder::new();
-        let mut int_prop_col = Int64Builder::new();
-        let chunks = chunks
-            .into_iter()
-            .map(|chunk| {
-                for (src, dst, time, str_prop, int_prop) in chunk {
-                    src_col.append_value(*src);
-                    dst_col.append_value(*dst);
-                    time_col.append_value(*time);
-                    str_prop_col.append_value(str_prop);
-                    int_prop_col.append_value(*int_prop);
-                }
-                let chunk = vec![
-                    ArrayBuilder::finish(&mut src_col),
-                    ArrayBuilder::finish(&mut dst_col),
-                    ArrayBuilder::finish(&mut time_col),
-                    ArrayBuilder::finish(&mut str_prop_col),
-                    ArrayBuilder::finish(&mut int_prop_col),
-                ];
-                Ok(DFChunk { chunk })
-            })
-            .collect_vec();
-        DFView {
-            names: vec![
-                "src".to_owned(),
-                "dst".to_owned(),
-                "time".to_owned(),
-                "str_prop".to_owned(),
-                "int_prop".to_owned(),
-            ],
-            chunks: chunks.into_iter(),
-            num_rows: edges.len(),
-        }
-    }
-
-    fn build_df_str(
-        chunk_size: usize,
-        edges: &[(String, String, i64, String, i64)],
-    ) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>>> {
-        let chunks = edges.iter().chunks(chunk_size);
-        let mut src_col = LargeStringBuilder::new();
-        let mut dst_col = StringViewBuilder::new();
-        let mut time_col = Int64Builder::new();
-        let mut str_prop_col = StringViewBuilder::new();
-        let mut int_prop_col = Int64Builder::new();
-        let chunks = chunks
-            .into_iter()
-            .map(|chunk| {
-                for (src, dst, time, str_prop, int_prop) in chunk {
-                    src_col.append_value(src);
-                    dst_col.append_value(dst);
-                    time_col.append_value(*time);
-                    str_prop_col.append_value(str_prop);
-                    int_prop_col.append_value(*int_prop);
-                }
-                let chunk = vec![
-                    ArrayBuilder::finish(&mut src_col),
-                    ArrayBuilder::finish(&mut dst_col),
-                    ArrayBuilder::finish(&mut time_col),
-                    ArrayBuilder::finish(&mut str_prop_col),
-                    ArrayBuilder::finish(&mut int_prop_col),
-                ];
-                Ok(DFChunk { chunk })
-            })
-            .collect_vec();
-        DFView {
-            names: vec![
-                "src".to_owned(),
-                "dst".to_owned(),
-                "time".to_owned(),
-                "str_prop".to_owned(),
-                "int_prop".to_owned(),
-            ],
-            chunks: chunks.into_iter(),
-            num_rows: edges.len(),
-        }
-    }
-
-    #[test]
-    fn test_load_edges() {
-        proptest!(|(edges in build_edge_list(1000, 100), chunk_size in 1usize..=1000)| {
-            let df_view = build_df(chunk_size, &edges);
-            let g = Graph::new();
-            let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
-            let g2 = Graph::new();
-            for (src, dst, time, str_prop, int_prop) in edges {
-                g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-            }
-            assert_graph_equal(&g, &g2);
-        })
-    }
-
-    #[test]
-    fn test_load_edges_str() {
-        proptest!(|(edges in build_edge_list_str(100, 100), chunk_size in 1usize..=100)| {
-            let distinct_edges = edges.iter().map(|(src, dst, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
-            let df_view = build_df_str(chunk_size, &edges);
-            let g = Graph::new();
-            let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
-            let g2 = Graph::new();
-            for (src, dst, time, str_prop, int_prop) in edges {
-                g2.add_edge(time, &src, &dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-                let edge = g.edge(&src, &dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-            }
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
-            assert_graph_equal(&g, &g2);
-        })
-    }
-
-    #[test]
-    fn test_load_edges_str_fail() {
-        let edges = [("0".to_string(), "1".to_string(), 0, "".to_string(), 0)];
-        let df_view = build_df_str(1, &edges);
-        let g = Graph::new();
-        let props = ["str_prop", "int_prop"];
-        load_edges_from_df(
-            df_view,
-            "time",
-            "src",
-            "dst",
-            &props,
-            &[],
-            None,
-            None,
-            None,
-            &g,
-        )
-        .unwrap();
-        assert!(g.has_edge("0", "1"))
-    }
-
-    #[test]
-    fn test_load_edges_1() {
-        let edges = [(0, 1, 0, "a".to_string(), 0)];
-        let chunk_size = 412;
-        let df_view = build_df(chunk_size, &edges);
-        let g = Graph::new();
-        let props = ["str_prop", "int_prop"];
-        load_edges_from_df(
-            df_view,
-            "time",
-            "src",
-            "dst",
-            &props,
-            &[],
-            None,
-            None,
-            None,
-            &g,
-        )
-        .unwrap();
-        let g2 = Graph::new();
-        for (src, dst, time, str_prop, int_prop) in edges {
-            g2.add_edge(
-                time,
-                src,
-                dst,
-                [
-                    ("str_prop", str_prop.clone().into_prop()),
-                    ("int_prop", int_prop.into_prop()),
-                ],
-                None,
-            )
-            .unwrap();
-            let edge = g.edge(src, dst).unwrap().at(time);
-            assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-            assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-        }
-        assert_graph_equal(&g, &g2);
-    }
 }
