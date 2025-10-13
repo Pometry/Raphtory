@@ -110,6 +110,11 @@ impl Display for PropertyFilter {
 }
 
 impl PropertyFilter {
+    /// Equals
+    ///
+    /// Arguments:
+    ///     prop_ref:
+    ///     prop_value:
     pub fn eq(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -118,6 +123,11 @@ impl PropertyFilter {
         }
     }
 
+    /// Not Equal
+    ///
+    ///  Arguments:
+    ///     prop_ref:
+    ///     prop_value:
     pub fn ne(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -126,6 +136,11 @@ impl PropertyFilter {
         }
     }
 
+    /// Less than or equal to
+    ///
+    /// Arguments:
+    ///     prop_ref:
+    ///     prop_value:
     pub fn le(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -134,6 +149,11 @@ impl PropertyFilter {
         }
     }
 
+    /// Greater than or equal to
+    ///
+    /// Arguments:
+    ///     prop_ref:
+    ///     prop_value:
     pub fn ge(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -142,6 +162,11 @@ impl PropertyFilter {
         }
     }
 
+    /// Less than
+    ///
+    /// Arguments:
+    ///     prop_ref:
+    ///     prop_value:
     pub fn lt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -150,6 +175,11 @@ impl PropertyFilter {
         }
     }
 
+    /// Greater than
+    ///
+    /// Arguments:
+    ///     prop_ref:
+    ///     prop_value:
     pub fn gt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -158,6 +188,11 @@ impl PropertyFilter {
         }
     }
 
+    /// Is in
+    ///
+    /// Arguments:
+    ///     prop_ref:
+    ///     prop_values:
     pub fn is_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_ref,
@@ -166,6 +201,11 @@ impl PropertyFilter {
         }
     }
 
+    /// Is not in
+    ///
+    /// Arguments:
+    ///     prop_ref:
+    ///     prop_values:
     pub fn is_not_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_ref,
@@ -174,6 +214,10 @@ impl PropertyFilter {
         }
     }
 
+    /// Is none
+    ///
+    /// Arguments:
+    ///     prop_ref:
     pub fn is_none(prop_ref: PropertyRef) -> Self {
         Self {
             prop_ref,
@@ -182,6 +226,10 @@ impl PropertyFilter {
         }
     }
 
+    /// Is some
+    ///
+    /// Arguments:
+    ///     prop_ref:
     pub fn is_some(prop_ref: PropertyRef) -> Self {
         Self {
             prop_ref,
@@ -190,6 +238,10 @@ impl PropertyFilter {
         }
     }
 
+    /// Contains
+    ///
+    /// Arguments:
+    ///     prop_ref:
     pub fn contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -198,6 +250,10 @@ impl PropertyFilter {
         }
     }
 
+    /// Does not contain
+    ///
+    /// Arguments:
+    ///     prop_ref:
     pub fn not_contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -206,6 +262,15 @@ impl PropertyFilter {
         }
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Arguments:
+    ///     prop_value (str):
+    ///     levenshtein_distance (usize):
+    ///     prefix_match (bool):
+    ///  
     pub fn fuzzy_search(
         prop_ref: PropertyRef,
         prop_value: impl Into<String>,

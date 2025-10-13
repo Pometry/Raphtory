@@ -51,6 +51,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNo
         locked_page.entry_ref(pos)
     }
 
+    pub fn try_node_ref(
+        &self,
+        node: VID,
+    ) -> Option<<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>> {
+        let (page_id, pos) = self.storage.resolve_pos(node);
+        let locked_page = &self.locked_segments.get(page_id)?;
+        Some(locked_page.entry_ref(pos))
+    }
+
     pub fn len(&self) -> usize {
         self.storage.num_nodes() as usize
     }
@@ -141,6 +150,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             .get(page_id)
             .expect("Internal error: page not found");
         node_page.entry(pos)
+    }
+
+    pub fn try_node(&self, node: VID) -> Option<NS::Entry<'_>> {
+        let (page_id, pos) = self.resolve_pos(node);
+        let node_page = self.pages.get(page_id)?;
+        Some(node_page.entry(pos))
     }
 
     pub fn prop_meta(&self) -> &Arc<Meta> {

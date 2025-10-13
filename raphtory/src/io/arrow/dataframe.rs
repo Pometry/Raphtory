@@ -2,14 +2,11 @@ use crate::{
     errors::{GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
-use arrow_array::{
-    cast::AsArray,
-    types::{Int64Type, TimestampMillisecondType, UInt64Type},
-    Array, ArrayRef, ArrowPrimitiveType, Int64Array, PrimitiveArray,
+use arrow::{
+    array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
+    compute::cast,
+    datatypes::{DataType, Int64Type, UInt64Type, TimeUnit, TimestampMillisecondType},
 };
-use arrow_cast::cast;
-use arrow_schema::{DataType, TimeUnit};
-use either::Either;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::{
@@ -19,7 +16,7 @@ use std::{
 
 pub struct DFView<I> {
     pub names: Vec<String>,
-    pub(crate) chunks: I,
+    pub chunks: I,
     pub num_rows: usize,
 }
 
@@ -29,16 +26,6 @@ impl<I> Debug for DFView<I> {
             .field("names", &self.names)
             .field("num_rows", &self.num_rows)
             .finish()
-    }
-}
-
-impl<I> DFView<I> {
-    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
-        Self {
-            names,
-            chunks,
-            num_rows,
-        }
     }
 }
 
@@ -67,6 +54,14 @@ where
 
     pub fn is_empty(&self) -> bool {
         self.num_rows == 0
+    }
+
+    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+        Self {
+            names,
+            chunks,
+            num_rows,
+        }
     }
 }
 
@@ -164,7 +159,7 @@ impl SecondaryIndexCol {
 
 #[derive(Clone, Debug)]
 pub struct DFChunk {
-    pub(crate) chunk: Vec<ArrayRef>,
+    pub chunk: Vec<ArrayRef>,
 }
 
 impl DFChunk {

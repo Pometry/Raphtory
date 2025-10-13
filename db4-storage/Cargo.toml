@@ -18,7 +18,6 @@ raphtory-core = { workspace = true, features = ["arrow"] }
 
 bitvec = { workspace = true, features = ["serde"] }
 bigdecimal.workspace = true
-polars-arrow.workspace = true
 rustc-hash.workspace = true
 either.workspace = true
 parking_lot.workspace = true

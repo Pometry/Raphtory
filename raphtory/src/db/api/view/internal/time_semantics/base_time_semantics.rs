@@ -114,6 +114,44 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
     }
 
     #[inline]
+    fn node_edge_history<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_edge_history(node, view))
+    }
+
+    #[inline]
+    fn node_edge_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_edge_history_window(node, view, w))
+    }
+
+    #[inline]
+    fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_edge_history_rev(node, view))
+    }
+
+    #[inline]
+    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_edge_history_rev_window(node, view, w))
+    }
+
+    #[inline]
     fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,

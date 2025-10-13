@@ -1,11 +1,10 @@
-extern crate core;
 use pyo3::prelude::*;
 use raphtory::python::{
     filter::base_filter_module,
     graph::node_state::base_node_state_module,
     packages::base_modules::{
         add_raphtory_classes, base_algorithm_module, base_graph_gen_module,
-        base_graph_loader_module, base_vectors_module,
+        base_graph_loader_module, base_iterables_module, base_vectors_module,
     },
 };
 use raphtory_graphql::python::pymodule::base_graphql_module;
@@ -22,6 +21,7 @@ fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     let vectors_module = base_vectors_module(py)?;
     let node_state_module = base_node_state_module(py)?;
     let filter_module = base_filter_module(py)?;
+    let iterables = base_iterables_module(py)?;
     m.add_submodule(&graphql_module)?;
     m.add_submodule(&algorithm_module)?;
     m.add_submodule(&graph_loader_module)?;
@@ -29,5 +29,6 @@ fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_submodule(&vectors_module)?;
     m.add_submodule(&node_state_module)?;
     m.add_submodule(&filter_module)?;
+    m.add_submodule(&iterables)?;
     Ok(())
 }

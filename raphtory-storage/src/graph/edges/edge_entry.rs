@@ -1,8 +1,7 @@
-use std::ops::Range;
-
 use crate::graph::edges::edge_storage_ops::EdgeStorageOps;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_core::entities::{LayerIds, EID, VID};
+use std::ops::Range;
 use storage::{api::edges::EdgeEntryOps, EdgeEntry, EdgeEntryRef};
 
 #[derive(Debug)]

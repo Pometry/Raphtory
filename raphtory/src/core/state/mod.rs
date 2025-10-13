@@ -12,7 +12,7 @@ impl<T: PartialEq + Clone + std::fmt::Debug + Send + Sync + 'static> StateType f
 #[cfg(test)]
 mod state_test {
     use itertools::Itertools;
-    use proptest::prelude::*;
+    use proptest::proptest;
     use rand::Rng;
 
     use crate::{

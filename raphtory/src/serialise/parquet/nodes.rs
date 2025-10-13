@@ -8,7 +8,7 @@ use crate::{
         TYPE_COL,
     },
 };
-use arrow_schema::{DataType, Field};
+use arrow::datatypes::{DataType, Field};
 use itertools::Itertools;
 use raphtory_api::{core::entities::VID, iter::IntoDynBoxed};
 use raphtory_storage::graph::graph::GraphStorage;

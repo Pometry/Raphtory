@@ -5,9 +5,9 @@ use crate::{
     prelude::{AdditionOps, PropertyAdditionOps},
     python::graph::io::*,
 };
-use arrow_array::ArrayRef;
+use arrow::array::ArrayRef;
 use pyo3::{
-    ffi::{c_str, Py_uintptr_t},
+    ffi::c_str,
     prelude::*,
     pybacked::PyBackedStr,
     types::{IntoPyDict, PyDict},

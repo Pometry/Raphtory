@@ -3,7 +3,7 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::AdditionOps,
 };
-use arrow_array::{cast::AsArray, Array, LargeStringArray, StringArray, StringViewArray};
+use arrow::array::{Array, AsArray, LargeStringArray, StringArray, StringViewArray};
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };

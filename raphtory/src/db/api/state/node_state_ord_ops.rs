@@ -92,6 +92,10 @@ where
         Self::Value<'_>,
     )>;
 
+    /// Min result.
+    ///
+    /// Returns:
+    ///     PropValue:
     fn min(&self) -> Option<Self::Value<'_>> {
         self.min_item().map(|(_, v)| v)
     }
@@ -116,6 +120,8 @@ where
         Self::Value<'_>,
     )>;
 
+    /// Returns:
+    ///     PropValue:
     fn median(&self) -> Option<Self::Value<'_>> {
         self.median_item().map(|(_, v)| v)
     }
@@ -165,6 +171,10 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
         Self::Value<'_>,
     )>;
 
+    /// Min result.
+    ///
+    /// Returns:
+    ///     PropValue:
     fn min(&self) -> Option<Self::Value<'_>> {
         self.min_item().map(|(_, v)| v)
     }
@@ -189,6 +199,8 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
         Self::Value<'_>,
     )>;
 
+    /// Returns:
+    ///     PropValue:
     fn median(&self) -> Option<Self::Value<'_>> {
         self.median_item().map(|(_, v)| v)
     }
@@ -390,14 +402,14 @@ where
             value: v,
             cmp_fn: &cmp,
         });
-        if heap.read().len() < k {
+        if heap.read_recursive().len() < k {
             let mut write_guard = heap.write();
             if write_guard.len() < k {
                 // heap is still not full, push the element and return
                 return write_guard.push(elem);
             }
         }
-        if heap.read().peek() >= Some(&elem) {
+        if heap.read_recursive().peek() >= Some(&elem) {
             // May need to push this element, drop the read guard and wait for write access
             let mut write_guard = heap.write();
             if let Some(mut first_mut) = write_guard.peek_mut() {

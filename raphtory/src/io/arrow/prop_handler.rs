@@ -3,19 +3,19 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
-use arrow_array::{
-    cast::AsArray,
-    types::{
-        Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type, TimestampMicrosecondType,
-        TimestampMillisecondType, TimestampNanosecondType, TimestampSecondType, UInt16Type,
-        UInt32Type, UInt64Type, UInt8Type,
+use arrow::{
+    array::{
+        Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
+        FixedSizeListArray, GenericListArray, GenericStringArray, NullArray, OffsetSizeTrait,
+        PrimitiveArray, StringViewArray, StructArray,
     },
-    Array as ArrowArray, Array, ArrayRef, ArrowPrimitiveType, BooleanArray, Decimal128Array,
-    FixedSizeListArray, GenericListArray, GenericStringArray, NullArray, OffsetSizeTrait,
-    PrimitiveArray, StructArray,
+    buffer::NullBuffer,
+    datatypes::{
+        DataType, Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type, TimeUnit,
+        TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
+        TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+    },
 };
-use arrow_buffer::NullBuffer;
-use arrow_schema::{DataType, TimeUnit};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use raphtory_api::core::{
@@ -52,10 +52,6 @@ impl PropCols {
     pub fn prop_ids(&self) -> &[usize] {
         &self.prop_ids
     }
-
-    // pub fn cols(&self) -> Vec<&dyn Array> {
-    //     self.cols.iter().map(|col| col.as_array()).collect()
-    // }
 }
 
 pub fn combine_properties_arrow<E>(
@@ -278,7 +274,7 @@ impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
     }
 }
 
-impl PropCol for arrow_array::StringViewArray {
+impl PropCol for StringViewArray {
     fn get(&self, i: usize) -> Option<Prop> {
         if self.is_null(i) || self.len() <= i {
             None
@@ -381,6 +377,14 @@ impl PropCol for DecimalPropCol {
     }
 }
 
+struct EmptyCol;
+
+impl PropCol for EmptyCol {
+    fn get(&self, _i: usize) -> Option<Prop> {
+        None
+    }
+}
+
 fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
     match arr.data_type() {
         DataType::Boolean => Box::new(arr.as_boolean().clone()),
@@ -477,7 +481,7 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
                 scale: *scale as i64,
             })
         }
-        DataType::Null => Box::new(arr.as_any().downcast_ref::<NullArray>().unwrap().clone()),
+        DataType::Null => Box::new(EmptyCol),
 
         unsupported => panic!("Data type not supported: {:?}", unsupported),
     }

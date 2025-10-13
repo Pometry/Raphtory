@@ -4,6 +4,7 @@ on:
     branches:
       - master
       - docbrownv4_merge
+      - "0.16"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

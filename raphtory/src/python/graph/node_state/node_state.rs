@@ -273,6 +273,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Return the median value
             ///
             /// Returns:
+            ///     PropValue:
             #[doc = concat!("     Optional[", $py_value, "]:")]
             fn median(&self) -> Option<$value> {
                 self.inner.median().map($to_owned)
@@ -299,6 +300,7 @@ macro_rules! impl_node_state_num_ops {
             /// sum of values over all nodes
             ///
             /// Returns:
+            ///     PropValue:
             #[doc= concat!("        ", $py_value, ": the sum")]
             fn sum(&self) -> $value {
                 self.inner.sum()

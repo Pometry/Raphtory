@@ -161,14 +161,14 @@ pub(crate) trait UpdateEmbeddings {
 
 impl UpdateEmbeddings for NodeView<'static, GraphWithVectors> {
     async fn update_embeddings(&self) -> GraphResult<()> {
-        self.graph.update_node_embeddings(vec![self.name()]).await
+        self.graph.update_node_embeddings(vec![self.node]).await
     }
 }
 
 impl UpdateEmbeddings for EdgeView<GraphWithVectors> {
     async fn update_embeddings(&self) -> GraphResult<()> {
         self.graph
-            .update_edge_embeddings(vec![(self.src().name(), self.dst().name())])
+            .update_edge_embeddings(vec![(self.src().node, self.dst().node)])
             .await
     }
 }

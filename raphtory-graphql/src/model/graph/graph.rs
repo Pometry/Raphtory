@@ -324,6 +324,9 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns the number of edges in the graph.
+    ///
+    /// Returns:
+    ///     int:
     async fn count_edges(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.count_edges()).await
@@ -389,7 +392,7 @@ impl GqlGraph {
 
     /// Gets the edges in the graph.
     async fn edges<'a>(&self) -> GqlEdges {
-        GqlEdges::new(self.graph.edges())
+        GqlEdges::new(self.graph.edges_unlocked())
     }
 
     ////////////////////////

@@ -13,7 +13,7 @@ mod test {
         },
         prelude::*,
     };
-    use arrow_array::{Float64Array, Int64Array, StringArray, UInt64Array};
+    use arrow::array::{Float64Array, Int64Array, StringArray, UInt64Array};
     use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
     use std::sync::Arc;
 

@@ -286,6 +286,40 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.node_edge_history_count_window(node, view, w)
     }
 
+    fn node_edge_history<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        EventSemantics.node_edge_history(node, view)
+    }
+
+    fn node_edge_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        EventSemantics.node_edge_history_window(node, view, w)
+    }
+
+    fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        EventSemantics.node_edge_history_rev(node, view)
+    }
+
+    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        EventSemantics.node_edge_history_rev_window(node, view, w)
+    }
+
     fn node_updates<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,

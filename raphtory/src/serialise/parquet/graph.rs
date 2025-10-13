@@ -6,7 +6,7 @@ use crate::{
         PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
     },
 };
-use arrow_schema::{DataType, Field};
+use arrow::datatypes::{DataType, Field};
 use itertools::Itertools;
 use parquet::format::KeyValue;
 use raphtory_api::{core::storage::arc_str::ArcStr, GraphType};

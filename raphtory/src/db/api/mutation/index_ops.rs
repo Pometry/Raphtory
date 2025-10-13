@@ -7,21 +7,69 @@ use crate::{
 use std::{fs::File, path::Path};
 use zip::ZipArchive;
 
+/// Mutation operations for managing indexes.
 pub trait IndexMutationOps: Sized + AdditionOps {
+    /// Creates a new index with default specifications.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index(&self) -> Result<(), GraphError>;
 
+    /// Creates a new index using the provided index specification.
+    ///
+    /// Arguments:
+    ///     index_spec: The specification for the index to be created.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError>;
 
+    /// Creates a new index in RAM with default specifications.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_in_ram(&self) -> Result<(), GraphError>;
 
+    /// Creates a new index in RAM using the provided index specification.
+    ///
+    /// Arguments:
+    ///     index_spec (IndexSpec): The specification for the in-memory index to be created.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError>;
 
+    /// Loads an index from the specified disk path.
+    ///
+    /// Arguments:
+    ///     path: The path to the folder containing the index data.
+    ///
+    /// Returns:
+    ///     None:
     fn load_index(&self, path: &GraphFolder) -> Result<(), GraphError>;
 
+    /// Persists the current index to disk at the specified path.
+    ///
+    /// Arguments:
+    ///     path: The path to the folder where the index should be saved.
+    ///
+    /// Returns:
+    ///     None:
     fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError>;
 
+    /// Persists the current index to disk as a compressed ZIP file at the specified path.
+    ///
+    /// Arguments:
+    ///     path: The path to the folder where the ZIP file should be saved.
+    ///
+    /// Returns:
+    ///     None:
     fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError>;
 
+    /// Drops (removes) the current index from the database.
+    ///
+    /// Returns:
+    ///     None:
     fn drop_index(&self) -> Result<(), GraphError>;
 }
 
@@ -50,6 +98,16 @@ impl<G: AdditionOps> IndexMutationOps for G {
         self.create_index_in_ram_with_spec(index_spec)
     }
 
+    /// Creates a graph index in memory (RAM) with the provided index spec.
+    ///
+    /// This is primarily intended for use in tests and should not be used in production environments,
+    /// as the index will not be persisted to disk.
+    ///
+    ///  Arguments:
+    ///     index_spec: The specification for the in-memory index to be created.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
