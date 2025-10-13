@@ -8,8 +8,8 @@ use crate::{
     errors::GraphError,
     serialise::parquet::{ParquetDecoder, ParquetEncoder},
 };
-use tempfile;
 use std::{fs, fs::File};
+use tempfile;
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     /// Encode the graph into bytes.

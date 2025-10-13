@@ -125,7 +125,9 @@ impl SecondaryIndexCol {
             return Err(LoadError::MissingSecondaryIndexError);
         }
 
-        Ok(SecondaryIndexCol::DataFrame(arr.as_primitive::<UInt64Type>().clone()))
+        Ok(SecondaryIndexCol::DataFrame(
+            arr.as_primitive::<UInt64Type>().clone(),
+        ))
     }
 
     /// Generate a secondary index column with values from `start` to `end` (not inclusive).
@@ -137,14 +139,20 @@ impl SecondaryIndexCol {
 
     pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = usize> + '_ {
         match self {
-            SecondaryIndexCol::DataFrame(arr) => rayon::iter::Either::Left(arr.values().par_iter().copied().map(|v| v as usize)),
-            SecondaryIndexCol::Range(range) => rayon::iter::Either::Right(range.clone().into_par_iter()),
+            SecondaryIndexCol::DataFrame(arr) => {
+                rayon::iter::Either::Left(arr.values().par_iter().copied().map(|v| v as usize))
+            }
+            SecondaryIndexCol::Range(range) => {
+                rayon::iter::Either::Right(range.clone().into_par_iter())
+            }
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
         match self {
-            SecondaryIndexCol::DataFrame(arr) => Either::Left(arr.values().iter().copied().map(|v| v as usize)),
+            SecondaryIndexCol::DataFrame(arr) => {
+                Either::Left(arr.values().iter().copied().map(|v| v as usize))
+            }
             SecondaryIndexCol::Range(range) => Either::Right(range.clone()),
         }
     }

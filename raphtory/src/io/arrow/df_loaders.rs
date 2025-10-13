@@ -17,7 +17,10 @@ use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::{properties::{prop::PropType, meta::STATIC_GRAPH_LAYER_ID}, EID},
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
+            EID,
+        },
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     },
 };
@@ -131,11 +134,15 @@ pub(crate) fn load_nodes_from_df<
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session.set_max_event_id(col.max()).map_err(into_graph_err)?;
+                session
+                    .set_max_event_id(col.max())
+                    .map_err(into_graph_err)?;
                 col
             }
             None => {
-                let start_id = session.reserve_event_ids(df.len()).map_err(into_graph_err)?;
+                let start_id = session
+                    .reserve_event_ids(df.len())
+                    .map_err(into_graph_err)?;
                 let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
                 col
             }
@@ -402,11 +409,15 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session.set_max_event_id(col.max()).map_err(into_graph_err)?;
+                session
+                    .set_max_event_id(col.max())
+                    .map_err(into_graph_err)?;
                 col
             }
             None => {
-                let start_id = session.reserve_event_ids(df.len()).map_err(into_graph_err)?;
+                let start_id = session
+                    .reserve_event_ids(df.len())
+                    .map_err(into_graph_err)?;
                 let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
                 col
             }
@@ -703,11 +714,15 @@ pub(crate) fn load_edge_deletions_from_df<
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session.set_max_event_id(col.max()).map_err(into_graph_err)?;
+                session
+                    .set_max_event_id(col.max())
+                    .map_err(into_graph_err)?;
                 col
             }
             None => {
-                let start_id = session.reserve_event_ids(df.len()).map_err(into_graph_err)?;
+                let start_id = session
+                    .reserve_event_ids(df.len())
+                    .map_err(into_graph_err)?;
                 let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
                 col
             }
@@ -1028,11 +1043,15 @@ pub(crate) fn load_graph_props_from_df<
             Some(col_index) => {
                 // Update the event_id to reflect ingesting new secondary indices.
                 let col = df.secondary_index_col(col_index)?;
-                session.set_max_event_id(col.max()).map_err(into_graph_err)?;
+                session
+                    .set_max_event_id(col.max())
+                    .map_err(into_graph_err)?;
                 col
             }
             None => {
-                let start_id = session.reserve_event_ids(df.len()).map_err(into_graph_err)?;
+                let start_id = session
+                    .reserve_event_ids(df.len())
+                    .map_err(into_graph_err)?;
                 let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
                 col
             }
@@ -1074,7 +1093,7 @@ pub(crate) fn load_graph_props_from_df<
 #[cfg(test)]
 mod tests {
     use crate::{
-        db::{graph::graph::assert_graph_equal},
+        db::graph::graph::assert_graph_equal,
         errors::GraphError,
         io::arrow::{
             dataframe::{DFChunk, DFView},
@@ -1089,7 +1108,10 @@ mod tests {
     use itertools::Itertools;
     use proptest::proptest;
     use raphtory_core::storage::timeindex::TimeIndexEntry;
-    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps}};
+    use raphtory_storage::{
+        core_ops::CoreGraphOps,
+        mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    };
 
     fn build_df(
         chunk_size: usize,

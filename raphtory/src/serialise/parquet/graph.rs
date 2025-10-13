@@ -32,11 +32,7 @@ pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
             // Collect into owned props here to avoid lifetime issues on prop_view.
             // Ideally we want to be returning refs to the props but this
             // is not possible with the current API.
-            let collect_props = g
-                .properties()
-                .temporal()
-                .iter()
-                .collect::<Vec<_>>();
+            let collect_props = g.properties().temporal().iter().collect::<Vec<_>>();
 
             // Each prop key can have multiple values over time.
             // Flatten into (time, key, value) tuples to group by time.

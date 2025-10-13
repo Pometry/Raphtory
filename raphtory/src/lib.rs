@@ -234,7 +234,8 @@ pub mod test_utils {
                 ),
                 len,
             )
-            .prop_map(move |edges| { // add secondary indices to the edges
+            .prop_map(move |edges| {
+                // add secondary indices to the edges
                 edges
                     .into_iter()
                     .zip(secondary_index.iter())

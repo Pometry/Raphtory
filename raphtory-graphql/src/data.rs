@@ -511,12 +511,21 @@ pub(crate) mod data_tests {
         let (loaded_graph1, _) = data.get_graph("test_graph1").await.unwrap();
         let (loaded_graph2, _) = data.get_graph("test_graph2").await.unwrap();
 
-        assert!(!loaded_graph1.is_dirty(), "Graph1 should not be dirty when loaded from disk");
-        assert!(!loaded_graph2.is_dirty(), "Graph2 should not be dirty when loaded from disk");
+        assert!(
+            !loaded_graph1.is_dirty(),
+            "Graph1 should not be dirty when loaded from disk"
+        );
+        assert!(
+            !loaded_graph2.is_dirty(),
+            "Graph2 should not be dirty when loaded from disk"
+        );
 
         // Modify only graph1 to make it dirty
         loaded_graph1.set_dirty(true);
-        assert!(loaded_graph1.is_dirty(), "Graph1 should be dirty after modification");
+        assert!(
+            loaded_graph1.is_dirty(),
+            "Graph1 should be dirty after modification"
+        );
 
         // Drop the Data instance - this should trigger serialization
         drop(data);
@@ -529,15 +538,13 @@ pub(crate) mod data_tests {
 
         // Graph1 (dirty) modification time should be different
         assert_ne!(
-            graph1_original_time,
-            graph1_modified_time,
+            graph1_original_time, graph1_modified_time,
             "Graph1 (dirty) should have been written to disk on drop"
         );
 
         // Graph2 (not dirty) modification time should be the same
         assert_eq!(
-            graph2_original_time,
-            graph2_modified_time,
+            graph2_original_time, graph2_modified_time,
             "Graph2 (not dirty) should not have been written to disk on drop"
         );
     }
@@ -584,16 +591,25 @@ pub(crate) mod data_tests {
 
         // Load first graph
         let (loaded_graph1, _) = data.get_graph("test_graph1").await.unwrap();
-        assert!(!loaded_graph1.is_dirty(), "Graph1 should not be dirty when loaded from disk");
+        assert!(
+            !loaded_graph1.is_dirty(),
+            "Graph1 should not be dirty when loaded from disk"
+        );
 
         // Modify graph1 to make it dirty
         loaded_graph1.set_dirty(true);
-        assert!(loaded_graph1.is_dirty(), "Graph1 should be dirty after modification");
+        assert!(
+            loaded_graph1.is_dirty(),
+            "Graph1 should be dirty after modification"
+        );
 
         // Load second graph
         println!("Loading second graph");
         let (loaded_graph2, _) = data.get_graph("test_graph2").await.unwrap();
-        assert!(!loaded_graph2.is_dirty(), "Graph2 should not be dirty when loaded from disk");
+        assert!(
+            !loaded_graph2.is_dirty(),
+            "Graph2 should not be dirty when loaded from disk"
+        );
 
         // Sleep to trigger eviction
         sleep(Duration::from_secs(3)).await;
@@ -607,15 +623,13 @@ pub(crate) mod data_tests {
 
         // Graph1 (dirty) modification time should be different
         assert_ne!(
-            graph1_original_time,
-            graph1_modified_time,
+            graph1_original_time, graph1_modified_time,
             "Graph1 (dirty) should have been written to disk on eviction"
         );
 
         // Graph2 (not dirty) modification time should be the same
         assert_eq!(
-            graph2_original_time,
-            graph2_modified_time,
+            graph2_original_time, graph2_modified_time,
             "Graph2 (not dirty) should not have been written to disk on eviction"
         );
     }
