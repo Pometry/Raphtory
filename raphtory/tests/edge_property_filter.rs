@@ -13,15 +13,10 @@ use raphtory::{
         },
     },
     prelude::*,
+    test_utils::{build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window},
 };
 use raphtory_api::core::entities::properties::prop::PropType;
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-
-use crate::test_utils::{
-    build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window,
-};
-
-pub mod test_utils;
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 
 #[test]
 fn test_edge_filter() {

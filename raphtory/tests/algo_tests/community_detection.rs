@@ -6,12 +6,11 @@ use raphtory::{
     },
     logging::global_info_logger,
     prelude::*,
+    test_storage,
 };
 use raphtory_core::entities::VID;
 use std::collections::HashSet;
 use tracing::info;
-
-use crate::test_storage;
 
 #[test]
 fn lpa_test() {

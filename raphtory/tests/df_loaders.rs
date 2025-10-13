@@ -1,8 +1,5 @@
-pub mod test_utils;
-
 #[cfg(feature = "io")]
 mod io_tests {
-    use crate::test_utils::{build_edge_list, build_edge_list_str};
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
@@ -16,6 +13,7 @@ mod io_tests {
             df_loaders::load_edges_from_df,
         },
         prelude::*,
+        test_utils::{build_edge_list, build_edge_list_str},
     };
     use raphtory_storage::core_ops::CoreGraphOps;
     use tempfile::TempDir;
@@ -241,12 +239,11 @@ mod parquet_tests {
     use raphtory::{
         db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         prelude::*,
-    };
-
-    use crate::test_utils::{
-        build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
-        EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
-        PropUpdatesFixture,
+        test_utils::{
+            build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
+            EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
+            PropUpdatesFixture,
+        },
     };
     use std::str::FromStr;
 

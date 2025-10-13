@@ -9,14 +9,11 @@ use raphtory::{
         },
     },
     prelude::*,
+    test_utils::{
+        add_node_props, build_edge_list, build_graph_from_edge_list, build_node_props,
+        node_filtered_graph,
+    },
 };
-
-use crate::test_utils::{
-    add_node_props, build_edge_list, build_graph_from_edge_list, build_node_props,
-    node_filtered_graph,
-};
-
-pub mod test_utils;
 
 #[test]
 fn test_node_filter_on_nodes() {

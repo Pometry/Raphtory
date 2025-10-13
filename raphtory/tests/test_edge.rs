@@ -1,11 +1,7 @@
 use itertools::Itertools;
-use raphtory::prelude::*;
+use raphtory::{prelude::*, test_storage, test_utils::test_graph};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
-
-use crate::test_utils::test_graph;
-
-pub mod test_utils;
 
 #[test]
 fn test_properties() {

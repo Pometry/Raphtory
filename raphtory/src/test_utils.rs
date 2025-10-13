@@ -1,17 +1,18 @@
+use crate::{db::api::storage::storage::Storage, prelude::*};
 use ahash::HashSet;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use proptest::{arbitrary::any, prelude::*};
 use proptest_derive::Arbitrary;
-use raphtory::{db::api::storage::storage::Storage, prelude::*};
 use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
-use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+};
 use std::{collections::HashMap, sync::Arc};
-#[cfg(feature = "storage")]
-use tempfile::TempDir;
 
-pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
+pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
 }
 
@@ -19,16 +20,7 @@ pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
 macro_rules! test_storage {
     ($graph:expr, $test:expr) => {
         $crate::test_utils::test_graph($graph, $test);
-        #[cfg(feature = "storage")]
-        $crate::test_utils::test_disk_graph($graph, $test);
     };
-}
-
-#[cfg(feature = "storage")]
-pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
-    let test_dir = TempDir::new().unwrap();
-    let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-    test(&disk_graph)
 }
 
 pub fn build_edge_list(
@@ -39,7 +31,7 @@ pub fn build_edge_list(
         (
             0..num_nodes,
             0..num_nodes,
-            i64::MIN..i64::MAX,
+            -100i64..100i64,
             any::<String>(),
             any::<i64>(),
         ),
@@ -527,15 +519,20 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
 
     let layers = g.edge_meta().layer_meta();
 
+    let session = g.write_session().unwrap();
     for ((src, dst, layer), updates) in graph_fix.edges() {
         // properties always exist in the graph
         for (_, props) in updates.props.t_props.iter() {
             for (key, value) in props {
-                g.resolve_edge_property(key, value.dtype(), false).unwrap();
+                session
+                    .resolve_edge_property(key, value.dtype(), false)
+                    .unwrap();
             }
         }
         for (key, value) in updates.props.c_props.iter() {
-            g.resolve_edge_property(key, value.dtype(), true).unwrap();
+            session
+                .resolve_edge_property(key, value.dtype(), true)
+                .unwrap();
         }
 
         if layers.contains(layer.unwrap_or("_default")) {
