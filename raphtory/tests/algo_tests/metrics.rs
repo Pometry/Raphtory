@@ -5,9 +5,8 @@ mod cc_test {
         algorithms::metrics::clustering_coefficient::global_clustering_coefficient::global_clustering_coefficient,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-
-    use crate::test_storage;
 
     /// Test the global clustering coefficient
     #[test]
@@ -51,8 +50,6 @@ mod cc_test {
 
 #[cfg(test)]
 mod clustering_coefficient_tests {
-    use std::collections::HashMap;
-
     use raphtory::{
         algorithms::metrics::clustering_coefficient::{
             local_clustering_coefficient::local_clustering_coefficient,
@@ -63,9 +60,9 @@ mod clustering_coefficient_tests {
             graph::graph::Graph,
         },
         prelude::NO_PROPS,
+        test_storage,
     };
-
-    use crate::test_storage;
+    use std::collections::HashMap;
 
     #[test]
     fn clusters_of_triangles() {
@@ -133,11 +130,10 @@ mod sum_weight_test {
         algorithms::metrics::balance::balance,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::GraphViewOps,
+        test_storage,
     };
     use raphtory_api::core::{entities::properties::prop::Prop, Direction};
     use std::collections::HashMap;
-
-    use crate::test_storage;
 
     #[test]
     fn test_sum_float_weights() {
@@ -214,9 +210,8 @@ mod degree_test {
         },
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-
-    use crate::test_storage;
 
     #[test]
     fn degree_test() {
@@ -273,9 +268,8 @@ mod directed_graph_density_tests {
         algorithms::metrics::directed_graph_density::directed_graph_density,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
+        test_storage,
     };
-
-    use crate::test_storage;
 
     #[test]
     fn low_graph_density() {
@@ -329,10 +323,9 @@ mod reciprocity_test {
     use raphtory::{
         algorithms::metrics::reciprocity::{all_local_reciprocity, global_reciprocity},
         prelude::*,
+        test_storage,
     };
     use std::collections::HashMap;
-
-    use crate::test_storage;
 
     #[test]
     fn test_global_recip() {

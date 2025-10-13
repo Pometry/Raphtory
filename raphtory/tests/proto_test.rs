@@ -1,9 +1,6 @@
-pub mod test_utils;
-
 #[cfg(test)]
 #[cfg(feature = "proto")]
 mod proto_test {
-    use super::test_utils::*;
     use chrono::{DateTime, NaiveDateTime};
     use itertools::Itertools;
     use proptest::proptest;
@@ -25,6 +22,7 @@ mod proto_test {
 
     #[cfg(feature = "arrow")]
     use arrow::array::types::{Int32Type, UInt8Type};
+    use raphtory::test_utils::{build_edge_list, build_graph_from_edge_list};
 
     #[test]
     fn prev_proto_str() {

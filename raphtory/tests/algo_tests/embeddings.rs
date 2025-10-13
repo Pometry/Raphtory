@@ -3,10 +3,9 @@ mod fast_rp_test {
 
     use raphtory::{
         algorithms::embeddings::fast_rp::fast_rp, db::api::mutation::AdditionOps, prelude::*,
+        test_storage,
     };
     use std::collections::HashMap;
-
-    use crate::test_storage;
 
     #[test]
     fn simple_fast_rp_test() {

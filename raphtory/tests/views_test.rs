@@ -3,7 +3,7 @@ use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
 use rand::prelude::*;
 use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
-    db::graph::graph::assert_graph_equal, prelude::*,
+    db::graph::graph::assert_graph_equal, prelude::*, test_storage, test_utils::test_graph,
 };
 use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
 use rayon::prelude::*;
@@ -11,10 +11,6 @@ use std::ops::Range;
 #[cfg(feature = "storage")]
 use tempfile::TempDir;
 use tracing::{error, info};
-
-use crate::test_utils::test_graph;
-
-pub mod test_utils;
 
 #[test]
 fn test_non_restricted_window() {

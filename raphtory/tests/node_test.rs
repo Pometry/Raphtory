@@ -1,11 +1,7 @@
-use raphtory::prelude::*;
+use raphtory::{prelude::*, test_storage, test_utils::test_graph};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use raphtory_core::storage::timeindex::AsTime;
 use std::collections::HashMap;
-
-use crate::test_utils::test_graph;
-
-pub mod test_utils;
 
 #[test]
 fn test_earliest_time() {

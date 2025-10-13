@@ -4,6 +4,10 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
 #[cfg(feature = "proto")]
 use raphtory::serialise::StableDecode;
+use raphtory::test_utils::{
+    build_graph, build_graph_strat, test_disk_graph, test_graph, EdgeFixture, EdgeUpdatesFixture,
+    GraphFixture, NodeFixture, PropUpdatesFixture,
+};
 use raphtory::{
     algorithms::components::weakly_connected_components,
     db::{
@@ -26,8 +30,7 @@ use raphtory::{
     errors::GraphError,
     graphgen::random_attachment::random_attachment,
     prelude::*,
-    // test_storage,
-    // test_utils::{build_graph, build_graph_strat, test_disk_graph, test_graph},
+    test_storage,
 };
 use raphtory_api::core::{
     entities::{GID, VID},
@@ -48,10 +51,6 @@ use std::{
 #[cfg(feature = "proto")]
 use tempfile::TempDir;
 use tracing::{error, info};
-
-use crate::test_utils::{build_graph, build_graph_strat, test_graph};
-
-pub mod test_utils;
 
 #[test]
 fn edge_metadata() -> Result<(), GraphError> {
@@ -1883,8 +1882,6 @@ use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 #[cfg(feature = "storage")]
 #[test]
 fn edges_at_from_node_history() {
-    use crate::test_utils::test_disk_graph;
-
     let graph = Graph::new();
 
     graph.add_edge(1, 0, 1, [("bla", 10i32)], None).unwrap();

@@ -17,17 +17,14 @@ use raphtory::{
         },
     },
     prelude::*,
+    test_utils::{
+        build_edge_deletions, build_edge_list, build_edge_list_with_deletions,
+        build_graph_from_edge_list, build_window, Update,
+    },
 };
 use raphtory_api::core::entities::properties::prop::PropType;
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::collections::HashMap;
-
-use crate::test_utils::{
-    build_edge_deletions, build_edge_list, build_edge_list_with_deletions,
-    build_graph_from_edge_list, build_window, Update,
-};
-
-pub mod test_utils;
 
 fn build_filtered_graph(
     edges: &[(u64, u64, i64, String, i64)],
