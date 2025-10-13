@@ -3,17 +3,21 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
+use arrow::{
+    array::{
+        Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
+        FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
+        StringViewArray, StructArray,
+    },
+    buffer::NullBuffer,
+    datatypes::{
+        DataType, Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type, TimeUnit,
+        TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
+        TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+    },
+};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use polars_arrow::{
-    array::{
-        Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, StaticArray,
-        StructArray, Utf8Array, Utf8ViewArray,
-    },
-    bitmap::Bitmap,
-    datatypes::{ArrowDataType as DataType, TimeUnit},
-    offset::Offset,
-};
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropList, PropType},
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
@@ -46,25 +50,28 @@ impl PropCols {
     }
 }
 
-pub(crate) fn combine_properties(
+pub fn combine_properties_arrow<E>(
     props: &[impl AsRef<str>],
     indices: &[usize],
     df: &DFChunk,
-    prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, GraphError>,
-) -> Result<PropCols, GraphError> {
+    prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, E>,
+) -> Result<PropCols, GraphError>
+where
+    GraphError: From<E>,
+{
     let dtypes = indices
         .iter()
         .map(|idx| data_type_as_prop_type(df.chunk[*idx].data_type()))
         .collect::<Result<Vec<_>, _>>()?;
     let cols = indices
         .iter()
-        .map(|idx| lift_property_col(df.chunk[*idx].as_ref()))
+        .map(|idx| lift_property_col(&df.chunk[*idx]))
         .collect::<Vec<_>>();
     let prop_ids = props
         .iter()
         .zip(dtypes.into_iter())
         .map(|(name, dtype)| Ok(prop_id_resolver(name.as_ref(), dtype)?.inner()))
-        .collect::<Result<Vec<_>, GraphError>>()?;
+        .collect::<Result<Vec<_>, E>>()?;
 
     Ok(PropCols {
         prop_ids,
@@ -73,94 +80,88 @@ pub(crate) fn combine_properties(
     })
 }
 
-fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
+fn arr_as_prop(arr: ArrayRef) -> Prop {
     match arr.data_type() {
         DataType::Boolean => {
-            let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
+            let arr = arr.as_boolean();
             arr.iter().flatten().into_prop_list()
         }
         DataType::Int32 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i32>>().unwrap();
-            arr.iter().flatten().copied().into_prop_list()
+            let arr = arr.as_primitive::<Int32Type>();
+            arr.iter().flatten().into_prop_list()
         }
         DataType::Int64 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
-            arr.iter().flatten().copied().into_prop_list()
+            let arr = arr.as_primitive::<Int64Type>();
+            arr.iter().flatten().into_prop_list()
         }
         DataType::UInt8 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u8>>().unwrap();
-            arr.iter().flatten().copied().into_prop_list()
+            let arr = arr.as_primitive::<UInt8Type>();
+            arr.iter().flatten().into_prop_list()
         }
         DataType::UInt16 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u16>>().unwrap();
-            arr.iter().flatten().copied().into_prop_list()
+            let arr = arr.as_primitive::<UInt16Type>();
+            arr.iter().flatten().into_prop_list()
         }
         DataType::UInt32 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u32>>().unwrap();
-            arr.iter().flatten().copied().into_prop_list()
+            let arr = arr.as_primitive::<UInt32Type>();
+            arr.iter().flatten().into_prop_list()
         }
         DataType::UInt64 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
-            arr.iter().flatten().copied().into_prop_list()
+            let arr = arr.as_primitive::<UInt64Type>();
+            arr.iter().flatten().into_prop_list()
         }
         DataType::Float32 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<f32>>().unwrap();
-            arr.iter().flatten().copied().into_prop_list()
+            let arr = arr.as_primitive::<Float32Type>();
+            arr.iter().flatten().into_prop_list()
         }
         DataType::Float64 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<f64>>().unwrap();
-            arr.iter().flatten().copied().into_prop_list()
+            let arr = arr.as_primitive::<Float64Type>();
+            arr.iter().flatten().into_prop_list()
         }
         DataType::Utf8 => {
-            let arr = arr.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
+            let arr = arr.as_string::<i32>();
             arr.iter().flatten().into_prop_list()
         }
         DataType::LargeUtf8 => {
-            let arr = arr.as_any().downcast_ref::<Utf8Array<i64>>().unwrap();
+            let arr = arr.as_string::<i64>();
             arr.iter().flatten().into_prop_list()
         }
         DataType::Utf8View => {
-            let arr = arr.as_any().downcast_ref::<Utf8ViewArray>().unwrap();
+            let arr = arr.as_string_view();
             arr.iter().flatten().into_prop_list()
         }
         DataType::List(_) => {
-            let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
+            let arr = arr.as_list::<i32>();
             arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::FixedSizeList(_, _) => {
-            let arr = arr.as_any().downcast_ref::<FixedSizeListArray>().unwrap();
+            let arr = arr.as_fixed_size_list();
             arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::LargeList(_) => {
-            let arr = arr.as_any().downcast_ref::<ListArray<i64>>().unwrap();
+            let arr = arr.as_list::<i64>();
             arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::Timestamp(TimeUnit::Millisecond, Some(_)) => {
-            let arr = arr
-                .as_any()
-                .downcast_ref::<PrimitiveArray<i64>>()
-                .unwrap_or_else(|| panic!("Expected TimestampMillisecondArray, got {:?}", arr));
+            let arr = arr.as_primitive::<TimestampMillisecondType>();
             arr.iter()
                 .flatten()
-                .map(|elem| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(*elem).unwrap()))
+                .map(|elem| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(elem).unwrap()))
                 .into_prop_list()
         }
         DataType::Timestamp(TimeUnit::Millisecond, None) => {
-            let arr = arr
-                .as_any()
-                .downcast_ref::<PrimitiveArray<i64>>()
-                .unwrap_or_else(|| panic!("Expected TimestampMillisecondArray, got {:?}", arr));
+            let arr = arr.as_primitive::<TimestampMillisecondType>();
             arr.iter()
                 .flatten()
                 .map(|elem| {
-                    Prop::NDTime(DateTime::from_timestamp_millis(*elem).unwrap().naive_utc())
+                    Prop::NDTime(DateTime::from_timestamp_millis(elem).unwrap().naive_utc())
                 })
                 .into_prop_list()
         }
         DataType::Struct(_) => {
-            let arr = arr.as_any().downcast_ref::<StructArray>().unwrap();
+            let arr = arr.as_struct();
             let cols = arr
-                .values()
+                .columns()
                 .iter()
                 .map(|arr| lift_property_col(arr.as_ref()))
                 .collect::<Vec<_>>();
@@ -172,7 +173,7 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
                     .zip(arr.fields())
                     .filter_map(|(col, field)| {
                         col.get(i)
-                            .map(|prop| (ArcStr::from(field.name.as_str()), prop))
+                            .map(|prop| (ArcStr::from(field.name().as_str()), prop))
                     })
                     .collect::<FxHashMap<_, _>>();
                 props.push(Prop::Map(fields.into()));
@@ -180,11 +181,11 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
 
             props.into_prop_list()
         }
-        DataType::Decimal(precision, scale) if *precision <= 38 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i128>>().unwrap();
+        DataType::Decimal128(precision, scale) if *precision <= 38 => {
+            let arr = arr.as_primitive::<Decimal128Type>();
             arr.iter()
                 .flatten()
-                .map(|elem| Prop::Decimal(BigDecimal::new((*elem).into(), *scale as i64)))
+                .map(|elem| Prop::Decimal(BigDecimal::new(elem.into(), *scale as i64)))
                 .into_prop_list()
         }
         DataType::Null => Prop::List(vec![].into()),
@@ -209,7 +210,7 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
         DataType::Struct(fields) => Ok(PropType::map(fields.iter().filter_map(|f| {
             data_type_as_prop_type(f.data_type())
                 .ok()
-                .map(move |pt| (&f.name, pt))
+                .map(move |pt| (f.name(), pt))
         }))),
         DataType::List(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
             v.data_type(),
@@ -224,7 +225,7 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
             None => Ok(PropType::NDTime),
             Some(_) => Ok(PropType::DTime),
         },
-        DataType::Decimal(precision, scale) if *precision <= 38 => Ok(PropType::Decimal {
+        DataType::Decimal128(precision, scale) if *precision <= 38 => Ok(PropType::Decimal {
             scale: *scale as i64,
         }),
         DataType::Null => Ok(PropType::Empty),
@@ -236,68 +237,66 @@ trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
 }
 
-impl<A> PropCol for A
-where
-    A: StaticArray,
-    for<'a> A::ValueT<'a>: Into<Prop>,
-{
-    #[inline]
+impl PropCol for BooleanArray {
     fn get(&self, i: usize) -> Option<Prop> {
-        StaticArray::get(self, i).map(|v| v.into())
-    }
-}
-
-struct Wrap<A>(A);
-
-impl PropCol for Wrap<Utf8Array<i32>> {
-    fn get(&self, i: usize) -> Option<Prop> {
-        self.0.get(i).map(Prop::str)
-    }
-}
-
-impl<O: Offset> PropCol for Wrap<ListArray<O>> {
-    fn get(&self, i: usize) -> Option<Prop> {
-        if i >= self.0.len() {
+        if self.is_null(i) || self.len() <= i {
             None
         } else {
-            // safety: bounds checked above
-            unsafe {
-                if self.0.is_null_unchecked(i) {
-                    None
-                } else {
-                    let value = self.0.value_unchecked(i);
-                    Some(arr_as_prop(value))
-                }
-            }
+            Some(Prop::Bool(self.value(i)))
         }
     }
 }
 
-impl PropCol for Wrap<FixedSizeListArray> {
+impl<T: ArrowPrimitiveType> PropCol for PrimitiveArray<T>
+where
+    T::Native: Into<Prop>,
+{
     fn get(&self, i: usize) -> Option<Prop> {
-        self.0.get(i).map(arr_as_prop)
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(self.value(i).into())
+        }
     }
 }
 
-struct DTimeCol {
-    arr: PrimitiveArray<i64>,
-    map: fn(i64) -> Prop,
-}
-
-impl PropCol for DTimeCol {
+impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
     fn get(&self, i: usize) -> Option<Prop> {
-        StaticArray::get(&self.arr, i).map(self.map)
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(Prop::str(self.value(i)))
+        }
     }
 }
 
-struct DecimalPropCol {
-    arr: PrimitiveArray<i128>,
-    scale: i64,
+impl PropCol for StringViewArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self.is_null(i) || self.len() <= i {
+            None
+        } else {
+            Some(Prop::str(self.value(i)))
+        }
+    }
 }
 
-impl PropCol for DecimalPropCol {
+impl<I: OffsetSizeTrait> PropCol for GenericListArray<I> {
     fn get(&self, i: usize) -> Option<Prop> {
-        StaticArray::get(&self.arr, i).map(|v| Prop::Decimal(BigDecimal::new(v.into(), self.scale)))
+        if i >= self.len() || self.is_null(i) {
+            None
+        } else {
+            Some(arr_as_prop(self.value(i)))
+        }
+    }
+}
+
+impl PropCol for FixedSizeListArray {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if i >= self.len() || self.is_null(i) {
+            None
+        } else {
+            Some(arr_as_prop(self.value(i)))
+        }
     }
 }
 
@@ -310,19 +309,18 @@ impl PropCol for EmptyCol {
 }
 
 struct MapCol {
-    validity: Option<Bitmap>,
+    validity: Option<NullBuffer>,
     values: Vec<(String, Box<dyn PropCol>)>,
 }
 
 impl MapCol {
-    fn new(arr: &dyn Array) -> Self {
-        let arr = arr.as_any().downcast_ref::<StructArray>().unwrap();
-        let validity = arr.validity().cloned();
+    fn new(arr: &StructArray) -> Self {
+        let validity = arr.nulls().cloned();
         let values = arr
             .fields()
             .iter()
-            .zip(arr.values())
-            .map(|(field, col)| (field.name.clone(), lift_property_col(col.as_ref())))
+            .zip(arr.columns())
+            .map(|(field, col)| (field.name().clone(), lift_property_col(col.as_ref())))
             .collect();
         Self { validity, values }
     }
@@ -333,7 +331,7 @@ impl PropCol for MapCol {
         if self
             .validity
             .as_ref()
-            .is_none_or(|validity| validity.get_bit(i))
+            .is_none_or(|validity| validity.is_valid(i))
         {
             Some(Prop::map(self.values.iter().filter_map(|(field, col)| {
                 Some((field.as_str(), col.get(i)?))
@@ -344,155 +342,137 @@ impl PropCol for MapCol {
     }
 }
 
+struct MappedPrimitiveCol<T: ArrowPrimitiveType> {
+    arr: PrimitiveArray<T>,
+    map: fn(T::Native) -> Prop,
+}
+
+impl<T: ArrowPrimitiveType> PropCol for MappedPrimitiveCol<T> {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if i >= self.arr.len() || self.arr.is_null(i) {
+            None
+        } else {
+            Some((self.map)(self.arr.value(i)))
+        }
+    }
+}
+
+struct DecimalPropCol {
+    arr: Decimal128Array,
+    scale: i64,
+}
+
+impl PropCol for DecimalPropCol {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if i >= self.arr.len() || self.arr.is_null(i) {
+            None
+        } else {
+            Some(Prop::Decimal(BigDecimal::new(
+                self.arr.value(i).into(),
+                self.scale,
+            )))
+        }
+    }
+}
+
 fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
     match arr.data_type() {
-        DataType::Boolean => {
-            let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::Int32 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i32>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::Int64 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::UInt8 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u8>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::UInt16 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u16>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::UInt32 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u32>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::UInt64 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::Float32 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<f32>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::Float64 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<f64>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::Utf8 => {
-            let arr = arr.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
-            Box::new(Wrap(arr.clone()))
-        }
-        DataType::LargeUtf8 => {
-            let arr = arr.as_any().downcast_ref::<Utf8Array<i64>>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::List(_) => {
-            let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
-            Box::new(Wrap(arr.clone()))
-        }
-        DataType::FixedSizeList(_, _) => {
-            let arr = arr.as_any().downcast_ref::<FixedSizeListArray>().unwrap();
-            Box::new(Wrap(arr.clone()))
-        }
-        DataType::LargeList(_) => {
-            let arr = arr.as_any().downcast_ref::<ListArray<i64>>().unwrap();
-            Box::new(Wrap(arr.clone()))
-        }
-        DataType::Struct(_) => Box::new(MapCol::new(arr)),
-        DataType::Utf8View => {
-            let arr = arr.as_any().downcast_ref::<Utf8ViewArray>().unwrap();
-            Box::new(arr.clone())
-        }
-        DataType::Timestamp(timeunit, timezone) => {
-            let arr = arr
-                .as_any()
-                .downcast_ref::<PrimitiveArray<i64>>()
-                .unwrap()
-                .clone();
-            match timezone {
-                Some(_) => match timeunit {
-                    TimeUnit::Second => Box::new(DTimeCol {
-                        arr,
-                        map: |v| {
-                            Prop::DTime(
-                                DateTime::<Utc>::from_timestamp(v, 0)
-                                    .expect("DateTime conversion failed"),
-                            )
-                        },
-                    }),
-                    TimeUnit::Millisecond => Box::new(DTimeCol {
-                        arr,
-                        map: |v| {
-                            Prop::DTime(
-                                DateTime::<Utc>::from_timestamp_millis(v)
-                                    .expect("DateTime conversion failed"),
-                            )
-                        },
-                    }),
-                    TimeUnit::Microsecond => Box::new(DTimeCol {
-                        arr,
-                        map: |v| {
-                            Prop::DTime(
-                                DateTime::<Utc>::from_timestamp_micros(v)
-                                    .expect("DateTime conversion failed"),
-                            )
-                        },
-                    }),
-                    TimeUnit::Nanosecond => Box::new(DTimeCol {
-                        arr,
-                        map: |v| Prop::DTime(DateTime::<Utc>::from_timestamp_nanos(v)),
-                    }),
-                },
-                None => match timeunit {
-                    TimeUnit::Second => Box::new(DTimeCol {
-                        arr,
-                        map: |v| {
-                            Prop::NDTime(
-                                DateTime::from_timestamp(v, 0)
-                                    .expect("DateTime conversion failed")
-                                    .naive_utc(),
-                            )
-                        },
-                    }),
-                    TimeUnit::Millisecond => Box::new(DTimeCol {
-                        arr,
-                        map: |v| {
-                            Prop::NDTime(
-                                DateTime::from_timestamp_millis(v)
-                                    .expect("DateTime conversion failed")
-                                    .naive_utc(),
-                            )
-                        },
-                    }),
-                    TimeUnit::Microsecond => Box::new(DTimeCol {
-                        arr,
-                        map: |v| {
-                            Prop::NDTime(
-                                DateTime::from_timestamp_micros(v)
-                                    .expect("DateTime conversion failed")
-                                    .naive_utc(),
-                            )
-                        },
-                    }),
-                    TimeUnit::Nanosecond => Box::new(DTimeCol {
-                        arr,
-                        map: |v| Prop::NDTime(DateTime::from_timestamp_nanos(v).naive_utc()),
-                    }),
-                },
-            }
-        }
-        DataType::Decimal(precision, scale) if *precision <= 38 => {
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i128>>().unwrap();
+        DataType::Boolean => Box::new(arr.as_boolean().clone()),
+        DataType::Int32 => Box::new(arr.as_primitive::<Int32Type>().clone()),
+        DataType::Int64 => Box::new(arr.as_primitive::<Int64Type>().clone()),
+        DataType::UInt8 => Box::new(arr.as_primitive::<UInt8Type>().clone()),
+        DataType::UInt16 => Box::new(arr.as_primitive::<UInt16Type>().clone()),
+        DataType::UInt32 => Box::new(arr.as_primitive::<UInt32Type>().clone()),
+        DataType::UInt64 => Box::new(arr.as_primitive::<UInt64Type>().clone()),
+        DataType::Float32 => Box::new(arr.as_primitive::<Float32Type>().clone()),
+        DataType::Float64 => Box::new(arr.as_primitive::<Float64Type>().clone()),
+        DataType::Utf8 => Box::new(arr.as_string::<i32>().clone()),
+        DataType::LargeUtf8 => Box::new(arr.as_string::<i64>().clone()),
+        DataType::Utf8View => Box::new(arr.as_string_view().clone()),
+        DataType::List(_) => Box::new(arr.as_list::<i32>().clone()),
+        DataType::LargeList(_) => Box::new(arr.as_list::<i64>().clone()),
+        DataType::FixedSizeList(_, _) => Box::new(arr.as_fixed_size_list().clone()),
+        DataType::Struct(_) => Box::new(MapCol::new(arr.as_struct())),
+        DataType::Timestamp(timeunit, timezone) => match timezone {
+            Some(_) => match timeunit {
+                TimeUnit::Second => Box::new(MappedPrimitiveCol {
+                    arr: arr.as_primitive::<TimestampSecondType>().clone(),
+                    map: |v| {
+                        Prop::DTime(
+                            DateTime::<Utc>::from_timestamp(v, 0)
+                                .expect("DateTime conversion failed"),
+                        )
+                    },
+                }),
+                TimeUnit::Millisecond => Box::new(MappedPrimitiveCol {
+                    arr: arr.as_primitive::<TimestampMillisecondType>().clone(),
+                    map: |v| {
+                        Prop::DTime(
+                            DateTime::<Utc>::from_timestamp_millis(v)
+                                .expect("DateTime conversion failed"),
+                        )
+                    },
+                }),
+                TimeUnit::Microsecond => Box::new(MappedPrimitiveCol {
+                    arr: arr.as_primitive::<TimestampMicrosecondType>().clone(),
+                    map: |v| {
+                        Prop::DTime(
+                            DateTime::<Utc>::from_timestamp_micros(v)
+                                .expect("DateTime conversion failed"),
+                        )
+                    },
+                }),
+                TimeUnit::Nanosecond => Box::new(MappedPrimitiveCol {
+                    arr: arr.as_primitive::<TimestampNanosecondType>().clone(),
+                    map: |v| Prop::DTime(DateTime::<Utc>::from_timestamp_nanos(v)),
+                }),
+            },
+            None => match timeunit {
+                TimeUnit::Second => Box::new(MappedPrimitiveCol {
+                    arr: arr.as_primitive::<TimestampSecondType>().clone(),
+                    map: |v| {
+                        Prop::NDTime(
+                            DateTime::from_timestamp(v, 0)
+                                .expect("DateTime conversion failed")
+                                .naive_utc(),
+                        )
+                    },
+                }),
+                TimeUnit::Millisecond => Box::new(MappedPrimitiveCol {
+                    arr: arr.as_primitive::<TimestampMillisecondType>().clone(),
+                    map: |v| {
+                        Prop::NDTime(
+                            DateTime::from_timestamp_millis(v)
+                                .expect("DateTime conversion failed")
+                                .naive_utc(),
+                        )
+                    },
+                }),
+                TimeUnit::Microsecond => Box::new(MappedPrimitiveCol {
+                    arr: arr.as_primitive::<TimestampMicrosecondType>().clone(),
+                    map: |v| {
+                        Prop::NDTime(
+                            DateTime::from_timestamp_micros(v)
+                                .expect("DateTime conversion failed")
+                                .naive_utc(),
+                        )
+                    },
+                }),
+                TimeUnit::Nanosecond => Box::new(MappedPrimitiveCol {
+                    arr: arr.as_primitive::<TimestampNanosecondType>().clone(),
+                    map: |v| Prop::NDTime(DateTime::from_timestamp_nanos(v).naive_utc()),
+                }),
+            },
+        },
+        DataType::Decimal128(precision, scale) if *precision <= 38 => {
+            let arr = arr.as_primitive::<Decimal128Type>().clone();
             Box::new(DecimalPropCol {
-                arr: arr.clone(),
+                arr,
                 scale: *scale as i64,
             })
         }
         DataType::Null => Box::new(EmptyCol),
+
         unsupported => panic!("Data type not supported: {:?}", unsupported),
     }
 }

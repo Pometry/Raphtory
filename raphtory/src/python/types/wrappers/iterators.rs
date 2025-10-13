@@ -22,7 +22,7 @@ impl PyBorrowingIterator {
 }
 
 pub trait PyIter: Send + Sync + 'static {
-    fn iter(&self) -> BoxedLIter<PyResult<PyObject>>;
+    fn iter(&self) -> BoxedLIter<'_, PyResult<PyObject>>;
 
     fn into_py_iter(self) -> PyBorrowingIterator
     where

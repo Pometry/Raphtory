@@ -554,7 +554,11 @@ impl Sub<Interval> for i64 {
     type Output = i64;
     fn sub(self, rhs: Interval) -> Self::Output {
         match rhs.size {
-            IntervalSize::Discrete(number) => self - (number as i64),
+            IntervalSize::Discrete(number)
+            | IntervalSize::Temporal {
+                millis: number,
+                months: 0,
+            } => self - (number as i64),
             IntervalSize::Temporal { millis, months } => {
                 // first we subtract the number of milliseconds and then the number of months for
                 // consistency with the implementation of Add (we revert back the steps) so we
@@ -576,7 +580,11 @@ impl Add<Interval> for i64 {
     type Output = i64;
     fn add(self, rhs: Interval) -> Self::Output {
         match rhs.size {
-            IntervalSize::Discrete(number) => self + (number as i64),
+            IntervalSize::Discrete(number)
+            | IntervalSize::Temporal {
+                millis: number,
+                months: 0,
+            } => self + (number as i64),
             IntervalSize::Temporal { millis, months } => {
                 // first we add the number of months and then the number of milliseconds for
                 // consistency with the implementation of Sub (we revert back the steps) so we

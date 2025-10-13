@@ -187,7 +187,7 @@ impl Deref for PropMapper {
 
 impl PropMapper {
     pub fn deep_clone(&self) -> Self {
-        let dtypes = self.dtypes.read().clone();
+        let dtypes = self.dtypes.read_recursive().clone();
         Self {
             id_mapper: self.id_mapper.deep_clone(),
             dtypes: Arc::new(RwLock::new(dtypes)),

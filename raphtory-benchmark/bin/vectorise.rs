@@ -1,9 +1,7 @@
-use std::time::SystemTime;
-
-use raphtory::prelude::Graph;
 use raphtory_benchmark::common::vectors::{
     create_graph_for_vector_bench, vectorise_graph_for_bench_async,
 };
+use std::time::SystemTime;
 
 const MAX_TIME: u64 = 3600;
 

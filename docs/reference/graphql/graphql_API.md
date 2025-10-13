@@ -3020,7 +3020,7 @@ Create a new node or fail if it already exists.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of nodes.
+Add a batch of nodes
 
 </td>
 </tr>
@@ -3087,7 +3087,7 @@ Add a new edge or add updates to an existing edge.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of edges.
+Add a batch of edges
 
 </td>
 </tr>

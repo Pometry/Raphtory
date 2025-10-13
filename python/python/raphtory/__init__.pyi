@@ -2115,7 +2115,6 @@ class Node(object):
         Get the edges that are incident to this node.
 
         Returns:
-
              Edges: The incident edges.
         """
 
@@ -2285,7 +2284,6 @@ class Node(object):
         Get the edges that point into this node.
 
         Returns:
-
              Edges: The inbound edges.
         """
 
@@ -2295,7 +2293,6 @@ class Node(object):
         Get the neighbours of this node that point into this node.
 
         Returns:
-
              PathFromNode: The in-neighbours.
         """
 
@@ -2381,7 +2378,6 @@ class Node(object):
         Get the neighbours of this node.
 
         Returns:
-
              PathFromNode: The neighbours (both inbound and outbound).
         """
 
@@ -2408,7 +2404,6 @@ class Node(object):
         Get the edges that point out of this node.
 
         Returns:
-
              Edges: The outbound edges.
         """
 
@@ -2418,7 +2413,6 @@ class Node(object):
         Get the neighbours of this node that point out of this node.
 
         Returns:
-
              PathFromNode: The out-neighbours.
         """
 
@@ -2686,7 +2680,6 @@ class Nodes(object):
         Get the edges that are incident to this node.
 
         Returns:
-
              NestedEdges: The incident edges.
         """
 
@@ -2856,7 +2849,6 @@ class Nodes(object):
         Get the edges that point into this node.
 
         Returns:
-
              NestedEdges: The inbound edges.
         """
 
@@ -2866,7 +2858,6 @@ class Nodes(object):
         Get the neighbours of this node that point into this node.
 
         Returns:
-
              PathFromGraph: The in-neighbours.
         """
 
@@ -2944,7 +2935,6 @@ class Nodes(object):
         Get the neighbours of this node.
 
         Returns:
-
              PathFromGraph: The neighbours (both inbound and outbound).
         """
 
@@ -2971,7 +2961,6 @@ class Nodes(object):
         Get the edges that point out of this node.
 
         Returns:
-
              NestedEdges: The outbound edges.
         """
 
@@ -2981,7 +2970,6 @@ class Nodes(object):
         Get the neighbours of this node that point out of this node.
 
         Returns:
-
              PathFromGraph: The out-neighbours.
         """
 
@@ -3246,7 +3234,6 @@ class PathFromNode(object):
         Get the edges that are incident to this node.
 
         Returns:
-
              Edges: The incident edges.
         """
 
@@ -3398,7 +3385,6 @@ class PathFromNode(object):
         Get the edges that point into this node.
 
         Returns:
-
              Edges: The inbound edges.
         """
 
@@ -3408,7 +3394,6 @@ class PathFromNode(object):
         Get the neighbours of this node that point into this node.
 
         Returns:
-
              PathFromNode: The in-neighbours.
         """
 
@@ -3477,7 +3462,6 @@ class PathFromNode(object):
         Get the neighbours of this node.
 
         Returns:
-
              PathFromNode: The neighbours (both inbound and outbound).
         """
 
@@ -3504,7 +3488,6 @@ class PathFromNode(object):
         Get the edges that point out of this node.
 
         Returns:
-
              Edges: The outbound edges.
         """
 
@@ -3514,7 +3497,6 @@ class PathFromNode(object):
         Get the neighbours of this node that point out of this node.
 
         Returns:
-
              PathFromNode: The out-neighbours.
         """
 
@@ -3771,7 +3753,6 @@ class PathFromGraph(object):
         Get the edges that are incident to this node.
 
         Returns:
-
              NestedEdges: The incident edges.
         """
 
@@ -3939,7 +3920,6 @@ class PathFromGraph(object):
         Get the edges that point into this node.
 
         Returns:
-
              NestedEdges: The inbound edges.
         """
 
@@ -3949,7 +3929,6 @@ class PathFromGraph(object):
         Get the neighbours of this node that point into this node.
 
         Returns:
-
              PathFromGraph: The in-neighbours.
         """
 
@@ -4027,7 +4006,6 @@ class PathFromGraph(object):
         Get the neighbours of this node.
 
         Returns:
-
              PathFromGraph: The neighbours (both inbound and outbound).
         """
 
@@ -4054,7 +4032,6 @@ class PathFromGraph(object):
         Get the edges that point out of this node.
 
         Returns:
-
              NestedEdges: The outbound edges.
         """
 
@@ -4064,7 +4041,6 @@ class PathFromGraph(object):
         Get the neighbours of this node that point out of this node.
 
         Returns:
-
              PathFromGraph: The out-neighbours.
         """
 
