@@ -6182,8 +6182,8 @@ class EventTime(object):
     Raphtory’s EventTime.
     Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 
-    - timestamp: number of milliseconds since the Unix epoch.
-    - event_id: id used for ordering between equal timestamps.
+    - timestamp: Number of milliseconds since the Unix epoch.
+    - event_id: ID used for ordering between equal timestamps.
 
     Unless specified manually, the event ids are generated automatically by Raphtory to
     maintain a unique ordering of events.

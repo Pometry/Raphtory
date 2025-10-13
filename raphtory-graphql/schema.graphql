@@ -680,8 +680,8 @@ type EdgesWindowSet {
 Raphtory’s EventTime.
 Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 
-- timestamp: number of milliseconds since the Unix epoch.
-- event_id: id used for ordering between equal timestamps.
+- timestamp: Number of milliseconds since the Unix epoch.
+- event_id: ID used for ordering between equal timestamps.
 """
 type EventTime {
 	"""
@@ -925,8 +925,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
