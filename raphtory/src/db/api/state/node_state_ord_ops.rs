@@ -9,7 +9,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     cmp::{Ordering, Reverse},
     collections::BinaryHeap,
-    fmt::{Binary, Debug, Formatter},
+    fmt::{Debug, Formatter},
     ops::Deref,
 };
 
@@ -97,7 +97,12 @@ where
         Self::Graph: 'graph;
 
     /// Returns a tuple of the min result with its key
-    fn min_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)>;
+    fn min_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )>;
 
     /// Min result.
     ///
@@ -108,14 +113,24 @@ where
     }
 
     /// Returns a tuple of the max result with its key
-    fn max_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)>;
+    fn max_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )>;
 
     fn max(&'a self) -> Option<Self::Value> {
         self.max_item().map(|(_, v)| v)
     }
 
     /// Returns a tuple of the median result with its key
-    fn median_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)>;
+    fn median_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )>;
 
     /// Returns:
     ///     PropValue:
@@ -173,7 +188,12 @@ pub trait AsOrderedNodeStateOps<'a, 'graph: 'a>: NodeStateOps<'a, 'graph> {
         Self::Graph: 'graph;
 
     /// Returns a tuple of the min result with its key
-    fn min_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)>;
+    fn min_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )>;
 
     /// Min result.
     ///
@@ -184,14 +204,24 @@ pub trait AsOrderedNodeStateOps<'a, 'graph: 'a>: NodeStateOps<'a, 'graph> {
     }
 
     /// Returns a tuple of the max result with its key
-    fn max_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)>;
+    fn max_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )>;
 
     fn max(&'a self) -> Option<Self::Value> {
         self.max_item().map(|(_, v)| v)
     }
 
     /// Returns a tuple of the median result with its key
-    fn median_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)>;
+    fn median_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )>;
 
     /// Returns:
     ///     PropValue:
@@ -241,15 +271,30 @@ where
         self.bottom_k_by(Ord::cmp, k)
     }
 
-    fn min_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    fn min_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         self.min_item_by(Ord::cmp)
     }
 
-    fn max_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    fn max_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         self.max_item_by(Ord::cmp)
     }
 
-    fn median_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    fn median_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         self.median_item_by(Ord::cmp)
     }
 }
@@ -295,15 +340,30 @@ where
         self.bottom_k_by(|a, b| a.as_ord().cmp(b.as_ord()), k)
     }
 
-    fn min_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    fn min_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         self.min_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 
-    fn max_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    fn max_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         self.max_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 
-    fn median_item(&'a self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    fn median_item(
+        &'a self,
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         self.median_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 }
@@ -380,6 +440,7 @@ where
     values
 }
 
+#[allow(dead_code)]
 pub fn par_top_k<V: Send + Sync, F>(
     iter: impl IntoParallelIterator<Item = V>,
     cmp: F,

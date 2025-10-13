@@ -18,10 +18,7 @@ use crate::{
 };
 use indexmap::IndexSet;
 use rayon::prelude::*;
-use std::{
-    borrow::Borrow,
-    fmt::{Debug, Formatter},
-};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G> {
@@ -52,27 +49,6 @@ where
 {
     fn eq(&self, other: &[RHS; N]) -> bool {
         self.len() == other.len() && self.iter_values().zip(other.iter()).all(|(a, b)| a == *b)
-    }
-}
-
-impl<
-    'graph,
-    Op: NodeOp + 'graph,
-    G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
-    RHS: NodeStateOps<'graph, OwnedValue = Op::Output>,
-> PartialEq<RHS> for LazyNodeState<'graph, Op, G, GH>
-where
-    Op::Output: PartialEq,
-{
-    fn eq(&self, other: &RHS) -> bool {
-        self.len() == other.len()
-            && self.par_iter().all(|(node, value)| {
-            other
-                .get_by_node(node)
-                .map(|v| v.borrow() == &value)
-                .unwrap_or(false)
-        })
     }
 }
 
@@ -257,6 +233,7 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
+    #[allow(refining_impl_trait)]
     fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
@@ -264,6 +241,7 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
+    #[allow(refining_impl_trait)]
     fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
@@ -306,7 +284,10 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
     fn get_by_index(
         &'a self,
         index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         if self.graph().filtered() {
             self.iter().nth(index)
         } else {

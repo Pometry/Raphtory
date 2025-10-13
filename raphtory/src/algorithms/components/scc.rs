@@ -2,7 +2,7 @@ use crate::{
     core::entities::VID,
     db::{
         api::{
-            state::{GenericNodeState, NodeState, TypedNodeState},
+            state::{GenericNodeState, TypedNodeState},
             view::StaticGraphViewOps,
         },
         graph::node::NodeView,
@@ -99,7 +99,7 @@ where
 ///
 pub fn strongly_connected_components<G>(
     graph: &G,
-) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G>
+) -> TypedNodeState<'static, SCCState, G>
 where
     G: StaticGraphViewOps,
 {
@@ -113,5 +113,5 @@ where
         }
     }
 
-    GenericNodeState::new_from_eval(graph.clone(), values).transform()
+    TypedNodeState::new(GenericNodeState::new_from_eval(graph.clone(), values))
 }

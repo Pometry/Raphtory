@@ -13,7 +13,6 @@ use crate::{
     },
     prelude::*,
 };
-use either::Either;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use raphtory_storage::{
     core_ops::is_view_compatible,

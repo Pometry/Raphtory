@@ -17,7 +17,6 @@ use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use indexmap::IndexSet;
 use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
 
-use crate::db::api::view::internal::{GraphView, OneHopFilter};
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -38,7 +37,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use tracing::field::debug;
 
 pub trait NodeStateValue:
     Clone + PartialEq + Serialize + DeserializeOwned + Send + Sync + Debug
@@ -593,8 +591,12 @@ impl<
 
     fn iter(
         &'a self,
-    ) -> impl Iterator<Item = (NodeView<&'a Self::BaseGraph, &'a Self::Graph>, Self::Value)> + 'a
-    {
+    ) -> impl Iterator<
+        Item = (
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value,
+        ),
+    > + 'a {
         match &self.state.keys {
             Some(index) => index
                 .iter()
@@ -633,8 +635,12 @@ impl<
 
     fn par_iter(
         &'a self,
-    ) -> impl ParallelIterator<Item = (NodeView<&'a Self::BaseGraph, &'a Self::Graph>, Self::Value)>
-    {
+    ) -> impl ParallelIterator<
+        Item = (
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value,
+        ),
+    > {
         match &self.state.keys {
             Some(index) => {
                 Either::Left(index.par_iter().zip(self.par_iter_values()).map(|(n, v)| {
@@ -664,7 +670,10 @@ impl<
     fn get_by_index(
         &'a self,
         index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
+    ) -> Option<(
+        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+        Self::Value,
+    )> {
         let vid = match &self.state.keys {
             Some(node_index) => node_index.key(index).unwrap(),
             None => VID(index),
@@ -703,7 +712,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         Self::new_from_eval_with_index_mapped(graph, filtered_graph, values, index, |v| v)
     }
 
-    pub fn new_from_eval_with_index_mapped<R: InputNodeStateValue, V: InputNodeStateValue>(
+    pub fn new_from_eval_with_index_mapped<R: Clone, V: InputNodeStateValue>(
         graph: G,
         filtered_graph: GH,
         values: Vec<R>,
@@ -750,7 +759,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// - `graph`: the graph view
     /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
     /// - `map`: Closure mapping input to output values
-    pub fn new_from_eval_mapped<R: InputNodeStateValue, V: InputNodeStateValue>(
+    pub fn new_from_eval_mapped<R: Clone, V: InputNodeStateValue>(
         graph: G,
         values: Vec<R>,
         map: impl Fn(R) -> V,

@@ -14,9 +14,8 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::core::entities::GID;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 struct LabelPropState {
@@ -41,9 +40,9 @@ struct LabelPropState {
 pub fn label_propagation<G>(
     g: &G,
     iter_count: usize,
-    seed: Option<[u8; 32]>,
+    _seed: Option<[u8; 32]>,
     threads: Option<usize>,
-) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G>
+) -> TypedNodeState<'static, LabelPropState, G>
 where
     G: StaticGraphViewOps,
 {
@@ -93,7 +92,7 @@ where
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
         None,
-        |_, _, _, local| GenericNodeState::new_from_eval(g.clone(), local).transform(),
+        |_, _, _, local| TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local)),
         threads,
         iter_count,
         None,

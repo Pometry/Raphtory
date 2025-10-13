@@ -20,6 +20,7 @@ raphtory-core.workspace = true
 raphtory-storage.workspace = true
 pometry-storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
+arrow = { workspace = true }
 arrow-array = { workspace = true, features = ["chrono-tz"] }
 arrow-schema = { workspace = true }
 arrow-ipc = {workspace = true}

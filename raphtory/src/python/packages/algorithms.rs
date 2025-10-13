@@ -62,7 +62,7 @@ use crate::{
             state::{Index, NodeState, TypedNodeState},
             view::internal::DynamicGraph,
         },
-        graph::{node::NodeView, nodes::Nodes},
+        graph::nodes::Nodes,
     },
     errors::GraphError,
     prelude::{Graph, Prop},
@@ -77,7 +77,7 @@ use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::Direction;
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -177,8 +177,8 @@ pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
 #[pyo3(signature = (graph))]
 pub fn in_components(
     graph: &PyGraphView,
-) -> NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph> {
-    components::in_components(&graph.graph, None)
+) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
+    components::in_components(&graph.graph, None).inner.transform()
 }
 
 /// In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -765,7 +765,7 @@ pub fn label_propagation(
     iter_count: usize,
     seed: Option<[u8; 32]>,
 ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
-    label_propagation_rs(&graph.graph, 20, seed, None)
+    label_propagation_rs(&graph.graph, iter_count, seed, None)
     // match  {
     //Ok(result) => Ok(result),
     //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),

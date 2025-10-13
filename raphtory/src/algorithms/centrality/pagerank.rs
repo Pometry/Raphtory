@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
@@ -16,7 +14,6 @@ use crate::{
     prelude::GraphViewOps,
 };
 use num_traits::abs;
-use raphtory_api::core::entities::properties::prop::Prop;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
@@ -62,7 +59,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     tol: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
-) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
+) -> TypedNodeState<'static, PageRankState, G> {
     let n = g.count_nodes();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
@@ -166,7 +163,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_nodes); num_nodes]),
-        |_, _, _, local| GenericNodeState::new_from_eval(g.clone(), local).transform(), //NodeState::new_from_eval_mapped(g.clone(), local, |v| v.score),
+        |_, _, _, local| TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local)),
         threads,
         iter_count,
         None,
