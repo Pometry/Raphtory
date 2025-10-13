@@ -14,6 +14,7 @@ use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
 use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
 use std::{fmt::Debug, iter, sync::Arc};
+use storage::Extension;
 use thiserror::Error;
 
 #[derive(Clone, Debug)]
@@ -219,6 +220,13 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.graph.graph_meta(),
             GraphStorage::Unlocked(storage) => storage.graph_meta(),
+        }
+    }
+
+    pub fn extension(&self) -> &Extension {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.extension(),
+            GraphStorage::Unlocked(storage) => storage.extension(),
         }
     }
 }

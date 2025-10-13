@@ -111,6 +111,8 @@ tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
+proptest = { workspace = true }
+proptest-derive = { workspace = true }
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }

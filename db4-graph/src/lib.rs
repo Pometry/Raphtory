@@ -126,21 +126,21 @@ impl TransactionManager {
 
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
-        Self::new().unwrap()
+        Self::new(Extension::default()).unwrap()
     }
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
-    pub fn new() -> Result<Self, StorageError> {
+    pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(None, node_meta, edge_meta)
+        Self::new_with_meta(None, node_meta, edge_meta, ext)
     }
 
-    pub fn new_with_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
+    pub fn new_with_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta)
+        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta, ext)
     }
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
@@ -168,6 +168,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         graph_dir: Option<GraphDir>,
         node_meta: Meta,
         edge_meta: Meta,
+        ext: EXT,
     ) -> Result<Self, StorageError> {
         if let Some(dir) = graph_dir.as_ref() {
             std::fs::create_dir_all(dir)?
@@ -185,6 +186,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             DEFAULT_MAX_PAGE_LEN_EDGES,
             node_meta,
             edge_meta,
+            ext,
         );
 
         let wal_dir = graph_dir.as_ref().map(|dir| dir.wal_dir());
@@ -199,6 +201,10 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
         })
+    }
+
+    pub fn extension(&self) -> &EXT {
+        self.storage().extension()
     }
 
     pub fn read_event_counter(&self) -> usize {

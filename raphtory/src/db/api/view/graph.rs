@@ -59,6 +59,7 @@ use raphtory_storage::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::sync::{atomic::Ordering, Arc};
+use storage::Extension;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -230,7 +231,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
 
-        let mut g = TemporalGraph::new_with_meta(Default::default(), node_meta, edge_meta).unwrap();
+        let mut g = TemporalGraph::new_with_meta(
+            Default::default(),
+            node_meta,
+            edge_meta,
+            *(storage.extension()),
+        )
+        .unwrap();
         // Copy all graph properties
         g.graph_meta = self.graph_meta().deep_clone().into();
 
