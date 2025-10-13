@@ -10,15 +10,15 @@ use crate::{
 };
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Formatter},
     mem,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default, Hash, Eq)]
-struct ConnectedComponent {
+pub struct ConnectedComponent {
     component_id: usize,
 }
 
@@ -215,5 +215,11 @@ where
     let _cg = g.core_graph().lock();
     let state = ComponentState::new(g);
     let result = state.run();
-    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(g.clone(), result, |value| ConnectedComponent { component_id: value }))
+    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(
+        g.clone(),
+        result,
+        |value| ConnectedComponent {
+            component_id: value,
+        },
+    ))
 }

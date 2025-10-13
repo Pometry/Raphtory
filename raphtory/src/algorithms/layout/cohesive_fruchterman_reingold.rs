@@ -7,7 +7,6 @@ use crate::{
     prelude::{NodeStateGroupBy, OrderedNodeStateOps, *},
 };
 
-
 /// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
 ///
 /// # Arguments

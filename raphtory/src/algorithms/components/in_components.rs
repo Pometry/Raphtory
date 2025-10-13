@@ -2,7 +2,7 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{GenericNodeState, Index, NodeStateValue, TypedNodeState},
+            state::{GenericNodeState, Index, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         graph::node::NodeView,
@@ -18,11 +18,13 @@ use crate::{
 use indexmap::IndexSet;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
-use std::fmt::Debug;
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
+    fmt::Debug,
+};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct InState {
+pub struct InState {
     in_components: Vec<VID>,
 }
 
@@ -39,7 +41,7 @@ struct InState {
 ///
 pub fn in_components<G>(g: &G, threads: Option<usize>) -> TypedNodeState<'static, InState, G>
 where
-    G: StaticGraphViewOps + NodeStateValue,
+    G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = g.into();
     let step1 = ATask::new(move |vv: &mut EvalNodeView<G, InState>| {
@@ -84,8 +86,8 @@ where
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct InComponentState {
-    distance: usize
+pub struct InComponentState {
+    distance: usize,
 }
 
 /// Computes the in-component of a given node in the graph
@@ -126,7 +128,10 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
     TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
         node.base_graph.clone(),
         node.base_graph.clone(),
-        distances.into_iter().map(|value| InComponentState { distance: value }).collect(),
+        distances
+            .into_iter()
+            .map(|value| InComponentState { distance: value })
+            .collect(),
         Some(Index::new(nodes)),
     ))
 }

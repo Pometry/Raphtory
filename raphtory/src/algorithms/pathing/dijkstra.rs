@@ -1,12 +1,8 @@
-use crate::db::api::state::{GenericNodeState, TypedNodeState};
 /// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
-    db::{
-        api::state::Index,
-        graph::nodes::Nodes,
-    },
+    db::api::state::{GenericNodeState, Index, TypedNodeState},
     errors::GraphError,
     prelude::*,
 };
@@ -18,16 +14,16 @@ use raphtory_api::core::{
     },
     Direction,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
-use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct DistanceState {
-    distance: f64,
-    path: Vec<VID>,
+pub struct DistanceState {
+    pub distance: f64,
+    pub path: Vec<VID>,
 }
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
@@ -201,10 +197,12 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             (id, (cost, nodes))
         })
         .unzip();
-    Ok(TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
-        g.clone(),
-        g.clone(),
-        values,
-        Some(Index::new(index)),
-    )))
+    Ok(TypedNodeState::new(
+        GenericNodeState::new_from_eval_with_index(
+            g.clone(),
+            g.clone(),
+            values,
+            Some(Index::new(index)),
+        ),
+    ))
 }

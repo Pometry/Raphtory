@@ -21,14 +21,13 @@ use num_traits::Zero;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem, ops::Add, slice::Iter};
 use tracing::debug;
-use serde::{Deserialize, Serialize};
 ///////////////////////////////////////////////////////
 
-
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct MotifState {
+pub struct MotifState {
     motif_counter: Vec<usize>,
 }
 

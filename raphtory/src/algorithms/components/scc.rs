@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct SCCState {
+pub struct SCCState {
     component_id: usize,
 }
 
@@ -97,9 +97,7 @@ where
 ///
 /// An [AlgorithmResult] containing the mapping from each node to its component ID
 ///
-pub fn strongly_connected_components<G>(
-    graph: &G,
-) -> TypedNodeState<'static, SCCState, G>
+pub fn strongly_connected_components<G>(graph: &G) -> TypedNodeState<'static, SCCState, G>
 where
     G: StaticGraphViewOps,
 {

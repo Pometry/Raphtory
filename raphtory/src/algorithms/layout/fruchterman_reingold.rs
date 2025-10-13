@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct CoordinateState {
-    coordinates: [f32; 2]
+    coordinates: [f32; 2],
 }
 
 /// Return the position of the nodes after running Fruchterman Reingold algorithm on the `graph`

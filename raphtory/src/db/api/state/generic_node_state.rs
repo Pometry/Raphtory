@@ -418,6 +418,10 @@ impl<'graph, V: NodeStateValue, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph
         }
     }
 
+    pub fn transform(self) -> TypedNodeState<'graph, HashMap<String, Option<Prop>>, G, GH> {
+        TypedNodeState::new(self.state)
+    }
+
     pub fn values_to_rows(&self) -> Vec<V> {
         let rows: Vec<V> = from_record_batch(&self.state.values).unwrap();
         rows

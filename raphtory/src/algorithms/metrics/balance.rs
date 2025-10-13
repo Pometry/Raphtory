@@ -4,7 +4,10 @@
 //! in a graph.
 use crate::{
     db::{
-        api::{state::{GenericNodeState, TypedNodeState}, view::StaticGraphViewOps},
+        api::{
+            state::{GenericNodeState, TypedNodeState},
+            view::StaticGraphViewOps,
+        },
         graph::node::NodeView,
     },
     errors::GraphError,
@@ -15,7 +18,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct BalanceState {
+pub struct BalanceState {
     balance: f64,
 }
 
@@ -105,7 +108,10 @@ pub fn balance<G: StaticGraphViewOps>(
             .map(|n| balance_per_node(&n, weight_id, direction))
             .collect();
 
-        Ok(TypedNodeState::new(GenericNodeState::new_from_eval(graph.clone(), values)))
+        Ok(TypedNodeState::new(GenericNodeState::new_from_eval(
+            graph.clone(),
+            values,
+        )))
     } else {
         Err(GraphError::InvalidProperty {
             reason: "Edge property {name} does not exist".to_string(),

@@ -2,7 +2,7 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{GenericNodeState, Index, TypedNodeState },
+            state::{GenericNodeState, Index, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         graph::node::NodeView,
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct OutState {
+pub struct OutState {
     out_components: Vec<VID>,
 }
 /// Computes the out components of each node in the graph
@@ -82,8 +82,8 @@ where
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct OutComponentState {
-    distance: usize
+pub struct OutComponentState {
+    distance: usize,
 }
 
 /// Computes the out-component of a given node in the graph
@@ -124,7 +124,10 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
     TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
         node.base_graph.clone(),
         node.base_graph.clone(),
-        distances.into_iter().map(|value| OutComponentState { distance: value }).collect(),
+        distances
+            .into_iter()
+            .map(|value| OutComponentState { distance: value })
+            .collect(),
         Some(Index::new(nodes)),
     ))
 }
