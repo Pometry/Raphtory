@@ -34,7 +34,7 @@ impl PyPropertyFilterOps {
     ///     PropValue:
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.eq(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -46,7 +46,7 @@ impl PyPropertyFilterOps {
     ///     PropValue:
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.ne(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -58,7 +58,7 @@ impl PyPropertyFilterOps {
     ///     PropValue:
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.lt(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -70,7 +70,7 @@ impl PyPropertyFilterOps {
     ///     PropValue:
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn __le__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.le(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -82,7 +82,7 @@ impl PyPropertyFilterOps {
     ///     PropValue:
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.gt(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -94,7 +94,7 @@ impl PyPropertyFilterOps {
     ///     PropValue:
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.ge(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -103,10 +103,10 @@ impl PyPropertyFilterOps {
     /// Returns a filter expression that checks if a given value is in a specified iterable of properties.
     ///   
     /// Arguments:
-    ///     list[PropValue]:
+    ///     values (list[PropValue]):
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let property = self.0.is_in(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -115,10 +115,10 @@ impl PyPropertyFilterOps {
     /// Returns a filter expression that checks if a given value is not in a specified iterable of properties.
     ///   
     /// Arguments:
-    ///     list[PropValue]:
+    ///     values (list[PropValue]):
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let property = self.0.is_not_in(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -127,7 +127,7 @@ impl PyPropertyFilterOps {
     /// Returns a filter expression that checks if a given value is none.
     ///  
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn is_none(&self) -> PyFilterExpr {
         let property = self.0.is_none();
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -136,7 +136,7 @@ impl PyPropertyFilterOps {
     /// Returns a filter expression that checks if a given value is some.
     ///  
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn is_some(&self) -> PyFilterExpr {
         let property = self.0.is_some();
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -148,7 +148,7 @@ impl PyPropertyFilterOps {
     ///     PropValue:
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn contains(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.contains(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -160,7 +160,7 @@ impl PyPropertyFilterOps {
     ///     PropValue:
     ///
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn not_contains(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -172,11 +172,11 @@ impl PyPropertyFilterOps {
     ///
     /// Arguments:
     ///     prop_value (str):
-    ///     levenshtein_distance (usize):
+    ///     levenshtein_distance (int):
     ///     prefix_match (bool):
     ///  
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn fuzzy_search(
         &self,
         prop_value: String,

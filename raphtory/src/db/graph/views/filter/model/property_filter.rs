@@ -190,8 +190,8 @@ impl PropertyFilter {
     /// Is in
     ///
     /// Arguments:
-    ///     prop_ref:
-    ///     prop_values:
+    ///     prop_ref (PropertyRef):
+    ///     prop_values (list[PropValue]):
     pub fn is_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_ref,
@@ -203,8 +203,8 @@ impl PropertyFilter {
     /// Is not in
     ///
     /// Arguments:
-    ///     prop_ref:
-    ///     prop_values:
+    ///     prop_ref (PropertyRef):
+    ///     prop_values (list[PropValue]):
     pub fn is_not_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
         Self {
             prop_ref,
@@ -240,7 +240,8 @@ impl PropertyFilter {
     /// Contains
     ///
     /// Arguments:
-    ///     prop_ref:
+    ///     prop_ref (PropertyRef):
+    ///     prop_value (PropValue):
     pub fn contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -252,7 +253,8 @@ impl PropertyFilter {
     /// Does not contain
     ///
     /// Arguments:
-    ///     prop_ref:
+    ///     prop_ref (PropertyRef):
+    ///     prop_ref (PropValue):
     pub fn not_contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -267,7 +269,7 @@ impl PropertyFilter {
     ///
     /// Arguments:
     ///     prop_value (str):
-    ///     levenshtein_distance (usize):
+    ///     levenshtein_distance (int):
     ///     prefix_match (bool):
     ///  
     pub fn fuzzy_search(
