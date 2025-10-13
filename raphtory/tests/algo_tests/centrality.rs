@@ -73,7 +73,15 @@ fn test_degree_centrality() {
         expected.insert(VID(3), Prop::F32(2.0 / 3.0));
 
         let res = degree_centrality(graph);
-        let res: HashMap<VID, Prop> = res.into_iter().map(|(node, value)| (node.node, value.get("degree_centrality").unwrap().clone().unwrap())).collect();
+        let res: HashMap<VID, Prop> = res
+            .into_iter()
+            .map(|(node, value)| {
+                (
+                    node.node,
+                    value.get("degree_centrality").unwrap().clone().unwrap(),
+                )
+            })
+            .collect();
         assert_eq!(res, expected);
     });
 }

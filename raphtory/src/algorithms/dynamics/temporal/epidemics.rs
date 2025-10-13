@@ -13,12 +13,12 @@ use indexmap::IndexSet;
 use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
 use raphtory_core::utils::time::ParseTimeError;
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap},
     fmt::Debug,
 };
-use serde::{Deserialize, Serialize};
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq)]
@@ -245,12 +245,14 @@ where
         }
     }
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
-    Ok(TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
-        g.clone(),
-        g.clone(),
-        values,
-        Some(Index::new(index)),
-    )))
+    Ok(TypedNodeState::new(
+        GenericNodeState::new_from_eval_with_index(
+            g.clone(),
+            g.clone(),
+            values,
+            Some(Index::new(index)),
+        ),
+    ))
 }
 
 #[cfg(test)]

@@ -14,11 +14,11 @@ use crate::{
     },
 };
 use rand::prelude::*;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-struct FastRPState {
+pub struct FastRPState {
     embedding_state: Vec<f64>,
 }
 

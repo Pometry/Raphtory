@@ -1,8 +1,11 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     core::entities::VID,
-    db::{api::state::{GenericNodeState, TypedNodeState}, graph::node::NodeView},
+    db::{
+        api::state::{GenericNodeState, TypedNodeState},
+        graph::node::NodeView,
+    },
     prelude::{GraphViewOps, NodeViewOps},
 };
 use std::collections::{HashMap, VecDeque};
@@ -104,5 +107,11 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
         }
     }
 
-    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(g.clone(), betweenness, |value| BetweennessCentrality { betweenness_centrality: value }))
+    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(
+        g.clone(),
+        betweenness,
+        |value| BetweennessCentrality {
+            betweenness_centrality: value,
+        },
+    ))
 }

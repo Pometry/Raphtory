@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct LCCState {
+pub struct LCCState {
     lcc: f64,
 }
 

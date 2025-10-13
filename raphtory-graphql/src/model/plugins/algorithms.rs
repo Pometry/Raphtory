@@ -9,10 +9,10 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank,
+        centrality::pagerank::{unweighted_page_rank, PageRankState},
         pathing::dijkstra::dijkstra_single_source_shortest_paths,
     },
-    prelude::NodeViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::{entities::properties::prop::Prop, Direction};
 use std::collections::HashMap;
@@ -57,6 +57,15 @@ impl From<(&String, &OrderedFloat<f64>)> for PagerankOutput {
         Self {
             name: name.to_string(),
             rank: rank.into_inner(),
+        }
+    }
+}
+
+impl From<(String, PageRankState)> for PagerankOutput {
+    fn from((name, rank): (String, PageRankState)) -> Self {
+        Self {
+            name: name.to_string(),
+            rank: rank.score,
         }
     }
 }
@@ -182,10 +191,14 @@ fn apply_shortest_path<'b>(
     )?;
     let result: Vec<FieldValue> = binding
         .into_iter()
-        .map(|(node, (_, path))| {
+        .map(|(node, distance_state)| {
             FieldValue::owned_any(ShortestPathOutput::from((
                 node.name(),
-                path.name().collect_vec(),
+                distance_state
+                    .path
+                    .into_iter()
+                    .map(|value| entry_point.graph.node(value).unwrap().name())
+                    .collect(),
             )))
         })
         .collect();

@@ -20,7 +20,7 @@ use num_traits::abs;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
-struct Hits {
+pub struct Hits {
     hub_score: f32,
     auth_score: f32,
 }
@@ -142,9 +142,7 @@ pub fn hits<G: StaticGraphViewOps>(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
-        |_, _, _, local| {
-            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local))
-        },
+        |_, _, _, local| TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local)),
         threads,
         iter_count,
         None,

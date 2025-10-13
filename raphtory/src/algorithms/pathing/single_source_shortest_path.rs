@@ -10,11 +10,11 @@ use crate::{
     },
     prelude::*,
 };
-use std::{collections::HashMap, mem};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, mem};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct PathState {
+pub struct PathState {
     path: Vec<VID>,
 }
 
@@ -64,13 +64,11 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
         }
     }
     let (targets, paths): (Vec<_>, Vec<_>) = paths.into_iter().unzip();
-    TypedNodeState::new(
-    GenericNodeState::new_from_eval_with_index_mapped(
-        g.clone(), 
+    TypedNodeState::new(GenericNodeState::new_from_eval_with_index_mapped(
         g.clone(),
-        paths, 
+        g.clone(),
+        paths,
         Some(Index::from_iter(targets)),
-        |value| PathState { path: value }
-        )
-    )
+        |value| PathState { path: value },
+    ))
 }

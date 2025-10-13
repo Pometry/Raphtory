@@ -7,7 +7,10 @@ use crate::{
         },
     },
     db::{
-        api::{state::{GenericNodeState, TypedNodeState}, view::StaticGraphViewOps},
+        api::{
+            state::{GenericNodeState, TypedNodeState},
+            view::StaticGraphViewOps,
+        },
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -21,11 +24,11 @@ use itertools::Itertools;
 use num_traits::Zero;
 use raphtory_api::core::entities::VID;
 use rustc_hash::FxHashMap;
-use std::{collections::HashMap, ops::Add};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, ops::Add};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct ReachabilityState {
+pub struct ReachabilityState {
     reachable_nodes: Vec<(i64, String)>,
 }
 
@@ -207,5 +210,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
         None,
     );
     let result: FxHashMap<_, _> = result.into_iter().map(|(k, v)| (VID(k), v)).collect();
-    TypedNodeState::new(GenericNodeState::new_from_map(g.clone(), result, |v| ReachabilityState { reachable_nodes: v }))
+    TypedNodeState::new(GenericNodeState::new_from_map(g.clone(), result, |v| {
+        ReachabilityState { reachable_nodes: v }
+    }))
 }

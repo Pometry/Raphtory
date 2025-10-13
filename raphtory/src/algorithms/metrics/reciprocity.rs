@@ -54,11 +54,11 @@ use crate::{
     prelude::GraphViewOps,
 };
 use rayon::prelude::*;
-use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct ReciprocityState {
+pub struct ReciprocityState {
     reciprocity: f64,
 }
 
@@ -116,7 +116,9 @@ pub fn global_reciprocity<G: StaticGraphViewOps>(g: &G) -> f64 {
 /// # Returns
 /// [AlgorithmResult] with string keys and float values mapping each node name to its reciprocity value.
 ///
-pub fn all_local_reciprocity<G: StaticGraphViewOps>(g: &G) -> TypedNodeState<'static, ReciprocityState, G> {
+pub fn all_local_reciprocity<G: StaticGraphViewOps>(
+    g: &G,
+) -> TypedNodeState<'static, ReciprocityState, G> {
     let values: Vec<_> = g
         .nodes()
         .par_iter()

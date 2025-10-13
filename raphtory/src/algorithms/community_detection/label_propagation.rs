@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct LabelPropState {
+pub struct LabelPropState {
     #[serde(skip)]
     nbors: HashMap<usize, usize>,
     community_id: usize,

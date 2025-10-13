@@ -17,9 +17,9 @@ use num_traits::abs;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct PageRankState {
+pub struct PageRankState {
     #[serde(rename = "pagerank_score")]
-    score: f64,
+    pub score: f64,
     #[serde(skip)]
     out_degree: usize,
 }

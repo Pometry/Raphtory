@@ -8,7 +8,7 @@ use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
-struct LouvainState {
+pub struct LouvainState {
     community_id: usize,
 }
 
@@ -70,5 +70,11 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
             *c = partition.com(&VID(*c)).index();
         }
     }
-    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(g.clone(), global_partition, |value| LouvainState { community_id: value }))
+    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(
+        g.clone(),
+        global_partition,
+        |value| LouvainState {
+            community_id: value,
+        },
+    ))
 }
