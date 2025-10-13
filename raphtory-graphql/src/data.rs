@@ -441,7 +441,7 @@ pub(crate) mod data_tests {
 
         let configs = AppConfigBuilder::new()
             .with_cache_capacity(1)
-            .with_cache_tti_seconds(300)
+            .with_cache_tti_seconds(2)
             .build();
 
         let data = Data::new(work_dir, &configs);
