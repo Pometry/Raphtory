@@ -8,6 +8,3 @@ version = "0.1.0"
 dependencies = [
     "docstring_parser >= 0.15"
 ]
-
-[tool.setuptools]
-py-modules = ["stub_gen"]
