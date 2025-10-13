@@ -109,6 +109,8 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropertyInput>>,
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
         let node = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
@@ -129,6 +131,8 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropertyInput>>,
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
         let node = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
@@ -143,6 +147,8 @@ impl GqlMutableGraph {
 
     /// Add a batch of nodes.
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
 
         let nodes: Vec<Result<NodeView<GraphWithVectors>, GraphError>> =
@@ -194,6 +200,8 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropertyInput>>,
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
         let edge = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
@@ -210,6 +218,8 @@ impl GqlMutableGraph {
 
     /// Add a batch of edges.
     async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
 
         let edges: Vec<Result<EdgeView<GraphWithVectors>, GraphError>> =
@@ -261,6 +271,8 @@ impl GqlMutableGraph {
         dst: String,
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
         let edge =
             blocking_compute(move || self_clone.graph.delete_edge(time, src, dst, layer.as_str()))
@@ -277,6 +289,8 @@ impl GqlMutableGraph {
         t: i64,
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone
@@ -289,6 +303,8 @@ impl GqlMutableGraph {
 
     /// Add metadata to graph (errors if the property already exists).
     async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
@@ -299,6 +315,8 @@ impl GqlMutableGraph {
 
     /// Update metadata of the graph (overwrites existing values).
     async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
+        self.graph.set_dirty(true);
+
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone
@@ -357,6 +375,8 @@ impl GqlMutableNode {
 
     /// Add metadata to the node (errors if the property already exists).
     async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
+        self.node.graph.set_dirty(true);
+
         let self_clone = self.clone();
         spawn(async move {
             self_clone.node.add_metadata(as_properties(properties)?)?;
@@ -369,6 +389,8 @@ impl GqlMutableNode {
 
     /// Set the node type (errors if the node already has a non-default type).
     async fn set_node_type(&self, new_type: String) -> Result<bool, GraphError> {
+        self.node.graph.set_dirty(true);
+
         let self_clone = self.clone();
         spawn(async move {
             self_clone.node.set_node_type(&new_type)?;
@@ -381,6 +403,8 @@ impl GqlMutableNode {
 
     /// Update metadata of the node (overwrites existing property values).
     async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
+        self.node.graph.set_dirty(true);
+
         let self_clone = self.clone();
         spawn(async move {
             self_clone
@@ -399,6 +423,8 @@ impl GqlMutableNode {
         time: i64,
         properties: Option<Vec<GqlPropertyInput>>,
     ) -> Result<bool, GraphError> {
+        self.node.graph.set_dirty(true);
+
         let self_clone = self.clone();
         spawn(async move {
             self_clone
@@ -448,6 +474,8 @@ impl GqlMutableEdge {
 
     /// Mark the edge as deleted at time time.
     async fn delete(&self, time: i64, layer: Option<String>) -> Result<bool, GraphError> {
+        self.edge.graph.set_dirty(true);
+
         let self_clone = self.clone();
         spawn(async move {
             self_clone.edge.delete(time, layer.as_str())?;
@@ -467,6 +495,8 @@ impl GqlMutableEdge {
         properties: Vec<GqlPropertyInput>,
         layer: Option<String>,
     ) -> Result<bool, GraphError> {
+        self.edge.graph.set_dirty(true);
+
         let self_clone = self.clone();
         spawn(async move {
             self_clone
@@ -488,6 +518,8 @@ impl GqlMutableEdge {
         properties: Vec<GqlPropertyInput>,
         layer: Option<String>,
     ) -> Result<bool, GraphError> {
+        self.edge.graph.set_dirty(true);
+
         let self_clone = self.clone();
         spawn(async move {
             self_clone
@@ -510,6 +542,8 @@ impl GqlMutableEdge {
         properties: Option<Vec<GqlPropertyInput>>,
         layer: Option<String>,
     ) -> Result<bool, GraphError> {
+        self.edge.graph.set_dirty(true);
+
         let self_clone = self.clone();
         spawn(async move {
             self_clone.edge.add_updates(

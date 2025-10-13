@@ -20,9 +20,7 @@ use std::{
     io::{Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
-    time::Instant,
 };
-use tempfile;
 use tokio::fs;
 use tracing::warn;
 use walkdir::WalkDir;
@@ -79,7 +77,7 @@ impl Data {
 
                 // On eviction, serialize graphs that don't have underlying storage.
                 // FIXME: don't have currently a way to know which embedding updates are pending
-                if !graph.graph.disk_storage_enabled() {
+                if !graph.graph.disk_storage_enabled() && graph.is_dirty() {
                     if let Err(e) = Self::encode_graph_to_disk(graph.clone()) {
                         warn!("Error encoding graph to disk on eviction: {e}");
                     }
@@ -141,7 +139,7 @@ impl Data {
         graph: MaterializedGraph,
     ) -> Result<(), GraphError> {
         let vectors = self.vectorise(graph.clone(), &folder).await;
-        let graph = GraphWithVectors::new(graph, vectors);
+        let graph = GraphWithVectors::new(graph, vectors, folder.clone().into());
 
         let graph_clone = graph.clone();
         let folder_clone = folder.clone();
@@ -159,12 +157,6 @@ impl Data {
             Ok::<(), GraphError>(())
         })
         .await?;
-
-        let folder_for_init = folder.clone();
-
-        graph
-            .folder
-            .get_or_try_init(|| Ok::<_, GraphError>(folder_for_init.into()))?;
 
         let path = folder.get_original_path_str();
         self.cache.insert(path.into(), graph).await;
@@ -283,30 +275,28 @@ impl Data {
 
     /// Serializes a graph to disk, overwriting any existing data in its folder.
     fn encode_graph_to_disk(graph: GraphWithVectors) -> Result<(), GraphError> {
-        if let Some(folder) = graph.folder.get() {
-            let folder_path = folder.get_base_path();
+        let folder_path = graph.folder.get_base_path();
 
-            // Create a backup of the existing folder
-            if folder_path.exists() {
-                let bak_path = folder_path.with_extension("bak");
-
-                // Remove any old backups
-                if bak_path.exists() {
-                    std::fs::remove_dir_all(&bak_path)?;
-                }
-
-                std::fs::rename(&folder_path, &bak_path)?;
-            }
-
-            // Serialize the graph to the original folder path
-            graph.graph.encode(&folder_path)?;
-
-            // Delete the backup on success
+        // Create a backup of the existing folder
+        if folder_path.exists() {
             let bak_path = folder_path.with_extension("bak");
 
+            // Remove any old backups
             if bak_path.exists() {
                 std::fs::remove_dir_all(&bak_path)?;
             }
+
+            std::fs::rename(&folder_path, &bak_path)?;
+        }
+
+        // Serialize the graph to the original folder path
+        graph.graph.encode(&folder_path)?;
+
+        // Delete the backup on success
+        let bak_path = folder_path.with_extension("bak");
+
+        if bak_path.exists() {
+            std::fs::remove_dir_all(&bak_path)?;
         }
 
         Ok(())
@@ -317,7 +307,7 @@ impl Drop for Data {
     fn drop(&mut self) {
         // On drop, serialize graphs that don't have underlying storage.
         for (_, graph) in self.cache.iter() {
-            if !graph.graph.disk_storage_enabled() {
+            if !graph.graph.disk_storage_enabled() && graph.is_dirty() {
                 if let Err(e) = Self::encode_graph_to_disk(graph.clone()) {
                     warn!("Error encoding graph to disk on drop: {e}");
                 }
@@ -451,7 +441,7 @@ pub(crate) mod data_tests {
 
         let configs = AppConfigBuilder::new()
             .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
+            .with_cache_tti_seconds(300)
             .build();
 
         let data = Data::new(work_dir, &configs);
@@ -477,5 +467,156 @@ pub(crate) mod data_tests {
             .is_ok());
 
         assert!(data.get_graph("some/random/path").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_drop_skips_write_when_graph_is_not_dirty() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+
+        // Create two graphs and save them to disk
+        let graph1 = Graph::new();
+        graph1
+            .add_edge(0, 1, 2, [("name", "test_e1")], None)
+            .unwrap();
+        graph1
+            .add_edge(0, 1, 3, [("name", "test_e2")], None)
+            .unwrap();
+
+        let graph2 = Graph::new();
+        graph2
+            .add_edge(0, 2, 3, [("name", "test_e3")], None)
+            .unwrap();
+        graph2
+            .add_edge(0, 2, 4, [("name", "test_e4")], None)
+            .unwrap();
+
+        let graph1_path = tmp_work_dir.path().join("test_graph1");
+        let graph2_path = tmp_work_dir.path().join("test_graph2");
+        graph1.encode(&graph1_path).unwrap();
+        graph2.encode(&graph2_path).unwrap();
+
+        // Record modification times before any operations
+        let graph1_metadata = fs::metadata(&graph1_path).unwrap();
+        let graph2_metadata = fs::metadata(&graph2_path).unwrap();
+        let graph1_original_time = graph1_metadata.modified().unwrap();
+        let graph2_original_time = graph2_metadata.modified().unwrap();
+
+        let configs = AppConfigBuilder::new()
+            .with_cache_capacity(10)
+            .with_cache_tti_seconds(300)
+            .build();
+
+        let data = Data::new(tmp_work_dir.path(), &configs);
+
+        let (loaded_graph1, _) = data.get_graph("test_graph1").await.unwrap();
+        let (loaded_graph2, _) = data.get_graph("test_graph2").await.unwrap();
+
+        assert!(!loaded_graph1.is_dirty(), "Graph1 should not be dirty when loaded from disk");
+        assert!(!loaded_graph2.is_dirty(), "Graph2 should not be dirty when loaded from disk");
+
+        // Modify only graph1 to make it dirty
+        loaded_graph1.set_dirty(true);
+        assert!(loaded_graph1.is_dirty(), "Graph1 should be dirty after modification");
+
+        // Drop the Data instance - this should trigger serialization
+        drop(data);
+
+        // Check modification times after drop
+        let graph1_metadata_after = fs::metadata(&graph1_path).unwrap();
+        let graph2_metadata_after = fs::metadata(&graph2_path).unwrap();
+        let graph1_modified_time = graph1_metadata_after.modified().unwrap();
+        let graph2_modified_time = graph2_metadata_after.modified().unwrap();
+
+        // Graph1 (dirty) modification time should be different
+        assert_ne!(
+            graph1_original_time,
+            graph1_modified_time,
+            "Graph1 (dirty) should have been written to disk on drop"
+        );
+
+        // Graph2 (not dirty) modification time should be the same
+        assert_eq!(
+            graph2_original_time,
+            graph2_modified_time,
+            "Graph2 (not dirty) should not have been written to disk on drop"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_eviction_skips_write_when_graph_is_not_dirty() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+
+        // Create two graphs and save them to disk
+        let graph1 = Graph::new();
+        graph1
+            .add_edge(0, 1, 2, [("name", "test_e1")], None)
+            .unwrap();
+        graph1
+            .add_edge(0, 1, 3, [("name", "test_e2")], None)
+            .unwrap();
+
+        let graph2 = Graph::new();
+        graph2
+            .add_edge(0, 2, 3, [("name", "test_e3")], None)
+            .unwrap();
+        graph2
+            .add_edge(0, 2, 4, [("name", "test_e4")], None)
+            .unwrap();
+
+        let graph1_path = tmp_work_dir.path().join("test_graph1");
+        let graph2_path = tmp_work_dir.path().join("test_graph2");
+        graph1.encode(&graph1_path).unwrap();
+        graph2.encode(&graph2_path).unwrap();
+
+        // Record modification times before any operations
+        let graph1_metadata = fs::metadata(&graph1_path).unwrap();
+        let graph2_metadata = fs::metadata(&graph2_path).unwrap();
+        let graph1_original_time = graph1_metadata.modified().unwrap();
+        let graph2_original_time = graph2_metadata.modified().unwrap();
+
+        // Create cache with time to idle 3 seconds to force eviction
+        let configs = AppConfigBuilder::new()
+            .with_cache_capacity(10)
+            .with_cache_tti_seconds(3)
+            .build();
+
+        let data = Data::new(tmp_work_dir.path(), &configs);
+
+        // Load first graph
+        let (loaded_graph1, _) = data.get_graph("test_graph1").await.unwrap();
+        assert!(!loaded_graph1.is_dirty(), "Graph1 should not be dirty when loaded from disk");
+
+        // Modify graph1 to make it dirty
+        loaded_graph1.set_dirty(true);
+        assert!(loaded_graph1.is_dirty(), "Graph1 should be dirty after modification");
+
+        // Load second graph
+        println!("Loading second graph");
+        let (loaded_graph2, _) = data.get_graph("test_graph2").await.unwrap();
+        assert!(!loaded_graph2.is_dirty(), "Graph2 should not be dirty when loaded from disk");
+
+        // Sleep to trigger eviction
+        sleep(Duration::from_secs(3)).await;
+        data.cache.run_pending_tasks().await;
+
+        // Check modification times after eviction
+        let graph1_metadata_after = fs::metadata(&graph1_path).unwrap();
+        let graph2_metadata_after = fs::metadata(&graph2_path).unwrap();
+        let graph1_modified_time = graph1_metadata_after.modified().unwrap();
+        let graph2_modified_time = graph2_metadata_after.modified().unwrap();
+
+        // Graph1 (dirty) modification time should be different
+        assert_ne!(
+            graph1_original_time,
+            graph1_modified_time,
+            "Graph1 (dirty) should have been written to disk on eviction"
+        );
+
+        // Graph2 (not dirty) modification time should be the same
+        assert_eq!(
+            graph2_original_time,
+            graph2_modified_time,
+            "Graph2 (not dirty) should not have been written to disk on eviction"
+        );
     }
 }

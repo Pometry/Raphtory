@@ -1,3 +1,5 @@
+use std::sync::{atomic::{AtomicBool, Ordering}, Arc};
+
 use crate::paths::ExistingGraphFolder;
 use once_cell::sync::OnceCell;
 use raphtory::{
@@ -29,19 +31,30 @@ use tracing::info;
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub(crate) folder: OnceCell<GraphFolder>,
+    pub(crate) folder: GraphFolder,
+    pub(crate) is_dirty: Arc<AtomicBool>,
 }
 
 impl GraphWithVectors {
     pub(crate) fn new(
         graph: MaterializedGraph,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
+        folder: GraphFolder,
     ) -> Self {
         Self {
             graph,
             vectors,
-            folder: Default::default(),
+            folder: folder,
+            is_dirty: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub(crate) fn set_dirty(&self, is_dirty: bool) {
+        self.is_dirty.store(is_dirty, Ordering::SeqCst);
+    }
+
+    pub(crate) fn is_dirty(&self) -> bool {
+        self.is_dirty.load(Ordering::SeqCst)
     }
 
     /// Generates and stores embeddings for a batch of nodes.
@@ -111,7 +124,8 @@ impl GraphWithVectors {
         Ok(Self {
             graph: graph.clone(),
             vectors,
-            folder: OnceCell::with_value(folder.clone().into()),
+            folder: folder.clone().into(),
+            is_dirty: Arc::new(AtomicBool::new(false)),
         })
     }
 }
