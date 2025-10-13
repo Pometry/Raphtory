@@ -1634,9 +1634,9 @@ will be returned.
 ### EventTime
 
 Raphtory’s EventTime.
-Represents a unique timepoint in the graph’s history as (epoch, event_id).
+Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 
-- epoch: timestamp in milliseconds since the Unix epoch.
+- timestamp: number of milliseconds since the Unix epoch.
 - event_id: id used for ordering between equal timestamps.
 
 <table>
@@ -1654,7 +1654,7 @@ Represents a unique timepoint in the graph’s history as (epoch, event_id).
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Get the timestamp in milliseconds since Unix epoch.
+Get the timestamp in milliseconds since the Unix epoch.
 
 </td>
 </tr>
@@ -2411,26 +2411,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -2448,6 +2428,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">direction</td>
 <td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
+<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2665,7 +2665,7 @@ Get the number of entries contained in the history.
 <td valign="top"><a href="#historytimestamp">HistoryTimestamp</a>!</td>
 <td>
 
-Returns a HistoryTimestamp object which accesses timestamps as Unix epochs in milliseconds
+Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
 instead of EventTime entries.
 
 </td>
@@ -2921,7 +2921,7 @@ will be returned.
 
 ### HistoryTimestamp
 
-History object that provides access to timestamps (as Unix epochs in milliseconds) instead of `EventTime` entries.
+History object that provides access to timestamps (milliseconds since the Unix epoch) instead of `EventTime` entries.
 
 <table>
 <thead>
@@ -3616,7 +3616,7 @@ Create a new node or fail if it already exists.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of nodes
+Add a batch of nodes.
 
 </td>
 </tr>
@@ -3683,7 +3683,7 @@ Add a new edge or add updates to an existing edge.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of edges
+Add a batch of edges.
 
 </td>
 </tr>
@@ -8150,8 +8150,8 @@ The `String` scalar type represents textual data, represented as UTF-8 character
 
 ### TimeInput
 
-Input for primary time component. Expects Int, DateTime formatted String, or Object {epoch, eventId}
-where epoch is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
+Input for primary time component. Expects Int, DateTime formatted String, or Object { timestamp, eventId }
+where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
 Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
 %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
 
