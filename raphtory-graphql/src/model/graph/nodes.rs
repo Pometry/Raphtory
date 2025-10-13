@@ -43,7 +43,7 @@ impl GqlNodes {
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
-        let iter = self.nn.iter_owned().map(GqlNode::from);
+        let iter = self.nn.iter_owned_unlocked().map(GqlNode::from);
         Box::new(iter)
     }
 }
@@ -348,6 +348,6 @@ impl GqlNodes {
     /// Returns a view of the node ids.
     async fn ids(&self) -> Vec<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.name().collect()).await
+        blocking_compute(move || self_clone.nn.iter_unlocked().map(|nn| nn.name()).collect()).await
     }
 }

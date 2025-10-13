@@ -106,7 +106,7 @@ impl PartialEq for EdgesStorage {
                 .shards
                 .iter()
                 .zip(other.shards.iter())
-                .all(|(a, b)| a.read().eq(&b.read()))
+                .all(|(a, b)| a.read_recursive().eq(&b.read_recursive()))
     }
 }
 
@@ -146,13 +146,13 @@ impl EdgesStorage {
             shards: self
                 .shards
                 .iter()
-                .map(|shard| Arc::new(shard.read_arc()))
+                .map(|shard| Arc::new(shard.read_arc_recursive()))
                 .collect(),
             len: self.len(),
         }
     }
 
-    pub fn write_lock(&self) -> WriteLockedEdges {
+    pub fn write_lock(&self) -> WriteLockedEdges<'_> {
         WriteLockedEdges {
             shards: self.shards.iter().map(|shard| shard.write()).collect(),
             global_len: &self.len,
@@ -164,7 +164,7 @@ impl EdgesStorage {
         resolve(index, self.shards.len())
     }
 
-    pub(crate) fn push(&self, mut value: EdgeStore) -> UninitialisedEdge {
+    pub(crate) fn push(&self, mut value: EdgeStore) -> UninitialisedEdge<'_> {
         let index = self.len.fetch_add(1, atomic::Ordering::Relaxed);
         value.eid = EID(index);
         let (bucket, offset) = self.resolve(index);
@@ -176,7 +176,7 @@ impl EdgesStorage {
         }
     }
 
-    pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard {
+    pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard<'_> {
         let (bucket, offset) = self.resolve(eid.into());
         EdgeWGuard {
             guard: self.shards[bucket].write(),
@@ -184,11 +184,21 @@ impl EdgesStorage {
         }
     }
 
-    pub fn get_edge(&self, eid: EID) -> EdgeRGuard {
+    pub fn get_edge(&self, eid: EID) -> EdgeRGuard<'_> {
         let (bucket, offset) = self.resolve(eid.into());
         EdgeRGuard {
-            guard: self.shards[bucket].read(),
+            guard: self.shards[bucket].read_recursive(),
             offset,
+        }
+    }
+
+    pub fn try_get_edge(&self, eid: EID) -> Option<EdgeRGuard<'_>> {
+        let (bucket, offset) = self.resolve(eid.into());
+        let guard = self.shards.get(bucket)?.read();
+        if guard.edge_ids.get(offset)?.initialised() {
+            Some(EdgeRGuard { guard, offset })
+        } else {
+            None
         }
     }
 }
@@ -199,14 +209,14 @@ pub struct EdgeWGuard<'a> {
 }
 
 impl<'a> EdgeWGuard<'a> {
-    pub fn as_mut(&mut self) -> MutEdge {
+    pub fn as_mut(&mut self) -> MutEdge<'_> {
         MutEdge {
             guard: self.guard.deref_mut(),
             i: self.i,
         }
     }
 
-    pub fn as_ref(&self) -> MemEdge {
+    pub fn as_ref(&self) -> MemEdge<'_> {
         MemEdge::new(&self.guard, self.i)
     }
 
@@ -221,7 +231,7 @@ pub struct MutEdge<'a> {
 }
 
 impl<'a> MutEdge<'a> {
-    pub fn as_ref(&self) -> MemEdge {
+    pub fn as_ref(&self) -> MemEdge<'_> {
         MemEdge::new(self.guard, self.i)
     }
     pub fn eid(&self) -> EID {
@@ -293,7 +303,7 @@ pub struct EdgeRGuard<'a> {
 }
 
 impl<'a> EdgeRGuard<'a> {
-    pub fn as_mem_edge(&self) -> MemEdge {
+    pub fn as_mem_edge(&self) -> MemEdge<'_> {
         MemEdge::new(&self.guard, self.offset)
     }
 
@@ -311,31 +321,43 @@ pub struct LockedEdges {
 }
 
 impl LockedEdges {
-    pub fn get_mem(&self, eid: EID) -> MemEdge {
+    pub fn get_mem(&self, eid: EID) -> MemEdge<'_> {
         let (bucket, offset) = resolve(eid.into(), self.shards.len());
         MemEdge::new(&self.shards[bucket], offset)
+    }
+
+    pub fn try_get_mem(&self, eid: EID) -> Option<MemEdge<'_>> {
+        let (bucket, offset) = resolve(eid.into(), self.shards.len());
+        let guard = self.shards.get(bucket)?;
+        if guard.edge_ids.get(offset)?.initialised() {
+            Some(MemEdge::new(guard, offset))
+        } else {
+            None
+        }
     }
 
     pub fn len(&self) -> usize {
         self.len
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = MemEdge> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = MemEdge<'_>> + '_ {
         self.shards.iter().flat_map(|shard| {
             shard
                 .edge_ids
                 .iter()
                 .enumerate()
+                .filter(|(_, e)| e.initialised())
                 .map(move |(offset, _)| MemEdge::new(shard, offset))
         })
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = MemEdge> + '_ {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = MemEdge<'_>> + '_ {
         self.shards.par_iter().flat_map(|shard| {
             shard
                 .edge_ids
                 .par_iter()
                 .enumerate()
+                .filter(|(_, e)| e.initialised())
                 .map(move |(offset, _)| MemEdge::new(shard, offset))
         })
     }
@@ -359,7 +381,7 @@ where
         (bucket == self.shard_id).then_some(offset)
     }
 
-    pub fn get_mut(&mut self, eid: EID) -> Option<MutEdge> {
+    pub fn get_mut(&mut self, eid: EID) -> Option<MutEdge<'_>> {
         let offset = self.resolve(eid)?;
         if self.shard.edge_ids.len() <= offset {
             self.global_len.fetch_max(eid.0 + 1, Ordering::Relaxed);
@@ -386,7 +408,7 @@ pub struct WriteLockedEdges<'a> {
 impl<'a> WriteLockedEdges<'a> {
     pub fn par_iter_mut(
         &mut self,
-    ) -> impl IndexedParallelIterator<Item = EdgeShardWriter<&mut EdgeShard>> + '_ {
+    ) -> impl IndexedParallelIterator<Item = EdgeShardWriter<'_, &mut EdgeShard>> + '_ {
         let num_shards = self.shards.len();
         let shards: Vec<_> = self
             .shards

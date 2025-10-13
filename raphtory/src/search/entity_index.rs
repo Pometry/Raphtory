@@ -119,7 +119,7 @@ impl EntityIndex {
                 PropertyIndex::new_node_property,
             )?;
 
-            let indexes = self.metadata_indexes.read();
+            let indexes = self.metadata_indexes.read_recursive();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
                 (0..graph.count_nodes())
@@ -163,7 +163,7 @@ impl EntityIndex {
                 PropertyIndex::new_node_property,
             )?;
 
-            let indexes = self.temporal_property_indexes.read();
+            let indexes = self.temporal_property_indexes.read_recursive();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
                 (0..graph.count_nodes())
@@ -210,7 +210,7 @@ impl EntityIndex {
                 PropertyIndex::new_edge_property,
             )?;
 
-            let indexes = self.metadata_indexes.read();
+            let indexes = self.metadata_indexes.read_recursive();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
                 (0..graph.count_edges())
@@ -257,7 +257,7 @@ impl EntityIndex {
                 PropertyIndex::new_edge_property,
             )?;
 
-            let indexes = self.temporal_property_indexes.read();
+            let indexes = self.temporal_property_indexes.read_recursive();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
                 (0..graph.count_edges())
@@ -292,7 +292,7 @@ impl EntityIndex {
     ) -> Option<(Arc<PropertyIndex>, usize)> {
         prop_id.and_then(|id| {
             indexes
-                .read()
+                .read_recursive()
                 .get(id)
                 .and_then(|opt| opt.as_ref())
                 .cloned()

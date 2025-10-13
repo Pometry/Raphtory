@@ -453,7 +453,10 @@ impl<
     fn get_by_index(
         &self,
         index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+    ) -> Option<(
+        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
+        Self::Value<'_>,
+    )> {
         match &self.keys {
             Some(node_index) => node_index.key(index).map(|n| {
                 (

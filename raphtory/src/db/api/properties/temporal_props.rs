@@ -18,7 +18,7 @@ use crate::db::api::{
 };
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
 #[cfg(feature = "arrow")]
-use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
+use {arrow::array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: InternalPropertiesOps> {
@@ -72,7 +72,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         History::new(self.clone())
     }
 
-    pub fn values(&self) -> BoxedLIter<Prop> {
+    pub fn values(&self) -> BoxedLIter<'_, Prop> {
         self.props.temporal_values_iter(self.id)
     }
 

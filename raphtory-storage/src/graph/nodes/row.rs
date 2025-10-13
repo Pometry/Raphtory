@@ -3,9 +3,9 @@ use raphtory_core::storage::node_entry::MemRow;
 
 #[cfg(feature = "storage")]
 use {
-    polars_arrow::datatypes::ArrowDataType,
     pometry_storage::{
         graph::TemporalGraph, properties::TemporalProps, timestamps::TimeStamps, tprops::DiskTProp,
+        tprops::PropCol,
     },
     raphtory_api::core::{entities::VID, storage::timeindex::EventTime},
 };
@@ -86,34 +86,5 @@ impl<'a> IntoIterator for DiskRow<'a> {
 
 #[cfg(feature = "storage")]
 fn get<'a>(disk_col: &DiskTProp<'a, EventTime>, row: usize) -> Option<Prop> {
-    use bigdecimal::BigDecimal;
-    use num_traits::FromPrimitive;
-
-    match disk_col {
-        DiskTProp::Empty(_) => None,
-        DiskTProp::Bool(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::Str64(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::Str32(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::Str(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::I32(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::I64(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::U8(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::U16(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::U32(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::U64(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::F32(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::F64(tprop_column) => tprop_column.get(row).map(|p| p.into()),
-        DiskTProp::I128(tprop_column) => {
-            let d_type = tprop_column.data_type()?;
-            match d_type {
-                ArrowDataType::Decimal(_, scale) => tprop_column.get(row).map(|p| {
-                    BigDecimal::from_i128(p)
-                        .unwrap()
-                        .with_scale(*scale as i64)
-                        .into()
-                }),
-                _ => unimplemented!("{d_type:?} not supported as disk_graph property"),
-            }
-        }
-    }
+    disk_col.get_prop_row(row)
 }

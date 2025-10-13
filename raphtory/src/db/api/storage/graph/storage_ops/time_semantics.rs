@@ -75,7 +75,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id < self.graph_meta().temporal_mapper().len()
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(EventTime, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
@@ -97,7 +97,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id: usize,
         start: EventTime,
         end: EventTime,
-    ) -> BoxedLDIter<(EventTime, Prop)> {
+    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()

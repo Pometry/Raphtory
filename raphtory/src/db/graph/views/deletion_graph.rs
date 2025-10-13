@@ -195,7 +195,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.has_temporal_prop(prop_id)
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(EventTime, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
         self.0.temporal_prop_iter(prop_id)
     }
 
@@ -211,7 +211,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         prop_id: usize,
         start: EventTime,
         end: EventTime,
-    ) -> BoxedLDIter<(EventTime, Prop)> {
+    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
             let first =
                 persisted_prop_value_at(start.t(), &*prop, &TimeIndex::Empty).map(|v| (start, v));

@@ -129,7 +129,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> 
         }
     }
 
-    pub fn deletions_hist(&self) -> BoxedLIter<(EventTime, usize)> {
+    pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, usize)> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -437,11 +437,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadata
             .clone()
     }
 
-    fn metadata_ids(&self) -> BoxedLIter<usize> {
+    fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
         Box::new(0..self.graph.edge_meta().metadata_mapper().len())
     }
 
-    fn metadata_keys(&self) -> BoxedLIter<ArcStr> {
+    fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {
         let reverse_map = self.graph.edge_meta().metadata_mapper().get_keys();
         Box::new(self.metadata_ids().map(move |id| reverse_map[id].clone()))
     }
@@ -518,7 +518,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<(EventTime, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -557,7 +557,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(EventTime, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -651,11 +651,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalTemporal
             .clone()
     }
 
-    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
         Box::new(0..self.graph.edge_meta().temporal_prop_mapper().len())
     }
 
-    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
+    fn temporal_prop_keys(&self) -> BoxedLIter<'_, ArcStr> {
         let reverse_map = self.graph.edge_meta().temporal_prop_mapper().get_keys();
         Box::new(
             self.temporal_prop_ids()

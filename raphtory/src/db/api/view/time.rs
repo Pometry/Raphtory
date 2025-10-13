@@ -23,6 +23,7 @@ pub(crate) mod internal {
         db::{api::view::internal::OneHopFilter, graph::views::window_graph::WindowedGraph},
         prelude::{GraphViewOps, TimeOps},
     };
+    use raphtory_storage::core_ops::CoreGraphOps;
     use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
     use std::cmp::{max, min};
 
@@ -42,12 +43,13 @@ pub(crate) mod internal {
 
         fn timeline_start(&self) -> Option<EventTime> {
             self.start()
-                .or_else(|| self.current_filter().earliest_time())
+                .or_else(|| self.current_filter().core_graph().earliest_time())
         }
 
         fn timeline_end(&self) -> Option<EventTime> {
             self.end().or_else(|| {
                 self.current_filter()
+                    .core_graph()
                     .latest_time()
                     .map(|v| EventTime::from(v.0.saturating_add(1)))
             })

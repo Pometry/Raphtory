@@ -61,6 +61,9 @@ pub(crate) fn load_nodes_from_df<
     node_type_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -102,16 +105,18 @@ pub(crate) fn load_nodes_from_df<
         .map_err(into_graph_err)?;
     for chunk in df_view.chunks {
         let df = chunk?;
-        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
-            graph
-                .resolve_node_property(key, dtype, false)
-                .map_err(into_graph_err)
-        })?;
-        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-            graph
-                .resolve_node_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+        let prop_cols =
+            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
+                graph
+                    .resolve_node_property(key, dtype, false)
+                    .map_err(into_graph_err)
+            })?;
+        let metadata_cols =
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                graph
+                    .resolve_node_property(key, dtype, true)
+                    .map_err(into_graph_err)
+            })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
 
         let time_col = df.time_col(time_index)?;
@@ -219,6 +224,9 @@ pub fn load_edges_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -264,16 +272,25 @@ pub fn load_edges_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
-            graph
-                .resolve_edge_property(key, dtype, false)
-                .map_err(into_graph_err)
-        })?;
-        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-            graph
-                .resolve_edge_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+        let prop_cols =
+            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
+                graph
+                    .resolve_edge_property(key, dtype, false)
+                    .map_err(into_graph_err)
+            })?;
+        let metadata_cols =
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                graph
+                    .resolve_edge_property(key, dtype, true)
+                    .map_err(into_graph_err)
+            })?;
+
+        src_col_resolved.resize_with(df.len(), Default::default);
+        dst_col_resolved.resize_with(df.len(), Default::default);
+
+        // let src_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut src_col_resolved));
+        // let dst_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut dst_col_resolved));
+
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
@@ -466,6 +483,9 @@ pub(crate) fn load_edge_deletions_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
@@ -492,7 +512,6 @@ pub(crate) fn load_edge_deletions_from_df<
             .try_for_each(|(idx, (((src, dst), time), layer))| {
                 let src = src.ok_or(LoadError::MissingSrcError)?;
                 let dst = dst.ok_or(LoadError::MissingDstError)?;
-                let time = time.ok_or(LoadError::MissingTimeError)?;
                 graph.delete_edge((time, start_idx + idx), src, dst, layer)?;
                 Ok::<(), GraphError>(())
             })?;
@@ -516,6 +535,9 @@ pub(crate) fn load_node_props_from_df<
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -549,11 +571,12 @@ pub(crate) fn load_node_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-            graph
-                .resolve_node_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+        let metadata_cols =
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                graph
+                    .resolve_node_property(key, dtype, true)
+                    .map_err(into_graph_err)
+            })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_id_index)?;
 
@@ -635,6 +658,9 @@ pub(crate) fn load_edges_props_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -674,11 +700,12 @@ pub(crate) fn load_edges_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-            graph
-                .resolve_edge_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+        let metadata_cols =
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                graph
+                    .resolve_edge_property(key, dtype, true)
+                    .map_err(into_graph_err)
+            })?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
@@ -795,6 +822,9 @@ pub(crate) fn load_graph_props_from_df<
     metadata: Option<&[&str]>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties = properties.unwrap_or(&[]);
     let metadata = metadata.unwrap_or(&[]);
 
@@ -818,16 +848,18 @@ pub(crate) fn load_graph_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
-            graph
-                .resolve_graph_property(key, dtype, false)
-                .map_err(into_graph_err)
-        })?;
-        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-            graph
-                .resolve_graph_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+        let prop_cols =
+            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
+                graph
+                    .resolve_graph_property(key, dtype, false)
+                    .map_err(into_graph_err)
+            })?;
+        let metadata_cols =
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                graph
+                    .resolve_graph_property(key, dtype, true)
+                    .map_err(into_graph_err)
+            })?;
         let time_col = df.time_col(time_index)?;
 
         time_col
@@ -836,7 +868,6 @@ pub(crate) fn load_graph_props_from_df<
             .zip(metadata_cols.par_rows())
             .enumerate()
             .try_for_each(|(id, ((time, t_props), c_props))| {
-                let time = time.ok_or(LoadError::MissingTimeError)?;
                 let t = EventTime(time, start_id + id);
                 let t_props: Vec<_> = t_props.collect();
                 if !t_props.is_empty() {

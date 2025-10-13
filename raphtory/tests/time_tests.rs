@@ -7,7 +7,7 @@ use raphtory::{
             views::deletion_graph::PersistentGraph,
         },
     },
-    prelude::{DeletionOps, GraphViewOps, TimeOps, NO_PROPS},
+    prelude::{DeletionOps, GraphViewOps, LayerOps, TimeOps, NO_PROPS},
 };
 use raphtory_api::core::{
     storage::timeindex::AsTime,
@@ -24,10 +24,8 @@ fn graph_with_timeline(start: i64, end: i64) -> Graph {
     g
 }
 
-fn assert_bounds<'graph, G>(
-    windows: WindowSet<'graph, G>,
-    expected: Vec<(Option<i64>, Option<i64>)>,
-) where
+fn assert_bounds<'graph, G>(windows: WindowSet<'graph, G>, expected: &[(Option<i64>, Option<i64>)])
+where
     G: GraphViewOps<'graph>,
 {
     let window_bounds = windows
@@ -62,14 +60,14 @@ fn rolling() {
     test_storage!(&graph, |graph| {
         let windows = graph.rolling(2, None).unwrap();
         let expected = vec![(Some(1), Some(3)), (Some(3), Some(5)), (Some(5), Some(7))];
-        assert_bounds(windows, expected);
+        assert_bounds(windows, &expected);
     });
 
     let graph = graph_with_timeline(1, 6);
     test_storage!(&graph, |graph| {
         let windows = graph.rolling(3, Some(2)).unwrap();
         let expected = vec![(Some(0), Some(3)), (Some(2), Some(5)), (Some(4), Some(7))];
-        assert_bounds(windows, expected.clone());
+        assert_bounds(windows, &expected);
     });
 
     let graph = graph_with_timeline(0, 9);
@@ -77,8 +75,76 @@ fn rolling() {
         let windows = graph.window(1, 6).rolling(3, Some(2)).unwrap();
         assert_bounds(
             windows,
-            vec![(Some(1), Some(3)), (Some(2), Some(5)), (Some(4), Some(6))],
+            &[(Some(1), Some(3)), (Some(2), Some(5)), (Some(4), Some(6))],
         );
+    });
+}
+
+#[test]
+fn rolling_layered() {
+    let graph = Graph::new();
+    graph.add_edge(1, 0, 1, NO_PROPS, Some("1")).unwrap();
+    graph.add_edge(5, 0, 1, NO_PROPS, Some("1")).unwrap();
+
+    graph.add_edge(3, 0, 1, NO_PROPS, Some("2")).unwrap();
+    graph.add_edge(6, 0, 1, NO_PROPS, Some("2")).unwrap();
+
+    test_storage!(&graph, |graph| {
+        let windows = graph.rolling(2, None).unwrap();
+        let expected = vec![(Some(1), Some(3)), (Some(3), Some(5)), (Some(5), Some(7))];
+        assert_bounds(windows, &expected);
+
+        let windows = graph.layers("1").unwrap().rolling(2, None).unwrap();
+        assert_bounds(windows, &expected);
+
+        let windows = graph.layers("2").unwrap().rolling(2, None).unwrap();
+        assert_bounds(windows, &expected);
+    });
+
+    let graph = Graph::new();
+    graph.add_edge(1, 0, 1, NO_PROPS, Some("1")).unwrap();
+    graph.add_edge(3, 0, 1, NO_PROPS, Some("1")).unwrap();
+
+    graph.add_edge(3, 0, 1, NO_PROPS, Some("2")).unwrap();
+    graph.add_edge(5, 0, 1, NO_PROPS, Some("2")).unwrap();
+    test_storage!(&graph, |graph| {
+        let windows = graph.rolling(3, Some(2)).unwrap();
+        let expected = vec![(Some(0), Some(3)), (Some(2), Some(5)), (Some(4), Some(7))];
+        assert_bounds(windows, &expected);
+
+        let windows = graph.layers("1").unwrap().rolling(3, Some(2)).unwrap();
+        assert_bounds(windows, &expected);
+
+        let windows = graph.layers("2").unwrap().rolling(3, Some(2)).unwrap();
+        assert_bounds(windows, &expected);
+    });
+
+    let graph = Graph::new();
+    graph.add_edge(0, 0, 1, NO_PROPS, Some("1")).unwrap();
+    graph.add_edge(5, 0, 1, NO_PROPS, Some("1")).unwrap();
+
+    graph.add_edge(3, 0, 1, NO_PROPS, Some("2")).unwrap();
+    graph.add_edge(8, 0, 1, NO_PROPS, Some("2")).unwrap();
+    test_storage!(&graph, |graph| {
+        let windows = graph.window(1, 6).rolling(3, Some(2)).unwrap();
+        let expected = [(Some(1), Some(3)), (Some(2), Some(5)), (Some(4), Some(6))];
+        assert_bounds(windows, &expected);
+
+        let windows = graph
+            .layers("1")
+            .unwrap()
+            .window(1, 6)
+            .rolling(3, Some(2))
+            .unwrap();
+        assert_bounds(windows, &expected);
+
+        let windows = graph
+            .layers("2")
+            .unwrap()
+            .window(1, 6)
+            .rolling(3, Some(2))
+            .unwrap();
+        assert_bounds(windows, &expected);
     });
 }
 
@@ -88,14 +154,14 @@ fn expanding() {
     test_storage!(&graph, |graph| {
         let windows = graph.expanding(2).unwrap();
         let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
-        assert_bounds(windows, expected);
+        assert_bounds(windows, &expected);
     });
 
     let graph = graph_with_timeline(1, 6);
     test_storage!(&graph, |graph| {
         let windows = graph.expanding(2).unwrap();
         let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
-        assert_bounds(windows, expected.clone());
+        assert_bounds(windows, &expected);
     });
 
     let graph = graph_with_timeline(0, 9);
@@ -103,7 +169,7 @@ fn expanding() {
         let windows = graph.window(1, 6).expanding(2).unwrap();
         assert_bounds(
             windows,
-            vec![(Some(1), Some(3)), (Some(1), Some(5)), (Some(1), Some(6))],
+            &[(Some(1), Some(3)), (Some(1), Some(5)), (Some(1), Some(6))],
         );
     });
 }
@@ -125,7 +191,7 @@ fn rolling_dates() {
                 "2020-06-08 00:00:00".try_into_time().ok().map(|t| t.t()),
             ),
         ];
-        assert_bounds(windows, expected);
+        assert_bounds(windows, &expected);
     });
 
     let start = "2020-06-06 00:00:00".try_into_time().unwrap().t();
@@ -143,7 +209,7 @@ fn rolling_dates() {
                 "2020-06-08 00:00:00".try_into_time().ok().map(|t| t.t()),
             ),
         ];
-        assert_bounds(windows, expected);
+        assert_bounds(windows, &expected);
     });
 
     // TODO: turn this back on if we bring bach epoch alignment for unwindowed graphs
@@ -243,7 +309,7 @@ fn expanding_dates() {
                 "2020-06-08 00:00:00".try_into_time().ok().map(|t| t.t()),
             ),
         ];
-        assert_bounds(windows, expected);
+        assert_bounds(windows, &expected);
     });
 
     let start = "2020-06-06 00:00:00".try_into_time().unwrap().t();
@@ -261,6 +327,6 @@ fn expanding_dates() {
                 "2020-06-08 00:00:00".try_into_time().ok().map(|t| t.t()),
             ),
         ];
-        assert_bounds(windows, expected);
+        assert_bounds(windows, &expected);
     });
 }

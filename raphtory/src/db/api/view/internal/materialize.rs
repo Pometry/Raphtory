@@ -139,7 +139,7 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.has_temporal_prop(prop_id))
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(EventTime, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter(prop_id))
     }
 
@@ -152,7 +152,7 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         prop_id: usize,
         start: EventTime,
         end: EventTime,
-    ) -> BoxedLDIter<(EventTime, Prop)> {
+    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window(prop_id, start, end))
     }
 

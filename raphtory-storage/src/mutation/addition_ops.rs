@@ -20,9 +20,9 @@ use std::sync::atomic::Ordering;
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error>;
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error>;
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error>;
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_>, Self::Error>;
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes<'_>, Self::Error>;
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges<'_>, Self::Error>;
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, Self::Error>;
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error>;
@@ -87,15 +87,15 @@ pub trait InternalAdditionOps {
 impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_>, Self::Error> {
         Ok(WriteLockedGraph::new(self))
     }
 
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes<'_>, Self::Error> {
         Ok(self.storage.nodes.write_lock())
     }
 
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges<'_>, Self::Error> {
         Ok(self.storage.edges.write_lock())
     }
 
@@ -254,15 +254,15 @@ impl InternalAdditionOps for TemporalGraph {
 impl InternalAdditionOps for GraphStorage {
     type Error = MutationError;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_>, Self::Error> {
         self.mutable()?.write_lock()
     }
 
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes<'_>, Self::Error> {
         self.mutable()?.write_lock_nodes()
     }
 
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges<'_>, Self::Error> {
         self.mutable()?.write_lock_edges()
     }
 
@@ -365,17 +365,17 @@ where
     type Error = <G::Base as InternalAdditionOps>::Error;
 
     #[inline]
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_>, Self::Error> {
         self.base().write_lock()
     }
 
     #[inline]
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes<'_>, Self::Error> {
         self.base().write_lock_nodes()
     }
 
     #[inline]
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges<'_>, Self::Error> {
         self.base().write_lock_edges()
     }
 

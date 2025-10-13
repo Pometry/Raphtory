@@ -19,19 +19,18 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { workspace = true }
-numpy = { workspace = true }
-raphtory_core = { path = "../raphtory", version = "0.16.1", features = [
+raphtory = { workspace = true, features = [
     "python",
     "search",
     "vectors",
     "proto",
-], package = "raphtory" }
-raphtory-graphql = { path = "../raphtory-graphql", version = "0.16.1", features = [
+] }
+raphtory-graphql = { workspace = true, features = [
     "python", "search"
 ] }
 
 [features]
-storage = ["raphtory_core/storage", "raphtory-graphql/storage"]
+storage = ["raphtory/storage", "raphtory-graphql/storage"]
 extension-module = ["pyo3/extension-module"]
 
 [build-dependencies]

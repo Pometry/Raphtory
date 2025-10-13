@@ -101,7 +101,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 
 /// Converts a python node into a rust node.
 impl AsNodeRef for PyNode {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         self.node.as_node_ref()
     }
 }

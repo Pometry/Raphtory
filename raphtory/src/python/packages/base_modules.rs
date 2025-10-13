@@ -113,7 +113,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let iterables_module = PyModule::new(py, "iterables")?;
     add_classes!(
         iterables_module,
@@ -167,7 +167,7 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     Ok(iterables_module)
 }
 
-pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let algorithm_module = PyModule::new(py, "algorithms")?;
     add_functions!(
         &algorithm_module,
@@ -220,7 +220,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     Ok(algorithm_module)
 }
 
-pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
     add_functions!(
         &graph_loader_module,
@@ -235,7 +235,7 @@ pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr
     Ok(graph_loader_module)
 }
 
-pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let graph_gen_module = PyModule::new(py, "graph_gen")?;
     add_functions!(
         &graph_gen_module,
@@ -245,7 +245,7 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     Ok(graph_gen_module)
 }
 
-pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;

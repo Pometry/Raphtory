@@ -267,7 +267,13 @@ impl TemporalGraph {
         dst.update_time(t, elid);
     }
 
-    pub fn link_edge(&self, eid: EID, t: EventTime, layer: usize, is_deletion: bool) -> EdgeWGuard {
+    pub fn link_edge(
+        &self,
+        eid: EID,
+        t: EventTime,
+        layer: usize,
+        is_deletion: bool,
+    ) -> EdgeWGuard<'_> {
         let (src, dst) = {
             let edge_r = self.storage.edges.get_edge(eid);
             let edge_r = edge_r.as_mem_edge().edge_store();
@@ -286,7 +292,7 @@ impl TemporalGraph {
         t: EventTime,
         layer: usize,
         is_deletion: bool,
-    ) -> MaybeNew<EdgeWGuard> {
+    ) -> MaybeNew<EdgeWGuard<'_>> {
         let edge = {
             let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
             let src = node_pair.get_i();
@@ -338,7 +344,7 @@ impl TemporalGraph {
         }
     }
 
-    pub fn node(&self, id: VID) -> NodeEntry {
+    pub fn node(&self, id: VID) -> NodeEntry<'_> {
         self.storage.get_node(id)
     }
 }

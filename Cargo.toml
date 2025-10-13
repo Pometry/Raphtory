@@ -16,7 +16,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.16.1"
+version = "0.16.2"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -52,7 +52,12 @@ incremental = false
 #[public-storage]
 pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 #[private-storage]
-#  pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
+# pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
+raphtory = { path = "raphtory", version = "0.16.2" }
+raphtory-api = { path = "raphtory-api", version = "0.16.2" }
+raphtory-core = { path = "raphtory-core", version = "0.16.2" }
+raphtory-storage = { path = "raphtory-storage", version = "0.16.2" }
+raphtory-graphql = { path = "raphtory-graphql", version = "0.16.2" }
 async-graphql = { version = "7.0.16", features = ["dynamic-schema"] }
 bincode = "1.3.3"
 async-graphql-poem = "7.0.16"
@@ -65,10 +70,10 @@ reqwest = { version = "0.12.8", default-features = false, features = [
 iter-enum = { version = "1.2.0", features = ["rayon"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
-pyo3 = { version = "=0.23.3", features = ["multiple-pymethods", "chrono"] }
-pyo3-build-config = "=0.23.3"
-pyo3-arrow = "0.6"
-numpy = "0.23.0"
+pyo3 = { version = "0.25.1", features = ["multiple-pymethods", "chrono"] }
+pyo3-build-config = "0.25.1"
+pyo3-arrow = "0.11.0"
+numpy = "0.25.0"
 itertools = "0.13.0"
 rand = "0.8.5"
 rayon = "1.8.1"
@@ -82,7 +87,7 @@ parking_lot = { version = "0.12.1", features = [
     "send_guard",
 ] }
 ordered-float = "4.2.0"
-chrono = { version = "=0.4.38", features = ["serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 tempfile = "3.10.0"
 futures-util = "0.3.30"
 thiserror = "2.0.0"
@@ -97,7 +102,6 @@ rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
 dashmap = { version = "6.0.1", features = ["serde", "rayon"] }
-enum_dispatch = "0.3.12"
 glam = "0.29.0"
 quad-rand = "0.2.1"
 zip = "2.3.0"
@@ -108,15 +112,10 @@ async-trait = "0.1.77"
 async-openai = "0.26.0"
 num = "0.4.1"
 display-error-chain = "0.2.0"
-polars-arrow = "0.42.0"
-polars-parquet = "0.42.0"
-polars-core = "0.42.0"
-polars-io = "0.42.0"
 bigdecimal = { version = "0.4.7", features = ["serde"] }
-kdam = "0.6.2"
+kdam = "0.6.3"
 hashbrown = "0.15.1"
 pretty_assertions = "1.4.0"
-quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 streaming-stats = "0.2.3"
 proptest = "1.4.0"
@@ -136,7 +135,7 @@ tracing-subscriber = { version = "0.3.20", features = ["std", "env-filter"] }
 indoc = "2.0.5"
 walkdir = "2"
 config = "0.14.0"
-either = "=1.11.0"
+either = "=1.15.0"
 clap = { version = "4.5.21", features = ["derive", "env"] }
 memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }
@@ -152,27 +151,23 @@ pest = "2.7.8"
 pest_derive = "2.7.8"
 minijinja = "2.2.0"
 minijinja-contrib = { version = "2.2.0", features = ["datetime"] }
-datafusion = { version = "43.0.0" }
+datafusion = { version = "50.0.0" }
 arroy = "0.6.1"
 heed = "0.22.0"
-sqlparser = "0.51.0"
+sqlparser = "0.58.0"
 futures = "0.3"
-arrow = { version = "=53.2.0" }
-parquet = { version = "=53.2.0" }
-arrow-json = { version = "=53.2.0" }
-arrow-buffer = { version = "=53.2.0" }
-arrow-schema = { version = "=53.2.0" }
-arrow-array = { version = "=53.2.0" }
-arrow-ipc = { version = "=53.2.0" }
+arrow = { version = "56.2.0" }
+parquet = { version = "56.2.0" }
+arrow-json = { version = "56.2.0" }
+arrow-buffer = { version = "56.2.0" }
+arrow-schema = { version = "56.2.0" }
+arrow-array = { version = "56.2.0", features = ["chrono-tz"] }
+arrow-cast = { version = "56.2.0" }
+arrow-ipc = { version = "56.2.0" }
 moka = { version = "0.12.7", features = ["future"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
 
-# Make sure that transitive dependencies stick to disk_graph 50
-[patch.crates-io]
-arrow-buffer = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
-arrow-schema = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
-arrow-data = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
-arrow-array = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
+

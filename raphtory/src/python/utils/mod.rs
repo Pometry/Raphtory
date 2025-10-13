@@ -48,7 +48,7 @@ impl<'source> FromPyObject<'source> for PyNodeRef {
 }
 
 impl AsNodeRef for PyNodeRef {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         match self {
             PyNodeRef::ExternalStr(str) => NodeRef::External(GidRef::Str(str)),
             PyNodeRef::ExternalInt(gid) => NodeRef::External(GidRef::U64(*gid)),

@@ -19,7 +19,7 @@ use crate::{
 pub use node_state::*;
 use pyo3::prelude::*;
 
-pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
+pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
     let m = PyModule::new(py, "node_state")?;
     add_classes!(
         &m,
