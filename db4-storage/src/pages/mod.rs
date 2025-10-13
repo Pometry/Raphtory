@@ -83,6 +83,10 @@ impl<
         }
     }
 
+    pub fn extension(&self) -> &EXT {
+        &self._ext
+    }
+
     pub fn nodes(&self) -> &Arc<NodeStorageInner<NS, EXT>> {
         &self.nodes
     }
@@ -153,10 +157,10 @@ impl<
         max_page_len_edges: u32,
         node_meta: Meta,
         edge_meta: Meta,
+        ext: EXT,
     ) -> Self {
         let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
         let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
-        let ext = EXT::default();
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
@@ -194,13 +198,19 @@ impl<
         }
     }
 
-    pub fn new(graph_dir: Option<&Path>, max_page_len_nodes: u32, max_page_len_edges: u32) -> Self {
+    pub fn new(
+        graph_dir: Option<&Path>,
+        max_page_len_nodes: u32,
+        max_page_len_edges: u32,
+        ext: EXT,
+    ) -> Self {
         Self::new_with_meta(
             graph_dir,
             max_page_len_nodes,
             max_page_len_edges,
             Meta::new_for_nodes(),
             Meta::new_for_edges(),
+            ext,
         )
     }
 
@@ -440,7 +450,12 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::<crate::Extension>::new(Some(graph_dir), chunk_size, chunk_size)
+            Layer::new(
+                Some(graph_dir),
+                chunk_size,
+                chunk_size,
+                crate::Extension::default(),
+            )
         })
     }
 
@@ -450,7 +465,12 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::<crate::Extension>::new(Some(graph_dir), chunk_size, chunk_size)
+            Layer::new(
+                Some(graph_dir),
+                chunk_size,
+                chunk_size,
+                crate::Extension::default(),
+            )
         })
     }
 
@@ -522,7 +542,7 @@ mod test {
     #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::<Extension>::new(Some(graph_dir.path()), 32, 32);
+        let g = Layer::new(Some(graph_dir.path()), 32, 32, Extension::default());
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
     }
@@ -530,7 +550,7 @@ mod test {
     #[test]
     fn test_node_additions_1() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = GraphStore::new(Some(graph_dir.path()), 32, 32);
+        let g = GraphStore::new(Some(graph_dir.path()), 32, 32, Extension::default());
         g.add_edge(4, 7, 3).unwrap();
 
         let check = |g: &Layer<()>| {
@@ -572,7 +592,7 @@ mod test {
     #[test]
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::<Extension>::new(Some(graph_dir.path()), 32, 32);
+        let g = Layer::new(Some(graph_dir.path()), 32, 32, Extension::default());
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
         g.add_node_props::<String>(2, 0, 0, vec![])
@@ -1378,13 +1398,13 @@ mod test {
 
     fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
-            Layer::<()>::new(Some(path), node_page_len, edge_page_len)
+            Layer::new(Some(path), node_page_len, edge_page_len, ())
         });
     }
 
     fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
-            Layer::<()>::new(Some(path), node_page_len, edge_page_len)
+            Layer::new(Some(path), node_page_len, edge_page_len, ())
         });
     }
 }
