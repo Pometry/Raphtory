@@ -159,7 +159,7 @@ mod io_tests {
                     None,
                     None,
                 )
-                    .unwrap();
+                .unwrap();
             }
 
             let g = TemporalGraph::from_parquets(
@@ -174,7 +174,7 @@ mod io_tests {
                 None,
                 None,
             )
-                .unwrap();
+            .unwrap();
             let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
 
             assert_graph_equal_timestamps(&expected, &actual);

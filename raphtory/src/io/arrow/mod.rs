@@ -14,7 +14,10 @@ mod test {
         prelude::*,
     };
     use arrow::array::{Float64Array, Int64Array, StringArray, UInt64Array};
-    use raphtory_api::core::{entities::GID, storage::{arc_str::ArcStr, timeindex::AsTime}};
+    use raphtory_api::core::{
+        entities::GID,
+        storage::{arc_str::ArcStr, timeindex::AsTime},
+    };
     use std::sync::Arc;
 
     #[test]
