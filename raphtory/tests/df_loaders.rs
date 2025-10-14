@@ -16,7 +16,10 @@ mod io_tests {
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };
     use raphtory_core::storage::timeindex::TimeIndexEntry;
-    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps}};
+    use raphtory_storage::{
+        core_ops::CoreGraphOps,
+        mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    };
     use tempfile::TempDir;
 
     fn build_df(

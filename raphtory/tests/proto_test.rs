@@ -1,28 +1,33 @@
 #[cfg(test)]
 #[cfg(feature = "proto")]
 mod proto_test {
-    use prost::Message;
     use chrono::{DateTime, NaiveDateTime};
     use itertools::Itertools;
     use proptest::proptest;
+    use prost::Message;
     use raphtory::{
         db::{
             api::{mutation::DeletionOps, properties::internal::InternalMetadataOps},
             graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         },
         prelude::*,
-        serialise::{metadata::assert_metadata_correct, GraphFolder},
-        serialise::{proto::{ProtoDecoder, ProtoEncoder, proto_generated::{GraphType}}, ProtoGraph},
+        serialise::{
+            metadata::assert_metadata_correct,
+            proto::{proto_generated::GraphType, ProtoDecoder, ProtoEncoder},
+            GraphFolder, ProtoGraph,
+        },
     };
     use raphtory_api::core::{
         entities::properties::{meta::PropMapper, prop::PropType},
         storage::arc_str::ArcStr,
     };
+    use raphtory_core::{
+        entities::{GidRef, EID, VID},
+        storage::timeindex::TimeIndexEntry,
+    };
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::{collections::HashMap, io::Cursor, iter, path::PathBuf, sync::Arc};
     use tempfile::TempDir;
-    use raphtory_core::entities::{GidRef, EID, VID};
-    use raphtory_core::storage::timeindex::TimeIndexEntry;
 
     #[cfg(feature = "arrow")]
     use arrow::array::types::{Int32Type, UInt8Type};

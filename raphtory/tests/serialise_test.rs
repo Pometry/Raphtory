@@ -3,24 +3,27 @@
 mod serialise_test {
     #[cfg(feature = "arrow")]
     use arrow::{array::types::Int32Type, datatypes::UInt8Type};
+    use chrono::{DateTime, NaiveDateTime};
     use itertools::Itertools;
     #[cfg(feature = "proto")]
     use proptest::proptest;
     use raphtory::{
-        db::{api::properties::internal::InternalMetadataOps, graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph}},
+        db::{
+            api::properties::internal::InternalMetadataOps,
+            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        },
         prelude::*,
-        serialise::{metadata::assert_metadata_correct, GraphFolder}, test_utils::{build_edge_list, build_graph_from_edge_list},
+        serialise::{metadata::assert_metadata_correct, GraphFolder},
+        test_utils::{build_edge_list, build_graph_from_edge_list},
     };
-    use tempfile::TempDir;
-    use chrono::{DateTime, NaiveDateTime};
     use raphtory_api::core::{
         entities::properties::{meta::PropMapper, prop::PropType},
         storage::arc_str::ArcStr,
     };
+    use raphtory_core::{entities::GidRef, storage::timeindex::TimeIndexEntry};
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::{collections::HashMap, path::PathBuf, sync::Arc};
-    use raphtory_core::entities::GidRef;
-    use raphtory_core::storage::timeindex::TimeIndexEntry;
+    use tempfile::TempDir;
 
     #[test]
     fn node_no_props() {

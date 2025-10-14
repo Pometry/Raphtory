@@ -5,7 +5,7 @@ use crate::{
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Int64Type, UInt64Type, TimeUnit, TimestampMillisecondType},
+    datatypes::{DataType, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
 };
 use either::Either;
 use itertools::Itertools;

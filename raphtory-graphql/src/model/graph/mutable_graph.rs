@@ -349,7 +349,7 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let result =blocking_write(move || {
+        let result = blocking_write(move || {
             self_clone
                 .graph
                 .add_properties(t, as_properties(properties)?)?;
@@ -365,7 +365,7 @@ impl GqlMutableGraph {
     /// Add metadata to graph (errors if the property already exists).
     async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let result =blocking_write(move || {
+        let result = blocking_write(move || {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
             Ok(true)
         })
