@@ -34,7 +34,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
     fn restore_from_bincode(encoded_data_dir: &Path) -> Option<Graph> {
         if encoded_data_dir.exists() {
             let now = Instant::now();
-            let g = Graph::decode(encoded_data_dir, None::<&std::path::Path>)
+            let g = Graph::decode(encoded_data_dir, None)
                 .map_err(|err| {
                     error!(
                         "Restoring from bincode failed with error: {}! Reloading file!",

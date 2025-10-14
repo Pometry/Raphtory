@@ -265,9 +265,7 @@ mod search_tests {
     fn load_jira_graph() -> Result<(), GraphError> {
         global_info_logger();
 
-        let temp_dir = tempdir().unwrap();
-        let path_for_decoded_graph = Some(temp_dir.path());
-        let graph = Graph::decode("/tmp/graphs/jira", path_for_decoded_graph)
+        let graph = Graph::decode("/tmp/graphs/jira", None)
             .expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 

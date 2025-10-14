@@ -186,8 +186,7 @@ mod test_index {
         }
 
         fn init_graph() -> Graph {
-            let storage_path = temp_storage_path();
-            let graph = Graph::new_at_path(storage_path);
+            let graph = Graph::new();
 
             graph
                 .add_node(
