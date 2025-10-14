@@ -313,20 +313,23 @@ def test_rolling_month_alignment_with_layers():
 
     windows = list(g.layer("march-may").rolling("1 month"))
 
-    # layer "february" shouldn't affect window start
-    exp0_start = datetime(2025, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
-    exp0_end = datetime(2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
-    exp1_start = datetime(2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
-    exp1_end = datetime(2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc)
-    exp2_start = datetime(2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc)
-    exp2_end = datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    # layer "february" affects window start
+    exp0_start = datetime(2025, 2, 1, 0, 0, 0, tzinfo=timezone.utc)
+    exp0_end = datetime(2025, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
+    exp1_start = datetime(2025, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
+    exp1_end = datetime(2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
+    exp2_start = datetime(2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
+    exp2_end = datetime(2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc)
+    exp3_start = datetime(2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc)
+    exp3_end = datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
 
-    w0, w1, w2, w_last = windows[0], windows[1], windows[2], windows[-1]
+    w0, w1, w2, w3, w_last = windows[0], windows[1], windows[2], windows[3], windows[-1]
     assert w0.start_date_time == exp0_start and w0.end_date_time == exp0_end
     assert w1.start_date_time == exp1_start and w1.end_date_time == exp1_end
     assert w2.start_date_time == exp2_start and w2.end_date_time == exp2_end
+    assert w3.start_date_time == exp3_start and w3.end_date_time == exp3_end
     # only 3 windows
-    assert w_last.start_date_time == exp2_start and w_last.end_date_time == exp2_end
+    assert w_last.start_date_time == exp3_start and w_last.end_date_time == exp3_end
 
 
 def test_node_alignment(example_graph_with_edges):
