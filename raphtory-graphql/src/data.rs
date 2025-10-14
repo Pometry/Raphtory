@@ -164,6 +164,12 @@ impl Data {
         Ok(())
     }
 
+    /// Insert a graph into the cache without writing to disk.
+    pub async fn insert_graph_into_cache(&self, path: &str, graph: GraphWithVectors) {
+        let path = path.into();
+        self.cache.insert(path, graph).await;
+    }
+
     /// Insert a graph serialized from a graph folder.
     pub async fn insert_graph_as_bytes<R: Read + Seek>(
         &self,

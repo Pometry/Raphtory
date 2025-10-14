@@ -102,6 +102,7 @@ impl QueryRoot {
             .await
             .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
+
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
@@ -112,7 +113,8 @@ impl QueryRoot {
         let graph = data
             .get_graph(path.as_ref())
             .await
-            .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
+            .map(|(g, folder)| GqlMutableGraph::new(folder, g, data.clone()))?;
+
         Ok(graph)
     }
 
@@ -124,6 +126,7 @@ impl QueryRoot {
         let g = data.get_graph(path).await.ok()?.0.vectors?;
         Some(g.into())
     }
+
     /// Returns all namespaces using recursive search
     ///
     /// Returns::  List of namespaces on root
@@ -149,6 +152,7 @@ impl QueryRoot {
             Err(InvalidPathReason::NamespaceDoesNotExist(path))
         }
     }
+
     /// Returns root namespace
     ///
     /// Returns::  Root namespace
@@ -156,10 +160,12 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
     }
+
     /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
+
     /// Encodes graph and returns as string
     ///
     /// Returns:: Base64 url safe encoded string
