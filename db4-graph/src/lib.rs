@@ -27,18 +27,15 @@ use storage::{
     persist::strategy::PersistentStrategy,
     resolver::GIDResolverOps,
     wal::{GraphWal, TransactionID, Wal},
-    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
+    Config, Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
 };
 use tempfile::TempDir;
 
 pub mod entries;
 pub mod mutation;
 
-const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
-const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
-
 #[derive(Debug)]
-pub struct TemporalGraph<EXT = Extension> {
+pub struct TemporalGraph<EXT: Config = Extension> {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
     pub node_count: AtomicUsize,
@@ -190,8 +187,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
         let storage: Layer<EXT> = Layer::new_with_meta(
             graph_dir.as_ref().map(|p| p.path()),
-            DEFAULT_MAX_PAGE_LEN_NODES,
-            DEFAULT_MAX_PAGE_LEN_EDGES,
             node_meta,
             edge_meta,
             ext,
@@ -369,7 +364,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 }
 
-pub struct WriteLockedGraph<'a, EXT> {
+pub struct WriteLockedGraph<'a, EXT: Config> {
     pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,

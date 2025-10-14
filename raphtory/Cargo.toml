@@ -84,7 +84,6 @@ minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
 arroy = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
-sysinfo = { workspace = true, optional = true }
 moka = { workspace = true, optional = true, features = ["future"] }
 
 # python binding optional dependencies
