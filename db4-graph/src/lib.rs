@@ -24,10 +24,10 @@ use storage::{
         layer_counter::GraphStats,
         locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
     },
-    persist::strategy::PersistentStrategy,
+    persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
     wal::{GraphWal, TransactionID, Wal},
-    Config, Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
+    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
 };
 use tempfile::TempDir;
 
