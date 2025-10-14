@@ -471,19 +471,14 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         todo!()
     }
 
-    fn new(
-        page_id: usize,
-        max_page_len: u32,
-        meta: Arc<Meta>,
-        _path: Option<PathBuf>,
-        _ext: Self::Extension,
-    ) -> Self {
+    fn new(page_id: usize, meta: Arc<Meta>, _path: Option<PathBuf>, ext: Self::Extension) -> Self {
+        let max_page_len = ext.max_edge_page_len();
         Self {
             segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta))
                 .into(),
             segment_id: page_id,
             num_edges: AtomicU32::new(0),
-            _ext,
+            _ext: ext,
         }
     }
 
