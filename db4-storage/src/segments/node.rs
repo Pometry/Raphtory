@@ -420,7 +420,6 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
     fn load(
         _page_id: usize,
-        _max_page_len: u32,
         _node_meta: Arc<Meta>,
         _edge_meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
@@ -434,17 +433,17 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
     fn new(
         page_id: usize,
-        max_page_len: u32,
         meta: Arc<Meta>,
         _edge_meta: Arc<Meta>,
         _path: Option<PathBuf>,
-        _ext: Self::Extension,
+        ext: Self::Extension,
     ) -> Self {
+        let max_page_len = ext.max_node_page_len();
         Self {
             inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta))
                 .into(),
             segment_id: page_id,
-            _ext,
+            _ext: ext,
             event_id: Default::default(),
             est_size: AtomicUsize::new(0),
         }
@@ -544,6 +543,7 @@ mod test {
         LocalPOS,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
+        persist::strategy::NoOpStrategy,
         segments::node::NodeSegmentView,
     };
 
@@ -552,10 +552,9 @@ mod test {
         let node_meta = Arc::new(Meta::default());
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
-        let ext = ();
+        let ext = NoOpStrategy::new(10, 10);
         let segment = NodeSegmentView::new(
             0,
-            10,
             node_meta.clone(),
             edge_meta,
             Some(path.path().to_path_buf()),
