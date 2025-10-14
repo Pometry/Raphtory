@@ -7,6 +7,7 @@ use crate::{
         layer_counter::GraphStats,
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
     },
+    persist::strategy::Config,
     segments::node::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -29,7 +30,6 @@ pub struct NodeStorageInner<NS, EXT> {
     pages: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
     nodes_path: Option<PathBuf>,
-    max_page_len: u32,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     ext: EXT,
@@ -41,7 +41,7 @@ pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     locked_segments: Box<[NS::ArcLockedSegment]>,
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNodeStorage<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS, EXT> {
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
@@ -87,7 +87,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNo
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
         let locked_segments = self
             .pages
@@ -102,7 +102,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
-        max_page_len: u32,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
@@ -111,7 +110,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             pages: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
             nodes_path,
-            max_page_len,
             node_meta,
             edge_meta,
             ext,
@@ -130,7 +128,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                     LockedNodePage::new(
                         page_id,
                         &self.stats,
-                        self.max_page_len,
+                        self.max_page_len(),
                         page.as_ref(),
                         page.head_mut(),
                     )
@@ -194,7 +192,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
     pub fn load(
         nodes_path: impl AsRef<Path>,
-        max_page_len: u32,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Result<Self, StorageError> {
@@ -228,7 +225,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
                 let page = NS::load(
                     page_id,
-                    max_page_len,
                     node_meta.clone(),
                     edge_meta.clone(),
                     nodes_path,
@@ -250,7 +246,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                 let np = pages.remove(&page_id).unwrap_or_else(|| {
                     NS::new(
                         page_id,
-                        max_page_len,
                         node_meta.clone(),
                         edge_meta.clone(),
                         Some(nodes_path.to_path_buf()),
@@ -301,7 +296,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         Ok(Self {
             pages,
             nodes_path: Some(nodes_path.to_path_buf()),
-            max_page_len,
             stats: stats.into(),
             node_meta,
             edge_meta,
@@ -311,7 +305,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
     /// Return the position of the chunk and the position within the chunk
     pub fn resolve_pos(&self, i: impl Into<VID>) -> (usize, LocalPOS) {
-        resolve_pos(i.into(), self.max_page_len)
+        resolve_pos(i.into(), self.max_page_len())
     }
 
     pub fn get_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {
@@ -350,7 +344,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                 let new_segment_id = self.pages.push_with(|segment_id| {
                     Arc::new(NS::new(
                         segment_id,
-                        self.max_page_len,
                         self.node_meta.clone(),
                         self.edge_meta.clone(),
                         self.nodes_path.clone(),
@@ -373,6 +366,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     }
 
     pub fn max_page_len(&self) -> u32 {
-        self.max_page_len
+        self.ext.max_node_page_len()
     }
 }

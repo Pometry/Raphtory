@@ -13,6 +13,7 @@ use crate::{
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     },
+    persist::strategy::Config,
     segments::edge::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
@@ -31,7 +32,6 @@ pub struct EdgeStorageInner<ES, EXT> {
     layer_counter: Arc<GraphStats>,
     free_pages: Box<[RwLock<usize>; N]>,
     edges_path: Option<PathBuf>,
-    max_page_len: u32,
     prop_meta: Arc<Meta>,
     ext: EXT,
 }
@@ -42,7 +42,7 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     locked_pages: Box<[ES::ArcLockedSegment]>,
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> ReadLockedEdgeStorage<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedEdgeStorage<ES, EXT> {
     pub fn storage(&self) -> &EdgeStorageInner<ES, EXT> {
         &self.storage
     }
@@ -96,7 +96,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> ReadLockedEd
     }
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageInner<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
         let locked_pages = self
             .segments
@@ -117,26 +117,20 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         &self.layer_counter
     }
 
-    pub fn new_with_meta(
-        edges_path: Option<PathBuf>,
-        max_page_len: u32,
-        edge_meta: Arc<Meta>,
-        ext: EXT,
-    ) -> Self {
+    pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
         let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
         Self {
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
             free_pages: free_pages.try_into().unwrap(),
             edges_path,
-            max_page_len,
             prop_meta: edge_meta,
             ext,
         }
     }
 
-    pub fn new(edges_path: Option<PathBuf>, max_page_len: u32, ext: EXT) -> Self {
-        Self::new_with_meta(edges_path, max_page_len, Meta::new_for_edges().into(), ext)
+    pub fn new(edges_path: Option<PathBuf>, ext: EXT) -> Self {
+        Self::new_with_meta(edges_path, Meta::new_for_edges().into(), ext)
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<ES>> {
@@ -166,23 +160,16 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
     #[inline(always)]
     pub fn resolve_pos(&self, e_id: EID) -> (usize, LocalPOS) {
-        resolve_pos(e_id, self.max_page_len)
+        resolve_pos(e_id, self.max_page_len())
     }
 
-    pub fn load(
-        edges_path: impl AsRef<Path>,
-        max_page_len: u32,
-        ext: EXT,
-    ) -> Result<Self, StorageError> {
+    pub fn load(edges_path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let edges_path = edges_path.as_ref();
+        let max_page_len = ext.max_edge_page_len();
 
         let meta = Arc::new(Meta::new_for_edges());
         if !edges_path.exists() {
-            return Ok(Self::new(
-                Some(edges_path.to_path_buf()),
-                max_page_len,
-                ext.clone(),
-            ));
+            return Ok(Self::new(Some(edges_path.to_path_buf()), ext.clone()));
         }
         let mut pages = std::fs::read_dir(edges_path)?
             .filter(|entry| {
@@ -215,7 +202,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
                 let np = pages.remove(&page_id).unwrap_or_else(|| {
                     ES::new(
                         page_id,
-                        max_page_len,
                         meta.clone(),
                         Some(edges_path.to_path_buf()),
                         ext.clone(),
@@ -287,7 +273,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         Ok(Self {
             segments: pages,
             edges_path: Some(edges_path.to_path_buf()),
-            max_page_len,
             layer_counter: stats.into(),
             free_pages: free_pages.try_into().unwrap(),
             prop_meta: meta,
@@ -303,7 +288,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         let segment_id = self.segments.push_with(|segment_id| {
             Arc::new(ES::new(
                 segment_id,
-                self.max_page_len,
                 self.prop_meta.clone(),
                 self.edges_path.clone(),
                 self.ext.clone(),
@@ -339,7 +323,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
                 let new_segment_id = self.segments.push_with(|segment_id| {
                     Arc::new(ES::new(
                         segment_id,
-                        self.max_page_len,
                         self.prop_meta.clone(),
                         self.edges_path.clone(),
                         self.ext.clone(),
@@ -361,7 +344,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     }
 
     pub fn max_page_len(&self) -> u32 {
-        self.max_page_len
+        self.ext.max_edge_page_len()
     }
 
     pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
@@ -371,7 +354,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
                 .map(|(page_id, page)| {
                     LockedEdgePage::new(
                         page_id,
-                        self.max_page_len,
+                        self.max_page_len(),
                         page.as_ref(),
                         &self.layer_counter,
                         page.head_mut(),
@@ -383,21 +366,21 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
     /// Retrieve the segment for an edge given its EID
     pub fn get_edge_segment(&self, eid: EID) -> Option<&Arc<ES>> {
-        let (segment_id, _) = resolve_pos(eid, self.max_page_len);
+        let (segment_id, _) = resolve_pos(eid, self.max_page_len());
         self.segments.get(segment_id)
     }
 
     pub fn get_edge(&self, e_id: ELID) -> Option<(VID, VID)> {
         let layer = e_id.layer();
         let e_id = e_id.edge;
-        let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len);
+        let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len());
         let segment = self.segments.get(segment_id)?;
         segment.get_edge(local_edge, layer, segment.head())
     }
 
     pub fn edge(&self, e_id: impl Into<EID>) -> ES::Entry<'_> {
         let e_id = e_id.into();
-        let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len);
+        let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len());
         let segment = self
             .segments
             .get(segment_id)
@@ -417,7 +400,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         &'a self,
         e_id: EID,
     ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
-        let (chunk, _) = resolve_pos(e_id, self.max_page_len);
+        let (chunk, _) = resolve_pos(e_id, self.max_page_len());
         let page = self.get_or_create_segment(chunk);
         EdgeWriter::new(&self.layer_counter, page, page.head_mut())
     }
@@ -426,7 +409,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         &'a self,
         e_id: EID,
     ) -> Result<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>, StorageError> {
-        let (segment_id, _) = resolve_pos(e_id, self.max_page_len);
+        let (segment_id, _) = resolve_pos(e_id, self.max_page_len());
         let page = self.get_or_create_segment(segment_id);
         let writer = page.head_mut();
         Ok(EdgeWriter::new(&self.layer_counter, page, writer))
@@ -446,7 +429,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             .filter_map(|page_id| {
                 let page = self.segments.get(*page_id)?;
                 let guard = page.try_head_mut()?;
-                if page.num_edges() < self.max_page_len {
+                if page.num_edges() < self.max_page_len() {
                     Some((page, guard))
                 } else {
                     None
@@ -461,7 +444,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             loop {
                 let mut slot = self.free_pages[slot_idx].write();
                 match self.segments.get(*slot).map(|page| (page, page.head_mut())) {
-                    Some((edge_page, writer)) if edge_page.num_edges() < self.max_page_len => {
+                    Some((edge_page, writer)) if edge_page.num_edges() < self.max_page_len() => {
                         return EdgeWriter::new(&self.layer_counter, edge_page, writer);
                     }
                     _ => {
@@ -501,7 +484,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     pub fn segmented_par_iter(
         &self,
     ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = EID>)> + '_ {
-        let max_page_len = self.max_page_len;
+        let max_page_len = self.max_page_len();
         (0..self.segments.count())
             .into_par_iter()
             .filter_map(move |segment_id| {

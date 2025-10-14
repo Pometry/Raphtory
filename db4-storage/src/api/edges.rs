@@ -39,13 +39,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     where
         Self: Sized;
 
-    fn new(
-        page_id: usize,
-        max_page_len: u32,
-        meta: Arc<Meta>,
-        path: Option<PathBuf>,
-        ext: Self::Extension,
-    ) -> Self;
+    fn new(page_id: usize, meta: Arc<Meta>, path: Option<PathBuf>, ext: Self::Extension) -> Self;
 
     fn segment_id(&self) -> usize;
 

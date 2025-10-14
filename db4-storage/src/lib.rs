@@ -10,6 +10,7 @@ use crate::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
+    persist::strategy::NoOpStrategy,
     resolver::mapping_resolver::MappingResolver,
     segments::{
         edge::EdgeSegmentView,
@@ -33,7 +34,7 @@ pub mod segments;
 pub mod utils;
 pub mod wal;
 
-pub type Extension = ();
+pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
