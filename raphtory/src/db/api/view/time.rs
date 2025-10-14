@@ -382,7 +382,8 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 #[derive(Clone)]
 pub struct WindowSet<'graph, T> {
     view: T,
-    cursor: i64,
+    start: i64,
+    counter: u32, // u32 because months from Temporal intervals are u32 (due to chrono months being u32)
     end: i64,
     step: Interval,
     window: Option<Interval>,
@@ -409,10 +410,10 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
                 }
             }
         };
-        let cursor_start = start + step;
         Ok(Self {
             view,
-            cursor: cursor_start,
+            start,
+            counter: 1,
             end,
             step,
             window,
@@ -466,12 +467,12 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for TimeIndex<'graph,
 impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph, T> {
     type Item = T::WindowedViewType;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.cursor < self.end + self.step {
-            let window_end = self.cursor;
+        let window_end = self.start + (self.counter * self.step);
 
+        if window_end < self.end + self.step {
             let window_start = self.window.map(|w| window_end - w);
             if let Some(start) = window_start {
-                //this is required because if we have steps > window size you can end up overstepping
+                // this is required because if we have steps > window size you can end up overstepping
                 // the end by so much in the final window that there is no data inside
                 if start >= self.end {
                     // this is >= because the end passed through is already +1
@@ -479,7 +480,7 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
                 }
             }
             let window = self.view.internal_window(window_start, Some(window_end));
-            self.cursor = self.cursor + self.step;
+            self.counter += 1;
             Some(window)
         } else {
             None
@@ -491,19 +492,19 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
     }
 }
 impl<'graph, T: TimeOps<'graph> + Clone + 'graph> ExactSizeIterator for WindowSet<'graph, T> {
-    //unfortunately because Interval can change size, there is no nice divide option
+    // unfortunately because Interval can change size, there is no nice divide option
     fn len(&self) -> usize {
-        let mut cursor = self.cursor;
+        let mut window_end = self.start + (self.counter * self.step);
         let mut count = 0;
-        while cursor < self.end + self.step {
-            let window_start = self.window.map(|w| cursor - w);
+        while window_end < self.end + self.step {
+            let window_start = self.window.map(|w| window_end - w);
             if let Some(start) = window_start {
                 if start >= self.end {
                     break;
                 }
             }
             count += 1;
-            cursor = cursor + self.step;
+            window_end = window_end + self.step;
         }
         count
     }

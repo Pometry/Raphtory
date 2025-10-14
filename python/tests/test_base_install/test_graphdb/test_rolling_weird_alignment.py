@@ -3,7 +3,10 @@ import pytest
 from raphtory import Graph, GraphView
 from utils import run_group_graphql_test
 
-
+# previously, month boundaries could offset all following rolling windows.
+# eg. january 31st + "1 month" = february 28th (to not spill into next month)
+# these tests ensure the following windows aren't offset, eg. here on march 28th, april 28th, ...
+# rolling windows are end aligned, so we make sure the ends are at the end of the month. the starts may vary based on the window
 def test_31st_lines_up_on_30th():
     g: Graph = Graph()
     dt1 = datetime(2025, 3, 31, 14, 37, 52)  # March 31
@@ -12,44 +15,57 @@ def test_31st_lines_up_on_30th():
     g.add_node(dt1, 1)
     g.add_node(dt2, 1)
 
-    window_only: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:2]
-    window_only_ms: list[GraphView] = list(
-        g.rolling("1 month", alignment_unit="millisecond")
-    )[:2]
-    window_step: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="day")
-    )[:2]
-    window_step_ms: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="millisecond")
-    )[:2]
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
 
-    for i in range(2):
-        print(
-            f"\nWINDOW ONLY:        Start: {window_only[i].start_date_time}; End: {window_only[i].end_date_time}"
-        )
-        print(
-            f"WINDOW ONLY MS:     Start: {window_only_ms[i].start_date_time}; End: {window_only_ms[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP:      Start: {window_step[i].start_date_time}; End: {window_step[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP MS:   Start: {window_step_ms[i].start_date_time}; End: {window_step_ms[i].end_date_time}"
-        )
-    # Output
-    # WINDOW ONLY:        Start: 2025-03-30 00:00:00+00:00; End: 2025-04-30 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-03-30 14:37:52+00:00; End: 2025-04-30 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-03-07 00:00:00+00:00; End: 2025-04-07 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-03-07 14:37:52+00:00; End: 2025-04-07 14:37:52+00:00
-    #
-    # WINDOW ONLY:        Start: 2025-04-30 00:00:00+00:00; End: 2025-05-30 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-04-30 14:37:52+00:00; End: 2025-05-30 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-03-14 00:00:00+00:00; End: 2025-04-14 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-03-14 14:37:52+00:00; End: 2025-04-14 14:37:52+00:00
+    # April only has 30 days, so ends are on 30th. The window is 1 month so the start is 1 month ago.
+    assert window[0].start_date_time == datetime(2025, 3, 30, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2025, 4, 30, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2025, 3, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc)
+
+    # importantly, the ends here are on the 31st instead if 30th
+    assert window[1].start_date_time == datetime(2025, 4, 30, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2025, 5, 31, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2025, 5, 31, 14, 37, 52, tzinfo=timezone.utc)
+
+    # ends go back to the 30th
+    assert window[2].start_date_time == datetime(2025, 5, 30, 0, 0, tzinfo=timezone.utc)
+    assert window[2].end_date_time == datetime(2025, 6, 30, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[2].start_date_time == datetime(2025, 5, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[2].end_date_time == datetime(2025, 6, 30, 14, 37, 52, tzinfo=timezone.utc)
+
+def test_30th_never_lines_up_on_31st():
+    g: Graph = Graph()
+    dt1 = datetime(2025, 4, 30, 14, 37, 52)  # April 31
+    dt2 = datetime(2025, 7, 8, 9, 12, 5)  # July 8
+
+    g.add_node(dt1, 1)
+    g.add_node(dt2, 1)
+
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
+
+    # never line up on 31st if the first event is on the 30th
+    assert window[0].start_date_time == datetime(2025, 4, 30, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2025, 5, 30, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2025, 5, 30, 14, 37, 52, tzinfo=timezone.utc)
+
+    assert window[1].start_date_time == datetime(2025, 5, 30, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2025, 6, 30, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2025, 5, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2025, 6, 30, 14, 37, 52, tzinfo=timezone.utc)
+
+    assert window[2].start_date_time == datetime(2025, 6, 30, 0, 0, tzinfo=timezone.utc)
+    assert window[2].end_date_time == datetime(2025, 7, 30, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[2].start_date_time == datetime(2025, 6, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[2].end_date_time == datetime(2025, 7, 30, 14, 37, 52, tzinfo=timezone.utc)
 
 
-def test_31st_lines_up_on_31st_december_july():
-    print("\n###########JULY 31ST###########")
+def test_31st_lines_up_on_31st_july():
+    # July 31st
     g: Graph = Graph()
     dt1 = datetime(2025, 7, 31, 14, 37, 52)  # July 31
     dt2 = datetime(2026, 7, 8, 9, 12, 5)  # July 8
@@ -57,43 +73,30 @@ def test_31st_lines_up_on_31st_december_july():
     g.add_node(dt1, 1)
     g.add_node(dt2, 1)
 
-    window_only: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:2]
-    window_only_ms: list[GraphView] = list(
-        g.rolling("1 month", alignment_unit="millisecond")
-    )[:2]
-    window_step: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="day")
-    )[:2]
-    window_step_ms: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="millisecond")
-    )[:2]
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
 
-    for i in range(2):
-        print(
-            f"WINDOW ONLY:        Start: {window_only[i].start_date_time}; End: {window_only[i].end_date_time}"
-        )
-        print(
-            f"WINDOW ONLY MS:     Start: {window_only_ms[i].start_date_time}; End: {window_only_ms[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP:      Start: {window_step[i].start_date_time}; End: {window_step[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP MS:   Start: {window_step_ms[i].start_date_time}; End: {window_step_ms[i].end_date_time}\n"
-        )
+    # starts and ends both 31st because july and august both have 31 days
+    assert window[0].start_date_time == datetime(2025, 7, 31, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2025, 8, 31, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2025, 7, 31, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2025, 8, 31, 14, 37, 52, tzinfo=timezone.utc)
 
-    # Output
-    # WINDOW ONLY:        Start: 2025-07-31 00:00:00+00:00; End: 2025-08-31 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-07-31 14:37:52+00:00; End: 2025-08-31 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-07-07 00:00:00+00:00; End: 2025-08-07 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-07-07 14:37:52+00:00; End: 2025-08-07 14:37:52+00:00
-    #
-    # WINDOW ONLY:        Start: 2025-08-30 00:00:00+00:00; End: 2025-09-30 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-08-30 14:37:52+00:00; End: 2025-09-30 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-07-14 00:00:00+00:00; End: 2025-08-14 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-07-14 14:37:52+00:00; End: 2025-08-14 14:37:52+00:00
+    # ends are now 30th so starts as well
+    assert window[1].start_date_time == datetime(2025, 8, 30, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2025, 9, 30, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2025, 8, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2025, 9, 30, 14, 37, 52, tzinfo=timezone.utc)
 
-    print("\n###########DECEMBER 31ST###########")
+    # ends go back to 31st, but start months only have 30 days (October 31st - "1 month" = September 30th) september only has 30 days
+    assert window[2].start_date_time == datetime(2025, 9, 30, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[2].end_date_time == datetime(2025, 10, 31, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[2].start_date_time == datetime(2025, 9, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[2].end_date_time == datetime(2025, 10, 31, 14, 37, 52, tzinfo=timezone.utc)
+
+
+def test_31st_lines_up_on_28th_february():
+    # starting on December 31st
     g: Graph = Graph()
     dt1 = datetime(2025, 12, 31, 14, 37, 52)  # December 31
     dt2 = datetime(2026, 7, 8, 9, 12, 5)  # July 8
@@ -101,45 +104,28 @@ def test_31st_lines_up_on_31st_december_july():
     g.add_node(dt1, 1)
     g.add_node(dt2, 1)
 
-    window_only: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:2]
-    window_only_ms: list[GraphView] = list(
-        g.rolling("1 month", alignment_unit="millisecond")
-    )[:2]
-    window_step: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="day")
-    )[:2]
-    window_step_ms: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="millisecond")
-    )[:2]
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
 
-    for i in range(2):
-        print(
-            f"WINDOW ONLY:        Start: {window_only[i].start_date_time}; End: {window_only[i].end_date_time}"
-        )
-        print(
-            f"WINDOW ONLY MS:     Start: {window_only_ms[i].start_date_time}; End: {window_only_ms[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP:      Start: {window_step[i].start_date_time}; End: {window_step[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP MS:   Start: {window_step_ms[i].start_date_time}; End: {window_step_ms[i].end_date_time}\n"
-        )
+    # december and january both have 31 days so start and end are both on the 31st
+    assert window[0].start_date_time == datetime(2025, 12, 31, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2026, 1, 31, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2025, 12, 31, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2026, 1, 31, 14, 37, 52, tzinfo=timezone.utc)
 
-    # Output
-    # WINDOW ONLY:        Start: 2025-12-31 00:00:00+00:00; End: 2026-01-31 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-12-31 14:37:52+00:00; End: 2026-01-31 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-12-07 00:00:00+00:00; End: 2026-01-07 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-12-07 14:37:52+00:00; End: 2026-01-07 14:37:52+00:00
-    #
-    # WINDOW ONLY:        Start: 2026-01-28 00:00:00+00:00; End: 2026-02-28 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2026-01-28 14:37:52+00:00; End: 2026-02-28 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-12-14 00:00:00+00:00; End: 2026-01-14 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-12-14 14:37:52+00:00; End: 2026-01-14 14:37:52+00:00
+    # february has 28 days so the ends line up on the 28th, and the starts follow
+    assert window[1].start_date_time == datetime(2026, 1, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2026, 2, 28, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2026, 1, 28, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2026, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
 
+    # march has 31 days, but March 31st - "1 month" = February 28th (feb 31st doesn't exist)
+    assert window[2].start_date_time == datetime(2026, 2, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[2].end_date_time == datetime(2026, 3, 31, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[2].start_date_time == datetime(2026, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[2].end_date_time == datetime(2026, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
 
-def test_31st_lines_up_on_28th_january():
-    print("\n###########JANUARY 31ST###########")
+    # starting on January 31st
     g = Graph()
     dt1 = datetime(2025, 1, 31, 14, 37, 52)  # January 31st
     dt2 = datetime(2026, 7, 8, 9, 12, 5)  # July 8
@@ -147,44 +133,89 @@ def test_31st_lines_up_on_28th_january():
     g.add_node(dt1, 1)
     g.add_node(dt2, 1)
 
-    window_only: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:4]
-    window_only_ms: list[GraphView] = list(
-        g.rolling("1 month", alignment_unit="millisecond")
-    )[:4]
-    window_step: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="day")
-    )[:4]
-    window_step_ms: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="millisecond")
-    )[:4]
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
 
-    for i in range(4):
-        print(
-            f"WINDOW ONLY:        Start: {window_only[i].start_date_time}; End: {window_only[i].end_date_time}"
-        )
-        print(
-            f"WINDOW ONLY MS:     Start: {window_only_ms[i].start_date_time}; End: {window_only_ms[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP:      Start: {window_step[i].start_date_time}; End: {window_step[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP MS:   Start: {window_step_ms[i].start_date_time}; End: {window_step_ms[i].end_date_time}\n"
-        )
+    # february has 28 days so the ends line up on the 28th, and the starts follow
+    assert window[0].start_date_time == datetime(2025, 1, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2025, 2, 28, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2025, 1, 28, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
 
-    # Output
-    # WINDOW ONLY:        Start: 2025-01-28 00:00:00+00:00; End: 2025-02-28 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-01-28 14:37:52+00:00; End: 2025-02-28 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-01-07 00:00:00+00:00; End: 2025-02-07 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-01-07 14:37:52+00:00; End: 2025-02-07 14:37:52+00:00
-    #
-    # WINDOW ONLY:        Start: 2025-02-28 00:00:00+00:00; End: 2025-03-28 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-02-28 14:37:52+00:00; End: 2025-03-28 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-01-14 00:00:00+00:00; End: 2025-02-14 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-01-14 14:37:52+00:00; End: 2025-02-14 14:37:52+00:00
+    # march has 31 days, but March 31st - "1 month" = February 28th (feb 31st doesn't exist)
+    assert window[1].start_date_time == datetime(2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2025, 3, 31, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2025, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
+
+    # ends are now lined on 30th (April has 30 days)
+    assert window[2].start_date_time == datetime(2025, 3, 30, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[2].end_date_time == datetime(2025, 4, 30, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[2].start_date_time == datetime(2025, 3, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[2].end_date_time == datetime(2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc)
 
 
-def test_feb_28th_extra_day_with_step():
+def test_31st_lines_up_on_29th_february():
+    # starting on December 31st
+    g: Graph = Graph()
+    dt1 = datetime(2023, 12, 31, 14, 37, 52)  # December 31
+    dt2 = datetime(2024, 7, 8, 9, 12, 5)  # July 8
+
+    g.add_node(dt1, 1)
+    g.add_node(dt2, 1)
+
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
+
+    # december and january both have 31 days so start and end are both on the 31st
+    assert window[0].start_date_time == datetime(2023, 12, 31, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2024, 1, 31, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2023, 12, 31, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2024, 1, 31, 14, 37, 52, tzinfo=timezone.utc)
+
+    # leap year february has 29 days so the ends line up on the 29th, and the starts follow
+    assert window[1].start_date_time == datetime(2024, 1, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2024, 2, 29, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2024, 1, 29, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
+
+    # march has 31 days, but March 31st - "1 month" = February 29th (feb 31st doesn't exist)
+    assert window[2].start_date_time == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[2].end_date_time == datetime(2024, 3, 31, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[2].start_date_time == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[2].end_date_time == datetime(2024, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
+
+    # starting on January 31st
+    g = Graph()
+    dt1 = datetime(2024, 1, 31, 14, 37, 52)  # January 31st
+    dt2 = datetime(2026, 7, 8, 9, 12, 5)  # July 8
+
+    g.add_node(dt1, 1)
+    g.add_node(dt2, 1)
+
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
+
+    # leap year february has 29 days so the ends line up on the 29th, and the starts follow
+    assert window[0].start_date_time == datetime(2024, 1, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2024, 2, 29, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2024, 1, 29, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
+
+    # march has 31 days, but March 31st - "1 month" = February 29th (feb 31st doesn't exist)
+    assert window[1].start_date_time == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2024, 3, 31, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2024, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
+
+    # ends are now lined on 30th (April has 30 days)
+    assert window[2].start_date_time == datetime(2024, 3, 30, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[2].end_date_time == datetime(2024, 4, 30, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[2].start_date_time == datetime(2024, 3, 30, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[2].end_date_time == datetime(2024, 4, 30, 14, 37, 52, tzinfo=timezone.utc)
+
+
+def test_feb_28th_start_alignment_with_step():
     g: Graph = Graph()
     dt1 = datetime(2025, 3, 15, 14, 37, 52)  # March 15
     dt2 = datetime(2025, 7, 8, 9, 12, 5)  # July 8
@@ -194,52 +225,70 @@ def test_feb_28th_extra_day_with_step():
     g.add_node(dt2, 1)
     g.add_node(dt3, 1)
 
-    window_only: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:2]
-    window_step_1_week: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="day")
-    )[:2]
-    window_step_1_week_ms: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="millisecond")
-    )[:2]
-    window_step_2_weeks: list[GraphView] = list(
-        g.rolling("1 month", step="2 weeks", alignment_unit="day")
-    )[:2]
-    window_step_2_weeks_ms: list[GraphView] = list(
-        g.rolling("1 month", step="2 weeks", alignment_unit="millisecond")
-    )[:2]
+    window_1_week: list[GraphView] = list(g.rolling("1 month", step="1 week", alignment_unit="day"))[:2]
+    window_1_week_ms: list[GraphView] = list(g.rolling("1 month", step="1 week", alignment_unit="millisecond"))[:2]
+    window_2_weeks: list[GraphView] = list(g.rolling("1 month", step="2 weeks", alignment_unit="day"))[:2]
+    window_2_weeks_ms: list[GraphView] = list(g.rolling("1 month", step="2 weeks", alignment_unit="millisecond"))[:2]
 
-    for i in range(2):
-        print(
-            f"\nWINDOW ONLY:                Start: {window_only[i].start_date_time}; End: {window_only[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 1 WEEK STEP:       Start: {window_step_1_week[i].start_date_time}; End: {window_step_1_week[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 1 WEEK STEP MS:    Start: {window_step_1_week_ms[i].start_date_time}; End: {window_step_1_week_ms[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 2 WEEK STEP:       Start: {window_step_2_weeks[i].start_date_time}; End: {window_step_2_weeks[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 2 WEEK STEP MS:    Start: {window_step_2_weeks_ms[i].start_date_time}; End: {window_step_2_weeks_ms[i].end_date_time}"
-        )
+    # start aligns to february 28th because March 15th + "2 weeks" = March 29th - "1 month" = february 28th
+    assert window_1_week[0].start_date_time == datetime(2025, 2, 22, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_1_week[0].end_date_time == datetime(2025, 3, 22, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_1_week_ms[0].start_date_time == datetime(2025, 2, 22, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_1_week_ms[0].end_date_time == datetime(2025, 3, 22, 14, 37, 52, tzinfo=timezone.utc)
 
-    # Output
-    # WINDOW ONLY:                Start: 2025-03-15 00:00:00+00:00; End: 2025-04-15 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP:       Start: 2025-02-22 00:00:00+00:00; End: 2025-03-22 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP MS:    Start: 2025-02-22 14:37:52+00:00; End: 2025-03-22 14:37:52+00:00
-    # WINDOW & 2 WEEK STEP:       Start: 2025-02-28 00:00:00+00:00; End: 2025-03-29 00:00:00+00:00
-    # WINDOW & 2 WEEK STEP MS:    Start: 2025-02-28 14:37:52+00:00; End: 2025-03-29 14:37:52+00:00
-    #
-    # WINDOW ONLY:                Start: 2025-04-15 00:00:00+00:00; End: 2025-05-15 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP:       Start: 2025-02-28 00:00:00+00:00; End: 2025-03-29 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP MS:    Start: 2025-02-28 14:37:52+00:00; End: 2025-03-29 14:37:52+00:00
-    # WINDOW & 2 WEEK STEP:       Start: 2025-03-12 00:00:00+00:00; End: 2025-04-12 00:00:00+00:00
-    # WINDOW & 2 WEEK STEP MS:    Start: 2025-03-12 14:37:52+00:00; End: 2025-04-12 14:37:52+00:00
+    assert window_2_weeks[0].start_date_time == datetime(2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_2_weeks[0].end_date_time == datetime(2025, 3, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_2_weeks_ms[0].start_date_time == datetime(2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_2_weeks_ms[0].end_date_time == datetime(2025, 3, 29, 14, 37, 52, tzinfo=timezone.utc)
+
+    assert window_1_week[1].start_date_time == datetime(2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_1_week[1].end_date_time == datetime(2025, 3, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_1_week_ms[1].start_date_time == datetime(2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_1_week_ms[1].end_date_time == datetime(2025, 3, 29, 14, 37, 52, tzinfo=timezone.utc)
+
+    assert window_2_weeks[1].start_date_time == datetime(2025, 3, 12, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_2_weeks[1].end_date_time == datetime(2025, 4, 12, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_2_weeks_ms[1].start_date_time == datetime(2025, 3, 12, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_2_weeks_ms[1].end_date_time == datetime(2025, 4, 12, 14, 37, 52, tzinfo=timezone.utc)
 
 
-def test_feb_28th_no_extra_day_without_step():
+def test_feb_29th_start_alignment_with_step():
+    g: Graph = Graph()
+    dt1 = datetime(2024, 3, 17, 14, 37, 52)  # May 17
+    dt2 = datetime(2024, 7, 8, 9, 12, 5)  # July 8
+    dt3 = datetime(2024, 11, 22, 21, 45, 30)  # November 22
+
+    g.add_node(dt1, 1)
+    g.add_node(dt2, 1)
+    g.add_node(dt3, 1)
+
+    window_1_week: list[GraphView] = list(g.rolling("1 month", step="1 week", alignment_unit="day"))[:2]
+    window_1_week_ms: list[GraphView] = list(g.rolling("1 month", step="1 week", alignment_unit="millisecond"))[:2]
+    window_2_weeks: list[GraphView] = list(g.rolling("1 month", step="2 weeks", alignment_unit="day"))[:2]
+    window_2_weeks_ms: list[GraphView] = list(g.rolling("1 month", step="2 weeks", alignment_unit="millisecond"))[:2]
+
+    assert window_1_week[0].start_date_time == datetime(2024, 2, 24, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_1_week[0].end_date_time == datetime(2024, 3, 24, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_1_week_ms[0].start_date_time == datetime(2024, 2, 24, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_1_week_ms[0].end_date_time == datetime(2024, 3, 24, 14, 37, 52, tzinfo=timezone.utc)
+    # march 31st - "1 month" = February 29th (leap year)
+    assert window_2_weeks[0].start_date_time == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_2_weeks[0].end_date_time == datetime(2024, 3, 31, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_2_weeks_ms[0].start_date_time == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_2_weeks_ms[0].end_date_time == datetime(2024, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
+
+    assert window_1_week[1].start_date_time == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_1_week[1].end_date_time == datetime(2024, 3, 31, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_1_week_ms[1].start_date_time == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_1_week_ms[1].end_date_time == datetime(2024, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
+
+    assert window_2_weeks[1].start_date_time == datetime(2024, 3, 14, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_2_weeks[1].end_date_time == datetime(2024, 4, 14, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_2_weeks_ms[1].start_date_time == datetime(2024, 3, 14, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_2_weeks_ms[1].end_date_time == datetime(2024, 4, 14, 14, 37, 52, tzinfo=timezone.utc)
+
+
+def test_feb_28th_no_weirdness():
     g: Graph = Graph()
     dt1 = datetime(2025, 2, 28, 14, 37, 52)  # February 28
     dt2 = datetime(2025, 7, 8, 9, 12, 5)  # July 8
@@ -247,148 +296,38 @@ def test_feb_28th_no_extra_day_without_step():
     g.add_node(dt1, 1)
     g.add_node(dt2, 1)
 
-    window_only: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:2]
-    window_only_ms: list[GraphView] = list(
-        g.rolling("1 month", alignment_unit="millisecond")
-    )[:2]
-    window_step: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="day")
-    )[:2]
-    window_step_ms: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="millisecond")
-    )[:2]
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
 
-    for i in range(2):
-        print(
-            f"\nWINDOW ONLY:        Start: {window_only[i].start_date_time}; End: {window_only[i].end_date_time}"
-        )
-        print(
-            f"WINDOW ONLY MS:     Start: {window_only_ms[i].start_date_time}; End: {window_only_ms[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP:      Start: {window_step[i].start_date_time}; End: {window_step[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & STEP MS:   Start: {window_step_ms[i].start_date_time}; End: {window_step_ms[i].end_date_time}"
-        )
+    assert window[0].start_date_time == datetime(2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2025, 3, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2025, 3, 28, 14, 37, 52, tzinfo=timezone.utc)
 
-    # Output
-    # WINDOW ONLY:        Start: 2025-02-28 00:00:00+00:00; End: 2025-03-28 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-02-28 14:37:52+00:00; End: 2025-03-28 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-02-07 00:00:00+00:00; End: 2025-03-07 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-02-07 14:37:52+00:00; End: 2025-03-07 14:37:52+00:00
-    #
-    # WINDOW ONLY:        Start: 2025-03-28 00:00:00+00:00; End: 2025-04-28 00:00:00+00:00
-    # WINDOW ONLY MS:     Start: 2025-03-28 14:37:52+00:00; End: 2025-04-28 14:37:52+00:00
-    # WINDOW & STEP:      Start: 2025-02-14 00:00:00+00:00; End: 2025-03-14 00:00:00+00:00
-    # WINDOW & STEP MS:   Start: 2025-02-14 14:37:52+00:00; End: 2025-03-14 14:37:52+00:00
+    # no weirdness
+    assert window[1].start_date_time == datetime(2025, 3, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2025, 4, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2025, 3, 28, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2025, 4, 28, 14, 37, 52, tzinfo=timezone.utc)
 
-
-def test_may_31st_extra_day_with_step():
+def test_feb_29th_no_weirdness():
     g: Graph = Graph()
-    dt1 = datetime(2025, 5, 17, 14, 37, 52)  # May 17
-    dt2 = datetime(2025, 7, 8, 9, 12, 5)  # July 8
-    dt3 = datetime(2025, 11, 22, 21, 45, 30)  # November 22
+    dt1 = datetime(2024, 2, 29, 14, 37, 52)  # February 29
+    dt2 = datetime(2024, 7, 8, 9, 12, 5)  # July 8
 
     g.add_node(dt1, 1)
     g.add_node(dt2, 1)
-    g.add_node(dt3, 1)
 
-    window_only: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:2]
-    window_step_1_week: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="day")
-    )[:2]
-    window_step_1_week_ms: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="millisecond")
-    )[:2]
-    window_step_2_weeks: list[GraphView] = list(
-        g.rolling("1 month", step="2 weeks", alignment_unit="day")
-    )[:2]
-    window_step_2_weeks_ms: list[GraphView] = list(
-        g.rolling("1 month", step="2 weeks", alignment_unit="millisecond")
-    )[:2]
+    window: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:3]
+    window_ms: list[GraphView] = list(g.rolling("1 month", alignment_unit="millisecond"))[:3]
 
-    for i in range(2):
-        print(
-            f"\nWINDOW ONLY:                Start: {window_only[i].start_date_time}; End: {window_only[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 1 WEEK STEP:       Start: {window_step_1_week[i].start_date_time}; End: {window_step_1_week[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 1 WEEK STEP MS:    Start: {window_step_1_week_ms[i].start_date_time}; End: {window_step_1_week_ms[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 2 WEEK STEP:       Start: {window_step_2_weeks[i].start_date_time}; End: {window_step_2_weeks[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 2 WEEK STEP MS:    Start: {window_step_2_weeks_ms[i].start_date_time}; End: {window_step_2_weeks_ms[i].end_date_time}"
-        )
+    assert window[0].start_date_time == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end_date_time == datetime(2024, 3, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[0].start_date_time == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[0].end_date_time == datetime(2024, 3, 29, 14, 37, 52, tzinfo=timezone.utc)
 
-    # Output
-    # WINDOW ONLY:                Start: 2025-05-17 00:00:00+00:00; End: 2025-06-17 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP:       Start: 2025-04-24 00:00:00+00:00; End: 2025-05-24 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP MS:    Start: 2025-04-24 14:37:52+00:00; End: 2025-05-24 14:37:52+00:00
-    # WINDOW & 2 WEEK STEP:       Start: 2025-04-30 00:00:00+00:00; End: 2025-05-31 00:00:00+00:00
-    # WINDOW & 2 WEEK STEP MS:    Start: 2025-04-30 14:37:52+00:00; End: 2025-05-31 14:37:52+00:00
-    #
-    # WINDOW ONLY:                Start: 2025-06-17 00:00:00+00:00; End: 2025-07-17 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP:       Start: 2025-04-30 00:00:00+00:00; End: 2025-05-31 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP MS:    Start: 2025-04-30 14:37:52+00:00; End: 2025-05-31 14:37:52+00:00
-    # WINDOW & 2 WEEK STEP:       Start: 2025-05-14 00:00:00+00:00; End: 2025-06-14 00:00:00+00:00
-    # WINDOW & 2 WEEK STEP MS:    Start: 2025-05-14 14:37:52+00:00; End: 2025-06-14 14:37:52+00:00
-
-
-def test_march_31st_multiple_extra_days_with_step():
-    g: Graph = Graph()
-    dt1 = datetime(2025, 3, 17, 14, 37, 52)  # May 17
-    dt2 = datetime(2025, 7, 8, 9, 12, 5)  # July 8
-    dt3 = datetime(2025, 11, 22, 21, 45, 30)  # November 22
-
-    g.add_node(dt1, 1)
-    g.add_node(dt2, 1)
-    g.add_node(dt3, 1)
-
-    window_only: list[GraphView] = list(g.rolling("1 month", alignment_unit="day"))[:2]
-    window_step_1_week: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="day")
-    )[:2]
-    window_step_1_week_ms: list[GraphView] = list(
-        g.rolling("1 month", step="1 week", alignment_unit="millisecond")
-    )[:2]
-    window_step_2_weeks: list[GraphView] = list(
-        g.rolling("1 month", step="2 weeks", alignment_unit="day")
-    )[:2]
-    window_step_2_weeks_ms: list[GraphView] = list(
-        g.rolling("1 month", step="2 weeks", alignment_unit="millisecond")
-    )[:2]
-
-    for i in range(2):
-        print(
-            f"\nWINDOW ONLY:                Start: {window_only[i].start_date_time}; End: {window_only[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 1 WEEK STEP:       Start: {window_step_1_week[i].start_date_time}; End: {window_step_1_week[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 1 WEEK STEP MS:    Start: {window_step_1_week_ms[i].start_date_time}; End: {window_step_1_week_ms[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 2 WEEK STEP:       Start: {window_step_2_weeks[i].start_date_time}; End: {window_step_2_weeks[i].end_date_time}"
-        )
-        print(
-            f"WINDOW & 2 WEEK STEP MS:    Start: {window_step_2_weeks_ms[i].start_date_time}; End: {window_step_2_weeks_ms[i].end_date_time}"
-        )
-
-    # Output
-    # WINDOW ONLY:                Start: 2025-03-17 00:00:00+00:00; End: 2025-04-17 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP:       Start: 2025-02-24 00:00:00+00:00; End: 2025-03-24 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP MS:    Start: 2025-02-24 14:37:52+00:00; End: 2025-03-24 14:37:52+00:00
-    # WINDOW & 2 WEEK STEP:       Start: 2025-02-28 00:00:00+00:00; End: 2025-03-31 00:00:00+00:00
-    # WINDOW & 2 WEEK STEP MS:    Start: 2025-02-28 14:37:52+00:00; End: 2025-03-31 14:37:52+00:00
-    #
-    # WINDOW ONLY:                Start: 2025-04-17 00:00:00+00:00; End: 2025-05-17 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP:       Start: 2025-02-28 00:00:00+00:00; End: 2025-03-31 00:00:00+00:00
-    # WINDOW & 1 WEEK STEP MS:    Start: 2025-02-28 14:37:52+00:00; End: 2025-03-31 14:37:52+00:00
-    # WINDOW & 2 WEEK STEP:       Start: 2025-03-14 00:00:00+00:00; End: 2025-04-14 00:00:00+00:00
-    # WINDOW & 2 WEEK STEP MS:    Start: 2025-03-14 14:37:52+00:00; End: 2025-04-14 14:37:52+00:00
+    # no weirdness
+    assert window[1].start_date_time == datetime(2024, 3, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end_date_time == datetime(2024, 4, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window_ms[1].start_date_time == datetime(2024, 3, 29, 14, 37, 52, tzinfo=timezone.utc)
+    assert window_ms[1].end_date_time == datetime(2024, 4, 29, 14, 37, 52, tzinfo=timezone.utc)

@@ -8,7 +8,7 @@ use std::{
 
 use chrono::ParseError;
 use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
-use std::num::ParseIntError;
+use std::{num::ParseIntError, ops::Mul};
 
 pub(crate) const SECOND_MS: i64 = 1000;
 pub(crate) const MINUTE_MS: i64 = 60 * SECOND_MS;
@@ -173,7 +173,11 @@ impl IntoTimeWithFormat for &str {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum IntervalSize {
     Discrete(u64),
-    Temporal { millis: u64, months: u32 },
+    /// `months` is u32 because chrono::Months works with u32.
+    Temporal {
+        millis: u64,
+        months: u32,
+    },
 }
 
 impl IntervalSize {
@@ -599,6 +603,28 @@ impl Add<Interval> for i64 {
                     .timestamp_millis()
                     + millis as i64
             }
+        }
+    }
+}
+
+// since all IntervalSize values (discrete number and temporal millis/months) are unsigned,
+// we can only multiply with unsigned numbers.
+impl Mul<Interval> for u32 {
+    type Output = Interval;
+
+    fn mul(self, rhs: Interval) -> Self::Output {
+        match rhs.size {
+            IntervalSize::Discrete(number) => Interval {
+                alignment_unit: rhs.alignment_unit, // alignment_unit should be None
+                size: IntervalSize::Discrete((self as u64) * number),
+            },
+            IntervalSize::Temporal { millis, months } => Interval {
+                alignment_unit: rhs.alignment_unit,
+                size: IntervalSize::Temporal {
+                    millis: (self as u64) * millis,
+                    months: self * months,
+                },
+            },
         }
     }
 }
