@@ -4863,7 +4863,6 @@ dependencies = [
  "serde_json",
  "streaming-stats",
  "strsim",
- "sysinfo",
  "tantivy",
  "tempfile",
  "thiserror 2.0.12",
