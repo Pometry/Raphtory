@@ -349,7 +349,10 @@ impl NodeFilter {
         };
 
         let op_allowed = match kind {
-            U64 => matches!(filter.operator, Eq | Ne | Lt | Le | Gt | Ge | In | NotIn),
+            U64 => matches!(
+                filter.operator,
+                Eq | Ne | Lt | Le | Gt | Ge | IsIn | IsNotIn
+            ),
             Str => matches!(
                 filter.operator,
                 Eq | Ne
@@ -358,8 +361,8 @@ impl NodeFilter {
                     | Contains
                     | NotContains
                     | FuzzySearch { .. }
-                    | In
-                    | NotIn
+                    | IsIn
+                    | IsNotIn
             ),
         };
 
@@ -379,7 +382,7 @@ impl NodeFilter {
         }
 
         match filter.operator {
-            In | NotIn => {
+            IsIn | IsNotIn => {
                 if !matches!(
                     filter.field_value,
                     FilterValue::IDSet(_) | FilterValue::Set(_)

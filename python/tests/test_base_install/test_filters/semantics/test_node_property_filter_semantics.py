@@ -56,9 +56,9 @@ def test_temporal_any_semantics_for_secondary_indexes():
 
 
 @with_disk_variants(init_nodes_graph)
-def test_temporal_latest_semantics():
+def test_temporal_last_semantics():
     def check(graph):
-        filter_expr = filter.Node.property("p1").temporal().latest() == 1
+        filter_expr = filter.Node.property("p1").temporal().last() == 1
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N3", "N4", "N6", "N7"])
         assert result_ids == expected_ids
@@ -69,9 +69,9 @@ def test_temporal_latest_semantics():
 @with_disk_variants(
     init_fn=combined([init_nodes_graph, init_graph_for_secondary_indexes]),
 )
-def test_temporal_latest_semantics_for_secondary_indexes():
+def test_temporal_last_semantics_for_secondary_indexes():
     def check(graph):
-        filter_expr = filter.Node.property("p1").temporal().latest() == 1
+        filter_expr = filter.Node.property("p1").temporal().last() == 1
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N16", "N3", "N4", "N6", "N7"])
         assert result_ids == expected_ids

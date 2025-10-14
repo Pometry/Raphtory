@@ -13,20 +13,15 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         edgeFilter(filter: {
-         src: {
-          field: NODE_ID
-          operator: EQUAL
-          value: { str: "3" }
-        }
+          src: {
+            field: NODE_ID
+            where: { eq: { str: "3" } }
+          }
         }) {
           edges {
             list {
-              src {
-                name
-              }
-              dst {
-                name
-              }
+              src { name }
+              dst { name }
             }
           }
         }
@@ -58,20 +53,15 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         edgeFilter(filter: {
-         src: {
-          field: NODE_ID
-          operator: EQUAL
-          value: { u64: 1 }
-        }
+          src: {
+            field: NODE_ID
+            where: { eq: { u64: 1 } }
+          }
         }) {
           edges {
             list {
-              src {
-                name
-              }
-              dst {
-                name
-              }
+              src { name }
+              dst { name }
             }
           }
         }

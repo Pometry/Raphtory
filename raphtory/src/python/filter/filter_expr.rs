@@ -11,9 +11,11 @@ use crate::{
     },
     errors::GraphError,
     prelude::GraphViewOps,
-    python::filter::create_filter::DynInternalFilterOps,
+    python::filter::{
+        create_filter::DynInternalFilterOps, property_filter_builders::PyPropertyFilterOps,
+    },
 };
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter")]
@@ -60,5 +62,26 @@ impl CreateFilter for PyFilterExpr {
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         self.0.create_filter(graph)
+    }
+}
+
+pub enum AcceptFilter {
+    Expr(PyFilterExpr),
+    Chain(Py<PyPropertyFilterOps>),
+}
+
+impl<'py> FromPyObject<'py> for AcceptFilter {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        if let Ok(expr) = ob.extract::<PyFilterExpr>() {
+            return Ok(AcceptFilter::Expr(expr));
+        }
+
+        if let Ok(chain) = ob.extract::<Py<PyPropertyFilterOps>>() {
+            return Ok(AcceptFilter::Chain(chain));
+        }
+
+        Err(PyTypeError::new_err(
+            "Expected a FilterExpr or a PropertyFilterOps chain",
+        ))
     }
 }

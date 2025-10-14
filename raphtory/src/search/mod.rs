@@ -1019,7 +1019,7 @@ mod test_index {
                 .build();
             create_index_fn(&graph, index_spec.clone()).unwrap();
 
-            let filter = NodeFilter::property("p2").temporal().latest().eq(50u64);
+            let filter = NodeFilter::property("p2").temporal().last().eq(50u64);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["pometry"]);
 
             let node = graph
@@ -1027,7 +1027,7 @@ mod test_index {
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
 
-            let filter = NodeFilter::property("p1").temporal().latest().eq(100u64);
+            let filter = NodeFilter::property("p1").temporal().last().eq(100u64);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
 
             node.add_metadata([("z", true)]).unwrap();
@@ -1059,7 +1059,7 @@ mod test_index {
                 .add_edge(1, "shivam", "kapoor", [("p1", 100u64)], None)
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = EdgeFilter::property("p1").temporal().latest().eq(100u64);
+            let filter = EdgeFilter::property("p1").temporal().last().eq(100u64);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
 
             edge.add_metadata([("z", true)], None).unwrap();

@@ -114,8 +114,8 @@ impl<'a> QueryBuilder<'a> {
                     .collect();
                 let terms = terms?;
                 match &filter.operator {
-                    FilterOperator::In => create_in_query(terms),
-                    FilterOperator::NotIn => create_not_in_query(terms),
+                    FilterOperator::IsIn => create_in_query(terms),
+                    FilterOperator::IsNotIn => create_not_in_query(terms),
                     _ => unreachable!(),
                 }
             }
@@ -178,8 +178,8 @@ impl<'a> QueryBuilder<'a> {
                     .collect();
                 let terms = terms?;
                 match operator {
-                    FilterOperator::In => create_in_query(terms),
-                    FilterOperator::NotIn => create_not_in_query(terms),
+                    FilterOperator::IsIn => create_in_query(terms),
+                    FilterOperator::IsNotIn => create_not_in_query(terms),
                     _ => unreachable!(),
                 }
             }
@@ -242,8 +242,8 @@ impl<'a> QueryBuilder<'a> {
                     .collect();
                 let terms = terms?;
                 match operator {
-                    FilterOperator::In => create_in_query(terms),
-                    FilterOperator::NotIn => create_not_in_query(terms),
+                    FilterOperator::IsIn => create_in_query(terms),
+                    FilterOperator::IsNotIn => create_not_in_query(terms),
                     _ => unreachable!(),
                 }
             }

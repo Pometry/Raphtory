@@ -95,7 +95,7 @@ impl Filter {
         Self {
             field_name: field_name.into(),
             field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
-            operator: FilterOperator::In,
+            operator: FilterOperator::IsIn,
         }
     }
 
@@ -106,7 +106,7 @@ impl Filter {
         Self {
             field_name: field_name.into(),
             field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
-            operator: FilterOperator::NotIn,
+            operator: FilterOperator::IsNotIn,
         }
     }
 
@@ -183,7 +183,7 @@ impl Filter {
         Self {
             field_name: field_name.into(),
             field_value: FilterValue::IDSet(Arc::new(set)),
-            operator: FilterOperator::In,
+            operator: FilterOperator::IsIn,
         }
     }
 
@@ -196,7 +196,7 @@ impl Filter {
         Self {
             field_name: field_name.into(),
             field_value: FilterValue::IDSet(Arc::new(set)),
-            operator: FilterOperator::NotIn,
+            operator: FilterOperator::IsNotIn,
         }
     }
 
@@ -262,7 +262,7 @@ impl Filter {
                 } else {
                     // No endpoint node -> no value present.
                     match self.operator {
-                        FilterOperator::Ne | FilterOperator::NotIn => true,
+                        FilterOperator::Ne | FilterOperator::IsNotIn => true,
                         _ => false,
                     }
                 }
