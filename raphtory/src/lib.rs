@@ -162,7 +162,4 @@ pub mod prelude {
     pub use crate::db::api::{mutation::IndexMutationOps, view::SearchableGraphOps};
 }
 
-#[cfg(feature = "storage")]
-pub use polars_arrow as arrow2;
-
 pub use raphtory_api::{atomic_extra, core::utils::logging};

@@ -5,8 +5,8 @@ use crate::{
     errors::GraphError,
     prelude::{Graph, GraphViewOps, NodeStateOps, NodeViewOps},
 };
+use arrow::array::ArrayRef;
 use itertools::Itertools;
-use polars_arrow::array::Array;
 use pometry_storage::interop::GraphLike;
 use raphtory_api::{
     core::{
@@ -170,7 +170,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
         layer: usize,
         prop_id: usize,
         _key: S,
-    ) -> Option<Box<dyn Array>> {
+    ) -> Option<ArrayRef> {
         let prop_type = self
             .edge_meta()
             .temporal_prop_mapper()

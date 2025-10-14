@@ -3,15 +3,9 @@ pub mod test_utils;
 #[cfg(test)]
 #[cfg(feature = "proto")]
 mod proto_test {
-    use std::{collections::HashMap, path::PathBuf, sync::Arc};
-
-    use arrow_array::types::{Int32Type, UInt8Type};
-    use itertools::Itertools;
-    use raphtory_storage::core_ops::CoreGraphOps;
-    use tempfile::TempDir;
-
     use super::test_utils::*;
     use chrono::{DateTime, NaiveDateTime};
+    use itertools::Itertools;
     use proptest::proptest;
     use raphtory::{
         db::{
@@ -25,6 +19,12 @@ mod proto_test {
         entities::properties::{meta::PropMapper, prop::PropType},
         storage::arc_str::ArcStr,
     };
+    use raphtory_storage::core_ops::CoreGraphOps;
+    use std::{collections::HashMap, path::PathBuf, sync::Arc};
+    use tempfile::TempDir;
+
+    #[cfg(feature = "arrow")]
+    use arrow::array::types::{Int32Type, UInt8Type};
 
     #[test]
     fn prev_proto_str() {
@@ -381,6 +381,7 @@ mod proto_test {
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
             .unwrap();
 
+        #[cfg(feature = "arrow")]
         g1.add_edge(
             3,
             "Alice",
@@ -389,6 +390,7 @@ mod proto_test {
             None,
         )
         .unwrap();
+
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -764,6 +766,7 @@ mod proto_test {
             ),
         ));
 
+        #[cfg(feature = "arrow")]
         props.push((
             "array",
             Prop::from_arr::<UInt8Type>(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),

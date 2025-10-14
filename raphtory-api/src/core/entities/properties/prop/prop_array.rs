@@ -2,7 +2,14 @@ use crate::{
     core::entities::properties::prop::{Prop, PropType},
     iter::{BoxedLIter, IntoDynBoxed},
 };
-use arrow_array::{Array, ArrayRef, ArrowPrimitiveType, PrimitiveArray, RecordBatch};
+use arrow_array::{
+    cast::AsArray,
+    types::{
+        Float32Type, Float64Type, Int32Type, Int64Type, UInt16Type, UInt32Type, UInt64Type,
+        UInt8Type,
+    },
+    Array, ArrayRef, ArrowPrimitiveType, PrimitiveArray, RecordBatch,
+};
 use arrow_ipc::{reader::StreamReader, writer::StreamWriter};
 use arrow_schema::{ArrowError, DataType, Field, Fields, Schema};
 use serde::{Deserialize, Serialize, Serializer};
@@ -108,78 +115,63 @@ impl PropArray {
         self.iter_prop_inner().into_iter().flatten()
     }
 
-    fn iter_prop_inner(&self) -> Option<BoxedLIter<Prop>> {
+    fn iter_prop_inner(&self) -> Option<BoxedLIter<'_, Prop>> {
         let arr = self.as_array_ref()?;
 
-        arr.as_any()
-            .downcast_ref::<PrimitiveArray<arrow_array::types::Int32Type>>()
+        arr.as_primitive_opt::<Int32Type>()
             .map(|arr| {
                 arr.into_iter()
                     .map(|v| Prop::I32(v.unwrap_or_default()))
                     .into_dyn_boxed()
             })
             .or_else(|| {
-                arr.as_any()
-                    .downcast_ref::<PrimitiveArray<arrow_array::types::Float64Type>>()
-                    .map(|arr| {
-                        arr.into_iter()
-                            .map(|v| Prop::F64(v.unwrap_or_default()))
-                            .into_dyn_boxed()
-                    })
+                arr.as_primitive_opt::<Float64Type>().map(|arr| {
+                    arr.into_iter()
+                        .map(|v| Prop::F64(v.unwrap_or_default()))
+                        .into_dyn_boxed()
+                })
             })
             .or_else(|| {
-                arr.as_any()
-                    .downcast_ref::<PrimitiveArray<arrow_array::types::Float32Type>>()
-                    .map(|arr| {
-                        arr.into_iter()
-                            .map(|v| Prop::F32(v.unwrap_or_default()))
-                            .into_dyn_boxed()
-                    })
+                arr.as_primitive_opt::<Float32Type>().map(|arr| {
+                    arr.into_iter()
+                        .map(|v| Prop::F32(v.unwrap_or_default()))
+                        .into_dyn_boxed()
+                })
             })
             .or_else(|| {
-                arr.as_any()
-                    .downcast_ref::<PrimitiveArray<arrow_array::types::UInt64Type>>()
-                    .map(|arr| {
-                        arr.into_iter()
-                            .map(|v| Prop::U64(v.unwrap_or_default()))
-                            .into_dyn_boxed()
-                    })
+                arr.as_primitive_opt::<UInt64Type>().map(|arr| {
+                    arr.into_iter()
+                        .map(|v| Prop::U64(v.unwrap_or_default()))
+                        .into_dyn_boxed()
+                })
             })
             .or_else(|| {
-                arr.as_any()
-                    .downcast_ref::<PrimitiveArray<arrow_array::types::UInt32Type>>()
-                    .map(|arr| {
-                        arr.into_iter()
-                            .map(|v| Prop::U32(v.unwrap_or_default()))
-                            .into_dyn_boxed()
-                    })
+                arr.as_primitive_opt::<UInt32Type>().map(|arr| {
+                    arr.into_iter()
+                        .map(|v| Prop::U32(v.unwrap_or_default()))
+                        .into_dyn_boxed()
+                })
             })
             .or_else(|| {
-                arr.as_any()
-                    .downcast_ref::<PrimitiveArray<arrow_array::types::Int64Type>>()
-                    .map(|arr| {
-                        arr.into_iter()
-                            .map(|v| Prop::I64(v.unwrap_or_default()))
-                            .into_dyn_boxed()
-                    })
+                arr.as_primitive_opt::<Int64Type>().map(|arr| {
+                    arr.into_iter()
+                        .map(|v| Prop::I64(v.unwrap_or_default()))
+                        .into_dyn_boxed()
+                })
             })
             .or_else(|| {
-                arr.as_any()
-                    .downcast_ref::<PrimitiveArray<arrow_array::types::UInt16Type>>()
-                    .map(|arr| {
-                        arr.into_iter()
-                            .map(|v| Prop::U16(v.unwrap_or_default()))
-                            .into_dyn_boxed()
-                    })
+                arr.as_primitive_opt::<UInt16Type>().map(|arr| {
+                    arr.into_iter()
+                        .map(|v| Prop::U16(v.unwrap_or_default()))
+                        .into_dyn_boxed()
+                })
             })
             .or_else(|| {
-                arr.as_any()
-                    .downcast_ref::<PrimitiveArray<arrow_array::types::UInt8Type>>()
-                    .map(|arr| {
-                        arr.into_iter()
-                            .map(|v| Prop::U8(v.unwrap_or_default()))
-                            .into_dyn_boxed()
-                    })
+                arr.as_primitive_opt::<UInt8Type>().map(|arr| {
+                    arr.into_iter()
+                        .map(|v| Prop::U8(v.unwrap_or_default()))
+                        .into_dyn_boxed()
+                })
             })
     }
 }

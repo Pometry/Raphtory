@@ -3,16 +3,12 @@ pub mod test_utils;
 #[cfg(feature = "storage")]
 #[cfg(test)]
 mod test {
+    use arrow::array::StringArray;
     use bigdecimal::BigDecimal;
     use itertools::Itertools;
-    use polars_arrow::array::Utf8Array;
-    use std::{
-        path::{Path, PathBuf},
-        str::FromStr,
+    use pometry_storage::{
+        chunked_array::array_like::BaseArrayLike, graph::TemporalGraph, properties::Properties,
     };
-    use tempfile::TempDir;
-
-    use pometry_storage::{graph::TemporalGraph, properties::Properties};
     use proptest::{prelude::*, sample::size_range};
     use raphtory::{
         db::{api::view::StaticGraphViewOps, graph::graph::assert_graph_equal},
@@ -24,6 +20,11 @@ mod test {
         graph::graph::GraphStorage,
     };
     use rayon::prelude::*;
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
+    use tempfile::TempDir;
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
         let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
@@ -474,6 +475,7 @@ mod test {
             num_threads,
             node_type_col,
             None,
+            None,
         )
         .unwrap()
         .into_graph();
@@ -684,8 +686,11 @@ mod test {
         let graph = Graph::new();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let mut dg = DiskGraphStorage::from_graph(&graph, graph_dir.path()).unwrap();
-        dg.load_node_types_from_arrays([Ok(Utf8Array::<i32>::from_slice(["1", "2"]).boxed())], 100)
-            .unwrap();
+        dg.load_node_types_from_arrays(
+            [Ok(StringArray::from_iter_values(["1", "2"]).as_array_ref())],
+            100,
+        )
+        .unwrap();
         assert_eq!(
             dg.into_graph().nodes().node_type().collect_vec(),
             [Some("1".into()), Some("2".into())]
@@ -765,6 +770,7 @@ mod test {
             100,
             100,
             1,
+            None,
             None,
             None,
         )

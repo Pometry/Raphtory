@@ -13,7 +13,7 @@ rust-version.workspace = true
 edition.workspace = true
 
 [dependencies]
-raphtory-api = { path = "../raphtory-api", version = "0.16.1" }
+raphtory-api = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -28,7 +28,7 @@ parking_lot = { workspace = true }
 itertools = { workspace = true }
 once_cell = { workspace = true }
 ouroboros = { workspace = true }
-regex = "1.11.1"
+regex = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 
 [dev-dependencies]

@@ -200,6 +200,7 @@ mod cypher {
                     args.num_threads,
                     args.node_type_col.as_deref(),
                     args.node_id_col.as_deref(),
+                    None,
                 )
                 .expect("Failed to load graph");
             }
