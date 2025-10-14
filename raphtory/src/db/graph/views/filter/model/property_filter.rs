@@ -287,7 +287,7 @@ impl<M> PropertyFilter<M> {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
-            operator: FilterOperator::In,
+            operator: FilterOperator::IsIn,
             ops: vec![],
             _phantom: PhantomData,
         }
@@ -297,7 +297,7 @@ impl<M> PropertyFilter<M> {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
-            operator: FilterOperator::NotIn,
+            operator: FilterOperator::IsNotIn,
             ops: vec![],
             _phantom: PhantomData,
         }
@@ -471,7 +471,7 @@ impl<M> PropertyFilter<M> {
                     return Err(GraphError::InvalidFilterCmp(fd));
                 }
             }
-            FilterOperator::In | FilterOperator::NotIn => match &self.prop_value {
+            FilterOperator::IsIn | FilterOperator::IsNotIn => match &self.prop_value {
                 PropertyFilterValue::Set(_) => {}
                 PropertyFilterValue::None => {
                     return Err(GraphError::InvalidFilterExpectSetGotNone(self.operator))

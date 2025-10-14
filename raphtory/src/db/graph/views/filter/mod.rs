@@ -253,7 +253,7 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "((((node_type NOT_IN [fire_nation, water_tribe] AND p2 == 2) AND p1 == 1) AND (p3 <= 5 OR p4 IN [2, 10])) OR (node_name == pometry OR p5 == 9))",
+            "((((node_type IS_NOT_IN [fire_nation, water_tribe] AND p2 == 2) AND p1 == 1) AND (p3 <= 5 OR p4 IS_IN [2, 10])) OR (node_name == pometry OR p5 == 9))",
             CompositeNodeFilter::Or(Box::new(CompositeNodeFilter::And(
                 Box::new(CompositeNodeFilter::And(
                     Box::new(CompositeNodeFilter::And(
@@ -321,7 +321,7 @@ mod test_composite_filters {
         );
 
         assert_eq!(
-            "((((edge_type NOT_IN [fire_nation, water_tribe] AND p2 == 2) AND p1 == 1) AND (p3 <= 5 OR p4 IN [2, 10])) OR (src == pometry OR p5 == 9))",
+            "((((edge_type IS_NOT_IN [fire_nation, water_tribe] AND p2 == 2) AND p1 == 1) AND (p3 <= 5 OR p4 IS_IN [2, 10])) OR (src == pometry OR p5 == 9))",
             CompositeEdgeFilter::Or(
                 Box::new(CompositeEdgeFilter::And(
                     Box::new(CompositeEdgeFilter::And(

@@ -18,41 +18,16 @@ def test_node_property_filter_equal(graph):
     query {
       graph(path: "g") {
         nodes {
-            nodeFilter(
-                filter: {
-                    property: {
-                        name: "prop5"
-                        operator: EQUAL
-                        value: { list: [ {i64: 1}, {i64: 2}, {i64: 3} ] }
-                  }
-                }
-              ) {
-                list {
-                  name
-                }
-            }
-         }
-      }
-    }
-    """
-    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
-    run_graphql_test(query, expected_output, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_node_property_filter_equal_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodes {
-            nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop5"
-                      operator: EQUAL
+          nodeFilter(
+            filter: {
+              property: {
+                name: "prop5"
+                where: {
+                  eq: { list: [ {i64: 1}, {i64: 2}, {i64: 3} ] }
                 }
               }
-            ) {
+            }
+          ) {
             list {
               name
             }
@@ -61,8 +36,8 @@ def test_node_property_filter_equal_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Invalid filter: Operator EQUAL requires a value"
-    run_graphql_error_test(query, expected_error_message, graph)
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected_output, graph)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -71,15 +46,16 @@ def test_node_property_filter_equal_type_error(graph):
     query {
       graph(path: "g") {
         nodes {
-            nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop5"
-                      operator: EQUAL
-                      value: { i64: 1 }
+          nodeFilter(
+            filter: {
+              property: {
+                name: "prop5"
+                where: {
+                  eq: { i64: 1 }
                 }
               }
-            ) {
+            }
+          ) {
             list {
               name
             }
@@ -99,16 +75,17 @@ def test_node_property_filter_not_equal(graph):
     query = """
     query {
       graph(path: "g") {
-         nodes {
-            nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop4"
-                      operator: NOT_EQUAL
-                      value: { bool: true }
+        nodes {
+          nodeFilter(
+            filter: {
+              property: {
+                name: "prop4"
+                where: {
+                  ne: { bool: true }
                 }
               }
-            ) {
+            }
+          ) {
             list {
               name
             }
@@ -124,46 +101,21 @@ def test_node_property_filter_not_equal(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_node_property_filter_not_equal_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodes {
-          nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop4"
-                      operator: NOT_EQUAL
-                }
-              }
-          ) {
-            list {
-              name
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator NOT_EQUAL requires a value"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_node_property_filter_not_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
         nodes {
-           nodeFilter(
-               filter: {
-                   property: {
-                       name: "prop4"
-                       operator: NOT_EQUAL
-                       value:  { i64: 1 }
-                 }
-               }
-           ) {
+          nodeFilter(
+            filter: {
+              property: {
+                name: "prop4"
+                where: {
+                  ne: { i64: 1 }
+                }
+              }
+            }
+          ) {
             list {
               name
             }
@@ -186,10 +138,11 @@ def test_node_property_filter_greater_than_or_equal(graph):
         nodes {
           nodeFilter(
             filter: {
-                property: {
-                    name: "prop1"
-                    operator: GREATER_THAN_OR_EQUAL
-                    value:  { i64: 60 }
+              property: {
+                name: "prop1"
+                where: {
+                  ge: { i64: 60 }
+                }
               }
             }
           ) {
@@ -206,48 +159,21 @@ def test_node_property_filter_greater_than_or_equal(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_node_property_filter_greater_than_or_equal_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodes {
-          nodeFilter(
-            filter: {
-                property: {
-                    name: "prop1"
-                    operator: GREATER_THAN_OR_EQUAL
-              }
-            }
-          ) {
-            list {
-              name
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = (
-        "Invalid filter: Operator GREATER_THAN_OR_EQUAL requires a value"
-    )
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_node_property_filter_greater_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: GREATER_THAN_OR_EQUAL
-                      value: { bool: true }
+            filter: {
+              property: {
+                name: "prop1"
+                where: {
+                  ge: { bool: true }
                 }
               }
-            ) {
+            }
+          ) {
             list {
               name
             }
@@ -270,10 +196,11 @@ def test_node_property_filter_less_than_or_equal(graph):
         nodes {
           nodeFilter(
             filter: {
-                property: {
-                    name: "prop1"
-                    operator: LESS_THAN_OR_EQUAL
-                    value: { i64: 30 }
+              property: {
+                name: "prop1"
+                where: {
+                  le: { i64: 30 }
+                }
               }
             }
           ) {
@@ -296,51 +223,20 @@ def test_node_property_filter_less_than_or_equal(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_node_property_filter_less_than_or_equal_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodes {
-          nodeFilter(
-            filter: {
-                property: {
-                    name: "prop1"
-                    operator: LESS_THAN_OR_EQUAL
-              }
-            }
-          ) {
-            list {
-              name
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = (
-        "Invalid filter: Operator LESS_THAN_OR_EQUAL requires a value"
-    )
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_node_property_filter_less_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: LESS_THAN_OR_EQUAL
-                      value: { str: "shivam" }
-                }
+            filter: {
+              property: {
+                name: "prop1"
+                where: { le: { str: "shivam" } }
               }
-            ) {
-            list {
-              name
             }
+          ) {
+            list { name }
           }
         }
       }
@@ -360,16 +256,13 @@ def test_node_property_filter_greater_than(graph):
         nodes {
           nodeFilter(
             filter: {
-                property: {
-                    name: "prop1"
-                    operator: GREATER_THAN
-                    value: { i64: 30 }
+              property: {
+                name: "prop1"
+                where: { gt: { i64: 30 } }
               }
             }
           ) {
-            list {
-              name
-            }
+            list { name }
           }
         }
       }
@@ -380,32 +273,6 @@ def test_node_property_filter_greater_than(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_node_property_filter_greater_than_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodes {
-          nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: GREATER_THAN
-                }
-              }
-          ) {
-            list {
-              name
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator GREATER_THAN requires a value"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_node_property_filter_greater_than_type_error(graph):
     query = """
     query {
@@ -413,16 +280,13 @@ def test_node_property_filter_greater_than_type_error(graph):
         nodes {
           nodeFilter(
             filter: {
-                property: {
-                    name: "prop1"
-                    operator: GREATER_THAN
-                    value: { str: "shivam" }
+              property: {
+                name: "prop1"
+                where: { gt: { str: "shivam" } }
               }
             }
-           ) {
-            list {
-              name
-            }
+          ) {
+            list { name }
           }
         }
       }
@@ -441,17 +305,14 @@ def test_node_property_filter_less_than(graph):
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: LESS_THAN
-                      value: { i64: 30 }
-                }
+            filter: {
+              property: {
+                name: "prop1"
+                where: { lt: { i64: 30 } }
               }
-          ) {
-            list {
-              name
             }
+          ) {
+            list { name }
           }
         }
       }
@@ -464,49 +325,20 @@ def test_node_property_filter_less_than(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_node_property_filter_less_than_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodes {
-          nodeFilter(
-            filter: {
-                property: {
-                    name: "prop1"
-                    operator: LESS_THAN
-              }
-            }
-          ) {
-            list {
-              name
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator LESS_THAN requires a value"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_node_property_filter_less_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: LESS_THAN
-                      value: { str: "shivam" }
-                }
+            filter: {
+              property: {
+                name: "prop1"
+                where: { lt: { str: "shivam" } }
               }
-            ) {
-            list {
-              name
             }
+          ) {
+            list { name }
           }
         }
       }
@@ -526,15 +358,13 @@ def test_node_property_filter_is_none(graph):
         nodes {
           nodeFilter(
             filter: {
-                property: {
-                    name: "prop5"
-                    operator: IS_NONE
+              property: {
+                name: "prop5"
+                where: { isNone: true }
               }
             }
           ) {
-            list {
-              name
-            }
+            list { name }
           }
         }
       }
@@ -553,16 +383,14 @@ def test_node_property_filter_is_some(graph):
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop5"
-                      operator: IS_SOME
-                }
+            filter: {
+              property: {
+                name: "prop5"
+                where: { isSome: true }
               }
-            ) {
-            list {
-              name
             }
+          ) {
+            list { name }
           }
         }
       }
@@ -582,16 +410,13 @@ def test_node_property_filter_is_in(graph):
         nodes {
           nodeFilter(
             filter: {
-                property: {
-                    name: "prop1"
-                    operator: IS_IN
-                    value: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}]}
+              property: {
+                name: "prop1"
+                where: { isIn: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}] } }
               }
             }
           ) {
-            list {
-              name
-            }
+            list { name }
           }
         }
       }
@@ -611,16 +436,13 @@ def test_node_property_filter_is_in_empty_list(graph):
         nodes {
           nodeFilter(
             filter: {
-                property: {
-                    name: "prop1"
-                    operator: IS_IN
-                    value: { list: []}
+              property: {
+                name: "prop1"
+                where: { isIn: { list: [] } }
               }
             }
           ) {
-            list {
-              name
-            }
+            list { name }
           }
         }
       }
@@ -632,22 +454,20 @@ def test_node_property_filter_is_in_empty_list(graph):
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_node_property_filter_is_in_no_value(graph):
+    # Keeping semantics: value list has no matching elements
     query = """
     query {
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: IS_IN
-                      value: { list: [{i64: 100}]}
-                }
+            filter: {
+              property: {
+                name: "prop1"
+                where: { isIn: { list: [{i64: 100}] } }
               }
-            ) {
-            list {
-              name
             }
+          ) {
+            list { name }
           }
         }
       }
@@ -665,23 +485,20 @@ def test_node_property_filter_is_in_type_error(graph):
         nodes {
           nodeFilter(
             filter: {
-                property: {
-                    name: "prop1"
-                    operator: IS_IN
-                    value: { str: "shivam" }
+              property: {
+                name: "prop1"
+                where: { isIn: { str: "shivam" } }
               }
             }
           ) {
-            list {
-              name
-            }
+            list { name }
           }
         }
       }
     }
     """
     expected_error_message = (
-        "Invalid filter: Operator IS_IN requires a list value, got Str(shivam)"
+        "Invalid filter: isIn requires a list value, got Str(shivam)"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -693,17 +510,14 @@ def test_node_property_filter_is_not_in(graph):
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: IS_NOT_IN
-                      value: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}]}
-                }
+            filter: {
+              property: {
+                name: "prop1"
+                where: { isNotIn: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}] } }
               }
-            ) {
-            list {
-              name
             }
+          ) {
+            list { name }
           }
         }
       }
@@ -722,17 +536,14 @@ def test_node_property_filter_is_not_in_empty_list(graph):
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: IS_NOT_IN
-                      value: { list: []}
-                }
+            filter: {
+              property: {
+                name: "prop1"
+                where: { isNotIn: { list: [] } }
               }
-            ) {
-            list {
-              name
             }
+          ) {
+            list { name }
           }
         }
       }
@@ -751,56 +562,27 @@ def test_node_property_filter_is_not_in_empty_list(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_node_property_filter_is_not_in_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        nodes {
-          nodeFilter(
-            filter: {
-                property: {
-                    name: "prop1"
-                    operator: IS_NOT_IN
-              }
-            }
-          ) {
-            list {
-              name
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator IS_NOT_IN requires a list"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_node_property_filter_is_not_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {
         nodes {
           nodeFilter(
-              filter: {
-                  property: {
-                      name: "prop1"
-                      operator: IS_NOT_IN
-                      value: { str: "shivam" }
-                }
+            filter: {
+              property: {
+                name: "prop1"
+                where: { isNotIn: { str: "shivam" } }
               }
-            ) {
-            list {
-              name
             }
+          ) {
+            list { name }
           }
         }
       }
     }
     """
     expected_error_message = (
-        "Invalid filter: Operator IS_NOT_IN requires a list value, got Str(shivam)"
+        "Invalid filter: isNotIn requires a list value, got Str(shivam)"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -808,52 +590,42 @@ def test_node_property_filter_is_not_in_type_error(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_node_property_filter_contains_wrong_value_type_error(graph):
     query = """
-        query {
-          graph(path: "g") {
-            nodeFilter(filter: {
-              property: {
-                name: "p10"
-                operator: CONTAINS
-                value: { u64: 2 }
-              }
-            }) {
-              nodes {
-                list {
-                  name
-                }
-              }
-            }
+    query {
+      graph(path: "g") {
+        nodeFilter(filter: {
+          property: {
+            name: "p10"
+            where: { contains: { u64: 2 } }
+          }
+        }) {
+          nodes {
+            list { name }
           }
         }
+      }
+    }
     """
-    expected_error_message = (
-        "Invalid filter: Operator CONTAINS requires a string value, got U64(2)"
-    )
+    expected_error_message = "Property p10 does not exist"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_nodes_property_filter_starts_with(graph):
     query = """
-        query {
-          graph(path: "g") {
-            nodes {
-              nodeFilter(
-                  filter: {
-                      property: {
-                          name: "prop3"
-                          operator: STARTS_WITH
-                          value: { str: "abc" }
-                    }
-                  }
-                ) {
-                list {
-                  name
-                }
-              }
+    query {
+      graph(path: "g") {
+        nodes {
+          nodeFilter(filter: {
+            property: {
+              name: "prop3"
+              where: { startsWith: { str: "abc" } }
             }
+          }) {
+            list { name }
           }
         }
+      }
+    }
     """
     expected_output = {
         "graph": {
@@ -870,25 +642,20 @@ def test_nodes_property_filter_starts_with(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_nodes_property_filter_ends_with(graph):
     query = """
-        query {
-          graph(path: "g") {
-            nodes {
-              nodeFilter(
-                  filter: {
-                      property: {
-                          name: "prop3"
-                          operator: ENDS_WITH
-                          value: { str: "333" }
-                    }
-                  }
-                ) {
-                list {
-                  name
-                }
-              }
+    query {
+      graph(path: "g") {
+        nodes {
+          nodeFilter(filter: {
+            property: {
+              name: "prop3"
+              where: { endsWith: { str: "333" } }
             }
+          }) {
+            list { name }
           }
         }
+      }
+    }
     """
     expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "c"}]}}}}
     run_graphql_test(query, expected_output, graph)
@@ -897,26 +664,20 @@ def test_nodes_property_filter_ends_with(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_nodes_property_filter_temporal_first_starts_with(graph):
     query = """
-        query {
-          graph(path: "g") {
-            nodes {
-              nodeFilter(
-                  filter: {
-                    temporalProperty: {
-                      name: "prop3",
-                      ops: [FIRST]
-                      operator: STARTS_WITH
-                      value: { str: "abc" }
-                    }
-                  }
-                ) {
-                list {
-                  name
-                }
-              }
+    query {
+      graph(path: "g") {
+        nodes {
+          nodeFilter(filter: {
+            temporalProperty: {
+              name: "prop3"
+              where: { first: { startsWith: { str: "abc" } } }
             }
+          }) {
+            list { name }
           }
         }
+      }
+    }
     """
     expected_output = {
         "graph": {
@@ -931,28 +692,22 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_nodes_property_filter_temporal_first_starts_with(graph):
+def test_nodes_property_filter_temporal_all_starts_with(graph):
     query = """
-        query {
-          graph(path: "g") {
-            nodes {
-              nodeFilter(
-                  filter: {
-                    temporalProperty: {
-                      name: "prop3",
-                      ops: [ALL]
-                      operator: STARTS_WITH
-                      value: { str: "abc1" }
-                    }
-                  }
-                ) {
-                list {
-                  name
-                }
-              }
+    query {
+      graph(path: "g") {
+        nodes {
+          nodeFilter(filter: {
+            temporalProperty: {
+              name: "prop3"
+              where: { any: { startsWith: { str: "abc1" } } }
             }
+          }) {
+            list { name }
           }
         }
+      }
+    }
     """
     expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph)
@@ -960,25 +715,20 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_nodes_property_filter_list_agg(graph):
+    # SUM(list(prop5)) == 6
     query = """
-        query {
-          graph(path: "g") {
-            nodeFilter(filter: {
-             property: {
-              name: "prop5"
-              operator: EQUAL
-              ops: [SUM]
-              value: { i64: 6 }
-            }
-            }) {
-              nodes {
-                list {
-                  name
-                }
-              }
-            }
+    query {
+      graph(path: "g") {
+        nodeFilter(filter: {
+          property: {
+            name: "prop5"
+            where: { sum: { eq: { i64: 6 } } }
           }
+        }) {
+          nodes { list { name } }
         }
+      }
+    }
     """
     expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph)
@@ -987,24 +737,18 @@ def test_nodes_property_filter_list_agg(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_nodes_property_filter_list_qualifier(graph):
     query = """
-        query {
-          graph(path: "g") {
-            nodeFilter(filter: {
-             property: {
-              name: "prop5"
-              operator: EQUAL
-              ops: [ANY]
-              value: { i64: 6 }
-            }
-            }) {
-              nodes {
-                list {
-                  name
-                }
-              }
-            }
+    query {
+      graph(path: "g") {
+        nodeFilter(filter: {
+          property: {
+            name: "prop5"
+            where: { any: { eq: { i64: 6 } } }
           }
+        }) {
+          nodes { list { name } }
         }
+      }
+    }
     """
     expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "c"}]}}}}
     run_graphql_test(query, expected_output, graph)
@@ -1017,24 +761,18 @@ PERSISTENT_GRAPH = init_graph(PersistentGraph())
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_nodes_temporal_property_filter_agg(graph):
     query = """
-        query {
-          graph(path: "g") {
-            nodeFilter(filter: {
-             temporalProperty: {
-              name: "p2"
-              operator: LESS_THAN
-              ops: [AVG]
-              value: { f64: 10.0 }
-            }
-            }) {
-              nodes {
-                list {
-                  name
-                }
-              }
-            }
+    query {
+      graph(path: "g") {
+        nodeFilter(filter: {
+          temporalProperty: {
+            name: "p2"
+            where: { avg: { lt: { f64: 10.0 } } }
           }
+        }) {
+          nodes { list { name } }
         }
+      }
+    }
     """
     expected_output = {
         "graph": {"nodeFilter": {"nodes": {"list": [{"name": "2"}, {"name": "3"}]}}}
@@ -1048,25 +786,20 @@ PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_nodes_temporal_property_filter_any_avg(graph):
+    # ANY timepoint where AVG(list) < 10.0
     query = """
-        query {
-          graph(path: "g") {
-            nodeFilter(filter: {
-             temporalProperty: {
-              name: "prop5"
-              operator: LESS_THAN
-              ops: [ANY, AVG]
-              value: { f64: 10.0 }
-            }
-            }) {
-              nodes {
-                list {
-                  name
-                }
-              }
-            }
+    query {
+      graph(path: "g") {
+        nodeFilter(filter: {
+          temporalProperty: {
+            name: "prop5"
+            where: { any: { avg: { lt: { f64: 10.0 } } } }
           }
+        }) {
+          nodes { list { name } }
         }
+      }
+    }
     """
     expected_output = {
         "graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}

@@ -13,19 +13,16 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-            filter: {
-                 node: {
-                    field: NODE_ID
-                    operator: EQUAL
-                    value: { str: "1" }
-                }
+          filter: {
+            node: {
+              field: NODE_ID
+              where: { eq: { str: "1" } }
             }
-          ) {
-              nodes {
-                list {
-                  name
-                }
-              }
+          }
+        ) {
+          nodes {
+            list { name }
+          }
         }
       }
     }
@@ -40,19 +37,16 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-            filter: {
-                 node: {
-                    field: NODE_ID
-                    operator: EQUAL
-                    value: { u64: 1 }
-                }
+          filter: {
+            node: {
+              field: NODE_ID
+              where: { eq: { u64: 1 } }
             }
-          ) {
-              nodes {
-                list {
-                  name
-                }
-              }
+          }
+        ) {
+          nodes {
+            list { name }
+          }
         }
       }
     }
@@ -71,19 +65,16 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         nodeFilter(
-            filter: {
-                 node: {
-                    field: NODE_ID
-                    operator: EQUAL
-                    value: { u64: 1 }
-                }
+          filter: {
+            node: {
+              field: NODE_ID
+              where: { eq: { u64: 1 } }
             }
-          ) {
-              nodes {
-                list {
-                  name
-                }
-              }
+          }
+        ) {
+          nodes {
+            list { name }
+          }
         }
       }
     }

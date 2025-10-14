@@ -11,8 +11,8 @@ pub enum FilterOperator {
     Le,
     Gt,
     Ge,
-    In,
-    NotIn,
+    IsIn,
+    IsNotIn,
     IsSome,
     IsNone,
     StartsWith,
@@ -34,8 +34,8 @@ impl Display for FilterOperator {
             FilterOperator::Le => "<=",
             FilterOperator::Gt => ">",
             FilterOperator::Ge => ">=",
-            FilterOperator::In => "IN",
-            FilterOperator::NotIn => "NOT_IN",
+            FilterOperator::IsIn => "IS_IN",
+            FilterOperator::IsNotIn => "IS_NOT_IN",
             FilterOperator::IsSome => "IS_SOME",
             FilterOperator::IsNone => "IS_NONE",
             FilterOperator::StartsWith => "STARTS_WITH",
@@ -106,8 +106,8 @@ impl FilterOperator {
         T: Eq + std::hash::Hash,
     {
         match self {
-            FilterOperator::In => |set: &HashSet<T>, value: &T| set.contains(value),
-            FilterOperator::NotIn => |set: &HashSet<T>, value: &T| !set.contains(value),
+            FilterOperator::IsIn => |set: &HashSet<T>, value: &T| set.contains(value),
+            FilterOperator::IsNotIn => |set: &HashSet<T>, value: &T| !set.contains(value),
             _ => panic!("Collection operation not supported for this operator"),
         }
     }
@@ -186,18 +186,18 @@ impl FilterOperator {
                     }
                 }
 
-                In | NotIn | IsSome | IsNone => false,
+                IsIn | IsNotIn | IsSome | IsNone => false,
             },
 
             Set(set) => match self {
-                In => {
+                IsIn => {
                     if let Some(r) = right {
                         set.contains(r)
                     } else {
                         false
                     }
                 }
-                NotIn => {
+                IsNotIn => {
                     if let Some(r) = right {
                         !set.contains(r)
                     } else {
@@ -231,9 +231,9 @@ impl FilterOperator {
             },
 
             FilterValue::Set(l) => match self {
-                FilterOperator::In | FilterOperator::NotIn => match right {
+                FilterOperator::IsIn | FilterOperator::IsNotIn => match right {
                     Some(r) => self.collection_operation()(l, &r.to_string()),
-                    None => matches!(self, FilterOperator::NotIn),
+                    None => matches!(self, FilterOperator::IsNotIn),
                 },
                 _ => unreachable!(),
             },
@@ -278,13 +278,13 @@ impl FilterOperator {
 
             FilterValue::IDSet(set) => match right {
                 GidRef::U64(r) => match self {
-                    FilterOperator::In => set.contains(&GID::U64(r)),
-                    FilterOperator::NotIn => !set.contains(&GID::U64(r)),
+                    FilterOperator::IsIn => set.contains(&GID::U64(r)),
+                    FilterOperator::IsNotIn => !set.contains(&GID::U64(r)),
                     _ => false,
                 },
                 GidRef::Str(s) => match self {
-                    FilterOperator::In => set.contains(&GID::Str(s.to_string())),
-                    FilterOperator::NotIn => !set.contains(&GID::Str(s.to_string())),
+                    FilterOperator::IsIn => set.contains(&GID::Str(s.to_string())),
+                    FilterOperator::IsNotIn => !set.contains(&GID::Str(s.to_string())),
                     _ => false,
                 },
             },
@@ -292,8 +292,8 @@ impl FilterOperator {
             FilterValue::Set(set) => match right {
                 GidRef::U64(_) => false,
                 GidRef::Str(s) => match self {
-                    FilterOperator::In => set.contains(s),
-                    FilterOperator::NotIn => !set.contains(s),
+                    FilterOperator::IsIn => set.contains(s),
+                    FilterOperator::IsNotIn => !set.contains(s),
                     _ => false,
                 },
             },

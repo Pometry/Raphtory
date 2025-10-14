@@ -18,23 +18,19 @@ def test_out_neighbours_found(graph):
                   {
                     node: {
                       field: NODE_NAME,
-                      operator: EQUAL,
-                      value:{ str: "d" }
+                      where: { eq: { str: "d" } }
                     }
                   },
                   {
                     property: {
                       name: "prop1"
-                      operator: GREATER_THAN
-                      value: { i64: 10 }
+                      where: { gt: { i64: 10 } }
                     }
                   }
                 ]
               }) {
                 outNeighbours {
-                  list {
-                    name
-                  }
+                  list { name }
                 }
               }
             }
@@ -56,14 +52,11 @@ def test_out_neighbours_not_found(graph):
               nodeFilter(filter: {
                 node: {
                   field: NODE_NAME,
-                  operator: EQUAL,
-                  value:{ str: "e" }
+                  where: { eq: { str: "e" } }
                 }
               }) {
                 outNeighbours {
-                  list {
-                    name
-                  }
+                  list { name }
                 }
               }
             }
@@ -83,16 +76,13 @@ def test_in_neighbours_found(graph):
           graph(path: "g") {
             node(name: "d") {
               nodeFilter(filter: {
-                    property: {
-                      name: "prop1"
-                      operator: GREATER_THAN
-                      value: { i64: 10 }
-                    }
+                property: {
+                  name: "prop1"
+                  where: { gt: { i64: 10 } }
+                }
               }) {
                 inNeighbours {
-                  list {
-                    name
-                  }
+                  list { name }
                 }
               }
             }
@@ -118,14 +108,11 @@ def test_in_neighbours_not_found(graph):
               nodeFilter(filter: {
                 node: {
                   field: NODE_NAME,
-                  operator: EQUAL,
-                  value:{ str: "e" }
+                  where: { eq: { str: "e" } }
                 }
               }) {
                 inNeighbours {
-                  list {
-                    name
-                  }
+                  list { name }
                 }
               }
             }
@@ -147,14 +134,11 @@ def test_neighbours_found(graph):
               nodeFilter(filter: {
                 node: {
                   field: NODE_NAME,
-                  operator: NOT_EQUAL,
-                  value:{ str: "a" }
+                  where: { ne: { str: "a" } }
                 }
               }) {
                 neighbours {
-                  list {
-                    name
-                  }
+                  list { name }
                 }
               }
             }
@@ -180,14 +164,11 @@ def test_neighbours_not_found(graph):
               nodeFilter(filter: {
                 node: {
                   field: NODE_NAME,
-                  operator: EQUAL,
-                  value:{ str: "e" }
+                  where: { eq: { str: "e" } }
                 }
               }) {
                 neighbours {
-                  list {
-                    name
-                  }
+                  list { name }
                 }
               }
             }

@@ -314,37 +314,13 @@ input EdgeAddition {
 }
 
 input EdgeFilter @oneOf {
-	"""
-	Source node.
-	"""
-	src: NodeFieldFilter
-	"""
-	Destination node.
-	"""
-	dst: NodeFieldFilter
-	"""
-	Property.
-	"""
-	property: PropertyFilterExpr
-	"""
-	Metadata.
-	"""
-	metadata: MetadataFilterExpr
-	"""
-	Temporal property.
-	"""
-	temporalProperty: TemporalPropertyFilterExpr
-	"""
-	AND operator.
-	"""
+	src: NodeFieldFilterNew
+	dst: NodeFieldFilterNew
+	property: PropertyFilterNew
+	metadata: PropertyFilterNew
+	temporalProperty: PropertyFilterNew
 	and: [EdgeFilter!]
-	"""
-	OR operator.
-	"""
 	or: [EdgeFilter!]
-	"""
-	NOT operator.
-	"""
 	not: EdgeFilter
 }
 
@@ -391,65 +367,20 @@ input EdgeSortBy {
 }
 
 input EdgeViewCollection @oneOf {
-	"""
-	Contains only the default layer.
-	"""
 	defaultLayer: Boolean
-	"""
-	Latest time.
-	"""
 	latest: Boolean
-	"""
-	Snapshot at latest time.
-	"""
 	snapshotLatest: Boolean
-	"""
-	Snapshot at specified time.
-	"""
 	snapshotAt: Int
-	"""
-	List of included layers.
-	"""
 	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
 	excludeLayers: [String!]
-	"""
-	Single included layer.
-	"""
 	layer: String
-	"""
-	Single excluded layer.
-	"""
 	excludeLayer: String
-	"""
-	Window between a start and end time.
-	"""
 	window: Window
-	"""
-	View at a specified time.
-	"""
 	at: Int
-	"""
-	View before a specified time (end exclusive).
-	"""
 	before: Int
-	"""
-	View after a specified time (start exclusive).
-	"""
 	after: Int
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
 	shrinkWindow: Window
-	"""
-	Set the window start to a specified time.
-	"""
 	shrinkStart: Int
-	"""
-	Set the window end to a specified time.
-	"""
 	shrinkEnd: Int
 }
 
@@ -581,65 +512,20 @@ type Edges {
 }
 
 input EdgesViewCollection @oneOf {
-	"""
-	Contains only the default layer.
-	"""
 	defaultLayer: Boolean
-	"""
-	Latest time.
-	"""
 	latest: Boolean
-	"""
-	Snapshot at latest time.
-	"""
 	snapshotLatest: Boolean
-	"""
-	Snapshot at specified time.
-	"""
 	snapshotAt: Int
-	"""
-	List of included layers.
-	"""
 	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
 	excludeLayers: [String!]
-	"""
-	Single included layer.
-	"""
 	layer: String
-	"""
-	Single excluded layer.
-	"""
 	excludeLayer: String
-	"""
-	Window between a start and end time.
-	"""
 	window: Window
-	"""
-	View at a specified time.
-	"""
 	at: Int
-	"""
-	View before a specified time (end exclusive).
-	"""
 	before: Int
-	"""
-	View after a specified time (start exclusive).
-	"""
 	after: Int
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
 	shrinkWindow: Window
-	"""
-	Set the window start to a specified time.
-	"""
 	shrinkStart: Int
-	"""
-	Set the window end to a specified time.
-	"""
 	shrinkEnd: Int
 }
 
@@ -897,89 +783,26 @@ enum GraphType {
 }
 
 input GraphViewCollection @oneOf {
-	"""
-	Contains only the default layer.
-	"""
 	defaultLayer: Boolean
-	"""
-	List of included layers.
-	"""
 	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
 	excludeLayers: [String!]
-	"""
-	Single included layer.
-	"""
 	layer: String
-	"""
-	Single excluded layer.
-	"""
 	excludeLayer: String
-	"""
-	Subgraph nodes.
-	"""
 	subgraph: [String!]
-	"""
-	Subgraph node types.
-	"""
 	subgraphNodeTypes: [String!]
-	"""
-	List of excluded nodes.
-	"""
 	excludeNodes: [String!]
-	"""
-	Valid state.
-	"""
 	valid: Boolean
-	"""
-	Window between a start and end time.
-	"""
 	window: Window
-	"""
-	View at a specified time.
-	"""
 	at: Int
-	"""
-	View at the latest time.
-	"""
 	latest: Boolean
-	"""
-	Snapshot at specified time.
-	"""
 	snapshotAt: Int
-	"""
-	Snapshot at latest time.
-	"""
 	snapshotLatest: Boolean
-	"""
-	View before a specified time (end exclusive).
-	"""
 	before: Int
-	"""
-	View after a specified time (start exclusive).
-	"""
 	after: Int
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
 	shrinkWindow: Window
-	"""
-	Set the window start to a specified time.
-	"""
 	shrinkStart: Int
-	"""
-	Set the window end to a specified time.
-	"""
 	shrinkEnd: Int
-	"""
-	Node filter.
-	"""
 	nodeFilter: NodeFilter
-	"""
-	Edge filter.
-	"""
 	edgeFilter: EdgeFilter
 }
 
@@ -1105,25 +928,6 @@ type Metadata {
 	/// Return all metadata values.
 	"""
 	values(keys: [String!]): [Property!]!
-}
-
-input MetadataFilterExpr {
-	"""
-	Node metadata to compare against.
-	"""
-	name: String!
-	"""
-	Operator.
-	"""
-	operator: Operator!
-	"""
-	Value.
-	"""
-	value: Value
-	"""
-	Ops List.
-	"""
-	ops: [OpName!]
 }
 
 type MutRoot {
@@ -1508,63 +1312,38 @@ input NodeAddition {
 }
 
 enum NodeField {
-	"""
-	Node id.
-	"""
 	NODE_ID
-	"""
-	Node name.
-	"""
 	NODE_NAME
-	"""
-	Node type.
-	"""
 	NODE_TYPE
 }
 
-input NodeFieldFilter {
-	"""
-	Node component to compare against.
-	"""
+input NodeFieldCondition @oneOf {
+	eq: Value
+	ne: Value
+	gt: Value
+	ge: Value
+	lt: Value
+	le: Value
+	startsWith: Value
+	endsWith: Value
+	contains: Value
+	notContains: Value
+	isIn: Value
+	isNotIn: Value
+}
+
+input NodeFieldFilterNew {
 	field: NodeField!
-	"""
-	Operator filter.
-	"""
-	operator: Operator!
-	"""
-	Value filter.
-	"""
-	value: Value!
+	where: NodeFieldCondition!
 }
 
 input NodeFilter @oneOf {
-	"""
-	Node filter.
-	"""
-	node: NodeFieldFilter
-	"""
-	Property filter.
-	"""
-	property: PropertyFilterExpr
-	"""
-	Metadata filter.
-	"""
-	metadata: MetadataFilterExpr
-	"""
-	Temporal property filter.
-	"""
-	temporalProperty: TemporalPropertyFilterExpr
-	"""
-	AND operator.
-	"""
+	node: NodeFieldFilterNew
+	property: PropertyFilterNew
+	metadata: PropertyFilterNew
+	temporalProperty: PropertyFilterNew
 	and: [NodeFilter!]
-	"""
-	OR operator.
-	"""
 	or: [NodeFilter!]
-	"""
-	NOT operator.
-	"""
 	not: NodeFilter
 }
 
@@ -1597,69 +1376,21 @@ input NodeSortBy {
 }
 
 input NodeViewCollection @oneOf {
-	"""
-	Contains only the default layer.
-	"""
 	defaultLayer: Boolean
-	"""
-	View at the latest time.
-	"""
 	latest: Boolean
-	"""
-	Snapshot at latest time.
-	"""
 	snapshotLatest: Boolean
-	"""
-	Snapshot at specified time.
-	"""
 	snapshotAt: Int
-	"""
-	List of included layers.
-	"""
 	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
 	excludeLayers: [String!]
-	"""
-	Single included layer.
-	"""
 	layer: String
-	"""
-	Single excluded layer.
-	"""
 	excludeLayer: String
-	"""
-	Window between a start and end time.
-	"""
 	window: Window
-	"""
-	View at a specified time.
-	"""
 	at: Int
-	"""
-	View before a specified time (end exclusive).
-	"""
 	before: Int
-	"""
-	View after a specified time (start exclusive).
-	"""
 	after: Int
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
 	shrinkWindow: Window
-	"""
-	Set the window start to a specified time.
-	"""
 	shrinkStart: Int
-	"""
-	Set the window end to a specified time.
-	"""
 	shrinkEnd: Int
-	"""
-	Node filter.
-	"""
 	nodeFilter: NodeFilter
 }
 
@@ -1780,73 +1511,22 @@ type Nodes {
 }
 
 input NodesViewCollection @oneOf {
-	"""
-	Contains only the default layer.
-	"""
 	defaultLayer: Boolean
-	"""
-	View at the latest time.
-	"""
 	latest: Boolean
-	"""
-	Snapshot at latest time.
-	"""
 	snapshotLatest: Boolean
-	"""
-	List of included layers.
-	"""
 	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
 	excludeLayers: [String!]
-	"""
-	Single included layer.
-	"""
 	layer: String
-	"""
-	Single excluded layer.
-	"""
 	excludeLayer: String
-	"""
-	Window between a start and end time.
-	"""
 	window: Window
-	"""
-	View at a specified time.
-	"""
 	at: Int
-	"""
-	Snapshot at specified time.
-	"""
 	snapshotAt: Int
-	"""
-	View before a specified time (end exclusive).
-	"""
 	before: Int
-	"""
-	View after a specified time (start exclusive).
-	"""
 	after: Int
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
 	shrinkWindow: Window
-	"""
-	Set the window start to a specified time.
-	"""
 	shrinkStart: Int
-	"""
-	Set the window end to a specified time.
-	"""
 	shrinkEnd: Int
-	"""
-	Node filter.
-	"""
 	nodeFilter: NodeFilter
-	"""
-	List of types.
-	"""
 	typeFilter: [String!]
 }
 
@@ -1872,71 +1552,6 @@ input ObjectEntry {
 	Value.
 	"""
 	value: Value!
-}
-
-enum OpName {
-	FIRST
-	LAST
-	ANY
-	ALL
-	LEN
-	SUM
-	AVG
-	MIN
-	MAX
-}
-
-enum Operator {
-	"""
-	Equality operator.
-	"""
-	EQUAL
-	"""
-	Inequality operator.
-	"""
-	NOT_EQUAL
-	"""
-	Greater Than Or Equal operator.
-	"""
-	GREATER_THAN_OR_EQUAL
-	"""
-	Less Than Or Equal operator.
-	"""
-	LESS_THAN_OR_EQUAL
-	"""
-	Greater Than operator.
-	"""
-	GREATER_THAN
-	"""
-	Less Than operator.
-	"""
-	LESS_THAN
-	"""
-	Is None operator.
-	"""
-	IS_NONE
-	"""
-	Is Some operator.
-	"""
-	IS_SOME
-	"""
-	Is In operator.
-	"""
-	IS_IN
-	"""
-	Is Not In operator.
-	"""
-	IS_NOT_IN
-	STARTS_WITH
-	ENDS_WITH
-	"""
-	Contains operator.
-	"""
-	CONTAINS
-	"""
-	Not Contains operator.
-	"""
-	NOT_CONTAINS
 }
 
 """
@@ -2045,61 +1660,19 @@ type PathFromNode {
 }
 
 input PathFromNodeViewCollection @oneOf {
-	"""
-	Latest time.
-	"""
 	latest: Boolean
-	"""
-	Latest snapshot.
-	"""
 	snapshotLatest: Boolean
-	"""
-	Time.
-	"""
 	snapshotAt: Int
-	"""
-	List of layers.
-	"""
 	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
 	excludeLayers: [String!]
-	"""
-	Single layer.
-	"""
 	layer: String
-	"""
-	Single layer to exclude.
-	"""
 	excludeLayer: String
-	"""
-	Window between a start and end time.
-	"""
 	window: Window
-	"""
-	View at a specified time.
-	"""
 	at: Int
-	"""
-	View before a specified time (end exclusive).
-	"""
 	before: Int
-	"""
-	View after a specified time (start exclusive).
-	"""
 	after: Int
-	"""
-	Shrink a Window to a specified start and end time.
-	"""
 	shrinkWindow: Window
-	"""
-	Set the window start to a specified time.
-	"""
 	shrinkStart: Int
-	"""
-	Set the window end to a specified time.
-	"""
 	shrinkEnd: Int
 }
 
@@ -2114,6 +1687,36 @@ type PathFromNodeWindowSet {
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [PathFromNode!]!
 	list: [PathFromNode!]!
+}
+
+input PropCondition @oneOf {
+	eq: Value
+	ne: Value
+	gt: Value
+	ge: Value
+	lt: Value
+	le: Value
+	startsWith: Value
+	endsWith: Value
+	contains: Value
+	notContains: Value
+	isIn: Value
+	isNotIn: Value
+	isSome: Boolean
+	isNone: Boolean
+	between: [Value!]
+	and: [PropCondition!]
+	or: [PropCondition!]
+	not: PropCondition
+	first: PropCondition
+	last: PropCondition
+	any: PropCondition
+	all: PropCondition
+	sum: PropCondition
+	avg: PropCondition
+	min: PropCondition
+	max: PropCondition
+	len: PropCondition
 }
 
 type Properties {
@@ -2142,23 +1745,9 @@ type Property {
 	value: PropertyOutput!
 }
 
-input PropertyFilterExpr {
-	"""
-	Node property to compare against.
-	"""
+input PropertyFilterNew {
 	name: String!
-	"""
-	Operator.
-	"""
-	operator: Operator!
-	"""
-	Value.
-	"""
-	value: Value
-	"""
-	Ops List.
-	"""
-	ops: [OpName!]
+	where: PropCondition!
 }
 
 input PropertyInput {
@@ -2314,25 +1903,6 @@ type TemporalProperty {
 	latest: String
 	unique: [String!]!
 	orderedDedupe(latestTime: Boolean!): [PropertyTuple!]!
-}
-
-input TemporalPropertyFilterExpr {
-	"""
-	Name.
-	"""
-	name: String!
-	"""
-	Operator.
-	"""
-	operator: Operator!
-	"""
-	Value.
-	"""
-	value: Value
-	"""
-	Ops List.
-	"""
-	ops: [OpName!]
 }
 
 input TemporalPropertyInput {
