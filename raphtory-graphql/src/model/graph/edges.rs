@@ -138,7 +138,8 @@ impl GqlEdges {
     }
 
     async fn latest(&self) -> Self {
-        let latest = blocking_compute(|| self.ee.latest()).await;
+        let e = self.ee.clone();
+        let latest = blocking_compute(move || e.latest()).await;
         self.update(latest)
     }
 
