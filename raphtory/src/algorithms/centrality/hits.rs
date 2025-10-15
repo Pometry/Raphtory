@@ -21,8 +21,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct Hits {
-    hub_score: f32,
-    auth_score: f32,
+    pub hub_score: f32,
+    pub auth_score: f32,
 }
 
 impl Default for Hits {

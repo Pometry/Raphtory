@@ -93,7 +93,6 @@ mod clustering_coefficient_tests {
 
     #[test]
     fn clusters_of_triangles_batch() {
-        /*
         let graph = Graph::new();
         let vs = vec![
             (1, 1, 2),
@@ -115,13 +114,10 @@ mod clustering_coefficient_tests {
             let expected: HashMap<String, f64> =
                 (1..=5).map(|v| (v.to_string(), expected[v - 1])).collect();
             let windowed_graph = graph.window(0, 7);
-            let actual = local_clustering_coefficient_batch(&windowed_graph, (1..=5).collect());
-            let actual: HashMap<String, f64> = (1..=5)
-                .map(|v| (v.to_string(), actual.values()[v - 1]))
-                .collect();
+            let actual = local_clustering_coefficient_batch(&windowed_graph, (1..=5).collect())
+                .to_hashmap(|value| value.lcc);
             assert_eq!(expected, actual);
         });
-        */
     }
 }
 
@@ -163,14 +159,15 @@ mod sum_weight_test {
                 )
                 .expect("Couldnt add edge");
         }
-
         test_storage!(&graph, |graph| {
-            let res = balance(graph, "value_dec".to_string(), Direction::BOTH).unwrap();
-            let node_one = graph.node("1").unwrap();
-            let node_two = graph.node("2").unwrap();
-            let node_three = graph.node("3").unwrap();
-            let node_four = graph.node("4").unwrap();
-            let node_five = graph.node("5").unwrap();
+            let res = balance(graph, "value_dec".to_string(), Direction::BOTH)
+                .unwrap()
+                .to_hashmap(|value| value.balance);
+            let node_one = "1".to_string();
+            let node_two = "2".to_string();
+            let node_three = "3".to_string();
+            let node_four = "4".to_string();
+            let node_five = "5".to_string();
             let expected = HashMap::from([
                 (node_one.clone(), -26.0),
                 (node_two.clone(), 7.0),
@@ -180,7 +177,9 @@ mod sum_weight_test {
             ]);
             assert_eq!(res, expected);
 
-            let res = balance(graph, "value_dec".to_string(), Direction::IN).unwrap();
+            let res = balance(graph, "value_dec".to_string(), Direction::IN)
+                .unwrap()
+                .to_hashmap(|value| value.balance);
             let expected = HashMap::from([
                 (node_one.clone(), 6.0),
                 (node_two.clone(), 12.0),
@@ -190,7 +189,9 @@ mod sum_weight_test {
             ]);
             assert_eq!(res, expected);
 
-            let res = balance(graph, "value_dec".to_string(), Direction::OUT).unwrap();
+            let res = balance(graph, "value_dec".to_string(), Direction::OUT)
+                .unwrap()
+                .to_hashmap(|value| value.balance);
             let expected = HashMap::from([
                 (node_one, -32.0),
                 (node_two, -5.0),
@@ -359,7 +360,7 @@ mod reciprocity_test {
             hash_map_result.insert("4".to_string(), 2.0 / 3.0);
             hash_map_result.insert("5".to_string(), 0.0);
 
-            let res = all_local_reciprocity(graph);
+            let res = all_local_reciprocity(graph).to_hashmap(|value| value.reciprocity);
             assert_eq!(res, hash_map_result);
         });
     }

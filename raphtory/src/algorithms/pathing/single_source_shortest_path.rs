@@ -15,7 +15,7 @@ use std::{collections::HashMap, mem};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct PathState {
-    path: Vec<VID>,
+    pub path: Vec<VID>,
 }
 
 /// Calculates the single source shortest paths from a given source node.

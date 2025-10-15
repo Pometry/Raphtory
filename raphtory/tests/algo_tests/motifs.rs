@@ -127,7 +127,7 @@ mod local_motifs_test {
         let g = load_graph(ij_kj_ik);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
@@ -138,7 +138,7 @@ mod local_motifs_test {
         let g = load_graph(ij_ki_jk);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0
@@ -149,7 +149,7 @@ mod local_motifs_test {
         let g = load_graph(ij_jk_ik);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0
@@ -160,7 +160,7 @@ mod local_motifs_test {
         let g = load_graph(ij_ik_jk);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0
@@ -171,7 +171,7 @@ mod local_motifs_test {
         let g = load_graph(ij_kj_ki);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0
@@ -182,7 +182,7 @@ mod local_motifs_test {
         let g = load_graph(ij_ki_kj);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0
@@ -193,7 +193,7 @@ mod local_motifs_test {
         let g = load_graph(ij_jk_ki);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
@@ -204,7 +204,7 @@ mod local_motifs_test {
         let g = load_graph(ij_ik_kj);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
@@ -217,7 +217,8 @@ mod local_motifs_test {
         let graph = load_sample_graph();
 
         test_storage!(&graph, |graph| {
-            let actual = temporal_three_node_motif(graph, 10, None);
+            let actual =
+                temporal_three_node_motif(graph, 10, None).to_hashmap(|value| value.motif_counter);
 
             let expected: HashMap<String, Vec<usize>> = HashMap::from([
                 (
@@ -309,7 +310,8 @@ mod local_motifs_test {
         let g_windowed = g.before(11).after(0);
         info! {"windowed graph has {:?} vertices",g_windowed.count_nodes()}
 
-        let actual = temporal_three_node_motif(&g_windowed, 10, None);
+        let actual = temporal_three_node_motif(&g_windowed, 10, None)
+            .to_hashmap(|value| value.motif_counter);
 
         let expected: HashMap<String, Vec<usize>> = HashMap::from([
             (

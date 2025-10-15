@@ -29,7 +29,7 @@ use std::{collections::HashMap, ops::Add};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct ReachabilityState {
-    reachable_nodes: Vec<(i64, String)>,
+    pub reachable_nodes: Vec<(i64, String)>,
 }
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]

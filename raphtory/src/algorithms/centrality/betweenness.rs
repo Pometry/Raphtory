@@ -12,7 +12,7 @@ use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct BetweennessCentrality {
-    betweenness_centrality: f64,
+    pub betweenness_centrality: f64,
 }
 
 /// Computes the betweenness centrality for nodes in a given graph.

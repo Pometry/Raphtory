@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct LCCState {
-    lcc: f64,
+    pub lcc: f64,
 }
 
 fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(

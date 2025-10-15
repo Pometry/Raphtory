@@ -1,15 +1,23 @@
+
 use ahash::HashSet;
 use proptest::{prelude::Strategy, proptest, sample::Index};
 use raphtory::{
     algorithms::components::weakly_connected_components,
-    db::api::{mutation::AdditionOps, state::NodeState, view::internal::GraphView},
+    db::api::{
+        mutation::AdditionOps,
+        state::{NodeState, NodeStateValue, TypedNodeState},
+        view::internal::GraphView,
+    },
     prelude::*,
     test_storage,
 };
-use std::collections::BTreeSet;
+use std::{
+    collections::{BTreeSet, HashMap},
+    hash::Hash,
+};
 
-fn assert_same_partition<G: GraphView, ID: Into<GID>>(
-    left: NodeState<usize, G>,
+fn assert_same_partition<V: NodeStateValue + Hash + Eq, G: GraphView, ID: Into<GID>>(
+    left: TypedNodeState<'static, V, G>, // NodeState<usize, G>,
     right: impl IntoIterator<Item = impl IntoIterator<Item = ID>>,
 ) {
     let left_groups: HashSet<BTreeSet<_>> = left
@@ -209,7 +217,7 @@ mod in_component_test {
     fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
         let mut results: Vec<_> = in_component(graph.node(node_id).unwrap())
             .iter()
-            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .map(|(n, d)| (n.id().as_u64().unwrap(), d.distance))
             .collect();
         results.sort();
         correct.sort();
@@ -290,9 +298,9 @@ mod in_component_test {
                 .map(|(k, v)| {
                     (
                         k.name(),
-                        v.id()
-                            .into_iter_values()
-                            .filter_map(|v| v.as_u64())
+                        v.in_components
+                            .into_iter()
+                            .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
                             .sorted()
                             .collect(),
                     )
@@ -316,7 +324,7 @@ mod components_test {
     fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
         let mut results: Vec<_> = out_component(graph.node(node_id).unwrap())
             .iter()
-            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .map(|(n, d)| (n.id().as_u64().unwrap(), d.distance))
             .collect();
         results.sort();
         correct.sort();
@@ -406,9 +414,9 @@ mod components_test {
                 .map(|(k, v)| {
                     (
                         k.name(),
-                        v.id()
-                            .into_iter_values()
-                            .filter_map(|v| v.as_u64())
+                        v.out_components
+                            .into_iter()
+                            .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
                             .sorted()
                             .collect(),
                     )
@@ -431,7 +439,6 @@ mod strongly_connected_components_tests {
 
     #[test]
     fn scc_test() {
-        /*
         let graph = Graph::new();
         let edges = vec![
             (1, 1, 2),
@@ -468,12 +475,10 @@ mod strongly_connected_components_tests {
             .collect();
             assert_eq!(scc_nodes, expected);
         });
-         */
     }
 
     #[test]
     fn scc_test_multiple_components() {
-        /*
         let graph = Graph::new();
         let edges = [
             (1, 2),
@@ -507,12 +512,10 @@ mod strongly_connected_components_tests {
                     .collect();
             assert_eq!(scc_nodes, expected);
         });
-         */
     }
 
     #[test]
     fn scc_test_multiple_components_2() {
-        /*
         let graph = Graph::new();
         let edges = [(1, 2), (1, 3), (1, 4), (4, 2), (3, 4), (2, 3)];
         for (src, dst) in edges {
@@ -532,12 +535,10 @@ mod strongly_connected_components_tests {
                 .collect();
             assert_eq!(scc_nodes, expected);
         });
-        */
     }
 
     #[test]
     fn scc_test_all_singletons() {
-        /*
         let graph = Graph::new();
         let edges = [
             (0, 1),
@@ -574,6 +575,5 @@ mod strongly_connected_components_tests {
             .collect();
             assert_eq!(scc_nodes, expected);
         });
-         */
     }
 }

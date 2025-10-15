@@ -28,7 +28,7 @@ use tracing::debug;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct MotifState {
-    motif_counter: Vec<usize>,
+    pub motif_counter: Vec<usize>,
 }
 
 // State objects for three node motifs

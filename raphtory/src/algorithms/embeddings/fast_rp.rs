@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct FastRPState {
-    embedding_state: Vec<f64>,
+    pub embedding_state: Vec<f64>,
 }
 
 /// Computes the embeddings of each vertex of a graph using the Fast RP algorithm

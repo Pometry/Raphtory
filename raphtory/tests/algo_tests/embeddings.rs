@@ -199,13 +199,8 @@ mod fast_rp_test {
             ),
         ]);
         test_storage!(&graph, |graph| {
-            let results = fast_rp(graph, 16, 1.0, vec![1.0, 1.0], Some(42), None);
-            // this is ugly and I know there's a better way of doing this it's just a silly little unit test.
-            let results: HashMap<String, Vec<f64>> = results
-                .into_iter()
-                .map(|(v, e)| (v.node.0.to_string(), e))
-                .collect();
-
+            let results = fast_rp(graph, 16, 1.0, vec![1.0, 1.0], Some(42), None)
+                .to_hashmap(|value| value.embedding_state);
             assert_eq!(results, baseline);
         });
     }

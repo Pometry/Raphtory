@@ -12,9 +12,9 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default, Hash, Eq)]
 pub struct SCCState {
-    component_id: usize,
+    pub component_id: usize,
 }
 
 fn tarjan<'graph, G>(

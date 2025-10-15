@@ -21,7 +21,7 @@ use std::collections::HashMap;
 pub struct LabelPropState {
     #[serde(skip)]
     nbors: HashMap<usize, usize>,
-    community_id: usize,
+    pub community_id: usize,
 }
 
 /// Computes components using a label propagation algorithm
@@ -54,27 +54,32 @@ where
         let id = s.node.index();
         let state: &mut LabelPropState = s.get_mut();
         state.community_id = id;
-        state.nbors.insert(id, 1);
         Step::Continue
     });
 
     let step2 = ATask::new(move |s: &mut EvalNodeView<G, LabelPropState>| {
+        let s_node = s.name();
         let prev_id = s.prev().community_id;
         let nbor_iter = s.neighbours();
         let state: &mut LabelPropState = s.get_mut();
+        state.nbors = HashMap::from([(prev_id, 1)]);
         // get labels from neighbors
         for nbor in nbor_iter {
             let nbor_id = nbor.prev().community_id;
             state
                 .nbors
-                .insert(nbor_id, *state.nbors.get(&nbor_id).unwrap_or(&(1usize)));
+                .insert(nbor_id, *state.nbors.get(&nbor_id).unwrap_or(&(0)) + 1);
         }
         // get max label (use usize ID to resolve tie)
-        if let Some((label, _)) = state.nbors.iter().max_by_key(|&(v1, v2)| (v1, v2)) {
-            state.community_id = *label;
-            if *label != prev_id {
-                s.global_update(&global_diff, 1);
-            }
+        if let Some((&label, max_count)) = state
+            .nbors
+            .iter()
+            .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
+        {
+            state.community_id = label;
+        }
+        if state.community_id != prev_id {
+            s.global_update(&global_diff, 1);
         }
         Step::Continue
     });
