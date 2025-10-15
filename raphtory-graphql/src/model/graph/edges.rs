@@ -138,7 +138,8 @@ impl GqlEdges {
     }
 
     async fn latest(&self) -> Self {
-        self.update(self.ee.latest())
+        let latest = blocking_compute(|| self.ee.latest()).await;
+        self.update(latest)
     }
 
     /// Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
