@@ -1,8 +1,3 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::Path,
-};
-
 use itertools::Itertools;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_core::{
@@ -10,6 +5,11 @@ use raphtory_core::{
     storage::timeindex::TimeIndexOps,
 };
 use rayon::prelude::*;
+use std::{
+    collections::{HashMap, HashSet},
+    hint::black_box,
+    path::Path,
+};
 
 use crate::{
     api::{
@@ -356,7 +356,7 @@ pub fn check_graph_with_props_support<
     for (src, dst, t, t_props, _, _) in edges {
         let err = graph.add_edge_props(*t, *src, *dst, t_props.clone(), 0);
 
-        assert!(err.is_ok(), "Failed to add edge: {err:?}");
+        black_box(assert!(err.is_ok(), "Failed to add edge: {err:?}"));
     }
 
     // Add const props
@@ -369,13 +369,13 @@ pub fn check_graph_with_props_support<
         let elid = ELID::new(eid, layer_id);
         let res = graph.update_edge_const_props(elid, const_props.clone());
 
-        assert!(
+        black_box(assert!(
             res.is_ok(),
             "Failed to update edge const props: {res:?} {src:?} -> {dst:?}"
-        );
+        ));
     }
 
-    assert!(graph.edges().num_edges() > 0);
+    black_box(assert!(graph.edges().num_edges() > 0));
 
     let check_fn = |edges: &[AddEdge], graph: &GraphStore<NS, ES, EXT>| {
         let mut edge_groups = HashMap::new();
@@ -482,13 +482,13 @@ pub fn check_graph_with_props_support<
         }
     };
 
-    check_fn(edges, &graph);
+    black_box(check_fn(edges, &graph));
 
     if check_load {
         // Load the graph from disk and check again
         drop(graph);
 
         let graph = GraphStore::<NS, ES, EXT>::load(graph_dir.path()).unwrap();
-        check_fn(edges, &graph);
+        black_box(check_fn(edges, &graph));
     }
 }
