@@ -60,7 +60,7 @@ impl VectorStore {
 
     fn get(&self, key: &u64) -> Option<CacheEntry> {
         match self {
-            VectorStore::Mem(store) => store.read().get(key).cloned(),
+            VectorStore::Mem(store) => store.read_recursive().get(key).cloned(),
             VectorStore::Disk { env, db } => {
                 let rtxn = env.read_txn().ok()?;
                 db.get(&rtxn, key).ok()?

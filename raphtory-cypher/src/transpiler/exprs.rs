@@ -6,10 +6,9 @@ pub fn parse_limit(query: &Query) -> Option<sql_ast::Expr> {
     query.clauses().iter().find_map(|clause| match clause {
         Clause::Return(Return {
             limit: Some(limit), ..
-        }) => Some(sql_ast::Expr::Value(sql_ast::Value::Number(
-            limit.to_string(),
-            true,
-        ))),
+        }) => Some(sql_ast::Expr::Value(
+            sql_ast::Value::Number(limit.to_string(), true).into(),
+        )),
         _ => None,
     })
 }

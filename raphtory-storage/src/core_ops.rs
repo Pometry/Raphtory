@@ -106,7 +106,7 @@ pub trait CoreGraphOps: Send + Sync {
         self.core_graph().owned_edges()
     }
     #[inline]
-    fn core_edge(&self, eid: EID) -> EdgeStorageEntry {
+    fn core_edge(&self, eid: EID) -> EdgeStorageEntry<'_> {
         self.core_graph().edge_entry(eid)
     }
 
@@ -116,7 +116,7 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> NodeStorageEntry {
+    fn core_node(&self, vid: VID) -> NodeStorageEntry<'_> {
         self.core_graph().core_node(vid)
     }
 
@@ -237,7 +237,7 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// # Returns
     /// The keys of the metadata.
-    fn node_metadata_ids(&self, v: VID) -> BoxedLIter<usize> {
+    fn node_metadata_ids(&self, v: VID) -> BoxedLIter<'_, usize> {
         let core_node_entry = self.core_node(v);
         core_node_entry.metadata_ids()
     }
