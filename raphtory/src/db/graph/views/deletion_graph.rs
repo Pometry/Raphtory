@@ -30,6 +30,7 @@ use std::{
     fmt::{Display, Formatter},
     iter,
     ops::{Deref, Range},
+    path::Path,
     sync::Arc,
 };
 
@@ -95,6 +96,35 @@ fn persisted_prop_value_at<'a>(
 impl PersistentGraph {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Create a new persistent graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```
+    /// use raphtory::prelude::PersistentGraph;
+    /// let g = Graph::new_at_path("/path/to/storage");
+    /// ```
+    pub fn new_at_path(path: impl AsRef<Path>) -> Self {
+        Self(Arc::new(Storage::new_at_path(path)))
+    }
+
+    /// Load a graph from a specific path
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load_from_path("/path/to/storage");
+    ///
+    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
+        Self(Arc::new(Storage::load_from(path)))
     }
 
     pub fn from_storage(storage: Arc<Storage>) -> Self {

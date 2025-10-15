@@ -58,7 +58,10 @@ use raphtory_storage::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::sync::{atomic::Ordering, Arc};
+use std::{
+    path::Path,
+    sync::{atomic::Ordering, Arc},
+};
 use storage::Extension;
 
 /// This trait GraphViewOps defines operations for accessing
@@ -79,7 +82,11 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     ///
     /// Returns:
     /// Graph - Returns clone of the graph
-    fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
+    fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError>;
+
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
+        self.materialize_at(None)
+    }
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
 
@@ -219,7 +226,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         Nodes::new(graph)
     }
 
-    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
+    fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
 
         // preserve all property mappings
@@ -232,7 +239,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
 
         let mut g = TemporalGraph::new_with_meta(
-            Default::default(),
+            path.map(|p| p.into()),
             node_meta,
             edge_meta,
             *(storage.extension()),

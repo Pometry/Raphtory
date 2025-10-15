@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::{
     errors::{GraphError, LoadError},
     io::arrow::dataframe::DFChunk,
@@ -53,9 +54,9 @@ impl PropCols {
         &self.prop_ids
     }
 
-    // pub fn cols(&self) -> Vec<&dyn Array> {
-    //     self.cols.iter().map(|col| col.as_array()).collect()
-    // }
+    pub fn cols(&self) -> Vec<ArrayRef> {
+        self.cols.iter().map(|col| col.as_array()).collect()
+    }
 }
 
 pub fn combine_properties_arrow<E>(
@@ -243,6 +244,8 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
 
 trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
+
+    fn as_array(&self) -> ArrayRef;
 }
 
 impl PropCol for BooleanArray {
@@ -252,6 +255,9 @@ impl PropCol for BooleanArray {
         } else {
             Some(Prop::Bool(self.value(i)))
         }
+    }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
     }
 }
 
@@ -266,6 +272,10 @@ where
             Some(self.value(i).into())
         }
     }
+
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
+    }
 }
 
 impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
@@ -275,6 +285,9 @@ impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
         } else {
             Some(Prop::str(self.value(i)))
         }
+    }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
     }
 }
 
@@ -286,6 +299,9 @@ impl PropCol for arrow_array::StringViewArray {
             Some(Prop::str(self.value(i)))
         }
     }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
+    }
 }
 
 impl<I: OffsetSizeTrait> PropCol for GenericListArray<I> {
@@ -295,6 +311,9 @@ impl<I: OffsetSizeTrait> PropCol for GenericListArray<I> {
         } else {
             Some(arr_as_prop(self.value(i)))
         }
+    }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
     }
 }
 
@@ -306,11 +325,17 @@ impl PropCol for FixedSizeListArray {
             Some(arr_as_prop(self.value(i)))
         }
     }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
+    }
 }
 
 impl PropCol for NullArray {
     fn get(&self, _i: usize) -> Option<Prop> {
         None
+    }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
     }
 }
 
@@ -346,6 +371,18 @@ impl PropCol for MapCol {
             None
         }
     }
+
+    fn as_array(&self) -> ArrayRef {
+        let fields = self
+            .values
+            .iter()
+            .map(|(name, col)| {
+                arrow_schema::Field::new(name, col.as_array().data_type().clone(), true)
+            })
+            .collect::<Vec<_>>();
+        let columns = self.values.iter().map(|(_, col)| col.as_array()).collect();
+        Arc::new(StructArray::new(fields.into(), columns, self.validity.clone()))
+    }
 }
 
 struct MappedPrimitiveCol<T: ArrowPrimitiveType> {
@@ -360,6 +397,10 @@ impl<T: ArrowPrimitiveType> PropCol for MappedPrimitiveCol<T> {
         } else {
             Some((self.map)(self.arr.value(i)))
         }
+    }
+
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.arr.clone())
     }
 }
 
@@ -378,6 +419,10 @@ impl PropCol for DecimalPropCol {
                 self.scale,
             )))
         }
+    }
+
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.arr.clone())
     }
 }
 

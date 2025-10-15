@@ -102,6 +102,10 @@ impl TimeCol {
     pub fn get(&self, i: usize) -> Option<i64> {
         (i < self.0.len()).then(|| self.0.value(i))
     }
+
+    pub fn values(&self) -> &[i64] {
+        self.0.values()
+    }
 }
 
 impl Deref for TimeCol {

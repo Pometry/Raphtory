@@ -2,7 +2,7 @@ use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::edge::MemEdgeSegment,
 };
-use arrow_array::{Array, BooleanArray};
+use arrow_array::{Array, ArrayRef, BooleanArray};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
 use raphtory_core::{entities::EID, storage::timeindex::AsTime};
 use std::ops::DerefMut;
@@ -65,7 +65,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         srcs: &[VID],
         dsts: &[VID],
         layer_id: usize,
-        cols: &[&dyn Array],
+        cols: &[ArrayRef],
         cols_prop_ids: &[usize],
     ) {
         self.writer.bulk_insert_edges_internal(
