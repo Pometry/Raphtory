@@ -44,7 +44,7 @@ use chrono::prelude::*;
 use pyo3::prelude::*;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;
@@ -466,8 +466,9 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView: Returns a graph clone
-    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        self.graph.materialize()
+    #[pyo3(signature = (path = None))]
+    fn materialize(&self, path: Option<PathBuf>) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize_at(path.as_deref())
     }
 
     /// Displays the graph
