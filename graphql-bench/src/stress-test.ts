@@ -9,6 +9,7 @@ import {
 import { fetchAndCheck, fetchAndParse, mutate, mutateAndCheck } from './utils';
 
 // Global
+const VUS = 500;
 const PAGE_SIZE = 20;
 const LAYERS = ["a", "b", "c"];
 const CONST_KEYS = ["ca", "cb", "cc"];
@@ -42,35 +43,35 @@ const IN_EDGES_WEIGHT = 1;
 
 // Property rates
 const EDGE_PROPERTY_RATE: PropertyRates = {
-  metadata: 0.3,
-  temporalLatest: 0.3,
-  temporalHistory: 0.2,
+  metadata: 1,
+  temporalLatest: 1,
+  temporalHistory: 1,
 }
 const NODE_PROPERTY_RATE: PropertyRates = {
-  metadata: 0.3,
-  temporalLatest: 0.3,
-  temporalHistory: 0.2,
+  metadata: 1,
+  temporalLatest: 1,
+  temporalHistory: 1,
 }
 const GRAPH_PROPERTY_RATE: PropertyRates = {
-  metadata: 0.3,
-  temporalLatest: 0.3,
-  temporalHistory: 0.2,
+  metadata: 1,
+  temporalLatest: 1,
+  temporalHistory: 1,
 }
 
 // View rates
 const GRAPH_VIEW_RATES: ViewRate = {
-  latest: 0.3,
-  layer: 0.2,
+  latest: 1,
+  layer: 1,
   window: 0.2
 }
 const NODE_VIEW_RATES: ViewRate = {
-  latest: 0.3,
-  layer: 0.2,
+  latest: 1,
+  layer: 1,
   window: 0.2
 }
 const EDGE_VIEW_RATES: ViewRate = {
-  latest: 0.3,
-  layer: 0.2,
+  latest: 1,
+  layer: 1,
   window: 0.2
 }
 const NODE_PAGE_VIEW_RATES: ViewRate = {
@@ -114,7 +115,7 @@ const thresholdConf = {
 }
 export const options = {
   executor: 'constant-vus',
-  vus: 500,
+  vus: VUS,
   duration: "10m",
   thresholds: {
     errors: [{

@@ -23,6 +23,48 @@ bench: deploy push-graphs build-raphtory
 	make run-bench
 	make destroy
 
+# If this does not work you might need to do `echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid` in the host machine
+# docker-with-debug:
+# 	cd .. && docker build -t raphtory:debug-base --build-arg RAPHTORY_PROFILE=release-with-debug .
+# 	docker build -t raphtory:debug . -f debug.Dockerfile
+# 	# docker run --rm -it --privileged -v ./profiles:/profiles -p 1736:1736 --name=debug raphtory:debug
+
+# stress-test:
+# 	pnpm install --frozen-lockfile
+# 	pnpm build
+# 	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run --duration='3m' dist/stress-test.js
+
+stress-until-error-with-docker:
+	date
+	# cd .. && docker build -t raphtory:debug-base --build-arg RAPHTORY_PROFILE=release-with-debug .
+	# docker build -t raphtory:debug . -f debug.Dockerfile
+	pnpm install --frozen-lockfile
+	pnpm build
+	@while true; do \
+		docker run --rm -itd --privileged -v ./profiles:/profiles -p 1736:1736 --name=debug raphtory:debug && \
+		if k6 run --duration='5m' dist/stress-test.js; then \
+			echo "stopping with SIGKILL" && docker stop --signal=9 debug; \
+		else \
+			echo "exiting normally" && break; \
+		fi; \
+	done
+	docker exec -it debug sh -c 'apt-get install -y lsof && kill $$(lsof -t -i :1736)'
+
+stress-until-error:
+	touch ./profiles/$$(date +"%Y-%m-%dT%H-%M-%S")-start
+	cargo build --profile=release-with-debug -p raphtory-graphql
+	pnpm install --frozen-lockfile
+	pnpm build
+	while true; do \
+		samply record --save-only --output ./profiles/$$(date +"%Y-%m-%dT%H-%M-%S").json.gz ../target/release-with-debug/raphtory-graphql & \
+		if k6 run --vus=1000 --duration='10m' dist/stress-test.js; then \
+		    echo ">>> successful stress test, keep going" && kill -9 $$(lsof -t -i :1736); \
+		else \
+			echo ">>> stress test failed, finishing loop" && break; \
+		fi; \
+	done
+	kill -9 $$(lsof -t -i :1736)
+
 project:
 	gcloud config set project $(PROJECT)
 

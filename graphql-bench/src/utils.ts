@@ -16,8 +16,8 @@ function checkResponse<RT extends "binary" | "none" | "text"| undefined>(respons
                 body.data !== null; // FIXME: improve query checking, I wish I could just rely on genql
 
               if (result === false) {
-                console.log(">>> error:", JSON.stringify(body, null, 2));
-                console.log(">>> request:", JSON.stringify(response.request.body, null, 2))
+                // console.log(">>> error:", JSON.stringify(body, null, 2));
+                // console.log(">>> request:", JSON.stringify(response.request.body, null, 2))
               }
 
               return result;
