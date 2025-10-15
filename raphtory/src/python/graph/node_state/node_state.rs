@@ -5,8 +5,8 @@ use crate::{
     db::{
         api::{
             state::{
-                ops, ops::HistoryOp, LazyNodeState, NodeGroups, NodeOp, NodeState,
-                NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
+                ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
+                OrderedNodeStateOps,
             },
             view::{
                 internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
@@ -18,7 +18,6 @@ use crate::{
     prelude::*,
     py_borrowing_iter,
     python::{
-        graph::history::{PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals},
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -30,12 +29,10 @@ use pyo3::{
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
-use raphtory_api::core::{
-    entities::GID,
-    storage::{arc_str::ArcStr, timeindex::TimeError},
-};
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::collections::HashMap;
 
+#[macro_export]
 macro_rules! impl_node_state_ops {
     ($name:ident, $value:ty, $inner_t:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
         impl $name {
@@ -186,6 +183,7 @@ macro_rules! impl_node_state_ops {
     };
 }
 
+#[macro_export]
 macro_rules! impl_node_state_group_by_ops {
     ($name:ident, $value:ty) => {
         #[pymethods]
@@ -201,6 +199,7 @@ macro_rules! impl_node_state_group_by_ops {
     };
 }
 
+#[macro_export]
 macro_rules! impl_node_state_ord_ops {
     ($name:ident, $value:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
         #[pymethods]
@@ -322,6 +321,7 @@ macro_rules! impl_node_state_num_ops {
     };
 }
 
+#[macro_export]
 macro_rules! impl_lazy_node_state {
     ($name:ident<$op:ty>, $computed:literal, $py_value:literal) => {
         /// A lazy view over node values
@@ -392,6 +392,7 @@ macro_rules! impl_lazy_node_state {
     };
 }
 
+#[macro_export]
 macro_rules! impl_node_state {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         #[pyclass(module = "raphtory.node_state", frozen)]
@@ -440,6 +441,7 @@ macro_rules! impl_node_state {
     };
 }
 
+#[macro_export]
 macro_rules! impl_lazy_node_state_ord {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         impl_lazy_node_state!($name<$value>, $computed, $py_value);
@@ -453,6 +455,7 @@ macro_rules! impl_lazy_node_state_ord {
     };
 }
 
+#[macro_export]
 macro_rules! impl_node_state_ord {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         impl_node_state!($name<$value>, $computed, $py_value);
@@ -510,74 +513,6 @@ impl_node_state_num!(NodeStateU64<u64>, "NodeStateU64", "int");
 impl_lazy_node_state_ord!(IdView<ops::Id>, "NodeStateGID", "GID");
 impl_node_state_ord!(NodeStateGID<GID>, "NodeStateGID", "GID");
 
-impl_lazy_node_state_ord!(
-    EarliestTimeView<ops::EarliestTime<DynamicGraph>>,
-    "NodeStateOptionEventTime",
-    "Optional[EventTime]"
-);
-impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
-impl_node_state_group_by_ops!(EarliestTimeView, Option<EventTime>);
-// Custom time functions for LazyNodeState<EarliestTime>
-#[pymethods]
-impl EarliestTimeView {
-    /// Access earliest times as timestamps (milliseconds since the Unix epoch).
-    ///
-    /// Returns:
-    ///     EarliestTimestampView: A lazy view over the earliest times for each node as timestamps.
-    #[getter]
-    fn t(
-        &self,
-    ) -> LazyNodeState<'static, EarliestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
-        self.inner.t()
-    }
-
-    /// Access earliest times as UTC DateTimes.
-    ///
-    /// Returns:
-    ///     EarliestDateTimeView: A lazy view over the earliest times for each node as datetimes.
-    #[getter]
-    fn dt(
-        &self,
-    ) -> LazyNodeState<
-        'static,
-        ops::Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
-        DynamicGraph,
-        DynamicGraph,
-    > {
-        self.inner.dt()
-    }
-
-    /// Access the event ids of the earliest times.
-    ///
-    /// Returns:
-    ///     EarliestEventIdView: A lazy view over the event ids of the earliest times for each node.
-    #[getter]
-    fn event_id(
-        &self,
-    ) -> LazyNodeState<'static, EarliestEventId<DynamicGraph>, DynamicGraph, DynamicGraph> {
-        self.inner.event_id()
-    }
-}
-type EarliestTimestamp<G> = ops::Map<ops::EarliestTime<G>, Option<i64>>;
-impl_lazy_node_state_ord!(
-    EarliestTimestampView<EarliestTimestamp<DynamicGraph>>,
-    "NodeStateOptionI64",
-    "Optional[int]"
-);
-impl_one_hop!(
-    EarliestTimestampView<EarliestTimestamp>,
-    "EarliestTimestampView"
-);
-impl_node_state_group_by_ops!(EarliestTimestampView, Option<i64>);
-
-type EarliestEventId<G> = ops::Map<ops::EarliestTime<G>, Option<usize>>;
-impl_lazy_node_state_ord!(
-    EarliestEventIdView<EarliestEventId<DynamicGraph>>,
-    "NodeStateOptionUsize",
-    "Optional[int]"
-); // usize gets converted to int in python
-impl_one_hop!(EarliestEventIdView<EarliestEventId>, "EarliestEventIdView");
-impl_node_state_group_by_ops!(EarliestEventIdView, Option<usize>);
 impl_node_state_ord!(
     NodeStateOptionEventTime<Option<EventTime>>,
     "NodeStateOptionEventTime",
@@ -585,71 +520,6 @@ impl_node_state_ord!(
 );
 impl_node_state_group_by_ops!(NodeStateOptionEventTime, Option<EventTime>);
 
-impl_lazy_node_state_ord!(
-    LatestTimeView<ops::LatestTime<DynamicGraph>>,
-    "NodeStateOptionI64",
-    "Optional[int]"
-);
-impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
-impl_node_state_group_by_ops!(LatestTimeView, Option<EventTime>);
-// Custom time functions for LazyNodeState<LatestTime>
-#[pymethods]
-impl LatestTimeView {
-    /// Access latest times as timestamps (milliseconds since the Unix epoch).
-    ///
-    /// Returns:
-    ///     LatestTimestampView: A lazy view over the latest times for each node as timestamps.
-    #[getter]
-    fn t(
-        &self,
-    ) -> LazyNodeState<'static, LatestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
-        self.inner.t()
-    }
-
-    /// Access latest times as UTC DateTimes.
-    ///
-    /// Returns:
-    ///     LatestDateTimeView: A lazy view over the latest times for each node as datetimes.
-    #[getter]
-    fn dt(
-        &self,
-    ) -> LazyNodeState<
-        'static,
-        ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
-        DynamicGraph,
-        DynamicGraph,
-    > {
-        self.inner.dt()
-    }
-
-    /// Access the event ids of the latest times.
-    ///
-    /// Returns:
-    ///     LatestEventIdView: A lazy view over the event ids of the latest times for each node.
-    #[getter]
-    fn event_id(
-        &self,
-    ) -> LazyNodeState<'static, LatestEventId<DynamicGraph>, DynamicGraph, DynamicGraph> {
-        self.inner.event_id()
-    }
-}
-type LatestTimestamp<G> = ops::Map<ops::LatestTime<G>, Option<i64>>;
-impl_lazy_node_state_ord!(
-    LatestTimestampView<LatestTimestamp<DynamicGraph>>,
-    "NodeStateOptionI64",
-    "Optional[int]"
-);
-impl_one_hop!(LatestTimestampView<LatestTimestamp>, "LatestTimestampView");
-impl_node_state_group_by_ops!(LatestTimestampView, Option<i64>);
-
-type LatestEventId<G> = ops::Map<ops::LatestTime<G>, Option<usize>>;
-impl_lazy_node_state_ord!(
-    LatestEventIdView<LatestEventId<DynamicGraph>>,
-    "NodeStateOptionUsize",
-    "Optional[int]"
-); // usize gets converted to int in python
-impl_one_hop!(LatestEventIdView<LatestEventId>, "LatestEventIdView");
-impl_node_state_group_by_ops!(LatestEventIdView, Option<usize>);
 impl_node_state_ord!(
     NodeStateOptionI64<Option<i64>>,
     "NodeStateOptionI64",
@@ -667,54 +537,6 @@ impl_lazy_node_state_ord!(NameView<ops::Name>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NodeStateString, String);
-
-type HistoryI64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryTimestamp>;
-impl_lazy_node_state!(
-    HistoryTimestampView<HistoryI64<DynamicGraph>>,
-    "NodeStateHistoryTimestamp",
-    "HistoryTimestamp"
-);
-impl_node_state!(
-    NodeStateHistoryTimestamp<PyHistoryTimestamp>,
-    "NodeStateHistoryTimestamp",
-    "HistoryTimestamp"
-);
-
-type HistoryU64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryEventId>;
-impl_lazy_node_state!(
-    HistoryEventIdView<HistoryU64<DynamicGraph>>,
-    "NodeStateHistoryEventId",
-    "HistoryEventId"
-);
-impl_node_state!(
-    NodeStateHistoryEventId<PyHistoryEventId>,
-    "NodeStateHistoryEventId",
-    "HistoryEventId"
-);
-
-type HistoryDT<G> = ops::Map<HistoryOp<'static, G>, PyHistoryDateTime>;
-impl_lazy_node_state!(
-    HistoryDateTimeView<HistoryDT<DynamicGraph>>,
-    "NodeStateHistoryDateTime",
-    "HistoryDateTime"
-);
-impl_node_state!(
-    NodeStateHistoryDateTime<PyHistoryDateTime>,
-    "NodeStateHistoryDateTime",
-    "HistoryDateTime"
-);
-
-type HistoryIntervals<G> = ops::Map<HistoryOp<'static, G>, PyIntervals>;
-impl_lazy_node_state!(
-    IntervalsView<HistoryIntervals<DynamicGraph>>,
-    "NodeStateIntervals",
-    "Intervals"
-);
-impl_node_state!(
-    NodeStateIntervals<PyIntervals>,
-    "NodeStateIntervals",
-    "Intervals"
-);
 
 impl_node_state_ord!(
     NodeStateOptionDateTime<Option<DateTime<Utc>>>,
@@ -753,6 +575,11 @@ impl_node_state_ord!(
 );
 
 impl_node_state_num!(NodeStateF64<f64>, "NodeStateF64", "float");
+impl_node_state_ord!(
+    NodeStateOptionF64<Option<f64>>,
+    "NodeStateOptionF64",
+    "Optional[float]"
+);
 
 impl_node_state_ord!(NodeStateSEIR<Infected>, "NodeStateSEIR", "Infected");
 

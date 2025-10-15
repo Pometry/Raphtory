@@ -2,7 +2,7 @@ use crate::{
     db::api::view::history::*,
     python::{
         types::{
-            iterable::{FromIterable, Iterable},
+            iterable::FromIterable,
             repr::{iterator_repr, Repr},
             wrappers::iterators::PyBorrowingIterator,
         },
@@ -158,7 +158,7 @@ impl PyHistory {
     /// Collect all time entries in chronological order.
     ///
     /// Returns:
-    ///     List[EventTime]: Collected time entries.
+    ///     list[EventTime]: Collected time entries.
     pub fn collect(&self) -> Vec<EventTime> {
         self.history.collect()
     }
@@ -166,7 +166,7 @@ impl PyHistory {
     /// Collect all time entries in reverse chronological order.
     ///
     /// Returns:
-    ///     List[EventTime]: Collected time entries in reverse order.
+    ///     list[EventTime]: Collected time entries in reverse order.
     pub fn collect_rev(&self) -> Vec<EventTime> {
         self.history.collect_rev()
     }
@@ -214,10 +214,10 @@ impl PyHistory {
         self.history.iter().any(|x| x == item)
     }
 
-    /// Compare equality with another History or a list of EventTime.
+    /// Compare equality with another History, list of EventTime, or a list of time inputs.
     ///
     /// Arguments:
-    ///     other (History | List[EventTime]): The item to compare equality with.
+    ///     other (History | list[EventTime] | list[TimeInput]): The item to compare equality with.
     ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
@@ -242,7 +242,7 @@ impl PyHistory {
     /// Compare inequality with another History or a list of EventTime.
     ///
     /// Arguments:
-    ///     other (History | List[EventTime]): The item to compare inequality with.
+    ///     other (History | list[EventTime]): The item to compare inequality with.
     ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
@@ -302,7 +302,7 @@ pub struct PyHistoryTimestamp {
 
 #[pymethods]
 impl PyHistoryTimestamp {
-    /// Collect all timestamps into a numpy ndarray.
+    /// Collect all timestamps into a NumPy ndarray.
     ///
     /// Returns:
     ///     NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch.
@@ -311,13 +311,29 @@ impl PyHistoryTimestamp {
         t.into_pyarray(py)
     }
 
-    /// Collect all timestamps into a numpy ndarray in reverse order.
+    /// Collect all timestamps into a list.
+    ///
+    /// Returns:
+    ///     list[int]: List of timestamps.
+    pub fn to_list<'py>(&self) -> Vec<i64> {
+        self.history_t.collect()
+    }
+
+    /// Collect all timestamps into a NumPy ndarray in reverse order.
     ///
     /// Returns:
     ///     NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let t = self.history_t.collect_rev();
         t.into_pyarray(py)
+    }
+
+    /// Collect all timestamps into a list in reverse order.
+    ///
+    /// Returns:
+    ///     list[int]: List of timestamps.
+    pub fn to_list_rev<'py>(&self) -> Vec<i64> {
+        self.history_t.collect_rev()
     }
 
     /// Iterate over all timestamps.
@@ -358,7 +374,7 @@ impl PyHistoryTimestamp {
     /// Compare equality with another HistoryTimestamp or with a list of integers.
     ///
     /// Arguments:
-    ///     other (HistoryTimestamp | List[int]): The item to compare equality with.
+    ///     other (HistoryTimestamp | list[int]): The item to compare equality with.
     ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
@@ -375,7 +391,7 @@ impl PyHistoryTimestamp {
     /// Compare inequality with another HistoryTimestamp or with a list of integers.
     ///
     /// Arguments:
-    ///     other (HistoryTimestamp | List[int]): The item to compare inequality with.
+    ///     other (HistoryTimestamp | list[int]): The item to compare inequality with.
     ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
@@ -443,7 +459,7 @@ impl PyHistoryDateTime {
     /// Collect all datetimes.
     ///
     /// Returns:
-    ///     List[datetime]: Collected UTC datetimes.
+    ///     list[datetime]: Collected UTC datetimes.
     ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
@@ -454,7 +470,7 @@ impl PyHistoryDateTime {
     /// Collect all datetimes in reverse order.
     ///
     /// Returns:
-    ///     List[datetime]: Collected UTC datetimes in reverse order.
+    ///     list[datetime]: Collected UTC datetimes in reverse order.
     ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
@@ -521,7 +537,7 @@ impl PyHistoryDateTime {
     /// Compare equality with another HistoryDateTime or a list of datetimes.
     ///
     /// Arguments:
-    ///     other (HistoryDateTime | List[datetime]): The other item to compare equality with.
+    ///     other (HistoryDateTime | list[datetime]): The other item to compare equality with.
     ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
@@ -551,7 +567,7 @@ impl PyHistoryDateTime {
     /// Compare inequality with another HistoryDateTime or a list of datetimes.
     ///
     /// Arguments:
-    ///     other (HistoryDateTime | List[datetime]): The other item to compare inequality with.
+    ///     other (HistoryDateTime | list[datetime]): The other item to compare inequality with.
     ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
@@ -625,6 +641,14 @@ impl PyHistoryEventId {
         u.into_pyarray(py)
     }
 
+    /// Collect all event ids into a list.
+    ///
+    /// Returns:
+    ///     list[int]: List of event ids.
+    pub fn to_list<'py>(&self) -> Vec<usize> {
+        self.history_s.collect()
+    }
+
     /// Collect all event ids in reverse order.
     ///
     /// Returns:
@@ -632,6 +656,14 @@ impl PyHistoryEventId {
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
         let u = self.history_s.collect_rev();
         u.into_pyarray(py)
+    }
+
+    /// Collect all event ids into a list in reverse order.
+    ///
+    /// Returns:
+    ///     list[int]: List of event ids.
+    pub fn to_list_rev<'py>(&self) -> Vec<usize> {
+        self.history_s.collect_rev()
     }
 
     /// Iterate over all event ids.
@@ -672,7 +704,7 @@ impl PyHistoryEventId {
     /// Compare equality with another HistoryEventId or a list of integers.
     ///
     /// Arguments:
-    ///     other (HistoryEventId | List[int]): The other item to compare equality with.
+    ///     other (HistoryEventId | list[int]): The other item to compare equality with.
     ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
@@ -689,7 +721,7 @@ impl PyHistoryEventId {
     /// Compare inequality with another HistoryEventId or a list of integers.
     ///
     /// Arguments:
-    ///     other (HistoryEventId | List[int]): The other item to compare inequality with.
+    ///     other (HistoryEventId | list[int]): The other item to compare inequality with.
     ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
@@ -757,10 +789,18 @@ impl PyIntervals {
     /// Collect all interval values in milliseconds.
     ///
     /// Returns:
-    ///     NDArray[np.int64]: Intervals in milliseconds.
+    ///     NDArray[np.int64]: NumPy NDArray of interval values in milliseconds.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let i = self.intervals.collect();
         i.into_pyarray(py)
+    }
+
+    /// Collect all interval values in milliseconds into a list.
+    ///
+    /// Returns:
+    ///     list[int]: List of intervals in milliseconds.
+    pub fn to_list<'py>(&self) -> Vec<i64> {
+        self.intervals.collect()
     }
 
     /// Collect all interval values in reverse order.
@@ -770,6 +810,14 @@ impl PyIntervals {
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let i = self.intervals.collect_rev();
         i.into_pyarray(py)
+    }
+
+    /// Collect all interval values in milliseconds into a list in reverse order.
+    ///
+    /// Returns:
+    ///     list[int]: List of intervals in milliseconds.
+    pub fn to_list_rev<'py>(&self) -> Vec<i64> {
+        self.intervals.collect_rev()
     }
 
     /// Iterate over all intervals.
@@ -810,7 +858,7 @@ impl PyIntervals {
     /// Compare equality with another Intervals or a list of integers.
     ///
     /// Arguments:
-    ///     other (Intervals | List[int]): The other item to compare equality with.
+    ///     other (Intervals | list[int]): The other item to compare equality with.
     ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
@@ -827,7 +875,7 @@ impl PyIntervals {
     /// Compare inequality with another Intervals or a list of integers.
     ///
     /// Arguments:
-    ///     other (Intervals | List[int]): The other item to compare inequality with.
+    ///     other (Intervals | list[int]): The other item to compare inequality with.
     ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
@@ -967,7 +1015,7 @@ impl HistoryIterable {
     /// Collect time entries from each history in the iterable.
     ///
     /// Returns:
-    ///     List[List[EventTime]]: Collected entries per history.
+    ///     list[list[EventTime]]: Collected entries per history.
     pub fn collect(&self) -> Vec<Vec<EventTime>> {
         self.iter().map(|h| h.collect()).collect()
     }
@@ -1024,7 +1072,7 @@ impl NestedHistoryIterable {
     /// Collect time entries from each history within each nested iterable.
     ///
     /// Returns:
-    ///     List[List[List[EventTime]]]: Collected entries per nested history.
+    ///     list[list[list[EventTime]]]: Collected entries per nested history.
     pub fn collect(&self) -> Vec<Vec<Vec<EventTime>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
@@ -1040,12 +1088,20 @@ py_iterable_base_methods!(HistoryTimestampIterable, PyGenericIterator);
 
 #[pymethods]
 impl HistoryTimestampIterable {
-    /// Collect timestamps for each history.
+    /// Collect timestamps for each history into a NumPy array.
     ///
     /// Returns:
-    ///     List[NDArray[np.int64]]: Timestamps in milliseconds per history.
+    ///     list[NDArray[np.int64]]: NumPy NDArray of timestamps in milliseconds per history.
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<i64, Ix1>>> {
         self.iter().map(|h| h.collect().into_pyarray(py)).collect()
+    }
+
+    /// Collect timestamps for each history into a list.
+    ///
+    /// Returns:
+    ///     list[list[int]]: List of timestamps in milliseconds per history.
+    pub fn to_list(&self) -> Vec<Vec<i64>> {
+        self.iter().map(|h| h.collect()).collect::<Vec<Vec<i64>>>()
     }
 }
 
@@ -1057,14 +1113,24 @@ py_iterable_base_methods!(NestedHistoryTimestampIterable, PyNestedGenericIterato
 
 #[pymethods]
 impl NestedHistoryTimestampIterable {
-    /// Collect timestamps for each history in each nested iterable.
+    /// Collect timestamps for each history in each nested iterable into a NumPy array.
     ///
     /// Returns:
-    ///     List[List[NDArray[np.int64]]]: Timestamps in milliseconds per nested history.
+    ///     list[list[NDArray[np.int64]]]: NumPy NDArray of timestamps in milliseconds per nested history.
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Vec<Bound<'py, PyArray<i64, Ix1>>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect().into_pyarray(py)).collect())
             .collect()
+    }
+
+    /// Collect timestamps for each history in each nested iterable into a list.
+    ///
+    /// Returns:
+    ///     list[list[list[int]]]: List of timestamps in milliseconds per nested history.
+    pub fn to_list(&self) -> Vec<Vec<Vec<i64>>> {
+        self.iter()
+            .map(|h| h.map(|h| h.collect()).collect())
+            .collect::<Vec<Vec<Vec<i64>>>>()
     }
 }
 
@@ -1079,7 +1145,7 @@ impl HistoryDateTimeIterable {
     /// Collect datetimes for each history.
     ///
     /// Returns:
-    ///     List[List[datetime]]: UTC datetimes per history.
+    ///     list[list[datetime]]: UTC datetimes per history.
     ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
@@ -1099,7 +1165,7 @@ impl NestedHistoryDateTimeIterable {
     /// Collect datetimes for each history in each nested iterable.
     ///
     /// Returns:
-    ///     List[List[List[datetime]]]: UTC datetimes per nested history.
+    ///     list[list[list[datetime]]]: UTC datetimes per nested history.
     ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
@@ -1118,12 +1184,22 @@ py_iterable_base_methods!(HistoryEventIdIterable, PyGenericIterator);
 
 #[pymethods]
 impl HistoryEventIdIterable {
-    /// Collect event ids for each history.
+    /// Collect event ids for each history into a NumPy array.
     ///
     /// Returns:
-    ///     List[List[int]]: Event ids per history.
-    pub fn collect(&self) -> Vec<Vec<usize>> {
-        Iterable::iter(self).map(|h| h.collect()).collect()
+    ///     list[NDArray[np.uintp]]: NumPy NDArray of event ids per history.
+    pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<usize, Ix1>>> {
+        self.iter().map(|h| h.collect().into_pyarray(py)).collect()
+    }
+
+    /// Collect event ids for each history into a list.
+    ///
+    /// Returns:
+    ///     list[list[int]]: List of event ids per history.
+    pub fn to_list(&self) -> Vec<Vec<usize>> {
+        self.iter()
+            .map(|h| h.collect())
+            .collect::<Vec<Vec<usize>>>()
     }
 }
 
@@ -1135,14 +1211,24 @@ py_iterable_base_methods!(NestedHistoryEventIdIterable, PyNestedGenericIterator)
 
 #[pymethods]
 impl NestedHistoryEventIdIterable {
-    /// Collect event ids for each history in each nested iterable.
+    /// Collect event ids for each history in each nested iterable into a NumPy array.
     ///
     /// Returns:
-    ///     List[List[List[int]]]: Event ids per nested history.
-    pub fn collect(&self) -> Vec<Vec<Vec<usize>>> {
+    ///     list[list[NDArray[np.uintp]]]: NumPy NDArray of event ids per nested history.
+    pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Vec<Bound<'py, PyArray<usize, Ix1>>>> {
+        self.iter()
+            .map(|h| h.map(|h| h.collect().into_pyarray(py)).collect())
+            .collect()
+    }
+
+    /// Collect event ids for each history in each nested iterable into a list.
+    ///
+    /// Returns:
+    ///     list[list[list[int]]]: List of event ids per nested history.
+    pub fn to_list(&self) -> Vec<Vec<Vec<usize>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
-            .collect()
+            .collect::<Vec<Vec<Vec<usize>>>>()
     }
 }
 
@@ -1151,12 +1237,20 @@ py_iterable_base_methods!(IntervalsIterable, PyGenericIterator);
 
 #[pymethods]
 impl IntervalsIterable {
-    /// Collect intervals for each history in milliseconds.
+    /// Collect intervals between each history's timestamps in milliseconds into a NumPy array.
     ///
     /// Returns:
-    ///     List[List[int]]: Intervals per history.
-    pub fn collect(&self) -> Vec<Vec<i64>> {
-        self.iter().map(|h| h.collect()).collect()
+    ///     list[NDArray[np.int64]]: NumPy NDArray of intervals per history.
+    pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<i64, Ix1>>> {
+        self.iter().map(|h| h.collect().into_pyarray(py)).collect()
+    }
+
+    /// Collect intervals between each history's timestamps in milliseconds into a list.
+    ///
+    /// Returns:
+    ///     list[list[int]]: List of intervals per history.
+    pub fn to_list(&self) -> Vec<Vec<i64>> {
+        self.iter().map(|h| h.collect()).collect::<Vec<Vec<i64>>>()
     }
 }
 
@@ -1168,13 +1262,23 @@ py_iterable_base_methods!(NestedIntervalsIterable, PyNestedGenericIterator);
 
 #[pymethods]
 impl NestedIntervalsIterable {
-    /// Collect intervals for each history in each nested iterable, in milliseconds.
+    /// Collect intervals between each nested history's timestamps in milliseconds into a NumPy array.
     ///
     /// Returns:
-    ///     List[List[List[int]]]: Intervals per nested history.
-    pub fn collect(&self) -> Vec<Vec<Vec<i64>>> {
+    ///     list[list[NDArray[np.int64]]]: NumPy NDArray of intervals per nested history.
+    pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Vec<Bound<'py, PyArray<i64, Ix1>>>> {
+        self.iter()
+            .map(|h| h.map(|h| h.collect().into_pyarray(py)).collect())
+            .collect()
+    }
+
+    /// Collect intervals between each nested history's timestamps in milliseconds into a list.
+    ///
+    /// Returns:
+    ///     list[list[list[int]]]: List of intervals per nested history.
+    pub fn to_list(&self) -> Vec<Vec<Vec<i64>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
-            .collect()
+            .collect::<Vec<Vec<Vec<i64>>>>()
     }
 }

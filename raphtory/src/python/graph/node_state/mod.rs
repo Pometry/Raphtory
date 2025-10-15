@@ -1,17 +1,29 @@
 mod group_by;
 mod node_state;
-mod node_state_earliest_date_time;
+mod node_state_earliest_time;
 mod node_state_history;
-mod node_state_latest_date_time;
+mod node_state_intervals;
+mod node_state_latest_time;
 
 use crate::{
     add_classes,
     python::{
         graph::node_state::{
             group_by::PyNodeGroups,
-            node_state_earliest_date_time::EarliestDateTimeView,
-            node_state_history::{HistoryView, NodeStateHistory},
-            node_state_latest_date_time::LatestDateTimeView,
+            node_state_earliest_time::{
+                EarliestDateTimeView, EarliestEventIdView, EarliestTimeView, EarliestTimestampView,
+            },
+            node_state_history::{
+                HistoryDateTimeView, HistoryEventIdView, HistoryTimestampView, HistoryView,
+                NodeStateHistory, NodeStateHistoryDateTime, NodeStateHistoryEventId,
+                NodeStateHistoryTimestamp,
+            },
+            node_state_intervals::{
+                IntervalsFloatView, IntervalsIntegerView, IntervalsView, NodeStateIntervals,
+            },
+            node_state_latest_time::{
+                LatestDateTimeView, LatestEventIdView, LatestTimeView, LatestTimestampView,
+            },
         },
         types::wrappers::iterables::UsizeIterable,
     },
@@ -48,6 +60,8 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
         HistoryDateTimeView,
         HistoryEventIdView,
         IntervalsView,
+        IntervalsFloatView,
+        IntervalsIntegerView,
         EdgeHistoryCountView,
         UsizeIterable,
         NodeTypeView,
@@ -55,6 +69,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
         NodeStateListDateTime,
         NodeStateWeightedSP,
         NodeStateF64,
+        NodeStateOptionF64,
         NodeStateNodes,
         NodeStateReachability,
         NodeStateListF64,

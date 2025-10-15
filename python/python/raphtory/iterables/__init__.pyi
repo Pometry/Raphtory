@@ -977,12 +977,12 @@ class NestedHistoryIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[List[EventTime]]]:
+    def collect(self) -> list[list[list[EventTime]]]:
         """
         Collect time entries from each history within each nested iterable.
 
         Returns:
-            List[List[List[EventTime]]]: Collected entries per nested history.
+            list[list[list[EventTime]]]: Collected entries per nested history.
         """
 
     @property
@@ -1168,12 +1168,12 @@ class HistoryIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[EventTime]]:
+    def collect(self) -> list[list[EventTime]]:
         """
         Collect time entries from each history in the iterable.
 
         Returns:
-            List[List[EventTime]]: Collected entries per history.
+            list[list[EventTime]]: Collected entries per history.
         """
 
     @property
@@ -1223,12 +1223,20 @@ class HistoryTimestampIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[NDArray[np.int64]]:
+    def collect(self) -> list[NDArray[np.int64]]:
         """
-        Collect timestamps for each history.
+        Collect timestamps for each history into a NumPy array.
 
         Returns:
-            List[NDArray[np.int64]]: Timestamps in milliseconds per history.
+            list[NDArray[np.int64]]: NumPy NDArray of timestamps in milliseconds per history.
+        """
+
+    def to_list(self) -> list[list[int]]:
+        """
+        Collect timestamps for each history into a list.
+
+        Returns:
+            list[list[int]]: List of timestamps in milliseconds per history.
         """
 
 class IntervalsIterable(object): 
@@ -1242,12 +1250,20 @@ class IntervalsIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[int]]:
+    def collect(self) -> list[NDArray[np.int64]]:
         """
-        Collect intervals for each history in milliseconds.
+        Collect intervals between each history's timestamps in milliseconds into a NumPy array.
 
         Returns:
-            List[List[int]]: Intervals per history.
+            list[NDArray[np.int64]]: NumPy NDArray of intervals per history.
+        """
+
+    def to_list(self) -> list[list[int]]:
+        """
+        Collect intervals between each history's timestamps in milliseconds into a list.
+
+        Returns:
+            list[list[int]]: List of intervals per history.
         """
 
 class HistoryEventIdIterable(object): 
@@ -1261,12 +1277,20 @@ class HistoryEventIdIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[int]]:
+    def collect(self) -> list[NDArray[np.uintp]]:
         """
-        Collect event ids for each history.
+        Collect event ids for each history into a NumPy array.
 
         Returns:
-            List[List[int]]: Event ids per history.
+            list[NDArray[np.uintp]]: NumPy NDArray of event ids per history.
+        """
+
+    def to_list(self) -> list[list[int]]:
+        """
+        Collect event ids for each history into a list.
+
+        Returns:
+            list[list[int]]: List of event ids per history.
         """
 
 class HistoryDateTimeIterable(object): 
@@ -1280,12 +1304,12 @@ class HistoryDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[datetime]]:
+    def collect(self) -> list[list[datetime]]:
         """
         Collect datetimes for each history.
 
         Returns:
-            List[List[datetime]]: UTC datetimes per history.
+            list[list[datetime]]: UTC datetimes per history.
 
         Raises:
             TimeError: If a timestamp cannot be converted to a datetime.
@@ -1412,12 +1436,20 @@ class NestedHistoryTimestampIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[NDArray[np.int64]]]:
+    def collect(self) -> list[list[NDArray[np.int64]]]:
         """
-        Collect timestamps for each history in each nested iterable.
+        Collect timestamps for each history in each nested iterable into a NumPy array.
 
         Returns:
-            List[List[NDArray[np.int64]]]: Timestamps in milliseconds per nested history.
+            list[list[NDArray[np.int64]]]: NumPy NDArray of timestamps in milliseconds per nested history.
+        """
+
+    def to_list(self) -> list[list[list[int]]]:
+        """
+        Collect timestamps for each history in each nested iterable into a list.
+
+        Returns:
+            list[list[list[int]]]: List of timestamps in milliseconds per nested history.
         """
 
 class NestedIntervalsIterable(object): 
@@ -1431,12 +1463,20 @@ class NestedIntervalsIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[List[int]]]:
+    def collect(self) -> list[list[NDArray[np.int64]]]:
         """
-        Collect intervals for each history in each nested iterable, in milliseconds.
+        Collect intervals between each nested history's timestamps in milliseconds into a NumPy array.
 
         Returns:
-            List[List[List[int]]]: Intervals per nested history.
+            list[list[NDArray[np.int64]]]: NumPy NDArray of intervals per nested history.
+        """
+
+    def to_list(self) -> list[list[list[int]]]:
+        """
+        Collect intervals between each nested history's timestamps in milliseconds into a list.
+
+        Returns:
+            list[list[list[int]]]: List of intervals per nested history.
         """
 
 class NestedHistoryEventIdIterable(object): 
@@ -1450,12 +1490,20 @@ class NestedHistoryEventIdIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[List[int]]]:
+    def collect(self) -> list[list[NDArray[np.uintp]]]:
         """
-        Collect event ids for each history in each nested iterable.
+        Collect event ids for each history in each nested iterable into a NumPy array.
 
         Returns:
-            List[List[List[int]]]: Event ids per nested history.
+            list[list[NDArray[np.uintp]]]: NumPy NDArray of event ids per nested history.
+        """
+
+    def to_list(self) -> list[list[list[int]]]:
+        """
+        Collect event ids for each history in each nested iterable into a list.
+
+        Returns:
+            list[list[list[int]]]: List of event ids per nested history.
         """
 
 class NestedHistoryDateTimeIterable(object): 
@@ -1469,12 +1517,12 @@ class NestedHistoryDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self) -> List[List[List[datetime]]]:
+    def collect(self) -> list[list[list[datetime]]]:
         """
         Collect datetimes for each history in each nested iterable.
 
         Returns:
-            List[List[List[datetime]]]: UTC datetimes per nested history.
+            list[list[list[datetime]]]: UTC datetimes per nested history.
 
         Raises:
             TimeError: If a timestamp cannot be converted to a datetime.

@@ -223,6 +223,26 @@ def test_nodes_history_iterable(example_graph):
     assert histories == expected
 
 
+def test_node_states_intervals(example_graph):
+    g: Graph = example_graph
+    intervals = g.nodes.history.intervals
+    assert intervals.collect() == [[50, 50, 0, 100, 0, 50], [0, 50, 50, 50, 50, 0]]
+    assert intervals.mean() == [(50 + 50 + 100 + 50)/6, (50 + 50 + 50 + 50)/6]
+    assert intervals.mean().min() == (50 + 50 + 50 + 50)/6
+    assert intervals.median() == [50, 50]
+    assert intervals.max() == [100, 50]
+    assert intervals.min() == [0, 0]
+
+    # the same functions should work on computed NodeStates
+    intervals = intervals.compute()
+    assert intervals.to_list() == [[50, 50, 0, 100, 0, 50], [0, 50, 50, 50, 50, 0]]
+    assert intervals.mean() == [(50 + 50 + 100 + 50)/6, (50 + 50 + 50 + 50)/6]
+    assert intervals.mean().min() == (50 + 50 + 50 + 50)/6
+    assert intervals.median() == [50, 50]
+    assert intervals.max() == [100, 50]
+    assert intervals.min() == [0, 0]
+
+
 def test_edges_history_iterable(example_graph):
     g: Graph = example_graph
     edges_histories = [arr.tolist() for arr in g.edges.history.t.collect()]

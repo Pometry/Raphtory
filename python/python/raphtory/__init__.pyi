@@ -6302,20 +6302,20 @@ class History(object):
             Iterator[EventTime]: Iterator over time entries in reverse order.
         """
 
-    def collect(self) -> List[EventTime]:
+    def collect(self) -> list[EventTime]:
         """
         Collect all time entries in chronological order.
 
         Returns:
-            List[EventTime]: Collected time entries.
+            list[EventTime]: Collected time entries.
         """
 
-    def collect_rev(self) -> List[EventTime]:
+    def collect_rev(self) -> list[EventTime]:
         """
         Collect all time entries in reverse chronological order.
 
         Returns:
-            List[EventTime]: Collected time entries in reverse order.
+            list[EventTime]: Collected time entries in reverse order.
         """
 
     @staticmethod
@@ -6449,7 +6449,7 @@ class HistoryTimestamp(object):
 
     def collect(self) -> NDArray[np.int64]:
         """
-        Collect all timestamps into a numpy ndarray.
+        Collect all timestamps into a NumPy ndarray.
 
         Returns:
             NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch.
@@ -6457,10 +6457,26 @@ class HistoryTimestamp(object):
 
     def collect_rev(self) -> NDArray[np.int64]:
         """
-        Collect all timestamps into a numpy ndarray in reverse order.
+        Collect all timestamps into a NumPy ndarray in reverse order.
 
         Returns:
             NDArray[np.int64]: Timestamps in milliseconds since the Unix epoch in reverse order.
+        """
+
+    def to_list(self) -> list[int]:
+        """
+        Collect all timestamps into a list.
+
+        Returns:
+            list[int]: List of timestamps.
+        """
+
+    def to_list_rev(self) -> list[int]:
+        """
+        Collect all timestamps into a list in reverse order.
+
+        Returns:
+            list[int]: List of timestamps.
         """
 
 class HistoryDateTime(object): 
@@ -6504,23 +6520,23 @@ class HistoryDateTime(object):
             TimeError: May be raised during iteration if a timestamp cannot be converted.
         """
 
-    def collect(self) -> List[datetime]:
+    def collect(self) -> list[datetime]:
         """
         Collect all datetimes.
 
         Returns:
-            List[datetime]: Collected UTC datetimes.
+            list[datetime]: Collected UTC datetimes.
 
         Raises:
             TimeError: If a timestamp cannot be converted to a datetime.
         """
 
-    def collect_rev(self) -> List[datetime]:
+    def collect_rev(self) -> list[datetime]:
         """
         Collect all datetimes in reverse order.
 
         Returns:
-            List[datetime]: Collected UTC datetimes in reverse order.
+            list[datetime]: Collected UTC datetimes in reverse order.
 
         Raises:
             TimeError: If a timestamp cannot be converted to a datetime.
@@ -6580,6 +6596,22 @@ class HistoryEventId(object):
             NDArray[np.uintp]: Event ids in reverse order.
         """
 
+    def to_list(self) -> list[int]:
+        """
+        Collect all event ids into a list.
+
+        Returns:
+            list[int]: List of event ids.
+        """
+
+    def to_list_rev(self) -> list[int]:
+        """
+        Collect all event ids into a list in reverse order.
+
+        Returns:
+            list[int]: List of event ids.
+        """
+
 class Intervals(object): 
     """View over the intervals between consecutive timestamps, expressed in milliseconds."""
 
@@ -6623,7 +6655,7 @@ class Intervals(object):
         Collect all interval values in milliseconds.
 
         Returns:
-            NDArray[np.int64]: Intervals in milliseconds.
+            NDArray[np.int64]: NumPy NDArray of interval values in milliseconds.
         """
 
     def collect_rev(self) -> NDArray[np.int64]:
@@ -6664,6 +6696,22 @@ class Intervals(object):
 
         Returns:
             Optional[int]: Minimum interval, or None if fewer than 1 interval.
+        """
+
+    def to_list(self) -> list[int]:
+        """
+        Collect all interval values in milliseconds into a list.
+
+        Returns:
+            list[int]: List of intervals in milliseconds.
+        """
+
+    def to_list_rev(self) -> list[int]:
+        """
+        Collect all interval values in milliseconds into a list in reverse order.
+
+        Returns:
+            list[int]: List of intervals in milliseconds.
         """
 
 class WindowSet(object): 

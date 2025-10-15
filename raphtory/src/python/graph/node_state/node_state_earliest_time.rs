@@ -1,13 +1,14 @@
 use crate::{
     db::{
         api::{
-            state::{ops, LazyNodeState, NodeGroups, NodeOp, NodeState},
+            state::{ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateOps},
             view::{internal::Static, DynamicGraph, IntoDynHop, IntoDynamic, StaticGraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    impl_one_hop,
-    prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
+    impl_lazy_node_state, impl_lazy_node_state_ord, impl_node_state_group_by_ops,
+    impl_node_state_ops, impl_node_state_ord_ops, impl_one_hop,
+    prelude::*,
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -25,6 +26,78 @@ use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use rayon::prelude::*;
 use std::{cmp::Ordering, collections::HashMap};
 
+impl_lazy_node_state_ord!(
+    EarliestTimeView<ops::EarliestTime<DynamicGraph>>,
+    "NodeStateOptionEventTime",
+    "Optional[EventTime]"
+);
+impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
+impl_node_state_group_by_ops!(EarliestTimeView, Option<EventTime>);
+// Custom time functions for LazyNodeState<EarliestTime>
+#[pymethods]
+impl EarliestTimeView {
+    /// Access earliest times as timestamps (milliseconds since the Unix epoch).
+    ///
+    /// Returns:
+    ///     EarliestTimestampView: A lazy view over the earliest times for each node as timestamps.
+    #[getter]
+    fn t(
+        &self,
+    ) -> LazyNodeState<'static, EarliestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.inner.t()
+    }
+
+    /// Access earliest times as UTC DateTimes.
+    ///
+    /// Returns:
+    ///     EarliestDateTimeView: A lazy view over the earliest times for each node as datetimes.
+    #[getter]
+    fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        DynamicGraph,
+        DynamicGraph,
+    > {
+        self.inner.dt()
+    }
+
+    /// Access the event ids of the earliest times.
+    ///
+    /// Returns:
+    ///     EarliestEventIdView: A lazy view over the event ids of the earliest times for each node.
+    #[getter]
+    fn event_id(
+        &self,
+    ) -> LazyNodeState<'static, EarliestEventId<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.inner.event_id()
+    }
+}
+
+// EarliestTimestamp and EarliestEventId can use macros
+type EarliestTimestamp<G> = ops::Map<ops::EarliestTime<G>, Option<i64>>;
+impl_lazy_node_state_ord!(
+    EarliestTimestampView<EarliestTimestamp<DynamicGraph>>,
+    "NodeStateOptionI64",
+    "Optional[int]"
+);
+impl_one_hop!(
+    EarliestTimestampView<EarliestTimestamp>,
+    "EarliestTimestampView"
+);
+impl_node_state_group_by_ops!(EarliestTimestampView, Option<i64>);
+
+type EarliestEventId<G> = ops::Map<ops::EarliestTime<G>, Option<usize>>;
+impl_lazy_node_state_ord!(
+    EarliestEventIdView<EarliestEventId<DynamicGraph>>,
+    "NodeStateOptionUsize",
+    "Optional[int]"
+); // usize gets converted to int in python
+impl_one_hop!(EarliestEventIdView<EarliestEventId>, "EarliestEventIdView");
+impl_node_state_group_by_ops!(EarliestEventIdView, Option<usize>);
+
+// EarliestDateTime needs special implementation for Result type handling
 type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
 
 /// Type: Result<Option<DateTime\<Utc>>, TimeError>

@@ -6,8 +6,9 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    impl_one_hop,
-    prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
+    impl_lazy_node_state, impl_lazy_node_state_ord, impl_node_state_group_by_ops,
+    impl_node_state_ops, impl_node_state_ord_ops, impl_one_hop,
+    prelude::*,
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -24,6 +25,72 @@ use raphtory_api::core::storage::timeindex::{EventTime, TimeError};
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use rayon::prelude::*;
 use std::{cmp::Ordering, collections::HashMap};
+
+impl_lazy_node_state_ord!(
+    LatestTimeView<ops::LatestTime<DynamicGraph>>,
+    "NodeStateOptionI64",
+    "Optional[int]"
+);
+impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
+impl_node_state_group_by_ops!(LatestTimeView, Option<EventTime>);
+// Custom time functions for LazyNodeState<LatestTime>
+#[pymethods]
+impl LatestTimeView {
+    /// Access latest times as timestamps (milliseconds since the Unix epoch).
+    ///
+    /// Returns:
+    ///     LatestTimestampView: A lazy view over the latest times for each node as timestamps.
+    #[getter]
+    fn t(
+        &self,
+    ) -> LazyNodeState<'static, LatestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.inner.t()
+    }
+
+    /// Access latest times as UTC DateTimes.
+    ///
+    /// Returns:
+    ///     LatestDateTimeView: A lazy view over the latest times for each node as datetimes.
+    #[getter]
+    fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        DynamicGraph,
+        DynamicGraph,
+    > {
+        self.inner.dt()
+    }
+
+    /// Access the event ids of the latest times.
+    ///
+    /// Returns:
+    ///     LatestEventIdView: A lazy view over the event ids of the latest times for each node.
+    #[getter]
+    fn event_id(
+        &self,
+    ) -> LazyNodeState<'static, LatestEventId<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.inner.event_id()
+    }
+}
+type LatestTimestamp<G> = ops::Map<ops::LatestTime<G>, Option<i64>>;
+impl_lazy_node_state_ord!(
+    LatestTimestampView<LatestTimestamp<DynamicGraph>>,
+    "NodeStateOptionI64",
+    "Optional[int]"
+);
+impl_one_hop!(LatestTimestampView<LatestTimestamp>, "LatestTimestampView");
+impl_node_state_group_by_ops!(LatestTimestampView, Option<i64>);
+impl_lazy_node_state_ord!(
+    LatestEventIdView<LatestEventId<DynamicGraph>>,
+    "NodeStateOptionUsize",
+    "Optional[int]"
+); // usize gets converted to int in python
+impl_one_hop!(LatestEventIdView<LatestEventId>, "LatestEventIdView");
+impl_node_state_group_by_ops!(LatestEventIdView, Option<usize>);
+
+type LatestEventId<G> = ops::Map<ops::LatestTime<G>, Option<usize>>;
 
 type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
 

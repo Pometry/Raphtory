@@ -45,6 +45,14 @@ impl<T: IsFloat> AsOrd for &(T, T) {
     }
 }
 
+impl<T: IsFloat> AsOrd for &Option<T> {
+    type Ordered = Option<OrderedFloat<T>>;
+    fn as_ord(&self) -> &Option<OrderedFloat<T>> {
+        // Safety: OrderedFloat is #[repr(transparent)] over T; Option<OrderedFloat<T>> has the same layout as Option<T> for the same T.
+        unsafe { &*(*self as *const Option<T> as *const Option<OrderedFloat<T>>) }
+    }
+}
+
 pub trait OrderedNodeStateOps<'graph>: NodeStateOps<'graph>
 where
     Self::OwnedValue: Ord,

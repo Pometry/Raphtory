@@ -14,7 +14,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    impl_one_hop,
+    impl_lazy_node_state, impl_node_state, impl_node_state_ops, impl_one_hop,
     prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
     python::{
         graph::history::{
@@ -410,7 +410,7 @@ impl NodeStateHistory {
     /// Access history events as timestamps (milliseconds since the Unix epoch).
     ///
     /// Returns:
-    ///     A NodeState of HistoryTimestamp objects for each node.
+    ///     NodeStateHistoryTimestamp: A NodeState with the computed HistoryTimestamp object for each node.
     #[getter]
     fn t(&self) -> NodeState<'static, PyHistoryTimestamp, DynamicGraph, DynamicGraph> {
         let values = self
@@ -430,7 +430,7 @@ impl NodeStateHistory {
     /// Access history events as UTC datetimes.
     ///
     /// Returns:
-    ///     A NodeState of HistoryDateTime objects for each node.
+    ///     NodeStateHistoryDateTime: A NodeState with the computed HistoryDateTime object for each node.
     #[getter]
     fn dt(&self) -> NodeState<'static, PyHistoryDateTime, DynamicGraph, DynamicGraph> {
         let values = self
@@ -450,7 +450,7 @@ impl NodeStateHistory {
     /// Access the unique event id of each time entry.
     ///
     /// Returns:
-    ///     A NodeState of HistoryEventId objects for each node.
+    ///     NodeStateHistoryEventId: A NodeState with the computed HistoryEventId object for each node.
     #[getter]
     fn event_id(&self) -> NodeState<'static, PyHistoryEventId, DynamicGraph, DynamicGraph> {
         let values = self
@@ -470,7 +470,7 @@ impl NodeStateHistory {
     /// Access the intervals between consecutive timestamps in milliseconds.
     ///
     /// Returns:
-    ///     A NodeState of Intervals objects for each node.
+    ///     NodeStateIntervals: A NodeState with the computed Intervals object for each node.
     #[getter]
     fn intervals(&self) -> NodeState<'static, PyIntervals, DynamicGraph, DynamicGraph> {
         let values = self
@@ -487,10 +487,10 @@ impl NodeStateHistory {
         )
     }
 
-    /// Get the earliest time entry.
+    /// Get the earliest time entry of all nodes.
     ///
     /// Returns:
-    ///     A NodeState of the earliest time of each node as an EventTime.
+    ///     Optional[EventTime]: The earliest event present in any of the nodes' histories.
     fn earliest_time(&self) -> Option<EventTime> {
         self.inner.earliest_time()
     }
@@ -498,7 +498,7 @@ impl NodeStateHistory {
     /// Get the latest time entry.
     ///
     /// Returns:
-    ///     A NodeState of the latest time of each node as an EventTime.
+    ///     Optional[EventTime]: The latest event present in any of the nodes' histories.
     fn latest_time(&self) -> Option<EventTime> {
         self.inner.latest_time()
     }
@@ -741,3 +741,40 @@ impl<'py> FromPyObject<'py>
         Ok(ob.downcast::<NodeStateHistory>()?.get().inner().clone())
     }
 }
+
+// we can use macros for the LazyNodeStates and computed NodeStates of PyHistoryTimestamp, PyHistoryEventId, and PyHistoryDateTime
+type HistoryI64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryTimestamp>;
+impl_lazy_node_state!(
+    HistoryTimestampView<HistoryI64<DynamicGraph>>,
+    "NodeStateHistoryTimestamp",
+    "HistoryTimestamp"
+);
+impl_node_state!(
+    NodeStateHistoryTimestamp<PyHistoryTimestamp>,
+    "NodeStateHistoryTimestamp",
+    "HistoryTimestamp"
+);
+
+type HistoryU64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryEventId>;
+impl_lazy_node_state!(
+    HistoryEventIdView<HistoryU64<DynamicGraph>>,
+    "NodeStateHistoryEventId",
+    "HistoryEventId"
+);
+impl_node_state!(
+    NodeStateHistoryEventId<PyHistoryEventId>,
+    "NodeStateHistoryEventId",
+    "HistoryEventId"
+);
+
+type HistoryDT<G> = ops::Map<HistoryOp<'static, G>, PyHistoryDateTime>;
+impl_lazy_node_state!(
+    HistoryDateTimeView<HistoryDT<DynamicGraph>>,
+    "NodeStateHistoryDateTime",
+    "HistoryDateTime"
+);
+impl_node_state!(
+    NodeStateHistoryDateTime<PyHistoryDateTime>,
+    "NodeStateHistoryDateTime",
+    "HistoryDateTime"
+);
