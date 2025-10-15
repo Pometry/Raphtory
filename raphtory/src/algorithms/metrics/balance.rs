@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct BalanceState {
-    balance: f64,
+    pub balance: f64,
 }
 
 /// Computes the net sum of weights for a given node based on edge direction.

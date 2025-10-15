@@ -25,7 +25,7 @@ use std::{
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct InState {
-    in_components: Vec<VID>,
+    pub in_components: Vec<VID>,
 }
 
 /// Computes the in components of each node in the graph
@@ -87,7 +87,7 @@ where
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct InComponentState {
-    distance: usize,
+    pub distance: usize,
 }
 
 /// Computes the in-component of a given node in the graph

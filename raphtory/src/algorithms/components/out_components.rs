@@ -22,7 +22,7 @@ use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct OutState {
-    out_components: Vec<VID>,
+    pub out_components: Vec<VID>,
 }
 /// Computes the out components of each node in the graph
 ///
@@ -83,7 +83,7 @@ where
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct OutComponentState {
-    distance: usize,
+    pub distance: usize,
 }
 
 /// Computes the out-component of a given node in the graph

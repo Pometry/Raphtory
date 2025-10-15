@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct CentralityScore {
     #[serde(rename = "degree_centrality")]
-    score: f64,
+    pub score: f64,
 }
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized

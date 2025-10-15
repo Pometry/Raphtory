@@ -8,17 +8,30 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_core::entities::VID;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tracing::info;
 
 use crate::test_storage;
 
+fn group_by_value(map: &HashMap<String, usize>) -> Vec<HashSet<String>> {
+    let mut grouped: HashMap<usize, HashSet<String>> = HashMap::new();
+
+    for (key, &value) in map {
+        grouped
+            .entry(value)
+            .or_insert_with(HashSet::new)
+            .insert(key.clone());
+    }
+
+    grouped.into_values().collect()
+}
+
 #[test]
 fn lpa_test() {
-    /*
     let graph: Graph = Graph::new();
     let edges = vec![
         (1, "R1", "R2"),
+        (1, "R1", "R3"),
         (1, "R2", "R3"),
         (1, "R3", "G"),
         (1, "G", "B1"),
@@ -35,28 +48,26 @@ fn lpa_test() {
     }
     test_storage!(&graph, |graph| {
         let seed = Some([5; 32]);
-        let result = label_propagation(graph, seed).unwrap();
+        let result =
+            label_propagation(graph, 20, seed, None).to_hashmap(|value| value.community_id);
+        println!("{:?}", result);
+        let result = group_by_value(&result);
 
         let expected = vec![
+            HashSet::from(["R1".to_string(), "R2".to_string(), "R3".to_string()]),
             HashSet::from([
-                graph.node("R1").unwrap(),
-                graph.node("R2").unwrap(),
-                graph.node("R3").unwrap(),
-            ]),
-            HashSet::from([
-                graph.node("G").unwrap(),
-                graph.node("B1").unwrap(),
-                graph.node("B2").unwrap(),
-                graph.node("B3").unwrap(),
-                graph.node("B4").unwrap(),
-                graph.node("B5").unwrap(),
+                "G".to_string(),
+                "B1".to_string(),
+                "B2".to_string(),
+                "B3".to_string(),
+                "B4".to_string(),
+                "B5".to_string(),
             ]),
         ];
         for hashset in expected {
             assert!(result.contains(&hashset));
         }
     });
-    */
 }
 
 use proptest::prelude::*;

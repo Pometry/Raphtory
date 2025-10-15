@@ -11,7 +11,7 @@ use std::{collections::HashMap, sync::Arc};
 #[cfg(feature = "storage")]
 use tempfile::TempDir;
 
-pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
+pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
 }
 

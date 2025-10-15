@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod dijkstra_tests {
+    use crate::test_storage;
+    use itertools::Itertools;
     use raphtory::{
         algorithms::pathing::dijkstra::dijkstra_single_source_shortest_paths,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
     };
     use raphtory_api::core::Direction;
-
-    use crate::test_storage;
 
     fn load_graph(edges: Vec<(i64, &str, &str, Vec<(&str, f32)>)>) -> Graph {
         let graph = Graph::new();
@@ -47,15 +47,27 @@ mod dijkstra_tests {
 
             let results = results.unwrap();
 
-            assert_eq!(results.get_by_node("D").unwrap().0, 7.0f64);
+            assert_eq!(results.get_by_node("D").unwrap().distance, 7.0f64);
             assert_eq!(
-                results.get_by_node("D").unwrap().1.name(),
+                results
+                    .get_by_node("D")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["A", "C", "D"]
             );
 
-            assert_eq!(results.get_by_node("F").unwrap().0, 8.0f64);
+            assert_eq!(results.get_by_node("F").unwrap().distance, 8.0f64);
             assert_eq!(
-                results.get_by_node("F").unwrap().1.name(),
+                results
+                    .get_by_node("F")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["A", "C", "E", "F"]
             );
 
@@ -68,19 +80,37 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(results.get_by_node("D").unwrap().0, 5.0f64);
-            assert_eq!(results.get_by_node("E").unwrap().0, 3.0f64);
-            assert_eq!(results.get_by_node("F").unwrap().0, 6.0f64);
+            assert_eq!(results.get_by_node("D").unwrap().distance, 5.0f64);
+            assert_eq!(results.get_by_node("E").unwrap().distance, 3.0f64);
+            assert_eq!(results.get_by_node("F").unwrap().distance, 6.0f64);
             assert_eq!(
-                results.get_by_node("D").unwrap().1.name(),
+                results
+                    .get_by_node("D")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["B", "C", "D"]
             );
             assert_eq!(
-                results.get_by_node("E").unwrap().1.name(),
+                results
+                    .get_by_node("E")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["B", "C", "E"]
             );
             assert_eq!(
-                results.get_by_node("F").unwrap().1.name(),
+                results
+                    .get_by_node("F")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["B", "C", "E", "F"]
             );
         });
@@ -95,13 +125,34 @@ mod dijkstra_tests {
             let results =
                 dijkstra_single_source_shortest_paths(graph, "A", targets, None, Direction::OUT)
                     .unwrap();
-            assert_eq!(results.get_by_node("C").unwrap().1.name(), vec!["A", "C"]);
             assert_eq!(
-                results.get_by_node("E").unwrap().1.name(),
+                results
+                    .get_by_node("C")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
+                vec!["A", "C"]
+            );
+            assert_eq!(
+                results
+                    .get_by_node("E")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["A", "C", "E"]
             );
             assert_eq!(
-                results.get_by_node("F").unwrap().1.name(),
+                results
+                    .get_by_node("F")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["A", "C", "F"]
             );
         });
@@ -135,15 +186,27 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(results.get_by_node("4").unwrap().0, 7f64);
+            assert_eq!(results.get_by_node("4").unwrap().distance, 7f64);
             assert_eq!(
-                results.get_by_node("4").unwrap().1.name(),
+                results
+                    .get_by_node("4")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["1", "3", "4"]
             );
 
-            assert_eq!(results.get_by_node("6").unwrap().0, 8f64);
+            assert_eq!(results.get_by_node("6").unwrap().distance, 8f64);
             assert_eq!(
-                results.get_by_node("6").unwrap().1.name(),
+                results
+                    .get_by_node("6")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["1", "3", "5", "6"]
             );
 
@@ -156,19 +219,37 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(results.get_by_node("4").unwrap().0, 5f64);
-            assert_eq!(results.get_by_node("5").unwrap().0, 3f64);
-            assert_eq!(results.get_by_node("6").unwrap().0, 6f64);
+            assert_eq!(results.get_by_node("4").unwrap().distance, 5f64);
+            assert_eq!(results.get_by_node("5").unwrap().distance, 3f64);
+            assert_eq!(results.get_by_node("6").unwrap().distance, 6f64);
             assert_eq!(
-                results.get_by_node("4").unwrap().1.name(),
+                results
+                    .get_by_node("4")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["2", "3", "4"]
             );
             assert_eq!(
-                results.get_by_node("5").unwrap().1.name(),
+                results
+                    .get_by_node("5")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["2", "3", "5"]
             );
             assert_eq!(
-                results.get_by_node("6").unwrap().1.name(),
+                results
+                    .get_by_node("6")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["2", "3", "5", "6"]
             );
         });
@@ -203,15 +284,27 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(results.get_by_node("D").unwrap().0, 7f64);
+            assert_eq!(results.get_by_node("D").unwrap().distance, 7f64);
             assert_eq!(
-                results.get_by_node("D").unwrap().1.name(),
+                results
+                    .get_by_node("D")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["A", "C", "D"]
             );
 
-            assert_eq!(results.get_by_node("F").unwrap().0, 8f64);
+            assert_eq!(results.get_by_node("F").unwrap().distance, 8f64);
             assert_eq!(
-                results.get_by_node("F").unwrap().1.name(),
+                results
+                    .get_by_node("F")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["A", "C", "E", "F"]
             );
 
@@ -224,19 +317,37 @@ mod dijkstra_tests {
                 Direction::OUT,
             );
             let results = results.unwrap();
-            assert_eq!(results.get_by_node("D").unwrap().0, 5f64);
-            assert_eq!(results.get_by_node("E").unwrap().0, 3f64);
-            assert_eq!(results.get_by_node("F").unwrap().0, 6f64);
+            assert_eq!(results.get_by_node("D").unwrap().distance, 5f64);
+            assert_eq!(results.get_by_node("E").unwrap().distance, 3f64);
+            assert_eq!(results.get_by_node("F").unwrap().distance, 6f64);
             assert_eq!(
-                results.get_by_node("D").unwrap().1.name(),
+                results
+                    .get_by_node("D")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["B", "C", "D"]
             );
             assert_eq!(
-                results.get_by_node("E").unwrap().1.name(),
+                results
+                    .get_by_node("E")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["B", "C", "E"]
             );
             assert_eq!(
-                results.get_by_node("F").unwrap().1.name(),
+                results
+                    .get_by_node("F")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["B", "C", "E", "F"]
             );
         });
@@ -267,9 +378,15 @@ mod dijkstra_tests {
             );
 
             let results = results.unwrap();
-            assert_eq!(results.get_by_node("D").unwrap().0, 7f64);
+            assert_eq!(results.get_by_node("D").unwrap().distance, 7f64);
             assert_eq!(
-                results.get_by_node("D").unwrap().1.name(),
+                results
+                    .get_by_node("D")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["A", "C", "D"]
             );
         });
@@ -295,7 +412,13 @@ mod dijkstra_tests {
                 dijkstra_single_source_shortest_paths(graph, "A", targets, None, Direction::BOTH)
                     .unwrap();
             assert_eq!(
-                results.get_by_node("D").unwrap().1.name(),
+                results
+                    .get_by_node("D")
+                    .unwrap()
+                    .path
+                    .into_iter()
+                    .map(|value| graph.node(value).unwrap().name())
+                    .collect_vec(),
                 vec!["A", "C", "D"]
             );
         });
@@ -304,14 +427,14 @@ mod dijkstra_tests {
 
 #[cfg(test)]
 mod sssp_tests {
-    use std::collections::HashMap;
-
+    use itertools::Itertools;
     use raphtory::{
         algorithms::pathing::single_source_shortest_path::single_source_shortest_path,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
     };
     use raphtory_api::core::utils::logging::global_info_logger;
+    use std::collections::HashMap;
 
     use crate::test_storage;
 
@@ -361,7 +484,16 @@ mod sssp_tests {
             ]);
             assert_eq!(expected.len(), results.len());
             for (node, values) in expected {
-                assert_eq!(results.get_by_node(node).unwrap().name(), values);
+                assert_eq!(
+                    results
+                        .get_by_node(node)
+                        .unwrap()
+                        .path
+                        .into_iter()
+                        .map(|value| graph.node(value).unwrap().name())
+                        .collect_vec(),
+                    values
+                );
             }
             let _ = single_source_shortest_path(graph, 5, Some(4));
         });
@@ -420,7 +552,7 @@ mod generic_taint_tests {
             stop_nodes,
         )
         .into_iter()
-        .map(|(n, v)| (n.name(), v))
+        .map(|(n, v)| (n.name(), v.reachable_nodes))
         .collect()
     }
 

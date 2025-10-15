@@ -408,7 +408,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
     }
 }
 
-impl<'graph, V: NodeStateValue, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+impl<'graph, V: NodeStateValue + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     TypedNodeState<'graph, V, G, GH>
 {
     pub fn new(state: GenericNodeState<'graph, G, GH>) -> Self {
@@ -416,6 +416,15 @@ impl<'graph, V: NodeStateValue, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph
             state: state,
             _marker: PhantomData,
         }
+    }
+
+    pub fn to_hashmap<F, T>(self, f: F) -> HashMap<String, T>
+    where
+        F: Fn(V) -> T,
+    {
+        self.into_iter()
+            .map(|(node, value)| (node.name(), f(value)))
+            .collect()
     }
 
     pub fn transform(self) -> TypedNodeState<'graph, HashMap<String, Option<Prop>>, G, GH> {
@@ -446,7 +455,7 @@ impl<'a, 'graph, V: NodeStateValue + 'graph, G: GraphViewOps<'graph>, GH: GraphV
 
 impl<
         'graph,
-        RHS: NodeStateValue + Send + Sync,
+        RHS: NodeStateValue + Send + Sync + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
     > PartialEq<Vec<RHS>> for TypedNodeState<'graph, RHS, G, GH>

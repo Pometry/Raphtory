@@ -19,7 +19,7 @@ use std::{
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default, Hash, Eq)]
 pub struct ConnectedComponent {
-    component_id: usize,
+    pub component_id: usize,
 }
 
 /// Keeps track of node assignments to weakly-connected components

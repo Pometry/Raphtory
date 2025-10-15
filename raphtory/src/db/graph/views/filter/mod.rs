@@ -10,7 +10,7 @@ pub mod edge_not_filtered_graph;
 pub mod edge_or_filtered_graph;
 pub mod edge_property_filtered_graph;
 pub mod exploded_edge_property_filter;
-pub(crate) mod internal;
+pub mod internal;
 pub mod model;
 pub mod node_and_filtered_graph;
 pub mod node_name_filtered_graph;

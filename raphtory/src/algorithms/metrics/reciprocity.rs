@@ -59,7 +59,7 @@ use std::collections::HashSet;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct ReciprocityState {
-    reciprocity: f64,
+    pub reciprocity: f64,
 }
 
 /// Gets the unique edge counts excluding cycles for a node. Returns a tuple of usize
