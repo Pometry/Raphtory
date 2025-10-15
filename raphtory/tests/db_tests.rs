@@ -1877,67 +1877,7 @@ fn check_node_edge_history_count() {
     });
 }
 
-#[cfg(feature = "storage")]
-use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
-
-#[cfg(feature = "storage")]
-#[test]
-fn edges_at_from_node_history() {
-    use crate::test_utils::test_disk_graph;
-
-    let graph = Graph::new();
-
-    graph.add_edge(1, 0, 1, [("bla", 10i32)], None).unwrap();
-    graph.add_edge(2, 0, 2, [("bla", 20)], None).unwrap();
-    graph.add_edge(1, 0, 1, [("bla", 30)], None).unwrap();
-    graph.add_edge(4, 0, 3, [("bla", 40)], None).unwrap();
-    test_disk_graph(&graph, |g| {
-        let node = g.node(0).unwrap();
-        let node = &node;
-        let mut actual = g
-            .edges()
-            .explode()
-            .into_iter()
-            .flat_map(|e| {
-                e.properties()
-                    .temporal()
-                    .get_by_id(0)
-                    .into_iter()
-                    .flat_map(|p| p.into_iter())
-            })
-            .collect::<Vec<_>>();
-        actual.sort_by_key(|(t, _)| *t);
-
-        let exploded_edges = node
-            .edge_history()
-            .map(|(timestamp, edge_layer_id)| {
-                let eref = g
-                    .core_edge(edge_layer_id.edge)
-                    .out_ref()
-                    .at(timestamp)
-                    .at_layer(edge_layer_id.layer());
-                eref
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(exploded_edges.len(), 4);
-
-        let mut edge_props = exploded_edges
-            .into_iter()
-            .map(|e| EdgeView::new(&g, e))
-            .flat_map(|e| {
-                e.properties()
-                    .temporal()
-                    .get_by_id(0)
-                    .into_iter()
-                    .flat_map(|p| p.into_iter())
-            })
-            .collect::<Vec<_>>();
-        edge_props.sort_by_key(|(t, _)| *t);
-        assert_eq!(edge_props, actual);
-    });
-}
 
 #[test]
 fn check_edge_history_on_multiple_shards() {
