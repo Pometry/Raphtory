@@ -97,14 +97,23 @@ impl PyPersistentGraph {
 #[pymethods]
 impl PyPersistentGraph {
     #[new]
-    pub fn py_new() -> (Self, PyGraphView) {
-        let graph = PersistentGraph::new();
+    #[pyo3(signature = (path = None))]
+    pub fn py_new(path: Option<PathBuf>) -> (Self, PyGraphView) {
+        let graph = match path {
+            Some(path) => PersistentGraph::new_at_path(path),
+            None => PersistentGraph::new(),
+        };
         (
             Self {
                 graph: graph.clone(),
             },
             PyGraphView::from(graph),
         )
+    }
+
+    #[staticmethod]
+    pub fn load(path: PathBuf) -> PersistentGraph {
+        PersistentGraph::load_from_path(path)
     }
 
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {

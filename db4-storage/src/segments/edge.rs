@@ -9,7 +9,7 @@ use crate::{
     segments::edge_entry::MemEdgeRef,
     utils::Iter4,
 };
-use arrow_array::{Array, BooleanArray};
+use arrow_array::{Array, ArrayRef, BooleanArray};
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::entities::{
     VID,
@@ -151,7 +151,7 @@ impl MemEdgeSegment {
         srcs: &[VID],
         dsts: &[VID],
         layer_id: usize,
-        cols: &[&dyn Array],
+        cols: &[ArrayRef],
         col_mapping: &[usize], // mapping from cols to the property id
     ) {
         self.ensure_layer(layer_id);
@@ -188,7 +188,7 @@ impl MemEdgeSegment {
 
         for (prop_id, col) in col_mapping.iter().zip(cols) {
             let column = props.t_column_mut(*prop_id).unwrap();
-            column.append(*col, mask);
+            column.append(col, mask);
         }
 
         props.reset_t_len();
@@ -573,7 +573,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
 #[cfg(test)]
 mod test {
     use super::*;
-    use arrow_array::{BooleanArray, Int64Array, StringArray};
+    use arrow_array::{BooleanArray, StringArray};
     use raphtory_api::core::entities::properties::{prop::PropType, tprop::TPropOps};
     use raphtory_core::storage::timeindex::TimeIndexEntry;
 
@@ -641,9 +641,8 @@ mod test {
         let eids = vec![EID(0), EID(1), EID(2)];
         let srcs = vec![VID(1), VID(3), VID(5)];
         let dsts = vec![VID(2), VID(4), VID(6)];
-        let cols: Vec<Box<dyn Array>> =
-            vec![Box::new(StringArray::from(vec!["test1", "test2", "test3"]))];
-        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let cols: Vec<Arc<dyn Array>> =
+            vec![Arc::new(StringArray::from(vec!["test1", "test2", "test3"]))];
         let col_mapping = vec![0]; // property id 0
 
         // Bulk insert edges
@@ -700,10 +699,9 @@ mod test {
         let eids = vec![EID(0), EID(1), EID(2), EID(3)];
         let srcs = vec![VID(1), VID(3), VID(5), VID(7)];
         let dsts = vec![VID(2), VID(4), VID(6), VID(8)];
-        let cols: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec![
+        let cols: Vec<Arc<dyn Array>> = vec![Arc::new(StringArray::from(vec![
             "test1", "test2", "test3", "test4",
         ]))];
-        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
         let col_mapping = vec![0];
 
         // Bulk insert edges
@@ -773,9 +771,8 @@ mod test {
         let eids = vec![EID(0), EID(1), EID(2)];
         let srcs = vec![VID(1), VID(3), VID(5)];
         let dsts = vec![VID(2), VID(4), VID(6)];
-        let cols: Vec<Box<dyn Array>> =
-            vec![Box::new(StringArray::from(vec!["test1", "test2", "test3"]))];
-        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let cols: Vec<Arc<dyn Array>> =
+            vec![Arc::new(StringArray::from(vec!["test1", "test2", "test3"]))];
         let col_mapping = vec![0];
 
         segment2.bulk_insert_edges_internal(
@@ -824,8 +821,7 @@ mod test {
         let eids = vec![EID(1), EID(2)];
         let srcs = vec![VID(3), VID(5)];
         let dsts = vec![VID(4), VID(6)];
-        let cols: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec!["bulk1", "bulk2"]))];
-        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let cols: Vec<Arc<dyn Array>> = vec![Arc::new(StringArray::from(vec!["bulk1", "bulk2"]))];
         let col_mapping = vec![0];
 
         segment.bulk_insert_edges_internal(
@@ -857,9 +853,8 @@ mod test {
         let eids2 = vec![EID(4), EID(5), EID(6)];
         let srcs2 = vec![VID(9), VID(11), VID(13)];
         let dsts2 = vec![VID(10), VID(12), VID(14)];
-        let cols2: Vec<Box<dyn Array>> =
-            vec![Box::new(StringArray::from(vec!["bulk3", "bulk4", "bulk5"]))];
-        let cols2 = cols2.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let cols2: Vec<Arc<dyn Array>> =
+            vec![Arc::new(StringArray::from(vec!["bulk3", "bulk4", "bulk5"]))];
 
         segment.bulk_insert_edges_internal(
             &mask2,
@@ -904,9 +899,8 @@ mod test {
         let eids = vec![EID(0), EID(1)];
         let srcs = vec![VID(1), VID(3)];
         let dsts = vec![VID(2), VID(4)];
-        let cols: Vec<Box<dyn Array>> =
-            vec![Box::new(StringArray::from(vec!["layer0_1", "layer0_2"]))];
-        let cols = cols.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let cols: Vec<Arc<dyn Array>> =
+            vec![Arc::new(StringArray::from(vec!["layer0_1", "layer0_2"]))];
         let col_mapping = vec![0];
 
         segment.bulk_insert_edges_internal(
@@ -927,8 +921,7 @@ mod test {
         let eids2 = vec![EID(0)]; // same eid, different layer
         let srcs2 = vec![VID(5)];
         let dsts2 = vec![VID(6)];
-        let cols2: Vec<Box<dyn Array>> = vec![Box::new(StringArray::from(vec!["layer1_1"]))];
-        let cols2 = cols2.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+        let cols2: Vec<Arc<dyn Array>> = vec![Arc::new(StringArray::from(vec!["layer1_1"]))];
 
         segment.bulk_insert_edges_internal(
             &mask2,
