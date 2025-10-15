@@ -138,7 +138,30 @@ assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal
 
 ## Creating a graph from a Parquet file
 
-something something
+Similarly for Parquet you can use `from_parquet()`, or `load_edges_from_parquet()` and `load_nodes_from_parquet()` to load data from files in the common [Apache Parquet](https://parquet.apache.org/) format.
+
+/// tab | :fontawesome-brands-python: Python
+
+```python
+from raphtory import Graph
+import pandas as pd
+
+h=Graph()
+h=h.from_parquet(graph_dir="..data/parquet_example")
+print(h)
+```
+
+///
+
+```{.python continuation hide}
+assert str(h) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+```
+
+!!! Output
+
+    ```output
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)
+    ```
 
 ## Adding metadata via dataframes
 
