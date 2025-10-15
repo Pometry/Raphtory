@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760115426555,
+  "lastUpdate": 1760542223199,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1349,6 +1349,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1094,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "79378897+arienandalibi@users.noreply.github.com",
+            "name": "arienandalibi",
+            "username": "arienandalibi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "08685ee92f4435e9aaadf9f4bb583c40adf707c5",
+          "message": "Rolling and expanding window alignment based on the user's time interval input (#2277)\n\n* Added expanding_aligned() and rolling_aligned() functions which behave like expanding() and rolling() windows but are aligned at the start. They get aligned at the smallest unit of time passed as input.\n\n* Cleaned up nested match statements in GraphQL rolling() and expanding() functions. Added align_start flag in those functions as well. Added python tests for alignment of rolling and expanding windows, both for Python and GraphQL. Changed logic so alignment also happens on step if it is provided.\n\n* Fixed python tests for rolling() and expanding(). GraphQL can now take mismatched discrete/temporal intervals for window and step. Tests updated to reflect that.\n\n* Added python tests for rolling() and expanding() functions on different types, such as node, nodes, edge, edges, path_from_node, path_from_graph, and for mismatched window and step types.\n\n* Updated rolling_aligned to only align on the step, not the window (if a step is not passed, then the step defaults to the window). Adjusted tests accordingly. Update window() documentation to not say start and end are optional\n\n* chore: apply tidy-public auto-fixes\n\n* Updated rolling() documentation to indicate that a step larger than window can lead to entries being outside of all windows (before start and/or after end). Updated rolling/expanding tests to verify the last window as well (test boundaries). Added some tests for different step/window combinations.\n\n* chore: apply tidy-public auto-fixes\n\n* Updated rolling() and expanding() to do alignment by default, and rolling_aligned()/expanding_aligned() now take an AlignmentUnit parameter for custom alignment.\n\n* chore: apply tidy-public auto-fixes\n\n* Updated GraphQL tests so that boundaries (last windows) in rolling() and expanding() are checked for all types.\n\n* Updated rolling() and expanding() functions in Python to accept an optional string alignment_unit parameter for custom alignment. If no alignment_unit is passed, aligns on the smallest unit like before. \"unaligned\" allows for no alignment.\n\n* Fixed failing tests\n\n* chore: apply tidy-public auto-fixes\n\n* Updated rolling() and expanding() functions in GraphQL to accept an optional enum alignment_unit parameter for custom alignment, like in Python. If no alignment_unit is passed, aligns on the smallest unit like before. \"unaligned\" allows for no alignment.\n\n* Added tests for window alignment on custom units\n\n* Added tests where windows are weird due to a combination of different window, step, and alignment.\n\n* chore: apply tidy-public auto-fixes\n\n* Added output for weird rolling window alignments in their respective tests\n\n* chore: apply tidy-public auto-fixes\n\n* fixed test for layer filtering no longer affecting the windows created (it previously did). If we do `g.layer(\"x\").rolling(\"1 month\")`, the first window will start aligned with the graph's first event, not the first event on layer \"x\" (even if the first window will be empty)\n\n* Updated rolling windows so that multiples of step are added instead of continuous addition. This fixes the previous bug caused by: Jan 31st + \"1 month\" = Feb 28th; if this happens on the window's end, all following windows will be on the 28th (instead of 29th, 30th, or 31st). This also used to happen for windows always ending on the 30th even if they should end on the 31st. Added and fixed tests for it as well.\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-15T15:54:37+01:00",
+          "tree_id": "a8f5829448b3bacc39a9ea27eff028a1b25de17c",
+          "url": "https://github.com/Pometry/Raphtory/commit/08685ee92f4435e9aaadf9f4bb583c40adf707c5"
+        },
+        "date": 1760542220353,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1083,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 151,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 165,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 931,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 715,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1129,
             "unit": "req/s"
           }
         ]
