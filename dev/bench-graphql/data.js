@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760624742493,
+  "lastUpdate": 1760627606139,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1457,6 +1457,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1030,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c2998a27fe93405289c9bf7f2b380979a4c8ace1",
+          "message": "make all the main write locks loopy (#2340)\n\n* make all the main write locks loopy\n\n* fix GqlEdges\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-16T15:36:49+01:00",
+          "tree_id": "25a9b87e159e6bbb7b170e1ca3997b23c49c39f7",
+          "url": "https://github.com/Pometry/Raphtory/commit/c2998a27fe93405289c9bf7f2b380979a4c8ace1"
+        },
+        "date": 1760627603208,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1047,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 178,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 154,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 771,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 673,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1066,
             "unit": "req/s"
           }
         ]
