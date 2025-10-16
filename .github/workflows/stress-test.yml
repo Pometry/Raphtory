@@ -42,3 +42,7 @@ jobs:
           cd graphql-bench
           raphtory server &
           make stress-test
+      - name: Upload k6 report
+        uses: actions/upload-artifact@v4
+        with:
+          path: stress-test-report.html
