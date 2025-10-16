@@ -4,7 +4,7 @@ use super::{
 use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    persist::strategy::PersistentStrategy,
+    persist::strategy::{Config, PersistentStrategy},
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
 use parking_lot::RwLockWriteGuard;
@@ -14,7 +14,7 @@ use raphtory_core::{
     storage::timeindex::AsTime,
 };
 
-pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, EXT> {
+pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, EXT: Config> {
     node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
     graph: &'a GraphStore<NS, ES, EXT>,
