@@ -16,6 +16,15 @@ bench-local: data/apache/master/graph build
 	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js' || :
 	python process-k6-output.py
 
+# call this like: make bench-e2-standard-16
+bench-%:
+	TF_VAR_machine_type=$* make bench
+
+bench: deploy push-graphs build-raphtory
+	make run-raphtory > /tmp/raphtory-server-logs &
+	make run-bench
+	make destroy
+
 stress-test: build
 	K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run dist/stress-test.js
 
@@ -29,27 +38,7 @@ stress-test-long: build
 		K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --duration=2h dist/stress-test.js
 	done
 
-# call this like: make bench-e2-standard-16
-bench-%:
-	TF_VAR_machine_type=$* make bench
-
-bench: deploy push-graphs build-raphtory
-	make run-raphtory > /tmp/raphtory-server-logs &
-	make run-bench
-	make destroy
-
-# If this does not work you might need to do `echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid` in the host machine
-# docker-with-debug:
-# 	cd .. && docker build -t raphtory:debug-base --build-arg RAPHTORY_PROFILE=release-with-debug .
-# 	docker build -t raphtory:debug . -f debug.Dockerfile
-# 	# docker run --rm -it --privileged -v ./profiles:/profiles -p 1736:1736 --name=debug raphtory:debug
-
-# stress-test:
-# 	pnpm install --frozen-lockfile
-# 	pnpm build
-# 	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run --duration='3m' dist/stress-test.js
-
-stress-until-error-with-docker:
+stress-until-error-with-docker-and-samply:
 	date
 	# cd .. && docker build -t raphtory:debug-base --build-arg RAPHTORY_PROFILE=release-with-debug .
 	# docker build -t raphtory:debug . -f debug.Dockerfile
