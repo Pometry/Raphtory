@@ -238,9 +238,12 @@ mod io_tests {
         let df_view = build_df(1, &edges);
         let g = Graph::new();
         let props = ["str_prop", "int_prop"];
+        let secondary_index = None;
+
         load_edges_from_df(
             df_view,
             "time",
+            secondary_index,
             "src",
             "dst",
             &props,
@@ -251,6 +254,7 @@ mod io_tests {
             &g,
         )
         .unwrap();
+
         let g2 = Graph::new();
         for (src, dst, time, str_prop, int_prop) in edges {
             g2.add_edge(
