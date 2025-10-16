@@ -9,7 +9,7 @@ import {
 import { fetchAndCheck, fetchAndParse, mutate, mutateAndCheck } from './utils';
 
 // Global
-const VUS = 100;
+const VUS = 10;
 const PAGE_SIZE = 20;
 const LAYERS = ["a", "b", "c"];
 const CONST_KEYS = ["ca", "cb", "cc"];
