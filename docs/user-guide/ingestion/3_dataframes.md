@@ -147,7 +147,7 @@ from raphtory import Graph
 import pandas as pd
 
 h=Graph()
-h=h.from_parquet(graph_dir="..data/parquet_example")
+h=h.from_parquet(graph_dir="../data/parquet_example")
 print(h)
 ```
 
