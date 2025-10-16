@@ -732,13 +732,15 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         index: Option<Index<VID>>,
         map: impl Fn(R) -> V,
     ) -> Self {
-        let values: Vec<V> = match &index {
+        let values: Vec<V> = values.into_iter().map(map).collect();
+        /*match &index {
             None => values.into_iter().map(map).collect(),
             Some(index) => index
                 .iter()
-                .map(|vid| map(values[vid.index()].clone()))
+                .enumerate()
+                .map(|vid| map(values[index.index.get_index_of(&vid).unwrap()].clone()))
                 .collect(),
-        };
+        };*/
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
 

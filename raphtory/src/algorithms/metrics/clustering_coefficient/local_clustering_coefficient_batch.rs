@@ -1,7 +1,7 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::{
-        state::{GenericNodeState, TypedNodeState},
+        state::{GenericNodeState, Index, TypedNodeState},
         view::*,
     },
 };
@@ -47,10 +47,13 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
             ))
         })
         .unzip();
-    // let result: Option<_> = Some(Index::new(index));
-    // new_from_eval_with_index
-    TypedNodeState::new(GenericNodeState::new_from_eval(graph.clone(), values))
-    // NodeState::new(graph.clone(), graph.clone(), values.into(), result)
+
+    TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+        graph.clone(),
+        graph.clone(),
+        values,
+        Some(Index::new(_index)),
+    ))
 }
 /// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
 /// Uses path-counting for its triangle-counting step.
