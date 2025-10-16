@@ -8,6 +8,7 @@ on:
 
 jobs:
   stress-test:
+    name: GraphQL Stress Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -39,4 +40,5 @@ jobs:
       - name: Run stress test
         run: |
           cd graphql-bench
-          pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'raphtory server' 'make stress-test' || :
+          raphtory server &
+          make stress-test
