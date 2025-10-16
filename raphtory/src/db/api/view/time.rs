@@ -481,7 +481,10 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
                     return None;
                 }
             }
-            let window = self.view.internal_window(window_start.map(EventTime::start), Some(EventTime::start(window_end)));
+            let window = self.view.internal_window(
+                window_start.map(EventTime::start),
+                Some(EventTime::start(window_end)),
+            );
             self.counter += 1;
             Some(window)
         } else {

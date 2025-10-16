@@ -17,15 +17,17 @@ pub enum ParseTimeError {
         #[from]
         source: ParseIntError,
     },
-    #[error("'{0}' is not a valid unit.")]
+    #[error("'{0}' is not a valid unit. Valid units are year(s), month(s), week(s), day(s), hour(s), minute(s), second(s) and millisecond(s).")]
     InvalidUnit(String),
+    #[error("'{0}' is not a valid unit. Valid units are year(s), month(s), week(s), day(s), hour(s), minute(s), second(s), millisecond(s), and unaligned.")]
+    InvalidAlignmentUnit(String),
     #[error(transparent)]
     ParseError(#[from] ParseError),
     #[error("Negative interval is not supported.")]
     NegativeInt,
     #[error("0 size step is not supported.")]
     ZeroSizeStep,
-    #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.")]
+    #[error("'{0}' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
     InvalidDateTimeString(String),
 }
 

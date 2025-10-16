@@ -4,8 +4,7 @@ use crate::{
         node::GqlNode,
         timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlPathFromNodeWindowSet,
-        GqlAlignmentUnit,
-        WindowDuration::{self, Duration, Epoch},
+        GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
 };

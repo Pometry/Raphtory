@@ -1,5 +1,6 @@
 use dynamic_graphql::{Enum, OneOfInput};
-use raphtory::core::utils::time::{AlignmentUnit, Interval, ParseTimeError, TryIntoInterval};
+use raphtory::core::utils::time::{AlignmentUnit, Interval, TryIntoInterval};
+use raphtory_api::core::utils::time::ParseTimeError;
 
 pub(crate) mod collection;
 mod document;
