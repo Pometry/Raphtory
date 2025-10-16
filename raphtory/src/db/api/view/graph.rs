@@ -256,7 +256,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             path.map(|p| p.into()),
             node_meta,
             edge_meta,
-            *(storage.extension()),
+            storage.extension().clone(),
         )
         .unwrap();
         // Copy all graph properties

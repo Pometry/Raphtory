@@ -16,6 +16,8 @@ pub trait Config:
     fn max_node_page_len(&self) -> u32;
     fn max_edge_page_len(&self) -> u32;
     fn is_parallel(&self) -> bool;
+    fn node_types(&self) -> &[String];
+    fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>);
 }
 
 pub trait PersistentStrategy: Config {
@@ -70,6 +72,14 @@ impl Config for NoOpStrategy {
 
     fn is_parallel(&self) -> bool {
         false
+    }
+
+    fn node_types(&self) -> &[String] {
+        &[]
+    }
+
+    fn set_node_types(&mut self, _types: impl IntoIterator<Item = impl AsRef<str>>) {
+        // No operation
     }
 }
 
