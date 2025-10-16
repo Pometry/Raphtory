@@ -99,6 +99,10 @@ impl InternalStorageOps for MaterializedGraph {
     fn get_storage(&self) -> Option<&Storage> {
         for_all!(self, g => g.get_storage())
     }
+
+    fn disk_storage_enabled(&self) -> bool {
+        for_all!(self, g => g.disk_storage_enabled())
+    }
 }
 
 impl GraphTimeSemanticsOps for MaterializedGraph {

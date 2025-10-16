@@ -34,7 +34,7 @@ def test_receive_graph_succeeds_if_graph_found():
         query = """{ receiveGraph(path: "g1") }"""
         received_graph = client.query(query)["receiveGraph"]
 
-        decoded_bytes = base64.b64decode(received_graph)
+        decoded_bytes = base64.urlsafe_b64decode(received_graph)
         g = Graph.deserialise(decoded_bytes)
         assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
@@ -81,7 +81,7 @@ def test_receive_graph_succeeds_if_graph_found_at_namespace():
         query = """{ receiveGraph(path: "shivam/g2") }"""
         received_graph = client.query(query)["receiveGraph"]
 
-        decoded_bytes = base64.b64decode(received_graph)
+        decoded_bytes = base64.urlsafe_b64decode(received_graph)
 
         g = Graph.deserialise(decoded_bytes)
         assert g.nodes.name == ["ben", "hamza", "haaroon"]

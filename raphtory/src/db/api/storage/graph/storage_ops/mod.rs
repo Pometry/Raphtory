@@ -13,4 +13,8 @@ impl InternalStorageOps for GraphStorage {
     fn get_storage(&self) -> Option<&Storage> {
         None
     }
+
+    fn disk_storage_enabled(&self) -> bool {
+        self.disk_storage_enabled()
+    }
 }

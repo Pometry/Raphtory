@@ -93,6 +93,13 @@ impl GraphStorage {
         }
     }
 
+    pub fn disk_storage_enabled(&self) -> bool {
+        match self {
+            GraphStorage::Mem(graph) => graph.graph.disk_storage_enabled(),
+            GraphStorage::Unlocked(graph) => graph.disk_storage_enabled(),
+        }
+    }
+
     #[inline(always)]
     pub fn nodes(&self) -> NodesStorageEntry<'_> {
         match self {

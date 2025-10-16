@@ -1,24 +1,19 @@
-use super::proto::{
-    prop::Array,
-    prop_type::{Array as ArrayType, Scalar as ScalarType},
-};
-use crate::{
-    errors::GraphError,
-    serialise::proto::{
-        self,
-        graph_update::{
-            DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
-            UpdateGraphTProps, UpdateNodeCProps, UpdateNodeTProps, UpdateNodeType,
-        },
-        new_meta::{
-            Meta, NewEdgeCProp, NewEdgeTProp, NewGraphCProp, NewGraphTProp, NewLayer, NewNodeCProp,
-            NewNodeTProp, NewNodeType,
-        },
-        new_node, prop,
-        prop_type::{PType, PropType as SPropType},
-        GraphUpdate, NewEdge, NewMeta, NewNode,
+use super::proto_generated::{
+    self,
+    graph_update::{
+        DelEdge, PropPair, Update, UpdateEdgeCProps, UpdateEdgeTProps, UpdateGraphCProps,
+        UpdateGraphTProps, UpdateNodeCProps, UpdateNodeTProps, UpdateNodeType,
     },
+    new_meta::{
+        Meta, NewEdgeCProp, NewEdgeTProp, NewGraphCProp, NewGraphTProp, NewLayer, NewNodeCProp,
+        NewNodeTProp, NewNodeType,
+    },
+    new_node, prop,
+    prop::Array,
+    prop_type::{Array as ArrayType, PType, PropType as SPropType, Scalar as ScalarType},
+    GraphUpdate, NewEdge, NewMeta, NewNode,
 };
+use crate::errors::GraphError;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use raphtory_api::core::{
     entities::{
@@ -63,27 +58,29 @@ fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
         PropType::Array(tpe) => {
             let prop_type = as_proto_prop_type(tpe)?;
             Some(PType {
-                kind: Some(proto::prop_type::p_type::Kind::Array(ArrayType {
+                kind: Some(proto_generated::prop_type::p_type::Kind::Array(ArrayType {
                     p_type: prop_type.into(),
                 })),
             })
         }
         _ => Some(PType {
-            kind: Some(proto::prop_type::p_type::Kind::Scalar(ScalarType {
-                p_type: as_proto_prop_type(p_type)?.into(),
-            })),
+            kind: Some(proto_generated::prop_type::p_type::Kind::Scalar(
+                ScalarType {
+                    p_type: as_proto_prop_type(p_type)?.into(),
+                },
+            )),
         }),
     }
 }
 
 fn as_prop_type2(p_type: PType) -> Option<PropType> {
     match p_type.kind? {
-        proto::prop_type::p_type::Kind::Scalar(scalar) => as_prop_type(scalar.p_type()),
-        proto::prop_type::p_type::Kind::Array(array) => {
+        proto_generated::prop_type::p_type::Kind::Scalar(scalar) => as_prop_type(scalar.p_type()),
+        proto_generated::prop_type::p_type::Kind::Array(array) => {
             let p_type = as_prop_type(array.p_type())?;
             Some(PropType::Array(Box::new(p_type)))
         }
-        proto::prop_type::p_type::Kind::Decimal(decimal) => Some(PropType::Decimal {
+        proto_generated::prop_type::p_type::Kind::Decimal(decimal) => Some(PropType::Decimal {
             scale: decimal.scale as i64,
         }),
     }
@@ -486,7 +483,7 @@ impl PropPair {
     }
 }
 
-impl proto::Graph {
+impl proto_generated::Graph {
     pub fn new_edge(&mut self, src: VID, dst: VID, eid: EID) {
         let edge = NewEdge {
             src: src.as_u64(),
@@ -689,7 +686,7 @@ pub fn collect_props<'a>(
         .collect()
 }
 
-fn as_proto_prop(prop: &Prop) -> proto::Prop {
+fn as_proto_prop(prop: &Prop) -> proto_generated::Prop {
     let value: Option<prop::Value> = match prop {
         Prop::Bool(b) => Some(prop::Value::BoolValue(*b)),
         Prop::U8(u) => Some(prop::Value::U8((*u).into())),
@@ -741,5 +738,5 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
         Prop::Decimal(bd) => Some(prop::Value::Decimal(bd.to_string())),
     };
 
-    proto::Prop { value }
+    proto_generated::Prop { value }
 }

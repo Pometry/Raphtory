@@ -7,7 +7,9 @@ pub mod python;
 pub mod inherit;
 pub mod iter;
 
-#[derive(PartialOrd, PartialEq, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(PartialOrd, PartialEq, Debug, Serialize, Deserialize)]
 pub enum GraphType {
     EventGraph,
     PersistentGraph,

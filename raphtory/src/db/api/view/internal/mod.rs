@@ -103,6 +103,10 @@ pub trait InheritStorageOps: Base {}
 
 pub trait InternalStorageOps {
     fn get_storage(&self) -> Option<&Storage>;
+
+    /// Returns `true` if the underlying storage saves data to disk,
+    /// or `false` if the storage is in-memory only.
+    fn disk_storage_enabled(&self) -> bool;
 }
 
 impl<G: InheritStorageOps> InternalStorageOps for G
@@ -111,6 +115,10 @@ where
 {
     fn get_storage(&self) -> Option<&Storage> {
         self.base().get_storage()
+    }
+
+    fn disk_storage_enabled(&self) -> bool {
+        self.base().disk_storage_enabled()
     }
 }
 

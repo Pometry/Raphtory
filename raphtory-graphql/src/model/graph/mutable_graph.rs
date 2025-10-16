@@ -1,4 +1,5 @@
 use crate::{
+    data::Data,
     graph::{GraphWithVectors, UpdateEmbeddings},
     model::graph::{edge::GqlEdge, graph::GqlGraph, node::GqlNode, property::Value},
     paths::ExistingGraphFolder,
@@ -115,13 +116,15 @@ pub struct EdgeAddition {
 pub struct GqlMutableGraph {
     path: ExistingGraphFolder,
     graph: GraphWithVectors,
+    data: Data,
 }
 
 impl GqlMutableGraph {
-    pub(crate) fn new(path: ExistingGraphFolder, graph: GraphWithVectors) -> Self {
+    pub(crate) fn new(path: ExistingGraphFolder, graph: GraphWithVectors, data: Data) -> Self {
         Self {
             path: path.into(),
             graph,
+            data,
         }
     }
 }
@@ -149,7 +152,9 @@ impl GqlMutableGraph {
 
     /// Get mutable existing node.
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
-        self.graph.node(name).map(|n| n.into())
+        self.graph
+            .node(name)
+            .map(|n| GqlMutableNode::new(n, self.path.clone(), self.data.clone()))
     }
 
     /// Add a new node or add updates to an existing node.
@@ -166,12 +171,19 @@ impl GqlMutableGraph {
             let node = self_clone
                 .graph
                 .add_node(time, &name, prop_iter, node_type.as_str())?;
-            self_clone.graph.write_updates()?;
+
             Ok::<_, GraphError>(node)
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = node.update_embeddings().await;
-        Ok(node.into())
+
+        Ok(GqlMutableNode::new(
+            node,
+            self.path.clone(),
+            self.data.clone(),
+        ))
     }
 
     /// Create a new node or fail if it already exists.
@@ -188,12 +200,19 @@ impl GqlMutableGraph {
             let node = self_clone
                 .graph
                 .create_node(time, &name, prop_iter, node_type.as_str())?;
-            self_clone.graph.write_updates()?;
+
             Ok::<_, GraphError>(node)
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = node.update_embeddings().await;
-        Ok(node.into())
+
+        Ok(GqlMutableNode::new(
+            node,
+            self.path.clone(),
+            self.data.clone(),
+        ))
     }
 
     /// Add a batch of nodes
@@ -224,10 +243,13 @@ impl GqlMutableGraph {
                     self_clone.get_node_view(name)
                 })
                 .collect();
-            let write_res = self_clone.graph.write_updates();
-            split_failures(nodes, write_res)
+
+            split_failures(nodes, Ok(()))
         })
         .await;
+
+        self.post_mutation_ops().await;
+
         // Generate embeddings
         let _ = self.graph.update_node_embeddings(succeeded).await;
         if let Some(failures) = batch_failures {
@@ -239,7 +261,9 @@ impl GqlMutableGraph {
 
     /// Get a mutable existing edge.
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
-        self.graph.edge(src, dst).map(|e| e.into())
+        self.graph
+            .edge(src, dst)
+            .map(|e| GqlMutableEdge::new(e, self.path.clone(), self.data.clone()))
     }
 
     /// Add a new edge or add updates to an existing edge.
@@ -257,12 +281,19 @@ impl GqlMutableGraph {
             let edge = self_clone
                 .graph
                 .add_edge(time, src, dst, prop_iter, layer.as_str())?;
-            self_clone.graph.write_updates()?;
+
             Ok::<_, GraphError>(edge)
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = edge.update_embeddings().await;
-        Ok(edge.into())
+
+        Ok(GqlMutableEdge::new(
+            edge,
+            self.path.clone(),
+            self.data.clone(),
+        ))
     }
 
     /// Add a batch of edges
@@ -292,12 +323,14 @@ impl GqlMutableGraph {
                     Ok((edge.src, edge.dst))
                 })
                 .collect();
-            let write_res = self_clone.graph.write_updates();
-            split_failures(edge_res, write_res)
+
+            split_failures(edge_res, Ok(()))
         })
         .await;
 
+        self.post_mutation_ops().await;
         let _ = self.graph.update_edge_embeddings(edge_pairs).await;
+
         match failures {
             None => Ok(true),
             Some(failures) => Err(failures),
@@ -317,12 +350,19 @@ impl GqlMutableGraph {
             let edge = self_clone
                 .graph
                 .delete_edge(time, src, dst, layer.as_str())?;
-            self_clone.graph.write_updates()?;
+
             Ok::<_, GraphError>(edge)
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = edge.update_embeddings().await;
-        Ok(edge.into())
+
+        Ok(GqlMutableEdge::new(
+            edge,
+            self.path.clone(),
+            self.data.clone(),
+        ))
     }
 
     /// Add temporal properties to graph.
@@ -332,38 +372,47 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        blocking_write(move || {
+        let result = blocking_write(move || {
             self_clone
                 .graph
                 .add_properties(t, as_properties(properties)?)?;
-            self_clone.graph.write_updates()?;
             Ok(true)
         })
-        .await
+        .await;
+
+        self.post_mutation_ops().await;
+
+        result
     }
 
     /// Add metadata to graph (errors if the property already exists).
     async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        blocking_write(move || {
+        let result = blocking_write(move || {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
-            self_clone.graph.write_updates()?;
             Ok(true)
         })
-        .await
+        .await;
+
+        self.post_mutation_ops().await;
+
+        result
     }
 
     /// Update metadata of the graph (overwrites existing values).
     async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        blocking_write(move || {
+        let result = blocking_write(move || {
             self_clone
                 .graph
                 .update_metadata(as_properties(properties)?)?;
-            self_clone.graph.write_updates()?;
             Ok(true)
         })
-        .await
+        .await;
+
+        self.post_mutation_ops().await;
+
+        result
     }
 }
 
@@ -386,17 +435,35 @@ impl GqlMutableGraph {
                 dst: GID::Str(dst),
             })
     }
+
+    /// Post mutation operations.
+    async fn post_mutation_ops(&self) {
+        self.graph.set_dirty(true);
+
+        // Reinsert the graph into the cache to reset eviction priority.
+        // This prevents data loss if the graph is evicted after the mutation but before
+        // the `set_dirty` call.
+        self.data
+            .insert_graph_into_cache(self.path.get_original_path_str(), self.graph.clone())
+            .await;
+    }
 }
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "MutableNode")]
 pub struct GqlMutableNode {
     node: NodeView<'static, GraphWithVectors>,
+    path: ExistingGraphFolder,
+    data: Data,
 }
 
-impl From<NodeView<'static, GraphWithVectors>> for GqlMutableNode {
-    fn from(node: NodeView<'static, GraphWithVectors>) -> Self {
-        Self { node }
+impl GqlMutableNode {
+    pub fn new(
+        node: NodeView<'static, GraphWithVectors>,
+        path: ExistingGraphFolder,
+        data: Data,
+    ) -> Self {
+        Self { node, path, data }
     }
 }
 
@@ -417,11 +484,12 @@ impl GqlMutableNode {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.node.add_metadata(as_properties(properties)?)?;
-            self_clone.node.graph.write_updates()?;
             Ok::<_, GraphError>(())
         })
         .await?;
-        let _ = self.node.update_embeddings().await;
+
+        self.post_mutation_ops().await;
+
         Ok(true)
     }
 
@@ -430,12 +498,12 @@ impl GqlMutableNode {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.node.set_node_type(&new_type)?;
-
-            self_clone.node.graph.write_updates()?;
             Ok::<_, GraphError>(())
         })
         .await?;
-        let _ = self.node.update_embeddings().await;
+
+        self.post_mutation_ops().await;
+
         Ok(true)
     }
 
@@ -447,11 +515,12 @@ impl GqlMutableNode {
                 .node
                 .update_metadata(as_properties(properties)?)?;
 
-            self_clone.node.graph.write_updates()?;
             Ok::<_, GraphError>(())
         })
         .await?;
-        let _ = self.node.update_embeddings().await;
+
+        self.post_mutation_ops().await;
+
         Ok(true)
     }
 
@@ -466,12 +535,28 @@ impl GqlMutableNode {
             self_clone
                 .node
                 .add_updates(time, as_properties(properties.unwrap_or(vec![]))?)?;
-            self_clone.node.graph.write_updates()?;
             Ok::<_, GraphError>(())
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = self.node.update_embeddings().await;
+
         Ok(true)
+    }
+}
+
+impl GqlMutableNode {
+    /// Post mutation operations.
+    async fn post_mutation_ops(&self) {
+        self.node.graph.set_dirty(true);
+
+        // Reinsert the graph into the cache to reset eviction priority.
+        // This prevents data loss if the graph is evicted after the mutation but before
+        // the `set_dirty` call.
+        self.data
+            .insert_graph_into_cache(self.path.get_original_path_str(), self.node.graph.clone())
+            .await;
     }
 }
 
@@ -479,11 +564,13 @@ impl GqlMutableNode {
 #[graphql(name = "MutableEdge")]
 pub struct GqlMutableEdge {
     edge: EdgeView<GraphWithVectors>,
+    path: ExistingGraphFolder,
+    data: Data,
 }
 
-impl From<EdgeView<GraphWithVectors>> for GqlMutableEdge {
-    fn from(edge: EdgeView<GraphWithVectors>) -> Self {
-        Self { edge }
+impl GqlMutableEdge {
+    pub fn new(edge: EdgeView<GraphWithVectors>, path: ExistingGraphFolder, data: Data) -> Self {
+        Self { edge, path, data }
     }
 }
 
@@ -501,12 +588,12 @@ impl GqlMutableEdge {
 
     /// Get the mutable source node of the edge.
     async fn src(&self) -> GqlMutableNode {
-        self.edge.src().into()
+        GqlMutableNode::new(self.edge.src(), self.path.clone(), self.data.clone())
     }
 
     /// Get the mutable destination node of the edge.
     async fn dst(&self) -> GqlMutableNode {
-        self.edge.dst().into()
+        GqlMutableNode::new(self.edge.dst(), self.path.clone(), self.data.clone())
     }
 
     /// Mark the edge as deleted at time time.
@@ -514,12 +601,13 @@ impl GqlMutableEdge {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.edge.delete(time, layer.as_str())?;
-
-            self_clone.edge.graph.write_updates()?;
             Ok::<_, GraphError>(())
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = self.edge.update_embeddings().await;
+
         Ok(true)
     }
 
@@ -538,11 +626,13 @@ impl GqlMutableEdge {
                 .edge
                 .add_metadata(as_properties(properties)?, layer.as_str())?;
 
-            self_clone.edge.graph.write_updates()?;
             Ok::<_, GraphError>(())
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = self.edge.update_embeddings().await;
+
         Ok(true)
     }
 
@@ -561,11 +651,13 @@ impl GqlMutableEdge {
                 .edge
                 .update_metadata(as_properties(properties)?, layer.as_str())?;
 
-            self_clone.edge.graph.write_updates()?;
             Ok::<_, GraphError>(())
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = self.edge.update_embeddings().await;
+
         Ok(true)
     }
 
@@ -586,12 +678,29 @@ impl GqlMutableEdge {
                 as_properties(properties.unwrap_or(vec![]))?,
                 layer.as_str(),
             )?;
-            self_clone.edge.graph.write_updates()?;
+
             Ok::<_, GraphError>(())
         })
         .await?;
+
+        self.post_mutation_ops().await;
         let _ = self.edge.update_embeddings().await;
+
         Ok(true)
+    }
+}
+
+impl GqlMutableEdge {
+    /// Post mutation operations.
+    async fn post_mutation_ops(&self) {
+        self.edge.graph.set_dirty(true);
+
+        // Reinsert the graph into the cache to reset eviction priority.
+        // This prevents data loss if the graph is evicted after the mutation but before
+        // the `set_dirty` call.
+        self.data
+            .insert_graph_into_cache(self.path.get_original_path_str(), self.edge.graph.clone())
+            .await;
     }
 }
 
@@ -645,10 +754,14 @@ mod tests {
             individual_templates: HashMap::new(),
         });
 
-        data.insert_graph("test_graph", graph).await.unwrap();
+        let overwrite = false;
+        let folder = data
+            .validate_path_for_insert("test_graph", overwrite)
+            .unwrap();
+        data.insert_graph(folder, graph).await.unwrap();
 
         let (graph_with_vectors, path) = data.get_graph("test_graph").await.unwrap();
-        let mutable_graph = GqlMutableGraph::new(path, graph_with_vectors);
+        let mutable_graph = GqlMutableGraph::new(path, graph_with_vectors, data.clone());
 
         (mutable_graph, tmp_dir)
     }

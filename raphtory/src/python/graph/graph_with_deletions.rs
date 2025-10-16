@@ -108,7 +108,7 @@ impl PyPersistentGraph {
     }
 
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
-        let state = self.graph.encode_to_vec();
+        let state = self.graph.encode_to_bytes();
         (PyGraphEncoder, (state,))
     }
 
@@ -563,6 +563,8 @@ impl PyPersistentGraph {
     ///     df (DataFrame): The Pandas DataFrame containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
+    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///         NOTE: All values in this column must be unique. Defaults to None.
     ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
@@ -574,12 +576,13 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df,time,id, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None))]
+    #[pyo3(signature = (df, time, id, secondary_index = None, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &Bound<PyAny>,
         time: &str,
         id: &str,
+        secondary_index: Option<&str>,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
@@ -592,6 +595,7 @@ impl PyPersistentGraph {
             &self.graph,
             df,
             time,
+            secondary_index,
             id,
             node_type,
             node_type_col,
@@ -607,6 +611,8 @@ impl PyPersistentGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
+    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///         NOTE: All values in this column must be unique. Defaults to None.
     ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
@@ -618,12 +624,13 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, time,id, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None))]
+    #[pyo3(signature = (parquet_path, time, id, secondary_index = None, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None))]
     fn load_nodes_from_parquet(
         &self,
         parquet_path: PathBuf,
         time: &str,
         id: &str,
+        secondary_index: Option<&str>,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
@@ -636,6 +643,7 @@ impl PyPersistentGraph {
             &self.graph,
             parquet_path.as_path(),
             time,
+            secondary_index,
             id,
             node_type,
             node_type_col,
@@ -653,6 +661,8 @@ impl PyPersistentGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
+    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///         NOTE: All values in this column must be unique. Defaults to None.
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
     ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
@@ -664,13 +674,14 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
+    #[pyo3(signature = (df, time, src, dst, secondary_index = None, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
     fn load_edges_from_pandas(
         &self,
         df: &Bound<PyAny>,
         time: &str,
         src: &str,
         dst: &str,
+        secondary_index: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
@@ -683,6 +694,7 @@ impl PyPersistentGraph {
             &self.graph,
             df,
             time,
+            secondary_index,
             src,
             dst,
             &properties,
@@ -700,6 +712,8 @@ impl PyPersistentGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
+    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///         NOTE: All values in this column must be unique. Defaults to None.
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
     ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
@@ -711,13 +725,14 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
+    #[pyo3(signature = (parquet_path, time, src, dst, secondary_index = None, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
     fn load_edges_from_parquet(
         &self,
         parquet_path: PathBuf,
         time: &str,
         src: &str,
         dst: &str,
+        secondary_index: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
@@ -730,6 +745,7 @@ impl PyPersistentGraph {
             &self.graph,
             parquet_path.as_path(),
             time,
+            secondary_index,
             src,
             dst,
             &properties,
@@ -748,6 +764,8 @@ impl PyPersistentGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
+    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///         NOTE: All values in this column must be unique. Defaults to None.
     ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
@@ -756,26 +774,38 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df, time, src, dst, layer = None, layer_col = None))]
+    #[pyo3(signature = (df, time, src, dst, secondary_index = None, layer = None, layer_col = None))]
     fn load_edge_deletions_from_pandas(
         &self,
         df: &Bound<PyAny>,
         time: &str,
         src: &str,
         dst: &str,
+        secondary_index: Option<&str>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        load_edge_deletions_from_pandas(&self.graph, df, time, src, dst, layer, layer_col)
+        load_edge_deletions_from_pandas(
+            &self.graph,
+            df,
+            time,
+            secondary_index,
+            src,
+            dst,
+            layer,
+            layer_col,
+        )
     }
 
     /// Load edges deletions from a Parquet file into the graph.
     ///
     /// Arguments:
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
+    ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
-    ///     time (str): The column name for the update timestamps.
+    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///         NOTE: All values in this column must be unique. Defaults to None.
     ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
@@ -784,13 +814,14 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, time, src, dst, layer = None, layer_col = None))]
+    #[pyo3(signature = (parquet_path, time, src, dst, secondary_index = None, layer = None, layer_col = None))]
     fn load_edge_deletions_from_parquet(
         &self,
         parquet_path: PathBuf,
         time: &str,
         src: &str,
         dst: &str,
+        secondary_index: Option<&str>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -798,6 +829,7 @@ impl PyPersistentGraph {
             &self.graph,
             parquet_path.as_path(),
             time,
+            secondary_index,
             src,
             dst,
             layer,
