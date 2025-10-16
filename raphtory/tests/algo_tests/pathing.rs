@@ -4,10 +4,9 @@ mod dijkstra_tests {
         algorithms::pathing::dijkstra::dijkstra_single_source_shortest_paths,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
+        test_storage,
     };
     use raphtory_api::core::Direction;
-
-    use crate::test_storage;
 
     fn load_graph(edges: Vec<(i64, &str, &str, Vec<(&str, f32)>)>) -> Graph {
         let graph = Graph::new();
@@ -304,16 +303,14 @@ mod dijkstra_tests {
 
 #[cfg(test)]
 mod sssp_tests {
-    use std::collections::HashMap;
-
     use raphtory::{
         algorithms::pathing::single_source_shortest_path::single_source_shortest_path,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
+        test_storage,
     };
     use raphtory_api::core::utils::logging::global_info_logger;
-
-    use crate::test_storage;
+    use std::collections::HashMap;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -370,8 +367,6 @@ mod sssp_tests {
 
 #[cfg(test)]
 mod generic_taint_tests {
-    use std::collections::HashMap;
-
     use raphtory::{
         algorithms::pathing::temporal_reachability::temporally_reachable_nodes,
         db::{
@@ -379,10 +374,10 @@ mod generic_taint_tests {
             graph::graph::Graph,
         },
         prelude::*,
+        test_storage,
     };
     use raphtory_core::entities::nodes::node_ref::AsNodeRef;
-
-    use crate::test_storage;
+    use std::collections::HashMap;
 
     fn sort_inner_by_string(
         data: HashMap<String, Vec<(i64, String)>>,

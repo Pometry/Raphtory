@@ -110,6 +110,9 @@ pub mod errors;
 pub mod serialise;
 pub mod storage;
 
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils;
+
 /// Return Raphtory crate version.
 ///
 /// Returns:
