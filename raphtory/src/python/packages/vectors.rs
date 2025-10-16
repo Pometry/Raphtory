@@ -174,6 +174,7 @@ impl PyGraphView {
 }
 
 #[pyclass(name = "VectorisedGraph", module = "raphtory.vectors", frozen)]
+/// VectorisedGraph object that contains the embedded documents that correspond to graph entities.
 pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 
 impl From<DynamicVectorisedGraph> for PyVectorisedGraph {
@@ -208,8 +209,8 @@ impl<'py> IntoPyObject<'py> for DynamicVectorSelection {
     }
 }
 
-/// A vectorised graph, containing a set of documents positioned in the graph space and a selection
-/// over those documents
+/// A vectorised graph, containing a set of documents positioned in the graph space and allows you to get a selection
+/// over those documents.
 #[pymethods]
 impl PyVectorisedGraph {
     /// Return an empty selection of documents
@@ -217,15 +218,15 @@ impl PyVectorisedGraph {
         self.0.empty_selection()
     }
 
-    /// Search the top scoring entities according to `query` with no more than `limit` entities
+    /// Search the top scoring entities according to `query` with no more than `limit` entities.
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new entities to search
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///   query (str | list): The text or the embedding to score against.
+    ///   limit (int): The maximum number of new entities in the result.
+    ///   window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
     ///
     /// Returns:
-    ///   VectorSelection: The vector selection resulting from the search
+    ///   VectorSelection: The vector selection resulting from the search.
     #[pyo3(signature = (query, limit, window=None))]
     pub fn entities_by_similarity(
         &self,
@@ -239,15 +240,15 @@ impl PyVectorisedGraph {
             .entities_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
-    /// Search the top scoring nodes according to `query` with no more than `limit` nodes
+    /// Search the top scoring nodes according to `query` with no more than `limit` nodes.
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new nodes to search
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///   query (str | list): The text or the embedding to score against.
+    ///   limit (int): The maximum number of new nodes in the result.
+    ///   window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
     ///
     /// Returns:
-    ///   VectorSelection: The vector selection resulting from the search
+    ///   VectorSelection: The vector selection resulting from the search.
     #[pyo3(signature = (query, limit, window=None))]
     pub fn nodes_by_similarity(
         &self,
@@ -264,12 +265,12 @@ impl PyVectorisedGraph {
     /// Search the top scoring edges according to `query` with no more than `limit` edges
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new edges to search
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///   query (str | list): The text or the embedding to score against.
+    ///   limit (int): the maximum number of new edges in the results.
+    ///   window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
     ///
     /// Returns:
-    ///   VectorSelection: The vector selection resulting from the search
+    ///   VectorSelection: The vector selection resulting from the search.
     #[pyo3(signature = (query, limit, window=None))]
     pub fn edges_by_similarity(
         &self,
@@ -291,10 +292,10 @@ pub struct PyVectorSelection(DynamicVectorSelection);
 /// over those documents
 #[pymethods]
 impl PyVectorSelection {
-    /// Return the nodes present in the current selection
+    /// Returns the nodes present in the current selection.
     ///
     /// Returns:
-    ///     list[Node]: list of nodes in the current selection
+    ///     list[Node]: List of nodes in the current selection.
     fn nodes(&self) -> Vec<PyNode> {
         self.0
             .nodes()
@@ -303,10 +304,10 @@ impl PyVectorSelection {
             .collect_vec()
     }
 
-    /// Return the edges present in the current selection
+    /// Returns the edges present in the current selection.
     ///
     /// Returns:
-    ///     list[Edge]: list of edges in the current selection
+    ///     list[Edge]: List of edges in the current selection.
     fn edges(&self) -> Vec<PyEdge> {
         self.0
             .edges()
@@ -315,28 +316,28 @@ impl PyVectorSelection {
             .collect_vec()
     }
 
-    /// Return the documents present in the current selection
+    /// Returns the documents present in the current selection.
     ///
     /// Returns:
-    ///     list[Document]: list of documents in the current selection
+    ///     list[Document]: List of documents in the current selection.
     fn get_documents(&self) -> PyResult<Vec<Document<DynamicGraph>>> {
         Ok(self.0.get_documents()?)
     }
 
-    /// Return the documents alongside their scores present in the current selection
+    /// Returns the documents alongside their scores present in the current selection.
     ///
     /// Returns:
-    ///     list[Tuple[Document, float]]: list of documents and scores
+    ///     list[Tuple[Document, float]]: List of documents and scores.
     fn get_documents_with_scores(&self) -> PyResult<Vec<(Document<DynamicGraph>, f32)>> {
         Ok(self.0.get_documents_with_scores()?)
     }
 
-    /// Add all the documents associated with the `nodes` to the current selection
+    /// Add all the documents associated with the `nodes` to the current selection.
     ///
     /// Documents added by this call are assumed to have a score of 0.
     ///
     /// Args:
-    ///   nodes (list): a list of the node ids or nodes to add
+    ///   nodes (list): List of the node ids or nodes to add.
     ///
     /// Returns:
     ///     None:
@@ -344,12 +345,12 @@ impl PyVectorSelection {
         self_.0.add_nodes(nodes)
     }
 
-    /// Add all the documents associated with the `edges` to the current selection
+    /// Add all the documents associated with the `edges` to the current selection.
     ///
     /// Documents added by this call are assumed to have a score of 0.
     ///
     /// Args:
-    ///   edges (list):  a list of the edge ids or edges to add
+    ///   edges (list):  List of the edge ids or edges to add.
     ///
     /// Returns:
     ///     None:
@@ -357,13 +358,13 @@ impl PyVectorSelection {
         self_.0.add_edges(edges)
     }
 
-    /// Add all the documents in `selection` to the current selection
+    /// Add all the documents in `selection` to the current selection.
     ///
     /// Args:
-    ///   selection (VectorSelection): a selection to be added
+    ///   selection (VectorSelection): Selection to be added.
     ///
     /// Returns:
-    ///   VectorSelection: The selection with the new documents
+    ///   VectorSelection: The selection with the new documents.
     pub fn append(mut self_: PyRefMut<'_, Self>, selection: &Self) -> DynamicVectorSelection {
         self_.0.append(&selection.0).clone()
     }
