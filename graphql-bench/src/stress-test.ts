@@ -43,35 +43,35 @@ const IN_EDGES_WEIGHT = 1;
 
 // Property rates
 const EDGE_PROPERTY_RATE: PropertyRates = {
-  metadata: 1,
-  temporalLatest: 1,
-  temporalHistory: 1,
+  metadata: 0.3,
+  temporalLatest: 0.3,
+  temporalHistory: 0.3,
 }
 const NODE_PROPERTY_RATE: PropertyRates = {
-  metadata: 1,
-  temporalLatest: 1,
-  temporalHistory: 1,
+  metadata: 0.3,
+  temporalLatest: 0.3,
+  temporalHistory: 0.3,
 }
 const GRAPH_PROPERTY_RATE: PropertyRates = {
-  metadata: 1,
-  temporalLatest: 1,
-  temporalHistory: 1,
+  metadata: 0.3,
+  temporalLatest: 0.3,
+  temporalHistory: 0.3,
 }
 
 // View rates
 const GRAPH_VIEW_RATES: ViewRate = {
-  latest: 1,
-  layer: 1,
+  latest: 0.3,
+  layer: 0.3,
   window: 0.2
 }
 const NODE_VIEW_RATES: ViewRate = {
-  latest: 1,
-  layer: 1,
+  latest: 0.3,
+  layer: 0.3,
   window: 0.2
 }
 const EDGE_VIEW_RATES: ViewRate = {
-  latest: 1,
-  layer: 1,
+  latest: 0.3,
+  layer: 0.3,
   window: 0.2
 }
 const NODE_PAGE_VIEW_RATES: ViewRate = {
