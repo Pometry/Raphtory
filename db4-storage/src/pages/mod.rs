@@ -419,7 +419,6 @@ mod test {
         },
     };
     use chrono::{DateTime, NaiveDateTime, Utc};
-    use core::panic;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
