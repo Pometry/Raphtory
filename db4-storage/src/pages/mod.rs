@@ -3,7 +3,7 @@ use crate::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::strategy::PersistentStrategy,
+    persist::strategy::{Config, PersistentStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
@@ -24,7 +24,7 @@ use raphtory_core::{
 use serde::{Deserialize, Serialize};
 use session::WriteSession;
 use std::{
-    path::Path,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{self, AtomicUsize},
@@ -44,9 +44,10 @@ pub mod test_utils;
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 
 #[derive(Debug)]
-pub struct GraphStore<NS, ES, EXT> {
+pub struct GraphStore<NS, ES, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
+    graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     _ext: EXT,
 }
@@ -55,7 +56,7 @@ pub struct GraphStore<NS, ES, EXT> {
 pub struct ReadLockedGraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    EXT,
+    EXT: Config,
 > {
     pub nodes: Arc<ReadLockedNodeStorage<NS, EXT>>,
     pub edges: Arc<ReadLockedEdgeStorage<ES, EXT>>,
@@ -99,7 +100,7 @@ impl<
     }
 
     pub fn node_meta(&self) -> &Meta {
-        self.nodes.node_meta()
+        self.nodes.prop_meta()
     }
 
     pub fn earliest(&self) -> i64 {
@@ -118,6 +119,7 @@ impl<
         let edges_path = graph_dir.as_ref().join("edges");
 
         let ext = read_graph_config::<EXT>(graph_dir.as_ref())?;
+        dbg!(&ext);
 
         let edges = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
 
@@ -125,12 +127,18 @@ impl<
 
         let nodes = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
 
+        let node_meta = nodes.prop_meta();
+        for tpe in ext.node_types().iter() {
+            node_meta.get_or_create_node_type_id(tpe);
+        }
+
         let t_len = edges.t_len();
 
         Ok(Self {
             nodes,
             edges,
             event_id: AtomicUsize::new(t_len),
+            graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
         })
     }
@@ -167,6 +175,7 @@ impl<
             nodes,
             edges,
             event_id: AtomicUsize::new(0),
+            graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,
         }
     }
@@ -342,7 +351,19 @@ impl<
     }
 }
 
-fn write_graph_config<EXT: PersistentStrategy>(
+impl<NS, ES, EXT: Config> Drop for GraphStore<NS, ES, EXT> {
+    fn drop(&mut self) {
+        let node_types = self.nodes.prop_meta().get_all_node_types();
+        self._ext.set_node_types(node_types);
+        if let Some(graph_dir) = self.graph_dir.as_ref() {
+            if write_graph_config(graph_dir, &self._ext).is_err() {
+                eprintln!("Unrecoverable! Failed to write graph meta");
+            }
+        }
+    }
+}
+
+fn write_graph_config<EXT: Config>(
     graph_dir: impl AsRef<Path>,
     config: &EXT,
 ) -> Result<(), StorageError> {

@@ -78,19 +78,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT> {
-    pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
-        let locked_segments = self
-            .pages
-            .iter()
-            .map(|(_, segment)| segment.locked())
-            .collect::<Box<_>>();
-        ReadLockedNodeStorage {
-            storage: self.clone(),
-            locked_segments,
-        }
-    }
-
+impl<NS, EXT: Config> NodeStorageInner<NS, EXT> {
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
         node_meta: Arc<Meta>,
@@ -107,52 +95,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         }
     }
 
-    pub fn node_meta(&self) -> &Arc<Meta> {
-        &self.node_meta
-    }
-
-    pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
-        WriteLockedNodePages::new(
-            self.pages
-                .iter()
-                .map(|(page_id, page)| {
-                    LockedNodePage::new(
-                        page_id,
-                        &self.stats,
-                        self.max_page_len(),
-                        page.as_ref(),
-                        page.head_mut(),
-                    )
-                })
-                .collect(),
-        )
-    }
-
-    pub fn num_layers(&self) -> usize {
-        self.stats.len()
-    }
-
-    pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
-        let (page_id, pos) = self.resolve_pos(node);
-        let node_page = self
-            .pages
-            .get(page_id)
-            .expect("Internal error: page not found");
-        node_page.entry(pos)
-    }
-
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
 
-    #[inline(always)]
-    pub fn writer<'a>(
-        &'a self,
-        segment_id: usize,
-    ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
-        let segment = self.get_or_create_segment(segment_id);
-        let head = segment.head_mut();
-        NodeWriter::new(segment, &self.stats, head)
+    pub fn num_layers(&self) -> usize {
+        self.stats.len()
     }
 
     pub fn num_nodes(&self) -> usize {
@@ -173,6 +121,65 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
 
     pub fn nodes_path(&self) -> Option<&Path> {
         self.nodes_path.as_deref()
+    }
+
+    /// Return the position of the chunk and the position within the chunk
+    pub fn resolve_pos(&self, i: impl Into<VID>) -> (usize, LocalPOS) {
+        resolve_pos(i.into(), self.max_page_len())
+    }
+
+    pub fn max_page_len(&self) -> u32 {
+        self.ext.max_node_page_len()
+    }
+}
+
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT> {
+    pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
+        let locked_segments = self
+            .pages
+            .iter()
+            .map(|(_, segment)| segment.locked())
+            .collect::<Box<_>>();
+        ReadLockedNodeStorage {
+            storage: self.clone(),
+            locked_segments,
+        }
+    }
+
+    pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
+        WriteLockedNodePages::new(
+            self.pages
+                .iter()
+                .map(|(page_id, page)| {
+                    LockedNodePage::new(
+                        page_id,
+                        &self.stats,
+                        self.max_page_len(),
+                        page.as_ref(),
+                        page.head_mut(),
+                    )
+                })
+                .collect(),
+        )
+    }
+
+    pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
+        let (page_id, pos) = self.resolve_pos(node);
+        let node_page = self
+            .pages
+            .get(page_id)
+            .expect("Internal error: page not found");
+        node_page.entry(pos)
+    }
+
+    #[inline(always)]
+    pub fn writer<'a>(
+        &'a self,
+        segment_id: usize,
+    ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
+        let segment = self.get_or_create_segment(segment_id);
+        let head = segment.head_mut();
+        NodeWriter::new(segment, &self.stats, head)
     }
 
     pub fn load(
@@ -277,11 +284,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         })
     }
 
-    /// Return the position of the chunk and the position within the chunk
-    pub fn resolve_pos(&self, i: impl Into<VID>) -> (usize, LocalPOS) {
-        resolve_pos(i.into(), self.max_page_len())
-    }
-
     pub fn get_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {
         let (src_chunk, src_pos) = self.resolve_pos(src);
         if src_chunk >= self.pages.count() {
@@ -337,9 +339,5 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
                 }
             }
         }
-    }
-
-    pub fn max_page_len(&self) -> u32 {
-        self.ext.max_node_page_len()
     }
 }
