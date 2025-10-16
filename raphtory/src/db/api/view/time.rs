@@ -12,7 +12,7 @@ use raphtory_api::{
     },
     GraphType,
 };
-use raphtory_core::utils::time::IntervalSize;
+use raphtory_core::utils::time::{AlignmentUnit, IntervalSize};
 use std::{
     cmp::{max, min},
     marker::PhantomData,
@@ -141,7 +141,26 @@ pub trait TimeOps<'graph>:
     /// using an expanding window. The last window may fall partially outside the range of the data/view.
     ///
     /// An expanding window is a window that grows by `step` size at each iteration.
+    ///
+    /// The window will be aligned with the smallest unit of time passed. For example, if the interval
+    /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval> + Clone,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>;
+
+    /// Creates a `WindowSet` with the given `step` size using an expanding window, where the windows are aligned
+    /// with the `alignment_unit` passed. The last window may fall partially outside the range of the data/view.
+    ///
+    /// An expanding window is a window that grows by `step` size at each iteration.
+    ///
+    /// Note that `alignment_unit = AlignmentUnit::Unaligned` achieves unaligned behaviour.
+    fn expanding_aligned<I>(
+        &self,
+        step: I,
+        alignment_unit: AlignmentUnit,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
         I: TryInto<Interval>,
@@ -149,12 +168,36 @@ pub trait TimeOps<'graph>:
 
     /// Creates a `WindowSet` with the given `window` size and optional `step`
     /// using a rolling window. The last window may fall partially outside the range of the data/view.
+    /// Note that passing a `step` larger than `window` can lead to some entries appearing before
+    /// the start of the first window and/or after the end of the last window (i.e. not included in any window)
     ///
     /// A rolling window is a window that moves forward by `step` size at each iteration.
+    ///
+    /// The window will be aligned with the smallest unit of time passed. For example, if the interval
+    /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
     fn rolling<I>(
         &self,
         window: I,
         step: Option<I>,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval> + Clone,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>;
+
+    /// Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window, where the windows
+    /// are aligned with the `alignment_unit` passed. The last window may fall partially outside the range of the data/view.
+    /// Note that, depending on the `alignment_unit`, passing a `step` larger than `window` can lead to some entries
+    /// appearing before the start of the first window and/or after the end of the last window (i.e. not included in any window)
+    ///
+    /// A rolling window is a window that moves forward by `step` size at each iteration.
+    ///
+    /// Note that `alignment_unit = AlignmentUnit::Unaligned` achieves unaligned behaviour.
+    fn rolling_aligned<I>(
+        &self,
+        window: I,
+        step: Option<I>,
+        alignment_unit: AlignmentUnit,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
@@ -247,6 +290,27 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
+        I: TryInto<Interval> + Clone,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>,
+    {
+        // step is usually a number or a small string so performance impact of cloning should be minimal
+        let alignment_unit = step
+            .clone()
+            .try_into()?
+            .alignment_unit
+            .unwrap_or(AlignmentUnit::Unaligned);
+        // Align the timestamp to the smallest unit.
+        // If there is None (the Interval is discrete), no alignment is done
+        self.expanding_aligned(step, alignment_unit)
+    }
+
+    fn expanding_aligned<I>(
+        &self,
+        step: I,
+        alignment_unit: AlignmentUnit,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
         I: TryInto<Interval>,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>,
     {
@@ -254,7 +318,8 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         match (self.timeline_start(), self.timeline_end()) {
             (Some(start), Some(end)) => {
                 let step: Interval = step.try_into()?;
-                WindowSet::new(parent, start.t(), end.t(), step, None)
+                let start_time = alignment_unit.align_timestamp(start.t());
+                WindowSet::new(parent, start_time, end.t(), step, None)
             }
             _ => WindowSet::empty(parent),
         }
@@ -264,6 +329,35 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         &self,
         window: I,
         step: Option<I>,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval> + Clone,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>,
+    {
+        // step and window are usually numbers or small strings so performance impact of cloning should be minimal
+        let alignment_unit = match &step {
+            Some(s) => s
+                .clone()
+                .try_into()?
+                .alignment_unit
+                .unwrap_or(AlignmentUnit::Unaligned),
+            None => window
+                .clone()
+                .try_into()?
+                .alignment_unit
+                .unwrap_or(AlignmentUnit::Unaligned),
+        };
+        // Align the timestamp to the smallest unit in step.
+        // If there is None (i.e. the Interval is discrete), no alignment is done.
+        self.rolling_aligned(window, step, alignment_unit)
+    }
+
+    fn rolling_aligned<I>(
+        &self,
+        window: I,
+        step: Option<I>,
+        alignment_unit: AlignmentUnit,
     ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'graph,
@@ -278,7 +372,8 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                     Some(step) => step.try_into()?,
                     None => window,
                 };
-                WindowSet::new(parent, start.t(), end.t(), step, Some(window))
+                let start_time = alignment_unit.align_timestamp(start.t());
+                WindowSet::new(parent, start_time, end.t(), step, Some(window))
             }
             _ => WindowSet::empty(parent),
         }
@@ -288,7 +383,8 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 #[derive(Clone)]
 pub struct WindowSet<'graph, T> {
     view: T,
-    cursor: i64,
+    start: i64,
+    counter: u32, // u32 because months from Temporal intervals are u32 (due to chrono months being u32)
     end: i64,
     step: Interval,
     window: Option<Interval>,
@@ -315,10 +411,10 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
                 }
             }
         };
-        let cursor_start = start + step;
         Ok(Self {
             view,
-            cursor: cursor_start,
+            start,
+            counter: 1,
             end,
             step,
             window,
@@ -333,9 +429,9 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
 
     // TODO: make this optionally public only for the development feature flag
     pub fn temporal(&self) -> bool {
-        self.step.epoch_alignment
+        self.step.alignment_unit.is_some()
             || match self.window {
-                Some(window) => window.epoch_alignment,
+                Some(window) => window.alignment_unit.is_some(),
                 None => false,
             }
     }
@@ -373,23 +469,20 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for TimeIndex<'graph,
 impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph, T> {
     type Item = T::WindowedViewType;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.cursor < self.end + self.step {
-            let window_end = self.cursor;
+        let window_end = self.start + (self.counter * self.step);
 
+        if window_end < self.end + self.step {
             let window_start = self.window.map(|w| window_end - w);
             if let Some(start) = window_start {
-                //this is required because if we have steps > window size you can end up overstepping
+                // this is required because if we have steps > window size you can end up overstepping
                 // the end by so much in the final window that there is no data inside
                 if start >= self.end {
                     // this is >= because the end passed through is already +1
                     return None;
                 }
             }
-            let window = self.view.internal_window(
-                window_start.map(EventTime::start),
-                Some(EventTime::start(window_end)),
-            );
-            self.cursor = self.cursor + self.step;
+            let window = self.view.internal_window(window_start.map(EventTime::start), Some(EventTime::start(window_end)));
+            self.counter += 1;
             Some(window)
         } else {
             None
@@ -401,19 +494,19 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
     }
 }
 impl<'graph, T: TimeOps<'graph> + Clone + 'graph> ExactSizeIterator for WindowSet<'graph, T> {
-    //unfortunately because Interval can change size, there is no nice divide option
+    // unfortunately because Interval can change size, there is no nice divide option
     fn len(&self) -> usize {
-        let mut cursor = self.cursor;
+        let mut window_end = self.start + (self.counter * self.step);
         let mut count = 0;
-        while cursor < self.end + self.step {
-            let window_start = self.window.map(|w| cursor - w);
+        while window_end < self.end + self.step {
+            let window_start = self.window.map(|w| window_end - w);
             if let Some(start) = window_start {
                 if start >= self.end {
                     break;
                 }
             }
             count += 1;
-            cursor = cursor + self.step;
+            window_end = window_end + self.step;
         }
         count
     }

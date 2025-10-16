@@ -2,15 +2,189 @@ use chrono::{DateTime, Duration, Months};
 use itertools::{Either, Itertools};
 use raphtory_api::core::{storage::timeindex::EventTime, utils::time::ParseTimeError};
 use regex::Regex;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Sub, Mul};
+
+//TODO: MOVE THIS
+pub(crate) const SECOND_MS: i64 = 1000;
+pub(crate) const MINUTE_MS: i64 = 60 * SECOND_MS;
+pub(crate) const HOUR_MS: i64 = 60 * MINUTE_MS;
+pub(crate) const DAY_MS: i64 = 24 * HOUR_MS;
+pub(crate) const WEEK_MS: i64 = 7 * DAY_MS;
+
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum ParseTimeError {
+    #[error("the interval string doesn't contain a complete number of number-unit pairs")]
+    InvalidPairs,
+    #[error("one of the tokens in the interval string supposed to be a number couldn't be parsed")]
+    ParseInt {
+        #[from]
+        source: ParseIntError,
+    },
+    #[error("'{0}' is not a valid unit. Valid units are year(s), month(s), week(s), day(s), hour(s), minute(s), second(s) and millisecond(s).")]
+    InvalidUnit(String),
+    #[error("'{0}' is not a valid unit. Valid units are year(s), month(s), week(s), day(s), hour(s), minute(s), second(s), millisecond(s), and unaligned.")]
+    InvalidAlignmentUnit(String),
+    #[error(transparent)]
+    ParseError(#[from] ParseError),
+    #[error("negative interval is not supported")]
+    NegativeInt,
+    #[error("0 size step is not supported")]
+    ZeroSizeStep,
+    #[error("'{0}' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
+    InvalidDateTimeString(String),
+}
+
+impl From<Infallible> for ParseTimeError {
+    fn from(value: Infallible) -> Self {
+        match value {}
+    }
+}
+
+pub trait IntoTime {
+    fn into_time(self) -> i64;
+}
+
+impl IntoTime for i64 {
+    fn into_time(self) -> i64 {
+        self
+    }
+}
+
+impl<Tz: TimeZone> IntoTime for DateTime<Tz> {
+    fn into_time(self) -> i64 {
+        self.timestamp_millis()
+    }
+}
+
+impl IntoTime for NaiveDateTime {
+    fn into_time(self) -> i64 {
+        self.and_utc().timestamp_millis()
+    }
+}
+
+pub trait TryIntoTime {
+    fn try_into_time(self) -> Result<i64, ParseTimeError>;
+}
+
+impl<T: IntoTime> TryIntoTime for T {
+    fn try_into_time(self) -> Result<i64, ParseTimeError> {
+        Ok(self.into_time())
+    }
+}
+
+impl TryIntoTime for &str {
+    /// Tries to parse the timestamp as RFC3339 and then as ISO 8601 with local format and all
+    /// fields mandatory except for milliseconds and allows replacing the T with a space
+    fn try_into_time(self) -> Result<i64, ParseTimeError> {
+        let rfc_result = DateTime::parse_from_rfc3339(self);
+        if let Ok(datetime) = rfc_result {
+            return Ok(datetime.timestamp_millis());
+        }
+
+        let result = DateTime::parse_from_rfc2822(self);
+        if let Ok(datetime) = result {
+            return Ok(datetime.timestamp_millis());
+        }
+
+        let result = NaiveDate::parse_from_str(self, "%Y-%m-%d");
+        if let Ok(date) = result {
+            return Ok(date
+                .and_hms_opt(00, 00, 00)
+                .unwrap()
+                .and_utc()
+                .timestamp_millis());
+        }
+
+        let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%.3f");
+        if let Ok(datetime) = result {
+            return Ok(datetime.and_utc().timestamp_millis());
+        }
+
+        let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%");
+        if let Ok(datetime) = result {
+            return Ok(datetime.and_utc().timestamp_millis());
+        }
+
+        let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%.3f");
+        if let Ok(datetime) = result {
+            return Ok(datetime.and_utc().timestamp_millis());
+        }
+
+        let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%");
+        if let Ok(datetime) = result {
+            return Ok(datetime.and_utc().timestamp_millis());
+        }
+
+        Err(ParseTimeError::InvalidDateTimeString(self.to_string()))
+    }
+}
+
+/// Used to handle automatic injection of secondary index if not explicitly provided
+pub enum InputTime {
+    Simple(i64),
+    Indexed(i64, usize),
+}
+
+pub trait TryIntoInputTime {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
+}
+
+impl TryIntoInputTime for InputTime {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(self)
+    }
+}
+
+impl TryIntoInputTime for TimeIndexEntry {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Indexed(self.t(), self.i()))
+    }
+}
+
+impl<T: TryIntoTime> TryIntoInputTime for T {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Simple(self.try_into_time()?))
+    }
+}
+
+impl<T: TryIntoTime> TryIntoInputTime for (T, usize) {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Indexed(self.0.try_into_time()?, self.1))
+    }
+}
+
+pub trait IntoTimeWithFormat {
+    fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError>;
+}
+
+impl IntoTimeWithFormat for &str {
+    fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError> {
+        Ok(NaiveDateTime::parse_from_str(self, fmt)?
+            .and_utc()
+            .timestamp_millis())
+    }
+}
+//end of move########################
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum IntervalSize {
     Discrete(u64),
-    Temporal { millis: u64, months: u32 },
+    /// `months` is u32 because chrono::Months works with u32.
+    Temporal {
+        millis: u64,
+        months: u32,
+    },
 }
 
 impl IntervalSize {
+    /// Creates a 0 sized temporal `IntervalSize`. Should not be used to create Windows.
+    pub fn empty_temporal() -> Self {
+        IntervalSize::Temporal {
+            millis: 0,
+            months: 0,
+        }
+    }
+
     fn months(months: i64) -> Self {
         Self::Temporal {
             millis: 0,
@@ -47,16 +221,114 @@ impl From<Duration> for IntervalSize {
     }
 }
 
+/// Used to keep track of the smallest unit provided, so that we can line up windows
+/// (eg. at the start of the hour, week, year, ...)
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum AlignmentUnit {
+    Unaligned, // note that there is no functional difference between millisecond and unaligned for the time being
+    Millisecond,
+    Second,
+    Minute,
+    Hour,
+    Day,
+    Week,
+    Month,
+    Year,
+}
+
+impl AlignmentUnit {
+    /// Floors a UTC timestamp in milliseconds since Unix epoch to the nearest alignment unit.
+    pub fn align_timestamp(&self, timestamp: i64) -> i64 {
+        match self {
+            AlignmentUnit::Unaligned => timestamp,
+            AlignmentUnit::Millisecond => timestamp,
+            AlignmentUnit::Second => Self::floor_ms(timestamp, SECOND_MS),
+            AlignmentUnit::Minute => Self::floor_ms(timestamp, MINUTE_MS),
+            AlignmentUnit::Hour => Self::floor_ms(timestamp, HOUR_MS),
+            AlignmentUnit::Day => Self::floor_ms(timestamp, DAY_MS),
+            AlignmentUnit::Week => Self::floor_ms(timestamp, WEEK_MS),
+            // Month and Year are variable (28, 30, or 31 days / 365 or 366 days so we can't simply use division)
+            AlignmentUnit::Month => {
+                let naive = DateTime::from_timestamp_millis(timestamp)
+                    .unwrap_or_else(|| {
+                        panic!("{timestamp} cannot be interpreted as a milliseconds timestamp.")
+                    })
+                    .naive_utc();
+                let y = naive.year();
+                let m = naive.month();
+                NaiveDate::from_ymd_opt(y, m, 1)
+                    .unwrap()
+                    .and_hms_milli_opt(0, 0, 0, 0)
+                    .unwrap()
+                    .and_utc()
+                    .timestamp_millis()
+            }
+            AlignmentUnit::Year => {
+                let naive = DateTime::from_timestamp_millis(timestamp)
+                    .unwrap_or_else(|| {
+                        panic!("{timestamp} cannot be interpreted as a milliseconds timestamp.")
+                    })
+                    .naive_utc();
+                let y = naive.year();
+                NaiveDate::from_ymd_opt(y, 1, 1)
+                    .unwrap()
+                    .and_hms_milli_opt(0, 0, 0, 0)
+                    .unwrap()
+                    .and_utc()
+                    .timestamp_millis()
+            }
+        }
+    }
+
+    /// Floors `ts` to a multiple of `unit_ms` using a remainder that is always non-negative,
+    /// so the result is the boundary at or before `ts`, even for negative timestamps.
+    #[inline]
+    fn floor_ms(ts: i64, unit_ms: i64) -> i64 {
+        ts - ts.rem_euclid(unit_ms)
+    }
+}
+
+impl TryFrom<String> for AlignmentUnit {
+    type Error = ParseTimeError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
+impl TryFrom<&str> for AlignmentUnit {
+    type Error = ParseTimeError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let unit = match value.to_lowercase().as_str() {
+            "year" | "years" => AlignmentUnit::Year,
+            "month" | "months" => AlignmentUnit::Month,
+            "week" | "weeks" => AlignmentUnit::Week,
+            "day" | "days" => AlignmentUnit::Day,
+            "hour" | "hours" => AlignmentUnit::Hour,
+            "minute" | "minutes" => AlignmentUnit::Minute,
+            "second" | "seconds" => AlignmentUnit::Second,
+            "millisecond" | "milliseconds" => AlignmentUnit::Millisecond,
+            "unaligned" => AlignmentUnit::Unaligned,
+            unit => return Err(ParseTimeError::InvalidAlignmentUnit(unit.to_string())),
+        };
+        Ok(unit)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Interval {
-    pub epoch_alignment: bool,
+    /// Used if the `IntervalSize` is Temporal, keeps track of the smallest unit passed to line up windows.
+    /// (eg. at the start of the hour, week, year, ...). If the IntervalSize is discrete, this is `None`.
+    pub alignment_unit: Option<AlignmentUnit>,
+    /// The interval.
     pub size: IntervalSize,
 }
 
 impl Default for Interval {
     fn default() -> Self {
         Self {
-            epoch_alignment: false,
+            alignment_unit: None,
             size: IntervalSize::Discrete(1),
         }
     }
@@ -86,25 +358,19 @@ impl TryFrom<&str> for Interval {
             return Err(ParseTimeError::InvalidPairs);
         }
 
-        let (intervals, errors): (Vec<IntervalSize>, Vec<ParseTimeError>) = tokens
-            .chunks(2)
-            .map(|chunk| Self::parse_duration(chunk[0], chunk[1]))
-            .partition_map(|d| match d {
-                Ok(d) => Either::Left(d),
-                Err(e) => Either::Right(e),
-            });
+        let (temporal_sum, smallest_unit): (IntervalSize, AlignmentUnit) =
+            tokens.chunks(2).try_fold(
+                (IntervalSize::empty_temporal(), AlignmentUnit::Year), // start with the largest alignment unit
+                |(sum, smallest), chunk| {
+                    let (interval, unit) = Self::parse_duration(chunk[0], chunk[1])?;
+                    Ok::<_, ParseTimeError>((sum.add_temporal(interval), smallest.min(unit)))
+                },
+            )?;
 
-        if errors.is_empty() {
-            Ok(Self {
-                epoch_alignment: true,
-                size: intervals
-                    .into_iter()
-                    .reduce(|a, b| a.add_temporal(b))
-                    .unwrap(),
-            })
-        } else {
-            Err(errors.first().unwrap().clone())
-        }
+        Ok(Self {
+            alignment_unit: Some(smallest_unit),
+            size: temporal_sum,
+        })
     }
 }
 
@@ -112,7 +378,7 @@ impl TryFrom<u64> for Interval {
     type Error = ParseTimeError;
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         Ok(Self {
-            epoch_alignment: false,
+            alignment_unit: None,
             size: IntervalSize::Discrete(value),
         })
     }
@@ -122,7 +388,7 @@ impl TryFrom<u32> for Interval {
     type Error = ParseTimeError;
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         Ok(Self {
-            epoch_alignment: false,
+            alignment_unit: None,
             size: IntervalSize::Discrete(value as u64),
         })
     }
@@ -133,7 +399,7 @@ impl TryFrom<i32> for Interval {
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         if value >= 0 {
             Ok(Self {
-                epoch_alignment: false,
+                alignment_unit: None,
                 size: IntervalSize::Discrete(value as u64),
             })
         } else {
@@ -148,7 +414,7 @@ impl TryFrom<i64> for Interval {
     fn try_from(value: i64) -> Result<Self, Self::Error> {
         if value >= 0 {
             Ok(Self {
-                epoch_alignment: false,
+                alignment_unit: None,
                 size: IntervalSize::Discrete(value as u64),
             })
         } else {
@@ -180,17 +446,23 @@ impl Interval {
         }
     }
 
-    fn parse_duration(number: &str, unit: &str) -> Result<IntervalSize, ParseTimeError> {
+    fn parse_duration(
+        number: &str,
+        unit: &str,
+    ) -> Result<(IntervalSize, AlignmentUnit), ParseTimeError> {
         let number: i64 = number.parse::<u64>()? as i64;
         let duration = match unit {
-            "year" | "years" => IntervalSize::months(number * 12),
-            "month" | "months" => IntervalSize::months(number),
-            "week" | "weeks" => Duration::weeks(number).into(),
-            "day" | "days" => Duration::days(number).into(),
-            "hour" | "hours" => Duration::hours(number).into(),
-            "minute" | "minutes" => Duration::minutes(number).into(),
-            "second" | "seconds" => Duration::seconds(number).into(),
-            "millisecond" | "milliseconds" => Duration::milliseconds(number).into(),
+            "year" | "years" => (IntervalSize::months(number * 12), AlignmentUnit::Year),
+            "month" | "months" => (IntervalSize::months(number), AlignmentUnit::Month),
+            "week" | "weeks" => (Duration::weeks(number).into(), AlignmentUnit::Week),
+            "day" | "days" => (Duration::days(number).into(), AlignmentUnit::Day),
+            "hour" | "hours" => (Duration::hours(number).into(), AlignmentUnit::Hour),
+            "minute" | "minutes" => (Duration::minutes(number).into(), AlignmentUnit::Minute),
+            "second" | "seconds" => (Duration::seconds(number).into(), AlignmentUnit::Second),
+            "millisecond" | "milliseconds" => (
+                Duration::milliseconds(number).into(),
+                AlignmentUnit::Millisecond,
+            ),
             unit => return Err(ParseTimeError::InvalidUnit(unit.to_string())),
         };
         Ok(duration)
@@ -198,63 +470,63 @@ impl Interval {
 
     pub fn discrete(num: u64) -> Self {
         Interval {
-            epoch_alignment: false,
+            alignment_unit: None,
             size: IntervalSize::Discrete(num),
         }
     }
 
     pub fn milliseconds(ms: i64) -> Self {
         Interval {
-            epoch_alignment: true,
+            alignment_unit: Some(AlignmentUnit::Millisecond),
             size: IntervalSize::from(Duration::milliseconds(ms)),
         }
     }
 
     pub fn seconds(seconds: i64) -> Self {
         Interval {
-            epoch_alignment: true,
+            alignment_unit: Some(AlignmentUnit::Second),
             size: IntervalSize::from(Duration::seconds(seconds)),
         }
     }
 
     pub fn minutes(minutes: i64) -> Self {
         Interval {
-            epoch_alignment: true,
+            alignment_unit: Some(AlignmentUnit::Minute),
             size: IntervalSize::from(Duration::minutes(minutes)),
         }
     }
 
     pub fn hours(hours: i64) -> Self {
         Interval {
-            epoch_alignment: true,
+            alignment_unit: Some(AlignmentUnit::Hour),
             size: IntervalSize::from(Duration::hours(hours)),
         }
     }
 
     pub fn days(days: i64) -> Self {
         Interval {
-            epoch_alignment: true,
+            alignment_unit: Some(AlignmentUnit::Day),
             size: IntervalSize::from(Duration::days(days)),
         }
     }
 
     pub fn weeks(weeks: i64) -> Self {
         Interval {
-            epoch_alignment: true,
+            alignment_unit: Some(AlignmentUnit::Week),
             size: IntervalSize::from(Duration::weeks(weeks)),
         }
     }
 
     pub fn months(months: i64) -> Self {
         Interval {
-            epoch_alignment: true,
+            alignment_unit: Some(AlignmentUnit::Month),
             size: IntervalSize::months(months),
         }
     }
 
     pub fn years(years: i64) -> Self {
         Interval {
-            epoch_alignment: true,
+            alignment_unit: Some(AlignmentUnit::Year),
             size: IntervalSize::months(12 * years),
         }
     }
@@ -262,11 +534,11 @@ impl Interval {
     pub fn and(&self, other: &Self) -> Result<Self, IntervalTypeError> {
         match (self.size, other.size) {
             (IntervalSize::Discrete(l), IntervalSize::Discrete(r)) => Ok(Interval {
-                epoch_alignment: false,
+                alignment_unit: None,
                 size: IntervalSize::Discrete(l + r),
             }),
             (IntervalSize::Temporal { .. }, IntervalSize::Temporal { .. }) => Ok(Interval {
-                epoch_alignment: true,
+                alignment_unit: self.alignment_unit.min(other.alignment_unit),
                 size: self.size.add_temporal(other.size),
             }),
             (_, _) => Err(IntervalTypeError()),
@@ -331,11 +603,33 @@ impl Add<Interval> for i64 {
     }
 }
 
+// since all IntervalSize values (discrete number and temporal millis/months) are unsigned,
+// we can only multiply with unsigned numbers.
+impl Mul<Interval> for u32 {
+    type Output = Interval;
+
+    fn mul(self, rhs: Interval) -> Self::Output {
+        match rhs.size {
+            IntervalSize::Discrete(number) => Interval {
+                alignment_unit: rhs.alignment_unit, // alignment_unit should be None
+                size: IntervalSize::Discrete((self as u64) * number),
+            },
+            IntervalSize::Temporal { millis, months } => Interval {
+                alignment_unit: rhs.alignment_unit,
+                size: IntervalSize::Temporal {
+                    millis: (self as u64) * millis,
+                    months: self * months,
+                },
+            },
+        }
+    }
+}
+
 impl Add<Interval> for EventTime {
     type Output = EventTime;
     fn add(self, rhs: Interval) -> Self::Output {
         match rhs.size {
-            IntervalSize::Discrete(number) => EventTime::from(self.0 + (number as i64)),
+            IntervalSize::Discrete(number) => EventTime(self.0 + (number as i64), self.1),
             IntervalSize::Temporal { millis, months } => {
                 // first we add the number of months and then the number of milliseconds for
                 // consistency with the implementation of Sub (we revert back the steps) so we

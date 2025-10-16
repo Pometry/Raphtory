@@ -11,8 +11,7 @@ use crate::{
             property::{GqlMetadata, GqlProperties},
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlGraphWindowSet,
-            WindowDuration,
-            WindowDuration::{Duration, Epoch},
+            GqlAlignmentUnit, WindowDuration,
         },
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
@@ -24,7 +23,10 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::{
+        entities::nodes::node_ref::{AsNodeRef, NodeRef},
+        utils::time::TryIntoInterval,
+    },
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -145,53 +147,49 @@ impl GqlGraph {
     }
 
     /// Creates a rolling window with the specified window size and an optional step.
+    ///
+    /// A rolling window is a window that moves forward by step size at each iteration.
+    ///
+    /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+    /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+    /// e.g. "1 month and 1 day" will align at the start of the day.
+    /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+    /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
     async fn rolling(
         &self,
         window: WindowDuration,
         step: Option<WindowDuration>,
+        alignment_unit: Option<GqlAlignmentUnit>,
     ) -> Result<GqlGraphWindowSet, GraphError> {
-        match window {
-            Duration(window_duration) => match step {
-                Some(step) => match step {
-                    Duration(step_duration) => Ok(GqlGraphWindowSet::new(
-                        self.graph.rolling(window_duration, Some(step_duration))?,
-                        self.path.clone(),
-                    )),
-                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
-                },
-                None => Ok(GqlGraphWindowSet::new(
-                    self.graph.rolling(window_duration, None)?,
-                    self.path.clone(),
-                )),
-            },
-            Epoch(window_duration) => match step {
-                Some(step) => match step {
-                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
-                    Epoch(step_duration) => Ok(GqlGraphWindowSet::new(
-                        self.graph.rolling(window_duration, Some(step_duration))?,
-                        self.path.clone(),
-                    )),
-                },
-                None => Ok(GqlGraphWindowSet::new(
-                    self.graph.rolling(window_duration, None)?,
-                    self.path.clone(),
-                )),
-            },
-        }
+        let window = window.try_into_interval()?;
+        let step = step.map(|x| x.try_into_interval()).transpose()?;
+        let ws = if let Some(unit) = alignment_unit {
+            self.graph.rolling_aligned(window, step, unit.into())?
+        } else {
+            self.graph.rolling(window, step)?
+        };
+        Ok(GqlGraphWindowSet::new(ws, self.path.clone()))
     }
 
-    /// Creates a expanding window with the specified step size.
-    async fn expanding(&self, step: WindowDuration) -> Result<GqlGraphWindowSet, GraphError> {
-        match step {
-            Duration(step) => Ok(GqlGraphWindowSet::new(
-                self.graph.expanding(step)?,
-                self.path.clone(),
-            )),
-            Epoch(step) => Ok(GqlGraphWindowSet::new(
-                self.graph.expanding(step)?,
-                self.path.clone(),
-            )),
-        }
+    /// Creates an expanding window with the specified step size.
+    ///
+    /// An expanding window is a window that grows by step size at each iteration.
+    ///
+    /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+    /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+    /// e.g. "1 month and 1 day" will align at the start of the day.
+    async fn expanding(
+        &self,
+        step: WindowDuration,
+        alignment_unit: Option<GqlAlignmentUnit>,
+    ) -> Result<GqlGraphWindowSet, GraphError> {
+        let step = step.try_into_interval()?;
+        let ws = if let Some(unit) = alignment_unit {
+            self.graph.expanding_aligned(step, unit.into())?
+        } else {
+            self.graph.expanding(step)?
+        };
+        Ok(GqlGraphWindowSet::new(ws, self.path.clone()))
     }
 
     /// Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
