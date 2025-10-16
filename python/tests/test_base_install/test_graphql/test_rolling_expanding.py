@@ -2168,7 +2168,9 @@ def test_mismatched_window_step_and_errors():
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 1, 1, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 1, 1, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2184,7 +2186,9 @@ def test_mismatched_window_step_and_errors():
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 1, 2, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 1, 2, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2200,7 +2204,9 @@ def test_mismatched_window_step_and_errors():
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 1, 3, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 1, 3, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2236,13 +2242,17 @@ def test_mismatched_window_step_and_errors():
                     {
                         "start": {
                             "timestamp": int(
-                                datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 4, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 5, 0, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 5, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2250,13 +2260,17 @@ def test_mismatched_window_step_and_errors():
                     {
                         "start": {
                             "timestamp": int(
-                                datetime(2025, 1, 4, 1, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 4, 1, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 5, 1, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 5, 1, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2291,13 +2305,17 @@ def test_mismatched_window_step_and_errors():
                     {
                         "start": {
                             "timestamp": int(
-                                datetime(2025, 1, 1, 23, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 1, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 2, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2305,13 +2323,17 @@ def test_mismatched_window_step_and_errors():
                     {
                         "start": {
                             "timestamp": int(
-                                datetime(2025, 1, 2, 23, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 2, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 3, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2319,13 +2341,17 @@ def test_mismatched_window_step_and_errors():
                     {
                         "start": {
                             "timestamp": int(
-                                datetime(2025, 1, 3, 23, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 3, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 4, 0, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 4, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2333,13 +2359,17 @@ def test_mismatched_window_step_and_errors():
                     {
                         "start": {
                             "timestamp": int(
-                                datetime(2025, 1, 4, 23, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 4, 23, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
                         "end": {
                             "timestamp": int(
-                                datetime(2025, 1, 5, 0, 0, tzinfo=timezone.utc).timestamp()
+                                datetime(
+                                    2025, 1, 5, 0, 0, tzinfo=timezone.utc
+                                ).timestamp()
                             )
                             * 1000
                         },
@@ -2423,7 +2453,14 @@ def test_mismatched_window_step_and_errors():
                             "start": {
                                 "timestamp": int(
                                     datetime(
-                                        2024, 12, 31, 0, 0, 0, 11_000, tzinfo=timezone.utc
+                                        2024,
+                                        12,
+                                        31,
+                                        0,
+                                        0,
+                                        0,
+                                        11_000,
+                                        tzinfo=timezone.utc,
                                     ).timestamp()
                                     * 1000
                                 )
@@ -2441,7 +2478,14 @@ def test_mismatched_window_step_and_errors():
                             "start": {
                                 "timestamp": int(
                                     datetime(
-                                        2024, 12, 31, 0, 0, 0, 22_000, tzinfo=timezone.utc
+                                        2024,
+                                        12,
+                                        31,
+                                        0,
+                                        0,
+                                        0,
+                                        22_000,
+                                        tzinfo=timezone.utc,
                                     ).timestamp()
                                     * 1000
                                 )
@@ -2459,7 +2503,14 @@ def test_mismatched_window_step_and_errors():
                             "start": {
                                 "timestamp": int(
                                     datetime(
-                                        2024, 12, 31, 0, 0, 0, 33_000, tzinfo=timezone.utc
+                                        2024,
+                                        12,
+                                        31,
+                                        0,
+                                        0,
+                                        0,
+                                        33_000,
+                                        tzinfo=timezone.utc,
                                     ).timestamp()
                                     * 1000
                                 )
@@ -2508,7 +2559,14 @@ def test_mismatched_window_step_and_errors():
                             "start": {
                                 "timestamp": int(
                                     datetime(
-                                        2025, 1, 3, 23, 59, 59, 991_000, tzinfo=timezone.utc
+                                        2025,
+                                        1,
+                                        3,
+                                        23,
+                                        59,
+                                        59,
+                                        991_000,
+                                        tzinfo=timezone.utc,
                                     ).timestamp()
                                     * 1000
                                 )
@@ -2516,7 +2574,14 @@ def test_mismatched_window_step_and_errors():
                             "end": {
                                 "timestamp": int(
                                     datetime(
-                                        2025, 1, 4, 23, 59, 59, 991_000, tzinfo=timezone.utc
+                                        2025,
+                                        1,
+                                        4,
+                                        23,
+                                        59,
+                                        59,
+                                        991_000,
+                                        tzinfo=timezone.utc,
                                     ).timestamp()
                                     * 1000
                                 )
@@ -2575,14 +2640,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -2591,14 +2658,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -2607,14 +2676,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 3, 23, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 4, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -2623,14 +2694,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 4, 23, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 5, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -2836,14 +2909,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 4, 0, 1, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 5, 0, 1, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 }
@@ -2858,14 +2933,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 4, 0, 1, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 5, 0, 1, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 }
@@ -2910,14 +2987,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -2926,14 +3005,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -2942,14 +3023,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 3, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 4, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -2958,14 +3041,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 4, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 5, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -2980,14 +3065,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -2996,14 +3083,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3012,14 +3101,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 3, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 4, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3028,14 +3119,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 4, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 5, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3082,15 +3175,27 @@ def test_mismatched_window_step_and_errors():
                                         "start": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2024, 12, 31, 0, 1, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2024,
+                                                    12,
+                                                    31,
+                                                    0,
+                                                    1,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 1, 0, 1, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    1,
+                                                    0,
+                                                    1,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                     },
@@ -3098,15 +3203,27 @@ def test_mismatched_window_step_and_errors():
                                         "start": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2024, 12, 31, 0, 1, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2024,
+                                                    12,
+                                                    31,
+                                                    0,
+                                                    1,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 1, 0, 1, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    1,
+                                                    0,
+                                                    1,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                     },
@@ -3118,15 +3235,27 @@ def test_mismatched_window_step_and_errors():
                                         "start": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2024, 12, 31, 0, 2, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2024,
+                                                    12,
+                                                    31,
+                                                    0,
+                                                    2,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 1, 0, 2, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    1,
+                                                    0,
+                                                    2,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                     },
@@ -3134,15 +3263,27 @@ def test_mismatched_window_step_and_errors():
                                         "start": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2024, 12, 31, 0, 2, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2024,
+                                                    12,
+                                                    31,
+                                                    0,
+                                                    2,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 1, 0, 2, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    1,
+                                                    0,
+                                                    2,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                     },
@@ -3190,15 +3331,27 @@ def test_mismatched_window_step_and_errors():
                                         "start": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    1,
+                                                    23,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    2,
+                                                    0,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                     },
@@ -3206,15 +3359,27 @@ def test_mismatched_window_step_and_errors():
                                         "start": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    1,
+                                                    23,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    2,
+                                                    0,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                     },
@@ -3226,15 +3391,27 @@ def test_mismatched_window_step_and_errors():
                                         "start": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    2,
+                                                    23,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    3,
+                                                    0,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                     },
@@ -3242,15 +3419,27 @@ def test_mismatched_window_step_and_errors():
                                         "start": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    2,
+                                                    23,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    1,
+                                                    3,
+                                                    0,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         },
                                     },
@@ -3292,14 +3481,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2024, 12, 31, 0, 1, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 1, 0, 1, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -3308,14 +3499,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2024, 12, 31, 0, 2, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 1, 0, 2, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -3324,14 +3517,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2024, 12, 31, 0, 3, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 1, 0, 3, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -3371,14 +3566,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 4, 0, 1, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 5, 0, 1, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         }
@@ -3417,14 +3614,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -3433,14 +3632,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -3449,14 +3650,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 3, 23, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 4, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -3465,14 +3668,16 @@ def test_mismatched_window_step_and_errors():
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 4, 23, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                             "end": {
                                 "timestamp": int(
                                     datetime(
                                         2025, 1, 5, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             },
                         },
@@ -3515,14 +3720,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2024, 12, 31, 0, 1, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 0, 1, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3531,14 +3738,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2024, 12, 31, 0, 1, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 0, 1, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3547,14 +3756,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2024, 12, 31, 0, 1, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 0, 1, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3567,14 +3778,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2024, 12, 31, 0, 2, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 0, 2, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3583,14 +3796,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2024, 12, 31, 0, 2, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 0, 2, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3599,14 +3814,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2024, 12, 31, 0, 2, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 0, 2, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3651,14 +3868,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3667,14 +3886,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3683,14 +3904,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 1, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3703,14 +3926,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3719,14 +3944,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3735,14 +3962,16 @@ def test_mismatched_window_step_and_errors():
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 2, 23, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                     "end": {
                                         "timestamp": int(
                                             datetime(
                                                 2025, 1, 3, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     },
                                 },
@@ -3796,14 +4025,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 1, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -3812,14 +4043,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 1, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -3828,14 +4061,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 1, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -3889,14 +4124,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -3905,14 +4142,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -3921,14 +4160,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 6, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -3963,14 +4204,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -3979,14 +4222,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -3995,14 +4240,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 6, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4037,14 +4284,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 15, 14, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 15, 14, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4053,14 +4302,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 15, 14, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 15, 14, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4069,14 +4320,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 15, 14, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 6, 15, 14, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4111,14 +4364,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 29, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4127,14 +4382,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 12, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 12, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4143,14 +4400,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 26, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 26, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4185,14 +4444,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4201,14 +4462,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4217,14 +4480,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 18, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4259,14 +4524,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 16, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4275,14 +4542,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 16, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 17, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4291,14 +4560,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 17, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 6, 18, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4333,14 +4604,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 2, 16, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4349,14 +4622,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 2, 17, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4365,14 +4640,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 2, 18, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 18, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     },
@@ -4409,14 +4686,16 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                         "end": {
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 15, 14, 37, 53, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         },
                     }
@@ -4449,7 +4728,8 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 16, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         }
                     },
@@ -4458,7 +4738,8 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         }
                     },
@@ -4490,7 +4771,8 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         }
                     },
@@ -4499,7 +4781,8 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 15, 14, 37, 52, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         }
                     },
@@ -4531,7 +4814,8 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         }
                     },
@@ -4540,7 +4824,8 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 15, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         }
                     },
@@ -4572,7 +4857,8 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 4, 13, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         }
                     },
@@ -4581,7 +4867,8 @@ def test_alignment():
                             "timestamp": int(
                                 datetime(
                                     2025, 5, 13, 0, 0, 0, tzinfo=timezone.utc
-                                ).timestamp() * 1000
+                                ).timestamp()
+                                * 1000
                             )
                         }
                     },
@@ -4616,7 +4903,8 @@ def test_alignment():
                                 "timestamp": int(
                                     datetime(
                                         2025, 3, 17, 0, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             }
                         },
@@ -4625,7 +4913,8 @@ def test_alignment():
                                 "timestamp": int(
                                     datetime(
                                         2025, 3, 19, 0, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             }
                         },
@@ -4662,7 +4951,8 @@ def test_alignment():
                                 "timestamp": int(
                                     datetime(
                                         2025, 11, 24, 0, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             }
                         }
@@ -4702,8 +4992,15 @@ def test_alignment():
                                     "end": {
                                         "timestamp": int(
                                             datetime(
-                                                2025, 3, 15, 14, 38, 52, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                                2025,
+                                                3,
+                                                15,
+                                                14,
+                                                38,
+                                                52,
+                                                tzinfo=timezone.utc,
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 },
@@ -4711,8 +5008,15 @@ def test_alignment():
                                     "end": {
                                         "timestamp": int(
                                             datetime(
-                                                2025, 3, 15, 14, 39, 52, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                                2025,
+                                                3,
+                                                15,
+                                                14,
+                                                39,
+                                                52,
+                                                tzinfo=timezone.utc,
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 },
@@ -4726,8 +5030,15 @@ def test_alignment():
                                     "end": {
                                         "timestamp": int(
                                             datetime(
-                                                2025, 3, 15, 14, 38, 52, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                                2025,
+                                                3,
+                                                15,
+                                                14,
+                                                38,
+                                                52,
+                                                tzinfo=timezone.utc,
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 },
@@ -4735,8 +5046,15 @@ def test_alignment():
                                     "end": {
                                         "timestamp": int(
                                             datetime(
-                                                2025, 3, 15, 14, 39, 52, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                                2025,
+                                                3,
+                                                15,
+                                                14,
+                                                39,
+                                                52,
+                                                tzinfo=timezone.utc,
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 },
@@ -4785,7 +5103,8 @@ def test_alignment():
                                                 45,
                                                 52,
                                                 tzinfo=timezone.utc,
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 }
@@ -4806,7 +5125,8 @@ def test_alignment():
                                                 45,
                                                 52,
                                                 tzinfo=timezone.utc,
-                                            ).timestamp() * 1000
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 }
@@ -4844,7 +5164,8 @@ def test_alignment():
                                 "timestamp": int(
                                     datetime(
                                         2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             }
                         },
@@ -4853,7 +5174,8 @@ def test_alignment():
                                 "timestamp": int(
                                     datetime(
                                         2025, 9, 1, 0, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             }
                         },
@@ -4862,7 +5184,8 @@ def test_alignment():
                                 "timestamp": int(
                                     datetime(
                                         2025, 12, 1, 0, 0, 0, tzinfo=timezone.utc
-                                    ).timestamp() * 1000
+                                    ).timestamp()
+                                    * 1000
                                 )
                             }
                         },
@@ -4901,8 +5224,15 @@ def test_alignment():
                                     "end": {
                                         "timestamp": int(
                                             datetime(
-                                                2025, 5, 22, 0, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                                2025,
+                                                5,
+                                                22,
+                                                0,
+                                                0,
+                                                0,
+                                                tzinfo=timezone.utc,
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 }
@@ -4914,8 +5244,15 @@ def test_alignment():
                                     "end": {
                                         "timestamp": int(
                                             datetime(
-                                                2025, 7, 31, 0, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                                2025,
+                                                7,
+                                                31,
+                                                0,
+                                                0,
+                                                0,
+                                                tzinfo=timezone.utc,
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 }
@@ -4927,8 +5264,15 @@ def test_alignment():
                                     "end": {
                                         "timestamp": int(
                                             datetime(
-                                                2025, 10, 9, 0, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                                2025,
+                                                10,
+                                                9,
+                                                0,
+                                                0,
+                                                0,
+                                                tzinfo=timezone.utc,
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 }
@@ -4940,8 +5284,15 @@ def test_alignment():
                                     "end": {
                                         "timestamp": int(
                                             datetime(
-                                                2025, 12, 18, 0, 0, 0, tzinfo=timezone.utc
-                                            ).timestamp() * 1000
+                                                2025,
+                                                12,
+                                                18,
+                                                0,
+                                                0,
+                                                0,
+                                                tzinfo=timezone.utc,
+                                            ).timestamp()
+                                            * 1000
                                         )
                                     }
                                 }
@@ -4992,7 +5343,8 @@ def test_alignment():
                                                     0,
                                                     0,
                                                     tzinfo=timezone.utc,
-                                                ).timestamp() * 1000
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         }
                                     }
@@ -5004,8 +5356,15 @@ def test_alignment():
                                         "end": {
                                             "timestamp": int(
                                                 datetime(
-                                                    2025, 8, 2, 0, 0, 0, tzinfo=timezone.utc
-                                                ).timestamp() * 1000
+                                                    2025,
+                                                    8,
+                                                    2,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    tzinfo=timezone.utc,
+                                                ).timestamp()
+                                                * 1000
                                             )
                                         }
                                     }

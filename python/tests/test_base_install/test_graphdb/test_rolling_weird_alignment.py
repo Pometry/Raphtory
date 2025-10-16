@@ -27,9 +27,7 @@ def test_31st_lines_up_on_30th():
     assert window_ms[0].start.dt == datetime(
         2025, 3, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc)
 
     # importantly, the ends here are on the 31st instead if 30th
     assert window[1].start.dt == datetime(2025, 4, 30, 0, 0, tzinfo=timezone.utc)
@@ -37,9 +35,7 @@ def test_31st_lines_up_on_30th():
     assert window_ms[1].start.dt == datetime(
         2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2025, 5, 31, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2025, 5, 31, 14, 37, 52, tzinfo=timezone.utc)
 
     # ends go back to the 30th
     assert window[2].start.dt == datetime(2025, 5, 30, 0, 0, tzinfo=timezone.utc)
@@ -47,9 +43,7 @@ def test_31st_lines_up_on_30th():
     assert window_ms[2].start.dt == datetime(
         2025, 5, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[2].end.dt == datetime(
-        2025, 6, 30, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[2].end.dt == datetime(2025, 6, 30, 14, 37, 52, tzinfo=timezone.utc)
 
 
 def test_30th_never_lines_up_on_31st():
@@ -71,27 +65,21 @@ def test_30th_never_lines_up_on_31st():
     assert window_ms[0].start.dt == datetime(
         2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2025, 5, 30, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2025, 5, 30, 14, 37, 52, tzinfo=timezone.utc)
 
     assert window[1].start.dt == datetime(2025, 5, 30, 0, 0, tzinfo=timezone.utc)
     assert window[1].end.dt == datetime(2025, 6, 30, 0, 0, tzinfo=timezone.utc)
     assert window_ms[1].start.dt == datetime(
         2025, 5, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2025, 6, 30, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2025, 6, 30, 14, 37, 52, tzinfo=timezone.utc)
 
     assert window[2].start.dt == datetime(2025, 6, 30, 0, 0, tzinfo=timezone.utc)
     assert window[2].end.dt == datetime(2025, 7, 30, 0, 0, tzinfo=timezone.utc)
     assert window_ms[2].start.dt == datetime(
         2025, 6, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[2].end.dt == datetime(
-        2025, 7, 30, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[2].end.dt == datetime(2025, 7, 30, 14, 37, 52, tzinfo=timezone.utc)
 
 
 def test_31st_lines_up_on_31st_july():
@@ -109,40 +97,24 @@ def test_31st_lines_up_on_31st_july():
     )[:3]
 
     # starts and ends both 31st because july and august both have 31 days
-    assert window[0].start.dt == datetime(
-        2025, 7, 31, 0, 0, 0, tzinfo=timezone.utc
-    )
-    assert window[0].end.dt == datetime(
-        2025, 8, 31, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[0].start.dt == datetime(2025, 7, 31, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end.dt == datetime(2025, 8, 31, 0, 0, 0, tzinfo=timezone.utc)
     assert window_ms[0].start.dt == datetime(
         2025, 7, 31, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2025, 8, 31, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2025, 8, 31, 14, 37, 52, tzinfo=timezone.utc)
 
     # ends are now 30th so starts as well
-    assert window[1].start.dt == datetime(
-        2025, 8, 30, 0, 0, 0, tzinfo=timezone.utc
-    )
-    assert window[1].end.dt == datetime(
-        2025, 9, 30, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[1].start.dt == datetime(2025, 8, 30, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end.dt == datetime(2025, 9, 30, 0, 0, 0, tzinfo=timezone.utc)
     assert window_ms[1].start.dt == datetime(
         2025, 8, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2025, 9, 30, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2025, 9, 30, 14, 37, 52, tzinfo=timezone.utc)
 
     # ends go back to 31st, but start months only have 30 days (October 31st - "1 month" = September 30th) september only has 30 days
-    assert window[2].start.dt == datetime(
-        2025, 9, 30, 0, 0, 0, tzinfo=timezone.utc
-    )
-    assert window[2].end.dt == datetime(
-        2025, 10, 31, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[2].start.dt == datetime(2025, 9, 30, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[2].end.dt == datetime(2025, 10, 31, 0, 0, 0, tzinfo=timezone.utc)
     assert window_ms[2].start.dt == datetime(
         2025, 9, 30, 14, 37, 52, tzinfo=timezone.utc
     )
@@ -166,40 +138,28 @@ def test_31st_lines_up_on_28th_february():
     )[:3]
 
     # december and january both have 31 days so start and end are both on the 31st
-    assert window[0].start.dt == datetime(
-        2025, 12, 31, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[0].start.dt == datetime(2025, 12, 31, 0, 0, 0, tzinfo=timezone.utc)
     assert window[0].end.dt == datetime(2026, 1, 31, 0, 0, tzinfo=timezone.utc)
     assert window_ms[0].start.dt == datetime(
         2025, 12, 31, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2026, 1, 31, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2026, 1, 31, 14, 37, 52, tzinfo=timezone.utc)
 
     # february has 28 days so the ends line up on the 28th, and the starts follow
-    assert window[1].start.dt == datetime(
-        2026, 1, 28, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[1].start.dt == datetime(2026, 1, 28, 0, 0, 0, tzinfo=timezone.utc)
     assert window[1].end.dt == datetime(2026, 2, 28, 0, 0, tzinfo=timezone.utc)
     assert window_ms[1].start.dt == datetime(
         2026, 1, 28, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2026, 2, 28, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2026, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
 
     # march has 31 days, but March 31st - "1 month" = February 28th (feb 31st doesn't exist)
-    assert window[2].start.dt == datetime(
-        2026, 2, 28, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[2].start.dt == datetime(2026, 2, 28, 0, 0, 0, tzinfo=timezone.utc)
     assert window[2].end.dt == datetime(2026, 3, 31, 0, 0, tzinfo=timezone.utc)
     assert window_ms[2].start.dt == datetime(
         2026, 2, 28, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[2].end.dt == datetime(
-        2026, 3, 31, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[2].end.dt == datetime(2026, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
 
     # starting on January 31st
     g = Graph()
@@ -215,40 +175,28 @@ def test_31st_lines_up_on_28th_february():
     )[:3]
 
     # february has 28 days so the ends line up on the 28th, and the starts follow
-    assert window[0].start.dt == datetime(
-        2025, 1, 28, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[0].start.dt == datetime(2025, 1, 28, 0, 0, 0, tzinfo=timezone.utc)
     assert window[0].end.dt == datetime(2025, 2, 28, 0, 0, tzinfo=timezone.utc)
     assert window_ms[0].start.dt == datetime(
         2025, 1, 28, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc)
 
     # march has 31 days, but March 31st - "1 month" = February 28th (feb 31st doesn't exist)
-    assert window[1].start.dt == datetime(
-        2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[1].start.dt == datetime(2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc)
     assert window[1].end.dt == datetime(2025, 3, 31, 0, 0, tzinfo=timezone.utc)
     assert window_ms[1].start.dt == datetime(
         2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2025, 3, 31, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2025, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
 
     # ends are now lined on 30th (April has 30 days)
-    assert window[2].start.dt == datetime(
-        2025, 3, 30, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[2].start.dt == datetime(2025, 3, 30, 0, 0, 0, tzinfo=timezone.utc)
     assert window[2].end.dt == datetime(2025, 4, 30, 0, 0, tzinfo=timezone.utc)
     assert window_ms[2].start.dt == datetime(
         2025, 3, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[2].end.dt == datetime(
-        2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[2].end.dt == datetime(2025, 4, 30, 14, 37, 52, tzinfo=timezone.utc)
 
 
 def test_31st_lines_up_on_29th_february():
@@ -266,40 +214,28 @@ def test_31st_lines_up_on_29th_february():
     )[:3]
 
     # december and january both have 31 days so start and end are both on the 31st
-    assert window[0].start.dt == datetime(
-        2023, 12, 31, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[0].start.dt == datetime(2023, 12, 31, 0, 0, 0, tzinfo=timezone.utc)
     assert window[0].end.dt == datetime(2024, 1, 31, 0, 0, tzinfo=timezone.utc)
     assert window_ms[0].start.dt == datetime(
         2023, 12, 31, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2024, 1, 31, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2024, 1, 31, 14, 37, 52, tzinfo=timezone.utc)
 
     # leap year february has 29 days so the ends line up on the 29th, and the starts follow
-    assert window[1].start.dt == datetime(
-        2024, 1, 29, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[1].start.dt == datetime(2024, 1, 29, 0, 0, 0, tzinfo=timezone.utc)
     assert window[1].end.dt == datetime(2024, 2, 29, 0, 0, tzinfo=timezone.utc)
     assert window_ms[1].start.dt == datetime(
         2024, 1, 29, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
 
     # march has 31 days, but March 31st - "1 month" = February 29th (feb 31st doesn't exist)
-    assert window[2].start.dt == datetime(
-        2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[2].start.dt == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
     assert window[2].end.dt == datetime(2024, 3, 31, 0, 0, tzinfo=timezone.utc)
     assert window_ms[2].start.dt == datetime(
         2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[2].end.dt == datetime(
-        2024, 3, 31, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[2].end.dt == datetime(2024, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
 
     # starting on January 31st
     g = Graph()
@@ -315,40 +251,28 @@ def test_31st_lines_up_on_29th_february():
     )[:3]
 
     # leap year february has 29 days so the ends line up on the 29th, and the starts follow
-    assert window[0].start.dt == datetime(
-        2024, 1, 29, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[0].start.dt == datetime(2024, 1, 29, 0, 0, 0, tzinfo=timezone.utc)
     assert window[0].end.dt == datetime(2024, 2, 29, 0, 0, tzinfo=timezone.utc)
     assert window_ms[0].start.dt == datetime(
         2024, 1, 29, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc)
 
     # march has 31 days, but March 31st - "1 month" = February 29th (feb 31st doesn't exist)
-    assert window[1].start.dt == datetime(
-        2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[1].start.dt == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
     assert window[1].end.dt == datetime(2024, 3, 31, 0, 0, tzinfo=timezone.utc)
     assert window_ms[1].start.dt == datetime(
         2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2024, 3, 31, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2024, 3, 31, 14, 37, 52, tzinfo=timezone.utc)
 
     # ends are now lined on 30th (April has 30 days)
-    assert window[2].start.dt == datetime(
-        2024, 3, 30, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[2].start.dt == datetime(2024, 3, 30, 0, 0, 0, tzinfo=timezone.utc)
     assert window[2].end.dt == datetime(2024, 4, 30, 0, 0, tzinfo=timezone.utc)
     assert window_ms[2].start.dt == datetime(
         2024, 3, 30, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[2].end.dt == datetime(
-        2024, 4, 30, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[2].end.dt == datetime(2024, 4, 30, 14, 37, 52, tzinfo=timezone.utc)
 
 
 def test_feb_28th_start_alignment_with_step():
@@ -517,32 +441,20 @@ def test_feb_28th_no_weirdness():
         g.rolling("1 month", alignment_unit="millisecond")
     )[:3]
 
-    assert window[0].start.dt == datetime(
-        2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc
-    )
-    assert window[0].end.dt == datetime(
-        2025, 3, 28, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[0].start.dt == datetime(2025, 2, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end.dt == datetime(2025, 3, 28, 0, 0, 0, tzinfo=timezone.utc)
     assert window_ms[0].start.dt == datetime(
         2025, 2, 28, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2025, 3, 28, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2025, 3, 28, 14, 37, 52, tzinfo=timezone.utc)
 
     # no weirdness
-    assert window[1].start.dt == datetime(
-        2025, 3, 28, 0, 0, 0, tzinfo=timezone.utc
-    )
-    assert window[1].end.dt == datetime(
-        2025, 4, 28, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[1].start.dt == datetime(2025, 3, 28, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end.dt == datetime(2025, 4, 28, 0, 0, 0, tzinfo=timezone.utc)
     assert window_ms[1].start.dt == datetime(
         2025, 3, 28, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2025, 4, 28, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2025, 4, 28, 14, 37, 52, tzinfo=timezone.utc)
 
 
 def test_feb_29th_no_weirdness():
@@ -558,29 +470,17 @@ def test_feb_29th_no_weirdness():
         g.rolling("1 month", alignment_unit="millisecond")
     )[:3]
 
-    assert window[0].start.dt == datetime(
-        2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc
-    )
-    assert window[0].end.dt == datetime(
-        2024, 3, 29, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[0].start.dt == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[0].end.dt == datetime(2024, 3, 29, 0, 0, 0, tzinfo=timezone.utc)
     assert window_ms[0].start.dt == datetime(
         2024, 2, 29, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[0].end.dt == datetime(
-        2024, 3, 29, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[0].end.dt == datetime(2024, 3, 29, 14, 37, 52, tzinfo=timezone.utc)
 
     # no weirdness
-    assert window[1].start.dt == datetime(
-        2024, 3, 29, 0, 0, 0, tzinfo=timezone.utc
-    )
-    assert window[1].end.dt == datetime(
-        2024, 4, 29, 0, 0, 0, tzinfo=timezone.utc
-    )
+    assert window[1].start.dt == datetime(2024, 3, 29, 0, 0, 0, tzinfo=timezone.utc)
+    assert window[1].end.dt == datetime(2024, 4, 29, 0, 0, 0, tzinfo=timezone.utc)
     assert window_ms[1].start.dt == datetime(
         2024, 3, 29, 14, 37, 52, tzinfo=timezone.utc
     )
-    assert window_ms[1].end.dt == datetime(
-        2024, 4, 29, 14, 37, 52, tzinfo=timezone.utc
-    )
+    assert window_ms[1].end.dt == datetime(2024, 4, 29, 14, 37, 52, tzinfo=timezone.utc)
