@@ -146,11 +146,11 @@ impl PyGraphEncoder {
 #[pymethods]
 impl PyGraph {
     #[new]
-    #[pyo3(signature = (num_shards = None))]
-    pub fn py_new(num_shards: Option<usize>) -> (Self, PyGraphView) {
-        let graph = match num_shards {
+    #[pyo3(signature = (path = None))]
+    pub fn py_new(path: Option<PathBuf>) -> (Self, PyGraphView) {
+        let graph = match path {
             None => Graph::new(),
-            Some(num_shards) => Graph::new_with_shards(num_shards),
+            Some(path) => Graph::new_at_path(path),
         };
         (
             Self {
@@ -160,24 +160,17 @@ impl PyGraph {
         )
     }
 
+    #[staticmethod]
+    pub fn load(path: PathBuf) -> Graph {
+        Graph::load_from_path(path)
+    }
+
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
         let state = self.graph.encode_to_vec();
         (PyGraphEncoder, (state,))
     }
 
-    /// Persist graph on disk
-    ///
-    /// Arguments:
-    ///     graph_dir (str | PathLike): the folder where the graph will be persisted
-    ///
-    /// Returns:
-    ///     Graph: a view of the persisted graph
-    #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        self.graph.persist_as_disk_graph(graph_dir)
-    }
-
-    /// Persist graph to parquet files.
+    /// Persist graph to parquet files
     ///
     /// Arguments:
     ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet

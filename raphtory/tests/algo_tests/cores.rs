@@ -1,9 +1,7 @@
 #[cfg(test)]
 mod k_core_test {
-    use raphtory::{algorithms::cores::k_core::k_core_set, prelude::*};
+    use raphtory::{algorithms::cores::k_core::k_core_set, prelude::*, test_storage};
     use std::collections::HashSet;
-
-    use crate::test_storage;
 
     #[test]
     fn k_core_2() {

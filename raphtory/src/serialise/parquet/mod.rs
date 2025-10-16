@@ -58,7 +58,7 @@ pub trait ParquetDecoder {
         Self: Sized;
 }
 
-const NODE_ID: &str = "rap_node_id";
+const NODE_ID_COL: &str = "rap_node_id";
 const TYPE_COL: &str = "rap_node_type";
 const TIME_COL: &str = "rap_time";
 const SRC_COL: &str = "rap_src";
@@ -90,6 +90,17 @@ impl ParquetEncoder for PersistentGraph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let gs = self.core_graph().clone();
         encode_graph_storage(&gs, path, GraphType::PersistentGraph)
+    }
+}
+
+impl ParquetEncoder for MaterializedGraph {
+    fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(graph) => graph.encode_parquet(path),
+            MaterializedGraph::PersistentGraph(persistent_graph) => {
+                persistent_graph.encode_parquet(path)
+            }
+        }
     }
 }
 
@@ -153,6 +164,41 @@ pub(crate) fn run_encode(
     Ok(())
 }
 
+pub(crate) fn run_encode_indexed<Index, II: Iterator<Item = Index>>(
+    g: &GraphStorage,
+    meta: &PropMapper,
+    items: impl ParallelIterator<Item = (usize, II)>,
+    path: impl AsRef<Path>,
+    suffix: &str,
+    default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
+    encode_fn: impl Fn(II, &GraphStorage, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError>
+        + Sync,
+) -> Result<(), GraphError> {
+    let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
+    let root_dir = path.as_ref().join(suffix);
+    std::fs::create_dir_all(&root_dir)?;
+
+    let num_digits = 8;
+
+    items.try_for_each(|(chunk, items)| {
+        let props = WriterProperties::builder()
+            .set_compression(Compression::SNAPPY)
+            .build();
+
+        let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
+        let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
+
+        let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
+
+        encode_fn(items, g, &mut decoder, &mut writer)?;
+
+        writer.close()?;
+        Ok::<_, GraphError>(())
+    })?;
+
+    Ok(())
+}
+
 pub(crate) fn derive_schema(
     prop_meta: &PropMapper,
     id_type: Option<GidType>,
@@ -182,10 +228,10 @@ pub(crate) fn derive_schema(
 }
 
 fn arrow_fields(meta: &PropMapper) -> Vec<Field> {
-    meta.get_keys()
-        .into_iter()
-        .filter_map(|name| {
-            let prop_id = meta.get_id(&name)?;
+    meta.keys()
+        .iter()
+        .zip(meta.ids())
+        .filter_map(|(name, prop_id)| {
             meta.get_dtype(prop_id)
                 .map(move |prop_type| (name, prop_type))
         })
@@ -267,8 +313,7 @@ fn decode_graph_storage(
 
     if g_type != expected_gt {
         return Err(GraphError::LoadFailure(format!(
-            "Expected graph type {:?}, got {:?}",
-            expected_gt, g_type
+            "Expected graph type {expected_gt:?}, got {g_type:?}"
         )));
     }
 
@@ -283,7 +328,7 @@ fn decode_graph_storage(
 
     let t_node_path = path.as_ref().join(NODES_T_PATH);
     if std::fs::exists(&t_node_path)? {
-        let exclude = vec![NODE_ID, TIME_COL, TYPE_COL];
+        let exclude = vec![NODE_ID_COL, TIME_COL, TYPE_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
         let t_prop_columns = t_prop_columns
             .iter()
@@ -294,7 +339,7 @@ fn decode_graph_storage(
             &g,
             &t_node_path,
             TIME_COL,
-            NODE_ID,
+            NODE_ID_COL,
             None,
             Some(TYPE_COL),
             &t_prop_columns,
@@ -306,7 +351,7 @@ fn decode_graph_storage(
 
     let c_node_path = path.as_ref().join(NODES_C_PATH);
     if std::fs::exists(&c_node_path)? {
-        let exclude = vec![NODE_ID, TYPE_COL];
+        let exclude = vec![NODE_ID_COL, TYPE_COL];
         let (c_prop_columns, _) = collect_prop_columns(&c_node_path, &exclude)?;
         let c_prop_columns = c_prop_columns
             .iter()
@@ -316,7 +361,7 @@ fn decode_graph_storage(
         load_node_props_from_parquet(
             &g,
             &c_node_path,
-            NODE_ID,
+            NODE_ID_COL,
             None,
             Some(TYPE_COL),
             &c_prop_columns,

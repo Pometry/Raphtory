@@ -4,9 +4,8 @@ mod global_motifs_test {
         algorithms::motifs::global_temporal_three_node_motifs::temporal_three_node_motif_multi,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
+        test_storage,
     };
-
-    use crate::test_storage;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -69,17 +68,15 @@ mod global_motifs_test {
 
 #[cfg(test)]
 mod local_motifs_test {
-    use std::collections::HashMap;
-
     use raphtory::{
         algorithms::motifs::local_temporal_three_node_motifs::temporal_three_node_motif,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
+        test_storage,
     };
     use raphtory_api::core::utils::logging::global_debug_logger;
+    use std::collections::HashMap;
     use tracing::info;
-
-    use crate::test_storage;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -386,9 +383,8 @@ mod triangle_count_tests {
             graph::graph::Graph,
         },
         prelude::*,
+        test_storage,
     };
-
-    use crate::test_storage;
 
     #[test]
     fn counts_triangles() {
@@ -480,15 +476,13 @@ mod rich_club_test {
 
 #[cfg(test)]
 mod triangle_count_tests_alt {
-    use std::time::Instant;
-
     use raphtory::{
         algorithms::motifs::triangle_count::triangle_count,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-
-    use crate::test_storage;
+    use std::time::Instant;
 
     #[ignore]
     #[test]
@@ -587,9 +581,8 @@ mod triplet_test {
         algorithms::motifs::triplet_count::triplet_count,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
+        test_storage,
     };
-
-    use crate::test_storage;
 
     /// Test the global clustering coefficient
     #[test]

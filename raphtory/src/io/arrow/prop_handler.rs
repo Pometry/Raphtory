@@ -6,8 +6,8 @@ use crate::{
 use arrow::{
     array::{
         Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
-        FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
-        StringViewArray, StructArray,
+        FixedSizeListArray, GenericListArray, GenericStringArray, NullArray, OffsetSizeTrait,
+        PrimitiveArray, StringViewArray, StructArray,
     },
     buffer::NullBuffer,
     datatypes::{
@@ -47,6 +47,10 @@ impl PropCols {
         &self,
     ) -> impl IndexedParallelIterator<Item = impl Iterator<Item = (usize, Prop)> + '_> + '_ {
         (0..self.len()).into_par_iter().map(|i| self.iter_row(i))
+    }
+
+    pub fn prop_ids(&self) -> &[usize] {
+        &self.prop_ids
     }
 }
 
@@ -300,9 +304,7 @@ impl PropCol for FixedSizeListArray {
     }
 }
 
-struct EmptyCol;
-
-impl PropCol for EmptyCol {
+impl PropCol for NullArray {
     fn get(&self, _i: usize) -> Option<Prop> {
         None
     }
@@ -372,6 +374,14 @@ impl PropCol for DecimalPropCol {
                 self.scale,
             )))
         }
+    }
+}
+
+struct EmptyCol;
+
+impl PropCol for EmptyCol {
+    fn get(&self, _i: usize) -> Option<Prop> {
+        None
     }
 }
 

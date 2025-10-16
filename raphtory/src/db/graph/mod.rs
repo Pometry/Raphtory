@@ -14,13 +14,12 @@ pub(crate) fn create_node_type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
     dict_mapper: &DictMapper,
     node_types: I,
 ) -> Arc<[bool]> {
-    let len = dict_mapper.len();
-    let mut bool_arr = vec![false; len];
+    let mut bool_arr = vec![false; dict_mapper.num_all_fields()];
 
     for nt in node_types {
         let nt = nt.as_ref();
         if nt.is_empty() {
-            bool_arr[0] = true;
+            bool_arr[0] = true; // FIXME: "" treated as default?
         } else if let Some(id) = dict_mapper.get_id(nt) {
             bool_arr[id] = true;
         }

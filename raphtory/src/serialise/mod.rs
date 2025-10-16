@@ -19,8 +19,6 @@ use crate::{
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
-#[cfg(feature = "storage")]
-use raphtory_storage::disk::DiskGraphStorage;
 pub use serialise::{CacheOps, InternalStableDecode, StableDecode, StableEncode};
 use std::{
     fs::{self, File, OpenOptions},
@@ -29,8 +27,8 @@ use std::{
 };
 use tracing::info;
 
-const GRAPH_FILE_NAME: &str = "graph";
-const META_FILE_NAME: &str = ".raph";
+pub const GRAPH_FILE_NAME: &str = "graph";
+pub const META_FILE_NAME: &str = ".raph";
 const INDEX_PATH: &str = "index";
 const VECTORS_PATH: &str = "vectors";
 
@@ -148,21 +146,7 @@ impl GraphFolder {
                         info!(
                             "Metadata file does not exist or is invalid. Attempting to recreate..."
                         );
-                        let graph: MaterializedGraph = if self.is_disk_graph() {
-                            #[cfg(not(feature = "storage"))]
-                            return Err(GraphError::DiskGraphNotFound);
-                            #[cfg(feature = "storage")]
-                            {
-                                use crate::prelude::IntoGraph;
-
-                                MaterializedGraph::from(
-                                    DiskGraphStorage::load_from_dir(self.get_graph_path())?
-                                        .into_graph(),
-                                )
-                            }
-                        } else {
-                            MaterializedGraph::decode(self)?
-                        };
+                        let graph: MaterializedGraph = MaterializedGraph::decode(self)?;
                         self.write_metadata(&graph)?;
                         Ok(self.try_read_metadata()?)
                     }

@@ -30,7 +30,6 @@ raphtory-graphql = { workspace = true, features = [
 ] }
 
 [features]
-storage = ["raphtory/storage", "raphtory-graphql/storage"]
 extension-module = ["pyo3/extension-module"]
 
 [build-dependencies]

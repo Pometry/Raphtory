@@ -110,6 +110,9 @@ pub mod errors;
 pub mod serialise;
 pub mod storage;
 
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils;
+
 /// Return Raphtory crate version.
 ///
 /// Returns:
@@ -144,12 +147,6 @@ pub mod prelude {
             },
             graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
         },
-    };
-
-    #[cfg(feature = "storage")]
-    pub use {
-        crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
-        raphtory_storage::disk::{DiskGraphStorage, ParquetLayerCols},
     };
 
     #[cfg(feature = "proto")]

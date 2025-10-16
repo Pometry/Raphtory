@@ -15,24 +15,47 @@ pub trait TPropOps<'a>: Clone + Send + Sync + Sized + 'a {
     }
 
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        self.clone().iter_window(TimeIndexEntry::MIN..t).next_back()
+        self.clone()
+            .iter_inner_rev(Some(TimeIndexEntry::MIN..t))
+            .next()
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
+    fn iter_inner(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
 
-    fn iter_t(self) -> impl DoubleEndedIterator<Item = (i64, Prop)> + Send + Sync + 'a {
-        self.iter().map(|(t, v)| (t.t(), v))
+    fn iter_inner_rev(
+        self,
+        range: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
+
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        self.iter_inner(None)
     }
 
+    fn iter_rev(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        self.iter_inner_rev(None)
+    }
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a;
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        self.iter_inner(Some(r))
+    }
 
-    fn iter_window_t(
+    fn iter_window_rev(
         self,
-        r: Range<i64>,
-    ) -> impl DoubleEndedIterator<Item = (i64, Prop)> + Send + Sync + 'a {
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        self.iter_inner_rev(Some(r))
+    }
+
+    fn iter_t(self) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
+        self.iter().map(|(t, v)| (t.t(), v))
+    }
+
+    fn iter_window_t(self, r: Range<i64>) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter_window(TimeIndexEntry::range(r))
             .map(|(t, v)| (t.t(), v))
     }
@@ -40,7 +63,7 @@ pub trait TPropOps<'a>: Clone + Send + Sync + Sized + 'a {
     fn iter_window_te(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (i64, Prop)> + Send + Sync + 'a {
+    ) -> impl Iterator<Item = (i64, Prop)> + Send + Sync + 'a {
         self.iter_window(r).map(|(t, v)| (t.t(), v))
     }
 

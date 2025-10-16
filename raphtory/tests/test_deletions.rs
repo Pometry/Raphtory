@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest, sample::subsequence};
+use raphtory::test_utils::{build_graph, build_graph_strat};
 use raphtory::{
     db::graph::{
         edge::EdgeView,
@@ -8,14 +9,12 @@ use raphtory::{
         // views::deletion_graph::{GraphTimeSemanticsOps, PersistentGraph},
     },
     prelude::*,
+    test_storage,
 };
 use raphtory_api::core::entities::GID;
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use rayon::ThreadPoolBuilder;
 use std::ops::Range;
-
-use crate::test_utils::{build_graph, build_graph_strat};
-
-pub mod test_utils;
 
 #[test]
 fn test_nodes() {
@@ -235,14 +234,32 @@ fn test_deletion_at_window_start() {
     assert_eq!(gw.node(0).unwrap().earliest_time(), Some(2));
     assert_eq!(gw.node(1).unwrap().earliest_time(), Some(2));
 }
+
 #[test]
 fn materialize_window_layers_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2))| {
-        let g = PersistentGraph::from(build_graph(&graph_f));
-        let glw = g.valid_layers(l).window(w.start, w.end);
-        let gmlw = glw.materialize().unwrap();
-        assert_persistent_materialize_graph_equal(&glw, &gmlw);
+    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2), num_threads in 1..=16usize)| {
+        let pool = ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap();
+        pool.install(|| {
+            let g = PersistentGraph::from(build_graph(&graph_f));
+            let glw = g.valid_layers(l.clone()).window(w.start, w.end);
+            let gmlw = glw.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&glw, &gmlw);
+        })
+
     })
+}
+
+#[test]
+fn materialize_window_multilayer() {
+    let g = PersistentGraph::new();
+    g.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
+    g.delete_edge(3, 0, 0, Some("a")).unwrap();
+
+    let w = 0..10;
+    let glw = g.valid_layers("a").window(w.start, w.end);
+    let layers = glw.edge(0, 0).unwrap().explode_layers();
+    let gmlw = glw.materialize().unwrap();
+    assert_persistent_materialize_graph_equal(&glw, &gmlw);
 }
 
 #[test]
@@ -426,6 +443,21 @@ fn test_edge_properties() {
 }
 
 #[test]
+fn test_multiple_edge_properties() {
+    let g = PersistentGraph::new();
+    g.add_edge(0, 0, 1, [("test1", "test1")], None).unwrap();
+    g.add_edge(1, 0, 1, [("test2", "test2")], None).unwrap();
+
+    let e = g.edge(0, 1).unwrap();
+    assert_eq!(e.properties().get("test1").unwrap_str(), "test1");
+    assert_eq!(e.properties().get("test2").unwrap_str(), "test2");
+
+    let ew = e.window(1, 10);
+    assert_eq!(ew.properties().get("test1").unwrap_str(), "test1");
+    assert_eq!(ew.properties().get("test2").unwrap_str(), "test2");
+}
+
+#[test]
 fn test_edge_history() {
     let g = PersistentGraph::new();
     let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
@@ -553,6 +585,14 @@ fn test_deletion_multiple_layers() {
     check_valid(&e_layer_2);
     check_deleted(&e_layer_2.at(9));
     check_valid(&e_layer_2.at(10));
+}
+
+#[test]
+fn test_materialize_node_type() {
+    let g = PersistentGraph::new();
+    g.delete_edge(0, 0, 0, None).unwrap();
+    g.node(0).unwrap().set_node_type("test").unwrap();
+    assert_graph_equal(&g, &g.materialize().unwrap());
 }
 
 #[test]

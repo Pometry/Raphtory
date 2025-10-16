@@ -17,17 +17,14 @@ use raphtory::{
         },
     },
     prelude::*,
+    test_utils::{
+        build_edge_deletions, build_edge_list, build_edge_list_with_deletions,
+        build_graph_from_edge_list, build_window, Update,
+    },
 };
 use raphtory_api::core::entities::properties::prop::PropType;
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use std::collections::HashMap;
-
-use crate::test_utils::{
-    build_edge_deletions, build_edge_list, build_edge_list_with_deletions,
-    build_graph_from_edge_list, build_window, Update,
-};
-
-pub mod test_utils;
 
 fn build_filtered_graph(
     edges: &[(u64, u64, i64, String, i64)],
@@ -99,10 +96,11 @@ fn build_filtered_persistent_graph(
                     } else {
                         g_filtered.delete_edge(t, src, dst, None).unwrap();
                         // properties still exist after filtering
-                        g_filtered
+                        let session = g_filtered.write_session().unwrap();
+                        session
                             .resolve_edge_property("str_prop", PropType::Str, false)
                             .unwrap();
-                        g_filtered
+                        session
                             .resolve_edge_property("int_prop", PropType::I64, false)
                             .unwrap();
                     }
@@ -193,6 +191,8 @@ fn test_filter_persistent_single_filtered_edge() {
     expected.delete_edge(0, 0, 0, None).unwrap();
     //the property still exists!
     expected
+        .write_session()
+        .unwrap()
         .resolve_edge_property("test", PropType::I64, false)
         .unwrap();
 

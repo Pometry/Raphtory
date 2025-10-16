@@ -1489,11 +1489,11 @@ def test_apply_view_node_filter():
               name: "where"
               operator: EQUAL
               value: {str: "Berlin"}
-            
+
           }
         }
       }
-      
+
     ]) {
        nodes {
         list {
@@ -1521,11 +1521,11 @@ def test_apply_view_edge_filter():
               name: "where"
               operator: EQUAL
               value: {str: "fishbowl"}
-            
+
           }
         }
       }
-      
+
     ]) {
        edges {
         list {
@@ -1756,7 +1756,7 @@ def test_apply_view_neighbours_latest():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {          
+      node(name: "1") {
       neighbours {
             applyViews(views: [{latest: true}]) {
                 list {
@@ -1764,7 +1764,7 @@ def test_apply_view_neighbours_latest():
                   history
                 }
               }
-              
+
             }
           }
         }
@@ -1801,7 +1801,7 @@ def test_apply_view_neighbours_layer():
               history}
               }
             }
-          
+
         }
   }
 }"""
@@ -1833,7 +1833,7 @@ def test_apply_view_neighbours_exclude_layer():
               history}
               }
             }
-          
+
         }
   }
 }"""
@@ -1863,7 +1863,7 @@ def test_apply_view_neighbours_layers():
                   history
                 }
               }
-            } 
+            }
               }
               }
               }"""
@@ -1899,7 +1899,7 @@ def test_apply_view_neighbours_exclude_layers():
                   history
                 }
               }
-            } 
+            }
               }
               }
               }"""
@@ -2101,7 +2101,7 @@ def test_apply_view_in_neighbours_shrink_start():
       node(name: "7") {
           inNeighbours {
           applyViews(views: [{shrinkStart: 1735948800000}]) {
-            list {    
+            list {
               name
               history
             }
@@ -2135,7 +2135,7 @@ def test_apply_view_in_neighbours_shrink_end():
       node(name: "2") {
           inNeighbours {
           applyViews(views: [{shrinkEnd: 1735862400000}]) {
-            list {    
+            list {
               name
               history
             }
@@ -2169,7 +2169,7 @@ def test_apply_view_in_neighbours_at():
       node(name: "2") {
           inNeighbours {
           applyViews(views: [{at: 1735862400000}]) {
-            list {    
+            list {
               name
               history
             }
@@ -2295,7 +2295,7 @@ def test_valid_graph():
                       id
                       latestTime
                     }
-                  }	
+                  }
                 }
               }
             }"""

@@ -15,7 +15,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{core::entities::LayerIds, inherit::Base};
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilteredGraph<G> {
@@ -78,7 +78,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgeFieldFiltere
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         if self.graph.internal_filter_edge(edge, layer_ids) {
             self.filter.matches_edge(&self.graph, edge)
         } else {

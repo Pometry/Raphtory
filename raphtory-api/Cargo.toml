@@ -52,10 +52,6 @@ python = [
     "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain"
 ]
 
-storage = [
-    "dep:arrow-schema",
-]
-
 proto = []
 vectors = []
 template = ["dep:minijinja"]

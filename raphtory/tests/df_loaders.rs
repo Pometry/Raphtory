@@ -1,8 +1,5 @@
-pub mod test_utils;
-
 #[cfg(feature = "io")]
 mod io_tests {
-    use crate::test_utils::{build_edge_list, build_edge_list_str};
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
@@ -16,174 +13,10 @@ mod io_tests {
             df_loaders::load_edges_from_df,
         },
         prelude::*,
+        test_utils::{build_edge_list, build_edge_list_str},
     };
     use raphtory_storage::core_ops::CoreGraphOps;
     use tempfile::TempDir;
-
-    #[cfg(feature = "storage")]
-    mod load_multi_layer {
-        use crate::test_utils::build_edge_list;
-        use arrow::array::{record_batch, Int64Array, LargeStringArray, RecordBatch, UInt64Array};
-        use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
-        use pometry_storage::{
-            chunked_array::array_like::BaseArrayLike, graph::TemporalGraph, load::ExternalEdgeList,
-        };
-        use prop::sample::SizeRange;
-        use proptest::prelude::*;
-        use raphtory::{
-            db::graph::graph::assert_graph_equal, io::parquet_loaders::load_edges_from_parquet,
-            prelude::*,
-        };
-        use raphtory_storage::{disk::DiskGraphStorage, graph::graph::GraphStorage};
-        use std::{
-            fs::File,
-            path::{Path, PathBuf},
-        };
-        use tempfile::TempDir;
-
-        fn build_edge_list_df(
-            len: usize,
-            num_nodes: impl Strategy<Value = u64>,
-            num_layers: impl Into<SizeRange>,
-        ) -> impl Strategy<Value = Vec<RecordBatch>> {
-            let layer = num_nodes
-                .prop_flat_map(move |num_nodes| {
-                    build_edge_list(len, num_nodes)
-                        .prop_filter("no empty edge lists", |el| !el.is_empty())
-                })
-                .prop_map(move |mut rows| {
-                    rows.sort_by_key(|(src, dst, time, _, _)| (*src, *dst, *time));
-                    new_df_from_rows(&rows)
-                });
-            proptest::collection::vec(layer, num_layers)
-        }
-
-        fn new_df_from_rows(rows: &[(u64, u64, i64, String, i64)]) -> RecordBatch {
-            let src = UInt64Array::from_iter_values(rows.iter().map(|(src, ..)| *src));
-            let dst = UInt64Array::from_iter_values(rows.iter().map(|(_, dst, ..)| *dst));
-            let time = Int64Array::from_iter_values(rows.iter().map(|(_, _, time, ..)| *time));
-            let str_prop =
-                LargeStringArray::from_iter_values(rows.iter().map(|(.., str_prop, _)| str_prop));
-            let int_prop =
-                Int64Array::from_iter_values(rows.iter().map(|(.., int_prop)| *int_prop));
-            let batch = RecordBatch::try_from_iter([
-                ("src", src.as_array_ref()),
-                ("dst", dst.as_array_ref()),
-                ("time", time.as_array_ref()),
-                ("str_prop", str_prop.as_array_ref()),
-                ("int_prop", int_prop.as_array_ref()),
-            ])
-            .unwrap();
-            batch
-        }
-
-        fn check_layers_from_df(input: Vec<RecordBatch>, num_threads: usize) {
-            let root_dir = TempDir::new().unwrap();
-            let graph_dir = TempDir::new().unwrap();
-            let layers = input
-                .into_iter()
-                .enumerate()
-                .map(|(i, df)| (i.to_string(), df))
-                .collect::<Vec<_>>();
-            let edge_lists = write_layers(&layers, root_dir.path());
-
-            let expected = Graph::new();
-            for edge_list in &edge_lists {
-                load_edges_from_parquet(
-                    &expected,
-                    &edge_list.path,
-                    "time",
-                    "src",
-                    "dst",
-                    &["int_prop", "str_prop"],
-                    &[],
-                    None,
-                    Some(edge_list.layer),
-                    None,
-                    None,
-                )
-                .unwrap();
-            }
-
-            let g = TemporalGraph::from_parquets(
-                num_threads,
-                13,
-                23,
-                graph_dir.path(),
-                edge_lists,
-                &[],
-                None,
-                None,
-                None,
-                None,
-            )
-            .unwrap();
-            let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
-
-            assert_graph_equal(&expected, &actual);
-
-            let g = TemporalGraph::new(graph_dir.path()).unwrap();
-
-            for edge in g.edges_iter() {
-                assert!(g.find_edge(edge.src_id(), edge.dst_id()).is_some());
-            }
-
-            let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
-            assert_graph_equal(&expected, &actual);
-        }
-
-        #[test]
-        fn load_from_multiple_layers() {
-            proptest!(|(input in build_edge_list_df(50, 1u64..23, 1..10,  ), num_threads in 1usize..2)| {
-                check_layers_from_df(input, num_threads)
-            });
-        }
-
-        #[test]
-        fn single_layer_single_edge() {
-            let df = new_df_from_rows(&[(0, 0, 1, "".to_owned(), 2)]);
-            check_layers_from_df(vec![df], 1)
-        }
-
-        fn write_layers<'a>(
-            layers: &'a [(String, RecordBatch)],
-            root_dir: &Path,
-        ) -> Vec<ExternalEdgeList<'a, PathBuf>> {
-            let mut paths = vec![];
-            for (name, df) in layers.iter() {
-                let layer_dir = root_dir.join(name);
-                std::fs::create_dir_all(&layer_dir).unwrap();
-                let layer_path = layer_dir.join("edges.parquet");
-
-                paths.push(
-                    ExternalEdgeList::new(
-                        name,
-                        layer_path.to_path_buf(),
-                        "src",
-                        "dst",
-                        "time",
-                        vec![],
-                    )
-                    .unwrap(),
-                );
-
-                let file = File::create(layer_path).unwrap();
-
-                // WriterProperties can be used to set Parquet file options
-                let props = WriterProperties::builder()
-                    .set_compression(Compression::SNAPPY)
-                    .build();
-
-                let mut writer = ArrowWriter::try_new(file, df.schema(), Some(props)).unwrap();
-
-                writer.write(df).expect("Writing batch");
-
-                // writer must be closed to write footer
-                writer.close().unwrap();
-            }
-            paths
-        }
-    }
 
     fn build_df(
         chunk_size: usize,
@@ -282,7 +115,7 @@ mod io_tests {
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
+                let edge = g2.edge(src, dst).unwrap().at(time);
                 assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
@@ -290,6 +123,53 @@ mod io_tests {
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
             assert_graph_equal(&g, &g2);
         })
+    }
+
+    #[test]
+    fn test_simultaneous_edge_update() {
+        let edges = [(0, 1, 0, "".to_string(), 0), (0, 1, 0, "".to_string(), 1)];
+
+        let distinct_edges = edges
+            .iter()
+            .map(|(src, dst, _, _, _)| (src, dst))
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        let df_view = build_df(1, &edges);
+        let g = Graph::new();
+        let props = ["str_prop", "int_prop"];
+        load_edges_from_df(
+            df_view,
+            "time",
+            "src",
+            "dst",
+            &props,
+            &[],
+            None,
+            None,
+            None,
+            &g,
+        )
+        .unwrap();
+        let g2 = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edges {
+            g2.add_edge(
+                time,
+                src,
+                dst,
+                [
+                    ("str_prop", str_prop.clone().into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+            let edge = g2.edge(src, dst).unwrap().at(time);
+            assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
+            assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+        }
+        assert_eq!(g.unfiltered_num_edges(), distinct_edges);
+        assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+        assert_graph_equal(&g, &g2);
     }
 
     #[test]
@@ -395,69 +275,6 @@ mod io_tests {
             assert_graph_equal(&g, &g2);
         }
     }
-
-    #[test]
-    fn test_load_edges_with_cache() {
-        proptest!(|(edges in build_edge_list(100, 100), chunk_size in 1usize..=100)| {
-            let df_view = build_df(chunk_size, &edges);
-            let g = Graph::new();
-            let cache_file = TempDir::new().unwrap();
-            g.cache(cache_file.path()).unwrap();
-            let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
-            let g = Graph::load_cached(cache_file.path()).unwrap();
-            let g2 = Graph::new();
-            for (src, dst, time, str_prop, int_prop) in edges {
-                g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-            }
-            assert_graph_equal(&g, &g2);
-        })
-    }
-
-    #[test]
-    fn load_single_edge_with_cache() {
-        let edges = [(0, 0, 0, "".to_string(), 0)];
-        let df_view = build_df(1, &edges);
-        let g = Graph::new();
-        let cache_file = TempDir::new().unwrap();
-        g.cache(cache_file.path()).unwrap();
-        let props = ["str_prop", "int_prop"];
-        load_edges_from_df(
-            df_view,
-            "time",
-            "src",
-            "dst",
-            &props,
-            &[],
-            None,
-            None,
-            None,
-            &g,
-        )
-        .unwrap();
-        let g = Graph::load_cached(cache_file.path()).unwrap();
-        let g2 = Graph::new();
-        for (src, dst, time, str_prop, int_prop) in edges {
-            g2.add_edge(
-                time,
-                src,
-                dst,
-                [
-                    ("str_prop", str_prop.clone().into_prop()),
-                    ("int_prop", int_prop.into_prop()),
-                ],
-                None,
-            )
-            .unwrap();
-            let edge = g.edge(src, dst).unwrap().at(time);
-            assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-            assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-        }
-        assert_graph_equal(&g, &g2);
-    }
 }
 
 #[cfg(test)]
@@ -469,12 +286,11 @@ mod parquet_tests {
     use raphtory::{
         db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         prelude::*,
-    };
-
-    use crate::test_utils::{
-        build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
-        EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
-        PropUpdatesFixture,
+        test_utils::{
+            build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
+            EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
+            PropUpdatesFixture,
+        },
     };
     use std::str::FromStr;
 

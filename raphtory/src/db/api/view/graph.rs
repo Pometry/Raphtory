@@ -2,7 +2,7 @@
 use crate::search::{fallback_filter_edges, fallback_filter_nodes};
 use crate::{
     core::{
-        entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
+        entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
     },
     db::{
@@ -32,10 +32,15 @@ use crate::{
 };
 use ahash::HashSet;
 use chrono::{DateTime, Utc};
+use db4_graph::TemporalGraph;
+use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::{properties::meta::PropMapper, EID},
+        entities::{
+            properties::meta::{Meta, PropMapper},
+            EID,
+        },
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
@@ -46,7 +51,10 @@ use raphtory_storage::{
         edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
         nodes::node_storage_ops::NodeStorageOps,
     },
-    mutation::{addition_ops::InternalAdditionOps, MutationError},
+    mutation::{
+        addition_ops::{InternalAdditionOps, SessionAdditionOps},
+        MutationError,
+    },
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -226,20 +234,19 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
-        let mut g = TemporalGraph::default();
-
-        // Copy all graph properties
-        g.graph_meta = self.graph_meta().deep_clone();
 
         // preserve all property mappings
-        g.node_meta
-            .set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
-        g.node_meta
-            .set_temporal_prop_meta(self.node_meta().temporal_prop_mapper().deep_clone());
-        g.edge_meta
-            .set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
-        g.edge_meta
-            .set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
+        let mut node_meta = Meta::new_for_nodes();
+        let mut edge_meta = Meta::new_for_edges();
+
+        node_meta.set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
+        node_meta.set_temporal_prop_meta(self.node_meta().temporal_prop_mapper().deep_clone());
+        edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
+        edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
+
+        let mut g = TemporalGraph::new_with_meta(Default::default(), node_meta, edge_meta).unwrap();
+        // Copy all graph properties
+        g.graph_meta = self.graph_meta().deep_clone().into();
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
@@ -247,33 +254,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 vec![]
             }
             LayerIds::All => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let layers = storage.edge_meta().layer_meta().get_keys();
-                for id in 0..layers.len() {
-                    let new_id = g
-                        .resolve_layer_inner(Some(&layers[id]))
-                        .map_err(MutationError::from)?
-                        .inner();
+                let layers = storage.edge_meta().layer_meta().keys();
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+                for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
+                    let new_id = g.resolve_layer(Some(&name))?.inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
             }
             LayerIds::One(l_id) => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let new_id = g
-                    .resolve_layer_inner(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))
-                    .map_err(MutationError::from)?;
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+                let new_id =
+                    g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
                 layer_map[*l_id] = new_id.inner();
                 layer_map
             }
             LayerIds::Multiple(ids) => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let layers = storage.edge_meta().layer_meta().get_keys();
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+                let layers = storage.edge_meta().layer_meta().all_keys();
                 for id in ids {
-                    let new_id = g
-                        .resolve_layer_inner(Some(&layers[id]))
-                        .map_err(MutationError::from)?
-                        .inner();
+                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
@@ -293,78 +293,114 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         };
 
         // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
-        g.event_counter
-            .fetch_max(storage.read_event_id(), Ordering::Relaxed);
+        g.storage().set_event_id(storage.read_event_id());
 
         let g = GraphStorage::from(g);
 
         {
             // scope for the write lock
             let mut new_storage = g.write_lock()?;
-            new_storage.nodes.resize(self.count_nodes());
+            new_storage.resize_chunks_to_num_nodes(self.count_nodes());
+            for layer_id in &layer_map {
+                new_storage.nodes.ensure_layer(*layer_id);
+            }
 
             let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
             let node_map_shared =
                 atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
-            new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
+            new_storage.nodes.par_iter_mut().try_for_each(|shard| {
                 for (index, node) in self.nodes().iter().enumerate() {
                     let new_id = VID(index);
                     let gid = node.id();
-                    if let Some(mut new_node) = shard.set(new_id, gid.as_ref()) {
-                        node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
+                    node_map_shared[node.node.index()].store(new_id.index(), Ordering::Relaxed);
+                    if let Some(node_pos) = shard.resolve_pos(new_id) {
+                        let mut writer = shard.writer();
                         if let Some(node_type) = node.node_type() {
                             let new_type_id = g
                                 .node_meta()
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
                                 .inner();
-                            new_node.node_store_mut().node_type = new_type_id;
+                            writer.store_node_id_and_node_type(
+                                node_pos,
+                                0,
+                                gid.as_ref(),
+                                new_type_id,
+                                0,
+                            );
+                        } else {
+                            writer.store_node_id(node_pos, 0, gid.as_ref(), 0);
                         }
-                        g.set_node(gid.as_ref(), new_id)?;
+                        g.write_session()?.set_node(gid.as_ref(), new_id)?;
 
-                        for (t, rows) in node.rows() {
-                            let prop_offset = new_node.t_props_log_mut().push(rows)?;
-                            new_node.node_store_mut().update_t_prop_time(t, prop_offset);
+                        for (t, row) in node.rows() {
+                            writer.add_props(t, node_pos, 0, row, 0);
                         }
 
-                        for metadata_id in node.metadata_ids() {
-                            if let Some(prop_value) = node.get_metadata(metadata_id) {
-                                new_node
-                                    .node_store_mut()
-                                    .add_metadata(metadata_id, prop_value)?;
-                            }
-                        }
+                        writer.update_c_props(
+                            node_pos,
+                            0,
+                            node.metadata_ids()
+                                .filter_map(|id| node.get_metadata(id).map(|prop| (id, prop))),
+                            0,
+                        );
                     }
                 }
                 Ok::<(), MutationError>(())
             })?;
 
-            new_storage.edges.par_iter_mut().try_for_each(|mut shard| {
+            new_storage.resize_chunks_to_num_edges(self.count_edges());
+
+            for layer_id in &layer_map {
+                new_storage.edges.ensure_layer(*layer_id);
+            }
+
+            new_storage.edges.par_iter_mut().try_for_each(|shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
-                    if let Some(mut new_edge) = shard.get_mut(EID(eid)) {
-                        let edge_store = new_edge.edge_store_mut();
-                        edge_store.src = node_map[edge.edge.src().index()];
-                        edge_store.dst = node_map[edge.edge.dst().index()];
-                        edge_store.eid = EID(eid);
+                    let src = node_map[edge.edge.src().index()];
+                    let dst = node_map[edge.edge.dst().index()];
+                    let eid = EID(eid);
+                    if let Some(edge_pos) = shard.resolve_pos(eid) {
+                        let mut writer = shard.writer();
+                        // make the edge for the first time
+                        writer.add_static_edge(Some(edge_pos), src, dst, 0, Some(false));
+
                         for edge in edge.explode_layers() {
                             let layer = layer_map[edge.edge.layer().unwrap()];
-                            let additions = new_edge.additions_mut(layer);
                             for edge in edge.explode() {
                                 let t = edge.edge.time().unwrap();
-                                additions.insert(t);
+                                writer.add_edge(t, edge_pos, src, dst, [], layer, 0);
                             }
-                            for t_prop in edge.properties().temporal().values() {
-                                let prop_id = t_prop.id();
-                                for (t, prop_value) in t_prop.iter_indexed() {
-                                    new_edge.layer_mut(layer).add_prop(t, prop_id, prop_value)?;
-                                }
+                            //TODO: move this in edge.row()
+                            for (t, t_props) in edge
+                                .properties()
+                                .temporal()
+                                .values()
+                                .map(|tp| {
+                                    let prop_id = tp.id();
+                                    tp.iter_indexed()
+                                        .map(|(t, prop)| (t, prop_id, prop))
+                                        .collect::<Vec<_>>()
+                                })
+                                .kmerge_by(|(t, _, _), (t2, _, _)| t <= t2)
+                                .chunk_by(|(t, _, _)| *t)
+                                .into_iter()
+                            {
+                                let props = t_props
+                                    .map(|(_, prop_id, prop)| (prop_id, prop))
+                                    .collect::<Vec<_>>();
+                                writer.add_edge(t, edge_pos, src, dst, props, layer, 0);
                             }
-                            for c_prop in edge.metadata_ids() {
-                                if let Some(prop_value) = edge.get_metadata(c_prop) {
-                                    new_edge.layer_mut(layer).add_metadata(c_prop, prop_value)?;
-                                }
-                            }
+                            writer.update_c_props(
+                                edge_pos,
+                                src,
+                                dst,
+                                layer,
+                                edge.metadata_ids().filter_map(move |prop_id| {
+                                    edge.get_metadata(prop_id).map(|prop| (prop_id, prop))
+                                }),
+                            );
                         }
 
                         let time_semantics = self.edge_time_semantics();
@@ -374,43 +410,70 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                             self,
                             self.layer_ids(),
                         ) {
-                            new_edge.deletions_mut(layer_map[layer]).insert(t);
+                            let layer = layer_map[layer];
+                            writer.delete_edge(t, edge_pos, src, dst, layer, 0);
                         }
                     }
                 }
                 Ok::<(), MutationError>(())
             })?;
 
-            new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
+            new_storage.nodes.par_iter_mut().try_for_each(|shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
-                    if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                        for e in edge.explode() {
-                            let t = e.time_and_index().expect("exploded edge should have time");
-                            let l = layer_map[e.edge.layer().unwrap()];
-                            src_node.update_time(t, EID(eid).with_layer(l));
+                    let eid = EID(eid);
+                    let src_id = node_map[edge.edge.src().index()];
+                    let dst_id = node_map[edge.edge.dst().index()];
+                    let maybe_src_pos = shard.resolve_pos(src_id);
+                    let maybe_dst_pos = shard.resolve_pos(dst_id);
+
+                    if let Some(node_pos) = maybe_src_pos {
+                        let mut writer = shard.writer();
+                        writer.add_static_outbound_edge(node_pos, dst_id, eid, 0);
+                    }
+
+                    if let Some(node_pos) = maybe_dst_pos {
+                        let mut writer = shard.writer();
+                        writer.add_static_inbound_edge(node_pos, src_id, eid, 0);
+                    }
+
+                    for e in edge.explode_layers() {
+                        let layer = layer_map[e.edge.layer().unwrap()];
+                        if let Some(node_pos) = maybe_src_pos {
+                            let mut writer = shard.writer();
+                            writer.add_outbound_edge::<i64>(
+                                None,
+                                node_pos,
+                                dst_id,
+                                eid.with_layer(layer),
+                                0,
+                            );
                         }
-                        for ee in edge.explode_layers() {
-                            src_node.add_edge(
-                                node_map[edge.edge.dst().index()],
-                                Direction::OUT,
-                                layer_map[ee.edge.layer().unwrap()],
-                                EID(eid),
+                        if let Some(node_pos) = maybe_dst_pos {
+                            let mut writer = shard.writer();
+                            writer.add_inbound_edge::<i64>(
+                                None,
+                                node_pos,
+                                src_id,
+                                eid.with_layer(layer),
+                                0,
                             );
                         }
                     }
-                    if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                        for e in edge.explode() {
+
+                    for e in edge.explode() {
+                        if let Some(node_pos) = maybe_src_pos {
+                            let mut writer = shard.writer();
+
                             let t = e.time_and_index().expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
-                            dst_node.update_time(t, EID(eid).with_layer(l));
+                            writer.update_timestamp(t, node_pos, eid.with_layer(l), 0);
                         }
-                        for ee in edge.explode_layers() {
-                            dst_node.add_edge(
-                                node_map[edge.edge.src().index()],
-                                Direction::IN,
-                                layer_map[ee.edge.layer().unwrap()],
-                                EID(eid),
-                            );
+                        if let Some(node_pos) = maybe_dst_pos {
+                            let mut writer = shard.writer();
+
+                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            writer.update_timestamp(t, node_pos, eid.with_layer(l), 0);
                         }
                     }
 
@@ -421,11 +484,14 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         self,
                         self.layer_ids(),
                     ) {
-                        if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                            src_node.update_time(t, EID(eid).with_layer_deletion(layer_map[layer]));
+                        let layer = layer_map[layer];
+                        if let Some(node_pos) = maybe_src_pos {
+                            let mut writer = shard.writer();
+                            writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer), 0);
                         }
-                        if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                            dst_node.update_time(t, EID(eid).with_layer_deletion(layer_map[layer]));
+                        if let Some(node_pos) = maybe_dst_pos {
+                            let mut writer = shard.writer();
+                            writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer), 0);
                         }
                     }
                 }
@@ -887,7 +953,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
 
     /// Extract properties or metadata.
     fn extract_props(meta: &PropMapper) -> HashSet<usize> {
-        (0..meta.len()).collect()
+        meta.ids().collect()
     }
 
     /// Extract specified named properties or metadata.

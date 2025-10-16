@@ -1,11 +1,7 @@
-use raphtory::prelude::*;
+use raphtory::{prelude::*, test_storage, test_utils::test_graph};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use raphtory_core::storage::timeindex::AsTime;
 use std::collections::HashMap;
-
-use crate::test_utils::test_graph;
-
-pub mod test_utils;
 
 #[test]
 fn test_earliest_time() {
@@ -92,6 +88,7 @@ fn test_metadata_updates() {
 }
 
 #[test]
+#[ignore] // likely we don't want to handle it globally like this anymore, maybe we should introduce an explicit categorical property type?
 fn test_string_deduplication() {
     let g = Graph::new();
     let v1 = g

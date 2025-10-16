@@ -1,7 +1,5 @@
 use itertools::Itertools;
-use raphtory::prelude::*;
-
-pub mod test_utils;
+use raphtory::{prelude::*, test_storage};
 
 #[test]
 fn test_add_node_properties_ordered_by_secondary_index() {

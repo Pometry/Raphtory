@@ -115,16 +115,11 @@ pub(crate) fn get_column_names_from_props(
     let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
     let temporal_properties: HashSet<ArcStr> = edge_meta
         .temporal_prop_mapper()
-        .get_keys()
+        .keys()
         .iter()
         .cloned()
         .collect();
-    let metadata: HashSet<ArcStr> = edge_meta
-        .metadata_mapper()
-        .get_keys()
-        .iter()
-        .cloned()
-        .collect();
+    let metadata: HashSet<ArcStr> = edge_meta.metadata_mapper().keys().iter().cloned().collect();
     metadata
         .intersection(&temporal_properties)
         .for_each(|name| {

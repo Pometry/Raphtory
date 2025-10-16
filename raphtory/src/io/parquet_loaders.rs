@@ -14,11 +14,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[cfg(feature = "storage")]
-use {arrow::array::StructArray, pometry_storage::RAError};
-
 pub fn load_nodes_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -137,7 +134,7 @@ pub fn load_edges_from_parquet<
 }
 
 pub fn load_node_props_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -274,7 +271,7 @@ pub(crate) fn process_parquet_file_to_df(
         .collect();
 
     let chunks = match batch_size {
-        None => chunks,
+        None => chunks.with_batch_size(100_000),
         Some(batch_size) => chunks.with_batch_size(batch_size),
     };
 
@@ -334,28 +331,6 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     parquet_files.sort();
 
     Ok(parquet_files)
-}
-
-#[cfg(feature = "storage")]
-pub fn read_struct_arrays(
-    path: &Path,
-    col_names: Option<&[&str]>,
-) -> Result<impl Iterator<Item = Result<StructArray, RAError>>, GraphError> {
-    let readers = get_parquet_file_paths(path)?
-        .into_iter()
-        .map(|path| {
-            read_parquet_file(path, col_names)
-                .and_then(|(_, reader, _)| Ok::<_, GraphError>(reader.build()?))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let chunks = readers.into_iter().flat_map(|iter| {
-        iter.map(move |cols| {
-            cols.map(|col| StructArray::from(col))
-                .map_err(RAError::ArrowRs)
-        })
-    });
-    Ok(chunks)
 }
 
 #[cfg(test)]

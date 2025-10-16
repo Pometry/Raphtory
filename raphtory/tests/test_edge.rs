@@ -1,11 +1,7 @@
 use itertools::Itertools;
-use raphtory::prelude::*;
+use raphtory::{prelude::*, test_storage, test_utils::test_graph};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
-
-use crate::test_utils::test_graph;
-
-pub mod test_utils;
 
 #[test]
 fn test_properties() {
@@ -121,7 +117,7 @@ fn test_property_additions() {
 fn test_metadata_additions() {
     let g = Graph::new();
     let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
-    assert_eq!(e.edge.layer(), Some(0));
+    assert_eq!(e.edge.layer(), Some(1)); // 0 is static graph
     assert!(e.add_metadata([("test1", "test1")], None).is_ok()); // adds properties to layer `"test"`
     assert!(e.add_metadata([("test", "test")], Some("test2")).is_err()); // cannot add properties to a different layer
     e.add_metadata([("test", "test")], Some("test")).unwrap(); // layer is consistent

@@ -70,11 +70,11 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     },
     inherit::Base,
-    iter::{BoxedLDIter, IntoDynDBoxed},
+    iter::IntoDynDBoxed,
 };
 use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+    graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -364,8 +364,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for Window
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         self.graph
-            .temporal_prop_iter_window(id, self.start_bound(), self.end_bound())
-            .rev()
+            .temporal_prop_iter_window_rev(id, self.start_bound(), self.end_bound())
             .into_dyn_boxed()
     }
 
@@ -456,7 +455,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             .has_temporal_prop_window(prop_id, self.start_bound()..self.end_bound())
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         if self.window_is_empty() {
             return iter::empty().into_dyn_dboxed();
         }
@@ -473,8 +472,18 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         self.graph.temporal_prop_iter_window(prop_id, start, end)
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+        self.graph
+            .temporal_prop_iter_window_rev(prop_id, start, end)
     }
 
     fn temporal_prop_last_at(
@@ -508,7 +517,7 @@ impl<G: GraphView> InternalEdgeFilterOps for WindowedGraph<G> {
             || (!self.window_is_bounding() && self.graph.internal_edge_list_trusted())
     }
 
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         self.graph.internal_filter_edge(edge, layer_ids)
     }
 
@@ -526,7 +535,7 @@ impl<G: GraphView> InternalEdgeLayerFilterOps for WindowedGraph<G> {
             || (!self.window_is_bounding() && self.graph.internal_layer_filter_edge_list_trusted())
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer)
     }
 

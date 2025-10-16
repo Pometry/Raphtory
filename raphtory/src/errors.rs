@@ -19,12 +19,11 @@ use std::{
     fmt::Debug,
     io,
     path::{PathBuf, StripPrefixError},
+    sync::Arc,
     time::SystemTimeError,
 };
 use tracing::error;
 
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
 #[cfg(feature = "arrow")]
 use {
     arrow::{datatypes::DataType, error::ArrowError},
@@ -120,6 +119,9 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[error(transparent)]
+    ExternalError(#[from] Arc<dyn std::error::Error + Send + Sync>),
+
     #[error(transparent)]
     MutationError(#[from] MutationError),
 
@@ -264,10 +266,6 @@ pub enum GraphError {
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
-
-    #[cfg(feature = "storage")]
-    #[error("Raphtory Arrow Error: {0}")]
-    DiskGraphError(#[from] RAError),
 
     #[cfg(feature = "search")]
     #[error("Index operation failed: {source}")]
