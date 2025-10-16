@@ -5,15 +5,12 @@ use raphtory::{
     algorithms::components::weakly_connected_components,
     db::api::{
         mutation::AdditionOps,
-        state::{NodeState, NodeStateValue, TypedNodeState},
+        state::{NodeStateValue, TypedNodeState},
         view::internal::GraphView,
     },
     prelude::*,
 };
-use std::{
-    collections::{BTreeSet, HashMap},
-    hash::Hash,
-};
+use std::{collections::BTreeSet, hash::Hash};
 
 fn assert_same_partition<V: NodeStateValue + Hash + Eq, G: GraphView, ID: Into<GID>>(
     left: TypedNodeState<'static, V, G>, // NodeState<usize, G>,

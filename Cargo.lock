@@ -511,7 +511,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "strum",
+ "strum 0.26.3",
  "syn 2.0.106",
  "thiserror 1.0.69",
 ]
@@ -1124,8 +1124,8 @@ version = "7.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0d05af1e006a2407bedef5af410552494ce5be9090444dbbcb57258c1af3d56"
 dependencies = [
- "strum",
- "strum_macros",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
  "unicode-width",
 ]
 
@@ -2641,6 +2641,7 @@ version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "459196ed295495a68f7d7fe1d84f6c4b7ff0e21fe3017b2f283c6fac3ad803c9"
 dependencies = [
+ "bytemuck",
  "cfg-if",
  "crunchy",
  "num-traits",
@@ -3481,6 +3482,21 @@ dependencies = [
  "cc",
  "libc",
  "pkg-config",
+]
+
+[[package]]
+name = "marrow"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64369333feea08a4c974cc5d7bad82197999624d0c9508bec4b97ea9fc0e3f63"
+dependencies = [
+ "arrow-array",
+ "arrow-buffer",
+ "arrow-data",
+ "arrow-schema",
+ "bytemuck",
+ "half",
+ "serde",
 ]
 
 [[package]]
@@ -4425,8 +4441,38 @@ dependencies = [
 ]
 
 [[package]]
-name = "pometry-storage"
-version = "0.16.2"
+name = "pometry-storage-private"
+version = "0.12.1"
+dependencies = [
+ "ahash",
+ "arrow",
+ "bigdecimal",
+ "bincode",
+ "bytemuck",
+ "bytes",
+ "chrono",
+ "criterion",
+ "either",
+ "iter-enum",
+ "itertools 0.13.0",
+ "kdam",
+ "memmap2",
+ "once_cell",
+ "parking_lot",
+ "parquet",
+ "pretty_assertions",
+ "proptest",
+ "rand 0.8.5",
+ "raphtory-api",
+ "rayon",
+ "serde",
+ "serde_json",
+ "strum 0.27.2",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tracing",
+ "twox-hash",
+]
 
 [[package]]
 name = "portable-atomic"
@@ -4872,7 +4918,13 @@ version = "0.16.2"
 dependencies = [
  "ahash",
  "arrow",
+ "arrow-array",
+ "arrow-buffer",
+ "arrow-data",
+ "arrow-ipc",
  "arrow-json",
+ "arrow-schema",
+ "arrow-select",
  "arroy",
  "async-openai",
  "async-trait",
@@ -4910,7 +4962,7 @@ dependencies = [
  "ouroboros",
  "parking_lot",
  "parquet",
- "pometry-storage",
+ "pometry-storage-private",
  "pretty_assertions",
  "proptest",
  "proptest-derive",
@@ -4931,6 +4983,7 @@ dependencies = [
  "roaring",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_arrow",
  "serde_json",
  "streaming-stats",
  "strsim",
@@ -5038,7 +5091,7 @@ dependencies = [
  "lazy_static",
  "pest",
  "pest_derive",
- "pometry-storage",
+ "pometry-storage-private",
  "pretty_assertions",
  "proptest",
  "raphtory",
@@ -5121,7 +5174,7 @@ dependencies = [
  "itertools 0.13.0",
  "num-traits",
  "parking_lot",
- "pometry-storage",
+ "pometry-storage-private",
  "proptest",
  "raphtory-api",
  "raphtory-core",
@@ -5619,6 +5672,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_arrow"
+version = "0.13.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "197c925e607eaed897d7912f53895097c6994fdc04fe5f7a2e61eb3898de1d26"
+dependencies = [
+ "arrow-array",
+ "arrow-schema",
+ "bytemuck",
+ "chrono",
+ "half",
+ "marrow",
+ "serde",
+]
+
+[[package]]
 name = "serde_core"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5894,7 +5962,16 @@ version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.26.4",
+]
+
+[[package]]
+name = "strum"
+version = "0.27.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
+dependencies = [
+ "strum_macros 0.27.2",
 ]
 
 [[package]]
@@ -5907,6 +5984,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
+ "syn 2.0.106",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.27.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
  "syn 2.0.106",
 ]
 
