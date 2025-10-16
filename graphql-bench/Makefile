@@ -8,11 +8,26 @@ data/apache/master/graph:
 	@echo "Unzipping apache master graph"
 	@cd data/apache/master && tar -Jxf graph.tar.xz -C .
 
-bench-local: data/apache/master/graph
+build:
 	pnpm install --frozen-lockfile
 	pnpm build
+
+bench-local: data/apache/master/graph build
 	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js' || :
 	python process-k6-output.py
+
+stress-test: build
+	K6_WEB_DASHBOARD_EXPORT=report.html k6 run dist/stress-test.js
+
+stress-test-multiple: build # 12 x 10m = 2h
+	for _ in $(seq 1 12); do \
+		K6_WEB_DASHBOARD_EXPORT=report.html k6 run --duration=10m dist/stress-test.js
+	done
+
+stress-test-long: build
+	for _ in $(seq 1 12); do \
+		K6_WEB_DASHBOARD_EXPORT=report.html k6 run --duration=2h dist/stress-test.js
+	done
 
 # call this like: make bench-e2-standard-16
 bench-%:

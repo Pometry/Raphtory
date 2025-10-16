@@ -51,3 +51,19 @@ jobs:
         nightly-${{ needs.get_date.outputs.date }}-python
         nightly-python
       python: true
+  long-stress-test:
+    needs: release-python-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run stress test
+        run: |
+          cd graphql-bench
+          pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'docker run --rm nightly-python -p 1736:1736' 'make stress-test-long' || :
+  multiple-stress-tests:
+    needs: release-python-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run stress test
+        run: |
+          cd graphql-bench
+          pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'docker run --rm nightly-python -p 1736:1736' 'make stress-test-multiple' || :

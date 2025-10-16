@@ -8,26 +8,14 @@ permissions:
   contents: write
 on:
   workflow_call:
-    inputs:
-      skip_tests:
-        type: boolean
-        default: false
-        required: false
 
 jobs:
   benchmark:
-    if: ${{ !inputs.skip_tests }}
     name: GraphQL Benchmark
-    runs-on: '${{ matrix.os }}'
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         name: Checkout
-      - uses: ./.github/actions/setup_rust
-        name: Setup Rust
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -36,11 +24,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
-          cache: 'pip'
+      # - name: Setup Python ${{ matrix.python }}
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: ${{ matrix.python }}
+      #     cache: 'pip'
       - name: Install maturin
         run: pip install maturin==1.8.3
       - name: Build raphtory

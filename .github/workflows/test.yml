@@ -38,8 +38,12 @@ jobs:
     uses: ./.github/workflows/benchmark.yml
     secrets: inherit
   call-graphql-bench-workflow-in-local-repo:
-    name: Run benchmarks
+    name: Run GraphQL benchmarks
     uses: ./.github/workflows/bench-graphql.yml
+    secrets: inherit
+  call-stress-test-workflow-in-local-repo:
+    name: Run stress test
+    uses: ./.github/workflows/stress-test.yml
     secrets: inherit
 #  call-code-coverage:
 #    name: Code Coverage
