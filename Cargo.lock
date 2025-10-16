@@ -4922,6 +4922,7 @@ dependencies = [
  "quad-rand",
  "rand 0.8.5",
  "rand_distr",
+ "raphtory",
  "raphtory-api",
  "raphtory-core",
  "raphtory-storage",
