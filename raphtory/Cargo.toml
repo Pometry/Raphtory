@@ -20,7 +20,6 @@ raphtory-core.workspace = true
 raphtory-storage.workspace = true
 pometry-storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
-arrow = { workspace = true }
 arrow-array = { workspace = true, features = ["chrono-tz"] }
 arrow-schema = { workspace = true }
 arrow-ipc = {workspace = true}
@@ -75,13 +74,13 @@ prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
 # arrow otional dependencies
-parquet = { workspace = true, optional = true }
+parquet = { workspace = true }
 arrow-json = { workspace = true, optional = true }
 #arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
 #arrow-buffer = { workspace = true, optional = true }
 #arrow-cast = { workspace = true, optional = true }
 #arrow-schema = { workspace = true, optional = true }
-arrow = { workspace = true, optional = true, features = ["chrono-tz"] }
+arrow = { workspace = true, features = ["chrono-tz"] }
 
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
@@ -133,7 +132,6 @@ io = [
     "dep:csv",
     "dep:reqwest",
     "dep:tokio",
-    "dep:parquet",
     "proto",
 ]
 
@@ -181,9 +179,7 @@ storage = [
 arrow = [
     "raphtory-api/arrow",
     "raphtory-core/arrow",
-    "dep:parquet",
     "dep:arrow-json",
-    "dep:arrow",
 ]
 
 proto = [

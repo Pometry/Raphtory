@@ -58,7 +58,6 @@ where
     });
 
     let step2 = ATask::new(move |s: &mut EvalNodeView<G, LabelPropState>| {
-        let s_node = s.name();
         let prev_id = s.prev().community_id;
         let nbor_iter = s.neighbours();
         let state: &mut LabelPropState = s.get_mut();
@@ -71,7 +70,7 @@ where
                 .insert(nbor_id, *state.nbors.get(&nbor_id).unwrap_or(&(0)) + 1);
         }
         // get max label (use usize ID to resolve tie)
-        if let Some((&label, max_count)) = state
+        if let Some((&label, _)) = state
             .nbors
             .iter()
             .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))

@@ -127,7 +127,6 @@ mod sum_weight_test {
     use raphtory::{
         algorithms::metrics::balance::balance,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::GraphViewOps,
         test_storage,
     };
     use raphtory_api::core::{entities::properties::prop::Prop, Direction};
