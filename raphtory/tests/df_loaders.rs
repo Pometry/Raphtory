@@ -215,7 +215,7 @@ mod io_tests {
 
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
+                let edge = g2.edge(src, dst).unwrap().at(time);
                 assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
@@ -224,6 +224,53 @@ mod io_tests {
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
             assert_graph_equal(&g, &g2);
         })
+    }
+
+    #[test]
+    fn test_simultaneous_edge_update() {
+        let edges = [(0, 1, 0, "".to_string(), 0), (0, 1, 0, "".to_string(), 1)];
+
+        let distinct_edges = edges
+            .iter()
+            .map(|(src, dst, _, _, _)| (src, dst))
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        let df_view = build_df(1, &edges);
+        let g = Graph::new();
+        let props = ["str_prop", "int_prop"];
+        load_edges_from_df(
+            df_view,
+            "time",
+            "src",
+            "dst",
+            &props,
+            &[],
+            None,
+            None,
+            None,
+            &g,
+        )
+        .unwrap();
+        let g2 = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edges {
+            g2.add_edge(
+                time,
+                src,
+                dst,
+                [
+                    ("str_prop", str_prop.clone().into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+            let edge = g2.edge(src, dst).unwrap().at(time);
+            assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
+            assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+        }
+        assert_eq!(g.unfiltered_num_edges(), distinct_edges);
+        assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+        assert_graph_equal(&g, &g2);
     }
 
     #[test]

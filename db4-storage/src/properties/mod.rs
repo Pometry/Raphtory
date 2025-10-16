@@ -162,7 +162,7 @@ impl Properties {
                 TimestampMillisecondArray::from_iter(
                     indices.map(|i| lazy_vec.get_opt(i).copied().map(|dt| dt.timestamp_millis())),
                 )
-                .with_timezone_utc(),
+                .with_timezone("UTC"),
             )),
             PropColumn::NDTime(lazy_vec) => Some(Arc::new(TimestampMillisecondArray::from_iter(
                 indices.map(|i| {
