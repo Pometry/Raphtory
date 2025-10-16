@@ -37,6 +37,8 @@ jobs:
     name: Run UI Tests
     uses: ./.github/workflows/test_ui.yml
     secrets: inherit
+    permissions:
+      contents: read
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/benchmark.yml
