@@ -99,7 +99,6 @@ jobs:
           mypy -m raphtory
 
       - name: Check for uncommitted changes
-      
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
