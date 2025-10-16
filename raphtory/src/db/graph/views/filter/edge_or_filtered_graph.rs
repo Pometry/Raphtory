@@ -20,7 +20,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{LayerIds, EID, ELID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     inherit::Base,
 };
@@ -106,7 +106,7 @@ where
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.left
             .is_edge_prop_update_available(layer_id, prop_id, edge_id, time)
@@ -120,8 +120,8 @@ where
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
         self.left
             .is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w.clone())
@@ -136,7 +136,7 @@ where
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.left
             .is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
@@ -151,8 +151,8 @@ where
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
         self.left.is_edge_prop_update_latest_window(
             layer_ids,
@@ -197,12 +197,7 @@ impl<G, L: InternalExplodedEdgeFilterOps, R: InternalExplodedEdgeFilterOps>
             && self.right.internal_exploded_filter_edge_list_trusted()
     }
 
-    fn internal_filter_exploded_edge(
-        &self,
-        eid: ELID,
-        t: TimeIndexEntry,
-        layer_ids: &LayerIds,
-    ) -> bool {
+    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
         self.left.internal_filter_exploded_edge(eid, t, layer_ids)
             || self.right.internal_filter_exploded_edge(eid, t, layer_ids)
     }

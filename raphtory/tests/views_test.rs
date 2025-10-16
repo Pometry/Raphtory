@@ -1,3 +1,6 @@
+use std::ops::Range;
+
+use crate::test_utils::test_graph;
 use itertools::Itertools;
 use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
 use rand::prelude::*;
@@ -5,14 +8,13 @@ use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
     db::graph::graph::assert_graph_equal, prelude::*,
 };
-use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+use raphtory_api::core::{
+    entities::GID, storage::timeindex::AsTime, utils::logging::global_info_logger,
+};
 use rayon::prelude::*;
-use std::ops::Range;
 #[cfg(feature = "storage")]
 use tempfile::TempDir;
 use tracing::{error, info};
-
-use crate::test_utils::test_graph;
 
 pub mod test_utils;
 
@@ -517,7 +519,7 @@ fn test_view_resetting() {
             .edges()
             .window(1, 9)
             .earliest_time()
-            .map(|it| it.collect_vec())
+            .map(|it| it.map(|t_opt| t_opt.map(|t| t.t())).collect_vec())
             .collect_vec();
         assert_eq!(
             res,

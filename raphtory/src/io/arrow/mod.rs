@@ -14,7 +14,10 @@ mod test {
         prelude::*,
     };
     use arrow::array::{Float64Array, Int64Array, StringArray, UInt64Array};
-    use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+    use raphtory_api::core::{
+        entities::GID,
+        storage::{arc_str::ArcStr, timeindex::AsTime},
+    };
     use std::sync::Arc;
 
     #[test]
@@ -71,7 +74,7 @@ mod test {
                 (
                     e.src().id(),
                     e.dst().id(),
-                    e.latest_time(),
+                    e.latest_time().map(|t| t.t()),
                     e.properties()
                         .temporal()
                         .get("prop1")
@@ -165,7 +168,7 @@ mod test {
             .map(|v| {
                 (
                     v.id(),
-                    v.latest_time(),
+                    v.latest_time().map(|t| t.t()),
                     v.properties()
                         .temporal()
                         .get("name")

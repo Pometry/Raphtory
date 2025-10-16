@@ -1,9 +1,8 @@
+use crate::test_utils::test_graph;
 use itertools::Itertools;
 use raphtory::prelude::*;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
 use std::collections::HashMap;
-
-use crate::test_utils::test_graph;
 
 pub mod test_utils;
 
@@ -142,5 +141,5 @@ fn test_metadata_updates() {
 fn test_layers_earliest_time() {
     let g = Graph::new();
     let e = g.add_edge(1, 1, 2, NO_PROPS, Some("test")).unwrap();
-    assert_eq!(e.earliest_time(), Some(1));
+    assert_eq!(e.earliest_time().map(|t| t.t()), Some(1));
 }

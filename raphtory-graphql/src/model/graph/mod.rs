@@ -1,5 +1,6 @@
 use dynamic_graphql::{Enum, OneOfInput};
-use raphtory::core::utils::time::{AlignmentUnit, Interval, ParseTimeError, TryIntoInterval};
+use raphtory::core::utils::time::{AlignmentUnit, Interval, TryIntoInterval};
+use raphtory_api::core::utils::time::ParseTimeError;
 
 pub(crate) mod collection;
 mod document;
@@ -7,6 +8,7 @@ pub(crate) mod edge;
 mod edges;
 pub(crate) mod filtering;
 pub(crate) mod graph;
+pub(crate) mod history;
 pub(crate) mod index;
 pub(crate) mod meta_graph;
 pub(crate) mod mutable_graph;
@@ -16,6 +18,7 @@ pub(crate) mod node;
 mod nodes;
 mod path_from_node;
 pub(crate) mod property;
+pub(crate) mod timeindex;
 pub(crate) mod vector_selection;
 pub(crate) mod vectorised_graph;
 mod windowset;

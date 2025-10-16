@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use raphtory::{graph_loader::lotr_graph::lotr_graph, prelude::*};
+use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_benchmark::common::{
     bootstrap_graph, run_graph_ops_benches, run_large_ingestion_benchmarks,
     run_proto_decode_benchmark, run_proto_encode_benchmark,
@@ -37,7 +38,7 @@ pub fn base(c: &mut Criterion) {
             for t in edge.history() {
                 layered_graph
                     .add_edge(
-                        t,
+                        t.t(),
                         edge.src().name().clone(),
                         edge.dst().name().clone(),
                         NO_PROPS,

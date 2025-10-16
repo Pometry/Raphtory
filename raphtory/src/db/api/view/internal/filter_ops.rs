@@ -5,7 +5,7 @@ use iter_enum::{
 };
 use raphtory_api::core::{
     entities::ELID,
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
@@ -48,7 +48,7 @@ pub trait FilterOps {
 
     fn filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool;
 
-    fn filter_exploded_edge(&self, eid: ELID, t: TimeIndexEntry) -> bool;
+    fn filter_exploded_edge(&self, eid: ELID, t: EventTime) -> bool;
 
     fn edge_list_trusted(&self) -> bool;
 
@@ -67,7 +67,7 @@ pub trait InnerFilterOps {
     /// handles edge and edge layer filter (not exploded edge filter or windows)
     fn filter_edge_layer_inner(&self, edge: EdgeStorageRef, layer: usize) -> bool;
 
-    fn filter_exploded_edge_inner(&self, eid: ELID, t: TimeIndexEntry) -> bool;
+    fn filter_exploded_edge_inner(&self, eid: ELID, t: EventTime) -> bool;
 }
 
 impl<G: GraphView> InnerFilterOps for G {
@@ -101,7 +101,7 @@ impl<G: GraphView> InnerFilterOps for G {
             && self.filter_edge_from_nodes(edge)
     }
 
-    fn filter_exploded_edge_inner(&self, eid: ELID, t: TimeIndexEntry) -> bool {
+    fn filter_exploded_edge_inner(&self, eid: ELID, t: EventTime) -> bool {
         self.layer_ids().contains(&eid.layer())
             && self.internal_filter_exploded_edge(eid, t, self.layer_ids())
             && (self.exploded_filter_independent() || {
@@ -191,7 +191,7 @@ impl<G: GraphView> FilterOps for G {
             && self.edge_time_semantics().include_edge(edge, self, layer)
     }
 
-    fn filter_exploded_edge(&self, eid: ELID, t: TimeIndexEntry) -> bool {
+    fn filter_exploded_edge(&self, eid: ELID, t: EventTime) -> bool {
         self.edge_time_semantics()
             .include_exploded_edge(eid, t, self)
     }

@@ -4,8 +4,8 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph,
-                ExplodedEdgePropertyFilterOps, IntoDynBoxed,
+                history::History, internal::OneHopFilter, BaseNodeViewOps, BoxedLIter,
+                DynamicGraph, ExplodedEdgePropertyFilterOps, IntoDynBoxed,
             },
         },
         graph::{
@@ -143,6 +143,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
 
     pub fn collect(&self) -> Vec<Vec<NodeView<'graph, G, GH>>> {
         self.iter().map(|path| path.collect()).collect()
+    }
+
+    pub fn combined_history(&self) -> History<'graph, Self> {
+        History::new(self.clone())
     }
 }
 
@@ -399,6 +403,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
     ///     list[NodeView]: the list of nodes
     pub fn collect(&self) -> Vec<NodeView<'graph, G, GH>> {
         self.iter().collect()
+    }
+
+    pub fn combined_history(&self) -> History<'graph, Self> {
+        History::new(self.clone())
     }
 }
 

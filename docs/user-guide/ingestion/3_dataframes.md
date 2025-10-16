@@ -124,16 +124,16 @@ print(g.edge("ServerA", "ServerB"))
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))"
 ```
 
 !!! Output
 
     ```output
     The resulting graphs and example node/edge:
-    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)
-    Node(name=ServerA, earliest_time=1693555200000, latest_time=1693556400000, properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120, datasource: docs/data/network_traffic_edges.csv, server_name: Alpha, hardware_type: Blade Server}))
-    Edge(source=ServerA, target=ServerB, earliest_time=1693555200000, latest_time=1693555200000, properties={data_size_MB: 5.6, datasource: {Critical System Request: docs/data/network_traffic_edges.csv}, is_encrypted: {Critical System Request: true}}, layer(s)=[Critical System Request])
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))
+    Node(name=ServerA, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693556400000, event_id=4), properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))
+    Edge(source=ServerA, target=ServerB, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693555200000, event_id=0), properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])
     ```
 
 ## Adding metadata via dataframes
@@ -143,7 +143,7 @@ same two dataframes for brevity but in real instances these would probably be fo
 function call.
 
 There may be instances where you are adding a dataset which has no timestamps. To handle this when ingesting via
-dataframes, the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions which are shown in this example. 
+dataframes, the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions which are shown in this example.
 
 !!! warning
     Metadata can only be added to nodes and edges which are part of the graph. If you attempt to add a metadata without first adding the node/edge then Raphtory will throw an error.
@@ -201,13 +201,13 @@ print(g.edge("ServerA", "ServerB"))
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)
-    Node(name=ServerA, earliest_time=1693555200000, latest_time=1693556400000, properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120, datasource: docs/data/network_traffic_edges.csv, server_name: Alpha, hardware_type: Blade Server}))
-    Edge(source=ServerA, target=ServerB, earliest_time=1693555200000, latest_time=1693555200000, properties={data_size_MB: 5.6, datasource: {Critical System Request: docs/data/network_traffic_edges.csv}, is_encrypted: {Critical System Request: true}}, layer(s)=[Critical System Request])
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))
+    Node(name=ServerA, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693556400000, event_id=4), properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))
+    Edge(source=ServerA, target=ServerB, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693555200000, event_id=0), properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])
     ```
