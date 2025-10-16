@@ -144,10 +144,27 @@ Similarly for Parquet you can use `from_parquet()`, or `load_edges_from_parquet(
 
 ```python
 from raphtory import Graph
-import pandas as pd
 
 h=Graph()
-h=h.from_parquet(graph_dir="../data/parquet_example")
+
+h.load_edges_from_parquet(
+    time="timestamp",
+    src="source",
+    dst="destination",
+    properties=["data_size_MB"],
+    layer_col="transaction_type",
+    metadata=["is_encrypted"],
+    parquet_path="../data/net_edges_parquet"
+)
+
+h.load_nodes_from_parquet(
+    time="timestamp",
+    id="server_id",
+    properties=["OS_version", "primary_function", "uptime_days"],
+    metadata=["server_name", "hardware_type"],
+    parquet_path="../data/net_nodes_parquet"
+)
+
 print(h)
 ```
 
