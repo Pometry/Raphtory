@@ -98,9 +98,9 @@ impl PyNodeFilterBuilder {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Arguments:
-    ///     prop_value (str):
-    ///     levenshtein_distance (int):
-    ///     prefix_match (bool):
+    ///     prop_value (str): Property to match against.
+    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
+    ///     prefix_match (bool): Enable prefix matching.
     ///
     /// Returns:
     ///     filter.FilterExpr:
@@ -188,9 +188,9 @@ pub trait DynNodeFilterBuilderOps: Send + Sync {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Arguments:
-    ///     prop_value (str):
-    ///     levenshtein_distance (int):
-    ///     prefix_match (bool):
+    ///     prop_value (str): Property to match against.
+    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
+    ///     prefix_match (bool): Enable prefix matching.
     ///  
     /// Returns:
     ///     filter.FilterExpr:
@@ -277,9 +277,9 @@ where
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Arguments:
-    ///     prop_value (str):
-    ///     levenshtein_distance (int):
-    ///     prefix_match (bool):
+    ///     prop_value (str): Property to match against.
+    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
+    ///     prefix_match (bool): Enable prefix matching.
     ///  
     /// Returns:
     ///     filter.FilterExpr:
