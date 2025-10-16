@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760542223199,
+  "lastUpdate": 1760624742493,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1403,6 +1403,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1129,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a885424ebf1e5e3b86959b5759e9c09caeeff76",
+          "message": "update pometry storage and fix the GID column issue (#2332)\n\n* update pometry storage\n\n* update pometry storage",
+          "timestamp": "2025-10-16T14:49:28+01:00",
+          "tree_id": "1f19410a1b4a83d668abe23569d6cb8ca748c335",
+          "url": "https://github.com/Pometry/Raphtory/commit/8a885424ebf1e5e3b86959b5759e9c09caeeff76"
+        },
+        "date": 1760624739399,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1074,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 123,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 127,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 808,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 688,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1030,
             "unit": "req/s"
           }
         ]
