@@ -169,9 +169,17 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         node_meta: Meta,
         edge_meta: Meta,
     ) -> Result<Self, StorageError> {
+        let mut graph_dir = graph_dir;
+
+        // Short-circuit graph_dir to None if disk storage is not enabled
+        if !Extension::disk_storage_enabled() {
+            graph_dir = None;
+        }
+
         if let Some(dir) = graph_dir.as_ref() {
             std::fs::create_dir_all(dir)?
         }
+
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
         let logical_to_physical = match gid_resolver_dir {
             Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir)?,
@@ -201,8 +209,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         })
     }
 
-    pub fn read_event_counter(&self) -> usize {
-        self.storage().read_event_id()
+    pub fn disk_storage_enabled(&self) -> bool {
+        Extension::disk_storage_enabled()
     }
 
     pub fn storage(&self) -> &Arc<Layer<EXT>> {
@@ -218,8 +226,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     #[inline]
-    pub fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
-        match v {
+    pub fn resolve_node_ref(&self, node: NodeRef) -> Option<VID> {
+        match node {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
             NodeRef::External(GidRef::Str(string)) => self
@@ -227,10 +235,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
                 .get_str(string)
                 .or_else(|| self.logical_to_physical.get_u64(string.id())),
         }
-    }
-
-    pub fn next_event_id(&self) -> usize {
-        self.storage().next_event_id()
     }
 
     #[inline]

@@ -1,4 +1,5 @@
 use crate::{
+    paths::ExistingGraphFolder,
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph,
@@ -16,7 +17,7 @@ use raphtory::{db::api::view::MaterializedGraph, serialise::GraphFolder};
 use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, future::Future, io::Cursor, sync::Arc};
+use std::{collections::HashMap, future::Future, io::Cursor, path::PathBuf, sync::Arc};
 use tokio::runtime::Runtime;
 use tracing::debug;
 
@@ -235,11 +236,11 @@ impl PyRaphtoryClient {
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         let remote_client = self.clone();
         let client = self.client.clone();
+
         self.execute_async_task(move || async move {
             let folder = GraphFolder::from(file_path.clone());
             let mut buffer = Vec::new();
-            folder.create_zip(Cursor::new(&mut buffer))?;
-
+            folder.zip_from_folder(Cursor::new(&mut buffer))?;
 
             let variables = format!(
                 r#""path": "{}", "overwrite": {}, "graph": null"#,
@@ -401,7 +402,7 @@ impl PyRaphtoryClient {
     /// Receive graph from a path path on the server
     ///
     /// Note:
-    /// This downloads a copy of the graph. Modifications are not persistet to the server.
+    /// This downloads a copy of the graph. Modifications are not persisted to the server.
     ///
     /// Arguments:
     ///     path (str): the path of the graph to be received
@@ -418,7 +419,8 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
         match data.get("receiveGraph") {
             Some(JsonValue::String(graph)) => {
-                let mat_graph = url_decode_graph(graph)?;
+                let path_for_decoded_graph = None;
+                let mat_graph = url_decode_graph(graph, path_for_decoded_graph)?;
                 Ok(mat_graph)
             }
             _ => Err(PyException::new_err(format!(

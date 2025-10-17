@@ -8,7 +8,7 @@ use criterion::{
 use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::utils::logging::global_info_logger;
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 use tempfile::TempDir;
 use tracing::info;
 
@@ -587,8 +587,9 @@ pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: G
 pub fn run_proto_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
     let f = TempDir::new().unwrap();
     graph.encode(f.path()).unwrap();
+    let path_for_decoded_graph = None;
     bench(group, "proto_decode", None, |b| {
-        b.iter(|| Graph::decode(f.path()).unwrap())
+        b.iter(|| Graph::decode(f.path(), path_for_decoded_graph).unwrap())
     })
 }
 

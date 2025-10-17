@@ -1,4 +1,6 @@
-use super::{Prop, DST_COL, LAYER_COL, NODE_ID_COL, SRC_COL, TIME_COL, TYPE_COL};
+use super::{
+    Prop, DST_COL, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, SRC_COL, TIME_COL, TYPE_COL,
+};
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
@@ -51,9 +53,10 @@ impl<'a> Serialize for ParquetProp<'a> {
                 }
                 state.end()
             }
-
             Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
-            _ => todo!(),
+            _ => {
+                todo!("Serializer not implemented")
+            }
         }
     }
 }
@@ -92,6 +95,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetTEdge<'a, G> {
             .map_err(|_| S::Error::custom("Edge has no layer"))?;
 
         state.serialize_entry(TIME_COL, &t.0)?;
+        state.serialize_entry(SECONDARY_INDEX_COL, &t.1)?;
         state.serialize_entry(SRC_COL, &ParquetGID(edge.src().id()))?;
         state.serialize_entry(DST_COL, &ParquetGID(edge.dst().id()))?;
         state.serialize_entry(LAYER_COL, &layer)?;
@@ -145,6 +149,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
         let mut state = serializer.serialize_map(None)?;
 
         state.serialize_entry(TIME_COL, &self.del.0)?;
+        state.serialize_entry(SECONDARY_INDEX_COL, &self.del.1)?;
         state.serialize_entry(SRC_COL, &ParquetGID(edge.src().id()))?;
         state.serialize_entry(DST_COL, &ParquetGID(edge.dst().id()))?;
         state.serialize_entry(LAYER_COL, &self.layer)?;
@@ -169,6 +174,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
 
         state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
         state.serialize_entry(TIME_COL, &self.t.0)?;
+        state.serialize_entry(SECONDARY_INDEX_COL, &self.t.1)?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.props.iter() {

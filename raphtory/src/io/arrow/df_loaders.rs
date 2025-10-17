@@ -3,21 +3,24 @@ use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
-        dataframe::{DFChunk, DFView},
+        dataframe::{DFChunk, DFView, SecondaryIndexCol},
         layer_col::{lift_layer_col, lift_node_type_col},
         prop_handler::*,
     },
     prelude::*,
-    serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use either::Either;
+use itertools::izip;
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::{properties::prop::PropType, EID},
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
+            EID,
+        },
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     },
 };
@@ -59,11 +62,12 @@ fn process_shared_properties(
     }
 }
 
-pub(crate) fn load_nodes_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+pub fn load_nodes_from_df<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
+    secondary_index: Option<&str>,
     node_id: &str,
     properties: &[&str],
     metadata: &[&str],
@@ -90,6 +94,9 @@ pub(crate) fn load_nodes_from_df<
 
     let node_id_index = df_view.get_index(node_id)?;
     let time_index = df_view.get_index(time)?;
+    let secondary_index_index = secondary_index
+        .map(|col| df_view.get_index(col))
+        .transpose()?;
 
     let session = graph.write_session().map_err(into_graph_err)?;
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
@@ -105,9 +112,6 @@ pub(crate) fn load_nodes_from_df<
     let mut node_type_col_resolved = vec![];
 
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-    let mut start_id = session
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -128,18 +132,37 @@ pub(crate) fn load_nodes_from_df<
         let time_col = df.time_col(time_index)?;
         let node_col = df.node_col(node_id_index)?;
 
+        // Load the secondary index column if it exists, otherwise generate from start_id.
+        let secondary_index_col = match secondary_index_index {
+            Some(col_index) => {
+                // Update the event_id to reflect ingesting new secondary indices.
+                let col = df.secondary_index_col(col_index)?;
+                session
+                    .set_max_event_id(col.max())
+                    .map_err(into_graph_err)?;
+                col
+            }
+            None => {
+                let start_id = session
+                    .reserve_event_ids(df.len())
+                    .map_err(into_graph_err)?;
+                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
+                col
+            }
+        };
+
         node_col_resolved.resize_with(df.len(), Default::default);
         node_type_col_resolved.resize_with(df.len(), Default::default);
 
         // TODO: Using parallel iterators results in a 5x speedup, but
         // needs to be implemented such that node VID order is preserved.
         // See: https://github.com/Pometry/pometry-storage/issues/81
-        for (((gid, resolved), node_type), node_type_resolved) in node_col
-            .iter()
-            .zip(node_col_resolved.iter_mut())
-            .zip(node_type_col.iter())
-            .zip(node_type_col_resolved.iter_mut())
-        {
+        for (gid, resolved, node_type, node_type_resolved) in izip!(
+            node_col.iter(),
+            node_col_resolved.iter_mut(),
+            node_type_col.iter(),
+            node_type_col_resolved.iter_mut()
+        ) {
             let (vid, res_node_type) = write_locked_graph
                 .graph()
                 .resolve_node_and_type(gid.as_node_ref(), node_type)
@@ -162,46 +185,50 @@ pub(crate) fn load_nodes_from_df<
             .nodes
             .par_iter_mut()
             .try_for_each(|shard| {
-                let mut t_props = vec![];
-                let mut c_props = vec![];
+                // Zip all columns for iteration.
+                let zip = izip!(
+                    node_col_resolved.iter(),
+                    time_col.iter(),
+                    secondary_index_col.iter(),
+                    node_type_col_resolved.iter(),
+                    node_col.iter()
+                );
 
-                for (idx, (((vid, time), node_type), gid)) in node_col_resolved
-                    .iter()
-                    .zip(time_col.iter())
-                    .zip(node_type_col_resolved.iter())
-                    .zip(node_col.iter())
-                    .enumerate()
-                {
+                for (row, (vid, time, secondary_index, node_type, gid)) in zip.enumerate() {
                     if let Some(mut_node) = shard.resolve_pos(*vid) {
-                        let t = TimeIndexEntry(time, start_id + idx);
-                        update_time(t);
                         let mut writer = shard.writer();
-                        writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type, 0);
-                        t_props.clear();
-                        t_props.extend(prop_cols.iter_row(idx));
+                        let t = TimeIndexEntry(time, secondary_index);
+                        let layer_id = STATIC_GRAPH_LAYER_ID;
+                        let lsn = 0;
 
-                        c_props.clear();
-                        c_props.extend(metadata_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_metadata);
-                        writer.update_c_props(mut_node, 0, c_props.drain(..), 0);
-                        writer.add_props(t, mut_node, 0, t_props.drain(..), 0);
+                        update_time(t);
+                        writer
+                            .store_node_id_and_node_type(mut_node, layer_id, gid, *node_type, lsn);
+
+                        let t_props = prop_cols.iter_row(row);
+                        let c_props = metadata_cols
+                            .iter_row(row)
+                            .chain(shared_metadata.iter().cloned());
+
+                        writer.add_props(t, mut_node, layer_id, t_props, lsn);
+                        writer.update_c_props(mut_node, layer_id, c_props, lsn);
                     };
                 }
+
                 Ok::<_, GraphError>(())
             })?;
 
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-        start_id += df.len();
     }
+
     Ok(())
 }
 
-pub fn load_edges_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
->(
+pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
+    secondary_index: Option<&str>,
     src: &str,
     dst: &str,
     properties: &[&str],
@@ -214,6 +241,7 @@ pub fn load_edges_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
+
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -226,6 +254,9 @@ pub fn load_edges_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
+    let secondary_index_index = secondary_index
+        .map(|col| df_view.get_index(col))
+        .transpose()?;
     let layer_index = if let Some(layer_col) = layer_col {
         Some(df_view.get_index(layer_col.as_ref())?)
     } else {
@@ -239,10 +270,6 @@ pub fn load_edges_from_df<
     })?;
 
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
-    let _ = pb.update(0);
-    let mut start_idx = session
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
 
     let mut src_col_resolved = vec![];
     let mut dst_col_resolved = vec![];
@@ -380,6 +407,25 @@ pub fn load_edges_from_df<
 
         let time_col = df.time_col(time_index)?;
 
+        // Load the secondary index column if it exists, otherwise generate from start_id.
+        let secondary_index_col = match secondary_index_index {
+            Some(col_index) => {
+                // Update the event_id to reflect ingesting new secondary indices.
+                let col = df.secondary_index_col(col_index)?;
+                session
+                    .set_max_event_id(col.max())
+                    .map_err(into_graph_err)?;
+                col
+            }
+            None => {
+                let start_id = session
+                    .reserve_event_ids(df.len())
+                    .map_err(into_graph_err)?;
+                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
+                col
+            }
+        };
+
         write_locked_graph.resize_chunks_to_num_nodes(num_nodes.load(Ordering::Relaxed));
 
         eid_col_resolved.resize_with(df.len(), Default::default);
@@ -397,22 +443,26 @@ pub fn load_edges_from_df<
         let WriteLockedGraph {
             nodes, ref edges, ..
         } = &mut write_locked_graph;
+
         // Generate all edge_ids + add outbound edges
         nodes
             .iter_mut() // TODO: change to par_iter_mut but preserve edge_id order
             .enumerate()
             .for_each(|(page_id, locked_page)| {
-                for (row, ((((src, src_gid), dst), time), layer)) in src_col_resolved
-                    .iter()
-                    .zip(src_col.iter())
-                    .zip(dst_col_resolved.iter())
-                    .zip(time_col.iter())
-                    .zip(layer_col_resolved.iter())
-                    .enumerate()
-                {
+                // Zip all columns for iteration.
+                let zip = izip!(
+                    src_col_resolved.iter(),
+                    src_col.iter(),
+                    dst_col_resolved.iter(),
+                    time_col.iter(),
+                    secondary_index_col.iter(),
+                    layer_col_resolved.iter()
+                );
+
+                for (row, (src, src_gid, dst, time, secondary_index, layer)) in zip.enumerate() {
                     if let Some(src_pos) = locked_page.resolve_pos(*src) {
-                        let t = TimeIndexEntry(time, start_idx + row);
                         let mut writer = locked_page.writer();
+                        let t = TimeIndexEntry(time, secondary_index);
                         writer.store_node_id(src_pos, 0, src_gid, 0);
                         // find the original EID in the static graph if it exists
                         // otherwise create a new one
@@ -439,7 +489,7 @@ pub fn load_edges_from_df<
                             writer.update_timestamp(t, src_pos, edge_id, 0);
                         } else {
                             layer_eids_exist[row].store(false, Ordering::Relaxed);
-                            // actuall adds the edge
+                            // actually adds the edge
                             writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id, 0);
                         }
 
@@ -458,31 +508,40 @@ pub fn load_edges_from_df<
                     .par_iter_mut()
                     .enumerate()
                     .for_each(|(page_id, shard)| {
+                        let zip = izip!(
+                            src_col_resolved.iter(),
+                            dst_col_resolved.iter(),
+                            dst_col.iter(),
+                            eid_col_resolved.iter(),
+                            time_col.iter(),
+                            secondary_index_col.iter(),
+                            layer_col_resolved.iter(),
+                            layer_eids_exist.iter().map(|a| a.load(Ordering::Relaxed)),
+                            eids_exist.iter().map(|b| b.load(Ordering::Relaxed))
+                        );
+
                         for (
-                            row,
-                            (
-                                ((((src, (dst, dst_gid)), eid), time), layer),
-                                (edge_exists_in_layer, edge_exists_in_s_graph),
-                            ),
-                        ) in src_col_resolved
-                            .iter()
-                            .zip(dst_col_resolved.iter().zip(dst_col.iter()))
-                            .zip(&eid_col_resolved)
-                            .zip(time_col.iter())
-                            .zip(layer_col_resolved.iter())
-                            .zip(layer_eids_exist.iter().zip(&eids_exist).map(|(a, b)| {
-                                (a.load(Ordering::Relaxed), b.load(Ordering::Relaxed))
-                            }))
-                            .enumerate()
+                            src,
+                            dst,
+                            dst_gid,
+                            eid,
+                            time,
+                            secondary_index,
+                            layer,
+                            edge_exists_in_layer,
+                            edge_exists_in_static_graph,
+                        ) in zip
                         {
                             if let Some(dst_pos) = shard.resolve_pos(*dst) {
-                                let t = TimeIndexEntry(time, start_idx + row);
+                                let t = TimeIndexEntry(time, secondary_index);
                                 let mut writer = shard.writer();
 
                                 writer.store_node_id(dst_pos, 0, dst_gid, 0);
-                                if !edge_exists_in_s_graph {
+
+                                if !edge_exists_in_static_graph {
                                     writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
                                 }
+
                                 if !edge_exists_in_layer {
                                     writer.add_inbound_edge(
                                         Some(t),
@@ -504,6 +563,17 @@ pub fn load_edges_from_df<
             // Add temporal & constant properties to edges
             sc.spawn(|_| {
                 write_locked_graph.edges.par_iter_mut().for_each(|shard| {
+                    let zip = izip!(
+                        src_col_resolved.iter(),
+                        dst_col_resolved.iter(),
+                        time_col.iter(),
+                        secondary_index_col.iter(),
+                        eid_col_resolved.iter(),
+                        layer_col_resolved.iter(),
+                        eids_exist
+                            .iter()
+                            .map(|exists| exists.load(Ordering::Relaxed))
+                    );
                     let mut t_props: Vec<(usize, Prop)> = vec![];
                     let mut c_props: Vec<(usize, Prop)> = vec![];
 
@@ -522,28 +592,18 @@ pub fn load_edges_from_df<
                     //     prop_cols.prop_ids(),
                     // );
 
-                    for (idx, (((((src, dst), time), eid), layer), exists)) in src_col_resolved
-                        .iter()
-                        .zip(dst_col_resolved.iter())
-                        .zip(time_col.iter())
-                        .zip(eid_col_resolved.iter())
-                        .zip(layer_col_resolved.iter())
-                        .zip(
-                            eids_exist
-                                .iter()
-                                .map(|exists| exists.load(Ordering::Relaxed)),
-                        )
-                        .enumerate()
+                    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
+                        zip.enumerate()
                     {
                         if let Some(eid_pos) = shard.resolve_pos(*eid) {
-                            let t = TimeIndexEntry(time, start_idx + idx);
+                            let t = TimeIndexEntry(time, secondary_index);
                             let mut writer = shard.writer();
 
                             t_props.clear();
-                            t_props.extend(prop_cols.iter_row(idx));
+                            t_props.extend(prop_cols.iter_row(row));
 
                             c_props.clear();
-                            c_props.extend(metadata_cols.iter_row(idx));
+                            c_props.extend(metadata_cols.iter_row(row));
                             c_props.extend_from_slice(&shared_metadata);
 
                             writer.add_static_edge(Some(eid_pos), *src, *dst, 0, Some(exists));
@@ -555,7 +615,7 @@ pub fn load_edges_from_df<
             });
         });
 
-        start_idx += df.len();
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
 
@@ -626,6 +686,7 @@ pub(crate) fn load_edge_deletions_from_df<
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
+    secondary_index: Option<&str>,
     src: &str,
     dst: &str,
     layer: Option<&str>,
@@ -638,14 +699,14 @@ pub(crate) fn load_edge_deletions_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
+    let secondary_index_index = secondary_index
+        .map(|col| df_view.get_index(col))
+        .transpose()?;
     let layer_index = layer_col.map(|layer_col| df_view.get_index(layer_col.as_ref()));
     let layer_index = layer_index.transpose()?;
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge deletions".to_string(), df_view.num_rows)?;
     let session = graph.write_session().map_err(into_graph_err)?;
-    let mut start_idx = session
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -653,21 +714,41 @@ pub(crate) fn load_edge_deletions_from_df<
         let src_col = df.node_col(src_index)?;
         let dst_col = df.node_col(dst_index)?;
         let time_col = df.time_col(time_index)?;
+
+        // Load the secondary index column if it exists, otherwise generate from start_id.
+        let secondary_index_col = match secondary_index_index {
+            Some(col_index) => {
+                // Update the event_id to reflect ingesting new secondary indices.
+                let col = df.secondary_index_col(col_index)?;
+                session
+                    .set_max_event_id(col.max())
+                    .map_err(into_graph_err)?;
+                col
+            }
+            None => {
+                let start_id = session
+                    .reserve_event_ids(df.len())
+                    .map_err(into_graph_err)?;
+                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
+                col
+            }
+        };
+
         src_col
             .par_iter()
             .zip(dst_col.par_iter())
             .zip(time_col.par_iter())
+            .zip(secondary_index_col.par_iter())
             .zip(layer.par_iter())
-            .enumerate()
-            .try_for_each(|(idx, (((src, dst), time), layer))| {
+            .try_for_each(|((((src, dst), time), secondary_index), layer)| {
                 let src = src.ok_or(LoadError::MissingSrcError)?;
                 let dst = dst.ok_or(LoadError::MissingDstError)?;
-                graph.delete_edge((time, start_idx + idx), src, dst, layer)?;
+                graph.delete_edge((time, secondary_index), src, dst, layer)?;
                 Ok::<(), GraphError>(())
             })?;
+
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-        start_idx += df.len();
     }
 
     Ok(())
@@ -675,7 +756,7 @@ pub(crate) fn load_edge_deletions_from_df<
 
 pub(crate) fn load_node_props_from_df<
     'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,
@@ -776,7 +857,7 @@ pub(crate) fn load_node_props_from_df<
 }
 
 pub(crate) fn load_edges_props_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     src: &str,
@@ -927,6 +1008,7 @@ pub(crate) fn load_graph_props_from_df<
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
+    secondary_index: Option<&str>,
     properties: Option<&[&str]>,
     metadata: Option<&[&str]>,
     graph: &G,
@@ -947,14 +1029,13 @@ pub(crate) fn load_graph_props_from_df<
         .collect::<Result<Vec<_>, GraphError>>()?;
 
     let time_index = df_view.get_index(time)?;
+    let secondary_index_index = secondary_index
+        .map(|col| df_view.get_index(col))
+        .transpose()?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
     let session = graph.write_session().map_err(into_graph_err)?;
-
-    let mut start_id = session
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -972,14 +1053,34 @@ pub(crate) fn load_graph_props_from_df<
             })?;
         let time_col = df.time_col(time_index)?;
 
+        // Load the secondary index column if it exists, otherwise generate from start_id.
+        let secondary_index_col = match secondary_index_index {
+            Some(col_index) => {
+                // Update the event_id to reflect ingesting new secondary indices.
+                let col = df.secondary_index_col(col_index)?;
+                session
+                    .set_max_event_id(col.max())
+                    .map_err(into_graph_err)?;
+                col
+            }
+            None => {
+                let start_id = session
+                    .reserve_event_ids(df.len())
+                    .map_err(into_graph_err)?;
+                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
+                col
+            }
+        };
+
         time_col
             .par_iter()
+            .zip(secondary_index_col.par_iter())
             .zip(prop_cols.par_rows())
             .zip(metadata_cols.par_rows())
-            .enumerate()
-            .try_for_each(|(id, ((time, t_props), c_props))| {
-                let t = TimeIndexEntry(time, start_id + id);
+            .try_for_each(|(((time, secondary_index), t_props), c_props)| {
+                let t = TimeIndexEntry(time, secondary_index);
                 let t_props: Vec<_> = t_props.collect();
+
                 if !t_props.is_empty() {
                     graph
                         .internal_add_properties(t, &t_props)
@@ -993,11 +1094,13 @@ pub(crate) fn load_graph_props_from_df<
                         .internal_add_metadata(&c_props)
                         .map_err(into_graph_err)?;
                 }
+
                 Ok::<(), GraphError>(())
             })?;
+
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-        start_id += df.len();
     }
+
     Ok(())
 }

@@ -19,19 +19,21 @@ use dynamic_graphql::{
     Result, Upload,
 };
 use raphtory::{
-    db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::view::{internal::InternalStorageOps, MaterializedGraph},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     errors::{GraphError, InvalidPathReason},
     prelude::*,
-    serialise::InternalStableDecode,
+    serialise::*,
     version,
 };
 use std::{
     error::Error,
     fmt::{Display, Formatter},
-    io::Read,
+    path::PathBuf,
     sync::Arc,
 };
-use zip::ZipArchive;
 
 pub(crate) mod graph;
 pub mod plugins;
@@ -100,6 +102,7 @@ impl QueryRoot {
             .await
             .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
+
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
@@ -110,7 +113,8 @@ impl QueryRoot {
         let graph = data
             .get_graph(path.as_ref())
             .await
-            .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
+            .map(|(g, folder)| GqlMutableGraph::new(folder, g, data.clone()))?;
+
         Ok(graph)
     }
 
@@ -122,6 +126,7 @@ impl QueryRoot {
         let g = data.get_graph(path).await.ok()?.0.vectors?;
         Some(g.into())
     }
+
     /// Returns all namespaces using recursive search
     ///
     /// Returns::  List of namespaces on root
@@ -147,6 +152,7 @@ impl QueryRoot {
             Err(InvalidPathReason::NamespaceDoesNotExist(path))
         }
     }
+
     /// Returns root namespace
     ///
     /// Returns::  Root namespace
@@ -154,10 +160,12 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
     }
+
     /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
+
     /// Encodes graph and returns as string
     ///
     /// Returns:: Base64 url safe encoded string
@@ -202,11 +210,16 @@ impl Mut {
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = match graph_type {
-            GqlGraphType::Persistent => PersistentGraph::new().materialize()?,
-            GqlGraphType::Event => Graph::new().materialize()?,
+        let overwrite = false;
+        let folder = data.validate_path_for_insert(&path, overwrite)?;
+        let path = folder.get_graph_path();
+        let graph: MaterializedGraph = match graph_type {
+            GqlGraphType::Persistent => PersistentGraph::new_at_path(path).into(),
+            GqlGraphType::Event => Graph::new_at_path(path).into(),
         };
-        data.insert_graph(&path, graph).await?;
+
+        data.insert_graph(folder, graph).await?;
+
         Ok(true)
     }
 
@@ -230,8 +243,10 @@ impl Mut {
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
         let data = ctx.data_unchecked::<Data>();
+        let overwrite = false;
+        let folder = data.validate_path_for_insert(new_path, overwrite)?;
         let graph = data.get_graph(path).await?.0.graph;
-        data.insert_graph(new_path, graph).await?;
+        data.insert_graph(folder, graph).await?;
 
         Ok(true)
     }
@@ -247,18 +262,15 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = {
-            let in_file = graph.value(ctx)?.content;
-            let mut archive = ZipArchive::new(in_file)?;
-            let mut entry = archive.by_name("graph")?;
-            let mut buf = vec![];
-            entry.read_to_end(&mut buf)?;
-            MaterializedGraph::decode_from_bytes(&buf)?
-        };
+        let in_file = graph.value(ctx)?.content;
+        let folder = data.validate_path_for_insert(&path, overwrite)?;
+
         if overwrite {
             let _ignored = data.delete_graph(&path).await;
         }
-        data.insert_graph(&path, graph).await?;
+
+        data.insert_graph_as_bytes(folder, in_file).await?;
+
         Ok(path)
     }
 
@@ -273,11 +285,15 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let g: MaterializedGraph = url_decode_graph(graph)?;
+        let folder = data.validate_path_for_insert(path, overwrite)?;
+        let path_for_decoded_graph = Some(folder.get_graph_path());
+        let g: MaterializedGraph = url_decode_graph(graph, path_for_decoded_graph.as_deref())?;
+
         if overwrite {
             let _ignored = data.delete_graph(path).await;
         }
-        data.insert_graph(path, g).await?;
+
+        data.insert_graph(folder, g).await?;
         Ok(path.to_owned())
     }
 
@@ -296,10 +312,13 @@ impl Mut {
         let parent_graph = data.get_graph(parent_path).await?.0.graph;
         let new_subgraph =
             blocking_compute(move || parent_graph.subgraph(nodes).materialize()).await?;
+        let folder = data.validate_path_for_insert(&new_path, overwrite)?;
+
         if overwrite {
             let _ignored = data.delete_graph(&new_path).await;
         }
-        data.insert_graph(&new_path, new_subgraph).await?;
+
+        data.insert_graph(folder, new_subgraph).await?;
         Ok(new_path)
     }
 

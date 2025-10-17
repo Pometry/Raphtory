@@ -5,6 +5,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use proptest::{arbitrary::any, prelude::*};
 use proptest_derive::Arbitrary;
+use rand::seq::SliceRandom;
 use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
@@ -56,6 +57,39 @@ pub fn build_edge_list_str(
         ),
         0..=len,
     )
+}
+
+pub fn build_edge_list_with_secondary_index(
+    len: usize,
+    num_nodes: u64,
+) -> impl Strategy<Value = Vec<(u64, u64, i64, u64, String, i64)>> {
+    Just(()).prop_flat_map(move |_| {
+        // Generate a shuffled set of unique secondary indices
+        let mut secondary_index: Vec<u64> = (0..len as u64).collect();
+        let mut rng = rand::thread_rng();
+        secondary_index.shuffle(&mut rng);
+
+        prop::collection::vec(
+            (
+                0..num_nodes,       // src
+                0..num_nodes,       // dst
+                i64::MIN..i64::MAX, // time
+                any::<String>(),    // str_prop
+                i64::MIN..i64::MAX, // int_prop
+            ),
+            len,
+        )
+        .prop_map(move |edges| {
+            // add secondary indices to the edges
+            edges
+                .into_iter()
+                .zip(secondary_index.iter())
+                .map(|((src, dst, time, str_prop, int_prop), &sec_index)| {
+                    (src, dst, time, sec_index, str_prop, int_prop)
+                })
+                .collect::<Vec<_>>()
+        })
+    })
 }
 
 pub fn build_edge_deletions(

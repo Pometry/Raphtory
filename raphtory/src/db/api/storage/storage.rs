@@ -263,6 +263,10 @@ impl InternalStorageOps for Storage {
     fn get_storage(&self) -> Option<&Storage> {
         Some(self)
     }
+
+    fn disk_storage_enabled(&self) -> bool {
+        self.graph.disk_storage_enabled()
+    }
 }
 
 impl InheritNodeHistoryFilter for Storage {}
@@ -327,12 +331,24 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
 impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
     type Error = GraphError;
 
+    fn read_event_id(&self) -> Result<usize, Self::Error> {
+        Ok(self.session.read_event_id()?)
+    }
+
+    fn set_event_id(&self, event_id: usize) -> Result<(), Self::Error> {
+        Ok(self.session.set_event_id(event_id)?)
+    }
+
     fn next_event_id(&self) -> Result<usize, Self::Error> {
         Ok(self.session.next_event_id()?)
     }
 
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
         Ok(self.session.reserve_event_ids(num_ids)?)
+    }
+
+    fn set_max_event_id(&self, value: usize) -> Result<usize, Self::Error> {
+        Ok(self.session.set_max_event_id(value)?)
     }
 
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {

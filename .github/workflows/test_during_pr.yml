@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - master
+      - docbrownv4_merge
       - "0.16"
 
 concurrency:

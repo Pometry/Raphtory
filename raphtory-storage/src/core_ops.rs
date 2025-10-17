@@ -46,7 +46,7 @@ pub trait CoreGraphOps: Send + Sync {
     fn read_event_id(&self) -> usize {
         match self.core_graph() {
             GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.read_event_counter()
+                graph.storage().read_event_id()
             }
         }
     }

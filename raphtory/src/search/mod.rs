@@ -181,10 +181,13 @@ mod test_index {
         };
         use tempfile::TempDir;
 
-        fn init_graph<G>(graph: G) -> G
-        where
-            G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps,
-        {
+        fn temp_storage_path() -> std::path::PathBuf {
+            tempfile::tempdir().unwrap().path().to_path_buf()
+        }
+
+        fn init_graph() -> Graph {
+            let graph = Graph::new();
+
             graph
                 .add_node(
                     1,
@@ -213,7 +216,7 @@ mod test_index {
         #[test]
         fn test_create_no_index_persist_no_index_on_encode_load_no_index_on_decode() {
             // No index persisted since it was never created
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let filter = NodeFilter::name().eq("Alice");
             assert_search_results(&graph, &filter, vec!["Alice"]);
@@ -222,14 +225,14 @@ mod test_index {
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(!is_indexed);
         }
 
         #[test]
         fn test_create_index_persist_index_on_encode_load_index_on_decode() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             // Created index
             graph.create_index().unwrap();
@@ -243,7 +246,7 @@ mod test_index {
             graph.encode(path).unwrap();
 
             // Loaded index that was persisted
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(is_indexed);
 
@@ -251,8 +254,8 @@ mod test_index {
         }
 
         #[test]
-        fn test_encoding_graph_twice_to_same_graph_path_fails() {
-            let graph = init_graph(Graph::new());
+        fn test_encoding_graph_twice_to_same_storage_path_fails() {
+            let graph = init_graph();
             graph.create_index().unwrap();
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
@@ -272,27 +275,25 @@ mod test_index {
 
         #[test]
         fn test_write_updates_to_already_encoded_graph_succeeds() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
-
-            graph.cache(path).unwrap();
 
             graph
                 .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"))
                 .unwrap();
 
-            // This also tests if already existing index is replaced by new index
-            graph.write_updates().unwrap();
+            // TODO: This test currently fails since graph updates are not propagated
+            // to the search index.
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             assert_search_results(&graph, &NodeFilter::name().eq("Ozai"), vec!["Ozai"]);
         }
 
         #[test]
         fn test_create_index_persist_index_on_encode_update_index_load_persisted_index_on_decode() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             // Created index
             graph.create_index().unwrap();
@@ -318,7 +319,7 @@ mod test_index {
             assert_search_results(&graph, &filter2, vec!["Tommy"]);
 
             // Loaded index that was persisted
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(is_indexed);
             assert_search_results(&graph, &filter1, vec!["Alice"]);
@@ -343,7 +344,8 @@ mod test_index {
             graph.encode(path).unwrap();
 
             // Should load the updated graph and index
-            let graph = Graph::decode(path).unwrap();
+            let storage_path = path.parent().unwrap().to_path_buf();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(is_indexed);
             assert_search_results(&graph, &filter1, vec!["Alice"]);
@@ -352,14 +354,15 @@ mod test_index {
 
         #[test]
         fn test_zip_encode_decode_index() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
             let tmp_dir = tempfile::TempDir::new().unwrap();
             let zip_path = tmp_dir.path().join("graph.zip");
             let folder = GraphFolder::new_as_zip(zip_path);
             graph.encode(&folder).unwrap();
 
-            let graph = Graph::decode(folder).unwrap();
+            let storage_path = tmp_dir.path().to_path_buf();
+            let graph = Graph::decode(folder, None).unwrap();
             let node = graph.node("Alice").unwrap();
             let node_type = node.node_type();
             assert_eq!(node_type, Some(ArcStr::from("fire_nation")));
@@ -369,8 +372,8 @@ mod test_index {
         }
 
         #[test]
-        fn test_encoding_graph_twice_to_same_graph_path_fails_zip() {
-            let graph = init_graph(Graph::new());
+        fn test_encoding_graph_twice_to_same_storage_path_fails_zip() {
+            let graph = init_graph();
             graph.create_index().unwrap();
             let tmp_dir = tempfile::TempDir::new().unwrap();
             let zip_path = tmp_dir.path().join("graph.zip");
@@ -395,7 +398,7 @@ mod test_index {
 
         #[test]
         fn test_immutable_graph_index_persistence() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
 
             let binding = tempfile::TempDir::new().unwrap();
@@ -403,21 +406,21 @@ mod test_index {
             graph.encode(path).unwrap();
 
             // This gives us immutable index
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
 
             // This tests that we are able to persist the immutable index
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let filter1 = NodeFilter::name().eq("Alice");
             assert_search_results(&graph, &filter1, vec!["Alice"]);
         }
 
         #[test]
         fn test_mutable_graph_index_persistence() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
 
             let binding = tempfile::TempDir::new().unwrap();
@@ -425,7 +428,7 @@ mod test_index {
             graph.encode(path).unwrap();
 
             // This gives us immutable index
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
 
             // This converts immutable index to mutable index
             graph
@@ -437,21 +440,21 @@ mod test_index {
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let filter = NodeFilter::name().eq("Ozai");
             assert_search_results(&graph, &filter, vec!["Ozai"]);
         }
 
         #[test]
         fn test_loading_zip_index_creates_mutable_index() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
             let tmp_dir = tempfile::TempDir::new().unwrap();
             let zip_path = tmp_dir.path().join("graph.zip");
             let folder = GraphFolder::new_as_zip(&zip_path);
             graph.encode(&folder).unwrap();
 
-            let graph = Graph::decode(folder).unwrap();
+            let graph = Graph::decode(folder, None).unwrap();
             let immutable = graph
                 .get_storage()
                 .unwrap()
@@ -463,13 +466,13 @@ mod test_index {
 
         #[test]
         fn test_loading_index_creates_immutable_index() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let immutable = graph
                 .get_storage()
                 .unwrap()
@@ -483,7 +486,7 @@ mod test_index {
         fn test_create_index_in_ram() {
             global_info_logger();
 
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index_in_ram().unwrap();
 
             let filter = NodeFilter::name().eq("Alice");
@@ -493,7 +496,7 @@ mod test_index {
             let path = binding.path();
             graph.encode(path).unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let is_indexed = graph.get_storage().unwrap().is_indexed();
             assert!(!is_indexed);
 
@@ -503,12 +506,11 @@ mod test_index {
         #[test]
         fn test_cached_graph_view() {
             global_info_logger();
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
 
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
-            graph.cache(path).unwrap();
 
             graph
                 .add_node(
@@ -518,9 +520,8 @@ mod test_index {
                     Some("water_tribe"),
                 )
                 .unwrap();
-            graph.write_updates().unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
             assert_search_results(&graph, &filter, vec!["Tommy"]);
         }
@@ -528,11 +529,10 @@ mod test_index {
         #[test]
         fn test_cached_graph_view_create_index_after_graph_is_cached() {
             global_info_logger();
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
-            graph.cache(path).unwrap();
             // Creates index in a temp dir within graph dir
             graph.create_index().unwrap();
 
@@ -544,9 +544,8 @@ mod test_index {
                     Some("water_tribe"),
                 )
                 .unwrap();
-            graph.write_updates().unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
             assert_search_results(&graph, &filter, vec!["Tommy"]);
         }
@@ -562,7 +561,7 @@ mod test_index {
             let mut graphs = vec![];
 
             for i in 0..1000 {
-                let graph = init_graph(Graph::new());
+                let graph = init_graph();
                 if let Err(e) = graph.create_index() {
                     match &e {
                         GraphError::IndexError { source } => {
@@ -573,14 +572,13 @@ mod test_index {
                         }
                     }
                 }
-                graph.cache(&path.join(format!("graph {i}"))).unwrap();
                 graphs.push(graph);
             }
         }
 
         #[test]
         fn test_graph_index_creation_with_too_many_properties() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             let props: Vec<(String, Prop)> = (1..=100)
                 .map(|i| (format!("p{i}"), Prop::U64(i as u64)))
                 .collect();
@@ -602,7 +600,7 @@ mod test_index {
         // No new const prop index created because when index were created
         // these properties did not exist.
         fn test_graph_index_creation_for_incremental_node_update_no_new_prop_indexed() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
             let props: Vec<(String, Prop)> = (1..=100)
                 .map(|i| (format!("p{i}"), Prop::U64(i as u64)))
@@ -612,7 +610,7 @@ mod test_index {
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().to_path_buf();
             graph.encode(&path).unwrap();
-            let graph = Graph::decode(&path).unwrap();
+            let graph = Graph::decode(&path, None).unwrap();
 
             let spec = graph.get_index_spec().unwrap().props(&graph);
             assert_eq!(
@@ -643,7 +641,13 @@ mod test_index {
             serialise::{GraphFolder, StableEncode},
         };
 
-        fn init_graph(graph: Graph) -> Graph {
+        fn temp_storage_path() -> std::path::PathBuf {
+            tempfile::tempdir().unwrap().path().to_path_buf()
+        }
+
+        fn init_graph() -> Graph {
+            let graph = Graph::new();
+
             let nodes = vec![
                 (
                     1,
@@ -695,7 +699,7 @@ mod test_index {
 
         #[test]
         fn test_with_all_props_index_spec() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_all_node_properties_and_metadata()
                 .with_all_edge_properties_and_metadata()
@@ -726,7 +730,7 @@ mod test_index {
 
         #[test]
         fn test_with_selected_props_index_spec() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_node_metadata(vec!["y"])
                 .unwrap()
@@ -762,7 +766,7 @@ mod test_index {
 
         #[test]
         fn test_with_invalid_property_returns_error() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             let result = IndexSpecBuilder::new(graph.clone()).with_node_metadata(["xyz"]);
 
             assert!(matches!(result, Err(GraphError::PropertyMissingError(p)) if p == "xyz"));
@@ -770,7 +774,7 @@ mod test_index {
 
         #[test]
         fn test_build_empty_spec_by_default() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             let index_spec = IndexSpecBuilder::new(graph.clone()).build();
 
             assert!(index_spec.node_metadata.is_empty());
@@ -795,7 +799,7 @@ mod test_index {
 
         #[test]
         fn test_mixed_node_and_edge_props_index_spec() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_node_metadata(vec!["x"])
@@ -830,7 +834,7 @@ mod test_index {
 
         #[test]
         fn test_get_index_spec_newly_created_index() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_node_metadata(vec!["x"])
@@ -848,7 +852,7 @@ mod test_index {
 
         #[test]
         fn test_get_index_spec_updated_index() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_edge_metadata(vec!["e_y"])
@@ -881,7 +885,7 @@ mod test_index {
 
         #[test]
         fn test_get_index_spec_updated_index_persisted_and_loaded() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_edge_metadata(vec!["e_y"])
@@ -892,7 +896,7 @@ mod test_index {
             let tmp_graph_dir = tempfile::tempdir().unwrap();
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
-            let graph = Graph::decode(path.clone()).unwrap();
+            let graph = Graph::decode(path.clone(), None).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let results = search_nodes(&graph, PropertyFilter::metadata("y").eq(false));
@@ -912,7 +916,7 @@ mod test_index {
             let tmp_graph_dir = tempfile::tempdir().unwrap();
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let results = search_nodes(&graph, PropertyFilter::metadata("y").eq(false));
@@ -923,7 +927,7 @@ mod test_index {
 
         #[test]
         fn test_get_index_spec_loaded_index() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_node_metadata(vec!["y"])
@@ -941,7 +945,7 @@ mod test_index {
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             let index_spec2 = graph.get_index_spec().unwrap();
 
             assert_eq!(index_spec, index_spec2);
@@ -949,7 +953,7 @@ mod test_index {
 
         #[test]
         fn test_get_index_spec_loaded_index_zip() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_node_metadata(vec!["y"])
@@ -966,7 +970,7 @@ mod test_index {
             let folder = GraphFolder::new_as_zip(path);
             graph.encode(folder.root_folder).unwrap();
 
-            let graph = Graph::decode(path).unwrap();
+            let graph = Graph::decode(path, None).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
         }
 
@@ -996,7 +1000,7 @@ mod test_index {
         where
             F: Fn(&Graph, IndexSpec) -> Result<(), GraphError>,
         {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_node_metadata(vec!["y"])
@@ -1035,7 +1039,7 @@ mod test_index {
         where
             F: Fn(&Graph, IndexSpec) -> Result<(), GraphError>,
         {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
                 .with_node_metadata(vec!["y"])

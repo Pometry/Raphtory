@@ -3,7 +3,7 @@ use crate::{
     errors::GraphError,
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::{AdditionOps, PropertyAdditionOps},
-    serialise::incremental::InternalCache,
+    python::graph::io::*,
 };
 use arrow::array::ArrayRef;
 use pyo3::{
@@ -23,11 +23,12 @@ pub(crate) fn convert_py_prop_args(properties: Option<&[PyBackedStr]>) -> Option
 
 pub(crate) fn load_nodes_from_pandas<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
     time: &str,
+    secondary_index: Option<&str>,
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
@@ -41,12 +42,17 @@ pub(crate) fn load_nodes_from_pandas<
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
+    if let Some(ref secondary_index) = secondary_index {
+        cols_to_check.push(secondary_index.as_ref());
+    }
 
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
+
     load_nodes_from_df(
         df_view,
         time,
+        secondary_index,
         id,
         properties,
         metadata,
@@ -59,11 +65,12 @@ pub(crate) fn load_nodes_from_pandas<
 
 pub(crate) fn load_edges_from_pandas<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
     time: &str,
+    secondary_index: Option<&str>,
     src: &str,
     dst: &str,
     properties: &[&str],
@@ -78,12 +85,17 @@ pub(crate) fn load_edges_from_pandas<
     if let Some(layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
+    if let Some(ref secondary_index) = secondary_index {
+        cols_to_check.push(secondary_index.as_ref());
+    }
 
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
+
     load_edges_from_df(
         df_view,
         time,
+        secondary_index,
         src,
         dst,
         properties,
@@ -97,7 +109,7 @@ pub(crate) fn load_edges_from_pandas<
 
 pub(crate) fn load_node_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -127,7 +139,7 @@ pub(crate) fn load_node_props_from_pandas<
 
 pub(crate) fn load_edge_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -164,6 +176,7 @@ pub fn load_edge_deletions_from_pandas<
     graph: &G,
     df: &Bound<'py, PyAny>,
     time: &str,
+    secondary_index: Option<&str>,
     src: &str,
     dst: &str,
     layer: Option<&str>,
@@ -173,12 +186,16 @@ pub fn load_edge_deletions_from_pandas<
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
+    if let Some(ref secondary_index) = secondary_index {
+        cols_to_check.push(secondary_index.as_ref());
+    }
 
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edge_deletions_from_df(
         df_view,
         time,
+        secondary_index,
         src,
         dst,
         layer,

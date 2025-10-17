@@ -1,3 +1,8 @@
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use crate::paths::ExistingGraphFolder;
 use once_cell::sync::OnceCell;
 use raphtory::{
@@ -5,40 +10,52 @@ use raphtory::{
     db::{
         api::view::{
             internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                InternalStorageOps, Static,
             },
             Base, InheritViewOps, MaterializedGraph,
         },
-        graph::{edge::EdgeView, node::NodeView},
+        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, EdgeViewOps, IndexMutationOps},
+    prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, StableDecode},
     serialise::GraphFolder,
-    storage::core_ops::CoreGraphOps,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
+use raphtory_api::GraphType;
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps,
+    core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
+use tracing::info;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub(crate) folder: OnceCell<GraphFolder>,
+    pub(crate) folder: GraphFolder,
+    pub(crate) is_dirty: Arc<AtomicBool>,
 }
 
 impl GraphWithVectors {
     pub(crate) fn new(
         graph: MaterializedGraph,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
+        folder: GraphFolder,
     ) -> Self {
         Self {
             graph,
             vectors,
-            folder: Default::default(),
+            folder: folder,
+            is_dirty: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub(crate) fn set_dirty(&self, is_dirty: bool) {
+        self.is_dirty.store(is_dirty, Ordering::SeqCst);
+    }
+
+    pub(crate) fn is_dirty(&self) -> bool {
+        self.is_dirty.load(Ordering::SeqCst)
     }
 
     /// Generates and stores embeddings for a batch of nodes.
@@ -65,30 +82,51 @@ impl GraphWithVectors {
         Ok(())
     }
 
-    pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
-        match self.graph.core_graph() {
-            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
-        }
-    }
-
     pub(crate) fn read_from_folder(
         folder: &ExistingGraphFolder,
         cache: Option<VectorCache>,
         create_index: bool,
     ) -> Result<Self, GraphError> {
-        let graph = MaterializedGraph::load_cached(folder.clone())?;
+        let graph = {
+            // Either decode a graph serialized using encode or load using underlying storage.
+            if MaterializedGraph::is_decodable(folder.get_graph_path()) {
+                let path_for_decoded_graph = None;
+                MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?
+            } else {
+                let metadata = folder.read_metadata()?;
+                let graph = match metadata.graph_type {
+                    GraphType::EventGraph => {
+                        let graph = Graph::load_from_path(folder.get_graph_path());
+                        MaterializedGraph::EventGraph(graph)
+                    }
+                    GraphType::PersistentGraph => {
+                        let graph = PersistentGraph::load_from_path(folder.get_graph_path());
+                        MaterializedGraph::PersistentGraph(graph)
+                    }
+                };
+
+                #[cfg(feature = "search")]
+                graph.load_index(&folder)?;
+
+                graph
+            }
+        };
+
         let vectors = cache.and_then(|cache| {
             VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
         });
-        println!("Graph loaded = {}", folder.get_original_path_str());
+
+        info!("Graph loaded = {}", folder.get_original_path_str());
+
         if create_index {
             graph.create_index()?;
-            graph.write_updates()?;
         }
+
         Ok(Self {
             graph: graph.clone(),
             vectors,
-            folder: OnceCell::with_value(folder.clone().into()),
+            folder: folder.clone().into(),
+            is_dirty: Arc::new(AtomicBool::new(false)),
         })
     }
 }

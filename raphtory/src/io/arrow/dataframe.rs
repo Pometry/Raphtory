@@ -5,13 +5,14 @@ use crate::{
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Int64Type, TimeUnit, TimestampMillisecondType},
+    datatypes::{DataType, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
 };
+use either::Either;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::{
     fmt::{Debug, Formatter},
-    ops::Deref,
+    ops::{Deref, Range},
 };
 
 pub struct DFView<I> {
@@ -108,6 +109,55 @@ impl Deref for TimeCol {
     }
 }
 
+pub enum SecondaryIndexCol {
+    DataFrame(PrimitiveArray<UInt64Type>),
+    Range(Range<usize>),
+}
+
+impl SecondaryIndexCol {
+    /// Load a secondary index column from a dataframe.
+    pub fn new_from_df(arr: &dyn Array) -> Result<Self, LoadError> {
+        if arr.null_count() > 0 {
+            return Err(LoadError::MissingSecondaryIndexError);
+        }
+
+        Ok(SecondaryIndexCol::DataFrame(
+            arr.as_primitive::<UInt64Type>().clone(),
+        ))
+    }
+
+    /// Generate a secondary index column with values from `start` to `end` (not inclusive).
+    pub fn new_from_range(start: usize, end: usize) -> Self {
+        let start = start;
+        let end = end;
+        SecondaryIndexCol::Range(start..end)
+    }
+
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = usize> + '_ {
+        match self {
+            SecondaryIndexCol::DataFrame(arr) => {
+                rayon::iter::Either::Left(arr.values().par_iter().copied().map(|v| v as usize))
+            }
+            SecondaryIndexCol::Range(range) => {
+                rayon::iter::Either::Right(range.clone().into_par_iter())
+            }
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        match self {
+            SecondaryIndexCol::DataFrame(arr) => {
+                Either::Left(arr.values().iter().copied().map(|v| v as usize))
+            }
+            SecondaryIndexCol::Range(range) => Either::Right(range.clone()),
+        }
+    }
+
+    pub fn max(&self) -> usize {
+        self.iter().max().unwrap_or(0)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DFChunk {
     pub chunk: Vec<ArrayRef>,
@@ -128,5 +178,9 @@ impl DFChunk {
 
     pub fn time_col(&self, index: usize) -> Result<TimeCol, LoadError> {
         TimeCol::new(self.chunk[index].as_ref())
+    }
+
+    pub fn secondary_index_col(&self, index: usize) -> Result<SecondaryIndexCol, LoadError> {
+        SecondaryIndexCol::new_from_df(self.chunk[index].as_ref())
     }
 }
