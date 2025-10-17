@@ -171,7 +171,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     }
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
-        self.es.as_ref()[layer_id].c_prop(self.pos, prop_id)
+        self.es.as_ref().get(layer_id)?.c_prop(self.pos, prop_id)
     }
 
     fn layer_t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps {
