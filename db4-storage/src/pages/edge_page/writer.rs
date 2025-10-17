@@ -2,7 +2,7 @@ use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::edge::MemEdgeSegment,
 };
-use arrow_array::{Array, ArrayRef, BooleanArray};
+use arrow_array::{ArrayRef, BooleanArray};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
 use raphtory_core::{entities::EID, storage::timeindex::AsTime};
 use std::ops::DerefMut;
