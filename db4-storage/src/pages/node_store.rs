@@ -201,6 +201,17 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         let nodes_path = nodes_path.as_ref();
 
         let node_meta = Arc::new(Meta::new_for_nodes());
+
+        if !nodes_path.exists() {
+            return Ok(Self::new_with_meta(
+                Some(nodes_path.to_path_buf()),
+                max_page_len,
+                node_meta,
+                edge_meta,
+                ext.clone(),
+            ));
+        }
+
         let mut pages = std::fs::read_dir(nodes_path)?
             .filter(|entry| {
                 entry
