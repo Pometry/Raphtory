@@ -38,12 +38,12 @@ stress-test-long: build
 		K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --duration=2h dist/stress-test.js
 	done
 
-stress-until-error-with-docker-and-samply:
+build-docker-debug:
+	cd .. && docker build -t raphtory:debug-base --build-arg RAPHTORY_PROFILE=release-with-debug .
+	docker build -t raphtory:debug . -f debug.Dockerfile
+
+stress-until-error-with-docker-and-samply: build
 	date
-	# cd .. && docker build -t raphtory:debug-base --build-arg RAPHTORY_PROFILE=release-with-debug .
-	# docker build -t raphtory:debug . -f debug.Dockerfile
-	pnpm install --frozen-lockfile
-	pnpm build
 	@while true; do \
 		docker run --rm -itd --privileged -v ./profiles:/profiles -p 1736:1736 --name=debug raphtory:debug && \
 		if k6 run --duration='5m' dist/stress-test.js; then \

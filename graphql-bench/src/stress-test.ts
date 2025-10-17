@@ -207,9 +207,10 @@ function queryGraphSize(path: string) {
 }
 
 function deleteEdge() {
+  // TODO: also try deleting sometimes non existing edges
   const { numEdges } = queryGraphSize("empty");
 
-  const edgeIndex = Math.floor(numEdges / 2 * Math.random()); // just in case, to avoid races, only target the first half
+  const edgeIndex = randomInt(numEdges); // just in case, to avoid races, only target the first half
   const response = fetchAndParse({
       graph: {
           __args: {
@@ -250,17 +251,26 @@ function deleteEdge() {
   });
 }
 
-function getRandomEntityIds({ numEdges }: {numEdges: number}) {
+function getRandomEntityIds({ numEdges, numNodes }: {numEdges: number, numNodes: number}) {
   const response = fetchAndParse({
     graph: {
       __args: {
         path: "empty"
       },
+      nodes: {
+        page: {
+          __args: {
+            limit: 1,
+            offset: randomInt(numNodes)
+          },
+          name: true,
+        }
+      },
       edges: {
         page: {
           __args: {
             limit: 1,
-            offset: Math.floor(Math.random() * numEdges)
+            offset: randomInt(numEdges)
           },
           src: {
             name: true,
@@ -272,13 +282,12 @@ function getRandomEntityIds({ numEdges }: {numEdges: number}) {
       }
     }
   })
+  const node = response.data.graph.nodes.page[0]?.name as string | undefined;
   const edge = response.data.graph.edges.page[0];
-  return {
-    src: edge?.src?.name as string | undefined,
-    dst: edge?.dst?.name as string | undefined,
-    name: edge?.src?.name as string | undefined, // TODO: maybe query a node independenty so not only node with edges are returned, so that they can have properties?
-    // TODO: or instead, create edges only among existing nodes??
-  }
+  const src = edge?.src?.name as string | undefined;
+  const dst = edge?.dst?.name as string | undefined;
+  const name = pickRandom([node ?? src, src ?? node, dst ?? node])
+  return { src, dst, name }
 }
 
 
@@ -337,7 +346,7 @@ function randomComposedReadQuery() {
 
 function randomEntityQuery(): GraphGenqlSelection {
   const { numNodes, numEdges } = queryGraphSize("empty")
-  const { src, dst, name } = getRandomEntityIds({numEdges})
+  const { src, dst, name } = getRandomEntityIds({numNodes, numEdges})
   if (src === undefined || dst === undefined || name === undefined) {
     return {}
   }
