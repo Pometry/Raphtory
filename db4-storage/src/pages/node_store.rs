@@ -61,7 +61,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
     }
 
     pub fn len(&self) -> usize {
-        self.storage.num_nodes() as usize
+        self.storage.num_nodes()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn iter(
