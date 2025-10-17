@@ -213,7 +213,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         if !nodes_path.exists() {
             return Ok(Self::new_with_meta(
                 Some(nodes_path.to_path_buf()),
-                max_page_len,
                 node_meta,
                 edge_meta,
                 ext.clone(),
