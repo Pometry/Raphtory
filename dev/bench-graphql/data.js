@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760627606139,
+  "lastUpdate": 1760706551963,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1511,6 +1511,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1066,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1c66df1ae1e898173a04d9593c2e1d125f247cc5",
+          "message": "Stress tests (#2317)\n\n* got to reproduce the deadlock against 16.1 with different kind of queries besides\n\n* this deadlocks 0.16.1-python and crashes with a panic in /app/raphtory-core/src/storage/mod.rs:881:33 semaphore-plus-final-fix-plus-rwlock-plus-loop-python with 8GB ram\n\n* fixes some queries and also reproduces the deadlock against semaphore-plus-final-fix-plus-rwlock-plus-loop-python\n\n* this version reproduces two different types of panics depending on which one nodes/edges is enabled\n\n* some commented out to get a reduced versions of the read query causing the deadlock\n\n* add parameter to all the decisions\n\n* stress test until error\n\n* add debug.Dockerfile\n\n* add stress tests to github ci\n\n* stress test was missing in the right workflow\n\n* revert back changes on edges.rs\n\n* change stress test parameters\n\n* run raphtory as bg task\n\n* reduce the number of vus to 400\n\n* reduce the number of vus to 300 and upload report\n\n* clean up Makefile\n\n* revert back version for private storage\n\n* decrease vus and remove comments\n\n* always pulaod stress test report\n\n* reduce vus to 10\n\n* fix report missing\n\n* add a name for the stress test report\n\n* chore: apply tidy-public auto-fixes\n\n* address Ben comments\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-17T14:33:51+02:00",
+          "tree_id": "47fa03fb733fef77782767bde756e64521852e06",
+          "url": "https://github.com/Pometry/Raphtory/commit/1c66df1ae1e898173a04d9593c2e1d125f247cc5"
+        },
+        "date": 1760706548982,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1330,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 164,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 173,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1070,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 908,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1307,
             "unit": "req/s"
           }
         ]
