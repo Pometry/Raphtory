@@ -11,12 +11,14 @@ use crate::{
         embeddings::compute_embeddings,
         entity_db::EntityDb,
         template::DocumentTemplate,
-        vector_collection::{lancedb::LanceDb, VectorCollection, VectorCollectionFactory},
+        vector_collection::{
+            lancedb::LanceDb, CollectionPath, VectorCollection, VectorCollectionFactory,
+        },
         vectorised_graph::VectorisedGraph,
     },
 };
 use async_trait::async_trait;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 use tracing::info;
 
 #[async_trait]
@@ -49,9 +51,8 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>> {
         let db_path = path
-            .map(|path| Ok::<Box<dyn AsRef<Path> + Send>, std::io::Error>(Box::new(db_path(path))))
-            .unwrap_or_else(|| Ok(Box::new(tempfile::tempdir()?)))?;
-        let db_path_ref = db_path.as_ref().as_ref();
+            .map(|path| Ok::<CollectionPath, std::io::Error>(Arc::new(db_path(path))))
+            .unwrap_or_else(|| Ok(Arc::new(tempfile::tempdir()?)))?;
         let factory = LanceDb;
         let dim = model.get_sample().len();
         if verbose {
@@ -62,7 +63,11 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             .iter()
             .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u64, doc)));
         let node_vectors = compute_embeddings(node_docs, &model);
-        let node_db = NodeDb(factory.new_collection(db_path_ref, "nodes", dim).await?);
+        let node_db = NodeDb(
+            factory
+                .new_collection(db_path.clone(), "nodes", dim)
+                .await?,
+        );
         node_db.insert_vector_stream(node_vectors).await.unwrap();
         node_db.create_index().await;
 
@@ -76,7 +81,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
                 .map(|doc| (edge.edge.pid().0 as u64, doc))
         });
         let edge_vectors = compute_embeddings(edge_docs, &model);
-        let edge_db = EdgeDb(factory.new_collection(db_path_ref, "edges", dim).await?);
+        let edge_db = EdgeDb(factory.new_collection(db_path, "edges", dim).await?);
         edge_db.insert_vector_stream(edge_vectors).await.unwrap();
         edge_db.create_index().await;
 

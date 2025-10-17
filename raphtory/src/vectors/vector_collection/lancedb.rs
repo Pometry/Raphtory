@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{ops::Deref, path::Path, sync::Arc};
 
 use futures_util::TryStreamExt;
 use itertools::Itertools;
@@ -19,7 +19,7 @@ use lancedb_arrow_array::{
 use crate::{
     errors::GraphResult,
     vectors::{
-        vector_collection::{VectorCollection, VectorCollectionFactory},
+        vector_collection::{CollectionPath, VectorCollection, VectorCollectionFactory},
         Embedding,
     },
 };
@@ -33,23 +33,23 @@ impl VectorCollectionFactory for LanceDb {
 
     async fn new_collection(
         &self,
-        path: &Path,
+        path: CollectionPath,
         name: &str,
         dim: usize,
     ) -> GraphResult<Self::DbType> {
-        let db = connect(path).await;
+        let db = connect(path.deref().as_ref()).await;
         let schema = get_schema(dim);
         let table = db.create_empty_table(name, schema).execute().await.unwrap(); // TODO: remove unwrap
-        Ok(Self::DbType { table, dim })
+        Ok(Self::DbType { table, dim, path })
     }
 
     async fn from_path(
         &self,
-        path: &std::path::Path,
+        path: CollectionPath,
         name: &str,
         dim: usize,
     ) -> GraphResult<Self::DbType> {
-        let db = connect(path).await;
+        let db = connect(path.deref().as_ref()).await;
         let table = db.open_table(name).execute().await.unwrap(); // TODO: remove unwrap
 
         // FIXME: if dim is wrong, bail from here with something like the following!!!
@@ -59,14 +59,15 @@ impl VectorCollectionFactory for LanceDb {
         //     .unwrap()
         //     .field_with_name("vectors")
         //     .unwrap(); // and get the array size
-        Ok(Self::DbType { table, dim })
+        Ok(Self::DbType { table, dim, path })
     }
 }
 
 #[derive(Clone)]
 pub(crate) struct LanceDbCollection {
-    table: Table,
+    table: Table, // maybe this should be built in every call to the collection from path?
     dim: usize,
+    path: CollectionPath, // this is only necessary to avoid dropping temp dirs
 }
 
 impl LanceDbCollection {
@@ -81,7 +82,7 @@ impl VectorCollection for LanceDbCollection {
         ids: Vec<u64>,
         vectors: impl IntoIterator<Item = Embedding>,
     ) -> crate::errors::GraphResult<()> {
-        let size = ids.len();
+        let size = ids.len(); // TODO: remove? don't remember what was this for
         let batches = RecordBatchIterator::new(
             vec![RecordBatch::try_new(
                 self.schema(),

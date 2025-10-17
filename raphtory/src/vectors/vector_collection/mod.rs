@@ -1,21 +1,23 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 pub(crate) mod lancedb;
 mod milvus;
 
 use crate::{errors::GraphResult, vectors::Embedding};
 
+pub(super) type CollectionPath = Arc<dyn AsRef<Path> + Send + Sync>;
+
 pub(super) trait VectorCollectionFactory {
     type DbType: VectorCollection;
     async fn new_collection(
         &self,
-        path: &Path,
+        path: CollectionPath,
         name: &str,
         dim: usize,
     ) -> GraphResult<Self::DbType>;
     async fn from_path(
         &self,
-        path: &std::path::Path,
+        path: CollectionPath,
         name: &str,
         dim: usize,
     ) -> GraphResult<Self::DbType>;
