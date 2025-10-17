@@ -9,7 +9,7 @@ use crate::{
     },
     prelude::*,
 };
-use arrow_array::BooleanArray;
+use arrow::array::BooleanArray;
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use either::Either;

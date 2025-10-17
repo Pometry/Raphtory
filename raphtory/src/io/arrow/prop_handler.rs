@@ -377,7 +377,7 @@ impl PropCol for MapCol {
             .values
             .iter()
             .map(|(name, col)| {
-                arrow_schema::Field::new(name, col.as_array().data_type().clone(), true)
+                arrow::datatypes::Field::new(name, col.as_array().data_type().clone(), true)
             })
             .collect::<Vec<_>>();
         let columns = self.values.iter().map(|(_, col)| col.as_array()).collect();
@@ -431,6 +431,10 @@ struct EmptyCol;
 impl PropCol for EmptyCol {
     fn get(&self, _i: usize) -> Option<Prop> {
         None
+    }
+
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(NullArray::new(0))
     }
 }
 
