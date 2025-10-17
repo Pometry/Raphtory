@@ -26,16 +26,16 @@ bench: deploy push-graphs build-raphtory
 	make destroy
 
 stress-test: build
-	K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run dist/stress-test.js
+	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run dist/stress-test.js
 
 stress-test-multiple: build # 12 x 10m = 2h
 	for _ in $(seq 1 12); do \
-		K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --duration=10m dist/stress-test.js
+		K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --duration=10m dist/stress-test.js
 	done
 
 stress-test-long: build
 	for _ in $(seq 1 12); do \
-		K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --duration=2h dist/stress-test.js
+		K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --duration=2h dist/stress-test.js
 	done
 
 stress-until-error-with-docker-and-samply:
