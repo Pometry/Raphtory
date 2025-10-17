@@ -119,7 +119,6 @@ impl<
         let edges_path = graph_dir.as_ref().join("edges");
 
         let ext = read_graph_config::<EXT>(graph_dir.as_ref())?;
-        dbg!(&ext);
 
         let edges = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
 

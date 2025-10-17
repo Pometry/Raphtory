@@ -139,9 +139,11 @@ impl<'a> WithTProps<'a> for MemEdgeRef<'a> {
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + 'a {
         let edge_pos = self.pos;
-        self.es.as_ref()[layer_id]
-            .t_prop(edge_pos, prop_id)
+        self.es
+            .as_ref()
+            .get(layer_id)
             .into_iter()
+            .flat_map(move |layer| layer.t_prop(edge_pos, prop_id).into_iter())
     }
 }
 
