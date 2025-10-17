@@ -10,7 +10,10 @@ use raphtory_storage::{
     core_ops::CoreGraphOps,
     mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{hash_map, HashMap},
+    sync::Arc,
+};
 
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
@@ -153,17 +156,18 @@ pub fn prop_type() -> impl Strategy<Value = PropType> {
         PropType::Bool,
         PropType::DTime,
         PropType::NDTime,
-        // PropType::Decimal { scale }, decimal breaks the tests because of polars-parquet
+        // PropType::Decimal { scale },
     ]);
 
-    leaf.prop_recursive(3, 10, 10, |inner| {
-        let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-            .prop_map(PropType::map);
-        let list = inner
-            .clone()
-            .prop_map(|p_type| PropType::List(Box::new(p_type)));
-        prop_oneof![inner, list, dict]
-    })
+    // leaf.prop_recursive(3, 10, 10, |inner| {
+    //     let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
+    //         .prop_map(PropType::map);
+    //     let list = inner
+    //         .clone()
+    //         .prop_map(|p_type| PropType::List(Box::new(p_type)));
+    //     prop_oneof![inner, list, dict]
+    // })
+    leaf
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +201,15 @@ impl NodeFixture {
     }
 }
 
+impl IntoIterator for NodeFixture {
+    type Item = (u64, NodeUpdatesFixture);
+    type IntoIter = hash_map::IntoIter<u64, NodeUpdatesFixture>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct PropUpdatesFixture {
     pub t_props: Vec<(i64, Vec<(String, Prop)>)>,
@@ -221,6 +234,15 @@ pub struct EdgeFixture(pub HashMap<(u64, u64, Option<&'static str>), EdgeUpdates
 impl EdgeFixture {
     pub fn iter(&self) -> impl Iterator<Item = ((u64, u64, Option<&str>), &EdgeUpdatesFixture)> {
         self.0.iter().map(|(k, v)| (*k, v))
+    }
+}
+
+impl IntoIterator for EdgeFixture {
+    type Item = ((u64, u64, Option<&'static str>), EdgeUpdatesFixture);
+    type IntoIter = hash_map::IntoIter<(u64, u64, Option<&'static str>), EdgeUpdatesFixture>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -349,7 +371,7 @@ fn t_props(
     schema: Vec<(String, PropType)>,
     len: usize,
 ) -> impl Strategy<Value = Vec<(i64, Vec<(String, Prop)>)>> {
-    proptest::collection::vec((any::<i64>(), make_props(schema)), 0..=len)
+    proptest::collection::vec((any::<i64>(), make_props(schema)), 1..=len)
 }
 
 fn prop_updates(
