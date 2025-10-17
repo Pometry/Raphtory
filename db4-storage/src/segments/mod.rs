@@ -86,6 +86,7 @@ impl PageIndex {
 struct SparseVec<T> {
     index: PageIndex,
     data: Vec<(LocalPOS, T)>,
+    max_local_pos: Option<LocalPOS>,
 }
 
 impl<T: Debug> Debug for SparseVec<T> {
@@ -101,12 +102,6 @@ impl<T> SparseVec<T> {
             .and_then(|i| self.data.get(i).map(|(_, x)| x))
     }
 
-    fn get_mut(&mut self, pos: LocalPOS) -> Option<&mut T> {
-        self.index
-            .get(pos)
-            .and_then(|i| self.data.get_mut(i).map(|(_, x)| x))
-    }
-
     fn is_filled(&self, pos: LocalPOS) -> bool {
         self.index.get(pos).is_some()
     }
@@ -120,6 +115,10 @@ impl<T> SparseVec<T> {
 
     fn iter_all(&self) -> impl ExactSizeIterator<Item = Option<&T>> {
         self.index.iter().map(|i| i.map(|i| &self.data[i].1))
+    }
+
+    fn max_local_pos(&self) -> Option<LocalPOS> {
+        self.max_local_pos
     }
 
     fn num_filled(&self) -> usize {
@@ -148,6 +147,7 @@ impl<T: HasRow> SparseVec<T> {
                 let new_entry = &mut self.data[next_index].1;
                 *new_entry.row_mut() = next_index;
                 self.index.set(pos, PageIndexEntry(next_index as u32));
+                self.max_local_pos = self.max_local_pos.max(Some(pos));
                 MaybeNew::New(new_entry)
             }
             Some(i) => MaybeNew::Existing(&mut self.data[i].1),
@@ -309,10 +309,13 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     pub fn all_entries(&self) -> impl Iterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> {
+        let max_local_pos = self.data.max_local_pos().map(|p|p.0 as usize).unwrap_or(0);
+        // dbg!(max_entries);
         self.data
             .iter_all()
             .chain(iter::repeat(None))
-            .take(self.max_page_len as usize)
+            // .take(self.max_page_len as usize)
+            .take(max_local_pos)
             .enumerate()
             .map(|(i, v)| {
                 (
