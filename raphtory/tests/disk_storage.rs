@@ -1,5 +1,3 @@
-pub mod test_utils;
-
 #[cfg(feature = "storage")]
 #[cfg(test)]
 mod test {
@@ -728,11 +726,11 @@ mod test {
         );
     }
     mod addition_bounds {
-        use crate::test_utils::{build_edge_list, build_graph_from_edge_list};
         use proptest::prelude::*;
         use raphtory::{
             db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
             prelude::*,
+            test_utils::{build_edge_list, build_graph_from_edge_list},
         };
         use raphtory_storage::disk::DiskGraphStorage;
         use tempfile::TempDir;

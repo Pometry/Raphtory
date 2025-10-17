@@ -1,7 +1,4 @@
-mod test_utils;
-use raphtory::prelude::*;
-
-use crate::test_utils::test_graph;
+use raphtory::{prelude::*, test_storage, test_utils::test_graph};
 
 #[test]
 fn test_exploded_edge_properties() {

@@ -1,10 +1,7 @@
-use crate::test_utils::test_graph;
 use itertools::Itertools;
-use raphtory::prelude::*;
+use raphtory::{prelude::*, test_storage, test_utils::test_graph};
 use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
 use std::collections::HashMap;
-
-pub mod test_utils;
 
 #[test]
 fn test_properties() {

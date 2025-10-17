@@ -5,13 +5,11 @@ use raphtory::{
     algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
     db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
     prelude::*,
+    test_storage,
+    test_utils::{build_graph, build_graph_strat},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::collections::BTreeSet;
-
-use crate::test_utils::{build_graph, build_graph_strat};
-
-pub mod test_utils;
 
 #[test]
 fn test_materialize_no_edges() {

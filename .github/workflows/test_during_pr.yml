@@ -37,6 +37,13 @@ jobs:
       test_python_lower: false
     secrets: inherit
     needs: rust-format-check
+  call-test-ui-in-local-repo:
+    name: Run UI Tests
+    uses: ./.github/workflows/test_ui.yml
+    secrets: inherit
+    needs: rust-format-check
+    permissions:
+      contents: read
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/benchmark.yml

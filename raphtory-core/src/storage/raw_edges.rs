@@ -1,5 +1,8 @@
 use super::{resolve, timeindex::TimeIndex};
-use crate::entities::edges::edge_store::{EdgeLayer, EdgeStore, MemEdge};
+use crate::{
+    entities::edges::edge_store::{EdgeLayer, EdgeStore, MemEdge},
+    loop_lock_write,
+};
 use itertools::Itertools;
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -168,7 +171,7 @@ impl EdgesStorage {
         let index = self.len.fetch_add(1, atomic::Ordering::Relaxed);
         value.eid = EID(index);
         let (bucket, offset) = self.resolve(index);
-        let guard = self.shards[bucket].write();
+        let guard = loop_lock_write(&self.shards[bucket]);
         UninitialisedEdge {
             guard,
             offset,
@@ -179,7 +182,7 @@ impl EdgesStorage {
     pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard<'_> {
         let (bucket, offset) = self.resolve(eid.into());
         EdgeWGuard {
-            guard: self.shards[bucket].write(),
+            guard: loop_lock_write(&self.shards[bucket]),
             i: offset,
         }
     }

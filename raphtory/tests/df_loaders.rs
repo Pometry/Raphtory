@@ -1,8 +1,5 @@
-pub mod test_utils;
-
 #[cfg(feature = "io")]
 mod io_tests {
-    use crate::test_utils::{build_edge_list, build_edge_list_str};
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
@@ -16,13 +13,13 @@ mod io_tests {
             df_loaders::load_edges_from_df,
         },
         prelude::*,
+        test_utils::{build_edge_list, build_edge_list_str},
     };
     use raphtory_storage::core_ops::CoreGraphOps;
     use tempfile::TempDir;
 
     #[cfg(feature = "storage")]
     mod load_multi_layer {
-        use crate::test_utils::build_edge_list;
         use arrow::array::{record_batch, Int64Array, LargeStringArray, RecordBatch, UInt64Array};
         use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
         use pometry_storage::{
@@ -33,7 +30,7 @@ mod io_tests {
         use raphtory::{
             db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
             io::parquet_loaders::load_edges_from_parquet,
-            prelude::*,
+            prelude::*, test_utils::build_edge_list,
         };
         use raphtory_storage::{disk::DiskGraphStorage, graph::graph::GraphStorage};
         use std::{
@@ -526,12 +523,11 @@ mod parquet_tests {
     use raphtory::{
         db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         prelude::*,
-    };
-
-    use crate::test_utils::{
-        build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
-        EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
-        PropUpdatesFixture,
+        test_utils::{
+            build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
+            EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
+            PropUpdatesFixture,
+        },
     };
     use raphtory::db::graph::graph::assert_graph_equal_timestamps;
     use std::str::FromStr;

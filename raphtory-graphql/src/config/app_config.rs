@@ -15,6 +15,7 @@ pub struct AppConfig {
     pub cache: CacheConfig,
     pub tracing: TracingConfig,
     pub auth: AuthConfig,
+    pub public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     pub index: IndexConfig,
 }
@@ -24,6 +25,7 @@ pub struct AppConfigBuilder {
     cache: CacheConfig,
     tracing: TracingConfig,
     auth: AuthConfig,
+    public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     index: IndexConfig,
 }
@@ -35,9 +37,16 @@ impl From<AppConfig> for AppConfigBuilder {
             cache: config.cache,
             tracing: config.tracing,
             auth: config.auth,
+            public_dir: config.public_dir,
             #[cfg(feature = "search")]
             index: config.index,
         }
+    }
+}
+
+impl Default for AppConfigBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -96,6 +105,11 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_public_dir(mut self, public_dir: Option<PathBuf>) -> Self {
+        self.public_dir = public_dir;
+        self
+    }
+
     #[cfg(feature = "search")]
     pub fn with_create_index(mut self, create_index: bool) -> Self {
         self.index.create_index = create_index;
@@ -108,6 +122,7 @@ impl AppConfigBuilder {
             cache: self.cache,
             tracing: self.tracing,
             auth: self.auth,
+            public_dir: self.public_dir,
             #[cfg(feature = "search")]
             index: self.index,
         }
@@ -135,34 +150,33 @@ pub fn load_config(
     };
 
     // Override with provided configs from config file if any
-    if let Some(log_level) = settings.get::<String>("logging.log_level").ok() {
+    if let Ok(log_level) = settings.get::<String>("logging.log_level") {
         app_config_builder = app_config_builder.with_log_level(log_level);
     }
 
-    if let Some(tracing) = settings.get::<bool>("tracing.tracing_enabled").ok() {
+    if let Ok(tracing) = settings.get::<bool>("tracing.tracing_enabled") {
         app_config_builder = app_config_builder.with_tracing(tracing);
     }
 
-    if let Some(otlp_agent_host) = settings.get::<String>("tracing.otlp_agent_host").ok() {
+    if let Ok(otlp_agent_host) = settings.get::<String>("tracing.otlp_agent_host") {
         app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);
     }
 
-    if let Some(otlp_agent_port) = settings.get::<String>("tracing.otlp_agent_port").ok() {
+    if let Ok(otlp_agent_port) = settings.get::<String>("tracing.otlp_agent_port") {
         app_config_builder = app_config_builder.with_otlp_agent_port(otlp_agent_port);
     }
 
-    if let Some(otlp_tracing_service_name) = settings
-        .get::<String>("tracing.otlp_tracing_service_name")
-        .ok()
+    if let Ok(otlp_tracing_service_name) =
+        settings.get::<String>("tracing.otlp_tracing_service_name")
     {
         app_config_builder =
             app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
     }
 
-    if let Some(cache_capacity) = settings.get::<u64>("cache.capacity").ok() {
+    if let Ok(cache_capacity) = settings.get::<u64>("cache.capacity") {
         app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
     }
-    if let Some(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds").ok() {
+    if let Ok(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds") {
         app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
     }
 
@@ -173,6 +187,10 @@ pub fn load_config(
     }
     if let Ok(enabled_for_reads) = settings.get::<bool>("auth.enabled_for_reads") {
         app_config_builder = app_config_builder.with_auth_enabled_for_reads(enabled_for_reads);
+    }
+
+    if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {
+        app_config_builder = app_config_builder.with_public_dir(public_dir);
     }
 
     #[cfg(feature = "search")]
