@@ -84,11 +84,11 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let meta = VectorMeta::read_from_path(&meta_path(path)).await?;
 
         let factory = LanceDb;
-        let db_path = db_path(path);
+        let db_path = Arc::new(db_path(path));
         let dim = meta.model.sample.len();
         // TODO: put table names in common place? maybe some trait function for EntityDb that returns it
-        let node_db = NodeDb(factory.from_path(&db_path, "nodes", dim).await?);
-        let edge_db = EdgeDb(factory.from_path(&db_path, "edges", dim).await?);
+        let node_db = NodeDb(factory.from_path(db_path.clone(), "nodes", dim).await?);
+        let edge_db = EdgeDb(factory.from_path(db_path, "edges", dim).await?);
 
         let model = cache.validate_and_cache_model(meta.model).await?.into();
 
