@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760706551963,
+  "lastUpdate": 1760719975455,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1565,6 +1565,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1307,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46e0552e304a33ab595658834cc5253d424c6fa5",
+          "message": "Explicitly add filter to return types and misc filter stub fixes (#2330)\n\n* explicitly add filter to return types and misc filter stub fixes\n\n* chore: apply tidy-public auto-fixes\n\n* update descriptions of fuzzy search args\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-17T17:19:07+01:00",
+          "tree_id": "cd2bbcc2ca413b392fce83ebba65790968eb8e01",
+          "url": "https://github.com/Pometry/Raphtory/commit/46e0552e304a33ab595658834cc5253d424c6fa5"
+        },
+        "date": 1760719972515,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1255,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 158,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 166,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 899,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 876,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1140,
             "unit": "req/s"
           }
         ]
