@@ -1,11 +1,13 @@
 use crate::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
+use arrow_array::{
+    builder::BooleanBuilder, ArrayRef, Decimal128Array, Float32Array, Float64Array, Int32Array,
+    Int64Array, LargeStringArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
+};
+use arrow_schema::{DataType, Field, Schema, DECIMAL128_MAX_PRECISION};
 use itertools::Itertools;
 use num_traits::ToPrimitive;
-use polars_arrow::{
-    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
-    datatypes::{ArrowDataType, ArrowSchema, Field},
-};
 use pometry_storage::{
+    chunked_array::array_like::BaseArrayLike,
     properties::{node_ts, NodePropsBuilder, Properties},
     RAError,
 };
@@ -93,50 +95,53 @@ pub fn make_node_properties_from_graph<G: CoreGraphOps>(
 pub fn arrow_array_from_props(
     props: impl Iterator<Item = Option<Prop>>,
     prop_type: PropType,
-) -> Option<Box<dyn Array>> {
+) -> Option<ArrayRef> {
     match prop_type {
         PropType::Str => {
-            let array: Utf8Array<i64> = props.map(|prop| prop.into_str()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: LargeStringArray = props.map(|prop| prop.into_str()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::U8 => {
-            let array: PrimitiveArray<u8> = props.map(|prop| prop.into_u8()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: UInt8Array = props.map(|prop| prop.into_u8()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::U16 => {
-            let array: PrimitiveArray<u16> = props.map(|prop| prop.into_u16()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: UInt16Array = props.map(|prop| prop.into_u16()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::I32 => {
-            let array: PrimitiveArray<i32> = props.map(|prop| prop.into_i32()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: Int32Array = props.map(|prop| prop.into_i32()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::I64 => {
-            let array: PrimitiveArray<i64> = props.map(|prop| prop.into_i64()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: Int64Array = props.map(|prop| prop.into_i64()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::U32 => {
-            let array: PrimitiveArray<u32> = props.map(|prop| prop.into_u32()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: UInt32Array = props.map(|prop| prop.into_u32()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::U64 => {
-            let array: PrimitiveArray<u64> = props.map(|prop| prop.into_u64()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: UInt64Array = props.map(|prop| prop.into_u64()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::F32 => {
-            let array: PrimitiveArray<f32> = props.map(|prop| prop.into_f32()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: Float32Array = props.map(|prop| prop.into_f32()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::F64 => {
-            let array: PrimitiveArray<f64> = props.map(|prop| prop.into_f64()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            let array: Float64Array = props.map(|prop| prop.into_f64()).collect();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::Bool => {
-            let array: BooleanArray = props.map(|prop| prop.into_bool()).collect();
-            (array.null_count() != array.len()).then_some(array.boxed())
+            // direct collect requires known size for the iterator which we do not have
+            let mut builder = BooleanBuilder::new();
+            builder.extend(props.map(|prop| prop.into_bool()));
+            let array = builder.finish();
+            (array.null_count() != array.len()).then_some(array.as_array_ref())
         }
         PropType::Decimal { scale } => {
-            let array: PrimitiveArray<i128> = props
+            let array: Decimal128Array = props
                 .map(|prop| {
                     prop.into_decimal().and_then(|d| {
                         let (int, _) = d.as_bigint_and_exponent();
@@ -144,8 +149,12 @@ pub fn arrow_array_from_props(
                     })
                 })
                 .collect();
-            (array.null_count() != array.len())
-                .then_some(array.to(ArrowDataType::Decimal(38, scale as usize)).boxed())
+            (array.null_count() != array.len()).then_some(
+                array
+                    .with_precision_and_scale(DECIMAL128_MAX_PRECISION, scale as i8)
+                    .expect("valid decimal")
+                    .as_array_ref(),
+            )
         }
         PropType::Empty
         | PropType::List(_)
@@ -156,48 +165,44 @@ pub fn arrow_array_from_props(
     }
 }
 
-pub fn schema_from_prop_meta(prop_map: &PropMapper) -> ArrowSchema {
-    let time_field = Field::new("time", ArrowDataType::Int64, false);
+pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
+    let time_field = Field::new("time", DataType::Int64, false);
     let mut schema = vec![time_field];
 
     for (id, key) in prop_map.get_keys().iter().enumerate() {
         match prop_map.get_dtype(id).unwrap() {
             PropType::Str => {
-                schema.push(Field::new(key, ArrowDataType::LargeUtf8, true));
+                schema.push(Field::new(key, DataType::LargeUtf8, true));
             }
             PropType::U8 => {
-                schema.push(Field::new(key, ArrowDataType::UInt8, true));
+                schema.push(Field::new(key, DataType::UInt8, true));
             }
             PropType::U16 => {
-                schema.push(Field::new(key, ArrowDataType::UInt16, true));
+                schema.push(Field::new(key, DataType::UInt16, true));
             }
             PropType::I32 => {
-                schema.push(Field::new(key, ArrowDataType::Int32, true));
+                schema.push(Field::new(key, DataType::Int32, true));
             }
             PropType::I64 => {
-                schema.push(Field::new(key, ArrowDataType::Int64, true));
+                schema.push(Field::new(key, DataType::Int64, true));
             }
             PropType::U32 => {
-                schema.push(Field::new(key, ArrowDataType::UInt32, true));
+                schema.push(Field::new(key, DataType::UInt32, true));
             }
             PropType::U64 => {
-                schema.push(Field::new(key, ArrowDataType::UInt64, true));
+                schema.push(Field::new(key, DataType::UInt64, true));
             }
             PropType::F32 => {
-                schema.push(Field::new(key, ArrowDataType::Float32, true));
+                schema.push(Field::new(key, DataType::Float32, true));
             }
             PropType::F64 => {
-                schema.push(Field::new(key, ArrowDataType::Float64, true));
+                schema.push(Field::new(key, DataType::Float64, true));
             }
             PropType::Bool => {
-                schema.push(Field::new(key, ArrowDataType::Boolean, true));
+                schema.push(Field::new(key, DataType::Boolean, true));
             }
             PropType::Decimal { scale } => {
-                schema.push(Field::new(
-                    key,
-                    ArrowDataType::Decimal(38, scale as usize),
-                    true,
-                ));
+                schema.push(Field::new(key, DataType::Decimal128(38, scale as i8), true));
             }
             prop_type @ (PropType::Empty
             | PropType::List(_)
@@ -208,5 +213,5 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> ArrowSchema {
         }
     }
 
-    ArrowSchema::from(schema)
+    Schema::new(schema)
 }

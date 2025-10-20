@@ -271,7 +271,10 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
     fn get_by_index(
         &self,
         index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+    ) -> Option<(
+        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
+        Self::Value<'_>,
+    )> {
         if self.graph().filtered() {
             self.iter().nth(index)
         } else {

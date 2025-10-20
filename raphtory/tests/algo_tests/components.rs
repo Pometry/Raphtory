@@ -4,10 +4,9 @@ use raphtory::{
     algorithms::components::weakly_connected_components,
     db::api::{mutation::AdditionOps, state::NodeState, view::internal::GraphView},
     prelude::*,
+    test_storage,
 };
 use std::collections::BTreeSet;
-
-use crate::test_storage;
 
 fn assert_same_partition<G: GraphView, ID: Into<GID>>(
     left: NodeState<usize, G>,
@@ -203,10 +202,10 @@ mod in_component_test {
         algorithms::components::{in_component, in_components},
         db::api::mutation::AdditionOps,
         prelude::*,
+        test_storage,
     };
     use std::collections::HashMap;
 
-    use crate::test_storage;
     fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
         let mut results: Vec<_> = in_component(graph.node(node_id).unwrap())
             .iter()
@@ -310,10 +309,9 @@ mod components_test {
         algorithms::components::{out_component, out_components},
         db::api::mutation::AdditionOps,
         prelude::*,
+        test_storage,
     };
     use std::collections::HashMap;
-
-    use crate::test_storage;
 
     fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
         let mut results: Vec<_> = out_component(graph.node(node_id).unwrap())
@@ -427,10 +425,9 @@ mod strongly_connected_components_tests {
     use raphtory::{
         algorithms::components::strongly_connected_components,
         prelude::{AdditionOps, Graph, NodeStateGroupBy, NodeStateOps, NodeViewOps, NO_PROPS},
+        test_storage,
     };
     use std::collections::HashSet;
-
-    use crate::test_storage;
 
     #[test]
     fn scc_test() {

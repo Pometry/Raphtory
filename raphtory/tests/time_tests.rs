@@ -9,10 +9,9 @@ use raphtory::{
         },
     },
     prelude::{DeletionOps, GraphViewOps, LayerOps, TimeOps, NO_PROPS},
+    test_storage,
 };
 use raphtory_core::utils::time::ParseTimeError;
-
-pub mod test_utils;
 
 // start inclusive, end exclusive
 fn graph_with_timeline(start: i64, end: i64) -> Graph {

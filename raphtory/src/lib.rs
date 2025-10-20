@@ -110,6 +110,9 @@ pub mod errors;
 pub mod serialise;
 pub mod storage;
 
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils;
+
 /// Return Raphtory crate version.
 ///
 /// Returns:
@@ -161,8 +164,5 @@ pub mod prelude {
     #[cfg(feature = "search")]
     pub use crate::db::api::{mutation::IndexMutationOps, view::SearchableGraphOps};
 }
-
-#[cfg(feature = "storage")]
-pub use polars_arrow as arrow2;
 
 pub use raphtory_api::{atomic_extra, core::utils::logging};

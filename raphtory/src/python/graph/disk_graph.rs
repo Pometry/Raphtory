@@ -2,10 +2,6 @@
 //!
 use super::io::pandas_loaders::*;
 use crate::{
-    arrow2::{
-        array::StructArray,
-        datatypes::{ArrowDataType as DataType, Field},
-    },
     db::{
         api::storage::graph::storage_ops::disk_storage::IntoGraph,
         graph::views::deletion_graph::PersistentGraph,
@@ -15,6 +11,7 @@ use crate::{
     prelude::Graph,
     python::{graph::graph::PyGraph, types::repr::StructReprBuilder},
 };
+use arrow::{array::StructArray, datatypes::Field};
 use itertools::Itertools;
 use pometry_storage::{
     graph::{load_node_metadata, TemporalGraph},
@@ -63,7 +60,7 @@ struct PyParquetLayerCols {
 }
 
 impl PyParquetLayerCols {
-    pub fn as_deref(&self) -> ParquetLayerCols {
+    pub fn as_deref(&self) -> ParquetLayerCols<'_> {
         ParquetLayerCols {
             parquet_dir: self.parquet_dir.deref(),
             layer: self.layer.deref(),
@@ -185,7 +182,7 @@ impl PyDiskGraph {
                         Field::new(col_name, arr.data_type().clone(), arr.null_count() > 0)
                     })
                     .collect_vec();
-                let s_array = StructArray::new(DataType::Struct(fields), df.chunk, None);
+                let s_array = StructArray::new(fields.into(), df.chunk, None);
                 s_array
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
@@ -217,7 +214,7 @@ impl PyDiskGraph {
 
     #[staticmethod]
     #[pyo3(
-        signature = (graph_dir, layer_parquet_cols, node_properties=None, chunk_size=10_000_000, t_props_chunk_size=10_000_000, num_threads=4, node_type_col=None, node_id_col=None)
+        signature = (graph_dir, layer_parquet_cols, node_properties=None, chunk_size=10_000_000, t_props_chunk_size=10_000_000, num_threads=4, node_type_col=None, node_id_col=None, num_rows=None)
     )]
     fn load_from_parquets(
         graph_dir: PathBuf,
@@ -228,6 +225,7 @@ impl PyDiskGraph {
         num_threads: usize,
         node_type_col: Option<&str>,
         node_id_col: Option<&str>,
+        num_rows: Option<usize>,
     ) -> Result<PyDiskGraph, GraphError> {
         let layer_cols = layer_parquet_cols
             .iter()
@@ -242,6 +240,7 @@ impl PyDiskGraph {
             num_threads,
             node_type_col,
             node_id_col,
+            num_rows,
         )
         .map_err(|err| {
             GraphError::LoadFailure(format!("Failed to load graph from parquet files: {err:?}"))
@@ -272,7 +271,7 @@ impl PyDiskGraph {
         let mut cloned = self.clone();
         let chunks = read_struct_arrays(&location, Some(&[col_name]))?.map(|chunk| match chunk {
             Ok(chunk) => {
-                let (_, cols, _) = chunk.into_data();
+                let (_, cols, _) = chunk.into_parts();
                 cols.into_iter().next().ok_or(RAError::EmptyChunk)
             }
             Err(err) => Err(err),

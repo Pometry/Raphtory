@@ -3,6 +3,7 @@ use crate::{
         nodes::node_store::NodeStore,
         properties::{props::TPropError, tprop::IllegalPropType},
     },
+    loop_lock_write,
     storage::lazy_vec::IllegalSet,
 };
 use bigdecimal::BigDecimal;
@@ -406,14 +407,14 @@ impl NodeSlot {
         &mut self.t_props_log
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodePtr> {
+    pub fn iter(&self) -> impl Iterator<Item = NodePtr<'_>> {
         self.nodes
             .iter()
             .filter(|v| v.is_initialised())
             .map(|ns| NodePtr::new(ns, &self.t_props_log))
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr<'_>> {
         self.nodes
             .par_iter()
             .filter(|v| v.is_initialised())
@@ -477,7 +478,7 @@ impl NodeVec {
 
     #[inline]
     pub fn write(&self) -> impl DerefMut<Target = NodeSlot> + '_ {
-        self.data.write()
+        loop_lock_write(&self.data)
     }
 
     #[inline]
@@ -538,7 +539,7 @@ impl ReadLockedStorage {
     }
 
     #[inline]
-    pub fn get_entry(&self, index: VID) -> NodePtr {
+    pub fn get_entry(&self, index: VID) -> NodePtr<'_> {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         NodePtr::new(&bucket[offset], &bucket.t_props_log)
@@ -556,11 +557,11 @@ impl ReadLockedStorage {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodePtr> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = NodePtr<'_>> + '_ {
         self.locks.iter().flat_map(|v| v.iter())
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> + '_ {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr<'_>> + '_ {
         self.locks.par_iter().flat_map(|v| v.par_iter())
     }
 }
@@ -590,7 +591,7 @@ impl NodeStorage {
         }
     }
 
-    pub fn write_lock(&self) -> WriteLockedNodes {
+    pub fn write_lock(&self) -> WriteLockedNodes<'_> {
         WriteLockedNodes {
             guards: self.data.iter().map(|lock| lock.data.write()).collect(),
             global_len: &self.len,
@@ -609,11 +610,11 @@ impl NodeStorage {
         }
     }
 
-    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<NodeStore, NodeSlot> {
+    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<'_, NodeStore, NodeSlot> {
         let index = self.len.fetch_add(1, Ordering::Relaxed);
         value.vid = VID(index);
         let (bucket, offset) = self.resolve(index);
-        let guard = self.data[bucket].data.write();
+        let guard = loop_lock_write(&self.data[bucket].data);
         UninitialisedEntry {
             offset,
             guard,
@@ -625,7 +626,7 @@ impl NodeStorage {
         let VID(index) = value.vid;
         self.len.fetch_max(index + 1, Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
-        let mut guard = self.data[bucket].data.write();
+        let mut guard = loop_lock_write(&self.data[bucket].data);
         if guard.len() <= offset {
             guard.resize_with(offset + 1, NodeStore::default)
         }
@@ -654,7 +655,7 @@ impl NodeStorage {
     pub fn entry_mut(&self, index: VID) -> EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
-        let guard = self.data[bucket].data.write();
+        let guard = loop_lock_write(&self.data[bucket].data);
         EntryMut {
             i: offset,
             guard,
@@ -665,11 +666,12 @@ impl NodeStorage {
     pub fn prop_entry_mut(&self, index: VID) -> impl DerefMut<Target = TColumns> + '_ {
         let index = index.into();
         let (bucket, _) = self.resolve(index);
-        let lock = self.data[bucket].data.write();
+        let lock = loop_lock_write(&self.data[bucket].data);
         RwLockWriteGuard::map(lock, |data| &mut data.t_props_log)
     }
 
     // This helps get the right locks when adding an edge
+    #[deprecated(note = "use loop_pair_entry_mut instead")]
     pub fn pair_entry_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
         let i = i.into();
         let j = j.into();
@@ -848,7 +850,7 @@ where
 impl<'a> WriteLockedNodes<'a> {
     pub fn par_iter_mut(
         &mut self,
-    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<&mut NodeSlot>> + '_ {
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'_, &mut NodeSlot>> + '_ {
         let num_shards = self.guards.len();
         let global_len = self.global_len;
         let shards: Vec<&mut NodeSlot> = self

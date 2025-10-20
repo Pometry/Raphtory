@@ -7,13 +7,10 @@ use raphtory::{
     },
     errors::GraphError,
     prelude::*,
+    test_utils::{build_graph, build_graph_strat},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::ops::Range;
-
-use crate::test_utils::{build_graph, build_graph_strat};
-
-pub mod test_utils;
 
 #[test]
 fn test_valid_graph_persistent() -> Result<(), GraphError> {

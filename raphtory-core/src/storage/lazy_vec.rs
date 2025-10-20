@@ -241,7 +241,7 @@ where
         LazyVec::LazyVec1(A::default(), TupleCol::from(inner))
     }
 
-    pub(crate) fn filled_ids(&self) -> BoxedLIter<usize> {
+    pub(crate) fn filled_ids(&self) -> BoxedLIter<'_, usize> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(_, tuples) => Box::new(

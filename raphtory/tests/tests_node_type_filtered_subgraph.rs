@@ -5,13 +5,10 @@ use raphtory::{
         views::filter::model::property_filter::{PropertyFilter, PropertyRef},
     },
     prelude::*,
+    test_utils::{build_graph, build_graph_strat, make_node_types},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::ops::Range;
-
-use crate::test_utils::{build_graph, build_graph_strat, make_node_types};
-
-pub mod test_utils;
 
 #[test]
 fn test_type_filtered_subgraph() {

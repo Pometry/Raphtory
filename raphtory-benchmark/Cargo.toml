@@ -7,12 +7,12 @@ edition = "2021"
 
 [dependencies]
 criterion = { workspace = true }
-raphtory = { path = "../raphtory", features = [
+raphtory = { workspace = true, features = [
     "io",
     "proto",
     "vectors",
-], version = "0.16.2" }
-raphtory-api = { path = "../raphtory-api", version = "0.16.2" }
+] }
+raphtory-api = { workspace = true }
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }

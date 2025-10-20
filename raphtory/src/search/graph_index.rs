@@ -360,7 +360,7 @@ impl GraphIndex {
         !matches!(self, GraphIndex::Empty)
     }
 
-    pub fn searcher(&self) -> Option<Searcher> {
+    pub fn searcher(&self) -> Option<Searcher<'_>> {
         self.index().map(Searcher::new)
     }
 }

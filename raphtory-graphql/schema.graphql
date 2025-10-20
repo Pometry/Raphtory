@@ -1,3 +1,18 @@
+"""
+Alignment unit used to align window boundaries.
+"""
+enum AlignmentUnit {
+	UNALIGNED
+	MILLISECOND
+	SECOND
+	MINUTE
+	HOUR
+	DAY
+	WEEK
+	MONTH
+	YEAR
+}
+
 enum AllPropertySpec {
 	"""
 	All properties and metadata.
@@ -12,7 +27,6 @@ enum AllPropertySpec {
 	"""
 	ALL_PROPERTIES
 }
-
 
 """
 Collection of items
@@ -137,14 +151,24 @@ type Edge {
 	Creates a WindowSet with the given window duration and optional step using a rolling window.
 	
 	A rolling window is a window that moves forward by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+	e.g. "1 month and 1 day" will align at the start of the day.
+	Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+	the start of the first window and/or after the end of the last window (i.e. not included in any window).
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): EdgeWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignmentUnit: AlignmentUnit): EdgeWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window.
 	
 	An expanding window is a window that grows by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+	e.g. "1 month and 1 day" will align at the start of the day.
 	"""
-	expanding(step: WindowDuration!): EdgeWindowSet!
+	expanding(step: WindowDuration!, alignmentUnit: AlignmentUnit): EdgeWindowSet!
 	"""
 	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
 	
@@ -509,14 +533,24 @@ type Edges {
 	Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
 	
 	Returns a collection of collections. This means that item in the window set is a collection of edges.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+	e.g. "1 month and 1 day" will align at the start of the day.
+	Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+	the start of the first window and/or after the end of the last window (i.e. not included in any window).
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): EdgesWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignmentUnit: AlignmentUnit): EdgesWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
 	
 	Returns a collection of collections. This means that item in the window set is a collection of edges.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+	e.g. "1 month and 1 day" will align at the start of the day.
 	"""
-	expanding(step: WindowDuration!): EdgesWindowSet!
+	expanding(step: WindowDuration!, alignmentUnit: AlignmentUnit): EdgesWindowSet!
 	"""
 	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
 	"""
@@ -677,7 +711,6 @@ type EdgesWindowSet {
 	list: [Edges!]!
 }
 
-
 type Graph {
 	"""
 	Returns the names of all layers in the graphview.
@@ -721,12 +754,26 @@ type Graph {
 	excludeNodes(nodes: [String!]!): Graph!
 	"""
 	Creates a rolling window with the specified window size and an optional step.
+	
+	A rolling window is a window that moves forward by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+	e.g. "1 month and 1 day" will align at the start of the day.
+	Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+	the start of the first window and/or after the end of the last window (i.e. not included in any window).
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): GraphWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignmentUnit: AlignmentUnit): GraphWindowSet!
 	"""
-	Creates a expanding window with the specified step size.
+	Creates an expanding window with the specified step size.
+	
+	An expanding window is a window that grows by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+	e.g. "1 month and 1 day" will align at the start of the day.
 	"""
-	expanding(step: WindowDuration!): GraphWindowSet!
+	expanding(step: WindowDuration!, alignmentUnit: AlignmentUnit): GraphWindowSet!
 	"""
 	Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
 	"""
@@ -1023,7 +1070,6 @@ type GraphWindowSet {
 	list: [Graph!]!
 }
 
-
 type IndexSpec {
 	"""
 	Returns node metadata.
@@ -1064,7 +1110,6 @@ input InputEdge {
 	"""
 	dst: String!
 }
-
 
 type LayerSchema {
 	"""
@@ -1374,13 +1419,25 @@ type Node {
 	"""
 	Creates a WindowSet with the specified window size and optional step using a rolling window.
 	
-	Returns a collection of collections. This means that item in the window set is a collection of nodes.
+	A rolling window is a window that moves forward by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+	e.g. "1 month and 1 day" will align at the start of the day.
+	Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+	the start of the first window and/or after the end of the last window (i.e. not included in any window).
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): NodeWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignmentUnit: AlignmentUnit): NodeWindowSet!
 	"""
 	Creates a WindowSet with the specified step size using an expanding window.
+	
+	An expanding window is a window that grows by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+	e.g. "1 month and 1 day" will align at the start of the day.
 	"""
-	expanding(step: WindowDuration!): NodeWindowSet!
+	expanding(step: WindowDuration!, alignmentUnit: AlignmentUnit): NodeWindowSet!
 	"""
 	Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
 	"""
@@ -1718,12 +1775,26 @@ type Nodes {
 	excludeLayer(name: String!): Nodes!
 	"""
 	Creates a WindowSet with the specified window size and optional step using a rolling window.
+	
+	A rolling window is a window that moves forward by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+	e.g. "1 month and 1 day" will align at the start of the day.
+	Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+	the start of the first window and/or after the end of the last window (i.e. not included in any window).
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): NodesWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignmentUnit: AlignmentUnit): NodesWindowSet!
 	"""
 	Creates a WindowSet with the specified step size using an expanding window.
+	
+	An expanding window is a window that grows by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+	e.g. "1 month and 1 day" will align at the start of the day.
 	"""
-	expanding(step: WindowDuration!): NodesWindowSet!
+	expanding(step: WindowDuration!, alignmentUnit: AlignmentUnit): NodesWindowSet!
 	"""
 	Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
 	"""
@@ -1971,12 +2042,26 @@ type PathFromNode {
 	excludeLayer(name: String!): PathFromNode!
 	"""
 	Creates a WindowSet with the given window size and optional step using a rolling window.
+	
+	A rolling window is a window that moves forward by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+	e.g. "1 month and 1 day" will align at the start of the day.
+	Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+	the start of the first window and/or after the end of the last window (i.e. not included in any window).
 	"""
-	rolling(window: WindowDuration!, step: WindowDuration): PathFromNodeWindowSet!
+	rolling(window: WindowDuration!, step: WindowDuration, alignmentUnit: AlignmentUnit): PathFromNodeWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window.
+	
+	An expanding window is a window that grows by step size at each iteration.
+	
+	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+	e.g. "1 month and 1 day" will align at the start of the day.
 	"""
-	expanding(step: WindowDuration!): PathFromNodeWindowSet!
+	expanding(step: WindowDuration!, alignmentUnit: AlignmentUnit): PathFromNodeWindowSet!
 	"""
 	Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
 	"""
@@ -2284,7 +2369,6 @@ enum SortByTime {
 	EARLIEST
 }
 
-
 type TemporalProperties {
 	"""
 	Get property value matching the specified key.
@@ -2482,9 +2566,21 @@ input WindowDuration @oneOf {
 	epoch: Int
 }
 
+"""
+Directs the executor to include this field or fragment only when the `if` argument is true.
+"""
 directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+"""
+Indicates that an Input Object is a OneOf Input Object (and thus requires exactly one of its field be provided)
+"""
 directive @oneOf on INPUT_OBJECT
+"""
+Directs the executor to skip this field or fragment when the `if` argument is true.
+"""
 directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+"""
+Provides a scalar specification URL for specifying the behavior of custom scalar types.
+"""
 directive @specifiedBy(url: String!) on SCALAR
 schema {
 	query: QueryRoot
