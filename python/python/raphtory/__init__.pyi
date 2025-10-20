@@ -2503,64 +2503,64 @@ class NodeFilterBuilder(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
+    def contains(self, value: str) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if the specified iterable of strings contains a given value.
 
         Arguments:
-            str:
+            value (str):
 
         Returns:
-            filter expression
+            filter.FilterExpr:
         """
 
-    def fuzzy_search(self, value, levenshtein_distance: Any, prefix_match: Any):
+    def fuzzy_search(self, value, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if the specified properties approximately match the specified string.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
         Arguments:
-            str:
-            levenshtein_distance:
-            prefix_match:
+            prop_value (str): Property to match against.
+            levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
+            prefix_match (bool): Enable prefix matching.
 
         Returns:
-            filter expression
+            filter.FilterExpr:
         """
 
-    def is_in(self, values):
+    def is_in(self, values: list[str]) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
 
         Arguments:
-            list[str]:
+            values (list[str]):
 
         Returns:
-            filter expression
+            filter.FilterExpr:
         """
 
-    def is_not_in(self, values):
+    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
 
         Arguments:
-            list[str]:
+            values (list[str]):
 
         Returns:
-            filter expression
+            filter.FilterExpr:
         """
 
-    def not_contains(self, value):
+    def not_contains(self, value: str) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
 
  
         Arguments:
-            str:
+            value (str):
 
         Returns:
-            filter expression
+            filter.FilterExpr:
         """
 
 class Nodes(object): 
