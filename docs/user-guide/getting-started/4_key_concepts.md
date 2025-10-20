@@ -18,7 +18,7 @@ As you get new data you can make global updates, like adding new nodes, using th
 
 ## Nodes
 
-The [Node][raphtory.Node] object in Raphtory typically represents some entity in your data. You create nodes using the [.add_node()][raphtory.Graph.add_node] function on your `Graph` object but any subsequent updates must be made using a [MutableNode][raphtory.MutableNode] that you can get by calling `my_graph.node(node_id)`. Any queries are performed using the Node object or an appropriate view.
+The [Node][raphtory.Node] object in Raphtory typically represents some entity in your data. You create nodes using the [.add_node()][raphtory.Graph.add_node] function on your `Graph` object, subsequent updates can be made using a [MutableNode][raphtory.MutableNode] that you can get by calling `my_graph.node(node_id)`. Any queries are performed using the Node object or an appropriate view.
 
 To make queries more convenient Raphtory provides the [Nodes][raphtory.Nodes] iterable that allows you to make queries over all the nodes in the current view. Typically, queries on an individual Node will return a result directly, while queries over the `Nodes` iterable will often return a view or NodeState.
 
