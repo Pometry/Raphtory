@@ -52,7 +52,7 @@ impl PyEdgeFilterOp {
     ///     values (list[str]):
     ///
     /// Returns:
-    ///     filter expression
+    ///     filter.FilterExpr:
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let field = self.0.is_in(values);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
@@ -64,7 +64,7 @@ impl PyEdgeFilterOp {
     ///     values (list[str]):
     ///
     /// Returns:
-    ///     filter expression
+    ///     filter.FilterExpr:
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let field = self.0.is_not_in(values);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
@@ -76,7 +76,7 @@ impl PyEdgeFilterOp {
     ///     value (str):
     ///
     /// Returns:
-    ///     filter expression
+    ///     filter.FilterExpr:
     fn contains(&self, value: String) -> PyFilterExpr {
         let field = self.0.contains(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
@@ -88,7 +88,7 @@ impl PyEdgeFilterOp {
     ///     value (str):
     ///
     /// Returns:
-    ///     filter expression
+    ///     filter.FilterExpr:
     fn not_contains(&self, value: String) -> PyFilterExpr {
         let field = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
@@ -99,12 +99,12 @@ impl PyEdgeFilterOp {
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Arguments:
-    ///     prop_value (str):
-    ///     levenshtein_distance (usize):
-    ///     prefix_match (bool):
+    ///     prop_value (str): Property to match against.
+    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
+    ///     prefix_match (bool): Enable prefix matching.
     ///  
     /// Returns:
-    ///     FilterExpr:
+    ///     filter.FilterExpr:
     fn fuzzy_search(
         &self,
         value: String,

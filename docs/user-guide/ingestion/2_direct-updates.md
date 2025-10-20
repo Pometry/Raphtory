@@ -1,11 +1,10 @@
 # Direct Updates
 
-Now that we have a graph we can directly update it with the `add_node()` and `add_edge()` functions.
+Once you have a graph you can directly update it with the `add_node()` and `add_edge()` functions.
 
 ## Adding nodes
 
-To add a node we need a unique `id` to represent it and an update `timestamp` to specify when it was added to the graph.
-In the below example we are going to add node `10` at timestamp `1`.
+To add a node we need a unique `id` to represent it and an update `timestamp` to specify when it was added to the graph. In the below example we are going to add node `10` at timestamp `1`.
 
 !!! info
 
