@@ -207,6 +207,10 @@ impl<T: HasRow> SegmentContainer<T> {
         self.max_page_len
     }
 
+    pub fn max_rows(&self) -> usize {
+        self.data.max_local_pos().map(|pos| pos.0 + 1).unwrap_or(0) as usize
+    }
+
     pub fn is_full(&self) -> bool {
         self.data.num_filled() == self.max_page_len() as usize
     }
@@ -309,13 +313,12 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     pub fn all_entries(&self) -> impl Iterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> {
-        let max_local_pos = self.data.max_local_pos().map(|p|p.0 as usize).unwrap_or(0);
-        // dbg!(max_entries);
+        let max_local_pos = self.data.max_local_pos().map(|p| p.0 as usize).unwrap_or(0);
         self.data
             .iter_all()
             .chain(iter::repeat(None))
             // .take(self.max_page_len as usize)
-            .take(max_local_pos)
+            .take(max_local_pos + 1)
             .enumerate()
             .map(|(i, v)| {
                 (

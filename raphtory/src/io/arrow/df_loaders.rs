@@ -29,9 +29,11 @@ use raphtory_core::{
     entities::{graph::logical_to_physical::ResolverShardT, GidRef, VID},
     storage::timeindex::AsTime,
 };
-use raphtory_storage::core_ops::CoreGraphOps;
-use raphtory_storage::layer_ops::InternalLayerOps;
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    layer_ops::InternalLayerOps,
+    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+};
 use rayon::prelude::*;
 use std::{
     borrow::{Borrow, Cow},

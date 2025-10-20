@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use crate::{
     errors::{GraphError, LoadError},
     io::arrow::dataframe::DFChunk,
@@ -25,6 +24,7 @@ use raphtory_api::core::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+use std::sync::Arc;
 
 pub struct PropCols {
     prop_ids: Vec<usize>,
@@ -381,7 +381,11 @@ impl PropCol for MapCol {
             })
             .collect::<Vec<_>>();
         let columns = self.values.iter().map(|(_, col)| col.as_array()).collect();
-        Arc::new(StructArray::new(fields.into(), columns, self.validity.clone()))
+        Arc::new(StructArray::new(
+            fields.into(),
+            columns,
+            self.validity.clone(),
+        ))
     }
 }
 
