@@ -25,11 +25,15 @@ To make queries more convenient Raphtory provides the [Nodes][raphtory.Nodes] it
 NodeStates are tabular representations of a collection across all nodes in the current view. You can easily transform a NodeState into a dataframe or other tabular format to integrate into your existing workflow.
 
 !!! Info
-    The Nodes and Edges iterables have a `.collect()` function that returns list of all the your objects. This is operates on the underlying Rust library and is much faster than creating the list manually in Python.
+    The Nodes and Edges iterables have a `.collect()` function that returns list of all the your objects. This operates on the underlying Rust library and is much faster than creating the list manually in Python.
 
 ## Edges
 
-The [Edge][raphtory.Edge] object represents relationships between nodes. However, in Raphtory there is only ever one edge between any pair of nodes which combines the information of the edge across all times and layers. To represent multiple relationships you can use the properties and metadata of an edge or create edges on specific layers.
+An [Edge][raphtory.Edge] object represents relationships between nodes. However, in Raphtory there is only ever one edge between any pair of nodes. This unified edge object combines interactions across all times and all relationships.
+
+Some graph tools create multiple edges for each relationship or time dependent interaction between nodes, you can replicate this view in Raphtory by calling `.explode()` on the unified edge object.
+
+To represent multiple relationships you can use the properties and metadata of an edge or create edges on specific layers which are agreagated into the unified edge object.
 
 Similarly to nodes, you must create edges using [.add_edge()][raphtory.Graph.add_edge] and make changes using a [MutableEdge][raphtory.MutableEdge] object. There is also an [Edges][raphtory.Edges] iterable that allows you to make queries over all the edges in the current view.
 
@@ -37,7 +41,7 @@ An Edge object contains the combined information for that edge across all points
 
 ## Layers
 
-To further separate different types of relationships between the same types of entities, you can create separate layers in the same graph. The nodes of a graph exist across all layers but edges can be assigned a specific layer. In the [introductionary example](1_intro.md) we use edges on separate layers to distinguish between different behaviours of the baboons.
+To further separate different types of relationships between the same types of entities, you can create separate layers in the same graph. The nodes of a graph exist across all layers but edges can be assigned a specific layer. In the [introductionary example](1_intro.md) we use edges on separate layers to distinguish between different behaviours of a troop of baboons.
 
 Queries will show edges across all layers by default and edges that exist on multiple layers are combined into a single edge with the combined properties and history. You can apply an appropriate view to work with a specific layer or layers.
 
