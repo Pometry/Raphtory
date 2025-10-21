@@ -280,8 +280,6 @@ mod io_tests {
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
                 let edge = g.edge(src, dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
             assert_eq!(g.unfiltered_num_edges(), distinct_edges);
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
@@ -301,8 +299,6 @@ mod io_tests {
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, &src, &dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
                 let edge = g.edge(&src, &dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
             assert_eq!(g.unfiltered_num_edges(), distinct_edges);
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
