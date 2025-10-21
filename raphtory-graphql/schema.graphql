@@ -974,8 +974,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {

@@ -8,11 +8,14 @@ Raphtory is written in Rust for speed and safety. However, you can interact with
 
 - [Python][raphtory] - Our Python APIs are the primary way to create workflows and are described in detail in this documentation.
 - [GraphQL](../graphql/1_intro.md) - Start a GraphQL server that you can interact with programmatically or using the playground integrated in the Raphtory UI.
-- [Rust](https://docs.rs/raphtory/latest/raphtory/) - Interact directly with the Rust library to add new algorithms or build into fully featured products. 
+- [Rust](https://docs.rs/raphtory/latest/raphtory/) - Interact directly with the Rust library to add new algorithms or build into fully featured products.
+
+!!! Note
+    To cite Raphtory in your work refer to our paper [Raphtory: The temporal graph engine for Rust and Python](https://joss.theoj.org/papers/10.21105/joss.05940#).
 
 ## Ingest a simple dataset
 
-You can build graphs directly in Raphtory or import data in standard formats. In the following example we use the `OBS.txt` baboon interaction dataset from [SocioPatterns](http://www.sociopatterns.org/datasets/baboons-interactions/) which is provided in a tab separated text file. 
+You can build graphs directly in Raphtory or import data in standard formats. In the following example we use the `OBS.txt` baboon interaction dataset from [SocioPatterns](http://www.sociopatterns.org/datasets/baboons-interactions/) which is provided in a tab separated text file.
 
 To ingest this data you must first format it using `pandas` to create a dataframe and convert the timestamps to the `datetime` format. Then you can create a new graph `g` in Raphtory using the [`.load_edges_from_pandas()`][raphtory.Graph.load_edges_from_pandas] method and assigning each of the parameters appropriately.
 
