@@ -6,11 +6,13 @@ use crate::{
     persist::strategy::{Config, PersistentStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    MS,
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
+use meta_store::MetaStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
@@ -38,6 +40,7 @@ pub mod locked;
 pub mod node_page;
 pub mod node_store;
 pub mod session;
+pub mod meta_store;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
@@ -48,6 +51,7 @@ pub struct GraphStore<NS, ES, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     graph_dir: Option<PathBuf>,
+    meta: Arc<MetaStorageInner<MS<EXT>, EXT>>,
     event_id: AtomicUsize,
     _ext: EXT,
 }

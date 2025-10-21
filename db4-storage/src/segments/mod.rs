@@ -20,6 +20,7 @@ use std::{
 
 pub mod edge;
 pub mod node;
+pub mod meta;
 
 pub mod additions;
 pub mod edge_entry;
