@@ -352,4 +352,14 @@ impl GqlNodes {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.name().collect()).await
     }
+
+    async fn select(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let nf: CompositeNodeFilter = filter.try_into()?;
+            let narrowed = self_clone.nn.filter_iter(nf)?;
+            Ok(self_clone.update(narrowed.into_dyn()))
+        })
+        .await
+    }
 }

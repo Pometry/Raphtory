@@ -330,18 +330,18 @@ impl PropCondition {
             Ge(_) => "ge",
             Lt(_) => "lt",
             Le(_) => "le",
-            
+
             StartsWith(_) => "startsWith",
             EndsWith(_) => "endsWith",
             Contains(_) => "contains",
             NotContains(_) => "notContains",
-            
+
             IsIn(_) => "isIn",
             IsNotIn(_) => "isNotIn",
-            
+
             IsSome(_) => "isSome",
             IsNone(_) => "isNone",
-            
+
             And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_) | Avg(_)
             | Min(_) | Max(_) | Len(_) => return None,
         })
@@ -827,8 +827,8 @@ fn translate_prop_leaf_to_filter(
         IsSome(true) => (FO::IsSome, PropertyFilterValue::None),
         IsNone(true) => (FO::IsNone, PropertyFilterValue::None),
 
-        And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_)
-        | Avg(_) | Min(_) | Max(_) | Len(_) | IsSome(false) | IsNone(false) => {
+        And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_) | Avg(_)
+        | Min(_) | Max(_) | Len(_) | IsSome(false) | IsNone(false) => {
             return Err(GraphError::InvalidGqlFilter(format!(
                 "Expected comparison at leaf for {}",
                 name_for_errors
@@ -1007,7 +1007,8 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                         "Src filter does not support NODE_TYPE".into(),
                     ));
                 }
-                let (_, field_value, operator) = translate_node_field_where(src.field, &src.where_)?;
+                let (_, field_value, operator) =
+                    translate_node_field_where(src.field, &src.where_)?;
                 Ok(CompositeEdgeFilter::Edge(Filter {
                     field_name: "src".to_string(),
                     field_value,
@@ -1020,7 +1021,8 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                         "Dst filter does not support NODE_TYPE".into(),
                     ));
                 }
-                let (_, field_value, operator) = translate_node_field_where(dst.field, &dst.where_)?;
+                let (_, field_value, operator) =
+                    translate_node_field_where(dst.field, &dst.where_)?;
                 Ok(CompositeEdgeFilter::Edge(Filter {
                     field_name: "dst".to_string(),
                     field_value,

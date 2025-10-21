@@ -81,3 +81,35 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     """
     expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_chained_selection_with_node_filter_by_node_and_prop_filter(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes {
+          select(filter: { node: { 
+            field: NODE_TYPE
+            where: { eq: { str: "fire_nation" } }
+          } }) {
+            select(filter: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
+              nodeFilter(filter:{
+                property: { name: "p100", where: { gt: { i64: 30 } } }
+              }) {
+                list {
+                  name
+                }
+              }
+            }        
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {"select": {"select": {"nodeFilter": {"list": [{"name": "1"}]}}}}
+        }
+    }
+    run_graphql_test(query, expected_output, graph)

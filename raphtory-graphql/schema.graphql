@@ -314,13 +314,37 @@ input EdgeAddition {
 }
 
 input EdgeFilter @oneOf {
+	"""
+	Source node filter.
+	"""
 	src: NodeFieldFilterNew
+	"""
+	Destination node filter.
+	"""
 	dst: NodeFieldFilterNew
+	"""
+	Property filter.
+	"""
 	property: PropertyFilterNew
+	"""
+	Metadata filter.
+	"""
 	metadata: PropertyFilterNew
+	"""
+	Temporal property filter.
+	"""
 	temporalProperty: PropertyFilterNew
+	"""
+	AND operator.
+	"""
 	and: [EdgeFilter!]
+	"""
+	OR operator.
+	"""
 	or: [EdgeFilter!]
+	"""
+	NOT operator.
+	"""
 	not: EdgeFilter
 }
 
@@ -367,20 +391,65 @@ input EdgeSortBy {
 }
 
 input EdgeViewCollection @oneOf {
+	"""
+	Contains only the default layer.
+	"""
 	defaultLayer: Boolean
+	"""
+	Latest time.
+	"""
 	latest: Boolean
+	"""
+	Snapshot at latest time.
+	"""
 	snapshotLatest: Boolean
+	"""
+	Snapshot at specified time.
+	"""
 	snapshotAt: Int
+	"""
+	List of included layers.
+	"""
 	layers: [String!]
+	"""
+	List of excluded layers.
+	"""
 	excludeLayers: [String!]
+	"""
+	Single included layer.
+	"""
 	layer: String
+	"""
+	Single excluded layer.
+	"""
 	excludeLayer: String
+	"""
+	Window between a start and end time.
+	"""
 	window: Window
+	"""
+	View at a specified time.
+	"""
 	at: Int
+	"""
+	View before a specified time (end exclusive).
+	"""
 	before: Int
+	"""
+	View after a specified time (start exclusive).
+	"""
 	after: Int
+	"""
+	Shrink a Window to a specified start and end time.
+	"""
 	shrinkWindow: Window
+	"""
+	Set the window start to a specified time.
+	"""
 	shrinkStart: Int
+	"""
+	Set the window end to a specified time.
+	"""
 	shrinkEnd: Int
 }
 
@@ -512,20 +581,65 @@ type Edges {
 }
 
 input EdgesViewCollection @oneOf {
+	"""
+	Contains only the default layer.
+	"""
 	defaultLayer: Boolean
+	"""
+	Latest time.
+	"""
 	latest: Boolean
+	"""
+	Snapshot at latest time.
+	"""
 	snapshotLatest: Boolean
+	"""
+	Snapshot at specified time.
+	"""
 	snapshotAt: Int
+	"""
+	List of included layers.
+	"""
 	layers: [String!]
+	"""
+	List of excluded layers.
+	"""
 	excludeLayers: [String!]
+	"""
+	Single included layer.
+	"""
 	layer: String
+	"""
+	Single excluded layer.
+	"""
 	excludeLayer: String
+	"""
+	Window between a start and end time.
+	"""
 	window: Window
+	"""
+	View at a specified time.
+	"""
 	at: Int
+	"""
+	View before a specified time (end exclusive).
+	"""
 	before: Int
+	"""
+	View after a specified time (start exclusive).
+	"""
 	after: Int
+	"""
+	Shrink a Window to a specified start and end time.
+	"""
 	shrinkWindow: Window
+	"""
+	Set the window start to a specified time.
+	"""
 	shrinkStart: Int
+	"""
+	Set the window end to a specified time.
+	"""
 	shrinkEnd: Int
 }
 
@@ -697,7 +811,7 @@ type Graph {
 	"""
 	Gets (optionally a subset of) the nodes in the graph.
 	"""
-	nodes(ids: [String!]): Nodes!
+	nodes(ids: [String!], select: NodeFilter): Nodes!
 	"""
 	Gets the edge with the specified source and destination nodes.
 	"""
@@ -762,8 +876,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -783,26 +897,89 @@ enum GraphType {
 }
 
 input GraphViewCollection @oneOf {
+	"""
+	Contains only the default layer.
+	"""
 	defaultLayer: Boolean
+	"""
+	List of included layers.
+	"""
 	layers: [String!]
+	"""
+	List of excluded layers.
+	"""
 	excludeLayers: [String!]
+	"""
+	Single included layer.
+	"""
 	layer: String
+	"""
+	Single excluded layer.
+	"""
 	excludeLayer: String
+	"""
+	Subgraph nodes.
+	"""
 	subgraph: [String!]
+	"""
+	Subgraph node types.
+	"""
 	subgraphNodeTypes: [String!]
+	"""
+	List of excluded nodes.
+	"""
 	excludeNodes: [String!]
+	"""
+	Valid state.
+	"""
 	valid: Boolean
+	"""
+	Window between a start and end time.
+	"""
 	window: Window
+	"""
+	View at a specified time.
+	"""
 	at: Int
+	"""
+	View at the latest time.
+	"""
 	latest: Boolean
+	"""
+	Snapshot at specified time.
+	"""
 	snapshotAt: Int
+	"""
+	Snapshot at latest time.
+	"""
 	snapshotLatest: Boolean
+	"""
+	View before a specified time (end exclusive).
+	"""
 	before: Int
+	"""
+	View after a specified time (start exclusive).
+	"""
 	after: Int
+	"""
+	Shrink a Window to a specified start and end time.
+	"""
 	shrinkWindow: Window
+	"""
+	Set the window start to a specified time.
+	"""
 	shrinkStart: Int
+	"""
+	Set the window end to a specified time.
+	"""
 	shrinkEnd: Int
+	"""
+	Node filter.
+	"""
 	nodeFilter: NodeFilter
+	"""
+	Edge filter.
+	"""
 	edgeFilter: EdgeFilter
 }
 
@@ -1312,8 +1489,17 @@ input NodeAddition {
 }
 
 enum NodeField {
+	"""
+	Node id.
+	"""
 	NODE_ID
+	"""
+	Node name.
+	"""
 	NODE_NAME
+	"""
+	Node type.
+	"""
 	NODE_TYPE
 }
 
@@ -1338,12 +1524,33 @@ input NodeFieldFilterNew {
 }
 
 input NodeFilter @oneOf {
+	"""
+	Node filter.
+	"""
 	node: NodeFieldFilterNew
+	"""
+	Property filter.
+	"""
 	property: PropertyFilterNew
+	"""
+	Metadata filter.
+	"""
 	metadata: PropertyFilterNew
+	"""
+	Temporal property filter.
+	"""
 	temporalProperty: PropertyFilterNew
+	"""
+	AND operator.
+	"""
 	and: [NodeFilter!]
+	"""
+	OR operator.
+	"""
 	or: [NodeFilter!]
+	"""
+	NOT operator.
+	"""
 	not: NodeFilter
 }
 
@@ -1376,21 +1583,69 @@ input NodeSortBy {
 }
 
 input NodeViewCollection @oneOf {
+	"""
+	Contains only the default layer.
+	"""
 	defaultLayer: Boolean
+	"""
+	View at the latest time.
+	"""
 	latest: Boolean
+	"""
+	Snapshot at latest time.
+	"""
 	snapshotLatest: Boolean
+	"""
+	Snapshot at specified time.
+	"""
 	snapshotAt: Int
+	"""
+	List of included layers.
+	"""
 	layers: [String!]
+	"""
+	List of excluded layers.
+	"""
 	excludeLayers: [String!]
+	"""
+	Single included layer.
+	"""
 	layer: String
+	"""
+	Single excluded layer.
+	"""
 	excludeLayer: String
+	"""
+	Window between a start and end time.
+	"""
 	window: Window
+	"""
+	View at a specified time.
+	"""
 	at: Int
+	"""
+	View before a specified time (end exclusive).
+	"""
 	before: Int
+	"""
+	View after a specified time (start exclusive).
+	"""
 	after: Int
+	"""
+	Shrink a Window to a specified start and end time.
+	"""
 	shrinkWindow: Window
+	"""
+	Set the window start to a specified time.
+	"""
 	shrinkStart: Int
+	"""
+	Set the window end to a specified time.
+	"""
 	shrinkEnd: Int
+	"""
+	Node filter.
+	"""
 	nodeFilter: NodeFilter
 }
 
@@ -1508,25 +1763,77 @@ type Nodes {
 	Returns a view of the node ids.
 	"""
 	ids: [String!]!
+	select(filter: NodeFilter!): Nodes!
 }
 
 input NodesViewCollection @oneOf {
+	"""
+	Contains only the default layer.
+	"""
 	defaultLayer: Boolean
+	"""
+	View at the latest time.
+	"""
 	latest: Boolean
+	"""
+	Snapshot at latest time.
+	"""
 	snapshotLatest: Boolean
+	"""
+	List of included layers.
+	"""
 	layers: [String!]
+	"""
+	List of excluded layers.
+	"""
 	excludeLayers: [String!]
+	"""
+	Single included layer.
+	"""
 	layer: String
+	"""
+	Single excluded layer.
+	"""
 	excludeLayer: String
+	"""
+	Window between a start and end time.
+	"""
 	window: Window
+	"""
+	View at a specified time.
+	"""
 	at: Int
+	"""
+	Snapshot at specified time.
+	"""
 	snapshotAt: Int
+	"""
+	View before a specified time (end exclusive).
+	"""
 	before: Int
+	"""
+	View after a specified time (start exclusive).
+	"""
 	after: Int
+	"""
+	Shrink a Window to a specified start and end time.
+	"""
 	shrinkWindow: Window
+	"""
+	Set the window start to a specified time.
+	"""
 	shrinkStart: Int
+	"""
+	Set the window end to a specified time.
+	"""
 	shrinkEnd: Int
+	"""
+	Node filter.
+	"""
 	nodeFilter: NodeFilter
+	"""
+	List of types.
+	"""
 	typeFilter: [String!]
 }
 
@@ -1660,19 +1967,61 @@ type PathFromNode {
 }
 
 input PathFromNodeViewCollection @oneOf {
+	"""
+	Latest time.
+	"""
 	latest: Boolean
+	"""
+	Latest snapshot.
+	"""
 	snapshotLatest: Boolean
+	"""
+	Time.
+	"""
 	snapshotAt: Int
+	"""
+	List of layers.
+	"""
 	layers: [String!]
+	"""
+	List of excluded layers.
+	"""
 	excludeLayers: [String!]
+	"""
+	Single layer.
+	"""
 	layer: String
+	"""
+	Single layer to exclude.
+	"""
 	excludeLayer: String
+	"""
+	Window between a start and end time.
+	"""
 	window: Window
+	"""
+	View at a specified time.
+	"""
 	at: Int
+	"""
+	View before a specified time (end exclusive).
+	"""
 	before: Int
+	"""
+	View after a specified time (start exclusive).
+	"""
 	after: Int
+	"""
+	Shrink a Window to a specified start and end time.
+	"""
 	shrinkWindow: Window
+	"""
+	Set the window start to a specified time.
+	"""
 	shrinkStart: Int
+	"""
+	Set the window end to a specified time.
+	"""
 	shrinkEnd: Int
 }
 
@@ -1704,7 +2053,6 @@ input PropCondition @oneOf {
 	isNotIn: Value
 	isSome: Boolean
 	isNone: Boolean
-	between: [Value!]
 	and: [PropCondition!]
 	or: [PropCondition!]
 	not: PropCondition

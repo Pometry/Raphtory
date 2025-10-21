@@ -28,8 +28,8 @@ use raphtory::{
         api::{
             properties::dyn_props::DynProperties,
             view::{
-                BaseFilterOps, DynamicGraph, IntoDynamic, NodeViewOps, SearchableGraphOps,
-                StaticGraphViewOps, TimeOps,
+                BaseFilterOps, DynamicGraph, IntoDynamic, IterFilterOps, NodeViewOps,
+                SearchableGraphOps, StaticGraphViewOps, TimeOps,
             },
         },
         graph::{
@@ -374,12 +374,28 @@ impl GqlGraph {
     }
 
     /// Gets (optionally a subset of) the nodes in the graph.
-    async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
-        let nodes = self.graph.nodes();
-        match ids {
-            None => GqlNodes::new(nodes),
-            Some(ids) => GqlNodes::new(blocking_compute(move || nodes.id_filter(ids)).await),
+    async fn nodes(
+        &self,
+        ids: Option<Vec<String>>,
+        select: Option<NodeFilter>,
+    ) -> Result<GqlNodes, GraphError> {
+        let base = self.graph.nodes();
+        let nn = match ids {
+            None => base,
+            Some(ids) => blocking_compute(move || base.id_filter(ids)).await,
+        };
+
+        if let Some(sel) = select {
+            let nf: CompositeNodeFilter = sel.try_into()?;
+            let narrowed = blocking_compute({
+                let nn_clone = nn.clone();
+                move || nn_clone.filter_iter(nf)
+            })
+            .await?;
+            return Ok(GqlNodes::new(narrowed.into_dyn()));
         }
+
+        Ok(GqlNodes::new(nn))
     }
 
     /// Gets the edge with the specified source and destination nodes.

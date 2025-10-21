@@ -5,6 +5,7 @@ from filters_setup import (
     create_test_graph2,
     create_test_graph3,
     init_graph,
+    init_graph2,
 )
 from utils import run_graphql_test, run_graphql_error_test
 
@@ -803,5 +804,120 @@ def test_nodes_temporal_property_filter_any_avg(graph):
     """
     expected_output = {
         "graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = init_graph2(Graph())
+PERSISTENT_GRAPH = init_graph2(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_selection_by_prop_filter(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+          list {
+            neighbours {
+              list {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"neighbours": {"list": [{"name": "2"}, {"name": "3"}]}},
+                    {
+                        "neighbours": {
+                            "list": [{"name": "1"}, {"name": "2"}, {"name": "4"}]
+                        }
+                    },
+                ]
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_selection_with_node_filter_by_prop_filter(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+          nodeFilter(filter:{
+            property: { name: "p100", where: { gt: { i64: 30 } } }
+          }) {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {"nodes": {"nodeFilter": {"list": [{"name": "1"}, {"name": "3"}]}}}
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_chained_selection_with_node_filter_by_prop_filter(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+          select(filter: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
+            nodeFilter(filter:{
+              property: { name: "p100", where: { gt: { i64: 30 } } }
+            }) {
+              list {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {"nodes": {"select": {"nodeFilter": {"list": [{"name": "1"}]}}}}
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_chained_selection_with_node_filter_by_prop_filter_ver2(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes {
+          select(filter: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+            select(filter: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
+              nodeFilter(filter:{
+                property: { name: "p100", where: { gt: { i64: 30 } } }
+              }) {
+                list {
+                  name
+                }
+              }
+            }        
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {"select": {"select": {"nodeFilter": {"list": [{"name": "1"}]}}}}
+        }
     }
     run_graphql_test(query, expected_output, graph)
