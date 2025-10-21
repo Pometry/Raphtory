@@ -2,7 +2,7 @@ use crate::{
     model::{
         graph::{
             edge::GqlEdge,
-            filtering::EdgesViewCollection,
+            filtering::{EdgeFilter, EdgesViewCollection},
             windowset::GqlEdgesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -15,14 +15,16 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{internal::BaseFilter, DynamicGraph},
-        graph::edges::Edges,
+        api::view::{internal::BaseFilter, DynamicGraph, IterFilterOps},
+        graph::{edges::Edges, views::filter::model::edge_filter::CompositeEdgeFilter},
     },
     errors::GraphError,
     prelude::*,
 };
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
+
+use raphtory::db::api::view::BaseFilterOps;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]
@@ -220,6 +222,7 @@ impl GqlEdges {
                 }
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                EdgesViewCollection::EdgeFilter(filter) => return_view.select(filter).await?,
             }
         }
 
@@ -347,5 +350,25 @@ impl GqlEdges {
     async fn list(&self) -> Vec<GqlEdge> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.iter().collect()).await
+    }
+
+    async fn filter(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filtered = self_clone.ee.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
+    }
+
+    async fn select(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filtered = self_clone.ee.filter_iter(filter)?;
+            Ok(self_clone.update(filtered))
+        })
+        .await
     }
 }

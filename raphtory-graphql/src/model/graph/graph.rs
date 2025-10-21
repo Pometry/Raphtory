@@ -404,8 +404,16 @@ impl GqlGraph {
     }
 
     /// Gets the edges in the graph.
-    async fn edges<'a>(&self) -> GqlEdges {
-        GqlEdges::new(self.graph.edges())
+    async fn edges<'a>(&self, select: Option<EdgeFilter>) -> Result<GqlEdges, GraphError> {
+        let base = self.graph.edges();
+
+        if let Some(sel) = select {
+            let ef: CompositeEdgeFilter = sel.try_into()?;
+            let narrowed = blocking_compute(move || base.filter_iter(ef)).await?;
+            return Ok(GqlEdges::new(narrowed));
+        }
+
+        Ok(GqlEdges::new(base))
     }
 
     ////////////////////////
@@ -518,10 +526,10 @@ impl GqlGraph {
         .await
     }
 
-    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+    async fn filter_nodes(&self, expr: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = filter.try_into()?;
+            let filter: CompositeNodeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
@@ -531,10 +539,10 @@ impl GqlGraph {
         .await
     }
 
-    async fn edge_filter(&self, filter: EdgeFilter) -> Result<Self, GraphError> {
+    async fn filter_edges(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = filter.try_into()?;
+            let filter: CompositeEdgeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
@@ -677,8 +685,8 @@ impl GqlGraph {
                 }
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
-                GraphViewCollection::EdgeFilter(filter) => return_view.edge_filter(filter).await?,
+                GraphViewCollection::NodeFilter(filter) => return_view.filter_nodes(filter).await?,
+                GraphViewCollection::EdgeFilter(filter) => return_view.filter_edges(filter).await?,
             };
         }
         Ok(return_view)

@@ -13,7 +13,7 @@ def test_out_neighbours_found(graph):
         query {
           graph(path: "g") {
             node(name: "a") {
-              nodeFilter(filter: {
+              filter(expr: {
                 and: [
                   {
                     node: {
@@ -38,7 +38,7 @@ def test_out_neighbours_found(graph):
         }
     """
     expected_output = {
-        "graph": {"node": {"nodeFilter": {"outNeighbours": {"list": [{"name": "d"}]}}}}
+        "graph": {"node": {"filter": {"outNeighbours": {"list": [{"name": "d"}]}}}}
     }
     run_graphql_test(query, expected_output, graph)
 
@@ -49,7 +49,7 @@ def test_out_neighbours_not_found(graph):
         query {
           graph(path: "g") {
             node(name: "a") {
-              nodeFilter(filter: {
+              filter(expr: {
                 node: {
                   field: NODE_NAME,
                   where: { eq: { str: "e" } }
@@ -63,9 +63,7 @@ def test_out_neighbours_not_found(graph):
           }
         }
     """
-    expected_output = {
-        "graph": {"node": {"nodeFilter": {"outNeighbours": {"list": []}}}}
-    }
+    expected_output = {"graph": {"node": {"filter": {"outNeighbours": {"list": []}}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -75,7 +73,7 @@ def test_in_neighbours_found(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              nodeFilter(filter: {
+              filter(expr: {
                 property: {
                   name: "prop1"
                   where: { gt: { i64: 10 } }
@@ -92,7 +90,7 @@ def test_in_neighbours_found(graph):
     expected_output = {
         "graph": {
             "node": {
-                "nodeFilter": {"inNeighbours": {"list": [{"name": "a"}, {"name": "c"}]}}
+                "filter": {"inNeighbours": {"list": [{"name": "a"}, {"name": "c"}]}}
             }
         }
     }
@@ -105,7 +103,7 @@ def test_in_neighbours_not_found(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              nodeFilter(filter: {
+              filter(expr: {
                 node: {
                   field: NODE_NAME,
                   where: { eq: { str: "e" } }
@@ -119,9 +117,7 @@ def test_in_neighbours_not_found(graph):
           }
         }
     """
-    expected_output = {
-        "graph": {"node": {"nodeFilter": {"inNeighbours": {"list": []}}}}
-    }
+    expected_output = {"graph": {"node": {"filter": {"inNeighbours": {"list": []}}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -131,7 +127,7 @@ def test_neighbours_found(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              nodeFilter(filter: {
+              filter(expr: {
                 node: {
                   field: NODE_NAME,
                   where: { ne: { str: "a" } }
@@ -147,9 +143,7 @@ def test_neighbours_found(graph):
     """
     expected_output = {
         "graph": {
-            "node": {
-                "nodeFilter": {"neighbours": {"list": [{"name": "b"}, {"name": "c"}]}}
-            }
+            "node": {"filter": {"neighbours": {"list": [{"name": "b"}, {"name": "c"}]}}}
         }
     }
     run_graphql_test(query, expected_output, graph)
@@ -161,7 +155,7 @@ def test_neighbours_not_found(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              nodeFilter(filter: {
+              filter(expr: {
                 node: {
                   field: NODE_NAME,
                   where: { eq: { str: "e" } }
@@ -175,5 +169,5 @@ def test_neighbours_not_found(graph):
           }
         }
     """
-    expected_output = {"graph": {"node": {"nodeFilter": {"neighbours": {"list": []}}}}}
+    expected_output = {"graph": {"node": {"filter": {"neighbours": {"list": []}}}}}
     run_graphql_test(query, expected_output, graph)

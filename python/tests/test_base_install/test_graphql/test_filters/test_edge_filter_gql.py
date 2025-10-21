@@ -12,7 +12,7 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(filter: {
+        filterEdges(expr: {
           src: {
             field: NODE_ID
             where: { eq: { str: "3" } }
@@ -30,7 +30,7 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {
                     "list": [
                         {"dst": {"name": "1"}, "src": {"name": "3"}},
@@ -52,7 +52,7 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(filter: {
+        filterEdges(expr: {
           src: {
             field: NODE_ID
             where: { eq: { u64: 1 } }
@@ -70,7 +70,7 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {"list": [{"src": {"name": "1"}, "dst": {"name": "2"}}]}
             }
         }

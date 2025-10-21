@@ -186,6 +186,8 @@ pub enum EdgesViewCollection {
     ShrinkStart(i64),
     /// Set the window end to a specified time.
     ShrinkEnd(i64),
+    /// Edge filter
+    EdgeFilter(EdgeFilter),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
@@ -220,6 +222,8 @@ pub enum EdgeViewCollection {
     ShrinkStart(i64),
     /// Set the window end to a specified time.
     ShrinkEnd(i64),
+    /// Edge filter
+    EdgeFilter(EdgeFilter),
 }
 
 #[derive(OneOfInput, Clone, Debug)]

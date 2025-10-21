@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::EdgeViewCollection,
+        filtering::{EdgeFilter, EdgeViewCollection, NodeFilter},
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
         windowset::GqlEdgeWindowSet,
@@ -13,8 +13,14 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
-        api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
-        graph::edge::EdgeView,
+        api::view::{BaseFilterOps, DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
+        graph::{
+            edge::EdgeView,
+            node::NodeView,
+            views::filter::model::{
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+            },
+        },
     },
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
@@ -232,6 +238,7 @@ impl GqlEdge {
                 }
                 EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                EdgeViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
             }
         }
         Ok(return_view)
@@ -367,5 +374,21 @@ impl GqlEdge {
     /// Returns: boolean
     async fn is_self_loop(&self) -> bool {
         self.ee.is_self_loop()
+    }
+
+    async fn filter(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filtered = self_clone.ee.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dynamic()))
+        })
+        .await
+    }
+}
+
+impl GqlEdge {
+    fn update<E: Into<EdgeView<DynamicGraph>>>(&self, edge: E) -> Self {
+        Self { ee: edge.into() }
     }
 }

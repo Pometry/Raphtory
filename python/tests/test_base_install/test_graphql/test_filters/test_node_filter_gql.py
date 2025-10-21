@@ -12,8 +12,8 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             node: {
               field: NODE_ID
               where: { eq: { str: "1" } }
@@ -27,7 +27,7 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "1"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -36,8 +36,8 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             node: {
               field: NODE_ID
               where: { eq: { u64: 1 } }
@@ -64,8 +64,8 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             node: {
               field: NODE_ID
               where: { eq: { u64: 1 } }
@@ -79,7 +79,7 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "1"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -89,12 +89,12 @@ def test_nodes_chained_selection_with_node_filter_by_node_and_prop_filter(graph)
     query {
       graph(path: "g") {
         nodes {
-          select(filter: { node: { 
+          select(expr: { node: { 
             field: NODE_TYPE
             where: { eq: { str: "fire_nation" } }
           } }) {
-            select(filter: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
-              nodeFilter(filter:{
+            select(expr: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
+              filter(expr:{
                 property: { name: "p100", where: { gt: { i64: 30 } } }
               }) {
                 list {
@@ -109,7 +109,7 @@ def test_nodes_chained_selection_with_node_filter_by_node_and_prop_filter(graph)
     """
     expected_output = {
         "graph": {
-            "nodes": {"select": {"select": {"nodeFilter": {"list": [{"name": "1"}]}}}}
+            "nodes": {"select": {"select": {"filter": {"list": [{"name": "1"}]}}}}
         }
     }
     run_graphql_test(query, expected_output, graph)

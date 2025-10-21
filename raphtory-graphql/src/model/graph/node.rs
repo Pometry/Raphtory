@@ -15,7 +15,10 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     algorithms::components::{in_component, out_component},
     db::{
-        api::{properties::dyn_props::DynProperties, view::*},
+        api::{
+            properties::dyn_props::DynProperties,
+            view::{BaseFilterOps, *},
+        },
         graph::{node::NodeView, views::filter::model::node_filter::CompositeNodeFilter},
     },
     errors::GraphError,
@@ -220,7 +223,7 @@ impl GqlNode {
                 }
                 NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                NodeViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
+                NodeViewCollection::NodeFilter(filter) => return_view.filter(filter).await?,
             }
         }
         Ok(return_view)
@@ -365,12 +368,12 @@ impl GqlNode {
         GqlPathFromNode::new(self.vv.out_neighbours())
     }
 
-    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+    async fn filter(&self, expr: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = filter.try_into()?;
-            let filtered_nodes_applied = self_clone.vv.filter(filter)?;
-            Ok(self_clone.update(filtered_nodes_applied.into_dynamic()))
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.vv.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dynamic()))
         })
         .await
     }
