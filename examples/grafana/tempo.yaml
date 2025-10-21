@@ -1,0 +1,54 @@
+server:
+  http_listen_port: 3200
+  http_listen_address: 0.0.0.0
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+# ingester:
+#   lifecycler:
+#     ring:
+#       kvstore:
+#         store: memberlist
+#       replication_factor: 1
+
+metrics_generator:
+  processor:
+    local_blocks:
+      filter_server_spans: false
+      flush_to_storage: true
+  traces_storage:
+    path: /tmp/tempo/metrics/traces_wal
+  storage:
+    path: /tmp/tempo/metrics/wal
+  # ring:
+  #   kvstore:
+  #     store: memberlist
+
+# memberlist:
+#   join_members: [127.0.0.1]
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/traces
+
+# compactor:
+#   compaction:
+#     block_retention: 24h
+
+# overrides:
+#   metrics_generator_processors:
+#     - local-blocks
+overrides:
+  defaults:
+    metrics_generator:
+      processors:
+        - local-blocks
