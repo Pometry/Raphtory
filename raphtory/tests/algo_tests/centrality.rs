@@ -7,9 +7,9 @@ use raphtory::{
         pagerank::unweighted_page_rank,
     },
     prelude::*,
+    test_storage,
 };
 
-use crate::test_storage;
 #[test]
 fn test_betweenness_centrality() {
     let graph = Graph::new();

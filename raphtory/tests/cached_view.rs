@@ -2,10 +2,8 @@ use itertools::Itertools;
 use proptest::prelude::*;
 use raphtory::{
     algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
-    prelude::*,
+    prelude::*, test_storage,
 };
-
-pub mod test_utils;
 
 #[test]
 fn empty_graph() {
