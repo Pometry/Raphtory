@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761040467315,
+  "lastUpdate": 1761062998707,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1673,6 +1673,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1131,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5384179b492b80ea6bcdc66e9b386d0c8d0f354c",
+          "message": "Add how to cite instructions (#2344)\n\n* add how to cite instructions\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-21T16:35:54+01:00",
+          "tree_id": "433984c282dd6192c2a9080981a17d1c51d812f9",
+          "url": "https://github.com/Pometry/Raphtory/commit/5384179b492b80ea6bcdc66e9b386d0c8d0f354c"
+        },
+        "date": 1761062993765,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1281,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 178,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 138,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1063,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 815,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1264,
             "unit": "req/s"
           }
         ]
