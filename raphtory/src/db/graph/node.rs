@@ -184,12 +184,12 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         })
     }
 
-    pub fn earliest_edge_time(&self) -> Option<i64> {
-        self.edge_history().next().map(|(t, _)| t.t())
+    pub fn earliest_edge_time(&self) -> Option<EventTime> {
+        self.edge_history().next().map(|(t, _)| t)
     }
 
-    pub fn latest_edge_time(&self) -> Option<i64> {
-        self.edge_history_rev().next().map(|(t, _)| t.t())
+    pub fn latest_edge_time(&self) -> Option<EventTime> {
+        self.edge_history_rev().next().map(|(t, _)| t)
     }
 }
 
