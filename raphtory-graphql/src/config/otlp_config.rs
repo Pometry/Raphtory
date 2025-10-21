@@ -2,12 +2,11 @@ use opentelemetry::KeyValue;
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use opentelemetry_sdk::{
     runtime,
-    trace::{Sampler, TracerProvider},
+    trace::{BatchSpanProcessor, Sampler, TracerProvider},
     Resource,
 };
 use serde::Deserialize;
 use std::time::Duration;
-use tracing::{error, info};
 
 pub const DEFAULT_TRACING_ENABLED: bool = false;
 pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
@@ -55,7 +54,7 @@ impl TracingConfig {
                             self.otlp_tracing_service_name.clone(),
                         )]))
                         .build();
-                    info!(
+                    println!(
                         "Sending traces to {}:{}",
                         self.otlp_agent_host.clone(),
                         self.otlp_agent_port.clone()
@@ -63,7 +62,7 @@ impl TracingConfig {
                     Some(tracer_provider)
                 }
                 Err(e) => {
-                    error!("{}", e.to_string());
+                    println!("{}", e.to_string()); // don't use error!() here, since tracing is not enabled yet
                     None
                 }
             }
