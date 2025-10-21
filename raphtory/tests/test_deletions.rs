@@ -16,7 +16,6 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-use rayon::ThreadPoolBuilder;
 use std::ops::Range;
 
 #[test]
