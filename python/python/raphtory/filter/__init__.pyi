@@ -82,7 +82,9 @@ class PropertyFilterOps(object):
             filter.FilterExpr:
         """
 
-    def fuzzy_search(self, prop_value: str, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, prop_value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if the specified properties approximately match the specified string.
 
@@ -92,7 +94,7 @@ class PropertyFilterOps(object):
             prop_value (str): Property to match against.
             levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
             prefix_match (bool): Enable prefix matching.
- 
+
         Returns:
             filter.FilterExpr:
         """
@@ -182,7 +184,9 @@ class NodeFilterBuilder(object):
             filter.FilterExpr:
         """
 
-    def fuzzy_search(self, value, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, value, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if the specified properties approximately match the specified string.
 
@@ -280,7 +284,9 @@ class EdgeFilterOp(object):
             filter.FilterExpr:
         """
 
-    def fuzzy_search(self, value, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, value, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if the specified properties approximately match the specified string.
 
@@ -290,7 +296,7 @@ class EdgeFilterOp(object):
             prop_value (str): Property to match against.
             levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
             prefix_match (bool): Enable prefix matching.
- 
+
         Returns:
             filter.FilterExpr:
         """

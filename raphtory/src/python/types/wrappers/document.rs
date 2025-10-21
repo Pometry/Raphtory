@@ -24,7 +24,7 @@ impl From<PyDocument> for Document<DynamicGraph> {
 
 #[pymethods]
 impl PyDocument {
-    /// the document content
+    /// The document content
     ///
     /// Returns:
     ///     str:

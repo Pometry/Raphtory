@@ -174,7 +174,7 @@ impl PyGraphView {
 }
 
 #[pyclass(name = "VectorisedGraph", module = "raphtory.vectors", frozen)]
-/// VectorisedGraph object that contains the embedded documents that correspond to graph entities.
+/// VectorisedGraph object that contains embedded documents that correspond to graph entities.
 pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 
 impl From<DynamicVectorisedGraph> for PyVectorisedGraph {

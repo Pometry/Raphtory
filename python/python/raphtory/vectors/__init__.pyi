@@ -26,7 +26,7 @@ from raphtory.iterables import *
 __all__ = ["VectorisedGraph", "Document", "Embedding", "VectorSelection"]
 
 class VectorisedGraph(object):
-    """Vectorised GRaphs 123"""
+    """VectorisedGraph object that contains the embedded documents that correspond to graph entities."""
 
     def edges_by_similarity(
         self,
@@ -38,12 +38,12 @@ class VectorisedGraph(object):
         Search the top scoring edges according to `query` with no more than `limit` edges
 
         Args:
-          query (str | list): the text or the embedding to score against
-          limit (int): the maximum number of new edges to search
-          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+          query (str | list): The text or the embedding to score against.
+          limit (int): the maximum number of new edges in the results.
+          window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
 
         Returns:
-          VectorSelection: The vector selection resulting from the search
+          VectorSelection: The vector selection resulting from the search.
         """
 
     def empty_selection(self):
@@ -56,15 +56,15 @@ class VectorisedGraph(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> VectorSelection:
         """
-        Search the top scoring entities according to `query` with no more than `limit` entities
+        Search the top scoring entities according to `query` with no more than `limit` entities.
 
         Args:
-          query (str | list): the text or the embedding to score against
-          limit (int): the maximum number of new entities to search
-          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+          query (str | list): The text or the embedding to score against.
+          limit (int): The maximum number of new entities in the result.
+          window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
 
         Returns:
-          VectorSelection: The vector selection resulting from the search
+          VectorSelection: The vector selection resulting from the search.
         """
 
     def nodes_by_similarity(
@@ -74,15 +74,15 @@ class VectorisedGraph(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> VectorSelection:
         """
-        Search the top scoring nodes according to `query` with no more than `limit` nodes
+        Search the top scoring nodes according to `query` with no more than `limit` nodes.
 
         Args:
-          query (str | list): the text or the embedding to score against
-          limit (int): the maximum number of new nodes to search
-          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+          query (str | list): The text or the embedding to score against.
+          limit (int): The maximum number of new nodes in the result.
+          window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
 
         Returns:
-          VectorSelection: The vector selection resulting from the search
+          VectorSelection: The vector selection resulting from the search.
         """
 
 class Document(object):
@@ -133,12 +133,12 @@ class Embedding(object):
 class VectorSelection(object):
     def add_edges(self, edges: list) -> None:
         """
-        Add all the documents associated with the `edges` to the current selection
+        Add all the documents associated with the `edges` to the current selection.
 
         Documents added by this call are assumed to have a score of 0.
 
         Args:
-          edges (list):  a list of the edge ids or edges to add
+          edges (list):  List of the edge ids or edges to add.
 
         Returns:
             None:
@@ -146,12 +146,12 @@ class VectorSelection(object):
 
     def add_nodes(self, nodes: list) -> None:
         """
-        Add all the documents associated with the `nodes` to the current selection
+        Add all the documents associated with the `nodes` to the current selection.
 
         Documents added by this call are assumed to have a score of 0.
 
         Args:
-          nodes (list): a list of the node ids or nodes to add
+          nodes (list): List of the node ids or nodes to add.
 
         Returns:
             None:
@@ -159,21 +159,21 @@ class VectorSelection(object):
 
     def append(self, selection: VectorSelection) -> VectorSelection:
         """
-        Add all the documents in `selection` to the current selection
+        Add all the documents in `selection` to the current selection.
 
         Args:
-          selection (VectorSelection): a selection to be added
+          selection (VectorSelection): Selection to be added.
 
         Returns:
-          VectorSelection: The selection with the new documents
+          VectorSelection: The selection with the new documents.
         """
 
     def edges(self) -> list[Edge]:
         """
-        Return the edges present in the current selection
+        Returns the edges present in the current selection.
 
         Returns:
-            list[Edge]: list of edges in the current selection
+            list[Edge]: List of edges in the current selection.
         """
 
     def expand(
@@ -264,24 +264,24 @@ class VectorSelection(object):
 
     def get_documents(self) -> list[Document]:
         """
-        Return the documents present in the current selection
+        Returns the documents present in the current selection.
 
         Returns:
-            list[Document]: list of documents in the current selection
+            list[Document]: List of documents in the current selection.
         """
 
     def get_documents_with_scores(self) -> list[Tuple[Document, float]]:
         """
-        Return the documents alongside their scores present in the current selection
+        Returns the documents alongside their scores present in the current selection.
 
         Returns:
-            list[Tuple[Document, float]]: list of documents and scores
+            list[Tuple[Document, float]]: List of documents and scores.
         """
 
     def nodes(self) -> list[Node]:
         """
-        Return the nodes present in the current selection
+        Returns the nodes present in the current selection.
 
         Returns:
-            list[Node]: list of nodes in the current selection
+            list[Node]: List of nodes in the current selection.
         """
