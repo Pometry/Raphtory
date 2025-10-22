@@ -11,13 +11,6 @@ distributor:
         http:
           endpoint: "0.0.0.0:4318"
 
-# ingester:
-#   lifecycler:
-#     ring:
-#       kvstore:
-#         store: memberlist
-#       replication_factor: 1
-
 metrics_generator:
   processor:
     local_blocks:
@@ -27,12 +20,6 @@ metrics_generator:
     path: /tmp/tempo/metrics/traces_wal
   storage:
     path: /tmp/tempo/metrics/wal
-  # ring:
-  #   kvstore:
-  #     store: memberlist
-
-# memberlist:
-#   join_members: [127.0.0.1]
 
 storage:
   trace:
@@ -40,13 +27,10 @@ storage:
     local:
       path: /tmp/tempo/traces
 
-# compactor:
-#   compaction:
-#     block_retention: 24h
+query_frontend:
+  metrics:
+    max_duration: 168h  # 7 days
 
-# overrides:
-#   metrics_generator_processors:
-#     - local-blocks
 overrides:
   defaults:
     metrics_generator:
