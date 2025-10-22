@@ -28,8 +28,8 @@ use raphtory::{
         api::{
             properties::dyn_props::DynProperties,
             view::{
-                BaseFilterOps, DynamicGraph, IntoDynamic, NodeViewOps, SearchableGraphOps,
-                StaticGraphViewOps, TimeOps,
+                BaseFilterOps, DynamicGraph, IntoDynamic, IterFilterOps, NodeViewOps,
+                SearchableGraphOps, StaticGraphViewOps, TimeOps,
             },
         },
         graph::{
@@ -374,12 +374,28 @@ impl GqlGraph {
     }
 
     /// Gets (optionally a subset of) the nodes in the graph.
-    async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
-        let nodes = self.graph.nodes();
-        match ids {
-            None => GqlNodes::new(nodes),
-            Some(ids) => GqlNodes::new(blocking_compute(move || nodes.id_filter(ids)).await),
+    async fn nodes(
+        &self,
+        ids: Option<Vec<String>>,
+        select: Option<NodeFilter>,
+    ) -> Result<GqlNodes, GraphError> {
+        let base = self.graph.nodes();
+        let nn = match ids {
+            None => base,
+            Some(ids) => blocking_compute(move || base.id_filter(ids)).await,
+        };
+
+        if let Some(sel) = select {
+            let nf: CompositeNodeFilter = sel.try_into()?;
+            let narrowed = blocking_compute({
+                let nn_clone = nn.clone();
+                move || nn_clone.filter_iter(nf)
+            })
+            .await?;
+            return Ok(GqlNodes::new(narrowed.into_dyn()));
         }
+
+        Ok(GqlNodes::new(nn))
     }
 
     /// Gets the edge with the specified source and destination nodes.
@@ -388,8 +404,16 @@ impl GqlGraph {
     }
 
     /// Gets the edges in the graph.
-    async fn edges<'a>(&self) -> GqlEdges {
-        GqlEdges::new(self.graph.edges())
+    async fn edges<'a>(&self, select: Option<EdgeFilter>) -> Result<GqlEdges, GraphError> {
+        let base = self.graph.edges();
+
+        if let Some(sel) = select {
+            let ef: CompositeEdgeFilter = sel.try_into()?;
+            let narrowed = blocking_compute(move || base.filter_iter(ef)).await?;
+            return Ok(GqlEdges::new(narrowed));
+        }
+
+        Ok(GqlEdges::new(base))
     }
 
     ////////////////////////
@@ -502,10 +526,10 @@ impl GqlGraph {
         .await
     }
 
-    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+    async fn filter_nodes(&self, expr: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = filter.try_into()?;
+            let filter: CompositeNodeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
@@ -515,10 +539,10 @@ impl GqlGraph {
         .await
     }
 
-    async fn edge_filter(&self, filter: EdgeFilter) -> Result<Self, GraphError> {
+    async fn filter_edges(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = filter.try_into()?;
+            let filter: CompositeEdgeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
@@ -661,8 +685,8 @@ impl GqlGraph {
                 }
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
-                GraphViewCollection::EdgeFilter(filter) => return_view.edge_filter(filter).await?,
+                GraphViewCollection::NodeFilter(filter) => return_view.filter_nodes(filter).await?,
+                GraphViewCollection::EdgeFilter(filter) => return_view.filter_edges(filter).await?,
             };
         }
         Ok(return_view)

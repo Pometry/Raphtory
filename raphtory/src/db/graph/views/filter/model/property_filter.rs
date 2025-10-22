@@ -23,7 +23,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertiesOps, TimeOps},
+    prelude::{GraphViewOps, PropertiesOps},
 };
 use itertools::Itertools;
 use raphtory_api::core::{
@@ -1258,7 +1258,6 @@ impl<M> PropertyFilter<M> {
                     }
                     Op::Any => {
                         for p in &seq {
-                            saw = true;
                             let ok = if elem_quals.is_empty() {
                                 pred(p)
                             } else {

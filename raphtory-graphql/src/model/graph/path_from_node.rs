@@ -1,6 +1,6 @@
 use crate::{
     model::graph::{
-        filtering::PathFromNodeViewCollection,
+        filtering::{NodeFilter, PathFromNodeViewCollection},
         node::GqlNode,
         windowset::GqlPathFromNodeWindowSet,
         WindowDuration::{self, Duration, Epoch},
@@ -9,7 +9,10 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    db::{api::view::DynamicGraph, graph::path::PathFromNode},
+    db::{
+        api::view::{BaseFilterOps, DynamicGraph, IterFilterOps},
+        graph::{path::PathFromNode, views::filter::model::node_filter::CompositeNodeFilter},
+    },
     errors::GraphError,
     prelude::*,
 };
@@ -267,5 +270,27 @@ impl GqlPathFromNode {
             }
         }
         Ok(return_view)
+    }
+
+    /// Returns a filtered view that applies to list down the chain
+    async fn filter(&self, expr: NodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
+    }
+
+    /// Returns filtered list of neighbour nodes
+    async fn select(&self, expr: NodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.filter_iter(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
     }
 }

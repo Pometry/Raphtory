@@ -29,6 +29,15 @@ pub struct Edges<'graph, G> {
     pub(crate) edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>,
 }
 
+impl<'graph, G: IntoDynamic> Edges<'graph, G> {
+    pub fn into_dyn(self) -> Edges<'graph, DynamicGraph> {
+        Edges {
+            base_graph: self.base_graph.into_dynamic(),
+            edges: self.edges,
+        }
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> Debug for Edges<'graph, G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
