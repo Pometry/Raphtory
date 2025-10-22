@@ -485,8 +485,19 @@ mod io_tests {
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
                 let edge = g.edge(src, dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+                // FIXME: when there are multiple events at the same timestamp, properties().get() only retrieves the latest one (here overwritten)
+                let contains_str_prop = edge
+                    .explode()
+                    .iter()
+                    .map(|edge| edge.properties().get("str_prop").unwrap_str().to_string())
+                    .contains(&str_prop);
+                let contains_int_props = edge
+                    .explode()
+                    .iter()
+                    .map(|edge| edge.properties().get("int_prop").unwrap_i64())
+                    .contains(&int_prop);
+                assert!(contains_str_prop);
+                assert!(contains_int_props);
             }
             assert_graph_equal(&g, &g2);
         })
