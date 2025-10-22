@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761143482252,
+  "lastUpdate": 1761149522731,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1781,6 +1781,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1322,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6fb00f9d8eee3675b604582a29f5519ace0f782a",
+          "message": "fix rust release (#2352)\n\n* fix raphtory self dependency and release workflow\n\n* use workspace publish\n\n* update description\n\n* update other descriptions\n\n* add explanatory comment to raphtory self-dependency\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-22T17:38:31+02:00",
+          "tree_id": "01268a65afabe02e39f45717ac79d26df16bc103",
+          "url": "https://github.com/Pometry/Raphtory/commit/6fb00f9d8eee3675b604582a29f5519ace0f782a"
+        },
+        "date": 1761149517630,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1300,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 175,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 159,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1087,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 705,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1111,
             "unit": "req/s"
           }
         ]
