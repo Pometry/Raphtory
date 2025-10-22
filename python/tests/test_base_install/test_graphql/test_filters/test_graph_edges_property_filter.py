@@ -1,6 +1,6 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import create_test_graph
+from filters_setup import create_test_graph, init_graph2
 from utils import run_graphql_test, run_graphql_error_test
 
 EVENT_GRAPH = create_test_graph(Graph())
@@ -577,4 +577,106 @@ def test_edges_property_filter_ends_with(graph):
             }
         }
     }
+    run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = init_graph2(Graph())
+PERSISTENT_GRAPH = init_graph2(PersistentGraph())
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_selection(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
+             list { src { name } dst { name } }
+          }
+        }
+      }
+    """
+    expected_output = {'graph': {'edges': {'list': [
+        {'dst': {'name': '2'}, 'src': {'name': '1'}},
+        {'dst': {'name': '1'}, 'src': {'name': '3'}},
+        {'dst': {'name': '4'}, 'src': {'name': '3'}},
+        {'dst': {'name': '1'}, 'src': {'name': '2'}}]
+    }}}
+    run_graphql_test(query, expected_output, graph)
+
+
+# The inner edges filter has no effect on the list of edges returned from selection filter
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_selection_edges_filter_paired(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
+          filter(expr:{
+            property: { name: "p3", where: { eq:{ i64: 5 } } }
+          }) {
+            list { src { name } dst { name } }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {'graph': {'edges': {'filter': {'list': [
+        {'dst': {'name': '2'}, 'src': {'name': '1'}},
+        {'dst': {'name': '1'}, 'src': {'name': '3'}},
+        {'dst': {'name': '4'}, 'src': {'name': '3'}},
+        {'dst': {'name': '1'}, 'src': {'name': '2'}}]
+    }}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_chained_selection_edges_filter_paired(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
+          select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
+            filter(expr: {
+              dst: {
+                field: NODE_ID
+                where: { eq: { u64: 2 } }
+              }
+            }) {
+              list { src { name } dst { name } }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {'graph': {'edges': {'select': {'filter': {'list': [
+        {'dst': {'name': '2'}, 'src': {'name': '1'}}
+    ]}}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_chained_selection_edges_filter_paired_ver2(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          select(expr: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
+            select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
+              filter(expr: {
+                dst: {
+                  field: NODE_ID
+                  where: { eq: { u64: 2 } }
+                }
+              }) {
+                list { src { name } dst { name } }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {'graph': {'edges': {'select': {'select': {'filter': {'list': [
+        {'dst': {'name': '2'}, 'src': {'name': '1'}}
+    ]}}}}}}
     run_graphql_test(query, expected_output, graph)

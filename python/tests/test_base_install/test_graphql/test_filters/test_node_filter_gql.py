@@ -84,7 +84,7 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_nodes_chained_selection_with_node_filter_by_node_and_prop_filter(graph):
+def test_nodes_chained_selection_with_node_filter(graph):
     query = """
     query {
       graph(path: "g") {

@@ -854,7 +854,7 @@ PERSISTENT_GRAPH = init_graph2(PersistentGraph())
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_nodes_selection_by_prop_filter(graph):
+def test_nodes_neighbours_selection_with_prop_filter(graph):
     query = """
     query {
       graph(path: "g") {
@@ -888,13 +888,33 @@ def test_nodes_selection_by_prop_filter(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_nodes_selection_with_node_filter_by_prop_filter(graph):
+def test_nodes_selection(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+            list {
+              name
+            }
+          }
+        }
+      }
+    """
+    expected_output = {
+        "graph": {"nodes": {"list": [{"name": "1"}, {"name": "3"}]}}
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+# The inner nodes filter has no effect on the list of nodes returned from selection filter
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_selection_nodes_filter_paired(graph):
     query = """
     query {
       graph(path: "g") {
         nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
           filter(expr:{
-            property: { name: "p100", where: { gt: { i64: 30 } } }
+            property: { name: "p9", where: { eq:{ i64: 5 } } }
           }) {
             list {
               name
@@ -910,15 +930,47 @@ def test_nodes_selection_with_node_filter_by_prop_filter(graph):
     run_graphql_test(query, expected_output, graph)
 
 
+# The inner nodes filter has effect on the neighbours list
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_nodes_chained_selection_with_node_filter_by_prop_filter(graph):
+def test_nodes_selection_nodes_filter_paired2(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+          filter(expr:{
+            property: { name: "p9", where: { eq:{ i64: 5 } } }
+          }) {
+            list {
+              neighbours {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {'graph': {'nodes': {'filter': {'list': [
+        {'neighbours': {'list': []}},
+        {'neighbours': {'list': [{'name': '1'}]}}
+    ]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_chained_selection_node_filter_paired(graph):
     query = """
     query {
       graph(path: "g") {
         nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
           select(expr: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
             filter(expr:{
-              property: { name: "p100", where: { gt: { i64: 30 } } }
+              node: {
+                field: NODE_TYPE
+                where: { eq: { str: "fire_nation" } }
+              }
             }) {
               list {
                 name
@@ -936,7 +988,7 @@ def test_nodes_chained_selection_with_node_filter_by_prop_filter(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_nodes_chained_selection_with_node_filter_by_prop_filter_ver2(graph):
+def test_nodes_chained_selection_node_filter_paired_ver2(graph):
     query = """
     query {
       graph(path: "g") {
@@ -944,7 +996,10 @@ def test_nodes_chained_selection_with_node_filter_by_prop_filter_ver2(graph):
           select(expr: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
             select(expr: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
               filter(expr:{
-                property: { name: "p100", where: { gt: { i64: 30 } } }
+                node: {
+                  field: NODE_TYPE
+                  where: { eq: { str: "fire_nation" } }
+                }
               }) {
                 list {
                   name
