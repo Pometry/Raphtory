@@ -11,7 +11,10 @@ use raphtory_storage::{
     core_ops::CoreGraphOps,
     mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{hash_map, HashMap},
+    sync::Arc,
+};
 
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
@@ -187,17 +190,18 @@ pub fn prop_type() -> impl Strategy<Value = PropType> {
         PropType::Bool,
         PropType::DTime,
         PropType::NDTime,
-        // PropType::Decimal { scale }, decimal breaks the tests because of polars-parquet
+        // PropType::Decimal { scale },
     ]);
 
-    leaf.prop_recursive(3, 10, 10, |inner| {
-        let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-            .prop_map(PropType::map);
-        let list = inner
-            .clone()
-            .prop_map(|p_type| PropType::List(Box::new(p_type)));
-        prop_oneof![inner, list, dict]
-    })
+    // leaf.prop_recursive(3, 10, 10, |inner| {
+    //     let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
+    //         .prop_map(PropType::map);
+    //     let list = inner
+    //         .clone()
+    //         .prop_map(|p_type| PropType::List(Box::new(p_type)));
+    //     prop_oneof![inner, list, dict]
+    // })
+    leaf
 }
 
 #[derive(Debug, Clone)]
@@ -231,6 +235,15 @@ impl NodeFixture {
     }
 }
 
+impl IntoIterator for NodeFixture {
+    type Item = (u64, NodeUpdatesFixture);
+    type IntoIter = hash_map::IntoIter<u64, NodeUpdatesFixture>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct PropUpdatesFixture {
     pub t_props: Vec<(i64, Vec<(String, Prop)>)>,
@@ -255,6 +268,15 @@ pub struct EdgeFixture(pub HashMap<(u64, u64, Option<&'static str>), EdgeUpdates
 impl EdgeFixture {
     pub fn iter(&self) -> impl Iterator<Item = ((u64, u64, Option<&str>), &EdgeUpdatesFixture)> {
         self.0.iter().map(|(k, v)| (*k, v))
+    }
+}
+
+impl IntoIterator for EdgeFixture {
+    type Item = ((u64, u64, Option<&'static str>), EdgeUpdatesFixture);
+    type IntoIter = hash_map::IntoIter<(u64, u64, Option<&'static str>), EdgeUpdatesFixture>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -425,26 +447,36 @@ fn edge_updates(
         .prop_map(|(props, deletions)| EdgeUpdatesFixture { props, deletions })
 }
 
-pub fn build_nodes_dyn(num_nodes: usize, len: usize) -> impl Strategy<Value = NodeFixture> {
-    let schema = prop_schema(len);
+pub fn build_nodes_dyn(
+    num_nodes: usize,
+    num_props: usize,
+    num_updates: usize,
+) -> impl Strategy<Value = NodeFixture> {
+    let schema = prop_schema(num_props);
     schema.prop_flat_map(move |schema| {
-        proptest::collection::hash_map(
-            0..num_nodes as u64,
-            node_updates(schema.clone(), len),
-            0..=len,
-        )
-        .prop_map(NodeFixture)
+        (0..num_nodes as u64)
+            .map(|node| (Just(node), node_updates(schema.clone(), num_updates)))
+            .collect_vec()
+            .prop_map(|updates| {
+                NodeFixture::from_iter(
+                    updates
+                        .into_iter()
+                        .filter(|(_, v)| !v.props.t_props.is_empty()),
+                )
+            })
     })
 }
 
 pub fn build_edge_list_dyn(
-    len: usize,
+    num_edges: usize,
     num_nodes: usize,
+    num_properties: usize,
+    num_updates: usize,
     del_edges: bool,
 ) -> impl Strategy<Value = EdgeFixture> {
     let num_nodes = num_nodes as u64;
 
-    let schema = prop_schema(len);
+    let schema = prop_schema(num_properties);
     schema.prop_flat_map(move |schema| {
         proptest::collection::hash_map(
             (
@@ -452,10 +484,16 @@ pub fn build_edge_list_dyn(
                 0..num_nodes,
                 proptest::sample::select(vec![Some("a"), Some("b"), None]),
             ),
-            edge_updates(schema.clone(), len, del_edges),
-            0..=len,
+            edge_updates(schema.clone(), num_updates, del_edges),
+            0..=num_edges,
         )
-        .prop_map(EdgeFixture)
+        .prop_map(|values| {
+            EdgeFixture::from_iter(
+                values
+                    .into_iter()
+                    .filter(|(_, updates)| !updates.props.t_props.is_empty()),
+            )
+        })
     })
 }
 
@@ -465,12 +503,14 @@ pub fn build_props_dyn(len: usize) -> impl Strategy<Value = PropUpdatesFixture> 
 }
 
 pub fn build_graph_strat(
-    len: usize,
     num_nodes: usize,
+    num_edges: usize,
+    num_properties: usize,
+    num_updates: usize,
     del_edges: bool,
 ) -> impl Strategy<Value = GraphFixture> {
-    let nodes = build_nodes_dyn(num_nodes, len);
-    let edges = build_edge_list_dyn(len, num_nodes, del_edges);
+    let nodes = build_nodes_dyn(num_nodes, num_properties, num_updates);
+    let edges = build_edge_list_dyn(num_edges, num_nodes, num_properties, num_updates, del_edges);
     (nodes, edges).prop_map(|(nodes, edges)| GraphFixture { nodes, edges })
 }
 

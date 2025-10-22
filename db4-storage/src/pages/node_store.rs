@@ -7,6 +7,7 @@ use crate::{
         layer_counter::GraphStats,
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
     },
+    persist::strategy::Config,
     segments::node::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -29,7 +30,6 @@ pub struct NodeStorageInner<NS, EXT> {
     pages: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
     nodes_path: Option<PathBuf>,
-    max_page_len: u32,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     ext: EXT,
@@ -41,7 +41,7 @@ pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     locked_segments: Box<[NS::ArcLockedSegment]>,
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNodeStorage<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS, EXT> {
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
@@ -61,7 +61,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNo
     }
 
     pub fn len(&self) -> usize {
-        self.storage.num_nodes() as usize
+        self.storage.num_nodes()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn iter(
@@ -87,22 +91,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNo
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> {
-    pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
-        let locked_segments = self
-            .pages
-            .iter()
-            .map(|(_, segment)| segment.locked())
-            .collect::<Box<_>>();
-        ReadLockedNodeStorage {
-            storage: self.clone(),
-            locked_segments,
-        }
-    }
-
+impl<NS, EXT: Config> NodeStorageInner<NS, EXT> {
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
-        max_page_len: u32,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
@@ -111,65 +102,18 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             pages: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
             nodes_path,
-            max_page_len,
             node_meta,
             edge_meta,
             ext,
         }
     }
 
-    pub fn node_meta(&self) -> &Arc<Meta> {
-        &self.node_meta
-    }
-
-    pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
-        WriteLockedNodePages::new(
-            self.pages
-                .iter()
-                .map(|(page_id, page)| {
-                    LockedNodePage::new(
-                        page_id,
-                        &self.stats,
-                        self.max_page_len,
-                        page.as_ref(),
-                        page.head_mut(),
-                    )
-                })
-                .collect(),
-        )
-    }
-
-    pub fn num_layers(&self) -> usize {
-        self.stats.len()
-    }
-
-    pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
-        let (page_id, pos) = self.resolve_pos(node);
-        let node_page = self
-            .pages
-            .get(page_id)
-            .expect("Internal error: page not found");
-        node_page.entry(pos)
-    }
-
-    pub fn try_node(&self, node: VID) -> Option<NS::Entry<'_>> {
-        let (page_id, pos) = self.resolve_pos(node);
-        let node_page = self.pages.get(page_id)?;
-        Some(node_page.entry(pos))
-    }
-
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
 
-    #[inline(always)]
-    pub fn writer<'a>(
-        &'a self,
-        segment_id: usize,
-    ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
-        let segment = self.get_or_create_segment(segment_id);
-        let head = segment.head_mut();
-        NodeWriter::new(segment, &self.stats, head)
+    pub fn num_layers(&self) -> usize {
+        self.stats.len()
     }
 
     pub fn num_nodes(&self) -> usize {
@@ -192,15 +136,89 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         self.nodes_path.as_deref()
     }
 
+    /// Return the position of the chunk and the position within the chunk
+    pub fn resolve_pos(&self, i: impl Into<VID>) -> (usize, LocalPOS) {
+        resolve_pos(i.into(), self.max_page_len())
+    }
+
+    pub fn max_page_len(&self) -> u32 {
+        self.ext.max_node_page_len()
+    }
+}
+
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT> {
+    pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
+        let locked_segments = self
+            .pages
+            .iter()
+            .map(|(_, segment)| segment.locked())
+            .collect::<Box<_>>();
+        ReadLockedNodeStorage {
+            storage: self.clone(),
+            locked_segments,
+        }
+    }
+
+    pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
+        WriteLockedNodePages::new(
+            self.pages
+                .iter()
+                .map(|(page_id, page)| {
+                    LockedNodePage::new(
+                        page_id,
+                        &self.stats,
+                        self.max_page_len(),
+                        page.as_ref(),
+                        page.head_mut(),
+                    )
+                })
+                .collect(),
+        )
+    }
+
+    pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
+        let (page_id, pos) = self.resolve_pos(node);
+        let node_page = self
+            .pages
+            .get(page_id)
+            .expect("Internal error: page not found");
+        node_page.entry(pos)
+    }
+
+    pub fn try_node(&self, node: VID) -> Option<NS::Entry<'_>> {
+        let (page_id, pos) = self.resolve_pos(node);
+        let node_page = self.pages.get(page_id)?;
+        Some(node_page.entry(pos))
+    }
+
+    #[inline(always)]
+    pub fn writer<'a>(
+        &'a self,
+        segment_id: usize,
+    ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
+        let segment = self.get_or_create_segment(segment_id);
+        let head = segment.head_mut();
+        NodeWriter::new(segment, &self.stats, head)
+    }
+
     pub fn load(
         nodes_path: impl AsRef<Path>,
-        max_page_len: u32,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let nodes_path = nodes_path.as_ref();
 
         let node_meta = Arc::new(Meta::new_for_nodes());
+
+        if !nodes_path.exists() {
+            return Ok(Self::new_with_meta(
+                Some(nodes_path.to_path_buf()),
+                node_meta,
+                edge_meta,
+                ext.clone(),
+            ));
+        }
+
         let mut pages = std::fs::read_dir(nodes_path)?
             .filter(|entry| {
                 entry
@@ -217,7 +235,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
                 let page = NS::load(
                     page_id,
-                    max_page_len,
                     node_meta.clone(),
                     edge_meta.clone(),
                     nodes_path,
@@ -239,7 +256,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                 let np = pages.remove(&page_id).unwrap_or_else(|| {
                     NS::new(
                         page_id,
-                        max_page_len,
                         node_meta.clone(),
                         edge_meta.clone(),
                         Some(nodes_path.to_path_buf()),
@@ -290,17 +306,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         Ok(Self {
             pages,
             nodes_path: Some(nodes_path.to_path_buf()),
-            max_page_len,
             stats: stats.into(),
             node_meta,
             edge_meta,
             ext,
         })
-    }
-
-    /// Return the position of the chunk and the position within the chunk
-    pub fn resolve_pos(&self, i: impl Into<VID>) -> (usize, LocalPOS) {
-        resolve_pos(i.into(), self.max_page_len)
     }
 
     pub fn get_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {
@@ -339,7 +349,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                 let new_segment_id = self.pages.push_with(|segment_id| {
                     Arc::new(NS::new(
                         segment_id,
-                        self.max_page_len,
                         self.node_meta.clone(),
                         self.edge_meta.clone(),
                         self.nodes_path.clone(),
@@ -359,9 +368,5 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                 }
             }
         }
-    }
-
-    pub fn max_page_len(&self) -> u32 {
-        self.max_page_len
     }
 }

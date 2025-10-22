@@ -4635,9 +4635,9 @@ dependencies = [
 
 [[package]]
 name = "proptest-derive"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ee1c9ac207483d5e7db4940700de86a9aae46ef90c48b57f99fe7edb8345e49"
+checksum = "095a99f75c69734802359b682be8daaf8980296731f6470434ea2c652af1dd30"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4959,6 +4959,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_distr"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
+dependencies = [
+ "num-traits",
+ "rand 0.9.2",
+]
+
+[[package]]
 name = "rand_xorshift"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5022,8 +5032,8 @@ dependencies = [
  "pyo3",
  "pyo3-arrow",
  "quad-rand",
- "rand 0.8.5",
- "rand_distr",
+ "rand 0.9.2",
+ "rand_distr 0.5.1",
  "raphtory",
  "raphtory-api",
  "raphtory-core",
@@ -5037,7 +5047,6 @@ dependencies = [
  "serde_json",
  "streaming-stats",
  "strsim",
- "sysinfo",
  "tantivy",
  "tempfile",
  "thiserror 2.0.17",
@@ -5069,7 +5078,7 @@ dependencies = [
  "proptest",
  "pyo3",
  "pyo3-arrow",
- "rand 0.8.5",
+ "rand 0.9.2",
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
@@ -5100,7 +5109,7 @@ dependencies = [
  "fake",
  "itertools 0.13.0",
  "once_cell",
- "rand 0.8.5",
+ "rand 0.9.2",
  "raphtory",
  "raphtory-api",
  "rayon",
@@ -6231,7 +6240,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c56d6ff5591fc332739b3ce7035b57995a3ce29a93ffd6012660e0949c956ea8"
 dependencies = [
  "murmurhash32",
- "rand_distr",
+ "rand_distr 0.4.3",
  "tantivy-common",
 ]
 

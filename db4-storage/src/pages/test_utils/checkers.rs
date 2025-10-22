@@ -190,16 +190,13 @@ pub fn check_edges_support<
         drop(graph);
 
         let maybe_ns = GraphStore::<NS, ES, EXT>::load(graph_dir.path());
-        if edges.is_empty() {
-            assert!(maybe_ns.is_err());
-        } else {
-            match maybe_ns {
-                Ok(graph) => {
-                    check("post-drop", &edges, &graph);
-                }
-                Err(e) => {
-                    panic!("Failed to load graph: {e:?}");
-                }
+
+        match maybe_ns {
+            Ok(graph) => {
+                check("post-drop", &edges, &graph);
+            }
+            Err(e) => {
+                panic!("Failed to load graph: {e:?}");
             }
         }
     }

@@ -9,6 +9,7 @@ use crate::{
     },
     prelude::*,
 };
+use arrow::array::BooleanArray;
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use either::Either;
@@ -28,7 +29,11 @@ use raphtory_core::{
     entities::{graph::logical_to_physical::ResolverShardT, GidRef, VID},
     storage::timeindex::AsTime,
 };
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    layer_ops::InternalLayerOps,
+    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+};
 use rayon::prelude::*;
 use std::{
     borrow::{Borrow, Cow},
@@ -308,6 +313,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     // }
 
     let num_nodes = AtomicUsize::new(write_locked_graph.graph().internal_num_nodes());
+    let all_graph_layers = graph.edge_meta().layer_meta().all_ids().collect::<Vec<_>>();
 
     for chunk in chunks {
         let df = chunk?;
@@ -577,20 +583,51 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     let mut t_props: Vec<(usize, Prop)> = vec![];
                     let mut c_props: Vec<(usize, Prop)> = vec![];
 
-                    // let mut writer = shard.writer();
-                    // let cols = prop_cols.cols();
+                    // let temporal_prop_cols = prop_cols.cols();
+                    // // let metadata_cols = metadata_cols.cols();
 
-                    // writer.bulk_add_edges(
-                    //     mask,
-                    //     *time_col,
-                    //     start_idx,
-                    //     eid_col_resolved,
-                    //     src_col_resolved,
-                    //     dst_col_resolved,
-                    //     0, // use the mask to select for layer
-                    //     &cols,
-                    //     prop_cols.prop_ids(),
-                    // );
+                    // let masks = if layer_col.is_some() {
+                    //     let mut masks = vec![];
+                    //     for l in &all_graph_layers {
+                    //         let mut mask = BooleanArray::builder(src_col_resolved.len());
+                    //         for (i, (eid, layer)) in
+                    //             eid_col_resolved.iter().zip(&layer_col_resolved).enumerate()
+                    //         {
+                    //             let exists = shard.resolve_pos(*eid).is_some() && *layer == *l;
+                    //             mask.append_value(exists);
+                    //         }
+                    //         let mask = mask.finish();
+                    //         if !mask.is_empty() {
+                    //             masks.push(mask);
+                    //         }
+                    //     }
+                    //     masks
+                    // } else {
+                    //     let mut mask = BooleanArray::builder(src_col_resolved.len());
+                    //     // all these go into a single layer
+                    //     for (i, eid) in eid_col_resolved.iter().enumerate() {
+                    //         let exists = shard.resolve_pos(*eid).is_some();
+                    //         mask.append_value(exists);
+                    //     }
+                    //     let mask = mask.finish();
+                    //     vec![mask]
+                    // };
+
+                    // let mut writer = shard.writer();
+
+                    // for mask in masks {
+                    //     writer.bulk_add_edges(
+                    //         &mask,
+                    //         time_col.values(),
+                    //         start_idx,
+                    //         &eid_col_resolved,
+                    //         &src_col_resolved,
+                    //         &dst_col_resolved,
+                    //         0, // use the mask to select for layer
+                    //         &temporal_prop_cols,
+                    //         prop_cols.prop_ids(),
+                    //     )
+                    // }
 
                     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
                         zip.enumerate()

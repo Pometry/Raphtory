@@ -817,7 +817,7 @@ pub fn temporal_SEIR(
     rng_seed: Option<u64>,
 ) -> Result<NodeState<'static, Infected, DynamicGraph>, SeedError> {
     let mut rng = match rng_seed {
-        None => StdRng::from_entropy(),
+        None => StdRng::from_os_rng(),
         Some(seed) => StdRng::seed_from_u64(seed),
     };
     temporal_SEIR_rs(

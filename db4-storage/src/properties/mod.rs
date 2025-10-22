@@ -194,9 +194,6 @@ impl Properties {
             // PropColumn::Array(lazy_vec) => todo!(),
             // PropColumn::List(lazy_vec) => todo!(),
             // PropColumn::Map(lazy_vec) => todo!(),
-            // PropColumn::NDTime(lazy_vec) => todo!(),
-            // PropColumn::DTime(lazy_vec) => todo!(),
-            // PropColumn::Decimal(lazy_vec) => todo!(),
             _ => None, //todo!("Unsupported column type"),
         }
     }

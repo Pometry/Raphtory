@@ -52,7 +52,6 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn load(
         page_id: usize,
-        max_page_len: u32,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: impl AsRef<Path>,
@@ -62,7 +61,6 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         Self: Sized;
     fn new(
         page_id: usize,
-        max_page_len: u32,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: Option<PathBuf>,

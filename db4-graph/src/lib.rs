@@ -24,7 +24,7 @@ use storage::{
         layer_counter::GraphStats,
         locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
     },
-    persist::strategy::PersistentStrategy,
+    persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
     wal::{GraphWal, TransactionID, Wal},
     Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
@@ -34,11 +34,8 @@ use tempfile::TempDir;
 pub mod entries;
 pub mod mutation;
 
-const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
-const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
-
 #[derive(Debug)]
-pub struct TemporalGraph<EXT = Extension> {
+pub struct TemporalGraph<EXT: Config = Extension> {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
     pub node_count: AtomicUsize,
@@ -126,21 +123,21 @@ impl TransactionManager {
 
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
-        Self::new().unwrap()
+        Self::new(Extension::default()).unwrap()
     }
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
-    pub fn new() -> Result<Self, StorageError> {
+    pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(None, node_meta, edge_meta)
+        Self::new_with_meta(None, node_meta, edge_meta, ext)
     }
 
-    pub fn new_with_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
+    pub fn new_with_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta)
+        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta, ext)
     }
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
@@ -168,6 +165,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         graph_dir: Option<GraphDir>,
         node_meta: Meta,
         edge_meta: Meta,
+        ext: EXT,
     ) -> Result<Self, StorageError> {
         let mut graph_dir = graph_dir;
 
@@ -189,10 +187,9 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
         let storage: Layer<EXT> = Layer::new_with_meta(
             graph_dir.as_ref().map(|p| p.path()),
-            DEFAULT_MAX_PAGE_LEN_NODES,
-            DEFAULT_MAX_PAGE_LEN_EDGES,
             node_meta,
             edge_meta,
+            ext,
         );
 
         let wal_dir = graph_dir.as_ref().map(|dir| dir.wal_dir());
@@ -211,6 +208,13 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     pub fn disk_storage_enabled(&self) -> bool {
         Extension::disk_storage_enabled()
+    }
+    pub fn extension(&self) -> &EXT {
+        self.storage().extension()
+    }
+
+    pub fn read_event_counter(&self) -> usize {
+        self.storage().read_event_id()
     }
 
     pub fn storage(&self) -> &Arc<Layer<EXT>> {
@@ -360,7 +364,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 }
 
-pub struct WriteLockedGraph<'a, EXT> {
+pub struct WriteLockedGraph<'a, EXT: Config> {
     pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
