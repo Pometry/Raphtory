@@ -7,7 +7,7 @@ on:
         type: 'string'
         required: true
       dry_run:
-        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io'
+        description: 'If true will not publish to crates.io'
         type: boolean
         required: true
 
