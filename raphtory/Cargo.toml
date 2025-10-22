@@ -110,7 +110,7 @@ tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
-raphtory = { path = ".", features = ["test-utils"] } # enable test-utils for integration tests
+raphtory = { path = ".", features = ["test-utils"] } # enable test-utils for integration tests (version is not set to make cargo publish work)
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
