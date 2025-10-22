@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761062998707,
+  "lastUpdate": 1761143482252,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1727,6 +1727,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1264,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "794824c13ff90f9aba737c676040747166aa7a17",
+          "message": "Fix master tests (#2348)\n\n* test\n\n* chore: apply tidy-public auto-fixes\n\n* load edges test fails when inputs have the same timestamps, just leave assert_graph_equals\n\n* fix the failing graph load tests\n\n* fix more of the failing df_loaders.rs tests\n\n* chore: apply tidy-public auto-fixes\n\n* Delete stub_gen/build/lib/stub_gen.py\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>\nCo-authored-by: Fabian Murariu <2404621+fabianmurariu@users.noreply.github.com>\nCo-authored-by: Pedro Rico Pinazo <ricopinazo@gmail.com>",
+          "timestamp": "2025-10-22T15:57:59+02:00",
+          "tree_id": "52dd24959306eb2db2eb3896cd4080723d80b9b0",
+          "url": "https://github.com/Pometry/Raphtory/commit/794824c13ff90f9aba737c676040747166aa7a17"
+        },
+        "date": 1761143479132,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1260,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 181,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 153,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1049,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 851,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1322,
             "unit": "req/s"
           }
         ]
