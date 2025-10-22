@@ -7,8 +7,7 @@ on:
         type: 'string'
         required: true
       dry_run:
-        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io.
-        However it will still make a PR and a branch to show you what it changed'
+        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. However it will still make a PR and a branch to show you what it changed'
         type: boolean
         required: true
 
@@ -57,72 +56,84 @@ jobs:
           args: cargo-release --force
       - name: "Publish raphtory-api to crates.io"
         if: ${{ !inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-api --allow-dirty
       - name: "Publish pometry-storage to crates.io"
         if: ${{ !inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage --allow-dirty
       - name: "Publish raphtory-core to crates.io"
         if: ${{ !inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-core --allow-dirty
       - name: "Publish raphtory-storage to crates.io"
         if: ${{ !inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-storage --allow-dirty
       - name: "Publish raphtory to crates.io"
         if: ${{ !inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory --allow-dirty
       - name: "Publish raphtory-graphql to crates.io"
         if: ${{ !inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-graphql --allow-dirty
       - name: "Publish raphtory-api to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-api --allow-dirty --dry-run
       - name: "Publish pometry-storage to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage --allow-dirty --dry-run
       - name: "Publish raphtory-core to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-core --allow-dirty --dry-run
       - name: "Publish raphtory-storage to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-storage --allow-dirty --dry-run
       - name: "Publish raphtory to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory --allow-dirty --dry-run
       - name: "Publish raphtory-graphql to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: publish
