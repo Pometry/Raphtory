@@ -342,7 +342,7 @@ impl GqlNodes {
         blocking_compute(move || self_clone.nn.name().collect()).await
     }
 
-    /// Returns a view of the node types.
+    /// Returns a filtered view that applies to list down the chain
     async fn filter(&self, expr: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {

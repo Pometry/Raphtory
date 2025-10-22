@@ -1,6 +1,6 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import create_test_graph
+from filters_setup import create_test_graph, init_graph2
 from utils import run_graphql_test, run_graphql_error_test
 
 EVENT_GRAPH = create_test_graph(Graph())
@@ -170,4 +170,99 @@ def test_neighbours_not_found(graph):
         }
     """
     expected_output = {"graph": {"node": {"filter": {"neighbours": {"list": []}}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = init_graph2(Graph())
+PERSISTENT_GRAPH = init_graph2(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_neighbours_selection(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+              list {
+                neighbours {
+                  select(expr: {
+                     property: { name: "p2", where: { gt: { i64: 3 } } }
+                  }) {
+                    list {
+                    name
+                  }
+                  }
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"neighbours": {"select": {"list": [{"name": "3"}]}}},
+                    {"neighbours": {"select": {"list": []}}},
+                ]
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_neighbours_neighbours_filtering(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+              list {
+                neighbours {
+                  filter(expr: {
+                     property: { name: "p2", where: { gt: { i64: 3 } } }
+                  }) {
+                    list {
+                      neighbours {
+                        list {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {
+                        "neighbours": {
+                            "filter": {
+                                "list": [
+                                    {"neighbours": {"list": [{"name": "3"}]}},
+                                    {"neighbours": {"list": []}},
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "filter": {
+                                "list": [
+                                    {"neighbours": {"list": [{"name": "3"}]}},
+                                    {"neighbours": {"list": [{"name": "3"}]}},
+                                    {"neighbours": {"list": [{"name": "3"}]}},
+                                ]
+                            }
+                        }
+                    },
+                ]
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)

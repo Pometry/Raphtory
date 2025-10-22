@@ -352,6 +352,7 @@ impl GqlEdges {
         blocking_compute(move || self_clone.iter().collect()).await
     }
 
+    /// Returns a filtered view that applies to list down the chain
     async fn filter(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -362,6 +363,7 @@ impl GqlEdges {
         .await
     }
 
+    /// Returns filtered list of edges
     async fn select(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {

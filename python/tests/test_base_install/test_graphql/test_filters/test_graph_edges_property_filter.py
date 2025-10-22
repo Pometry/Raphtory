@@ -583,6 +583,7 @@ def test_edges_property_filter_ends_with(graph):
 EVENT_GRAPH = init_graph2(Graph())
 PERSISTENT_GRAPH = init_graph2(PersistentGraph())
 
+
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_edges_selection(graph):
     query = """
@@ -594,12 +595,18 @@ def test_edges_selection(graph):
         }
       }
     """
-    expected_output = {'graph': {'edges': {'list': [
-        {'dst': {'name': '2'}, 'src': {'name': '1'}},
-        {'dst': {'name': '1'}, 'src': {'name': '3'}},
-        {'dst': {'name': '4'}, 'src': {'name': '3'}},
-        {'dst': {'name': '1'}, 'src': {'name': '2'}}]
-    }}}
+    expected_output = {
+        "graph": {
+            "edges": {
+                "list": [
+                    {"dst": {"name": "2"}, "src": {"name": "1"}},
+                    {"dst": {"name": "1"}, "src": {"name": "3"}},
+                    {"dst": {"name": "4"}, "src": {"name": "3"}},
+                    {"dst": {"name": "1"}, "src": {"name": "2"}},
+                ]
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)
 
 
@@ -619,12 +626,20 @@ def test_edges_selection_edges_filter_paired(graph):
       }
     }
     """
-    expected_output = {'graph': {'edges': {'filter': {'list': [
-        {'dst': {'name': '2'}, 'src': {'name': '1'}},
-        {'dst': {'name': '1'}, 'src': {'name': '3'}},
-        {'dst': {'name': '4'}, 'src': {'name': '3'}},
-        {'dst': {'name': '1'}, 'src': {'name': '2'}}]
-    }}}}
+    expected_output = {
+        "graph": {
+            "edges": {
+                "filter": {
+                    "list": [
+                        {"dst": {"name": "2"}, "src": {"name": "1"}},
+                        {"dst": {"name": "1"}, "src": {"name": "3"}},
+                        {"dst": {"name": "4"}, "src": {"name": "3"}},
+                        {"dst": {"name": "1"}, "src": {"name": "2"}},
+                    ]
+                }
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)
 
 
@@ -648,9 +663,15 @@ def test_edges_chained_selection_edges_filter_paired(graph):
       }
     }
     """
-    expected_output = {'graph': {'edges': {'select': {'filter': {'list': [
-        {'dst': {'name': '2'}, 'src': {'name': '1'}}
-    ]}}}}}
+    expected_output = {
+        "graph": {
+            "edges": {
+                "select": {
+                    "filter": {"list": [{"dst": {"name": "2"}, "src": {"name": "1"}}]}
+                }
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)
 
 
@@ -676,7 +697,17 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
       }
     }
     """
-    expected_output = {'graph': {'edges': {'select': {'select': {'filter': {'list': [
-        {'dst': {'name': '2'}, 'src': {'name': '1'}}
-    ]}}}}}}
+    expected_output = {
+        "graph": {
+            "edges": {
+                "select": {
+                    "select": {
+                        "filter": {
+                            "list": [{"dst": {"name": "2"}, "src": {"name": "1"}}]
+                        }
+                    }
+                }
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)

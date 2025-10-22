@@ -96,7 +96,13 @@ def test_edges_chained_selection_with_edge_filter(graph):
       }
     }
     """
-    expected_output = {'graph': {'edges': {'select': {'select': {'list': [
-        {'dst': {'name': '2'}, 'src': {'name': '1'}}
-    ]}}}}}
+    expected_output = {
+        "graph": {
+            "edges": {
+                "select": {
+                    "select": {"list": [{"dst": {"name": "2"}, "src": {"name": "1"}}]}
+                }
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)

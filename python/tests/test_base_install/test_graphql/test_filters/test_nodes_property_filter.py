@@ -900,9 +900,7 @@ def test_nodes_selection(graph):
         }
       }
     """
-    expected_output = {
-        "graph": {"nodes": {"list": [{"name": "1"}, {"name": "3"}]}}
-    }
+    expected_output = {"graph": {"nodes": {"list": [{"name": "1"}, {"name": "3"}]}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -952,10 +950,18 @@ def test_nodes_selection_nodes_filter_paired2(graph):
       }
     }
     """
-    expected_output = {'graph': {'nodes': {'filter': {'list': [
-        {'neighbours': {'list': []}},
-        {'neighbours': {'list': [{'name': '1'}]}}
-    ]}}}}
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "filter": {
+                    "list": [
+                        {"neighbours": {"list": []}},
+                        {"neighbours": {"list": [{"name": "1"}]}},
+                    ]
+                }
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)
 
 
