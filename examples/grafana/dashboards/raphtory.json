@@ -121,7 +121,7 @@
           },
           "limit": 20,
           "metricsQueryType": "range",
-          "query": "{resource.service.name = \"raphtory\" && name =~ \"addEdge|addEdges|deleteEdge|graph|updateGraph|addNode|node|nodes|edge|edges\"} | rate() by (name)",
+          "query": "{resource.service.name = \"${service_name}\" && name =~ \"addEdge|addEdges|deleteEdge|graph|updateGraph|addNode|node|nodes|edge|edges\"} | rate() by (name)",
           "queryType": "traceql",
           "refId": "edges",
           "serviceMapUseNativeHistograms": false,
@@ -138,16 +138,25 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "text": "tempo",
-          "value": "P8D6546721A1D106C"
-        },
         "name": "datasource",
         "options": [],
         "query": "tempo",
         "refresh": 1,
         "regex": "",
         "type": "datasource"
+      },
+      {
+        "definition": "",
+        "name": "service_name",
+        "options": [],
+        "query": {
+          "label": "service.name",
+          "refId": "TempoDatasourceVariableQueryEditor-VariableQuery",
+          "type": 1
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
       }
     ]
   },
@@ -157,7 +166,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Raphtory basics",
+  "title": "Raphtory Basics",
   "uid": "raphtory-basics",
   "version": 1
 }
