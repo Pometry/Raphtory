@@ -10,7 +10,7 @@ use crate::{
     },
     db::{
         api::{
-            state::NodeOp,
+            state::{Index, NodeOp},
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{create_node_type_filter, edges::Edges, node::NodeView, path::PathFromNode},
@@ -372,7 +372,7 @@ impl<
         let path = PathFromNode::new_one_hop_filtered(
             self.base_graph.base_graph,
             self.graph.clone(),
-            self.op.clone(),
+            (self.op)().collect::<Index<_>>(), // FIXME: Temporarily collect VIDs, will need to update
         );
         let edges = path.map_edges(op);
         EvalEdges {

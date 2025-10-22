@@ -37,7 +37,7 @@ impl GqlPathFromNode {
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
-        let iter = self.nn.iter().map(GqlNode::from);
+        let iter = self.nn.iter_owned().map(GqlNode::from);
         Box::new(iter)
     }
 }

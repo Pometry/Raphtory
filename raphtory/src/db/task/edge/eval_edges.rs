@@ -18,8 +18,9 @@ use crate::{
     },
     prelude::{GraphViewOps, ResetFilter},
 };
+use raphtory_api::iter::IntoDynBoxed;
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 pub struct EvalEdges<'graph, 'a, G, GH, CS: Clone, S> {
     pub(crate) ss: usize,
@@ -184,6 +185,7 @@ impl<
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
         let path = self.edges.map_nodes(op);
+        let op = Arc::new(move || path.iter_refs().into_dyn_boxed());
         let base_graph = self.edges.base_graph;
         let storage = self.storage;
         let eval_graph = EvalGraph {
@@ -196,7 +198,7 @@ impl<
         EvalPathFromNode {
             graph: base_graph,
             base_graph: eval_graph,
-            op: path.op,
+            op,
         }
     }
 

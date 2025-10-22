@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             properties::{Metadata, Properties},
+            state::Index,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -158,13 +159,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
         &self,
         op: F,
     ) -> Self::Nodes {
-        let graph = self.graph.clone();
-        let edges = self.edges.clone();
-        PathFromNode::new(self.base_graph.clone(), move || {
-            let graph = graph.clone();
-            let op = op.clone();
-            edges().map(move |e| op(&graph, e)).into_dyn_boxed()
-        })
+        // FIXME: Temporarily collect VIDs, will need to update
+        let nodes: Index<_> = (self.edges)().map(move |e| op(&self.graph, e)).collect();
+        PathFromNode::new(self.base_graph.clone(), nodes)
     }
 
     fn map_exploded<

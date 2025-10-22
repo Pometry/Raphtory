@@ -64,6 +64,7 @@ use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::{
     collections::{HashMap, HashSet},
+    marker::PhantomData,
     sync::Arc,
 };
 
@@ -991,13 +992,37 @@ impl_nodeviewops!(
     "Edges",
     "PathFromNode"
 );
-impl_iterable_mixin!(
-    PyPathFromNode,
-    path,
-    Vec<NodeView<'static, DynamicGraph>>,
-    "list[Node]",
-    "node"
-);
+// impl_iterable_mixin!(
+//     PyPathFromNode,
+//     path,
+//     Vec<NodeView<'static, DynamicGraph>>,
+//     "list[Node]",
+//     "node"
+// );
+// FIXME: Manually implement for now
+#[pymethods]
+impl PyPathFromNode {
+    fn __len__(&self) -> usize {
+        self.path.len()
+    }
+
+    fn __bool__(&self) -> bool {
+        !self.path.is_empty()
+    }
+
+    fn __iter__(&self) -> PyGenericIterator {
+        self.path.iter_owned().into()
+    }
+
+    #[doc = concat!(" Collect all ", "node", "s into a list")]
+    ///
+    /// Returns:
+    #[doc = concat!("     ", "list[Node]", ": the list of ", "node", "s")]
+    fn collect(&self) -> Vec<NodeView<'static, DynamicGraph>> {
+        self.path.collect()
+    }
+}
+
 impl_edge_property_filter_ops!(
     PyPathFromNode<PathFromNode<'static, DynamicGraph, DynamicGraph>>,
     path,
@@ -1012,7 +1037,9 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
             path: PathFromNode {
                 graph: value.graph.clone().into_dynamic(),
                 base_graph: value.base_graph.clone().into_dynamic(),
-                op: value.op.clone(),
+                nodes: value.nodes.clone(),
+                node_types_filter: value.node_types_filter.clone(),
+                _marker: PhantomData,
             },
         }
     }

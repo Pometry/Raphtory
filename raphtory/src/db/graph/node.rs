@@ -22,7 +22,7 @@ use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
     db::{
         api::{
-            state::NodeOp,
+            state::{Index, NodeOp},
             view::{
                 internal::{GraphView, NodeTimeSemanticsOps},
                 DynamicGraph, ExplodedEdgePropertyFilterOps, IntoDynamic,
@@ -425,12 +425,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         &self,
         op: F,
     ) -> Self::PathType {
-        let graph = self.graph.clone();
-        let node = self.node;
-        PathFromNode::new(self.base_graph.clone(), move || {
-            let cg = graph.core_graph();
-            op(cg, &graph, node).into_dyn_boxed()
-        })
+        // FIXME: Temporarily collect VIDs, will need to update
+        let nodes: Index<_> = op(self.graph.core_graph(), &self.graph, self.node).collect();
+        PathFromNode::new(self.base_graph.clone(), nodes)
     }
 }
 
