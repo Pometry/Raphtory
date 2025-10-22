@@ -1062,60 +1062,54 @@ impl PyPathFromNode {
     /// The node IDs.
     ///
     /// Returns:
-    ///     GIDIterable:
+    ///     IdView: a view of the node ids.
     #[getter]
-    fn id(&self) -> GIDIterable {
-        let path = self.path.clone();
-        (move || path.id()).into()
+    fn id(&self) -> LazyNodeState<'static, ops::Id, DynamicGraph, DynamicGraph> {
+        self.path.id()
     }
 
     /// The node names.
     ///
     /// Returns:
-    ///     StringIterable:
+    ///     NameView: a view of the node names.
     #[getter]
-    fn name(&self) -> StringIterable {
-        let path = self.path.clone();
-        (move || path.name()).into()
+    fn name(&self) -> LazyNodeState<'static, ops::Name, DynamicGraph, DynamicGraph> {
+        self.path.name()
     }
 
     /// The node types.
     ///
     /// Returns:
-    ///     OptionArcStringIterable:
+    ///     NodeTypeView: a view of the node types.
     #[getter]
-    fn node_type(&self) -> OptionArcStringIterable {
-        let path = self.path.clone();
-        (move || path.node_type()).into()
+    fn node_type(&self) -> LazyNodeState<'static, ops::Type, DynamicGraph> {
+        self.path.node_type()
     }
 
     /// Get the number of edge updates for each node.
     ///
     /// Returns:
-    ///     UsizeIterable:
-    fn edge_history_count(&self) -> UsizeIterable {
-        let path = self.path.clone();
-        (move || path.edge_history_count()).into()
+    ///     EdgeHistoryCountView: a view of the edge history counts.
+    fn edge_history_count(&self) -> LazyNodeState<'static, ops::EdgeHistoryCount<DynamicGraph>, DynamicGraph> {
+        self.path.edge_history_count()
     }
 
     /// The earliest time of each node.
     ///
     /// Returns:
-    ///     OptionEventTimeIterable: An iterable of `EventTime`s.
+    ///     EarliestTimeView: a view of the earliest active times.
     #[getter]
-    fn earliest_time(&self) -> OptionEventTimeIterable {
-        let path = self.path.clone();
-        (move || path.earliest_time()).into()
+    fn earliest_time(&self) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.path.earliest_time()
     }
 
     /// The latest time of each node.
     ///
     /// Returns:
-    ///     OptionEventTimeIterable: An iterable of `EventTime`s.
+    ///     LatestTimeView: a view of the latest active times.
     #[getter]
-    fn latest_time(&self) -> OptionEventTimeIterable {
-        let path = self.path.clone();
-        (move || path.latest_time()).into()
+    fn latest_time(&self) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph> {
+        self.path.latest_time()
     }
 
     /// Returns a single history object containing time entries for all nodes in the path.
@@ -1127,60 +1121,57 @@ impl PyPathFromNode {
         PyHistory::new(History::new(Arc::new(path)))
     }
 
-    /// The node properties.
+    /// The properties of the node.
     ///
     /// Returns:
-    ///     PropertiesView:
+    ///     PropertiesView: A view of the node properties.
     #[getter]
     fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
-        (move || path.properties()).into()
+        (move || path.properties().into_iter_values()).into()
     }
 
-    /// The node metadata.
+    /// The metadata of the nodes.
     ///
     /// Returns:
-    ///     MetadataView:
+    ///     MetadataView: A view of the node properties.
     #[getter]
     fn metadata(&self) -> MetadataView {
         let path = self.path.clone();
-        (move || path.metadata()).into()
+        (move || path.metadata().into_iter_values()).into()
     }
 
     /// The node in-degrees.
     ///
     /// Returns:
-    ///     UsizeIterable:
-    fn in_degree(&self) -> UsizeIterable {
-        let path = self.path.clone();
-        (move || path.in_degree()).into()
+    ///     DegreeView: a view of the in-degrees of the nodes.
+    fn in_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
+        self.path.in_degree()
     }
 
     /// The node out-degrees.
     ///
     /// Returns:
-    ///     UsizeIterable:
-    fn out_degree(&self) -> UsizeIterable {
-        let path = self.path.clone();
-        (move || path.out_degree()).into()
+    ///     DegreeView: a view of the out-degrees of the nodes.
+    fn out_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
+        self.path.out_degree()
     }
 
     /// The node degrees.
     ///
     /// Returns:
-    ///     UsizeIterable:
-    fn degree(&self) -> UsizeIterable {
-        let path = self.path.clone();
-        (move || path.degree()).into()
+    ///     DegreeView: a view of the undirected node degrees.
+    fn degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
+        self.path.degree()
     }
 
-    /// filter nodes by type
+    /// Filter nodes by node type.
     ///
     /// Arguments:
-    ///     node_types (list[str]): the node types to keep
+    ///     node_types (list[str]): the list of node types to keep.
     ///
     /// Returns:
-    ///     PathFromNode: the filtered view
+    ///     PathFromNode: the filtered view.
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,

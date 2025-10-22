@@ -1309,16 +1309,19 @@ fn graph_neighbours_window() {
                     v.window(-1, 7)
                         .in_neighbours()
                         .id()
+                        .into_iter_values()
                         .filter_map(|id| id.as_u64())
                         .collect::<Vec<_>>(),
                     v.window(1, 7)
                         .out_neighbours()
                         .id()
+                        .into_iter_values()
                         .filter_map(|id| id.as_u64())
                         .collect::<Vec<_>>(),
                     v.window(0, 1)
                         .neighbours()
                         .id()
+                        .into_iter_values()
                         .filter_map(|id| id.as_u64())
                         .collect::<Vec<_>>(),
                 )
@@ -2370,6 +2373,7 @@ fn simple_triangle() {
         let ns_win = one
             .neighbours()
             .id()
+            .into_iter_values()
             .filter_map(|id| id.to_u64())
             .collect::<Vec<_>>();
 
@@ -2377,6 +2381,7 @@ fn simple_triangle() {
         let ns = one
             .neighbours()
             .id()
+            .into_iter_values()
             .filter_map(|id| id.to_u64())
             .collect::<Vec<_>>();
         assert_eq!(ns, vec![2, 3]);

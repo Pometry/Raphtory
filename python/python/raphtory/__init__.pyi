@@ -3173,29 +3173,29 @@ class PathFromNode(object):
              PathFromNode: The layered view
         """
 
-    def degree(self) -> UsizeIterable:
+    def degree(self) -> DegreeView:
         """
         The node degrees.
 
         Returns:
-            UsizeIterable:
+            DegreeView: a view of the undirected node degrees.
         """
 
     @property
-    def earliest_time(self) -> OptionEventTimeIterable:
+    def earliest_time(self) -> EarliestTimeView:
         """
         The earliest time of each node.
 
         Returns:
-            OptionEventTimeIterable: An iterable of `EventTime`s.
+            EarliestTimeView: a view of the earliest active times.
         """
 
-    def edge_history_count(self) -> UsizeIterable:
+    def edge_history_count(self) -> EdgeHistoryCountView:
         """
         Get the number of edge updates for each node.
 
         Returns:
-            UsizeIterable:
+            EdgeHistoryCountView: a view of the edge history counts.
         """
 
     @property
@@ -3324,20 +3324,20 @@ class PathFromNode(object):
         """
 
     @property
-    def id(self) -> GIDIterable:
+    def id(self) -> IdView:
         """
         The node IDs.
 
         Returns:
-            GIDIterable:
+            IdView: a view of the node ids.
         """
 
-    def in_degree(self) -> UsizeIterable:
+    def in_degree(self) -> DegreeView:
         """
         The node in-degrees.
 
         Returns:
-            UsizeIterable:
+            DegreeView: a view of the in-degrees of the nodes.
         """
 
     @property
@@ -3367,12 +3367,12 @@ class PathFromNode(object):
         """
 
     @property
-    def latest_time(self) -> OptionEventTimeIterable:
+    def latest_time(self) -> LatestTimeView:
         """
         The latest time of each node.
 
         Returns:
-            OptionEventTimeIterable: An iterable of `EventTime`s.
+            LatestTimeView: a view of the latest active times.
         """
 
     def layer(self, name: str) -> PathFromNode:
@@ -3402,19 +3402,19 @@ class PathFromNode(object):
     @property
     def metadata(self) -> MetadataView:
         """
-        The node metadata.
+        The metadata of the nodes.
 
         Returns:
-            MetadataView:
+            MetadataView: A view of the node properties.
         """
 
     @property
-    def name(self) -> StringIterable:
+    def name(self) -> NameView:
         """
         The node names.
 
         Returns:
-            StringIterable:
+            NameView: a view of the node names.
         """
 
     @property
@@ -3427,20 +3427,20 @@ class PathFromNode(object):
         """
 
     @property
-    def node_type(self) -> OptionArcStringIterable:
+    def node_type(self) -> NodeTypeView:
         """
         The node types.
 
         Returns:
-            OptionArcStringIterable:
+            NodeTypeView: a view of the node types.
         """
 
-    def out_degree(self) -> UsizeIterable:
+    def out_degree(self) -> DegreeView:
         """
         The node out-degrees.
 
         Returns:
-            UsizeIterable:
+            DegreeView: a view of the out-degrees of the nodes.
         """
 
     @property
@@ -3464,10 +3464,10 @@ class PathFromNode(object):
     @property
     def properties(self) -> PropertiesView:
         """
-        The node properties.
+        The properties of the node.
 
         Returns:
-            PropertiesView:
+            PropertiesView: A view of the node properties.
         """
 
     def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
@@ -3561,13 +3561,13 @@ class PathFromNode(object):
 
     def type_filter(self, node_types: list[str]) -> PathFromNode:
         """
-        filter nodes by type
+        Filter nodes by node type.
 
         Arguments:
-            node_types (list[str]): the node types to keep
+            node_types (list[str]): the list of node types to keep.
 
         Returns:
-            PathFromNode: the filtered view
+            PathFromNode: the filtered view.
         """
 
     def valid_layers(self, names: list[str]) -> PathFromNode:

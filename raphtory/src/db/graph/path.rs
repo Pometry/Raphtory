@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
-            state::{Index, NodeOp},
+            state::{Index, LazyNodeState, NodeOp},
             view::{
                 history::History,
                 internal::{NodeList, OneHopFilter},
@@ -14,6 +14,7 @@ use crate::{
             create_node_type_filter,
             edges::{Edges, NestedEdges},
             node::NodeView,
+            nodes::Nodes,
             views::{
                 filter::node_type_filtered_graph::NodeTypeFilteredGraph, layer_graph::LayeredGraph,
                 window_graph::WindowedGraph,
@@ -383,7 +384,16 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
     }
 
     pub fn len(&self) -> usize {
-        self.nodes.len()
+        if self.is_filtered() {
+            self.iter_refs().count()
+        } else {
+            self.nodes.len()
+        }
+    }
+
+    pub fn is_filtered(&self) -> bool {
+        // FIXME: Previous implementation didn't check if self.graph.filtered(), but Nodes equivalent does
+        self.node_types_filter.is_some()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -424,7 +434,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T: NodeOp + 'graph> = BoxedLIter<'graph, T::Output>;
+    type ValueType<T: NodeOp + 'graph> = LazyNodeState<'graph, T, G, GH>;
     type PropType = NodeView<'graph, GH, GH>;
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
@@ -437,8 +447,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     where
         <F as NodeOp>::Output: 'graph,
     {
-        let storage = self.graph.core_graph().lock();
-        Box::new(self.iter_refs().map(move |node| op.apply(&storage, node)))
+        let nodes = Nodes::new_filtered(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            Some(self.nodes.clone()),
+            self.node_types_filter.clone(),
+        );
+        LazyNodeState::new(op, nodes)
     }
 
     fn map_edges<
@@ -536,7 +551,7 @@ mod test {
 
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
-        let n = Vec::from_iter(g.node(1).unwrap().neighbours().id());
+        let n = Vec::from_iter(g.node(1).unwrap().neighbours().id().iter_values());
         assert_eq!(n, [GID::U64(2)])
     }
 }
