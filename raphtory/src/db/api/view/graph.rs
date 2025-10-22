@@ -17,18 +17,15 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView,
-                filter::{
+                cached_view::CachedView, filter::{
                     model::{AsEdgeFilter, AsNodeFilter},
                     node_type_filtered_graph::NodeTypeFilteredGraph,
-                },
-                node_subgraph::NodeSubgraph,
-                valid_graph::ValidGraph,
+                }, node_subgraph::NodeSubgraph, valid_graph::ValidGraph
             },
         },
     },
     errors::GraphError,
-    prelude::*, serialise::GraphFolder,
+    prelude::*,
 };
 use ahash::HashSet;
 use chrono::{DateTime, Utc};
@@ -59,7 +56,7 @@ use raphtory_storage::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
-    path::Path,
+    path::{Path},
     sync::{atomic::Ordering, Arc},
 };
 use storage::Extension;
@@ -78,10 +75,15 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return a View of the nodes in the Graph
     fn nodes(&self) -> Nodes<'graph, Self, Self>;
 
-    /// Get a graph clone
+    /// Materializes the view into a new graph.
+    /// If a path is provided, it will be used to store the new graph
+    /// (assuming the storage feature is enabled).
+    ///
+    /// Arguments:
+    ///     path: Option<&Path>: An optional path used to store the new graph.
     ///
     /// Returns:
-    ///     Graph: Returns clone of the graph
+    ///     MaterializedGraph: Returns a new materialized graph.
     fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError>;
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
@@ -242,16 +244,6 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
 
-        // Mark the graph folder as occupied if a path is provided
-        let graph_dir = if let Some(path) = path {
-            let graph_folder: GraphFolder = path.into();
-
-            graph_folder.reserve()?;
-            Some(graph_folder.get_graph_path())
-        } else {
-            None
-        };
-
         // preserve all property mappings
         let mut node_meta = Meta::new_for_nodes();
         let mut edge_meta = Meta::new_for_edges();
@@ -262,7 +254,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
 
         let mut temporal_graph = TemporalGraph::new_with_meta(
-            graph_dir.map(|p| p.as_path().into()),
+            path.map(|p| p.into()),
             node_meta,
             edge_meta,
             storage.extension().clone(),
