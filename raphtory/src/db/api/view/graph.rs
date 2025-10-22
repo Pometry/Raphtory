@@ -28,7 +28,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::*,
+    prelude::*, serialise::GraphFolder,
 };
 use ahash::HashSet;
 use chrono::{DateTime, Utc};
@@ -68,7 +68,6 @@ use storage::Extension;
 /// information about a graph. The trait has associated types
 /// that are used to define the type of the nodes, edges
 /// and the corresponding iterators.
-///
 pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Edges<'graph, Self, Self>;
@@ -243,6 +242,16 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
 
+        // Mark the graph folder as occupied if a path is provided
+        let graph_dir = if let Some(path) = path {
+            let graph_folder: GraphFolder = path.into();
+
+            graph_folder.reserve()?;
+            Some(graph_folder.get_graph_path())
+        } else {
+            None
+        };
+
         // preserve all property mappings
         let mut node_meta = Meta::new_for_nodes();
         let mut edge_meta = Meta::new_for_edges();
@@ -252,15 +261,16 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
 
-        let mut g = TemporalGraph::new_with_meta(
-            path.map(|p| p.into()),
+        let mut temporal_graph = TemporalGraph::new_with_meta(
+            graph_dir.map(|p| p.as_path().into()),
             node_meta,
             edge_meta,
             storage.extension().clone(),
         )
         .unwrap();
+
         // Copy all graph properties
-        g.graph_meta = self.graph_meta().deep_clone().into();
+        temporal_graph.graph_meta = self.graph_meta().deep_clone().into();
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
@@ -271,7 +281,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 let layers = storage.edge_meta().layer_meta().keys();
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
                 for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
-                    let new_id = g.resolve_layer(Some(&name))?.inner();
+                    let new_id = temporal_graph.resolve_layer(Some(&name))?.inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
@@ -279,7 +289,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
                 let new_id =
-                    g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
+                    temporal_graph.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
                 layer_map[*l_id] = new_id.inner();
                 layer_map
             }
@@ -287,7 +297,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
                 let layers = storage.edge_meta().layer_meta().all_keys();
                 for id in ids {
-                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                    let new_id = temporal_graph.resolve_layer(Some(&layers[id]))?.inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
@@ -295,25 +305,25 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         };
 
         if let Some(earliest) = self.earliest_time() {
-            g.update_time(TimeIndexEntry::start(earliest));
+            temporal_graph.update_time(TimeIndexEntry::start(earliest));
         } else {
-            return Ok(self.new_base_graph(g.into()));
+            return Ok(self.new_base_graph(temporal_graph.into()));
         };
 
         if let Some(latest) = self.latest_time() {
-            g.update_time(TimeIndexEntry::end(latest));
+            temporal_graph.update_time(TimeIndexEntry::end(latest));
         } else {
-            return Ok(self.new_base_graph(g.into()));
+            return Ok(self.new_base_graph(temporal_graph.into()));
         };
 
         // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
-        g.storage().set_event_id(storage.read_event_id());
+        temporal_graph.storage().set_event_id(storage.read_event_id());
 
-        let g = GraphStorage::from(g);
+        let graph_storage = GraphStorage::from(temporal_graph);
 
         {
             // scope for the write lock
-            let mut new_storage = g.write_lock()?;
+            let mut new_storage = graph_storage.write_lock()?;
             new_storage.resize_chunks_to_num_nodes(self.count_nodes());
             for layer_id in &layer_map {
                 new_storage.nodes.ensure_layer(*layer_id);
@@ -331,7 +341,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     if let Some(node_pos) = shard.resolve_pos(new_id) {
                         let mut writer = shard.writer();
                         if let Some(node_type) = node.node_type() {
-                            let new_type_id = g
+                            let new_type_id = graph_storage
                                 .node_meta()
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
@@ -346,7 +356,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         } else {
                             writer.store_node_id(node_pos, 0, gid.as_ref(), 0);
                         }
-                        g.write_session()?.set_node(gid.as_ref(), new_id)?;
+                        graph_storage.write_session()?.set_node(gid.as_ref(), new_id)?;
 
                         for (t, row) in node.rows() {
                             writer.add_props(t, node_pos, 0, row, 0);
@@ -514,7 +524,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             })?;
         }
 
-        Ok(self.new_base_graph(g))
+        Ok(self.new_base_graph(graph_storage))
     }
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
