@@ -6,4 +6,4 @@ datasources:
     access: proxy
     url: http://tempo:3200
     isDefault: true
-    editable: false
+    # editable: false
