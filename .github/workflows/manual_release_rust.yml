@@ -10,6 +10,30 @@ on:
         description: 'If true will not publish to crates.io'
         type: boolean
         default: false
+      raphtory-api:
+        description: 'Publish raphtory-api'
+        type: boolean
+        default: true
+      pometry-storage:
+        description: 'Publish pometry-storage'
+        type: boolean
+        default: true
+      raphtory-core:
+        description: 'Publish raphtory-core'
+        type: boolean
+        default: true
+      raphtory-storage:
+        description: 'Publish raphtory-storage'
+        type: boolean
+        default: true
+      raphtory:
+        description: 'Publish raphtory'
+        type: boolean
+        default: true
+      raphtory-graphql:
+        description: 'Publish raphtory-graphql'
+        type: boolean
+        default: true
 
 jobs:
   call-release-rust-workflow:
@@ -18,4 +42,10 @@ jobs:
     with:
       base: ${{ inputs.base }}
       dry_run: ${{ inputs.dry_run == true }}
+      raphtory-api: ${{ inputs.raphtory-api == true }}
+      pometry-storage: ${{ inputs.pometry-storage == true }}
+      raphtory-core: ${{ inputs.raphtory-core == true }}
+      raphtory-storage: ${{ inputs.raphtory-storage == true }}
+      raphtory: ${{ inputs.raphtory  == true }}
+      raphtory-graphql: ${{ inputs.raphtory-graphql == true }}
     secrets: inherit

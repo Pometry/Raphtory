@@ -10,13 +10,29 @@ on:
         description: 'If true will not publish to crates.io'
         type: boolean
         required: true
+      raphtory-api:
+        type: boolean
+        default: true
+      pometry-storage:
+        type: boolean
+        default: true
+      raphtory-core:
+        type: boolean
+        default: true
+      raphtory-storage:
+        type: boolean
+        default: true
+      raphtory:
+        type: boolean
+        default: true
+      raphtory-graphql:
+        type: boolean
+        default: true
 
 jobs:
   release-rust:
     name: Release Rust package to crates.io
     runs-on: ubuntu-latest
-    env:
-      CRATES: "-p raphtory-api -p pometry-storage -p raphtory-core -p raphtory-storage -p raphtory -p raphtory-graphql"
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -46,8 +62,18 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+      - name: Build list of crates to publish
+        run: |
+          crates=""
+          for crate in raphtory-api pometry-storage raphtory-core raphtory-storage raphtory raphtory-graphql; do
+            if [ "${{ inputs[$crate] }}" = "true" ]; then
+              crates="$crates -p $crate"
+            fi
+          done
+          echo "CRATES_TO_PUBLISH=$crates" >> $GITHUB_ENV
+      - run: echo "${{ env.CRATES_TO_PUBLISH }}"
       - name: Dry run publish all crates
-        run: cargo publish ${{ env.CRATES }} --dry-run
+        run: cargo publish ${{ env.CRATES_TO_PUBLISH }} --dry-run
       - name: Publish all crates
         if: ${{ !inputs.dry_run }}
-        run: cargo publish ${{ env.CRATES }} --token ${{ secrets.CRATES_TOKEN }}
+        run: cargo publish ${{ env.CRATES_TO_PUBLISH }} --token ${{ secrets.CRATES_TOKEN }}
