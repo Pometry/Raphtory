@@ -63,15 +63,14 @@ mod io_tests {
                 LargeStringArray::from_iter_values(rows.iter().map(|(.., str_prop, _)| str_prop));
             let int_prop =
                 Int64Array::from_iter_values(rows.iter().map(|(.., int_prop)| *int_prop));
-            let batch = RecordBatch::try_from_iter([
+            RecordBatch::try_from_iter([
                 ("src", src.as_array_ref()),
                 ("dst", dst.as_array_ref()),
                 ("time", time.as_array_ref()),
                 ("str_prop", str_prop.as_array_ref()),
                 ("int_prop", int_prop.as_array_ref()),
             ])
-            .unwrap();
-            batch
+            .unwrap()
         }
 
         fn check_layers_from_df(input: Vec<RecordBatch>, num_threads: usize) {
@@ -117,7 +116,11 @@ mod io_tests {
             .unwrap();
             let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
 
-            assert_graph_equal(&expected, &actual);
+            for layer in expected.unique_layers() {
+                let actual_l = actual.layers(&layer).unwrap();
+                let expected_l = expected.layers(&layer).unwrap();
+                assert_graph_equal(&actual_l, &expected_l);
+            }
 
             let g = TemporalGraph::new(graph_dir.path()).unwrap();
 
@@ -126,7 +129,11 @@ mod io_tests {
             }
 
             let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
-            assert_graph_equal(&expected, &actual);
+            for layer in expected.unique_layers() {
+                let actual_l = actual.layers(&layer).unwrap();
+                let expected_l = expected.layers(&layer).unwrap();
+                assert_graph_equal(&actual_l, &expected_l);
+            }
         }
 
         #[test]
@@ -279,7 +286,6 @@ mod io_tests {
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
             }
             assert_eq!(g.unfiltered_num_edges(), distinct_edges);
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
