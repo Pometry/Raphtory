@@ -17,10 +17,13 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView, filter::{
+                cached_view::CachedView,
+                filter::{
                     model::{AsEdgeFilter, AsNodeFilter},
                     node_type_filtered_graph::NodeTypeFilteredGraph,
-                }, node_subgraph::NodeSubgraph, valid_graph::ValidGraph
+                },
+                node_subgraph::NodeSubgraph,
+                valid_graph::ValidGraph,
             },
         },
     },
@@ -56,7 +59,7 @@ use raphtory_storage::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
-    path::{Path},
+    path::Path,
     sync::{atomic::Ordering, Arc},
 };
 use storage::Extension;
@@ -280,8 +283,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             }
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-                let new_id =
-                    temporal_graph.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
+                let new_id = temporal_graph
+                    .resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
                 layer_map[*l_id] = new_id.inner();
                 layer_map
             }
@@ -309,7 +312,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         };
 
         // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
-        temporal_graph.storage().set_event_id(storage.read_event_id());
+        temporal_graph
+            .storage()
+            .set_event_id(storage.read_event_id());
 
         let graph_storage = GraphStorage::from(temporal_graph);
 
@@ -348,7 +353,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         } else {
                             writer.store_node_id(node_pos, 0, gid.as_ref(), 0);
                         }
-                        graph_storage.write_session()?.set_node(gid.as_ref(), new_id)?;
+                        graph_storage
+                            .write_session()?
+                            .set_node(gid.as_ref(), new_id)?;
 
                         for (t, row) in node.rows() {
                             writer.add_props(t, node_pos, 0, row, 0);
