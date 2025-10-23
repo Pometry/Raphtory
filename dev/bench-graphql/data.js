@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761211139632,
+  "lastUpdate": 1761218338799,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1889,6 +1889,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1237,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7aad14c75d0982e1a59460974a7faecd1f7daf2a",
+          "message": "release workflow cleanup (#2356)\n\n* simplify rust release workflow input\n\n* clean up all release workflows\n\n* fix descriptions for docker build cloud action",
+          "timestamp": "2025-10-23T12:45:25+02:00",
+          "tree_id": "4715f93ffff874a123c287f3ed2b12f2b5223894",
+          "url": "https://github.com/Pometry/Raphtory/commit/7aad14c75d0982e1a59460974a7faecd1f7daf2a"
+        },
+        "date": 1761218334964,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1296,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 179,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 168,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1086,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 925,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1314,
             "unit": "req/s"
           }
         ]
