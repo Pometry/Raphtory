@@ -5,8 +5,7 @@ pub mod vectors;
 use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
-use rand::{seq::*, Rng, SeedableRng};
-use rand_distr::Uniform;
+use rand::{seq::*, Rng, SeedableRng, distr::Uniform};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::utils::logging::global_info_logger;
 use std::{collections::HashSet};

@@ -1,7 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::{
-    distributions::{Alphanumeric, DistString},
-    thread_rng, Rng,
+    distr::{Alphanumeric, SampleString}, thread_rng, Rng
 };
 use raphtory::prelude::*;
 
