@@ -1,33 +1,41 @@
-name: _Release 2 - Publish Rust packages to crates.io
+name: Publish Rust crates to crates.io
 on:
-  workflow_call:
-    inputs:
+  workflow_dispatch:
+    inputs: &inputs
       base:
         description: 'Name of branch to run the release from'
         type: 'string'
-        required: true
+        default: 'master'
       dry_run:
         description: 'If true will not publish to crates.io'
         type: boolean
-        required: true
+        default: false
       raphtory-api:
+        description: 'Publish raphtory-api'
         type: boolean
         default: true
       pometry-storage:
+        description: 'Publish pometry-storage'
         type: boolean
         default: true
       raphtory-core:
+        description: 'Publish raphtory-core'
         type: boolean
         default: true
       raphtory-storage:
+        description: 'Publish raphtory-storage'
         type: boolean
         default: true
       raphtory:
+        description: 'Publish raphtory'
         type: boolean
         default: true
       raphtory-graphql:
+        description: 'Publish raphtory-graphql'
         type: boolean
         default: true
+  workflow_call:
+    inputs: *inputs
 
 jobs:
   release-rust:
