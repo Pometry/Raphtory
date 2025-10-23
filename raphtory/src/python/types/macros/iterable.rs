@@ -48,7 +48,7 @@ macro_rules! _py_float_max_min_methods {
 }
 
 // Internal macro for methods supported by all iterables (also used by nested iterables)
-macro_rules! _py_iterable_base_methods {
+macro_rules! py_iterable_base_methods {
     ($name:ident, $iter:ty) => {
         #[pymethods]
         impl $name {
@@ -90,7 +90,7 @@ macro_rules! _py_iterable_collect_method {
 /// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need `item: Into<pyitem>`)
 macro_rules! py_iterable_base {
     ($name:ident, $item:ty) => {
-        py_iterable!($name, $item, $item);
+        py_iterable_base!($name, $item, $item);
     };
     ($name:ident, $item:ty, $pyitem:ty) => {
         #[pyclass(frozen, module = "raphtory")]
@@ -140,7 +140,7 @@ macro_rules! py_iterable {
     };
     ($name:ident, $item:ty, $pyitem:ty) => {
         py_iterable_base!($name, $item, $pyitem);
-        _py_iterable_base_methods!($name, $crate::python::utils::PyGenericIterator);
+        py_iterable_base_methods!($name, $crate::python::utils::PyGenericIterator);
         _py_iterable_collect_method!($name, $pyitem);
     };
 }

@@ -3,7 +3,7 @@ use crate::{
         props::MetadataError,
         tprop::{IllegalPropType, TProp},
     },
-    storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+    storage::{locked_view::LockedView, timeindex::EventTime},
 };
 use raphtory_api::core::{
     entities::properties::{
@@ -92,7 +92,7 @@ impl GraphMeta {
 
     pub fn add_prop(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), IllegalPropType> {

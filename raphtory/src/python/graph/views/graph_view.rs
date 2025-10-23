@@ -40,9 +40,8 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use chrono::prelude::*;
 use pyo3::prelude::*;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::EventTime};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -203,40 +202,22 @@ impl PyGraphView {
 
     //******  Metrics APIs ******//
 
-    /// Timestamp of earliest activity in the graph
+    /// Time entry of the earliest activity in the graph
     ///
     /// Returns:
-    ///     Optional[int]: the timestamp of the earliest activity in the graph
+    ///     Optional[EventTime]: the time entry of the earliest activity in the graph
     #[getter]
-    pub fn earliest_time(&self) -> Option<i64> {
+    pub fn earliest_time(&self) -> Option<EventTime> {
         self.graph.earliest_time()
     }
 
-    /// DateTime of earliest activity in the graph
+    /// Time entry of the latest activity in the graph
     ///
     /// Returns:
-    ///     Optional[datetime]: the datetime of the earliest activity in the graph
+    ///     Optional[EventTime]: the time entry of the latest activity in the graph
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.graph.earliest_date_time()
-    }
-
-    /// Timestamp of latest activity in the graph
-    ///
-    /// Returns:
-    ///     Optional[int]: the timestamp of the latest activity in the graph
-    #[getter]
-    pub fn latest_time(&self) -> Option<i64> {
+    pub fn latest_time(&self) -> Option<EventTime> {
         self.graph.latest_time()
-    }
-
-    /// DateTime of latest activity in the graph
-    ///
-    /// Returns:
-    ///     Optional[datetime]: the datetime of the latest activity in the graph
-    #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.graph.latest_date_time()
     }
 
     /// Number of edges in the graph

@@ -22,7 +22,7 @@ use raphtory::{
         build_graph_from_edge_list, build_window, Update,
     },
 };
-use raphtory_api::core::entities::properties::prop::PropType;
+use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::collections::HashMap;
 
@@ -31,10 +31,10 @@ fn build_filtered_graph(
     filter: impl Fn(i64) -> bool,
 ) -> Graph {
     let g = Graph::new();
-    for (src, dst, t, str_prop, int_prop) in edges {
+    for (index, (src, dst, t, str_prop, int_prop)) in edges.iter().enumerate() {
         if filter(*int_prop) {
             g.add_edge(
-                *t,
+                (*t, index),
                 *src,
                 *dst,
                 [
@@ -419,11 +419,19 @@ fn test_persistent_graph_explode_semantics() {
         .filter_exploded_edges(PropertyFilterBuilder::new("test").ne(2i64))
         .unwrap();
     assert_eq!(
-        gf.edges().explode().earliest_time().collect_vec(),
+        gf.edges()
+            .explode()
+            .earliest_time()
+            .map(|t_opt| t_opt.map(|t| t.t()))
+            .collect_vec(),
         [Some(0i64), Some(5i64)]
     );
     assert_eq!(
-        gf.edges().explode().latest_time().collect_vec(),
+        gf.edges()
+            .explode()
+            .latest_time()
+            .map(|t_opt| t_opt.map(|t| t.t()))
+            .collect_vec(),
         [Some(2i64), Some(10i64)]
     );
 }

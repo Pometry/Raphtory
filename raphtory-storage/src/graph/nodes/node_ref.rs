@@ -10,7 +10,7 @@ use raphtory_api::{
             properties::{prop::Prop, tprop::TPropOps},
             GidRef, LayerIds, VID,
         },
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
         Direction,
     },
     iter::IntoDynBoxed,
@@ -29,7 +29,7 @@ pub enum NodeStorageRef<'a> {
 }
 
 impl<'a> NodeStorageRef<'a> {
-    pub fn temp_prop_rows(self) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> + 'a {
+    pub fn temp_prop_rows(self) -> impl Iterator<Item = (EventTime, Row<'a>)> + 'a {
         match self {
             NodeStorageRef::Mem(node_entry) => node_entry
                 .into_rows()
@@ -42,8 +42,8 @@ impl<'a> NodeStorageRef<'a> {
 
     pub fn temp_prop_rows_window(
         self,
-        window: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> + 'a {
+        window: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, Row<'a>)> + 'a {
         match self {
             NodeStorageRef::Mem(node_entry) => node_entry
                 .into_rows_window(window)
@@ -54,7 +54,7 @@ impl<'a> NodeStorageRef<'a> {
         }
     }
 
-    pub fn last_before_row(self, t: TimeIndexEntry) -> Vec<(usize, Prop)> {
+    pub fn last_before_row(self, t: EventTime) -> Vec<(usize, Prop)> {
         match self {
             NodeStorageRef::Mem(node_entry) => node_entry.last_before_row(t),
             #[cfg(feature = "storage")]

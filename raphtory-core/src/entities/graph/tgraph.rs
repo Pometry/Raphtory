@@ -12,7 +12,7 @@ use crate::{
     },
     storage::{
         raw_edges::EdgeWGuard,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, EventTime},
         NodeEntry, PairEntryMut,
     },
 };
@@ -237,7 +237,7 @@ impl TemporalGraph {
     }
 
     #[inline]
-    pub fn update_time(&self, time: TimeIndexEntry) {
+    pub fn update_time(&self, time: EventTime) {
         let t = time.t();
         self.earliest_time.update(t);
         self.latest_time.update(t);
@@ -247,7 +247,7 @@ impl TemporalGraph {
         &self,
         node_pair: &mut PairEntryMut,
         edge_id: EID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
         is_deletion: bool,
     ) {
@@ -270,7 +270,7 @@ impl TemporalGraph {
     pub fn link_edge(
         &self,
         eid: EID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
         is_deletion: bool,
     ) -> EdgeWGuard<'_> {
@@ -289,7 +289,7 @@ impl TemporalGraph {
         &self,
         src_id: VID,
         dst_id: VID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
         is_deletion: bool,
     ) -> MaybeNew<EdgeWGuard<'_>> {

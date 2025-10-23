@@ -151,7 +151,11 @@ export function randomEdgePage(input: SetupData) {
                     explodeLayers: {
                         count: true,
                     },
-                    history: true,
+                    history: {
+                        list: {
+                            timestamp: true,
+                        },
+                    },
                     src: { name: true },
                     dst: { name: true },
                 },
@@ -231,7 +235,7 @@ export function readAndWriteNodeProperties(input: SetupData) {
                   },
                   at: {
                     __args: {
-                      time,
+                      time: { simpleTime: time },
                     },
                     properties: {
                       get: {
