@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
-use rand::prelude::*;
+use rand::{prelude::*, thread_rng};
 use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
     db::graph::graph::assert_graph_equal, prelude::*, test_storage, test_utils::test_graph,

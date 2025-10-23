@@ -15,7 +15,7 @@ use fake::{
     },
     Fake,
 };
-use rand::{prelude::SliceRandom, thread_rng, Rng};
+use rand::{prelude::SliceRandom, seq::IndexedRandom, thread_rng, Rng};
 use raphtory::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt::Debug};

@@ -434,9 +434,8 @@ where
 mod test {
     use crate::db::api::state::node_state_ord_ops::{par_top_k, top_k};
 
-    use rand; // 0.8.5
-
-    use rand::distributions::{Distribution, Uniform};
+    use rand;
+    use rand_distr::{Distribution, Uniform};
     use tokio::time::Instant;
 
     fn gen_x_ints(
@@ -456,7 +455,7 @@ mod test {
     fn test_top_k() {
         let values = gen_x_ints(
             100_000_000,
-            Uniform::new(0, 10000000),
+            Uniform::new(0, 10000000).unwrap(),
             &mut rand::thread_rng(),
         ); // [4i32, 2, 3, 100, 4, 2];
         let timer = Instant::now();

@@ -5,22 +5,23 @@ pub mod vectors;
 use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
-use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
+use rand::{seq::*, Rng, SeedableRng};
+use rand_distr::Uniform;
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::utils::logging::global_info_logger;
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet};
 use tempfile::TempDir;
 use tracing::info;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
     let rng = rand::thread_rng();
-    let range = Uniform::new(u64::MIN, u64::MAX);
+    let range = Uniform::new(u64::MIN, u64::MAX).unwrap();
     Box::new(rng.sample_iter(range))
 }
 
 fn make_time_gen() -> Box<dyn Iterator<Item = i64>> {
     let rng = rand::thread_rng();
-    let range = Uniform::new(i64::MIN, i64::MAX);
+    let range = Uniform::new(i64::MIN, i64::MAX).unwrap();
     Box::new(rng.sample_iter(range))
 }
 
