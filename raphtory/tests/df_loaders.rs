@@ -1071,20 +1071,20 @@ mod parquet_tests {
 
     #[test]
     fn write_nodes_any_props_to_parquet() {
-        proptest!(|(nodes in build_nodes_dyn(10, 10))| {
+        proptest!(|(nodes in build_nodes_dyn(10, 10, 10))| {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
     #[test]
     fn write_edges_any_props_to_parquet() {
-        proptest!(|(edges in build_edge_list_dyn(10, 10, true))| {
+        proptest!(|(edges in build_edge_list_dyn(10, 10, 10, 10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
     }
 
     #[test]
     fn write_graph_to_parquet() {
-        proptest!(|(edges in build_graph_strat(10, 10, true))| {
+        proptest!(|(edges in build_graph_strat(10, 10, 10, 10, true))| {
             build_and_check_parquet_encoding(edges);
         })
     }
@@ -1162,7 +1162,7 @@ mod parquet_tests {
 
     #[test]
     fn test_parquet_bytes_proptest() {
-        proptest!(|(edges in build_graph_strat(30, 30, true))| {
+        proptest!(|(edges in build_graph_strat(30, 30, 10, 10, true))| {
             let g = Graph::from(build_graph(&edges));
             let bytes = g.encode_parquet_to_bytes().unwrap();
             let g2 = Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>).unwrap();
