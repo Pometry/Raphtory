@@ -120,8 +120,8 @@ def test_search():
     assert edge_names_returned == [("node1", "node2")]
     # TODO: same for edges ?
 
-    [(doc1, score1)] = vg.entities_by_similarity("node1", 1).get_documents_with_scores()
-    assert floats_are_equals(score1, 1.0)
+    [(doc1, score1)] = vg.entities_by_similarity("node1", 1).get_documents_with_distances()
+    assert floats_are_equals(score1, 0.0)
     assert (doc1.entity.name, doc1.content) == ("node1", "node1")
 
     # chained search
@@ -212,16 +212,19 @@ def test_filtering_by_entity_type():
     assert contents == ["edge1", "edge2", "edge3"]
 
 
-def constant_embedding(texts):
-    return [[1.0, 0.0, 0.0] for text in texts]
 
+@embedding_server(address="0.0.0.0:7341")
+def constant_embedding(_text):
+    return [1.0, 0.0, 0.0]
 
 def test_default_template():
     g = Graph()
     g.add_node(1, "node1")
     g.add_edge(2, "node1", "node1")
 
-    vg = g.vectorise(constant_embedding)
+    constant_embedding.start()
+
+    vg = g.vectorise(OpenAIEmbeddings(api_base="http://localhost:7341/v1"))
 
     node_docs = vg.nodes_by_similarity(query="whatever", limit=10).get_documents()
     assert len(node_docs) == 1
@@ -233,3 +236,5 @@ def test_default_template():
         edge_docs[0].content
         == "There is an edge from node1 to node1 with events at:\n- Jan 1 1970 00:00\n"
     )
+
+    constant_embedding.stop()

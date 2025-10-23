@@ -13,7 +13,8 @@ use lancedb::{
 };
 use lancedb_arrow_array::{
     types::{Float32Type, UInt64Type},
-    FixedSizeListArray, PrimitiveArray, RecordBatch, RecordBatchIterator, UInt64Array,
+    ArrayAccessor, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
+    RecordBatchIterator, UInt64Array,
 };
 
 use crate::{
@@ -110,11 +111,19 @@ impl VectorCollection for LanceDbCollection {
     }
 
     async fn get_id(&self, id: u64) -> GraphResult<Option<crate::vectors::Embedding>> {
-        dbg!(id);
         let query = self.table.query().only_if(format!("id = {id}"));
         let result = query.execute().await.unwrap();
         let batches: Vec<_> = result.try_collect().await.unwrap();
-        todo!()
+        if let Some(batch) = batches.get(0) {
+            let col: &ArrayRef = batch.column_by_name("vector").unwrap();
+            let array_list = col.as_any().downcast_ref::<FixedSizeListArray>();
+            let array = array_list.unwrap().value(0);
+            let downcasted = array.as_any().downcast_ref::<PrimitiveArray<Float32Type>>();
+            let vector = downcasted.unwrap().values().iter().copied().collect();
+            Ok(Some(vector))
+        } else {
+            Ok(None)
+        }
     }
 
     // TODO: make this return everything, the embedding itself, so that we don't

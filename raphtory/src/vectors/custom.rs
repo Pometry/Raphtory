@@ -79,26 +79,19 @@ pub async fn serve_custom_embedding(
     function: impl EmbeddingFunction,
 ) -> EmbeddingServer {
     let state = Arc::new(function);
-    dbg!();
     let app = Router::new()
         .route("/v1/embeddings", post(embeddings))
         .with_state(state);
-    dbg!();
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
-    dbg!();
     let (sender, mut receiver) = mpsc::channel(1);
-    dbg!();
     let execution = tokio::spawn(async {
-        dbg!();
         axum::serve(listener, app)
             .with_graceful_shutdown(async move {
                 receiver.recv().await;
             })
             .await
             .unwrap();
-        dbg!();
     });
-    dbg!();
     EmbeddingServer {
         execution,
         stop_signal: sender,
