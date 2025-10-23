@@ -1090,7 +1090,9 @@ impl PyPathFromNode {
     ///
     /// Returns:
     ///     EdgeHistoryCountView: a view of the edge history counts.
-    fn edge_history_count(&self) -> LazyNodeState<'static, ops::EdgeHistoryCount<DynamicGraph>, DynamicGraph> {
+    fn edge_history_count(
+        &self,
+    ) -> LazyNodeState<'static, ops::EdgeHistoryCount<DynamicGraph>, DynamicGraph> {
         self.path.edge_history_count()
     }
 
@@ -1099,7 +1101,9 @@ impl PyPathFromNode {
     /// Returns:
     ///     EarliestTimeView: a view of the earliest active times.
     #[getter]
-    fn earliest_time(&self) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+    fn earliest_time(
+        &self,
+    ) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
         self.path.earliest_time()
     }
 

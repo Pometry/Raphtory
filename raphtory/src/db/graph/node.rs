@@ -28,7 +28,7 @@ use crate::{
                 DynamicGraph, ExplodedEdgePropertyFilterOps, IntoDynamic,
             },
         },
-        graph::edges::Edges,
+        graph::{edges::Edges, nodes::Nodes},
     },
     errors::{into_graph_err, GraphError},
 };
@@ -384,7 +384,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         T: NodeOp + 'graph,
         T::Output: 'graph;
     type PropType = Self;
-    type PathType = PathFromNode<'graph, G, G>;
+    type PathType = Nodes<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
     fn graph(&self) -> &Self::Graph {
@@ -427,7 +427,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     ) -> Self::PathType {
         // FIXME: Temporarily collect VIDs, will need to update
         let nodes: Index<_> = op(self.graph.core_graph(), &self.graph, self.node).collect();
-        PathFromNode::new(self.base_graph.clone(), nodes)
+        Nodes::new_filtered(
+            self.base_graph.clone(),
+            self.base_graph.clone(),
+            Some(nodes),
+            None,
+        )
     }
 }
 

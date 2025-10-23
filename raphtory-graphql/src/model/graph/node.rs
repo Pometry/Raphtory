@@ -366,18 +366,18 @@ impl GqlNode {
     }
 
     /// Returns neighbouring nodes.
-    async fn neighbours<'a>(&self) -> GqlPathFromNode {
-        GqlPathFromNode::new(self.vv.neighbours())
+    async fn neighbours<'a>(&self) -> GqlNodes {
+        GqlNodes::new(self.vv.neighbours())
     }
 
     /// Returns the number of neighbours that have at least one in-going edge to this node.
-    async fn in_neighbours<'a>(&self) -> GqlPathFromNode {
-        GqlPathFromNode::new(self.vv.in_neighbours())
+    async fn in_neighbours<'a>(&self) -> GqlNodes {
+        GqlNodes::new(self.vv.in_neighbours())
     }
 
     /// Returns the number of neighbours that have at least one out-going edge from this node.
-    async fn out_neighbours(&self) -> GqlPathFromNode {
-        GqlPathFromNode::new(self.vv.out_neighbours())
+    async fn out_neighbours(&self) -> GqlNodes {
+        GqlNodes::new(self.vv.out_neighbours())
     }
 
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
