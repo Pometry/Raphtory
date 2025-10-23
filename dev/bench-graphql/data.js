@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761218338799,
+  "lastUpdate": 1761236559901,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1943,6 +1943,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1314,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "675dfd2ad479c8c513c76b358243b929ba9e8b00",
+          "message": "grafana example (#2349)\n\n* some changes to the otlp config\n\n* add example for grafana\n\n* add template variable for datasource\n\n* add template variable for service name\n\n* set tempo to allow week long queries\n\n* add duration panels and units\n\n* stick to default json format\n\n* change panel layout\n\n* point raphtory to the latest version\n\n* add a check on otlp_agent_host\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-23T16:49:20+01:00",
+          "tree_id": "8654537aadff47798318407e7bc1fd2328fc5bbe",
+          "url": "https://github.com/Pometry/Raphtory/commit/675dfd2ad479c8c513c76b358243b929ba9e8b00"
+        },
+        "date": 1761236556808,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1314,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 195,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 184,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1011,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 877,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1266,
             "unit": "req/s"
           }
         ]
