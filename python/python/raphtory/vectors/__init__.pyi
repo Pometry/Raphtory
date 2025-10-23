@@ -26,7 +26,7 @@ from raphtory.iterables import *
 __all__ = ["VectorisedGraph", "Document", "Embedding", "VectorSelection"]
 
 class VectorisedGraph(object):
-    """VectorisedGraph object that contains the embedded documents that correspond to graph entities."""
+    """VectorisedGraph object that contains embedded documents that correspond to graph entities."""
 
     def edges_by_similarity(
         self,
@@ -102,7 +102,7 @@ class Document(object):
     @property
     def content(self) -> str:
         """
-        the document content
+        The document content
 
         Returns:
             str:
