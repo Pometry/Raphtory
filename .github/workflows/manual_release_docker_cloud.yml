@@ -3,15 +3,16 @@ on:
   workflow_dispatch:
     inputs:
       base:
-        description: 'github ref to build image from'
-        type: 'string'
+        description: Branch/tag/commit to publish from
+        type: string
+        default: master
       tag:
-        description: 'tag for the docker image'
+        description: Tag for the docker image
         type: string
         required: true
       python:
         type: boolean
-        description: Wether to build the python version of the image
+        description: If selected will build the python version of the image
         default: false
 
 jobs:
