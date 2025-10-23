@@ -28,7 +28,6 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
           "color": {
             "mode": "palette-classic"
           },
@@ -79,7 +78,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
@@ -125,7 +125,6 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
           "color": {
             "mode": "palette-classic"
           },
@@ -176,7 +175,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
@@ -222,7 +222,6 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "req/s",
           "color": {
             "mode": "palette-classic"
           },
@@ -283,7 +282,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "req/s"
         },
         "overrides": []
       },
@@ -363,5 +363,5 @@
   "timezone": "browser",
   "title": "Raphtory Basics",
   "uid": "raphtory-basics",
-  "version": 1
+  "version": 9
 }
