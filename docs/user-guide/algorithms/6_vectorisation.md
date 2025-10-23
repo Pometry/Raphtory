@@ -18,7 +18,20 @@ v = g.vectorise(get_embeddings, nodes=node_document, edges=edge_document, verbos
 
 When you call [Vectorise()][raphtory.GraphView.vectorise] Raphtory automatically creates documents for each node and edge entity in your graph, optionally you can create documents explicitly as properties and pass the property names to `vectorise()`. This is useful when you already have a deep understanding of your graphs semantics. Additionally, you can cache the embedded graph to disk to avoid having to recompute the vectors when nothing has changed.
 
-## Retrive documents
+## Retrieve documents
+
+You can retrieve relevant information from the [VectorisedGraph][raphtory.vectors.VectorisedGraph] by making selections.
+
+A [VectorSelection][raphtory.vectors.VectorSelection] is a general object for holding embedded documents, you can create an empty selection or perform a similarity query against a `VectorisedGraph` to populate a new selection.
+
+You can add to a selection by...
+
+Once you have a selection containing the information you want you can:
+
+- Get the associated graph entities using [nodes()][raphtory.vectors.VectorSelection.nodes] or [edges()][raphtory.vectors.VectorSelection.edges].
+- Get the associated documents using [get_documents()][raphtory.vectors.VectorSelection.get_documents] or [get_documents_with_scores()][raphtory.vectors.VectorSelection.get_documents_with_scores].
+
+Each [Document][raphtory.vectors.Document] corresponds to unique entity in the graph, the contents of the asossiated document and it's vector representation. 
 
 
 ## Example
