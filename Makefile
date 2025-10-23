@@ -4,6 +4,9 @@ RUST_READTHEDOCS_DOCS_TARGET=docs/source/_rustdoc
 # General #
 ###########
 
+print-version: # this is used by the CI, don't change
+	@cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version'
+
 build-all: rust-build
 	cd python && maturin develop
 
@@ -57,7 +60,7 @@ rust-fmt:
 rust-build:
 	cargo build -q
 
-rust-build-docs: 
+rust-build-docs:
 	cargo doc --no-deps -p raphtory -q
 
 run-graphql:

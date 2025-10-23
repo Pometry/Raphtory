@@ -1,0 +1,38 @@
+server:
+  http_listen_port: 3200
+  http_listen_address: 0.0.0.0
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+metrics_generator:
+  processor:
+    local_blocks:
+      filter_server_spans: false
+      flush_to_storage: true
+  traces_storage:
+    path: /tmp/tempo/metrics/traces_wal
+  storage:
+    path: /tmp/tempo/metrics/wal
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/traces
+
+query_frontend:
+  metrics:
+    max_duration: 168h  # 7 days
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors:
+        - local-blocks

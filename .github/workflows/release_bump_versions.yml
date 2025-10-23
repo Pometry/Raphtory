@@ -1,4 +1,4 @@
-name: (Manual Release) - Bumps all packages + PR
+name: ⬆️ Bumps all packages + PR
 on:
   workflow_dispatch:
     inputs:

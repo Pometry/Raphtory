@@ -1,15 +1,20 @@
-name: _Release 3 - Publish python to pypi
+name: 🚀🐍 Publish python package to PyPi
 on:
-  workflow_call:
-    inputs:
+  workflow_dispatch:
+    inputs: &inputs
       base:
-        description: 'Name of branch to open PR against'
-        type: 'string'
-        required: true
+        description: Branch/tag/commit to publish from
+        type: string
+        default: master
       dry_run:
-        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. However it will still make a PR and a branch to show you what it changed'
+        description: If selected will not publish to PyPi
         type: boolean
-        required: true
+        default: false
+  workflow_call:
+    inputs: *inputs
+
+permissions:
+  contents: read
 
 jobs:
   python-linux:
@@ -18,12 +23,6 @@ jobs:
       matrix:
         target: [ x86_64, aarch64 ]
     steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
-        with:
-          permission: "write"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -128,12 +127,6 @@ jobs:
       matrix:
         target: [ x64 ]
     steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
-        with:
-          permission: "write"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -168,12 +161,6 @@ jobs:
       matrix:
         target: [ x86_64, aarch64 ]
     steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
-        with:
-          permission: "write"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -217,12 +204,6 @@ jobs:
     name: Publish to PyPi
     runs-on: ubuntu-latest
     steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
-        with:
-          permission: "write"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/download-artifact@v4
         with:
           pattern: pyartifacts-*
@@ -240,7 +221,7 @@ jobs:
           verbose: true
           skip_existing: true
           verify_metadata: false
-      - name: "Deleting artifacts"
+      - name: Deleting artifacts
         uses: geekyeggo/delete-artifact@v2
         with:
           failOnError: false
