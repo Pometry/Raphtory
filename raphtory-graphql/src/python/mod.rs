@@ -10,7 +10,7 @@ use pyo3::{
     types::{PyDict, PyList, PyNone},
     IntoPyObjectExt,
 };
-use raphtory::db::api::view::MaterializedGraph;
+use raphtory::{db::api::view::MaterializedGraph, prelude::GraphViewOps};
 use raphtory_api::python::error::adapt_err_value;
 use serde_json::{Map, Number, Value as JsonValue};
 

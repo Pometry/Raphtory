@@ -1,12 +1,12 @@
 use std::path::Path;
 
-use super::graph_folder::GraphFolder;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::{mutation::AdditionOps, view::StaticGraphViewOps},
     errors::GraphError,
     serialise::parquet::{ParquetDecoder, ParquetEncoder},
+    serialise::GraphFolder,
 };
 use std::{fs, fs::File};
 use tempfile;
