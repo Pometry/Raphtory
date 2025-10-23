@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761149522731,
+  "lastUpdate": 1761211139632,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1835,6 +1835,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1111,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a6f45782d1bd9374b213d2e75c95570bf08cd2aa",
+          "message": "allow partial rust releases (#2354)\n\n* allow partial rust releases\n\n* chore: apply tidy-public auto-fixes\n\n* make rust release both workflow call and workflow dispatch\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-23T10:45:28+02:00",
+          "tree_id": "87d8081c659e5e0552de33cc271d6c55ba791618",
+          "url": "https://github.com/Pometry/Raphtory/commit/a6f45782d1bd9374b213d2e75c95570bf08cd2aa"
+        },
+        "date": 1761211136019,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1279,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 192,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 158,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1073,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 885,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1237,
             "unit": "req/s"
           }
         ]
