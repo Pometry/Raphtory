@@ -113,13 +113,10 @@ pub fn edges_strat_with_layers(
         let num_edges = 0..(num_nodes * num_nodes);
         let srcs = (0usize..num_nodes).prop_map(VID);
         let dsts = (0usize..num_nodes).prop_map(VID);
-        let layer_ids = (1usize..MAX_LAYERS).prop_map(|i| Some(i as usize));
+        let layer_ids = (1usize..MAX_LAYERS).prop_map(Some);
 
         num_edges.prop_flat_map(move |num_edges| {
-            collection::vec(
-                (srcs.clone(), dsts.clone(), layer_ids.clone()),
-                num_edges as usize,
-            )
+            collection::vec((srcs.clone(), dsts.clone(), layer_ids.clone()), num_edges)
         })
     })
 }
