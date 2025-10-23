@@ -1,64 +1,36 @@
-name: Publish Rust crates to crates.io
+name: 🚀🦀 Publish Rust crates to crates.io
 on:
   workflow_dispatch:
     inputs: &inputs
       base:
-        description: 'Name of branch to run the release from'
-        type: 'string'
-        default: 'master'
+        description: Branch/tag/commit to publish from
+        type: string
+        default: master
       dry_run:
-        description: 'If true will not publish to crates.io'
+        description: If selected will not publish to crates.io
         type: boolean
         default: false
-      raphtory-api:
-        description: 'Publish raphtory-api'
-        type: boolean
-        default: true
-      pometry-storage:
-        description: 'Publish pometry-storage'
-        type: boolean
-        default: true
-      raphtory-core:
-        description: 'Publish raphtory-core'
-        type: boolean
-        default: true
-      raphtory-storage:
-        description: 'Publish raphtory-storage'
-        type: boolean
-        default: true
-      raphtory:
-        description: 'Publish raphtory'
-        type: boolean
-        default: true
-      raphtory-graphql:
-        description: 'Publish raphtory-graphql'
-        type: boolean
-        default: true
+      crates:
+        description: crate arguments to pass to cargo publish, i.e. '-p raphtory -p raphtory-graphql' (all by default)
+        type: string
+        default: -p raphtory-api -p pometry-storage -p raphtory-core -p raphtory-storage -p raphtory -p raphtory-graphql
   workflow_call:
     inputs: *inputs
+
+permissions:
+  contents: read
 
 jobs:
   release-rust:
     name: Release Rust package to crates.io
     runs-on: ubuntu-latest
     steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
+      - name: Check if user has write access
+        uses: lannonbr/repo-permission-check-action@2.0.0
         with:
-          permission: "write"
+          permission: write
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
       - name: Install protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -70,18 +42,8 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - name: Build list of crates to publish
-        run: |
-          crates=""
-          for crate in raphtory-api pometry-storage raphtory-core raphtory-storage raphtory raphtory-graphql; do
-            if [ "${{ inputs[$crate] }}" = "true" ]; then
-              crates="$crates -p $crate"
-            fi
-          done
-          echo "CRATES_TO_PUBLISH=$crates" >> $GITHUB_ENV
-      - run: echo "${{ env.CRATES_TO_PUBLISH }}"
-      - name: Dry run publish all crates
-        run: cargo publish ${{ env.CRATES_TO_PUBLISH }} --dry-run
-      - name: Publish all crates
+      - name: Dry run publish
+        run: cargo publish ${{ inputs.crates }} --dry-run
+      - name: Publish crates
         if: ${{ !inputs.dry_run }}
-        run: cargo publish ${{ env.CRATES_TO_PUBLISH }} --token ${{ secrets.CRATES_TOKEN }}
+        run: cargo publish ${{ inputs.crates }} --token ${{ secrets.CRATES_TOKEN }}
