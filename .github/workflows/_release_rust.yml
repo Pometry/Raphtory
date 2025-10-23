@@ -1,129 +1,49 @@
-name: _Release 2 - Publish Rust package to crates.io
+name: 🚀🦀 Publish Rust crates to crates.io
 on:
-  workflow_call:
-    inputs:
+  workflow_dispatch:
+    inputs: &inputs
       base:
-        description: 'Name of branch to open PR against'
-        type: 'string'
-        required: true
+        description: Branch/tag/commit to publish from
+        type: string
+        default: master
       dry_run:
-        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io.
-        However it will still make a PR and a branch to show you what it changed'
+        description: If selected will not publish to crates.io
         type: boolean
-        required: true
+        default: false
+      crates:
+        description: crate arguments to pass to cargo publish, i.e. '-p raphtory -p raphtory-graphql' (all by default)
+        type: string
+        default: -p raphtory-api -p pometry-storage -p raphtory-core -p raphtory-storage -p raphtory -p raphtory-graphql
+  workflow_call:
+    inputs: *inputs
+
+permissions:
+  contents: read
 
 jobs:
   release-rust:
     name: Release Rust package to crates.io
-    runs-on: '${{ matrix.os }}'
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
+      - name: Check if user has write access
+        uses: lannonbr/repo-permission-check-action@2.0.0
         with:
-          permission: "write"
+          permission: write
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-      - name: Install Protoc
+      - name: Install protoc
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@v3
-      - run: |
-          git config --global user.email "ben.steer@pometry.com"
-          git config --global user.name "Pometry-Team"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base }}
       - name: Setup rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - name: "Install cargo release"
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-release --force
-      - name: "Publish raphtory-api to crates.io"
+      - name: Dry run publish
+        run: cargo publish ${{ inputs.crates }} --dry-run
+      - name: Publish crates
         if: ${{ !inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-api --allow-dirty
-      - name: "Publish pometry-storage to crates.io"
-        if: ${{ !inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage --allow-dirty
-      - name: "Publish raphtory-core to crates.io"
-        if: ${{ !inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-core --allow-dirty
-      - name: "Publish raphtory-storage to crates.io"
-        if: ${{ !inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-storage --allow-dirty
-      - name: "Publish raphtory to crates.io"
-        if: ${{ !inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory --allow-dirty
-      - name: "Publish raphtory-graphql to crates.io"
-        if: ${{ !inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-graphql --allow-dirty
-      - name: "Publish raphtory-api to crates.io (DRY RUN)"
-        if: ${{ inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-api --allow-dirty --dry-run
-      - name: "Publish pometry-storage to crates.io (DRY RUN)"
-        if: ${{ inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage --allow-dirty --dry-run
-      - name: "Publish raphtory-core to crates.io (DRY RUN)"
-        if: ${{ inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-core --allow-dirty --dry-run
-      - name: "Publish raphtory-storage to crates.io (DRY RUN)"
-        if: ${{ inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-storage --allow-dirty --dry-run
-      - name: "Publish raphtory to crates.io (DRY RUN)"
-        if: ${{ inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory --allow-dirty --dry-run
-      - name: "Publish raphtory-graphql to crates.io (DRY RUN)"
-        if: ${{ inputs.dry_run }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-graphql --allow-dirty --dry-run
+        run: cargo publish ${{ inputs.crates }} --token ${{ secrets.CRATES_TOKEN }}
