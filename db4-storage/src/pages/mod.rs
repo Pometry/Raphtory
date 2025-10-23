@@ -50,8 +50,8 @@ pub mod test_utils;
 pub struct GraphStore<NS, ES, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
+    meta: Arc<MetaStorageInner<MS, EXT>>,
     graph_dir: Option<PathBuf>,
-    meta: Arc<MetaStorageInner<MS<EXT>, EXT>>,
     event_id: AtomicUsize,
     _ext: EXT,
 }
@@ -76,6 +76,7 @@ impl<
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, EXT> {
         let nodes = self.nodes.locked().into();
         let edges = self.edges.locked().into();
+
         ReadLockedGraphStore {
             nodes,
             edges,
@@ -117,6 +118,7 @@ impl<
     pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
+        let meta_path = graph_dir.as_ref().join("meta");
 
         let ext = read_graph_config::<EXT>(graph_dir.as_ref())?;
 
@@ -127,15 +129,19 @@ impl<
         let nodes = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
 
         let node_meta = nodes.prop_meta();
-        for tpe in ext.node_types().iter() {
-            node_meta.get_or_create_node_type_id(tpe);
+        for node_type in ext.node_types().iter() {
+            node_meta.get_or_create_node_type_id(node_type);
         }
+
+        // Load graph temporal properties and metadata
+        let meta = Arc::new(MetaStorageInner::load(meta_path, ext.clone())?);
 
         let t_len = edges.t_len();
 
         Ok(Self {
             nodes,
             edges,
+            meta,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
@@ -150,6 +156,7 @@ impl<
     ) -> Self {
         let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
         let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
+        let meta_path = graph_dir.map(|graph_dir| graph_dir.join("meta"));
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
@@ -165,6 +172,7 @@ impl<
             edge_meta,
             ext.clone(),
         ));
+        let meta = Arc::new(MetaStorageInner::new(meta_path, ext.clone()));
 
         if let Some(graph_dir) = graph_dir {
             write_graph_config(graph_dir, &ext).expect("Unrecoverable! Failed to write graph meta");
@@ -173,6 +181,7 @@ impl<
         Self {
             nodes,
             edges,
+            meta,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,
