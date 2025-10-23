@@ -42,7 +42,7 @@ pub mod wal;
 pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
-pub type MS<P> = MetaSegmentView<P>;
+pub type MS = MetaSegmentView;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
 
 pub type WalImpl = NoWal;
