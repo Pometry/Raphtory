@@ -1,6 +1,9 @@
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
-use std::{ops::Deref, pin::Pin};
+use std::{
+    hash::{Hash, Hasher},
+    ops::Deref,
+    pin::Pin,
+    sync::Arc,
+};
 
 use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},

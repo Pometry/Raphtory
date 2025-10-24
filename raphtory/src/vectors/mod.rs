@@ -37,14 +37,14 @@ pub struct Document<G: StaticGraphViewOps> {
 #[cfg(test)]
 mod vector_tests {
     use super::embeddings::EmbeddingResult;
-    use crate::vectors::custom::serve_custom_embedding;
-    use crate::vectors::embeddings::EmbeddingModel;
-    use crate::vectors::storage::OpenAIEmbeddings;
-    use crate::vectors::template::DocumentTemplate;
     use crate::{
         prelude::*,
         vectors::{
             cache::{CachedEmbeddingModel, VectorCache},
+            custom::serve_custom_embedding,
+            embeddings::EmbeddingModel,
+            storage::OpenAIEmbeddings,
+            template::DocumentTemplate,
             vectorisable::Vectorisable,
             Embedding,
         },
