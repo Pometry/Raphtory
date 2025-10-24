@@ -8,7 +8,7 @@ use criterion::{
 use rand::{distr::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::utils::logging::global_info_logger;
-use std::{collections::HashSet};
+use std::collections::HashSet;
 use tempfile::TempDir;
 use tracing::info;
 

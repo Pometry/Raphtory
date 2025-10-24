@@ -434,7 +434,10 @@ where
 mod test {
     use crate::db::api::state::node_state_ord_ops::{par_top_k, top_k};
 
-    use rand::{distr::{Distribution, Uniform}, Rng};
+    use rand::{
+        distr::{Distribution, Uniform},
+        Rng,
+    };
     use tokio::time::Instant;
 
     fn gen_x_ints(
