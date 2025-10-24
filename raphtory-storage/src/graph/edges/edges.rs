@@ -20,7 +20,7 @@ pub enum EdgesStorage {
 
 impl EdgesStorage {
     #[inline]
-    pub fn as_ref(&self) -> EdgesStorageRef {
+    pub fn as_ref(&self) -> EdgesStorageRef<'_> {
         match self {
             EdgesStorage::Mem(storage) => EdgesStorageRef::Mem(storage),
             #[cfg(feature = "storage")]
@@ -28,7 +28,7 @@ impl EdgesStorage {
         }
     }
 
-    pub fn edge(&self, eid: EID) -> EdgeStorageRef {
+    pub fn edge(&self, eid: EID) -> EdgeStorageRef<'_> {
         match self {
             EdgesStorage::Mem(storage) => EdgeStorageRef::Mem(storage.get_mem(eid)),
             #[cfg(feature = "storage")]
@@ -43,7 +43,7 @@ impl EdgesStorage {
         match self {
             EdgesStorage::Mem(storage) => {
                 StorageVariants2::Mem((0..storage.len()).map(EID).filter_map(|e| {
-                    let edge = storage.get_mem(e);
+                    let edge = storage.try_get_mem(e)?;
                     edge.has_layer(layers).then_some(EdgeStorageRef::Mem(edge))
                 }))
             }

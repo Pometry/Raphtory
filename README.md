@@ -230,7 +230,7 @@ Join the growing community of open-source enthusiasts using Raphtory to power th
 
 - Follow [![Slack](https://img.shields.io/twitter/follow/raphtory?label=@raphtory)](https://twitter.com/raphtory) for the latest Raphtory news and development
 
-- Join our [![Slack](https://join.slack.com/t/raphtory/shared_invite/zt-38j5i1bib-9BovBVoRTJB71APB_VzHyg) to chat with us and get answers to your questions!
+- Join our [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-38j5i1bib-9BovBVoRTJB71APB_VzHyg) to chat with us and get answers to your questions!
 
 ### Contributors
 
@@ -251,5 +251,10 @@ We host a page which triggers and saves the result of two benchmarks upon every 
 
 Raphtory is licensed under the terms of the GNU General Public License v3.0 (check out our LICENSE file).
 
+## Citations
 
+To cite Raphtory in your work refer to our paper 'Raphtory: The temporal graph engine for Rust and Python'.
 
+```tex
+@article{Steer2024, doi = {10.21105/joss.05940}, url = {https://doi.org/10.21105/joss.05940}, year = {2024}, publisher = {The Open Journal}, volume = {9}, number = {95}, pages = {5940}, author = {Steer, Ben and Arnold, Naomi A. and Tidiane, Cheick and Lambiotte, Renaud and Yousaf, Haaroon and Jeub, Lucas and Murariu, Fabian and Kapoor, Shivam and Rico, Pedro and Chan, Rachel and Chan, Louis and Alford, James and Clegg, Richard G. and Cuadrado, Felix and Barnes, Matthew Russell and Zhong, Peijie and Pougué-Biyong, John and Alnaimi, Alhamza}, title = {Raphtory: The temporal graph engine for Rust and Python}, journal = {Journal of Open Source Software} } 
+```

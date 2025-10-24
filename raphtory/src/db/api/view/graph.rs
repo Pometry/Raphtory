@@ -61,15 +61,16 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Edges<'graph, Self, Self>;
 
+    /// Return an unlocked iterator over all edges in the graph.
+    fn edges_unlocked(&self) -> Edges<'graph, Self, Self>;
+
     /// Return a View of the nodes in the Graph
     fn nodes(&self) -> Nodes<'graph, Self, Self>;
 
     /// Get a graph clone
     ///
-    /// # Arguments
-    ///
     /// Returns:
-    /// Graph - Returns clone of the graph
+    ///     Graph: Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
@@ -163,46 +164,59 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
+fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G, G> {
+    let graph = g.clone();
+    let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
+        .node_list()
+    {
+        NodeList::All { .. } => Arc::new(move || {
+            let layer_ids = graph.layer_ids().clone();
+            let graph = graph.clone();
+            let gs = if locked {
+                graph.core_graph().lock()
+            } else {
+                graph.core_graph().clone()
+            };
+            GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
+                let edges = gs.edges();
+                let iter = edges.iter(layer_ids);
+                if graph.filtered() {
+                    iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
+                        .into_dyn_boxed()
+                } else {
+                    iter.map(|e| e.out_ref()).into_dyn_boxed()
+                }
+            })
+            .into_dyn_boxed()
+        }),
+        NodeList::List { elems } => Arc::new(move || {
+            let cg = if locked {
+                graph.core_graph().lock()
+            } else {
+                graph.core_graph().clone()
+            };
+            let graph = graph.clone();
+            elems
+                .clone()
+                .into_iter()
+                .flat_map(move |node| node_edges(cg.clone(), graph.clone(), node, Direction::OUT))
+                .into_dyn_boxed()
+        }),
+    };
+    Edges {
+        base_graph: g.clone(),
+        graph: g.clone(),
+        edges,
+    }
+}
+
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
-        let graph = self.clone();
-        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
-            match graph.node_list() {
-                NodeList::All { .. } => Arc::new(move || {
-                    let edges = graph.core_graph().owned_edges();
-                    let layer_ids = graph.layer_ids().clone();
-                    let graph = graph.clone();
-                    GenLockedIter::from(
-                        (edges, layer_ids, graph),
-                        move |(edges, layer_ids, graph)| {
-                            let iter = edges.iter(layer_ids);
-                            if graph.filtered() {
-                                iter.filter_map(|e| graph.filter_edge(e).then(|| e.out_ref()))
-                                    .into_dyn_boxed()
-                            } else {
-                                iter.map(|e| e.out_ref()).into_dyn_boxed()
-                            }
-                        },
-                    )
-                    .into_dyn_boxed()
-                }),
-                NodeList::List { elems } => Arc::new(move || {
-                    let cg = graph.core_graph().lock();
-                    let graph = graph.clone();
-                    elems
-                        .clone()
-                        .into_iter()
-                        .flat_map(move |node| {
-                            node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
-                        })
-                        .into_dyn_boxed()
-                }),
-            };
-        Edges {
-            base_graph: self.clone(),
-            graph: self.clone(),
-            edges,
-        }
+        edges_inner(self, true)
+    }
+
+    fn edges_unlocked(&self) -> Edges<'graph, Self, Self> {
+        edges_inner(self, false)
     }
 
     fn nodes(&self) -> Nodes<'graph, Self, Self> {
@@ -618,6 +632,7 @@ pub struct IndexSpec {
     pub(crate) edge_properties: HashSet<usize>,
 }
 
+/// (Experimental) IndexSpec data structure.
 impl IndexSpec {
     pub(crate) fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
         fn diff_props(existing: &HashSet<usize>, requested: &HashSet<usize>) -> HashSet<usize> {
@@ -706,6 +721,7 @@ impl ResolvedIndexSpec {
 }
 
 #[derive(Clone)]
+/// (Experimental) Creates a IndexSpec data structure containing the specified properties and metadata.
 pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
     pub graph: G,
     node_metadata: Option<HashSet<usize>>,
@@ -715,6 +731,10 @@ pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
 }
 
 impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
+    /// Create a new IndexSpecBuilder.
+    ///
+    /// Arguments:
+    ///     graph:
     pub fn new(graph: G) -> Self {
         Self {
             graph,
@@ -725,6 +745,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         }
     }
 
+    /// Include all node properties and metadata in the IndexSpec.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_all_node_properties_and_metadata(mut self) -> Self {
         self.node_metadata = Some(Self::extract_props(
             self.graph.node_meta().metadata_mapper(),
@@ -735,6 +759,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include all node metadata in the IndexSpec.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_all_node_metadata(mut self) -> Self {
         self.node_metadata = Some(Self::extract_props(
             self.graph.node_meta().metadata_mapper(),
@@ -742,6 +770,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include all node properties in the IndexSpec.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_all_node_properties(mut self) -> Self {
         self.node_properties = Some(Self::extract_props(
             self.graph.node_meta().temporal_prop_mapper(),
@@ -749,6 +781,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include the specified node metadata in the IndexSpec.
+    ///
+    /// Specified node metadata is gathered using the extract_named_props function.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_node_metadata<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
@@ -760,6 +798,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
+    /// Include the specified node properties in the IndexSpec.
+    ///
+    /// Specified node properties is gathered using the extract_named_props function.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_node_properties<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
@@ -771,6 +815,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
+    /// Include all edge properties and metadata in the IndexSpec.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_all_edge_properties_and_metadata(mut self) -> Self {
         self.edge_metadata = Some(Self::extract_props(
             self.graph.edge_meta().metadata_mapper(),
@@ -781,6 +829,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include all edge metadata in the IndexSpec.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_all_edge_metadata(mut self) -> Self {
         self.edge_metadata = Some(Self::extract_props(
             self.graph.edge_meta().metadata_mapper(),
@@ -788,6 +840,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include all edge properties in the IndexSpec.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_all_edge_properties(mut self) -> Self {
         self.edge_properties = Some(Self::extract_props(
             self.graph.edge_meta().temporal_prop_mapper(),
@@ -795,6 +851,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include the specified edge metadata in the IndexSpec.
+    ///
+    /// Specified edge metadata is gathered using the extract_named_props function.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_edge_metadata<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
@@ -806,6 +868,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
+    /// Include the specified edge properties in the IndexSpec.
+    ///
+    /// Specified edge properties is gathered using the extract_named_props function.
+    ///
+    /// Returns:
+    ///     IndexSpecBuilder:
     pub fn with_edge_properties<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
@@ -817,10 +885,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
+    /// Extract properties or metadata.
     fn extract_props(meta: &PropMapper) -> HashSet<usize> {
         (0..meta.len()).collect()
     }
 
+    /// Extract specified named properties or metadata.
     fn extract_named_props<S: AsRef<str>>(
         meta: &PropMapper,
         keys: impl IntoIterator<Item = S>,
@@ -836,6 +906,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
             .collect()
     }
 
+    /// Create a new IndexSpec.
+    ///
+    /// Returns:
+    ///     IndexSpec:
     pub fn build(self) -> IndexSpec {
         IndexSpec {
             node_metadata: self.node_metadata.unwrap_or_default(),
@@ -862,7 +936,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         if let Some(storage) = self.get_storage() {
-            let guard = storage.get_index().read();
+            let guard = storage.get_index().read_recursive();
             if let Some(searcher) = guard.searcher() {
                 return searcher.search_nodes(self, filter, limit, offset);
             }
@@ -878,7 +952,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
         if let Some(storage) = self.get_storage() {
-            let guard = storage.get_index().read();
+            let guard = storage.get_index().read_recursive();
             if let Some(searcher) = guard.searcher() {
                 return searcher.search_edges(self, filter, limit, offset);
             }
@@ -888,7 +962,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
     }
 
     fn is_indexed(&self) -> bool {
-        self.get_storage().map_or(false, |s| s.is_indexed())
+        self.get_storage().is_some_and(|s| s.is_indexed())
     }
 }
 
@@ -914,710 +988,5 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
         filtered_graph
-    }
-}
-
-#[cfg(test)]
-mod test_exploded_edges {
-    use crate::{prelude::*, test_storage};
-    use itertools::Itertools;
-
-    #[test]
-    fn test_add_node_properties_ordered_by_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_node((0, 3), 0, [("prop", "1")], None).unwrap();
-        graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
-        graph.add_node((0, 1), 0, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .node("0")
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(
-            props,
-            vec!["3".to_string(), "2".to_string(), "1".to_string()]
-        );
-    }
-
-    #[test]
-    fn test_add_node_properties_overwritten_for_same_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_node((0, 1), 0, [("prop", "1")], None).unwrap();
-        graph.add_node((0, 1), 0, [("prop", "2")], None).unwrap();
-        graph.add_node((0, 1), 0, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .node(0)
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["3".to_string()]);
-
-        let graph: Graph = Graph::new();
-        graph.add_node((0, 1), 0, [("prop", "1")], None).unwrap();
-        graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
-        graph.add_node((0, 2), 0, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .node(0)
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["1".to_string(), "3".to_string()]);
-    }
-
-    #[test]
-    fn test_create_node_properties_ordered_by_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.create_node((0, 3), 0, [("prop", "1")], None).unwrap();
-        graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
-        graph.add_node((0, 1), 0, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .node("0")
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(
-            props,
-            vec!["3".to_string(), "2".to_string(), "1".to_string()]
-        );
-    }
-
-    #[test]
-    fn test_create_node_properties_overwritten_for_same_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.create_node((0, 1), 0, [("prop", "1")], None).unwrap();
-        graph.add_node((0, 1), 0, [("prop", "2")], None).unwrap();
-        graph.add_node((0, 1), 0, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .node(0)
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["3".to_string()]);
-
-        let graph: Graph = Graph::new();
-        graph.create_node((0, 1), 0, [("prop", "1")], None).unwrap();
-        graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
-        graph.add_node((0, 2), 0, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .node(0)
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["1".to_string(), "3".to_string()]);
-    }
-
-    #[test]
-    fn test_add_edge_properties_ordered_by_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_edge((0, 3), 0, 1, [("prop", "1")], None).unwrap();
-        graph.add_edge((0, 2), 0, 1, [("prop", "2")], None).unwrap();
-        graph.add_edge((0, 1), 0, 1, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .edge(0, 1)
-            .map(|edge| {
-                edge.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(
-            props,
-            vec!["3".to_string(), "2".to_string(), "1".to_string()]
-        );
-    }
-
-    #[test]
-    fn test_add_edge_properties_overwritten_for_same_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_edge((0, 1), 0, 1, [("prop", "1")], None).unwrap();
-        graph.add_edge((0, 1), 0, 1, [("prop", "2")], None).unwrap();
-        graph.add_edge((0, 1), 0, 1, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .edge(0, 1)
-            .map(|edge| {
-                edge.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["3".to_string()]);
-
-        let graph: Graph = Graph::new();
-        graph.add_edge((0, 1), 0, 1, [("prop", "1")], None).unwrap();
-        graph.add_edge((0, 2), 0, 1, [("prop", "2")], None).unwrap();
-        graph.add_edge((0, 2), 0, 1, [("prop", "3")], None).unwrap();
-
-        let props = graph
-            .edge(0, 1)
-            .map(|edge| {
-                edge.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["1".to_string(), "3".to_string()]);
-    }
-
-    #[test]
-    fn test_add_properties_properties_ordered_by_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_properties((0, 3), [("prop", "1")]).unwrap();
-        graph.add_properties((0, 2), [("prop", "2")]).unwrap();
-        graph.add_properties((0, 1), [("prop", "3")]).unwrap();
-
-        let props = graph
-            .properties()
-            .temporal()
-            .get("prop")
-            .unwrap()
-            .values()
-            .map(|x| x.to_string())
-            .collect_vec();
-
-        assert_eq!(
-            props,
-            vec!["3".to_string(), "2".to_string(), "1".to_string()]
-        );
-    }
-
-    #[test]
-    fn test_add_properties_properties_overwritten_for_same_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_properties((0, 1), [("prop", "1")]).unwrap();
-        graph.add_properties((0, 1), [("prop", "2")]).unwrap();
-        graph.add_properties((0, 1), [("prop", "3")]).unwrap();
-
-        let props = graph
-            .properties()
-            .temporal()
-            .get("prop")
-            .unwrap()
-            .values()
-            .map(|x| x.to_string())
-            .collect_vec();
-
-        assert_eq!(props, vec!["3".to_string()]);
-
-        let graph: Graph = Graph::new();
-        graph.add_edge((0, 1), 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge((0, 2), 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge((0, 2), 0, 1, NO_PROPS, None).unwrap();
-
-        graph.add_properties((0, 1), [("prop", "1")]).unwrap();
-        graph.add_properties((0, 2), [("prop", "2")]).unwrap();
-        graph.add_properties((0, 2), [("prop", "3")]).unwrap();
-
-        let props = graph
-            .properties()
-            .temporal()
-            .get("prop")
-            .unwrap()
-            .values()
-            .map(|x| x.to_string())
-            .collect_vec();
-
-        assert_eq!(props, vec!["1".to_string(), "3".to_string()]);
-    }
-
-    #[test]
-    fn test_node_add_updates_properties_ordered_by_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 3), [("prop", "1")])
-            .unwrap();
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 2), [("prop", "2")])
-            .unwrap();
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "3")])
-            .unwrap();
-
-        let props = graph
-            .node("0")
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(
-            props,
-            vec!["3".to_string(), "2".to_string(), "1".to_string()]
-        );
-    }
-
-    #[test]
-    fn test_node_add_updates_properties_overwritten_for_same_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "1")])
-            .unwrap();
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "2")])
-            .unwrap();
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "3")])
-            .unwrap();
-
-        let props = graph
-            .node("0")
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["3".to_string()]);
-
-        let graph: Graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "1")])
-            .unwrap();
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 2), [("prop", "2")])
-            .unwrap();
-        graph
-            .node(0)
-            .unwrap()
-            .add_updates((0, 2), [("prop", "3")])
-            .unwrap();
-
-        let props = graph
-            .node("0")
-            .map(|node| {
-                node.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["1".to_string(), "3".to_string()]);
-    }
-
-    #[test]
-    fn test_edge_add_updates_properties_ordered_by_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 3), [("prop", "1")], None)
-            .unwrap();
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 2), [("prop", "2")], None)
-            .unwrap();
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "3")], None)
-            .unwrap();
-
-        let props = graph
-            .edge(0, 1)
-            .map(|edge| {
-                edge.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(
-            props,
-            vec!["3".to_string(), "2".to_string(), "1".to_string()]
-        );
-    }
-
-    #[test]
-    fn test_edge_add_updates_properties_overwritten_for_same_secondary_index() {
-        let graph: Graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "1")], None)
-            .unwrap();
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "2")], None)
-            .unwrap();
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "3")], None)
-            .unwrap();
-
-        let props = graph
-            .edge(0, 1)
-            .map(|edge| {
-                edge.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["3".to_string()]);
-
-        let graph: Graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 1), [("prop", "1")], None)
-            .unwrap();
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 2), [("prop", "2")], None)
-            .unwrap();
-        graph
-            .edge(0, 1)
-            .unwrap()
-            .add_updates((0, 2), [("prop", "3")], None)
-            .unwrap();
-
-        let props = graph
-            .edge(0, 1)
-            .map(|edge| {
-                edge.properties()
-                    .temporal()
-                    .get("prop")
-                    .unwrap()
-                    .values()
-                    .map(|x| x.to_string())
-                    .collect_vec()
-            })
-            .unwrap();
-
-        assert_eq!(props, vec!["1".to_string(), "3".to_string()]);
-    }
-
-    #[test]
-    fn test_exploded_edges() {
-        let graph: Graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(1, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
-        test_storage!(&graph, |graph| {
-            assert_eq!(graph.count_temporal_edges(), 4)
-        });
-    }
-}
-
-#[cfg(test)]
-mod test_materialize {
-    use crate::{
-        db::graph::graph::assert_graph_equal,
-        prelude::*,
-        test_storage,
-        test_utils::{build_edge_list, build_graph_from_edge_list},
-    };
-    use proptest::{arbitrary::any, proptest};
-    use raphtory_api::core::storage::arc_str::OptionAsStr;
-    use raphtory_storage::core_ops::CoreGraphOps;
-    use std::ops::Range;
-
-    #[test]
-    fn test_materialize() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, [("layer1", "1")], Some("1")).unwrap();
-        g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
-
-        let gm = g.materialize().unwrap();
-
-        assert_graph_equal(&g, &gm);
-        assert_eq!(
-            gm.nodes().name().iter_values().collect::<Vec<String>>(),
-            vec!["1", "2"]
-        );
-
-        assert!(g
-            .layers("2")
-            .unwrap()
-            .edge(1, 2)
-            .unwrap()
-            .properties()
-            .temporal()
-            .get("layer1")
-            .and_then(|prop| prop.latest())
-            .is_none());
-        assert!(gm
-            .into_events()
-            .unwrap()
-            .layers("2")
-            .unwrap()
-            .edge(1, 2)
-            .unwrap()
-            .properties()
-            .temporal()
-            .get("layer1")
-            .and_then(|prop| prop.latest())
-            .is_none());
-    }
-
-    #[test]
-    fn test_graph_properties() {
-        let g = Graph::new();
-        g.add_properties(1, [("test", "test")]).unwrap();
-        g.add_metadata([("test_metadata", "test2")]).unwrap();
-
-        test_storage!(&g, |g| {
-            let gm = g.materialize().unwrap();
-            assert_graph_equal(&g, &gm);
-        });
-    }
-
-    #[test]
-    fn materialize_prop_test() {
-        proptest!(|(edges in build_edge_list(100, 100), w in any::<Range<i64>>())| {
-            let g = build_graph_from_edge_list(&edges);
-            test_storage!(&g, |g| {
-                let gm = g.materialize().unwrap();
-                assert_graph_equal(&g, &gm);
-                let gw = g.window(w.start, w.end);
-                let gmw = gw.materialize().unwrap();
-                assert_graph_equal(&gw, &gmw);
-            });
-        })
-    }
-
-    #[test]
-    fn test_subgraph() {
-        let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
-        g.add_node(0, 2, NO_PROPS, None).unwrap();
-        g.add_node(0, 3, NO_PROPS, None).unwrap();
-        g.add_node(0, 4, NO_PROPS, None).unwrap();
-        g.add_node(0, 5, NO_PROPS, None).unwrap();
-
-        let nodes_subgraph = g.subgraph(vec![4, 5]);
-        assert_eq!(
-            nodes_subgraph
-                .nodes()
-                .name()
-                .iter_values()
-                .collect::<Vec<String>>(),
-            vec!["4", "5"]
-        );
-        let gm = nodes_subgraph.materialize().unwrap();
-        assert_graph_equal(&nodes_subgraph, &gm);
-    }
-
-    #[test]
-    fn test_exclude_nodes() {
-        let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
-        g.add_node(0, 2, NO_PROPS, None).unwrap();
-        g.add_node(0, 3, NO_PROPS, None).unwrap();
-        g.add_node(0, 4, NO_PROPS, None).unwrap();
-        g.add_node(0, 5, NO_PROPS, None).unwrap();
-
-        let exclude_nodes_subgraph = g.exclude_nodes(vec![4, 5]);
-        assert_eq!(
-            exclude_nodes_subgraph
-                .nodes()
-                .name()
-                .iter_values()
-                .collect::<Vec<String>>(),
-            vec!["1", "2", "3"]
-        );
-        let gm = exclude_nodes_subgraph.materialize().unwrap();
-        assert_graph_equal(&exclude_nodes_subgraph, &gm);
-    }
-
-    #[test]
-    fn testing_node_types() {
-        let graph = Graph::new();
-        graph.add_node(0, "A", NO_PROPS, None).unwrap();
-        graph.add_node(1, "B", NO_PROPS, Some("H")).unwrap();
-
-        test_storage!(&graph, |graph| {
-            let node_a = graph.node("A").unwrap();
-            let node_b = graph.node("B").unwrap();
-            let node_a_type = node_a.node_type();
-            let node_a_type_str = node_a_type.as_str();
-
-            assert_eq!(node_a_type_str, None);
-            assert_eq!(node_b.node_type().as_str(), Some("H"));
-        });
-
-        // Nodes with No type can be overwritten
-        let node_a = graph.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
-        assert_eq!(node_a.node_type().as_str(), Some("TYPEA"));
-
-        // Check that overwriting a node type returns an error
-        assert!(graph.add_node(2, "A", NO_PROPS, Some("TYPEB")).is_err());
-        // Double check that the type did not actually change
-        assert_eq!(graph.node("A").unwrap().node_type().as_str(), Some("TYPEA"));
-        // Check that the update is not added to the graph
-        let all_node_types = graph.get_all_node_types();
-        assert_eq!(all_node_types.len(), 2);
-    }
-
-    #[test]
-    fn changing_property_type_errors() {
-        let g = Graph::new();
-        let props_0 = [("test", Prop::U64(1))];
-        let props_1 = [("test", Prop::F64(0.1))];
-        g.add_properties(0, props_0.clone()).unwrap();
-        assert!(g.add_properties(1, props_1.clone()).is_err());
-
-        g.add_node(0, 1, props_0.clone(), None).unwrap();
-        assert!(g.add_node(1, 1, props_1.clone(), None).is_err());
-
-        g.add_edge(0, 1, 2, props_0.clone(), None).unwrap();
-        assert!(g.add_edge(1, 1, 2, props_1.clone(), None).is_err());
-    }
-
-    #[test]
-    fn test_edge_layer_properties() {
-        let g = Graph::new();
-        g.add_edge(1, "A", "B", [("greeting", "howdy")], Some("layer 1"))
-            .unwrap();
-        g.add_edge(2, "A", "B", [("greeting", "ola")], Some("layer 2"))
-            .unwrap();
-        g.add_edge(2, "A", "B", [("greeting", "hello")], Some("layer 2"))
-            .unwrap();
-        g.add_edge(3, "A", "B", [("greeting", "namaste")], Some("layer 3"))
-            .unwrap();
-
-        let edge_ab = g.edge("A", "B").unwrap();
-        let props = edge_ab
-            .properties()
-            .iter()
-            .filter_map(|(k, v)| v.map(move |v| (k.to_string(), v.to_string())))
-            .collect::<Vec<_>>();
-        assert_eq!(props, vec![("greeting".to_string(), "namaste".to_string())]);
     }
 }

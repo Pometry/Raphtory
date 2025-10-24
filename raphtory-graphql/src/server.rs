@@ -8,7 +8,7 @@ use crate::{
     },
     observability::open_telemetry::OpenTelemetry,
     paths::ExistingGraphFolder,
-    routes::{health, ui, version},
+    routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
 use config::ConfigError;
@@ -78,7 +78,7 @@ pub enum ServerError {
 
 impl From<ServerError> for io::Error {
     fn from(error: ServerError) -> Self {
-        io::Error::new(io::ErrorKind::Other, error)
+        io::Error::other(error)
     }
 }
 
@@ -110,6 +110,10 @@ pub fn register_mutation_plugin<
 }
 
 impl GraphServer {
+    /// Creates a new server and returns a corresponding GraphServer object.
+    ///
+    /// Returns:
+    ///     IoResult:
     pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
@@ -118,8 +122,7 @@ impl GraphServer {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
-        let config =
-            load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
+        let config = load_config(app_config, config_path).map_err(ServerError::ConfigError)?;
         let data = Data::new(work_dir.as_path(), &config).await?;
         Ok(Self { data, config })
     }
@@ -188,13 +191,13 @@ impl GraphServer {
         self.start_with_port(DEFAULT_PORT).await
     }
 
-    /// Start the server on the port port and return a handle to it.
+    /// Start the server on the given port and return a handle to it.
     pub async fn start_with_port(&self, port: u16) -> IoResult<RunningGraphServer> {
         // set up opentelemetry first of all
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.otlp_tracing_service_name.clone();
-        let tp = config.tracing.tracer_provider();
+        let tp = config.tracing.tracer_provider()?;
         // Create the base registry
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
@@ -208,7 +211,6 @@ impl GraphServer {
                     .try_init()
                     .ok();
             }
-
             None => {
                 registry.try_init().ok();
             }
@@ -224,7 +226,7 @@ impl GraphServer {
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
-        info!("Playground live at: http://0.0.0.0:{port}");
+        info!("UI listening on 0.0.0.0:{port}, live at: http://localhost:{port}");
         debug!(
             "Server configurations: {}",
             json!({
@@ -258,14 +260,13 @@ impl GraphServer {
         .map_err(|e| SchemaError(e.to_string()))?;
 
         let app = Route::new()
-            .at(
+            .nest(
                 "/",
-                get(ui).post(AuthenticatedGraphQL::new(schema, self.config.auth.clone())),
+                PublicFilesEndpoint::new(
+                    self.config.public_dir,
+                    AuthenticatedGraphQL::new(schema, self.config.auth.clone()),
+                ),
             )
-            .at("/graph", get(ui))
-            .at("/search", get(ui))
-            .at("/saved-graphs", get(ui))
-            .at("/playground", get(ui))
             .at("/health", get(health))
             .at("/version", get(version))
             .with(Cors::new())
@@ -278,7 +279,7 @@ impl GraphServer {
         self.start().await?.wait().await
     }
 
-    /// Run the server on the port port until completion.
+    /// Run the server on the given port until completion.
     pub async fn run_with_port(self, port: u16) -> IoResult<()> {
         self.start_with_port(port).await?.wait().await
     }
@@ -301,7 +302,7 @@ impl RunningGraphServer {
     pub async fn wait(self) -> IoResult<()> {
         self.server_result
             .await
-            .expect("Coudln't join tokio task for the server")
+            .expect("Couldn't join tokio task for the server")
     }
 
     // TODO: make this optional with some python feature flag
@@ -368,7 +369,7 @@ mod server_tests {
     #[tokio::test]
     async fn test_server_start_stop() {
         global_info_logger();
-        let tmp_dir = tempfile::tempdir().unwrap();
+        let tmp_dir = tempdir().unwrap();
         let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None)
             .await
             .unwrap();
@@ -387,7 +388,7 @@ mod server_tests {
 
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
-        let tmp_dir = tempfile::tempdir().unwrap();
+        let tmp_dir = tempdir().unwrap();
         let graph = Graph::new();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
         graph.encode(tmp_dir.path().join("g")).unwrap();

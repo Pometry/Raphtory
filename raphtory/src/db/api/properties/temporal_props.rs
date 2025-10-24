@@ -14,7 +14,7 @@ use std::{
 };
 
 #[cfg(feature = "arrow")]
-use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
+use {arrow::array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: InternalPropertiesOps> {
@@ -64,18 +64,18 @@ impl<P: InternalPropertiesOps> TemporalPropertyView<P> {
         self.id
     }
 
-    pub fn history(&self) -> BoxedLIter<i64> {
+    pub fn history(&self) -> BoxedLIter<'_, i64> {
         self.props.temporal_history_iter(self.id)
     }
 
-    pub fn history_rev(&self) -> BoxedLIter<i64> {
+    pub fn history_rev(&self) -> BoxedLIter<'_, i64> {
         self.props.temporal_history_iter_rev(self.id)
     }
 
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.props.temporal_history_date_time(self.id)
     }
-    pub fn values(&self) -> BoxedLIter<Prop> {
+    pub fn values(&self) -> BoxedLIter<'_, Prop> {
         self.props.temporal_values_iter(self.id)
     }
 

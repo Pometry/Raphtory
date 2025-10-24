@@ -16,7 +16,7 @@ impl InternalMetadataOps for GraphStorage {
         self.graph_meta().get_metadata_name(id)
     }
 
-    fn metadata_ids(&self) -> BoxedLIter<usize> {
+    fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
         Box::new(self.graph_meta().metadata_ids())
     }
 
@@ -24,7 +24,7 @@ impl InternalMetadataOps for GraphStorage {
         self.graph_meta().get_metadata(id)
     }
 
-    fn metadata_keys(&self) -> BoxedLIter<ArcStr> {
+    fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {
         Box::new(self.graph_meta().metadata_names().into_iter())
     }
 }

@@ -1,10 +1,8 @@
 use crate::{
     core_ops::CoreGraphOps, disk::graph_impl::prop_conversion::make_node_properties_from_graph,
 };
-use polars_arrow::{
-    array::{Array, PrimitiveArray, StructArray},
-    datatypes::{ArrowDataType as DataType, Field},
-};
+use arrow_array::{ArrayRef, Float64Array, Int64Array, StructArray, UInt64Array};
+use arrow_schema::{DataType, Field};
 use pometry_storage::{
     graph::TemporalGraph, graph_fragment::TempColGraphFragment, interop::GraphLike,
     load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
@@ -32,6 +30,7 @@ pub mod prelude {
 }
 
 pub use pometry_storage as disk_storage;
+use pometry_storage::chunked_array::array_like::{BaseArrayLike, FromVec};
 
 #[derive(Debug)]
 pub struct ParquetLayerCols<'a> {
@@ -47,6 +46,12 @@ pub struct ParquetLayerCols<'a> {
 pub struct DiskGraphStorage {
     pub inner: Arc<TemporalGraph>,
     graph_props: Arc<GraphMeta>,
+}
+
+impl From<TemporalGraph> for DiskGraphStorage {
+    fn from(value: TemporalGraph) -> Self {
+        Self::new(value)
+    }
 }
 
 impl Serialize for DiskGraphStorage {
@@ -183,17 +188,18 @@ impl DiskGraphStorage {
             .unzip();
 
         let edge_lists = vec![StructArray::new(
-            DataType::Struct(vec![
+            vec![
                 Field::new("src", DataType::UInt64, false),
                 Field::new("dst", DataType::UInt64, false),
                 Field::new("time", DataType::Int64, false),
                 Field::new("weight", DataType::Float64, false),
-            ]),
+            ]
+            .into(),
             vec![
-                PrimitiveArray::from_vec(src).boxed(),
-                PrimitiveArray::from_vec(dst).boxed(),
-                PrimitiveArray::from_vec(time).boxed(),
-                PrimitiveArray::from_vec(weight).boxed(),
+                UInt64Array::from_vec(src).as_array_ref(),
+                UInt64Array::from_vec(dst).as_array_ref(),
+                Int64Array::from_vec(time).as_array_ref(),
+                Float64Array::from_vec(weight).as_array_ref(),
             ],
             None,
         )];
@@ -277,6 +283,7 @@ impl DiskGraphStorage {
         num_threads: usize,
         node_type_col: Option<&str>,
         node_id_col: Option<&str>,
+        num_rows: Option<usize>,
     ) -> Result<DiskGraphStorage, RAError> {
         let edge_lists: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .into_iter()
@@ -312,13 +319,14 @@ impl DiskGraphStorage {
             node_properties.as_ref().map(|p| p.as_ref()),
             node_type_col,
             node_id_col,
+            num_rows,
         )?;
         Ok(Self::new(t_graph))
     }
 
     pub fn load_node_types_from_arrays(
         &mut self,
-        arrays: impl IntoIterator<Item = Result<Box<dyn Array>, RAError>>,
+        arrays: impl IntoIterator<Item = Result<ArrayRef, RAError>>,
         chunk_size: usize,
     ) -> Result<(), RAError> {
         let inner = Arc::make_mut(&mut self.inner);
@@ -365,12 +373,14 @@ impl DiskGraphStorage {
 
 #[cfg(test)]
 mod test {
+    use arrow_array::{Int64Array, StructArray, UInt64Array};
+    use arrow_schema::{DataType, Field, Schema};
     use itertools::Itertools;
-    use polars_arrow::{
-        array::{PrimitiveArray, StructArray},
-        datatypes::{ArrowDataType, ArrowSchema, Field},
+    use pometry_storage::{
+        chunked_array::array_like::{BaseArrayLike, FromVec},
+        graph::TemporalGraph,
+        RAError,
     };
-    use pometry_storage::{graph::TemporalGraph, RAError};
     use proptest::{prelude::*, sample::size_range};
     use raphtory_api::core::entities::{EID, VID};
     use std::path::Path;
@@ -399,26 +409,26 @@ mod test {
             .chunks(input_chunk_size as usize);
         let srcs = chunks
             .into_iter()
-            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+            .map(|chunk| UInt64Array::from_vec(chunk.collect()));
         let chunks = edges
             .iter()
             .map(|(_, dst, _)| *dst)
             .chunks(input_chunk_size as usize);
         let dsts = chunks
             .into_iter()
-            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+            .map(|chunk| UInt64Array::from_vec(chunk.collect()));
         let chunks = edges
             .iter()
             .map(|(_, _, times)| *times)
             .chunks(input_chunk_size as usize);
         let times = chunks
             .into_iter()
-            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+            .map(|chunk| Int64Array::from_vec(chunk.collect()));
 
-        let schema = ArrowSchema::from(vec![
-            Field::new("srcs", ArrowDataType::UInt64, false),
-            Field::new("dsts", ArrowDataType::UInt64, false),
-            Field::new("time", ArrowDataType::Int64, false),
+        let schema = Schema::new(vec![
+            Field::new("srcs", DataType::UInt64, false),
+            Field::new("dsts", DataType::UInt64, false),
+            Field::new("time", DataType::Int64, false),
         ]);
 
         let triples = srcs
@@ -426,8 +436,8 @@ mod test {
             .zip(times)
             .map(move |((a, b), c)| {
                 StructArray::new(
-                    ArrowDataType::Struct(schema.fields.clone()),
-                    vec![a.boxed(), b.boxed(), c.boxed()],
+                    schema.fields.clone(),
+                    vec![a.as_array_ref(), b.as_array_ref(), c.as_array_ref()],
                     None,
                 )
             })
@@ -511,11 +521,16 @@ mod test {
 
         let mut expected_node_additions = edges
             .iter()
-            .flat_map(|(src, dst, t)| [(*src, *t), (*dst, *t)])
+            .flat_map(|(src, dst, t)| {
+                if src != dst {
+                    vec![(*src, *t), (*dst, *t)]
+                } else {
+                    vec![(*src, *t)]
+                }
+            })
             .into_group_map();
         for v in expected_node_additions.values_mut() {
             v.sort();
-            v.dedup();
         }
 
         for (v_id, node) in nodes.iter().enumerate() {

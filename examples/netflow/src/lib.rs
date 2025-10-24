@@ -1,12 +1,14 @@
 mod netflow_one_path_node;
 
 use crate::netflow_one_path_node::netflow_one_path_node;
-use ::raphtory_core::python::packages::base_modules::{
-    add_raphtory_classes, base_algorithm_module, base_graph_gen_module, base_graph_loader_module,
-    base_vectors_module,
-};
 use pyo3::prelude::*;
-use raphtory_core::db::api::view::DynamicGraph;
+use raphtory::{
+    db::api::view::DynamicGraph,
+    python::packages::base_modules::{
+        add_raphtory_classes, base_algorithm_module, base_graph_gen_module,
+        base_graph_loader_module, base_vectors_module,
+    },
+};
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
 #[pyfunction(name = "netflow_one_path_node")]

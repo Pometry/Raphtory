@@ -38,8 +38,6 @@ mod cypher {
     use raphtory::prelude::DiskGraphStorage;
     use std::sync::Arc;
 
-    pub use polars_arrow as arrow2;
-
     pub async fn run_cypher(
         query: &str,
         g: &DiskGraphStorage,
@@ -261,41 +259,34 @@ mod cypher {
         }
 
         mod arrow2_load {
-            use crate::{
-                arrow2::{
-                    array::{PrimitiveArray, StructArray},
-                    datatypes::*,
-                },
-                run_cypher,
-            };
+            use crate::run_cypher;
             use arrow::util::pretty::print_batches;
+            use arrow_array::{Float64Array, Int64Array, StructArray, UInt64Array};
+            use arrow_schema::{DataType, Field, Schema};
+            use pometry_storage::chunked_array::array_like::{BaseArrayLike, FromVec};
             use raphtory::prelude::{DiskGraphStorage, ParquetLayerCols};
             use std::path::PathBuf;
             use tempfile::tempdir;
 
-            fn schema() -> ArrowSchema {
-                let srcs = Field::new("srcs", ArrowDataType::UInt64, false);
-                let dsts = Field::new("dsts", ArrowDataType::UInt64, false);
-                let time = Field::new("bla_time", ArrowDataType::Int64, false);
-                let weight = Field::new("weight", ArrowDataType::Float64, true);
-                ArrowSchema::from(vec![srcs, dsts, time, weight])
+            fn schema() -> Schema {
+                let srcs = Field::new("srcs", DataType::UInt64, false);
+                let dsts = Field::new("dsts", DataType::UInt64, false);
+                let time = Field::new("bla_time", DataType::Int64, false);
+                let weight = Field::new("weight", DataType::Float64, true);
+                Schema::new(vec![srcs, dsts, time, weight])
             }
 
             #[tokio::test]
             async fn select_table_time_column_different_name() {
                 let graph_dir = tempdir().unwrap();
 
-                let srcs = PrimitiveArray::from_vec(vec![1u64, 2u64, 2u64, 2u64]).boxed();
-                let dsts = PrimitiveArray::from_vec(vec![3u64, 3u64, 4u64, 4u64]).boxed();
-                let time = PrimitiveArray::from_vec(vec![2i64, 3i64, 4i64, 5i64]).boxed();
+                let srcs = UInt64Array::from_vec(vec![1u64, 2u64, 2u64, 2u64]).as_array_ref();
+                let dsts = UInt64Array::from_vec(vec![3u64, 3u64, 4u64, 4u64]).as_array_ref();
+                let time = Int64Array::from_vec(vec![2i64, 3i64, 4i64, 5i64]).as_array_ref();
                 let weight =
-                    PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
+                    Float64Array::from_vec(vec![3.15f64, 4.14f64, 5.14f64, 6.14f64]).as_array_ref();
 
-                let chunk = StructArray::new(
-                    ArrowDataType::Struct(schema().fields),
-                    vec![srcs, dsts, time, weight],
-                    None,
-                );
+                let chunk = StructArray::new(schema().fields, vec![srcs, dsts, time, weight], None);
 
                 // let node_gids = PrimitiveArray::from_vec((1u64..=4u64).collect()).boxed();
 
@@ -357,6 +348,7 @@ mod cypher {
                     1,
                     None,
                     None,
+                    None,
                 )
                 .unwrap();
 
@@ -407,7 +399,7 @@ mod cypher {
             print_batches(&data).expect("failed to print batches");
 
             let df = run_cypher(
-                "match ()-[e]->() where e.rap_time >2 and e.weight<7 RETURN *",
+                "match ()-[e]->() where e.time >2 and e.weight<7 RETURN *",
                 &graph,
                 true,
             )

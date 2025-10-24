@@ -21,6 +21,7 @@ from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
+from raphtory.iterables import *
 
 __all__ = ['NodeGroups', 'DegreeView', 'NodeStateUsize', 'NodeStateU64', 'NodeStateOptionI64', 'IdView', 'NodeStateGID', 'EarliestTimeView', 'LatestTimeView', 'NameView', 'NodeStateString', 'EarliestDateTimeView', 'LatestDateTimeView', 'NodeStateOptionDateTime', 'HistoryView', 'EdgeHistoryCountView', 'NodeStateListI64', 'HistoryDateTimeView', 'NodeStateOptionListDateTime', 'NodeTypeView', 'NodeStateOptionStr', 'NodeStateListDateTime', 'NodeStateWeightedSP', 'NodeStateF64', 'NodeStateNodes', 'NodeStateReachability', 'NodeStateListF64', 'NodeStateMotifs', 'NodeStateHits', 'NodeStateSEIR', 'NodeLayout', 'NodeStateF64String']
 class NodeGroups(object): 
@@ -229,7 +230,7 @@ class DegreeView(object):
              DegreeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -237,6 +238,12 @@ class DegreeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -337,11 +344,12 @@ class DegreeView(object):
             float: mean value
         """
 
-    def median(self) -> Optional[int]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[int]:
         """
 
@@ -377,9 +385,11 @@ class DegreeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -387,6 +397,13 @@ class DegreeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -485,11 +502,12 @@ class DegreeView(object):
              Optional[datetime]: The earliest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
 
-    def sum(self) -> int:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 int: the sum
         """
 
@@ -535,13 +553,13 @@ class DegreeView(object):
              Iterator[int]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> DegreeView:
+    def window(self, start: TimeInput, end: TimeInput) -> DegreeView:
         """
          Create a view of the DegreeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             DegreeView:
@@ -550,7 +568,7 @@ class DegreeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this DegreeView
+         Get the window size (difference between start and end) for this DegreeView.
 
         Returns:
             Optional[int]:
@@ -651,11 +669,12 @@ class NodeStateUsize(object):
             float: mean value
         """
 
-    def median(self) -> Optional[int]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[int]:
         """
 
@@ -710,11 +729,12 @@ class NodeStateUsize(object):
              NodeStateUsize: The sorted node state
         """
 
-    def sum(self) -> int:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 int: the sum
         """
 
@@ -835,11 +855,12 @@ class NodeStateU64(object):
             float: mean value
         """
 
-    def median(self) -> Optional[int]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[int]:
         """
 
@@ -894,11 +915,12 @@ class NodeStateU64(object):
              NodeStateU64: The sorted node state
         """
 
-    def sum(self) -> int:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 int: the sum
         """
 
@@ -1019,11 +1041,12 @@ class NodeStateOptionI64(object):
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[int]]:
         """
 
@@ -1204,11 +1227,12 @@ class IdView(object):
              Optional[Tuple[Node, GID]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[GID]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[GID]:
         """
 
@@ -1372,11 +1396,12 @@ class NodeStateGID(object):
              Optional[Tuple[Node, GID]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[GID]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[GID]:
         """
 
@@ -1623,7 +1648,7 @@ class EarliestTimeView(object):
              EarliestTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -1631,6 +1656,12 @@ class EarliestTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -1723,11 +1754,12 @@ class EarliestTimeView(object):
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[int]]:
         """
 
@@ -1763,9 +1795,11 @@ class EarliestTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -1773,6 +1807,13 @@ class EarliestTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -1913,13 +1954,13 @@ class EarliestTimeView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             EarliestTimeView:
@@ -1928,7 +1969,7 @@ class EarliestTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EarliestTimeView
+         Get the window size (difference between start and end) for this EarliestTimeView.
 
         Returns:
             Optional[int]:
@@ -2096,7 +2137,7 @@ class LatestTimeView(object):
              LatestTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2104,6 +2145,12 @@ class LatestTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -2196,11 +2243,12 @@ class LatestTimeView(object):
              Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[int]]:
         """
 
@@ -2236,9 +2284,11 @@ class LatestTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -2246,6 +2296,13 @@ class LatestTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -2386,13 +2443,13 @@ class LatestTimeView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> LatestTimeView:
         """
          Create a view of the LatestTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             LatestTimeView:
@@ -2401,7 +2458,7 @@ class LatestTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this LatestTimeView
+         Get the window size (difference between start and end) for this LatestTimeView.
 
         Returns:
             Optional[int]:
@@ -2511,11 +2568,12 @@ class NameView(object):
              Optional[Tuple[Node, str]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[str]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[str]:
         """
 
@@ -2687,11 +2745,12 @@ class NodeStateString(object):
              Optional[Tuple[Node, str]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[str]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[str]:
         """
 
@@ -2938,7 +2997,7 @@ class EarliestDateTimeView(object):
              EarliestDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2946,6 +3005,12 @@ class EarliestDateTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3038,11 +3103,12 @@ class EarliestDateTimeView(object):
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[datetime]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[datetime]]:
         """
 
@@ -3078,9 +3144,11 @@ class EarliestDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -3088,6 +3156,13 @@ class EarliestDateTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3228,13 +3303,13 @@ class EarliestDateTimeView(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestDateTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> EarliestDateTimeView:
         """
          Create a view of the EarliestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             EarliestDateTimeView:
@@ -3243,7 +3318,7 @@ class EarliestDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EarliestDateTimeView
+         Get the window size (difference between start and end) for this EarliestDateTimeView.
 
         Returns:
             Optional[int]:
@@ -3411,7 +3486,7 @@ class LatestDateTimeView(object):
              LatestDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3419,6 +3494,12 @@ class LatestDateTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3511,11 +3592,12 @@ class LatestDateTimeView(object):
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[datetime]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[datetime]]:
         """
 
@@ -3551,9 +3633,11 @@ class LatestDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -3561,6 +3645,13 @@ class LatestDateTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3701,13 +3792,13 @@ class LatestDateTimeView(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestDateTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> LatestDateTimeView:
         """
          Create a view of the LatestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             LatestDateTimeView:
@@ -3716,7 +3807,7 @@ class LatestDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this LatestDateTimeView
+         Get the window size (difference between start and end) for this LatestDateTimeView.
 
         Returns:
             Optional[int]:
@@ -3809,11 +3900,12 @@ class NodeStateOptionDateTime(object):
              Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[datetime]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[datetime]]:
         """
 
@@ -4060,7 +4152,7 @@ class HistoryView(object):
              HistoryView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4068,6 +4160,12 @@ class HistoryView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4152,11 +4250,12 @@ class HistoryView(object):
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[list[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[list[int]]:
         """
 
@@ -4192,9 +4291,11 @@ class HistoryView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -4202,6 +4303,13 @@ class HistoryView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4342,13 +4450,13 @@ class HistoryView(object):
              Iterator[list[int]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> HistoryView:
+    def window(self, start: TimeInput, end: TimeInput) -> HistoryView:
         """
          Create a view of the HistoryView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             HistoryView:
@@ -4357,7 +4465,7 @@ class HistoryView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this HistoryView
+         Get the window size (difference between start and end) for this HistoryView.
 
         Returns:
             Optional[int]:
@@ -4525,7 +4633,7 @@ class EdgeHistoryCountView(object):
              EdgeHistoryCountView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4533,6 +4641,12 @@ class EdgeHistoryCountView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4625,11 +4739,12 @@ class EdgeHistoryCountView(object):
             float: mean value
         """
 
-    def median(self) -> Optional[int]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[int]:
         """
 
@@ -4665,9 +4780,11 @@ class EdgeHistoryCountView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -4675,6 +4792,13 @@ class EdgeHistoryCountView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4773,11 +4897,12 @@ class EdgeHistoryCountView(object):
              Optional[datetime]: The earliest datetime that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
         """
 
-    def sum(self) -> int:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 int: the sum
         """
 
@@ -4823,13 +4948,13 @@ class EdgeHistoryCountView(object):
              Iterator[int]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> EdgeHistoryCountView:
+    def window(self, start: TimeInput, end: TimeInput) -> EdgeHistoryCountView:
         """
          Create a view of the EdgeHistoryCountView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             EdgeHistoryCountView:
@@ -4838,7 +4963,7 @@ class EdgeHistoryCountView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this EdgeHistoryCountView
+         Get the window size (difference between start and end) for this EdgeHistoryCountView.
 
         Returns:
             Optional[int]:
@@ -4923,11 +5048,12 @@ class NodeStateListI64(object):
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[list[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[list[int]]:
         """
 
@@ -5174,7 +5300,7 @@ class HistoryDateTimeView(object):
              HistoryDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -5182,6 +5308,12 @@ class HistoryDateTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -5266,11 +5398,12 @@ class HistoryDateTimeView(object):
              Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[list[datetime]]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[list[datetime]]]:
         """
 
@@ -5306,9 +5439,11 @@ class HistoryDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -5316,6 +5451,13 @@ class HistoryDateTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -5456,13 +5598,13 @@ class HistoryDateTimeView(object):
              Iterator[Optional[list[datetime]]]: Iterator over values
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> HistoryDateTimeView:
+    def window(self, start: TimeInput, end: TimeInput) -> HistoryDateTimeView:
         """
          Create a view of the HistoryDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             HistoryDateTimeView:
@@ -5471,7 +5613,7 @@ class HistoryDateTimeView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this HistoryDateTimeView
+         Get the window size (difference between start and end) for this HistoryDateTimeView.
 
         Returns:
             Optional[int]:
@@ -5556,11 +5698,12 @@ class NodeStateOptionListDateTime(object):
              Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[list[datetime]]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[list[datetime]]]:
         """
 
@@ -5749,11 +5892,12 @@ class NodeTypeView(object):
              Optional[Tuple[Node, Optional[str]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[str]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[str]]:
         """
 
@@ -5925,11 +6069,12 @@ class NodeStateOptionStr(object):
              Optional[Tuple[Node, Optional[str]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[str]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Optional[str]]:
         """
 
@@ -6093,11 +6238,12 @@ class NodeStateListDateTime(object):
              Optional[Tuple[Node, list[datetime]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[list[datetime]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[list[datetime]]:
         """
 
@@ -6356,11 +6502,12 @@ class NodeStateF64(object):
             float: mean value
         """
 
-    def median(self) -> Optional[float]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[float]:
         """
 
@@ -6415,11 +6562,12 @@ class NodeStateF64(object):
              NodeStateF64: The sorted node state
         """
 
-    def sum(self) -> float:
+    def sum(self) -> PropValue:
         """
         sum of values over all nodes
 
         Returns:
+            PropValue:
                 float: the sum
         """
 
@@ -6793,11 +6941,12 @@ class NodeStateMotifs(object):
              Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[list[int]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[list[int]]:
         """
 
@@ -6961,11 +7110,12 @@ class NodeStateHits(object):
              Optional[Tuple[Node, Tuple[float, float]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Tuple[float, float]]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Tuple[float, float]]:
         """
 
@@ -7129,11 +7279,12 @@ class NodeStateSEIR(object):
              Optional[Tuple[Node, Infected]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Infected]:
+    def median(self) -> PropValue:
         """
         Return the median value
 
         Returns:
+            PropValue:
              Optional[Infected]:
         """
 

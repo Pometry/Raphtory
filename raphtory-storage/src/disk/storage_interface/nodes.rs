@@ -13,11 +13,11 @@ impl DiskNodesOwned {
         Self { graph }
     }
 
-    pub fn node(&self, vid: VID) -> DiskNode {
+    pub fn node(&self, vid: VID) -> DiskNode<'_> {
         DiskNode::new(&self.graph, vid)
     }
 
-    pub fn as_ref(&self) -> DiskNodesRef {
+    pub fn as_ref(&self) -> DiskNodesRef<'_> {
         DiskNodesRef::new(&self.graph)
     }
 }

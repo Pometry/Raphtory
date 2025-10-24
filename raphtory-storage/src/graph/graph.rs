@@ -48,6 +48,13 @@ impl From<TemporalGraph> for GraphStorage {
     }
 }
 
+#[cfg(feature = "storage")]
+impl From<DiskGraphStorage> for GraphStorage {
+    fn from(value: DiskGraphStorage) -> Self {
+        Self::Disk(Arc::new(value))
+    }
+}
+
 impl Default for GraphStorage {
     fn default() -> Self {
         GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))
@@ -119,7 +126,7 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn nodes(&self) -> NodesStorageEntry {
+    pub fn nodes(&self) -> NodesStorageEntry<'_> {
         match self {
             GraphStorage::Mem(storage) => NodesStorageEntry::Mem(&storage.nodes),
             GraphStorage::Unlocked(storage) => {
@@ -206,8 +213,30 @@ impl GraphStorage {
         }
     }
 
+    /// Try to get a node that may not be initialised yet
+    pub fn try_core_node<'a>(&'a self, vid: VID) -> Option<NodeStorageEntry<'a>> {
+        match self {
+            GraphStorage::Mem(storage) => {
+                storage.nodes.try_get_entry(vid).map(NodeStorageEntry::Mem)
+            }
+            GraphStorage::Unlocked(storage) => storage
+                .storage
+                .nodes
+                .try_entry(vid)
+                .map(NodeStorageEntry::Unlocked),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => {
+                if vid.index() < storage.inner().num_nodes() {
+                    Some(NodeStorageEntry::Disk(DiskNode::new(storage.inner(), vid)))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
     #[inline(always)]
-    pub fn edges(&self) -> EdgesStorageRef {
+    pub fn edges(&self) -> EdgesStorageRef<'_> {
         match self {
             GraphStorage::Mem(storage) => EdgesStorageRef::Mem(&storage.edges),
             GraphStorage::Unlocked(storage) => {
@@ -231,7 +260,7 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn edge_entry(&self, eid: EID) -> EdgeStorageEntry {
+    pub fn edge_entry(&self, eid: EID) -> EdgeStorageEntry<'_> {
         match self {
             GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.get_mem(eid)),
             GraphStorage::Unlocked(storage) => {

@@ -12,7 +12,7 @@ impl<'a> UnlockedEdges<'a> {
         let storage = self.0;
         (0..storage.edges_len())
             .map(EID)
-            .map(|eid| storage.edge_entry(eid))
+            .filter_map(|eid| storage.try_edge_entry(eid))
     }
 
     pub fn par_iter(self) -> impl ParallelIterator<Item = EdgeRGuard<'a>> + 'a {
@@ -20,7 +20,7 @@ impl<'a> UnlockedEdges<'a> {
         (0..storage.edges_len())
             .into_par_iter()
             .map(EID)
-            .map(|eid| storage.edge_entry(eid))
+            .filter_map(|eid| storage.try_edge_entry(eid))
     }
 
     #[inline]

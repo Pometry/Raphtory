@@ -59,6 +59,32 @@ pub trait NodeTimeSemanticsOps {
         w: Range<i64>,
     ) -> usize;
 
+    fn node_edge_history<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
+
+    fn node_edge_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
+
+    fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
+
+    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
+
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -523,7 +549,10 @@ pub trait EdgeTimeSemanticsOps {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph;
 
-    /// Get metadata edge property
+    /// Get edge metadata
+    ///
+    /// Returns:
+    ///     PropValue:
     fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,

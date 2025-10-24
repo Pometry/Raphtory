@@ -1,19 +1,25 @@
-name: _Release 5 - Publish Docker Images to Docker Hub
+name: 🚀🐳 Publish images to Docker Hub
 on:
-  workflow_call:
-    inputs:
+  workflow_dispatch:
+    inputs: &inputs
       base:
-        type: 'string'
-      dry_run:
-        type: boolean
-        default: false
+        description: Branch/tag/commit to publish from
+        type: string
+        default: master
       tag:
         type: string
+        description: The tag to use for the docker image (Note that you should probably add a '-python' suffix if publishing the python version)
         required: true
+      dry_run:
+        description: If selected will not publish to Docker Hub
+        type: boolean
+        default: false
       python:
         type: boolean
-        description: Wether to build the python version of the image
+        description: If selected will build the python version of the image
         default: false
+  workflow_call:
+    inputs: *inputs
 
 
 permissions:
@@ -38,18 +44,21 @@ jobs:
       - name: Read rust version
         run: echo "RUST_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> $GITHUB_ENV
 
-      - name: Write dockerfile path
-        run: |
-          if [ "${{ inputs.python }}" = "true" ]; then
-            echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
-          else
-            echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
-          fi
-
+        # maybe this can be merged into the one below
       - name: Prepare
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Set dockerfile path and cache image
+        run: |
+          if [ "${{ inputs.python }}" = "true" ]; then
+            echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
+            echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-python-${{ env.PLATFORM_PAIR }}" >> $GITHUB_ENV
+          else
+            echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
+            echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-rust-${{ env.PLATFORM_PAIR }}" >> $GITHUB_ENV
+          fi
 
       - name: Docker meta
         id: meta
@@ -77,6 +86,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.CACHE_IMAGE }}
+          cache-to: type=registry,ref=${{ env.CACHE_IMAGE }},mode=max
 
       - name: Export digest
         run: |

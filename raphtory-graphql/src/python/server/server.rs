@@ -19,15 +19,18 @@ use std::{path::PathBuf, thread};
 /// A class for defining and running a Raphtory GraphQL server
 ///
 /// Arguments:
-/// work_dir (str | PathLike): the working directory for the server
-/// cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
-/// cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
-/// log_level (str, optional): the log level for the server
-/// tracing (bool, optional): whether tracing should be enabled
-/// otlp_agent_host (str, optional): OTLP agent host for tracing
-/// otlp_agent_port(str, optional): OTLP agent port for tracing
-/// otlp_tracing_service_name (str, optional): The OTLP tracing service name
-/// config_path (str | PathLike, optional): Path to the config file
+///     work_dir (str | PathLike): the working directory for the server
+///     cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
+///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
+///     log_level (str, optional): the log level for the server
+///     tracing (bool, optional): whether tracing should be enabled
+///     otlp_agent_host (str, optional): OTLP agent host for tracing
+///     otlp_agent_port(str, optional): OTLP agent port for tracing
+///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
+///     config_path (str | PathLike, optional): Path to the config file
+///     auth_public_key:
+///     auth_enabled_for_reads:
+///     create_index:
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(GraphServer);
 
@@ -112,6 +115,7 @@ impl PyGraphServer {
         Ok(PyGraphServer(server))
     }
 
+    // TODO: remove this, should be config
     /// Turn off index for all graphs
     fn turn_off_index(mut slf: PyRefMut<Self>) {
         slf.0.turn_off_index()
@@ -137,12 +141,12 @@ impl PyGraphServer {
     /// Vectorise the graph name in the server working directory.
     ///
     /// Arguments:
-    /// name (list[str]): the name of the graph to vectorise.
-    /// nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    /// edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///     name (list[str]): the name of the graph to vectorise.
+    ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
-    /// GraphServer: A new server object containing the vectorised graphs.
+    ///     GraphServer: A new server object containing the vectorised graphs.
     #[pyo3(
         signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -170,12 +174,13 @@ impl PyGraphServer {
     /// Start the server and return a handle to it.
     ///
     /// Arguments:
-    /// port (int): the port to use. Defaults to 1736.
-    /// timeout_ms (int): wait for server to be online. Defaults to 5000.
+    ///     port (int): the port to use. Defaults to 1736.
+    ///     timeout_ms (int): wait for server to be online. Defaults to 5000.
+    ///
     /// The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
     ///
     /// Returns:
-    /// RunningGraphServer: The running server
+    ///     RunningGraphServer: The running server
     #[pyo3(
         signature = (port = 1736, timeout_ms = 5000)
     )]
@@ -227,11 +232,11 @@ impl PyGraphServer {
     /// Run the server until completion.
     ///
     /// Arguments:
-    /// port (int): The port to use. Defaults to 1736.
-    /// timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
+    ///     port (int): The port to use. Defaults to 1736.
+    ///     timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
     ///
     /// Returns:
-    /// None:
+    ///     None:
     #[pyo3(
         signature = (port = 1736, timeout_ms = 180000)
     )]

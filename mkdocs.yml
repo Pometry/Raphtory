@@ -91,7 +91,7 @@ nav:
         - user-guide/getting-started/1_intro.md
         - user-guide/getting-started/2_UI_overview.md
         - user-guide/getting-started/3_cli.md
-      - Graph data:
+      - Ingestion:
           - user-guide/ingestion/0_dummy_index.md
           - user-guide/ingestion/1_intro.md
           - user-guide/ingestion/2_direct-updates.md
@@ -112,12 +112,14 @@ nav:
           - user-guide/views/3_layer.md
           - user-guide/views/4_subgraph.md
           - user-guide/views/5_materialize.md
+          - user-guide/views/6_filtering.md
       - Running Algorithms:
           - user-guide/algorithms/0_dummy_index.md
           - user-guide/algorithms/1_intro.md
           - user-guide/algorithms/2_graph-algorithms.md
           - user-guide/algorithms/3_node-algorithms.md
           - user-guide/algorithms/4_view-algorithms.md
+          - user-guide/algorithms/5_community_detection.md
       - Exporting:
           - user-guide/export/0_dummy_index.md
           - user-guide/export/1_intro.md

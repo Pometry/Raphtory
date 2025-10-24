@@ -24,8 +24,9 @@ from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
+from raphtory.iterables import *
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -236,7 +237,7 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -244,6 +245,12 @@ class GraphView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -300,8 +307,13 @@ class GraphView(object):
            list[Node]: the nodes that match the properties name and value
         """
 
-    def get_index_spec(self):
-        """Get index spec"""
+    def get_index_spec(self) -> IndexSpec:
+        """
+        Get index spec
+
+        Returns:
+            IndexSpec:
+        """
 
     def has_edge(self, src: NodeInput, dst: NodeInput) -> bool:
         """
@@ -435,9 +447,11 @@ class GraphView(object):
             Properties: Properties paired with their names
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -445,6 +459,13 @@ class GraphView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -667,13 +688,13 @@ class GraphView(object):
           VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> GraphView:
+    def window(self, start: TimeInput, end: TimeInput) -> GraphView:
         """
          Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             GraphView:
@@ -682,7 +703,7 @@ class GraphView(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this GraphView
+         Get the window size (difference between start and end) for this GraphView.
 
         Returns:
             Optional[int]:
@@ -783,27 +804,52 @@ class Graph(GraphView):
             None:
         """
 
-    def create_index(self):
-        """Create graph index"""
+    def create_index(self) -> None:
+        """
+        Create graph index
 
-    def create_index_in_ram(self):
+        Returns:
+            None:
+        """
+
+    def create_index_in_ram(self) -> None:
         """
         Creates a graph index in memory (RAM).
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
+
+        Returns:
+            None:
         """
 
-    def create_index_in_ram_with_spec(self, py_spec):
+    def create_index_in_ram_with_spec(self, py_spec: IndexSpec) -> None:
         """
         Creates a graph index in memory (RAM) with the provided index spec.
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
+
+        Arguments:
+            py_spec: The specification for the in-memory index to be created.
+
+        Arguments:
+            py_spec (IndexSpec): - The specification for the in-memory index to be created.
+
+        Returns:
+            None:
         """
 
-    def create_index_with_spec(self, py_spec):
-        """Create graph index with the provided index spec."""
+    def create_index_with_spec(self, py_spec: Any) -> None:
+        """
+        Create graph index with the provided index spec.
+
+        Arguments:
+            py_spec: - The specification for the in-memory index to be created.
+
+        Returns:
+            None:
+        """
 
     def create_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
         """
@@ -1267,13 +1313,15 @@ class Graph(GraphView):
           bytes:
         """
 
-    def to_parquet(self, graph_dir: str | PathLike):
+    def to_parquet(self, graph_dir: str | PathLike) -> None:
         """
-        Persist graph to parquet files
+        Persist graph to parquet files.
 
         Arguments:
             graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
 
+        Returns:
+            None:
         """
 
     def update_metadata(self, metadata: PropInput) -> None:
@@ -1312,12 +1360,12 @@ class PersistentGraph(GraphView):
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
         Arguments:
-           timestamp (int): The timestamp of the edge.
-           src (str | int): The id of the source node.
-           dst (str | int): The id of the destination node.
-           properties (PropInput, optional): The properties of the edge, as a dict of string and properties
-           layer (str, optional): The layer of the edge.
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+            timestamp (int): The timestamp of the edge.
+            src (str | int): The id of the source node.
+            dst (str | int): The id of the destination node.
+            properties (PropInput, optional): The properties of the edge, as a dict of string and properties
+            layer (str, optional): The layer of the edge.
+            secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1388,27 +1436,51 @@ class PersistentGraph(GraphView):
             None:
         """
 
-    def create_index(self):
-        """Create graph index"""
+    def create_index(self) -> None:
+        """
+        Create graph index
 
-    def create_index_in_ram(self):
+        Returns:
+            None:
+        """
+
+    def create_index_in_ram(self) -> None:
         """
         Creates a graph index in memory (RAM).
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
+
+        Returns:
+            None:
         """
 
-    def create_index_in_ram_with_spec(self, py_spec):
+    def create_index_in_ram_with_spec(self, py_spec: IndexSpec) -> None:
         """
         Creates a graph index in memory (RAM) with the provided index spec.
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
+
+        Arguments:
+            py_spec: The specification for the in-memory index to be created.
+
+         Arguments:
+            py_spec (IndexSpec): The specification for the in-memory index to be created.
+
+        Returns:
+            None:
         """
 
-    def create_index_with_spec(self, py_spec):
-        """Create graph index with the provided index spec."""
+    def create_index_with_spec(self, py_spec: Any) -> None:
+        """
+        Create graph index with the provided index spec.
+        Arguments:
+            py_spec: - The specification for the in-memory index to be created.
+
+        Returns:
+            None:
+        """
 
     def create_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
         """
@@ -1868,10 +1940,10 @@ class PersistentGraph(GraphView):
         Gets the node with the specified id
 
         Arguments:
-          id (str | int): the node id
+            id (str | int): the node id
 
         Returns:
-          Optional[MutableNode]: The node with the specified id, or None if the node does not exist
+            Optional[MutableNode]: The node with the specified id, or None if the node does not exist
         """
 
     def persistent_graph(self) -> PersistentGraph:
@@ -2043,7 +2115,6 @@ class Node(object):
         Get the edges that are incident to this node.
 
         Returns:
-
              Edges: The incident edges.
         """
 
@@ -2109,7 +2180,7 @@ class Node(object):
              Node: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2117,6 +2188,12 @@ class Node(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -2207,7 +2284,6 @@ class Node(object):
         Get the edges that point into this node.
 
         Returns:
-
              Edges: The inbound edges.
         """
 
@@ -2217,13 +2293,12 @@ class Node(object):
         Get the neighbours of this node that point into this node.
 
         Returns:
-
              PathFromNode: The in-neighbours.
         """
 
     def is_active(self) -> bool:
         """
-        Check if the node is active, i.e., it's history is not empty
+        Check if the node is active (it's history is not empty).
 
         Returns:
             bool:
@@ -2303,7 +2378,6 @@ class Node(object):
         Get the neighbours of this node.
 
         Returns:
-
              PathFromNode: The neighbours (both inbound and outbound).
         """
 
@@ -2330,7 +2404,6 @@ class Node(object):
         Get the edges that point out of this node.
 
         Returns:
-
              Edges: The outbound edges.
         """
 
@@ -2340,7 +2413,6 @@ class Node(object):
         Get the neighbours of this node that point out of this node.
 
         Returns:
-
              PathFromNode: The out-neighbours.
         """
 
@@ -2353,9 +2425,11 @@ class Node(object):
             Properties: A list of properties.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -2363,6 +2437,13 @@ class Node(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -2454,13 +2535,13 @@ class Node(object):
              Node: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> Node:
+    def window(self, start: TimeInput, end: TimeInput) -> Node:
         """
          Create a view of the Node including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             Node:
@@ -2469,7 +2550,7 @@ class Node(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this Node
+         Get the window size (difference between start and end) for this Node.
 
         Returns:
             Optional[int]:
@@ -2561,10 +2642,10 @@ class Nodes(object):
 
     def degree(self) -> DegreeView:
         """
-        Returns the number of edges of the nodes
+        Returns the number of edges of the nodes.
 
         Returns:
-            DegreeView: a view of the undirected node degrees
+            DegreeView: a view of the undirected node degrees.
         """
 
     @property
@@ -2599,7 +2680,6 @@ class Nodes(object):
         Get the edges that are incident to this node.
 
         Returns:
-
              NestedEdges: The incident edges.
         """
 
@@ -2665,7 +2745,7 @@ class Nodes(object):
              Nodes: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2673,6 +2753,12 @@ class Nodes(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -2751,10 +2837,10 @@ class Nodes(object):
 
     def in_degree(self) -> DegreeView:
         """
-        Returns the number of in edges of the nodes
+        Returns the number of in edges of the nodes.
 
         Returns:
-            DegreeView: a view of the in-degrees of the nodes
+            DegreeView: a view of the in-degrees of the nodes.
         """
 
     @property
@@ -2763,7 +2849,6 @@ class Nodes(object):
         Get the edges that point into this node.
 
         Returns:
-
              NestedEdges: The inbound edges.
         """
 
@@ -2773,7 +2858,6 @@ class Nodes(object):
         Get the neighbours of this node that point into this node.
 
         Returns:
-
              PathFromGraph: The in-neighbours.
         """
 
@@ -2830,10 +2914,10 @@ class Nodes(object):
     @property
     def metadata(self):
         """
-        The metadata of the node
+        The metadata of the nodes.
 
         Returns:
-            MetadataView: A view of the node properties
+            MetadataView: A view of the node properties.
         """
 
     @property
@@ -2851,7 +2935,6 @@ class Nodes(object):
         Get the neighbours of this node.
 
         Returns:
-
              PathFromGraph: The neighbours (both inbound and outbound).
         """
 
@@ -2866,10 +2949,10 @@ class Nodes(object):
 
     def out_degree(self) -> DegreeView:
         """
-        Returns the number of out edges of the nodes
+        Returns the number of out edges of the nodes.
 
         Returns:
-            DegreeView: a view of the out-degrees of the nodes
+            DegreeView: a view of the out-degrees of the nodes.
         """
 
     @property
@@ -2878,7 +2961,6 @@ class Nodes(object):
         Get the edges that point out of this node.
 
         Returns:
-
              NestedEdges: The outbound edges.
         """
 
@@ -2888,22 +2970,23 @@ class Nodes(object):
         Get the neighbours of this node that point out of this node.
 
         Returns:
-
              PathFromGraph: The out-neighbours.
         """
 
     @property
     def properties(self) -> PropertiesView:
         """
-        The properties of the node
+        The properties of the node.
 
         Returns:
-            PropertiesView: A view of the node properties
+            PropertiesView: A view of the node properties.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -2911,6 +2994,13 @@ class Nodes(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3004,18 +3094,18 @@ class Nodes(object):
             convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
 
         Returns:
-            DataFrame: the view of the node data as a pandas Dataframe
+            DataFrame: the view of the node data as a pandas Dataframe.
         """
 
     def type_filter(self, node_types: list[str]) -> Nodes:
         """
-        Filter nodes by node type
+        Filter nodes by node type.
 
         Arguments:
-            node_types (list[str]): the list of node types to keep
+            node_types (list[str]): the list of node types to keep.
 
         Returns:
-            Nodes: the filtered view of the nodes
+            Nodes: the filtered view of the nodes.
         """
 
     def valid_layers(self, names: list[str]) -> Nodes:
@@ -3030,13 +3120,13 @@ class Nodes(object):
              Nodes: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> Nodes:
+    def window(self, start: TimeInput, end: TimeInput) -> Nodes:
         """
          Create a view of the Nodes including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             Nodes:
@@ -3045,7 +3135,7 @@ class Nodes(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this Nodes
+         Get the window size (difference between start and end) for this Nodes.
 
         Returns:
             Optional[int]:
@@ -3113,16 +3203,26 @@ class PathFromNode(object):
              PathFromNode: The layered view
         """
 
-    def degree(self):
-        """the node degrees"""
+    def degree(self) -> UsizeIterable:
+        """
+        The node degrees.
+
+        Returns:
+            UsizeIterable:
+        """
 
     @property
-    def earliest_time(self):
-        """the node earliest times"""
-
-    def edge_history_count(self):
+    def earliest_time(self) -> OptionI64Iterable:
         """
-        Get the number of edge updates for each node
+        The node earliest time.
+
+        Returns:
+            OptionI64Iterable:
+        """
+
+    def edge_history_count(self) -> UsizeIterable:
+        """
+        Get the number of edge updates for each node.
 
         Returns:
             UsizeIterable:
@@ -3134,7 +3234,6 @@ class PathFromNode(object):
         Get the edges that are incident to this node.
 
         Returns:
-
              Edges: The incident edges.
         """
 
@@ -3200,7 +3299,7 @@ class PathFromNode(object):
              PathFromNode: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3208,6 +3307,12 @@ class PathFromNode(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3258,11 +3363,21 @@ class PathFromNode(object):
         """
 
     @property
-    def id(self):
-        """the node ids"""
+    def id(self) -> GIDIterable:
+        """
+        The node IDs.
 
-    def in_degree(self):
-        """the node in-degrees"""
+        Returns:
+            GIDIterable:
+        """
+
+    def in_degree(self) -> UsizeIterable:
+        """
+        The node in-degrees.
+
+        Returns:
+            UsizeIterable:
+        """
 
     @property
     def in_edges(self) -> Edges:
@@ -3270,7 +3385,6 @@ class PathFromNode(object):
         Get the edges that point into this node.
 
         Returns:
-
              Edges: The inbound edges.
         """
 
@@ -3280,7 +3394,6 @@ class PathFromNode(object):
         Get the neighbours of this node that point into this node.
 
         Returns:
-
              PathFromNode: The in-neighbours.
         """
 
@@ -3293,8 +3406,13 @@ class PathFromNode(object):
         """
 
     @property
-    def latest_time(self):
-        """the node latest times"""
+    def latest_time(self) -> OptionI64Iterable:
+        """
+        The node latest time.
+
+        Returns:
+            OptionI64Iterable:
+        """
 
     def layer(self, name: str) -> PathFromNode:
         """
@@ -3322,11 +3440,21 @@ class PathFromNode(object):
 
     @property
     def metadata(self):
-        """the node metadata"""
+        """
+        The node metadata.
+
+        Returns:
+            MetadataView:
+        """
 
     @property
-    def name(self):
-        """the node names"""
+    def name(self) -> StringIterable:
+        """
+        The node names.
+
+        Returns:
+            StringIterable:
+        """
 
     @property
     def neighbours(self) -> PathFromNode:
@@ -3334,16 +3462,25 @@ class PathFromNode(object):
         Get the neighbours of this node.
 
         Returns:
-
              PathFromNode: The neighbours (both inbound and outbound).
         """
 
     @property
-    def node_type(self):
-        """the node types"""
+    def node_type(self) -> OptionArcStringIterable:
+        """
+        The node types.
 
-    def out_degree(self):
-        """the node out-degrees"""
+        Returns:
+            OptionArcStringIterable:
+        """
+
+    def out_degree(self) -> UsizeIterable:
+        """
+        The node out-degrees.
+
+        Returns:
+            UsizeIterable:
+        """
 
     @property
     def out_edges(self) -> Edges:
@@ -3351,7 +3488,6 @@ class PathFromNode(object):
         Get the edges that point out of this node.
 
         Returns:
-
              Edges: The outbound edges.
         """
 
@@ -3361,17 +3497,23 @@ class PathFromNode(object):
         Get the neighbours of this node that point out of this node.
 
         Returns:
-
              PathFromNode: The out-neighbours.
         """
 
     @property
-    def properties(self):
-        """the node properties"""
+    def properties(self) -> PropertiesView:
+        """
+        The node properties.
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+        Returns:
+            PropertiesView:
+        """
+
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -3379,6 +3521,13 @@ class PathFromNode(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3481,13 +3630,13 @@ class PathFromNode(object):
              PathFromNode: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> PathFromNode:
+    def window(self, start: TimeInput, end: TimeInput) -> PathFromNode:
         """
          Create a view of the PathFromNode including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             PathFromNode:
@@ -3496,7 +3645,7 @@ class PathFromNode(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this PathFromNode
+         Get the window size (difference between start and end) for this PathFromNode.
 
         Returns:
             Optional[int]:
@@ -3564,19 +3713,39 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def degree(self):
-        """the node degrees"""
+    def degree(self) -> NestedUsizeIterable:
+        """
+        Returns the node degrees.
+
+        Returns:
+            NestedUsizeIterable:
+        """
 
     @property
-    def earliest_date_time(self):
-        """Returns the earliest date time of the nodes."""
+    def earliest_date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Returns the earliest date time of the nodes.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     @property
-    def earliest_time(self):
-        """the node earliest times"""
+    def earliest_time(self) -> NestedOptionI64Iterable:
+        """
+        The node earliest times.
 
-    def edge_history_count(self):
-        """Returns the number of edge updates for each node"""
+        Returns:
+            NestedOptionI64Iterable:
+        """
+
+    def edge_history_count(self) -> NestedUsizeIterable:
+        """
+        Returns the number of edge updates for each node.
+
+        Returns:
+            NestedUsizeIterable:
+        """
 
     @property
     def edges(self) -> NestedEdges:
@@ -3584,7 +3753,6 @@ class PathFromGraph(object):
         Get the edges that are incident to this node.
 
         Returns:
-
              NestedEdges: The incident edges.
         """
 
@@ -3650,7 +3818,7 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3658,6 +3826,12 @@ class PathFromGraph(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3707,18 +3881,38 @@ class PathFromGraph(object):
             bool:
         """
 
-    def history(self):
-        """Returns all timestamps of nodes, when an node is added or change to an node is made."""
+    def history(self) -> NestedI64VecIterable:
+        """
+        Returns all timestamps of nodes, when an node is added or change to an node is made.
 
-    def history_date_time(self):
-        """Returns all timestamps of nodes, when an node is added or change to an node is made."""
+        Returns:
+            NestedI64VecIterable:
+        """
+
+    def history_date_time(self) -> NestedVecUtcDateTimeIterable:
+        """
+        Returns all timestamps of nodes, when an node is added or change to an node is made.
+
+        Returns:
+            NestedVecUtcDateTimeIterable:
+        """
 
     @property
-    def id(self):
-        """the node ids"""
+    def id(self) -> NestedGIDIterable:
+        """
+        The node ids
 
-    def in_degree(self):
-        """the node in-degrees"""
+        Returns:
+            NestedGIDIterable:
+        """
+
+    def in_degree(self) -> NestedUsizeIterable:
+        """
+        Returns the node in-degrees.
+
+        Returns:
+            NestedUsizeIterable:
+        """
 
     @property
     def in_edges(self) -> NestedEdges:
@@ -3726,7 +3920,6 @@ class PathFromGraph(object):
         Get the edges that point into this node.
 
         Returns:
-
              NestedEdges: The inbound edges.
         """
 
@@ -3736,7 +3929,6 @@ class PathFromGraph(object):
         Get the neighbours of this node that point into this node.
 
         Returns:
-
              PathFromGraph: The in-neighbours.
         """
 
@@ -3749,12 +3941,22 @@ class PathFromGraph(object):
         """
 
     @property
-    def latest_date_time(self):
-        """Returns the latest date time of the nodes."""
+    def latest_date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Returns the latest date time of the nodes.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     @property
-    def latest_time(self):
-        """the node latest times"""
+    def latest_time(self) -> NestedOptionI64Iterable:
+        """
+        The node latest times.
+
+        Returns:
+            NestedOptionI64Iterable:
+        """
 
     def layer(self, name: str) -> PathFromGraph:
         """
@@ -3782,11 +3984,21 @@ class PathFromGraph(object):
 
     @property
     def metadata(self):
-        """the node metadata"""
+        """
+        Returns the node metadata.
+
+        Returns:
+            MetadataListList:
+        """
 
     @property
-    def name(self):
-        """the node names"""
+    def name(self) -> NestedStringIterable:
+        """
+        The node names.
+
+        Returns:
+            NestedStringIterable:
+        """
 
     @property
     def neighbours(self) -> PathFromGraph:
@@ -3794,16 +4006,25 @@ class PathFromGraph(object):
         Get the neighbours of this node.
 
         Returns:
-
              PathFromGraph: The neighbours (both inbound and outbound).
         """
 
     @property
-    def node_type(self):
-        """the node types"""
+    def node_type(self) -> NestedOptionArcStringIterable:
+        """
+        The node types.
 
-    def out_degree(self):
-        """the node out-degrees"""
+        Returns:
+            NestedOptionArcStringIterable:
+        """
+
+    def out_degree(self) -> NestedUsizeIterable:
+        """
+        Returns the node out-degrees.
+
+        Returns:
+            NestedUsizeIterable:
+        """
 
     @property
     def out_edges(self) -> NestedEdges:
@@ -3811,7 +4032,6 @@ class PathFromGraph(object):
         Get the edges that point out of this node.
 
         Returns:
-
              NestedEdges: The outbound edges.
         """
 
@@ -3821,17 +4041,23 @@ class PathFromGraph(object):
         Get the neighbours of this node that point out of this node.
 
         Returns:
-
              PathFromGraph: The out-neighbours.
         """
 
     @property
     def properties(self):
-        """the node properties"""
+        """
+        Returns the node properties.
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+        Returns:
+            NestedPropsIterable:
+        """
+
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -3839,6 +4065,13 @@ class PathFromGraph(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3941,13 +4174,13 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> PathFromGraph:
+    def window(self, start: TimeInput, end: TimeInput) -> PathFromGraph:
         """
          Create a view of the PathFromGraph including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             PathFromGraph:
@@ -3956,7 +4189,7 @@ class PathFromGraph(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this PathFromGraph
+         Get the window size (difference between start and end) for this PathFromGraph.
 
         Returns:
             Optional[int]:
@@ -3967,14 +4200,17 @@ class MutableNode(Node):
     def __repr__(self):
         """Return repr(self)."""
 
-    def add_metadata(self, metadata: PropInput):
+    def add_metadata(self, metadata: PropInput) -> None:
         """
         Add metadata to a node in the graph.
         This function is used to add properties to a node that do not
         change over time. These properties are fundamental attributes of the node.
 
-        Parameters:
+        Arguments:
             metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+
+        Returns:
+            None:
         """
 
     def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, secondary_index: Optional[int] = None) -> None:
@@ -3982,7 +4218,7 @@ class MutableNode(Node):
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
-        Parameters:
+        Arguments:
            t (TimeInput): The timestamp at which the updates should be applied.
            properties (PropInput, optional): A dictionary of properties to update. Each key is a
                                              string representing the property name, and each value
@@ -3997,23 +4233,29 @@ class MutableNode(Node):
             GraphError: If the operation fails.
         """
 
-    def set_node_type(self, new_type: str):
+    def set_node_type(self, new_type: str) -> None:
         """
         Set the type on the node. This only works if the type has not been previously set, otherwise will
         throw an error
 
-        Parameters:
+        Arguments:
             new_type (str): The new type to be set
+
+        Returns:
+            None:
         """
 
-    def update_metadata(self, metadata: PropInput):
+    def update_metadata(self, metadata: PropInput) -> None:
         """
         Update metadata of a node in the graph overwriting existing values.
         This function is used to add properties to a node that do not
         change over time. These properties are fundamental attributes of the node.
 
-        Parameters:
+        Arguments:
             metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+
+        Returns:
+            None:
         """
 
 class Edge(object): 
@@ -4100,23 +4342,28 @@ class Edge(object):
 
     def deletions(self) -> List[int]:
         """
-        Returns a list of timestamps of when an edge is deleted
+        Returns a list of timestamps of when an edge is deleted.
 
         Returns:
             List[int]: A list of unix timestamps
         """
 
-    def deletions_data_time(self):
+    def deletions_data_time(self) -> List[datetime]:
         """
-        Returns a list of timestamps of when an edge is deleted
+        Returns a list of timestamps of when an edge is deleted.
 
         Returns:
-            List[datetime]
+            List[datetime]:
         """
 
     @property
-    def dst(self):
-        """Returns the destination node of the edge."""
+    def dst(self) -> Node:
+        """
+        Returns the destination node of the edge.
+
+        Returns:
+            Node:
+        """
 
     @property
     def earliest_date_time(self) -> datetime:
@@ -4198,7 +4445,7 @@ class Edge(object):
              Edge: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4206,16 +4453,32 @@ class Edge(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
         """
 
     def explode(self):
-        """Explodes returns an edge object for each update within the original edge."""
+        """
+        Explodes returns an edge object for each update within the original edge.
+
+        Returns:
+            Exploded:
+        """
 
     def explode_layers(self):
-        """Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers."""
+        """
+        Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+
+        Returns:
+            Exploded:
+        """
 
     def has_layer(self, name: str) -> bool:
         """
@@ -4233,35 +4496,37 @@ class Edge(object):
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
         Returns:
-           List[int]:  A list of unix timestamps.
-
+            List[int]:
         """
 
     def history_counts(self) -> int:
         """
-        Returns the number of times an edge is added or change to an edge is made.
+        Returns the number of times an edge was added or change to an edge was made.
 
         Returns:
-           int: The number of times an edge is added or change to an edge is made.
-
+           int: The number of times an edge was added or change to an edge was made.
         """
 
-    def history_date_time(self):
+    def history_date_time(self) -> Optional[List[datetime]]:
         """
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
         Returns:
-            List[datetime]
-
+            Optional[List[datetime]]:
         """
 
     @property
-    def id(self):
-        """The id of the edge."""
+    def id(self) -> GID:
+        """
+        The id of the edge.
+
+        Returns:
+            GID:
+        """
 
     def is_active(self) -> bool:
         """
-        Check if the edge is currently active (i.e., has at least one update within this period)
+        Check if the edge is currently active (has at least one update within this period).
         Returns:
             bool:
         """
@@ -4328,19 +4593,19 @@ class Edge(object):
     @property
     def layer_name(self) -> str:
         """
-        Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
+        Gets the name of the layer this edge belongs to - assuming it only belongs to one layer.
 
         Returns:
             str: The name of the layer
         """
 
     @property
-    def layer_names(self):
+    def layer_names(self) -> List[str]:
         """
-        Gets the names of the layers this edge belongs to
+        Gets the names of the layers this edge belongs to.
 
         Returns:
-            List[str]-  The name of the layer
+            List[str]:  The name of the layer
         """
 
     def layers(self, names: list[str]) -> Edge:
@@ -4365,8 +4630,13 @@ class Edge(object):
         """
 
     @property
-    def nbr(self):
-        """Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)"""
+    def nbr(self) -> Nodes:
+        """
+        Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def properties(self) -> Properties:
@@ -4377,9 +4647,11 @@ class Edge(object):
           Properties: Properties on the Edge.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -4387,6 +4659,13 @@ class Edge(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4449,8 +4728,13 @@ class Edge(object):
         """
 
     @property
-    def src(self):
-        """Returns the source node of the edge."""
+    def src(self) -> Nodes:
+        """
+        Returns the source node of the edge.
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def start(self) -> Optional[int]:
@@ -4491,13 +4775,13 @@ class Edge(object):
              Edge: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> Edge:
+    def window(self, start: TimeInput, end: TimeInput) -> Edge:
         """
          Create a view of the Edge including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             Edge:
@@ -4506,7 +4790,7 @@ class Edge(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this Edge
+         Get the window size (difference between start and end) for this Edge.
 
         Returns:
             Optional[int]:
@@ -4568,16 +4852,21 @@ class Edges(object):
              list[Edge]: the list of edges
         """
 
-    def count(self):
-        """Returns the number of edges"""
+    def count(self) -> int:
+        """
+        Returns the number of edges.
+
+        Returns:
+            int:
+        """
 
     @property
-    def date_time(self):
+    def date_time(self) -> OptionUtcDateTimeIterable:
         """
         Returns the date times of exploded edges
 
         Returns:
-           A list of date times.
+           OptionUtcDateTimeIterable:
         """
 
     def default_layer(self) -> Edges:
@@ -4592,37 +4881,42 @@ class Edges(object):
         Returns all timestamps of edges where an edge is deleted
 
         Returns:
-            A list of lists of unix timestamps
+            PyGenericIterable:
         """
 
-    def deletions_date_time(self):
+    def deletions_date_time(self) -> OptionVecUtcDateTimeIterable:
         """
         Returns all timestamps of edges where an edge is deleted
 
         Returns:
-            A list of lists of DateTime objects
+            OptionVecUtcDateTimeIterable:
         """
 
     @property
-    def dst(self):
-        """Returns the destination node of the edge."""
+    def dst(self) -> Node:
+        """
+        Returns the destination node of the edge.
+
+        Returns:
+            Node:
+        """
 
     @property
-    def earliest_date_time(self):
+    def earliest_date_time(self) -> OptionUtcDateTimeIterable:
         """
         Returns the earliest date time of the edges.
 
         Returns:
-         Earliest date time of the edges.
+            OptionUtcDateTimeIterable:
         """
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> OptionI64Iterable:
         """
         Returns the earliest time of the edges.
 
         Returns:
-        Earliest time of the edges.
+            OptionI64Iterable:
         """
 
     @property
@@ -4687,7 +4981,7 @@ class Edges(object):
              Edges: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4695,16 +4989,32 @@ class Edges(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
         """
 
     def explode(self):
-        """Explodes returns an edge object for each update within the original edge."""
+        """
+        Explodes returns an edge object for each update within the original edge.
+
+        Returns:
+            Exploded:
+        """
 
     def explode_layers(self):
-        """Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers."""
+        """
+        Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+
+        Returns:
+            Exploded:
+        """
 
     def has_layer(self, name: str) -> bool:
         """
@@ -4722,37 +5032,66 @@ class Edges(object):
         Returns all timestamps of edges, when an edge is added or change to an edge is made.
 
         Returns:
-           A list of lists unix timestamps.
+            PyGenericIterable:
 
         """
 
-    def history_counts(self):
-        ...
+    def history_counts(self) -> U64Iterable:
+        """
+        Returns the number of times any edge was added or change to an edge was been made.
 
-    def history_date_time(self):
+        Returns:
+            U64Iterable:
+        """
+
+    def history_date_time(self) -> OptionVecUtcDateTimeIterable:
         """
         Returns all timestamps of edges, when an edge is added or change to an edge is made.
 
         Returns:
-           A list of lists of timestamps.
-
+            OptionVecUtcDateTimeIterable:
         """
 
     @property
-    def id(self):
-        """Returns all ids of the edges."""
+    def id(self) -> GIDGIDIterable:
+        """
+        Returns all ids of the edges.
 
-    def is_active(self):
-        ...
+        Returns:
+            GIDGIDIterable:
+        """
 
-    def is_deleted(self):
-        """Check if the edges are deleted"""
+    def is_active(self) -> BoolIterable:
+        """
+        Check if the edges are active (there is at least one update during this time).
 
-    def is_self_loop(self):
-        """Check if the edges are on the same node"""
+        Returns:
+            BoolIterable:
+        """
 
-    def is_valid(self):
-        """Check if the edges are valid (i.e. not deleted)"""
+    def is_deleted(self) -> BoolIterable:
+        """
+        Check if the edges are deleted.
+
+        Returns:
+            BoolIterable:
+        """
+
+    def is_self_loop(self) -> BoolIterable:
+        """
+        Check if the edges are on the same node.
+
+        Returns:
+            BoolIterable:
+        """
+
+    def is_valid(self) -> BoolIterable:
+        """
+        Check if the edges are valid (i.e. not deleted).
+
+        Returns:
+            BoolIterable:
+        """
 
     def latest(self) -> Edges:
         """
@@ -4763,21 +5102,21 @@ class Edges(object):
         """
 
     @property
-    def latest_date_time(self):
+    def latest_date_time(self) -> OptionUtcDateTimeIterable:
         """
         Returns the latest date time of the edges.
 
         Returns:
-          Latest date time of the edges.
+            OptionUtcDateTimeIterable:
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> OptionI64Iterable:
         """
         Returns the latest time of the edges.
 
         Returns:
-         Latest time of the edges.
+            OptionI64Iterable:
         """
 
     def layer(self, name: str) -> Edges:
@@ -4793,21 +5132,21 @@ class Edges(object):
         """
 
     @property
-    def layer_name(self):
+    def layer_name(self) -> ArcStringIterable:
         """
         Get the layer name that all edges belong to - assuming they only belong to one layer
 
         Returns:
-         The name of the layer
+         ArcStringIterable:
         """
 
     @property
-    def layer_names(self):
+    def layer_names(self) -> ArcStringVecIterable:
         """
-        Get the layer names that all edges belong to - assuming they only belong to one layer
+        Get the layer names that all edges belong to - assuming they only belong to one layer.
 
         Returns:
-          A list of layer names
+          ArcStringVecIterable:
         """
 
     def layers(self, names: list[str]) -> Edges:
@@ -4832,8 +5171,13 @@ class Edges(object):
         """
 
     @property
-    def nbr(self):
-        """Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)"""
+    def nbr(self) -> Nodes:
+        """
+        Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def properties(self) -> PropertiesView:
@@ -4844,9 +5188,11 @@ class Edges(object):
             PropertiesView:
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -4854,6 +5200,13 @@ class Edges(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4916,8 +5269,13 @@ class Edges(object):
         """
 
     @property
-    def src(self):
-        """Returns the source node of the edge."""
+    def src(self) -> Nodes:
+        """
+        Returns the source node of the edge.
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def start(self) -> Optional[int]:
@@ -4940,10 +5298,10 @@ class Edges(object):
     @property
     def time(self):
         """
-        Returns the times of exploded edges
+        Returns the times of exploded edges.
 
         Returns:
-          Time of edge
+            I64Iterable:
         """
 
     def to_df(self, include_property_history: bool = True, convert_datetime: bool = False, explode: bool = False) -> DataFrame:
@@ -4978,13 +5336,13 @@ class Edges(object):
              Edges: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> Edges:
+    def window(self, start: TimeInput, end: TimeInput) -> Edges:
         """
          Create a view of the Edges including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             Edges:
@@ -4993,7 +5351,7 @@ class Edges(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this Edges
+         Get the window size (difference between start and end) for this Edges.
 
         Returns:
             Optional[int]:
@@ -5055,8 +5413,13 @@ class NestedEdges(object):
         """
 
     @property
-    def date_time(self):
-        """Get the date times of exploded edges"""
+    def date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Get the date times of exploded edges.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     def default_layer(self) -> NestedEdges:
         """
@@ -5065,33 +5428,48 @@ class NestedEdges(object):
              NestedEdges: The layered view
         """
 
-    def deletions(self):
+    def deletions(self) -> NestedI64VecIterable:
         """
-        Returns all timestamps of edges, where an edge is deleted
+        Returns all timestamps of edges, where an edge is deleted.
 
         Returns:
-            A list of lists of lists of unix timestamps
+            NestedI64VecIterable: A list of lists of lists of unix timestamps
         """
 
-    def deletions_date_time(self):
+    def deletions_date_time(self) -> NestedVecUtcDateTimeIterable:
         """
-        Returns all timestamps of edges, where an edge is deleted
+        Returns all timestamps of edges, where an edge is deleted.
 
         Returns:
-            A list of lists of lists of DateTime objects
+            NestedVecUtcDateTimeIterable: A list of lists of lists of DateTime objects
         """
 
     @property
-    def dst(self):
-        """Returns the destination node of the edge."""
+    def dst(self) -> Node:
+        """
+        Returns the destination node of the edge.
+
+        Returns:
+            Node:
+        """
 
     @property
-    def earliest_date_time(self):
-        """Returns the earliest date time of the edges."""
+    def earliest_date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Returns the earliest date time of the edges.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     @property
-    def earliest_time(self):
-        """Returns the earliest time of the edges."""
+    def earliest_time(self) -> NestedOptionI64Iterable:
+        """
+        Returns the earliest time of the edges.
+
+        Returns:
+            NestedOptionI64Iterable:
+        """
 
     @property
     def end(self) -> Optional[int]:
@@ -5155,7 +5533,7 @@ class NestedEdges(object):
              NestedEdges: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -5163,16 +5541,32 @@ class NestedEdges(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
+                the windows will be aligned on days (00:00:00 to 23:59:59).
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
         """
 
     def explode(self):
-        """Explodes returns an edge object for each update within the original edge."""
+        """
+        Explodes returns an edge object for each update within the original edge.
+
+        Returns:
+            Exploded:
+        """
 
     def explode_layers(self):
-        """Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers."""
+        """
+        Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+
+        Returns:
+            Exploded:
+        """
 
     def has_layer(self, name: str) -> bool:
         """
@@ -5185,27 +5579,62 @@ class NestedEdges(object):
             bool:
         """
 
-    def history(self):
-        """Returns all timestamps of edges, when an edge is added or change to an edge is made."""
+    def history(self) -> NestedI64VecIterable:
+        """
+        Returns all timestamps of edges, when an edge is added or change to an edge is made.
 
-    def history_date_time(self):
-        """Returns all timestamps of edges, when an edge is added or change to an edge is made."""
+        Returns:
+            NestedI64VecIterable:
+        """
+
+    def history_date_time(self) -> NestedVecUtcDateTimeIterable:
+        """
+        Returns all timestamps of edges, when an edge is added or change to an edge is made.
+
+        Returns:
+            NestedVecUtcDateTimeIterable:
+        """
 
     @property
-    def id(self):
-        """Returns all ids of the edges."""
+    def id(self) -> NestedGIDGIDIterable:
+        """
+        Returns all ids of the edges.
 
-    def is_active(self):
-        ...
+        Returns:
+            NestedGIDGIDIterable:
+        """
 
-    def is_deleted(self):
-        """Check if edges are deleted"""
+    def is_active(self) -> NestedBoolIterable:
+        """
+        Check if the edges are active (there is at least one update during this time).
 
-    def is_self_loop(self):
-        """Check if the edges are on the same node"""
+        Returns:
+            NestedBoolIterable:
+        """
 
-    def is_valid(self):
-        """Check if edges are valid (i.e., not deleted)"""
+    def is_deleted(self) -> NestedBoolIterable:
+        """
+        Check if edges are deleted.
+
+        Returns:
+            NestedBoolIterable:
+        """
+
+    def is_self_loop(self) -> NestedBoolIterable:
+        """
+        Check if the edges are on the same node.
+
+        Returns:
+            NestedBoolIterable:
+        """
+
+    def is_valid(self) -> NestedBoolIterable:
+        """
+        Check if edges are valid (i.e., not deleted).
+
+        Returns:
+            NestedBoolIterable:
+        """
 
     def latest(self) -> NestedEdges:
         """
@@ -5216,12 +5645,22 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_date_time(self):
-        """Returns the latest date time of the edges."""
+    def latest_date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Returns the latest date time of the edges.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     @property
-    def latest_time(self):
-        """Returns the latest time of the edges."""
+    def latest_time(self) -> NestedOptionI64Iterable:
+        """
+        Returns the latest time of the edges.
+
+        Returns:
+            NestedOptionI64Iterable:
+        """
 
     def layer(self, name: str) -> NestedEdges:
         """
@@ -5237,11 +5676,21 @@ class NestedEdges(object):
 
     @property
     def layer_name(self):
-        """Returns the name of the layer the edges belong to - assuming they only belong to one layer"""
+        """
+        Returns the name of the layer the edges belong to - assuming they only belong to one layer.
+
+        Returns:
+            NestedArcStringIterable:
+        """
 
     @property
-    def layer_names(self):
-        """Returns the names of the layers the edges belong to"""
+    def layer_names(self) -> NestedArcStringVecIterable:
+        """
+        Returns the names of the layers the edges belong to.
+
+        Returns:
+            NestedArcStringVecIterable:
+        """
 
     def layers(self, names: list[str]) -> NestedEdges:
         """
@@ -5257,19 +5706,36 @@ class NestedEdges(object):
 
     @property
     def metadata(self):
-        """Get a view of the metadata only."""
+        """
+        Get a view of the metadata only.
+
+        Returns:
+            MetadataListList:
+        """
 
     @property
-    def nbr(self):
-        """Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)"""
+    def nbr(self) -> Nodes:
+        """
+        Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def properties(self):
-        """Returns all properties of the edges"""
+        """
+        Returns all properties of the edges
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+        Returns:
+            PyNestedPropsIterable:
+        """
+
+    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
+        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
         A rolling window is a window that moves forward by `step` size at each iteration.
 
@@ -5277,6 +5743,13 @@ class NestedEdges(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
+                to the smallest unit of time passed to step (or window if no step is passed).
+                For example, if the step is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to "unaligned", the first window will begin at the first time event.
+                If any other alignment unit is passed, the windows will be aligned to that unit.
+                alignment_unit defaults to None.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -5339,8 +5812,13 @@ class NestedEdges(object):
         """
 
     @property
-    def src(self):
-        """Returns the source node of the edge."""
+    def src(self) -> Nodes:
+        """
+        Returns the source node of the edge.
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def start(self) -> Optional[int]:
@@ -5361,8 +5839,13 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self):
-        """Returns the times of exploded edges"""
+    def time(self) -> NestedOptionI64Iterable:
+        """
+        Returns the times of exploded edges.
+
+        Returns:
+            NestedOptionI64Iterable:
+        """
 
     def valid_layers(self, names: list[str]) -> NestedEdges:
         """
@@ -5376,13 +5859,13 @@ class NestedEdges(object):
              NestedEdges: The layered view
         """
 
-    def window(self, start: TimeInput | None, end: TimeInput | None) -> NestedEdges:
+    def window(self, start: TimeInput, end: TimeInput) -> NestedEdges:
         """
          Create a view of the NestedEdges including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
+            start (TimeInput): The start time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
             NestedEdges:
@@ -5391,7 +5874,7 @@ class NestedEdges(object):
     @property
     def window_size(self) -> Optional[int]:
         """
-         Get the window size (difference between start and end) for this NestedEdges
+         Get the window size (difference between start and end) for this NestedEdges.
 
         Returns:
             Optional[int]:
@@ -5402,15 +5885,18 @@ class MutableEdge(Edge):
     def __repr__(self):
         """Return repr(self)."""
 
-    def add_metadata(self, metadata: PropInput, layer: Optional[str] = None):
+    def add_metadata(self, metadata: PropInput, layer: Optional[str] = None) -> None:
         """
         Add metadata to an edge in the graph.
         This function is used to add properties to an edge that do not
         change over time. These properties are fundamental attributes of the edge.
 
-        Parameters:
+        Arguments:
             metadata (PropInput): A dictionary of properties to be added to the edge.
             layer (str, optional): The layer you want these properties to be added on to.
+
+        Returns:
+            None:
         """
 
     def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
@@ -5418,7 +5904,7 @@ class MutableEdge(Edge):
         Add updates to an edge in the graph at a specified time.
         This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
-        Parameters:
+        Arguments:
            t (TimeInput): The timestamp at which the updates should be applied.
            properties (PropInput, optional): A dictionary of properties to update.
            layer (str, optional): The layer you want these properties to be added on to.
@@ -5431,24 +5917,33 @@ class MutableEdge(Edge):
             GraphError: If the operation fails.
         """
 
-    def delete(self, t: TimeInput, layer: Optional[str] = None):
+    def delete(self, t: TimeInput, layer: Optional[str] = None) -> None:
         """
         Mark the edge as deleted at the specified time.
 
-        Parameters:
+        Arguments:
             t (TimeInput): The timestamp at which the deletion should be applied.
-            layer (str, optional): The layer you want the deletion applied to .
+            layer (str, optional): The layer you want the deletion applied to.
+
+        Returns:
+            None:
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def update_metadata(self, metadata: PropInput, layer: Optional[str] = None):
+    def update_metadata(self, metadata: PropInput, layer: Optional[str] = None) -> None:
         """
         Update metadata of an edge in the graph overwriting existing values.
         This function is used to add properties to an edge that does not
         change over time. These properties are fundamental attributes of the edge.
 
-        Parameters:
+        Arguments:
             metadata (PropInput): A dictionary of properties to be added to the edge.
             layer (str, optional): The layer you want these properties to be added on to.
+
+        Returns:
+            None:
         """
 
 class Properties(object): 
@@ -5487,29 +5982,151 @@ class Properties(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def as_dict(self):
-        """Convert properties view to a dict"""
+    def as_dict(self) -> dict[str, PropValue]:
+        """
+        Convert properties view to a dict.
 
-    def get(self, key):
+        Returns:
+            dict[str, PropValue]:
+        """
+
+    def get(self, key: str) -> PropValue:
         """
         Get property value.
 
         First searches temporal properties and returns latest value if it exists.
         If not, it falls back to static properties.
+
+        Arguments:
+            key (str): the name of the property.
+
+        Returns:
+            PropValue:
         """
 
-    def items(self):
-        """Get a list of key-value pairs"""
+    def items(self) -> list[Tuple[str, PropValue]]:
+        """
+        Get a list of key-value pairs
 
-    def keys(self):
-        """Get the names for all properties (includes temporal and static properties)"""
+        Returns:
+            list[Tuple[str, PropValue]]:
+        """
+
+    def keys(self) -> list[str]:
+        """
+        Get the names for all properties
+
+        Returns:
+            list[str]:
+        """
 
     @property
-    def temporal(self):
-        """Get a view of the temporal properties only."""
+    def temporal(self) -> TemporalProp:
+        """
+        Get a view of the temporal properties only.
 
-    def values(self):
-        """Get the values of the properties"""
+        Returns:
+            TemporalProp:
+        """
+
+    def values(self) -> list[PropValue]:
+        """
+        Get the values of the properties.
+
+        Returns:
+            list[PropValue]:
+        """
+
+class PyPropValueList(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def average(self) -> PropValue:
+        """
+        Compute the average of all property values. Alias for mean().
+
+        Returns:
+            PropValue: The average of each property values, or None if count is zero.
+        """
+
+    def collect(self):
+        ...
+
+    def count(self):
+        ...
+
+    def drop_none(self) -> list[PropValue]:
+        """
+        Drop none.
+
+        Returns:
+            list[PropValue]:
+        """
+
+    def max(self) -> PropValue:
+        """
+        Find the maximum property value and its associated time.
+
+        Returns:
+            PropValue:
+        """
+
+    def mean(self) -> PropValue:
+        """
+        Compute the mean of all property values.
+
+        Returns:
+            PropValue: The mean of each property values, or None if count is zero.
+        """
+
+    def median(self) -> PropValue:
+        """
+        Compute the median of all property values.
+
+        Returns:
+            PropValue:
+        """
+
+    def min(self) -> PropValue:
+        """
+        Min property value.
+
+        Returns:
+            PropValue:
+        """
+
+    def sum(self) -> PropValue:
+        """
+        Sum of property values.
+
+        Returns:
+            PropValue:
+        """
 
 class Metadata(object): 
     """A view of metadata of an entity"""
@@ -5551,13 +6168,13 @@ class Metadata(object):
         """
         as_dict() -> dict[str, Any]
 
-        convert the properties view to a python dict
+        Convert the properties view to a python dict
 
         Returns:
             dict[str, PropValue]:
         """
 
-    def get(self, key: str):
+    def get(self, key: str) -> PropValue:
         """
         get property value by key
 
@@ -5565,7 +6182,7 @@ class Metadata(object):
             key (str): the name of the property
 
         Returns:
-            PropValue | None: the property value or `None` if value for `key` does not exist
+            PropValue: the property value or `None` if value for `key` does not exist
         """
 
     def items(self) -> list[Tuple[str, PropValue]]:
@@ -5584,12 +6201,12 @@ class Metadata(object):
             list[str]: the property keys
         """
 
-    def values(self):
+    def values(self) -> list[PropValue]:
         """
         lists the property values
 
         Returns:
-            list | Array: the property values
+            list[PropValue]:
         """
 
 class TemporalProperties(object): 
@@ -5628,9 +6245,12 @@ class TemporalProperties(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, key) -> TemporalProp:
+    def get(self, key: str) -> TemporalProp:
         """
-        Get property value for `key` if it exists
+        Get property value for `key` if it exists.
+
+        Arguments:
+            key (str): the name of the property.
 
         Returns:
             TemporalProp: the property view if it exists, otherwise `None`
@@ -5652,11 +6272,21 @@ class TemporalProperties(object):
             dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
         """
 
-    def items(self):
-        """List the property keys together with the corresponding values"""
+    def items(self) -> List[Tuple[str, TemporalProp]]:
+        """
+        List the property keys together with the corresponding values
 
-    def keys(self):
-        """List the available property keys"""
+        Returns:
+            List[Tuple[str, TemporalProp]]:
+        """
+
+    def keys(self) -> list[str]:
+        """
+        List the available property keys.
+
+        Returns:
+            list[str]:
+        """
 
     def latest(self) -> dict[str, PropValue]:
         """
@@ -5706,24 +6336,57 @@ class PropertiesView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def as_dict(self):
-        """Convert properties view to a dict"""
+    def as_dict(self) -> dict[str, List[PropValue]]:
+        """
+        Convert properties view to a dict.
 
-    def get(self, key):
-        """Get property value."""
+        Returns:
+            dict[str, List[PropValue]]:
+        """
 
-    def items(self):
-        """Get a list of key-value pairs"""
+    def get(self, key: str) -> PyPropValueList:
+        """
+        Get property value.
 
-    def keys(self):
-        """Get the names for all properties"""
+        Arguments:
+            key (str): the name of the property.
+
+        Returns:
+            PyPropValueList:
+        """
+
+    def items(self) -> list[Tuple[str, List[PropValue]]]:
+        """
+        Get a list of key-value pairs.
+
+        Returns:
+            list[Tuple[str, List[PropValue]]]:
+        """
+
+    def keys(self) -> list[str]:
+        """
+        Get the names for all properties.
+
+        Returns:
+            list[str]:
+        """
 
     @property
-    def temporal(self):
-        """Get a view of the temporal properties only."""
+    def temporal(self) -> List[TemporalProp]:
+        """
+        Get a view of the temporal properties only.
 
-    def values(self):
-        """Get the values of the properties"""
+        Returns:
+            List[TemporalProp]:
+        """
+
+    def values(self) -> list[list[PropValue]]:
+        """
+        Get the values of the properties.
+
+        Returns:
+            list[list[PropValue]]:
+        """
 
 class TemporalProp(object): 
     """A view of a temporal property"""
@@ -5752,8 +6415,16 @@ class TemporalProp(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def at(self, t):
-        """Get the value of the property at time `t`"""
+    def at(self, t: Any) -> Optional[PropValue]:
+        """
+        Get the value of the property at a specified time.
+
+        Arguments:
+            t (time): time
+
+        Returns:
+            Optional[PropValue]:
+        """
 
     def average(self) -> PropValue:
         """
@@ -5772,16 +6443,36 @@ class TemporalProp(object):
         """
 
     def history(self):
-        """Get the timestamps at which the property was updated"""
+        """
+        Get the timestamps at which the property was updated.
 
-    def history_date_time(self):
-        """Get the timestamps at which the property was updated"""
+        Returns:
+            NumpyArray:
+        """
 
-    def items(self):
-        """List update timestamps and corresponding property values"""
+    def history_date_time(self) -> Optional[List[datetime]]:
+        """
+        Get the timestamps at which the property was updated.
 
-    def items_date_time(self):
-        """List update timestamps and corresponding property values"""
+        Returns:
+            Optional[List[datetime]]:
+        """
+
+    def items(self) -> List[Tuple[int, PropValue]]:
+        """
+        List update timestamps and corresponding property values.
+
+        Returns:
+            List[Tuple[int, PropValue]]:
+        """
+
+    def items_date_time(self) -> list[Tuple[datetime, PropValue]]:
+        """
+        List update timestamps and corresponding property values.
+
+        Returns:
+            list[Tuple[datetime, PropValue]]:
+        """
 
     def max(self) -> Tuple[int, PropValue]:
         """
@@ -5815,8 +6506,16 @@ class TemporalProp(object):
             Tuple[int, PropValue]: A tuple containing the time and the minimum property value.
         """
 
-    def ordered_dedupe(self, latest_time):
-        """List of ordered deduplicated property values"""
+    def ordered_dedupe(self, latest_time: Any) -> List[int]:
+        """
+        List of ordered deduplicated property values.
+
+        Arguments:
+            latest_time: Enable to check only latest time.
+
+        Returns:
+            List[int]:
+        """
 
     def sum(self) -> PropValue:
         """
@@ -5826,14 +6525,29 @@ class TemporalProp(object):
             PropValue: The sum of all property values.
         """
 
-    def unique(self):
-        """List of unique property values"""
+    def unique(self) -> List[PropValue]:
+        """
+        List of unique property values.
 
-    def value(self):
-        """Get the latest value of the property"""
+        Returns:
+            List[PropValue]:
+        """
+
+    def value(self) -> Optional[PropValue]:
+        """
+        Get the latest value of the property.
+
+        Returns:
+            Optional[PropValue]:
+        """
 
     def values(self):
-        """Get the property values for each update"""
+        """
+        Get the property values for each update.
+
+        Returns:
+            NumpyArray:
+        """
 
 class WindowSet(object): 
 
@@ -5842,16 +6556,16 @@ class WindowSet(object):
 
     def time_index(self, center: bool = False) -> Iterable:
         """
-        Returns the time index of this window set
+        Returns the time index of this window set.
 
         It uses the last time of each window as the reference or the center of each if `center` is
-        set to `True`
+        set to `True`.
 
         Arguments:
-            center (bool): if True time indexes are centered. Defaults to False
+            center (bool): If True time indexes are centered. Defaults to False.
 
         Returns:
-            Iterable: the time index"
+            Iterable: The time index.
         """
 
 class IndexSpecBuilder(object): 
@@ -5859,38 +6573,105 @@ class IndexSpecBuilder(object):
     def __new__(cls, graph) -> IndexSpecBuilder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def build(self):
-        ...
+    def build(self) -> IndexSpec:
+        """
+        Return a spec
 
-    def with_all_edge_metadata(self):
-        ...
+        Returns:
+            IndexSpec:
+        """
 
-    def with_all_edge_properties(self):
-        ...
+    def with_all_edge_metadata(self) -> dict[str, Any]:
+        """
+        Adds all edge metadata to the spec.
 
-    def with_all_edge_properties_and_metadata(self):
-        ...
+        Returns:
+            dict[str, Any]:
+        """
 
-    def with_all_node_metadata(self):
-        ...
+    def with_all_edge_properties(self) -> dict[str, Any]:
+        """
+        Adds all edge properties to the spec.
 
-    def with_all_node_properties(self):
-        ...
+        Returns:
+            dict[str, Any]:
+        """
 
-    def with_all_node_properties_and_metadata(self):
-        ...
+    def with_all_edge_properties_and_metadata(self) -> dict[str, Any]:
+        """
+        Adds all edge properties and metadata to the spec.
 
-    def with_edge_metadata(self, props):
-        ...
+        Returns:
+            dict[str, Any]:
+        """
 
-    def with_edge_properties(self, props):
-        ...
+    def with_all_node_metadata(self) -> dict[str, Any]:
+        """
+        Adds all node metadata to the spec.
 
-    def with_node_metadata(self, props):
-        ...
+        Returns:
+            dict[str, Any]:
+        """
 
-    def with_node_properties(self, props):
-        ...
+    def with_all_node_properties(self) -> dict[str, Any]:
+        """
+        Adds all node properties to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_node_properties_and_metadata(self) -> dict[str, Any]:
+        """
+        Adds all node properties and metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_edge_metadata(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified edge metadata to the spec.
+
+        Arguments:
+            props: List of metadata.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_edge_properties(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified edge properties to the spec.
+
+        Arguments:
+            props: List of properties.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_node_metadata(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified node metadata to the spec.
+
+        Arguments:
+            props: list of metadata.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_node_properties(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified node properties to the spec.
+
+        Arguments:
+            props: list of properties.
+
+        Returns:
+            dict[str, Any]:
+        """
 
 class IndexSpec(object): 
 
@@ -5898,20 +6679,45 @@ class IndexSpec(object):
         """Return repr(self)."""
 
     @property
-    def edge_metadata(self):
-        ...
+    def edge_metadata(self) -> list[str]:
+        """
+        Get edge metadata.
+
+        Returns:
+            list[str]:
+        """
 
     @property
-    def edge_properties(self):
-        ...
+    def edge_properties(self) -> list[str]:
+        """
+        Get edge properties.
+
+        Returns:
+            list[str]:
+        """
 
     @property
-    def node_metadata(self):
-        ...
+    def node_metadata(self) -> list[str]:
+        """
+        Get node metadata.
+
+        Returns:
+            list[str]:
+        """
 
     @property
-    def node_properties(self):
-        ...
+    def node_properties(self) -> list[str]:
+        """
+        Get node properties.
 
-def version():
-    ...
+        Returns:
+            list[str]:
+        """
+
+def version() -> str:
+    """
+    Return Raphtory version.
+
+    Returns:
+        str:
+    """

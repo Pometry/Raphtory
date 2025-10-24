@@ -60,6 +60,12 @@ pub struct Storage {
     // vector index
 }
 
+impl From<GraphStorage> for Storage {
+    fn from(graph: GraphStorage) -> Self {
+        Self::from_inner(graph)
+    }
+}
+
 impl InheritLayerOps for Storage {}
 impl InheritCoreGraphOps for Storage {}
 
@@ -116,7 +122,7 @@ impl Storage {
         &self,
         map_fn: impl FnOnce(&GraphIndex) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
-        map_fn(&self.index.read())?;
+        map_fn(&self.index.read_recursive())?;
         Ok(())
     }
 
@@ -126,7 +132,7 @@ impl Storage {
         &self,
         map_fn: impl FnOnce(&MutableGraphIndex) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
-        let guard = self.index.read();
+        let guard = self.index.read_recursive();
         match guard.deref() {
             GraphIndex::Empty => {}
             GraphIndex::Mutable(i) => map_fn(i)?,
@@ -146,11 +152,11 @@ impl Storage {
 #[cfg(feature = "search")]
 impl Storage {
     pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
-        Ok(self.index.read().index_spec())
+        Ok(self.index.read_recursive().index_spec())
     }
 
     pub(crate) fn load_index_if_empty(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        let guard = self.index.read();
+        let guard = self.index.read_recursive();
         match guard.deref() {
             GraphIndex::Empty => {
                 drop(guard);
@@ -167,7 +173,7 @@ impl Storage {
 
     pub(crate) fn create_index_if_empty(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         {
-            let guard = self.index.read();
+            let guard = self.index.read_recursive();
             match guard.deref() {
                 GraphIndex::Empty => {
                     drop(guard);
@@ -190,7 +196,7 @@ impl Storage {
         index_spec: IndexSpec,
     ) -> Result<(), GraphError> {
         {
-            let guard = self.index.read();
+            let guard = self.index.read_recursive();
             match guard.deref() {
                 GraphIndex::Empty => {
                     drop(guard);
@@ -203,7 +209,7 @@ impl Storage {
                 _ => {}
             }
         }
-        if self.index.read().path().is_some() {
+        if self.index.read_recursive().path().is_some() {
             return Err(GraphError::OnDiskIndexAlreadyExists);
         }
         self.if_index_mut(|index| index.update(&self.graph, index_spec))?;
@@ -215,11 +221,11 @@ impl Storage {
     }
 
     pub(crate) fn is_indexed(&self) -> bool {
-        self.index.read().is_indexed()
+        self.index.read_recursive().is_indexed()
     }
 
     pub(crate) fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        let guard = self.get_index().read();
+        let guard = self.get_index().read_recursive();
         if guard.is_indexed() {
             if guard.path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
@@ -231,7 +237,7 @@ impl Storage {
     }
 
     pub(crate) fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        let guard = self.get_index().read();
+        let guard = self.get_index().read_recursive();
         if guard.is_indexed() {
             if guard.path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
@@ -263,15 +269,15 @@ impl InheritViewOps for Storage {}
 impl InternalAdditionOps for Storage {
     type Error = GraphError;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_>, Self::Error> {
         Ok(self.graph.write_lock()?)
     }
 
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes<'_>, Self::Error> {
         Ok(self.graph.write_lock_nodes()?)
     }
 
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges<'_>, Self::Error> {
         Ok(self.graph.write_lock_edges()?)
     }
 
@@ -472,7 +478,7 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
         #[cfg(feature = "proto")]
@@ -488,7 +494,7 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
         let lock = self.graph.internal_update_node_metadata(vid, props)?;
 
         #[cfg(feature = "proto")]
@@ -505,7 +511,7 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWGuard<'_>, Self::Error> {
         let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
 
         #[cfg(feature = "proto")]
@@ -522,7 +528,7 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWGuard<'_>, Self::Error> {
         let lock = self
             .graph
             .internal_update_edge_metadata(eid, layer, props)?;

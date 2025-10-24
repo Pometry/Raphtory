@@ -1,5 +1,5 @@
 import sys
-from .raphtory import *
+from ._raphtory_custom import *
 
 sys.modules["raphtory.algorithms"] = algorithms
 sys.modules["raphtory.graph_gen"] = graph_gen

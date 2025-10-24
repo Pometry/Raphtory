@@ -56,7 +56,7 @@ impl<'source> FromPyObject<'source> for PyNodeRef {
 }
 
 impl AsNodeRef for PyNodeRef {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         match self {
             PyNodeRef::ExternalStr(str) => NodeRef::External(GidRef::Str(str)),
             PyNodeRef::ExternalInt(gid) => NodeRef::External(GidRef::U64(*gid)),
@@ -238,16 +238,16 @@ impl PyWindowSet {
         self.window_set.build_iter()
     }
 
-    /// Returns the time index of this window set
+    /// Returns the time index of this window set.
     ///
     /// It uses the last time of each window as the reference or the center of each if `center` is
-    /// set to `True`
+    /// set to `True`.
     ///
     /// Arguments:
-    ///     center (bool): if True time indexes are centered. Defaults to False
+    ///     center (bool): If True time indexes are centered. Defaults to False.
     ///
     /// Returns:
-    ///     Iterable: the time index"
+    ///     Iterable: The time index.
     #[pyo3(signature = (center=false))]
     fn time_index(&self, center: bool) -> PyGenericIterable {
         self.window_set.time_index(center)

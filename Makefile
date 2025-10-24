@@ -4,6 +4,9 @@ RUST_READTHEDOCS_DOCS_TARGET=docs/source/_rustdoc
 # General #
 ###########
 
+print-version: # this is used by the CI, don't change
+	@cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version'
+
 build-all: rust-build
 	cd python && maturin develop
 
@@ -36,7 +39,10 @@ deactivate-storage:
 	./scripts/deactivate_private_storage.py
 
 pull-storage: activate-storage
-	git submodule update --init --recursive
+	git submodule update --init --recursive pometry-storage-private
+
+pull-ui-tests:
+	git submodule update --init --recursive ui-tests
 
 install-node-tools:
 	@if command -v npx >/dev/null 2>&1; then \

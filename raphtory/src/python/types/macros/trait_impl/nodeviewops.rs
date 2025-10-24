@@ -10,7 +10,6 @@ macro_rules! impl_nodeviewops {
             /// Get the edges that are incident to this node.
             ///
             /// Returns:
-            ///
             #[doc = concat!("     ", $edge_type, ": The incident edges.")]
             #[getter]
             fn edges(&self) -> <$base_type as NodeViewOps<'static>>::Edges {
@@ -20,7 +19,6 @@ macro_rules! impl_nodeviewops {
             /// Get the edges that point into this node.
             ///
             /// Returns:
-            ///
             #[doc = concat!("     ", $edge_type, ": The inbound edges.")]
             #[getter]
             fn in_edges(&self) -> <$base_type as NodeViewOps<'static>>::Edges {
@@ -30,7 +28,6 @@ macro_rules! impl_nodeviewops {
             /// Get the edges that point out of this node.
             ///
             /// Returns:
-            ///
             #[doc = concat!("     ", $edge_type, ": The outbound edges.")]
             #[getter]
             fn out_edges(&self) -> <$base_type as NodeViewOps<'static>>::Edges {
@@ -40,7 +37,6 @@ macro_rules! impl_nodeviewops {
             /// Get the neighbours of this node.
             ///
             /// Returns:
-            ///
             #[doc = concat!("     ", $path_type, ": The neighbours (both inbound and outbound).")]
             #[getter]
             fn neighbours(&self) -> <$base_type as NodeViewOps<'static>>::PathType {
@@ -50,7 +46,6 @@ macro_rules! impl_nodeviewops {
             /// Get the neighbours of this node that point into this node.
             ///
             /// Returns:
-            ///
             #[doc = concat!("     ", $path_type, ": The in-neighbours.")]
             #[getter]
             fn in_neighbours(&self) -> <$base_type as NodeViewOps<'static>>::PathType {
@@ -60,7 +55,6 @@ macro_rules! impl_nodeviewops {
             /// Get the neighbours of this node that point out of this node.
             ///
             /// Returns:
-            ///
             #[doc = concat!("     ", $path_type, ": The out-neighbours.")]
             #[getter]
             fn out_neighbours(&self) -> <$base_type as NodeViewOps<'static>>::PathType {
