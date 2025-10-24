@@ -454,16 +454,24 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         self.segment_id
     }
 
+    #[inline(always)]
     fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemNodeSegment> {
         self.inner.read_recursive()
     }
 
+    #[inline(always)]
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
         self.inner.read_arc_recursive()
     }
 
+    #[inline(always)]
     fn head_mut(&self) -> parking_lot::RwLockWriteGuard<'_, MemNodeSegment> {
         loop_lock_write(&self.inner)
+    }
+
+    #[inline(always)]
+    fn try_head_mut(&self) -> Option<parking_lot::RwLockWriteGuard<'_, MemNodeSegment>> {
+        self.inner.try_write()
     }
 
     fn notify_write(

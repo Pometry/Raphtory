@@ -74,6 +74,8 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
 
+    fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
+
     fn num_nodes(&self) -> u32 {
         self.layer_count(0)
     }

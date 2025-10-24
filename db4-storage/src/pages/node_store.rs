@@ -201,6 +201,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         NodeWriter::new(segment, &self.stats, head)
     }
 
+    pub fn try_writer<'a>(
+        &'a self,
+        segment_id: usize,
+    ) -> Option<NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>> {
+        let segment = &self.pages[segment_id];
+        let head = segment.try_head_mut()?;
+        Some(NodeWriter::new(segment, &self.stats, head))
+    }
+
     pub fn load(
         nodes_path: impl AsRef<Path>,
         edge_meta: Arc<Meta>,
