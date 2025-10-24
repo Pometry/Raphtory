@@ -1,5 +1,10 @@
 use std::{ops::Deref, path::Path, sync::Arc};
 
+use arrow_array::{
+    types::{Float32Type, UInt64Type},
+    ArrayAccessor, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
+    RecordBatchIterator, UInt64Array,
+};
 use futures_util::TryStreamExt;
 use itertools::Itertools;
 use lancedb::{
@@ -10,11 +15,6 @@ use lancedb::{
     },
     query::{ExecutableQuery, QueryBase},
     Connection, DistanceType, Table,
-};
-use lancedb_arrow_array::{
-    types::{Float32Type, UInt64Type},
-    ArrayAccessor, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
-    RecordBatchIterator, UInt64Array,
 };
 
 use crate::{

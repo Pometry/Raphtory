@@ -263,7 +263,7 @@ impl GraphServer {
             .nest(
                 "/",
                 PublicFilesEndpoint::new(
-                    self.config.public_dir,
+                    self.config.public_dir.clone(),
                     AuthenticatedGraphQL::new(schema, self.config.auth.clone()),
                 ),
             )
