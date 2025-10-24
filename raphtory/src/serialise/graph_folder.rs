@@ -1,7 +1,7 @@
 use crate::{
     db::api::view::MaterializedGraph,
     errors::GraphError,
-    prelude::{GraphViewOps, PropertiesOps},
+    prelude::{Graph, GraphViewOps, PropertiesOps},
     serialise::{metadata::GraphMetadata, serialise::StableDecode},
 };
 use std::{
@@ -122,9 +122,20 @@ impl GraphFolder {
                             "Metadata file does not exist or is invalid. Attempting to recreate..."
                         );
 
-                        let graph: MaterializedGraph = MaterializedGraph::decode(self, None)?;
+                        // Either decode a graph serialized using encode or load using underlying storage.
+                        let graph = if MaterializedGraph::is_decodable(self.get_graph_path()) {
+                            MaterializedGraph::decode(self, None)?
+                        } else {
+                            // We currently do not have a way of figuring out the graph type
+                            // from storage, so for now default to an EventGraph.
+                            let graph = Graph::load_from_path(self.get_graph_path());
+                            MaterializedGraph::EventGraph(graph)
+                        };
 
                         self.write_metadata(&graph)?;
+
+                        info!("Metadata file recreated successfully");
+
                         Ok(self.try_read_metadata()?)
                     }
                     _ => Err(e.into()),
@@ -296,10 +307,8 @@ impl From<&GraphFolder> for GraphFolder {
     }
 }
 
-// this mod focuses on the zip format, as the folder format is
-// the default and is largely exercised in other places
 #[cfg(test)]
-mod zip_tests {
+mod tests {
     use super::*;
     use crate::{
         db::graph::graph::assert_graph_equal,
