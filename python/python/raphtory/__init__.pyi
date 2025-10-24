@@ -743,14 +743,14 @@ class GraphView(object):
         verbose: bool = False,
     ) -> VectorisedGraph:
         """
-        Create a VectorisedGraph from the current graph
+        Create a VectorisedGraph from the current graph.
 
         Args:
-          embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
-          nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-          edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-          cache (str, optional): the path to use to store the cache for embeddings.
-          verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
+          embedding (Callable[[list], list]): The embedding function to translate documents to embeddings.
+          nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          cache (str, optional): Path used to store the cache of embeddings.
+          verbose (bool): Enable to print logs reporting progress. Defaults to False.
 
         Returns:
           VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection

@@ -39,7 +39,7 @@ class VectorisedGraph(object):
 
         Args:
           query (str | list): The text or the embedding to score against.
-          limit (int): the maximum number of new edges in the results.
+          limit (int): The maximum number of new edges in the results.
           window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
 
         Returns:
@@ -87,10 +87,10 @@ class VectorisedGraph(object):
 
 class Document(object):
     """
-    A Document
+    A document corresponding to a graph entity. Used to generate embeddings.
 
     Args:
-        content (str): the document content
+        content (str): The document content.
         life (int | Tuple[int, int], optional): the optional lifespan for the document (single value
                                                 corresponds to an event, a tuple corresponds to a
                                                 window).
@@ -102,7 +102,7 @@ class Document(object):
     @property
     def content(self) -> str:
         """
-        The document content
+        The document content.
 
         Returns:
             str:
@@ -111,16 +111,16 @@ class Document(object):
     @property
     def embedding(self) -> Optional[Embedding]:
         """
-        the embedding
+        The embedding.
 
         Returns:
-            Optional[Embedding]: the embedding for the document if it was computed
+            Optional[Embedding]: The embedding for the document if it was computed.
         """
 
     @property
     def entity(self) -> Optional[Any]:
         """
-        the entity corresponding to the document
+        The entity corresponding to the document.
 
         Returns:
             Optional[Any]:
@@ -133,7 +133,7 @@ class Embedding(object):
 class VectorSelection(object):
     def add_edges(self, edges: list) -> None:
         """
-        Add all the documents associated with the `edges` to the current selection.
+        Add all the documents associated with the specified `edges` to the current selection.
 
         Documents added by this call are assumed to have a score of 0.
 
@@ -146,7 +146,7 @@ class VectorSelection(object):
 
     def add_nodes(self, nodes: list) -> None:
         """
-        Add all the documents associated with the `nodes` to the current selection.
+        Add all the documents associated with the specified `nodes` to the current selection.
 
         Documents added by this call are assumed to have a score of 0.
 
@@ -225,10 +225,11 @@ class VectorSelection(object):
         Add the top `limit` adjacent entities with higher score for `query` to the selection
 
         The expansion algorithm is a loop with two steps on each iteration:
-          1. All the entities 1 hop away of some of the entities included on the selection (and
-             not already selected) are marked as candidates.
-          2. Those candidates are added to the selection in descending order according to the
-             similarity score obtained against the `query`.
+
+        1. All the entities 1 hop away of some of the entities included on the selection (and
+           not already selected) are marked as candidates.
+        2. Those candidates are added to the selection in descending order according to the
+           similarity score obtained against the `query`.
 
         This loops goes on until the number of new entities reaches a total of `limit`
         entities or until no more documents are available
@@ -251,7 +252,7 @@ class VectorSelection(object):
         """
         Add the top `limit` adjacent nodes with higher score for `query` to the selection
 
-        This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
+        This function has the same behaviour as expand_entities_by_similarity but it only considers nodes.
 
         Args:
           query (str | list): the text or the embedding to score against

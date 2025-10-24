@@ -136,17 +136,17 @@ impl TemplateConfig {
 
 #[pymethods]
 impl PyGraphView {
-    /// Create a VectorisedGraph from the current graph
+    /// Create a VectorisedGraph from the current graph.
     ///
     /// Args:
-    ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
-    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///   cache (str, optional): the path to use to store the cache for embeddings.
-    ///   verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
+    ///   embedding (Callable[[list], list]): Specify the embedding function used to vectorise documents into embeddings.
+    ///   nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+    ///   edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+    ///   cache (str, optional): Path used to store the cache of embeddings.
+    ///   verbose (bool): Enable to print logs reporting progress. Defaults to False.
     ///
     /// Returns:
-    ///   VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
+    ///   VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
     #[pyo3(signature = (embedding, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), cache = None, verbose = false))]
     fn vectorise(
         &self,
@@ -209,21 +209,21 @@ impl<'py> IntoPyObject<'py> for DynamicVectorSelection {
     }
 }
 
-/// A vectorised graph, containing a set of documents positioned in the graph space and allows you to get a selection
-/// over those documents.
+/// A VectorisedGraph, containing a set of documents positioned in an embedding space. This object allows you to get a selection
+/// of those documents using a query and similarity scores.
 #[pymethods]
 impl PyVectorisedGraph {
-    /// Return an empty selection of documents
+    /// Return an empty selection of entities.
     fn empty_selection(&self) -> DynamicVectorSelection {
         self.0.empty_selection()
     }
 
-    /// Search the top scoring entities according to `query` with no more than `limit` entities.
+    /// Search the top similarity scoring entities according to matching a specified `query` with no more than `limit` entities in the result.
     ///
     /// Args:
     ///   query (str | list): The text or the embedding to score against.
     ///   limit (int): The maximum number of new entities in the result.
-    ///   window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
+    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
     ///
     /// Returns:
     ///   VectorSelection: The vector selection resulting from the search.
@@ -240,12 +240,12 @@ impl PyVectorisedGraph {
             .entities_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
-    /// Search the top scoring nodes according to `query` with no more than `limit` nodes.
+    /// Search the top similarity scoring nodes according to matching a specified `query` with no more than `limit` nodes in the result.
     ///
     /// Args:
     ///   query (str | list): The text or the embedding to score against.
     ///   limit (int): The maximum number of new nodes in the result.
-    ///   window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
+    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
     ///
     /// Returns:
     ///   VectorSelection: The vector selection resulting from the search.
@@ -262,12 +262,12 @@ impl PyVectorisedGraph {
             .nodes_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
-    /// Search the top scoring edges according to `query` with no more than `limit` edges
+    /// Search the top similarity scoring edges according to matching a specified `query` with no more than `limit` edges in the result.
     ///
     /// Args:
     ///   query (str | list): The text or the embedding to score against.
-    ///   limit (int): the maximum number of new edges in the results.
-    ///   window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
+    ///   limit (int): The maximum number of new edges in the results.
+    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
     ///
     /// Returns:
     ///   VectorSelection: The vector selection resulting from the search.
@@ -288,7 +288,7 @@ impl PyVectorisedGraph {
 #[pyclass(name = "VectorSelection", module = "raphtory.vectors")]
 pub struct PyVectorSelection(DynamicVectorSelection);
 
-/// A vectorised graph, containing a set of documents positioned in the graph space and a selection
+/// A VectorisedGraph, containing a set of documents positioned in the graph space and a selection
 /// over those documents
 #[pymethods]
 impl PyVectorSelection {
@@ -324,7 +324,7 @@ impl PyVectorSelection {
         Ok(self.0.get_documents()?)
     }
 
-    /// Returns the documents alongside their scores present in the current selection.
+    /// Returns the documents present in the current selection alongside their scores.
     ///
     /// Returns:
     ///     list[Tuple[Document, float]]: List of documents and scores.
@@ -332,7 +332,7 @@ impl PyVectorSelection {
         Ok(self.0.get_documents_with_scores()?)
     }
 
-    /// Add all the documents associated with the `nodes` to the current selection.
+    /// Add all the documents associated with the specified `nodes` to the current selection.
     ///
     /// Documents added by this call are assumed to have a score of 0.
     ///
@@ -345,7 +345,7 @@ impl PyVectorSelection {
         self_.0.add_nodes(nodes)
     }
 
-    /// Add all the documents associated with the `edges` to the current selection.
+    /// Add all the documents associated with the specified `edges` to the current selection.
     ///
     /// Documents added by this call are assumed to have a score of 0.
     ///
@@ -358,27 +358,27 @@ impl PyVectorSelection {
         self_.0.add_edges(edges)
     }
 
-    /// Add all the documents in `selection` to the current selection.
+    /// Add all the documents in a specified `selection` to the current selection.
     ///
     /// Args:
     ///   selection (VectorSelection): Selection to be added.
     ///
     /// Returns:
-    ///   VectorSelection: The selection with the new documents.
+    ///   VectorSelection: The combined selection.
     pub fn append(mut self_: PyRefMut<'_, Self>, selection: &Self) -> DynamicVectorSelection {
         self_.0.append(&selection.0).clone()
     }
 
-    /// Add all the documents `hops` hops away to the selection
+    /// Add all the documents a specified number of `hops` away from the selection.
     ///
-    /// Two documents A and B are considered to be 1 hop away of each other if they are on the same
-    /// entity or if they are on the same node/edge pair. Provided that, two nodes A and C are n
-    /// hops away of  each other if there is a document B such that A is n - 1 hops away of B and B
+    /// Two documents A and B are considered to be 1 hop away from each other if they are on the same
+    /// entity or if they are on the same node/edge pair. Provided that two nodes A and C are n
+    /// hops away of each other if there is a document B such that A is n - 1 hops away of B and B
     /// is 1 hop away of C.
     ///
     /// Args:
-    ///   hops (int): the number of hops to carry out the expansion
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///   hops (int): The number of hops to carry out the expansion.
+    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
     ///
     /// Returns:
     ///     None:
@@ -390,18 +390,19 @@ impl PyVectorSelection {
     /// Add the top `limit` adjacent entities with higher score for `query` to the selection
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
-    ///   1. All the entities 1 hop away of some of the entities included on the selection (and
-    ///      not already selected) are marked as candidates.
-    ///   2. Those candidates are added to the selection in descending order according to the
-    ///      similarity score obtained against the `query`.
+    ///
+    /// 1. All the entities 1 hop away of some of the entities included on the selection (and
+    ///    not already selected) are marked as candidates.
+    /// 2. Those candidates are added to the selection in descending order according to the
+    ///    similarity score obtained against the `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
-    ///   limit (int): the number of documents to add
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///   query (str | list): The text or the embedding to score against.
+    ///   limit (int): The number of documents to add.
+    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
     ///
     /// Returns:
     ///     None:
@@ -421,12 +422,12 @@ impl PyVectorSelection {
 
     /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
     ///
-    /// This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
+    /// This function has the same behaviour as expand_entities_by_similarity but it only considers nodes.
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new nodes to add
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///   query (str | list): The text or the embedding to score against.
+    ///   limit (int): The maximum number of new nodes to add.
+    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
     ///
     /// Returns:
     ///     None:
@@ -446,12 +447,12 @@ impl PyVectorSelection {
 
     /// Add the top `limit` adjacent edges with higher score for `query` to the selection
     ///
-    /// This function has the same behavior as expand_entities_by_similarity but it only considers edges.
+    /// This function has the same behaviour as expand_entities_by_similarity but it only considers edges.
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new edges to add
-    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///   query (str | list): The text or the embedding to score against.
+    ///   limit (int): The maximum number of new edges to add.
+    ///   window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
     ///
     /// Returns:
     ///     None:
