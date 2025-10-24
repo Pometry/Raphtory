@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::{
-    distr::{Alphanumeric, SampleString}, thread_rng, Rng
+    distr::{Alphanumeric, SampleString}, rng, Rng
 };
 use raphtory::prelude::*;
 
 fn random_string(n: usize) -> String {
-    Alphanumeric.sample_string(&mut thread_rng(), n)
+    Alphanumeric.sample_string(&mut rng(), n)
 }
 
 pub fn graph(c: &mut Criterion) {
@@ -16,13 +16,13 @@ pub fn graph(c: &mut Criterion) {
     });
 
     id_group.bench_function("numeric string input", |bencher| {
-        let id: u64 = thread_rng().gen();
+        let id: u64 = rng().random();
         let id_str = id.to_string();
         bencher.iter(|| id_str.id())
     });
 
     id_group.bench_function("numeric input", |bencher| {
-        let id: u64 = thread_rng().gen();
+        let id: u64 = rng().random();
         bencher.iter(|| id.id())
     });
 
@@ -32,7 +32,7 @@ pub fn graph(c: &mut Criterion) {
     graph_group.bench_function("string  input", |bencher| {
         let src: String = random_string(16);
         let dst: String = random_string(16);
-        let t: i64 = thread_rng().gen();
+        let t: i64 = rng().random();
         bencher.iter(|| g.add_edge(t, src.clone(), dst.clone(), NO_PROPS, None))
     });
     graph_group.finish();

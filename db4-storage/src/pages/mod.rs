@@ -306,7 +306,7 @@ impl<
         Ok(())
     }
 
-    pub fn write_session(
+    pub fn blocking_write_session(
         &self,
         src: VID,
         dst: VID,
@@ -328,6 +328,39 @@ impl<
             WriterPair::Different {
                 src_writer,
                 dst_writer,
+            }
+        } else {
+            let writer = self.node_writer(src_chunk);
+            WriterPair::Same { writer }
+        };
+
+        let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
+
+        WriteSession::new(node_writers, edge_writer, self)
+    }
+
+    pub fn write_session(
+        &self,
+        src: VID,
+        dst: VID,
+        e_id: Option<EID>,
+    ) -> WriteSession<'_, NS, ES, EXT> {
+        let (src_chunk, _) = self.nodes.resolve_pos(src);
+        let (dst_chunk, _) = self.nodes.resolve_pos(dst);
+
+        let node_writers = if src_chunk != dst_chunk {
+            self.nodes().get_or_create_segment(src_chunk);
+            self.nodes().get_or_create_segment(dst_chunk);
+
+            loop {
+                if let Some(src_writer) = self.nodes().try_writer(src_chunk) {
+                    if let Some(dst_writer) = self.nodes().try_writer(dst_chunk) {
+                        break WriterPair::Different {
+                            src_writer,
+                            dst_writer,
+                        };
+                    }
+                }
             }
         } else {
             let writer = self.node_writer(src_chunk);

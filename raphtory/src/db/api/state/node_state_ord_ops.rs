@@ -455,7 +455,7 @@ mod test {
         let values = gen_x_ints(
             100_000_000,
             Uniform::new(0, 10000000).unwrap(),
-            &mut rand::thread_rng(),
+            &mut rand::rng(),
         ); // [4i32, 2, 3, 100, 4, 2];
         let timer = Instant::now();
         let res1 = top_k(values.clone(), |a, b| a.cmp(b), 100);

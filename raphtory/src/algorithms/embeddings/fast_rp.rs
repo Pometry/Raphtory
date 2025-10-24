@@ -53,7 +53,7 @@ where
     let beta = normalization_strength - 1.0;
     let num_iters = iter_weights.len() - 1;
     let weights = Arc::new(iter_weights);
-    let seed = seed.unwrap_or(rand::thread_rng().gen());
+    let seed = seed.unwrap_or(rand::rng().random());
 
     // initialize each vertex with a random vector according to FastRP's construction rules
     let step1 = {

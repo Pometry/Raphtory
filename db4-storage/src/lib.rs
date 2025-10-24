@@ -1,4 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    thread,
+    time::Duration,
+};
 
 use crate::{
     gen_t_props::GenTProps,
@@ -20,6 +24,7 @@ use crate::{
     },
     wal::no_wal::NoWal,
 };
+use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
 
@@ -159,4 +164,16 @@ pub fn collect_tree_paths(path: &Path) -> Vec<PathBuf> {
         paths.push(path.to_path_buf());
     }
     paths
+}
+
+pub fn loop_lock_write<A>(l: &RwLock<A>) -> parking_lot::RwLockWriteGuard<'_, A> {
+    const MAX_BACKOFF_US: u64 = 1000; // 1ms max
+    let mut backoff_us = 1;
+    loop {
+        if let Some(guard) = l.try_write_for(Duration::from_micros(50)) {
+            return guard;
+        }
+        thread::park_timeout(Duration::from_micros(backoff_us));
+        backoff_us = (backoff_us * 2).min(MAX_BACKOFF_US);
+    }
 }

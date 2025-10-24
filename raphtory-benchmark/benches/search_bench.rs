@@ -1,8 +1,9 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use once_cell::sync::Lazy;
 use rand::{
+    rng,
     seq::{IteratorRandom, SliceRandom},
-    thread_rng, Rng,
+    Rng,
 };
 use raphtory::{
     db::{
@@ -54,7 +55,7 @@ fn setup_graph() -> Arc<Graph> {
 }
 
 fn get_random_node_names(graph: &Graph) -> Vec<String> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     iter::repeat_with(move || graph.nodes().into_iter().choose(&mut rng))
         .filter_map(|opt| opt.map(|n| n.name().to_string()))
         .take(100)
@@ -62,7 +63,7 @@ fn get_random_node_names(graph: &Graph) -> Vec<String> {
 }
 
 fn get_random_edges_by_src_dst_names(graph: &Graph) -> Vec<(String, String)> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     iter::repeat_with(move || graph.edges().into_iter().choose(&mut rng))
         .filter_map(|opt| opt.map(|e| (e.src().name().to_string(), e.dst().name().to_string())))
         .take(100)
@@ -196,7 +197,7 @@ fn convert_to_property_filter(
     filter_op: FilterOperator,
     sampled_values: Option<Vec<Prop>>,
 ) -> Option<PropertyFilter> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     match prop_value.dtype() {
         // String properties support tokenized matches for eq and ne
@@ -205,8 +206,8 @@ fn convert_to_property_filter(
                 let tokens: Vec<&str> = full_str.split_whitespace().collect();
                 if tokens.len() > 1 && rng.gen_bool(0.3) {
                     // 30% chance to use a random substring
-                    let start = rng.gen_range(0..tokens.len());
-                    let end = rng.gen_range(start..tokens.len());
+                    let start = rng.random_range(0..tokens.len());
+                    let end = rng.random_range(start..tokens.len());
                     let sub_str = tokens[start..=end].join(" ");
 
                     match filter_op {
@@ -282,7 +283,7 @@ fn convert_to_property_filter(
 
 // Get list of properties from multiple random nodes for IN, NOT_IN filters
 fn get_node_property_samples(graph: &Graph, prop_id: &usize, is_const: bool) -> Vec<Prop> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let node_names = get_random_node_names(graph);
     let mut samples = Vec::new();
 
@@ -298,7 +299,7 @@ fn get_node_property_samples(graph: &Graph, prop_id: &usize, is_const: bool) -> 
                 samples.push(prop_value);
             }
 
-            if samples.len() >= rng.gen_range(3..=5) {
+            if samples.len() >= rng.random_range(3..=5) {
                 break;
             }
         }
@@ -315,7 +316,7 @@ fn pick_node_property_filter(
     is_const: bool,
     filter_op: FilterOperator,
 ) -> Option<PropertyFilter> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
         let prop_value = if is_const {
             node.get_metadata(*prop_id)
@@ -338,7 +339,7 @@ fn get_random_node_property_filters(
     graph: &Graph,
     filter_op: FilterOperator,
 ) -> Vec<PropertyFilter> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let node_names = get_random_node_names(graph);
 
     let mut filters = Vec::new();
@@ -391,7 +392,7 @@ fn get_random_node_property_filters(
 
 // Get list of properties from multiple random edges for IN, NOT_IN filters
 fn get_edge_property_samples(graph: &Graph, prop_id: &usize, is_const: bool) -> Vec<Prop> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let edges = get_random_edges_by_src_dst_names(graph);
     let mut samples = Vec::new();
 
@@ -407,7 +408,7 @@ fn get_edge_property_samples(graph: &Graph, prop_id: &usize, is_const: bool) -> 
                 samples.push(prop_value);
             }
 
-            if samples.len() >= rng.gen_range(3..=5) {
+            if samples.len() >= rng.random_range(3..=5) {
                 break;
             }
         }
@@ -424,7 +425,7 @@ fn pick_edge_property_filter(
     is_const: bool,
     filter_op: FilterOperator,
 ) -> Option<PropertyFilter> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
         let prop_value = if is_const {
@@ -448,7 +449,7 @@ fn get_random_edge_property_filters(
     graph: &Graph,
     filter_op: FilterOperator,
 ) -> Vec<PropertyFilter> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let edges = get_random_edges_by_src_dst_names(graph);
 
     let mut filters = Vec::new();
@@ -675,7 +676,7 @@ fn bench_search_nodes_by_name(c: &mut Criterion) {
 
 fn bench_search_nodes_by_node_type(c: &mut Criterion) {
     let graph = setup_graph();
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let node_types = get_node_types(&graph);
     let sample_inputs: Vec<_> = (0..100)
         .map(|_| node_types.choose(&mut rng).unwrap().clone())
@@ -722,7 +723,7 @@ fn bench_search_nodes_by_composite_property_filter_and(c: &mut Criterion) {
     let graph = setup_graph();
     let binding = get_random_node_property_filters(&graph, Eq);
     let property_filters = binding.iter().cloned();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     c.bench_function("bench_search_nodes_by_composite_property_filter_and", |b| {
         b.iter_batched(
@@ -743,7 +744,7 @@ fn bench_search_nodes_by_composite_property_filter_or(c: &mut Criterion) {
     let graph = setup_graph();
     let binding = get_random_node_property_filters(&graph, Eq);
     let property_filters = binding.iter().cloned();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     c.bench_function("bench_search_nodes_by_composite_property_filter_or", |b| {
         b.iter_batched(
@@ -814,7 +815,7 @@ fn bench_search_edges_by_composite_property_filter_and(c: &mut Criterion) {
     let graph = setup_graph();
     let binding = get_random_edge_property_filters(&graph, Eq);
     let property_filters = binding.iter().cloned();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     c.bench_function("bench_search_edges_by_composite_property_filter_and", |b| {
         b.iter_batched(
@@ -835,7 +836,7 @@ fn bench_search_edges_by_composite_property_filter_or(c: &mut Criterion) {
     let graph = setup_graph();
     let binding = get_random_edge_property_filters(&graph, Eq);
     let property_filters = binding.iter().cloned();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     c.bench_function("bench_search_edges_by_composite_property_filter_or", |b| {
         b.iter_batched(

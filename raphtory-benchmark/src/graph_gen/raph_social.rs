@@ -15,7 +15,7 @@ use fake::{
     },
     Fake,
 };
-use rand::{prelude::SliceRandom, seq::IndexedRandom, thread_rng, Rng};
+use rand::{prelude::SliceRandom, rng, seq::IndexedRandom, Rng};
 use raphtory::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt::Debug};
@@ -89,7 +89,7 @@ pub struct CommentPost {
 }
 
 fn gen_timestamp(rng: &mut impl Rng) -> i64 {
-    rng.gen_range(946684800000..1609459200000) // Random timestamp from 2000 to 2020
+    rng.random_range(946684800000..1609459200000) // Random timestamp from 2000 to 2020
 }
 
 pub fn generate_data_write_to_csv(
@@ -101,7 +101,7 @@ pub fn generate_data_write_to_csv(
 ) -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(output_dir)?;
 
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     // Create writers for each file
     let mut people_writer = Writer::from_path(format!("{}/people.csv", output_dir))?;
@@ -118,7 +118,7 @@ pub fn generate_data_write_to_csv(
             id: format!("person_{}", i),
             first_name: FirstName().fake(),
             last_name: LastName().fake(),
-            gender: if rng.gen_bool(0.5) {
+            gender: if rng.random_bool(0.5) {
                 "male".to_string()
             } else {
                 "female".to_string()
@@ -141,14 +141,14 @@ pub fn generate_data_write_to_csv(
 
     // Person-Forum Relationships
     for i in 1..=num_people {
-        let membership_count = rng.gen_range(1..=3);
+        let membership_count = rng.random_range(1..=3);
         for _ in 0..membership_count {
             person_forum_writer.serialize(PersonForum {
                 person_id: format!("person_{}", i),
-                forum_id: format!("forum_{}", rng.gen_range(1..=num_forums)),
-                is_moderator: rng.gen_bool(0.1),
+                forum_id: format!("forum_{}", rng.random_range(1..=num_forums)),
+                is_moderator: rng.random_bool(0.1),
                 join_date: gen_timestamp(&mut rng),
-                activity_score: rng.gen_range(0.0..100.0),
+                activity_score: rng.random_range(0.0..100.0),
             })?;
         }
     }
@@ -159,7 +159,7 @@ pub fn generate_data_write_to_csv(
         let creation_date = gen_timestamp(&mut rng);
         posts_writer.serialize(Post {
             id: format!("post_{}", i),
-            creator_id: format!("person_{}", rng.gen_range(1..=num_people)),
+            creator_id: format!("person_{}", rng.random_range(1..=num_people)),
             creation_date,
             location_ip: IP().fake(),
             browser_used: ["Chrome", "Firefox", "Safari", "Edge"]
@@ -167,15 +167,15 @@ pub fn generate_data_write_to_csv(
                 .unwrap()
                 .to_string(),
             content: Sentence(5..15).fake(),
-            length: rng.gen_range(20..200),
+            length: rng.random_range(20..200),
         })?;
         post_forum_writer.serialize(PostForum {
             post_id: format!("post_{}", i),
-            forum_id: format!("forum_{}", rng.gen_range(1..=num_forums)),
+            forum_id: format!("forum_{}", rng.random_range(1..=num_forums)),
             creation_date, // Use post's creation date
             is_featured: rng.gen_bool(0.2),
-            likes_count: rng.gen_range(0..500),
-            comments_count: rng.gen_range(0..200),
+            likes_count: rng.random_range(0..500),
+            comments_count: rng.random_range(0..200),
         })?;
     }
     posts_writer.flush()?;
@@ -186,7 +186,7 @@ pub fn generate_data_write_to_csv(
         let creation_date = gen_timestamp(&mut rng);
         comments_writer.serialize(Comment {
             id: format!("comment_{}", i),
-            creator_id: format!("person_{}", rng.gen_range(1..=num_people)),
+            creator_id: format!("person_{}", rng.random_range(1..=num_people)),
             creation_date,
             location_ip: IP().fake(),
             browser_used: ["Chrome", "Firefox", "Safari", "Edge"]
@@ -194,15 +194,15 @@ pub fn generate_data_write_to_csv(
                 .unwrap()
                 .to_string(),
             content: Sentence(5..15).fake(),
-            length: rng.gen_range(50..500),
+            length: rng.random_range(50..500),
         })?;
         comment_post_writer.serialize(CommentPost {
             comment_id: format!("comment_{}", i),
-            post_id: format!("post_{}", rng.gen_range(1..=num_posts)),
+            post_id: format!("post_{}", rng.random_range(1..=num_posts)),
             creation_date, // Use comment's creation date
             is_edited: rng.gen_bool(0.1),
-            upvotes: rng.gen_range(0..200),
-            reply_count: rng.gen_range(0..20),
+            upvotes: rng.random_range(0..200),
+            reply_count: rng.random_range(0..20),
         })?;
     }
     comments_writer.flush()?;
@@ -394,7 +394,7 @@ pub fn generate_graph(
     num_posts: usize,
     num_comments: usize,
 ) -> Graph {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let graph = Graph::new();
 
     // People
@@ -455,16 +455,16 @@ pub fn generate_graph(
     // Person Forum
     for i in 1..=num_people {
         let person_id = format!("person_{}", i);
-        let membership_count = rng.gen_range(1..=3);
+        let membership_count = rng.random_range(1..=3);
         for _ in 0..membership_count {
-            let forum_id = format!("forum_{}", rng.gen_range(1..=num_forums));
+            let forum_id = format!("forum_{}", rng.random_range(1..=num_forums));
             graph
                 .add_edge(
                     DateTime::from_timestamp(gen_timestamp(&mut rng), 0).unwrap(),
                     person_id.clone(),
                     forum_id.clone(),
                     [
-                        ("activity_score", Prop::F64(rng.gen_range(0.0..100.0))),
+                        ("activity_score", Prop::F64(rng.random_range(0.0..100.0))),
                         ("is_moderator", Prop::Bool(rng.gen_bool(0.1))),
                     ],
                     None,
@@ -476,7 +476,7 @@ pub fn generate_graph(
     // Posts, Post Forum
     for i in 1..=num_posts {
         let post_id = format!("post_{}", i);
-        let creator_id = format!("person_{}", rng.gen_range(1..=num_people));
+        let creator_id = format!("person_{}", rng.random_range(1..=num_people));
         let creation_date = gen_timestamp(&mut rng);
 
         graph
@@ -488,7 +488,7 @@ pub fn generate_graph(
                         "content",
                         Prop::Str(ArcStr::from(Sentence(5..15).fake::<String>())),
                     ),
-                    ("length", Prop::U64(rng.gen_range(20..200))),
+                    ("length", Prop::U64(rng.random_range(20..200))),
                     (
                         "location_ip",
                         Prop::Str(ArcStr::from(IP().fake::<String>())),
@@ -509,7 +509,7 @@ pub fn generate_graph(
             .add_metadata([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
             .expect("Failed to add post properties");
 
-        let forum_id = format!("forum_{}", rng.gen_range(1..=num_forums));
+        let forum_id = format!("forum_{}", rng.random_range(1..=num_forums));
         graph
             .add_edge(
                 DateTime::from_timestamp(creation_date, 0).unwrap(),
@@ -517,8 +517,8 @@ pub fn generate_graph(
                 forum_id.clone(),
                 [
                     ("is_featured", Prop::Bool(rng.gen_bool(0.2))),
-                    ("likes_count", Prop::U64(rng.gen_range(0..500))),
-                    ("comments_count", Prop::U64(rng.gen_range(0..200))),
+                    ("likes_count", Prop::U64(rng.random_range(0..500))),
+                    ("comments_count", Prop::U64(rng.random_range(0..200))),
                 ],
                 None,
             )
@@ -528,7 +528,7 @@ pub fn generate_graph(
     // Comments, Comment Forum
     for i in 1..=num_comments {
         let comment_id = format!("comment_{}", i);
-        let creator_id = format!("person_{}", rng.gen_range(1..=num_people));
+        let creator_id = format!("person_{}", rng.random_range(1..=num_people));
         let creation_date = gen_timestamp(&mut rng);
 
         graph
@@ -540,7 +540,7 @@ pub fn generate_graph(
                         "content",
                         Prop::Str(ArcStr::from(Sentence(5..15).fake::<String>())),
                     ),
-                    ("length", Prop::U64(rng.gen_range(50..500))),
+                    ("length", Prop::U64(rng.random_range(50..500))),
                     (
                         "location_ip",
                         Prop::Str(ArcStr::from(IP().fake::<String>())),
@@ -561,7 +561,7 @@ pub fn generate_graph(
             .add_metadata([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
             .expect("Failed to add comment properties");
 
-        let post_id = format!("post_{}", rng.gen_range(1..=num_posts));
+        let post_id = format!("post_{}", rng.random_range(1..=num_posts));
         graph
             .add_edge(
                 DateTime::from_timestamp(creation_date, 0).unwrap(),
@@ -569,8 +569,8 @@ pub fn generate_graph(
                 post_id.clone(),
                 [
                     ("is_edited", Prop::Bool(rng.gen_bool(0.1))),
-                    ("upvotes", Prop::U64(rng.gen_range(0..200))),
-                    ("reply_count", Prop::U64(rng.gen_range(0..20))),
+                    ("upvotes", Prop::U64(rng.random_range(0..200))),
+                    ("reply_count", Prop::U64(rng.random_range(0..20))),
                 ],
                 None,
             )

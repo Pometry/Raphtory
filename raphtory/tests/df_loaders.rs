@@ -20,7 +20,6 @@ mod io_tests {
         core_ops::CoreGraphOps,
         mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
     };
-    use tempfile::TempDir;
 
     fn build_df(
         chunk_size: usize,
@@ -1055,7 +1054,7 @@ mod parquet_tests {
 
     #[test]
     fn write_graph_props_to_parquet() {
-        proptest!(|(props in build_props_dyn(10))| {
+        proptest!(|(props in build_props_dyn(0..=10))| {
             check_graph_props(props);
         });
     }
@@ -1071,13 +1070,13 @@ mod parquet_tests {
 
     #[test]
     fn write_nodes_any_props_to_parquet() {
-        proptest!(|(nodes in build_nodes_dyn(10, 10, 10))| {
+        proptest!(|(nodes in build_nodes_dyn(0..10, 0..=10, 0..=10))| {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
     #[test]
     fn write_edges_any_props_to_parquet() {
-        proptest!(|(edges in build_edge_list_dyn(10, 10, 10, 10, true))| {
+        proptest!(|(edges in build_edge_list_dyn(0..=10, 0..10, 0..=10, 0..=10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
     }
