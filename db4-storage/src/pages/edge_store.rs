@@ -20,7 +20,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
 use raphtory_core::{
     entities::{ELID, LayerIds},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
 };
 use rayon::prelude::*;
 
@@ -381,10 +381,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
     pub fn edge(&self, e_id: impl Into<EID>) -> ES::Entry<'_> {
         let e_id = e_id.into();
         let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len());
-        let segment = self
-            .segments
-            .get(segment_id)
-            .expect("Internal error: page not found");
+        let segment = self.segments.get(segment_id).unwrap_or_else(|| {
+            panic!(
+                "{e_id:?} Not found in seg: {segment_id}, pos: {local_edge:?}, num_segments: {}",
+                self.segments.count()
+            )
+        });
         segment.entry(local_edge)
     }
 

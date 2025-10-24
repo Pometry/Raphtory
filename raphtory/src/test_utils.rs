@@ -13,6 +13,7 @@ use raphtory_storage::{
 };
 use std::{
     collections::{hash_map, HashMap},
+    ops::{Range, RangeInclusive},
     sync::Arc,
 };
 
@@ -66,7 +67,7 @@ pub fn build_edge_list_with_secondary_index(
     Just(()).prop_flat_map(move |_| {
         // Generate a shuffled set of unique secondary indices
         let mut secondary_index: Vec<u64> = (0..len as u64).collect();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         secondary_index.shuffle(&mut rng);
 
         prop::collection::vec(
@@ -396,23 +397,23 @@ fn make_props(schema: Vec<(String, PropType)>) -> impl Strategy<Value = Vec<(Str
     })
 }
 
-fn prop_schema(len: usize) -> impl Strategy<Value = Vec<(String, PropType)>> {
-    proptest::collection::hash_map(0..len, prop_type(), 0..=len)
+fn prop_schema(num_props: RangeInclusive<usize>) -> impl Strategy<Value = Vec<(String, PropType)>> {
+    proptest::collection::hash_map(num_props.clone(), prop_type(), num_props)
         .prop_map(|v| v.into_iter().map(|(k, p)| (k.to_string(), p)).collect())
 }
 
 fn t_props(
     schema: Vec<(String, PropType)>,
-    len: usize,
+    num_props: RangeInclusive<usize>,
 ) -> impl Strategy<Value = Vec<(i64, Vec<(String, Prop)>)>> {
-    proptest::collection::vec((any::<i64>(), make_props(schema)), 0..=len)
+    proptest::collection::vec((any::<i64>(), make_props(schema)), num_props)
 }
 
 fn prop_updates(
     schema: Vec<(String, PropType)>,
-    len: usize,
+    num_props: RangeInclusive<usize>,
 ) -> impl Strategy<Value = PropUpdatesFixture> {
-    let t_props = t_props(schema.clone(), len);
+    let t_props = t_props(schema.clone(), num_props);
     let c_props = make_props(schema);
     (t_props, c_props).prop_map(|(t_props, c_props)| {
         if t_props.is_empty() {
@@ -428,34 +429,40 @@ fn prop_updates(
 
 fn node_updates(
     schema: Vec<(String, PropType)>,
-    len: usize,
+    num_updates: RangeInclusive<usize>,
 ) -> impl Strategy<Value = NodeUpdatesFixture> {
-    (prop_updates(schema, len), make_node_type())
+    (prop_updates(schema, num_updates), make_node_type())
         .prop_map(|(props, node_type)| NodeUpdatesFixture { props, node_type })
 }
 
 fn edge_updates(
     schema: Vec<(String, PropType)>,
-    len: usize,
+    num_updates: RangeInclusive<usize>,
     deletions: bool,
 ) -> impl Strategy<Value = EdgeUpdatesFixture> {
-    let del_len = if deletions { len } else { 0 };
+    let del_len = if deletions { *num_updates.end() } else { 0 };
     (
-        prop_updates(schema, len),
-        proptest::collection::vec(i64::MIN..i64::MAX, 0..=del_len),
+        prop_updates(schema, num_updates),
+        proptest::collection::vec(-150i64..150, 0..=del_len),
     )
         .prop_map(|(props, deletions)| EdgeUpdatesFixture { props, deletions })
 }
 
 pub fn build_nodes_dyn(
-    num_nodes: usize,
-    num_props: usize,
-    num_updates: usize,
+    num_nodes: Range<usize>,
+    num_props: RangeInclusive<usize>,
+    num_updates: RangeInclusive<usize>,
 ) -> impl Strategy<Value = NodeFixture> {
     let schema = prop_schema(num_props);
     schema.prop_flat_map(move |schema| {
-        (0..num_nodes as u64)
-            .map(|node| (Just(node), node_updates(schema.clone(), num_updates)))
+        num_nodes
+            .clone()
+            .map(|node| {
+                (
+                    Just(node as u64),
+                    node_updates(schema.clone(), num_updates.clone()),
+                )
+            })
             .collect_vec()
             .prop_map(|updates| {
                 NodeFixture::from_iter(
@@ -468,24 +475,22 @@ pub fn build_nodes_dyn(
 }
 
 pub fn build_edge_list_dyn(
-    num_edges: usize,
-    num_nodes: usize,
-    num_properties: usize,
-    num_updates: usize,
+    num_edges: RangeInclusive<usize>,
+    num_nodes: Range<usize>,
+    num_properties: RangeInclusive<usize>,
+    num_updates: RangeInclusive<usize>,
     del_edges: bool,
 ) -> impl Strategy<Value = EdgeFixture> {
-    let num_nodes = num_nodes as u64;
-
     let schema = prop_schema(num_properties);
     schema.prop_flat_map(move |schema| {
         proptest::collection::hash_map(
             (
-                0..num_nodes,
-                0..num_nodes,
+                num_nodes.clone().prop_map(|n| n as u64),
+                num_nodes.clone().prop_map(|n| n as u64),
                 proptest::sample::select(vec![Some("a"), Some("b"), None]),
             ),
-            edge_updates(schema.clone(), num_updates, del_edges),
-            0..=num_edges,
+            edge_updates(schema.clone(), num_updates.clone(), del_edges),
+            num_edges.clone(),
         )
         .prop_map(|values| {
             EdgeFixture::from_iter(
@@ -497,9 +502,11 @@ pub fn build_edge_list_dyn(
     })
 }
 
-pub fn build_props_dyn(len: usize) -> impl Strategy<Value = PropUpdatesFixture> {
-    let schema = prop_schema(len);
-    schema.prop_flat_map(move |schema| prop_updates(schema, len))
+pub fn build_props_dyn(
+    num_props: RangeInclusive<usize>,
+) -> impl Strategy<Value = PropUpdatesFixture> {
+    let schema = prop_schema(num_props.clone());
+    schema.prop_flat_map(move |schema| prop_updates(schema, num_props.clone()))
 }
 
 pub fn build_graph_strat(
@@ -509,7 +516,27 @@ pub fn build_graph_strat(
     num_updates: usize,
     del_edges: bool,
 ) -> impl Strategy<Value = GraphFixture> {
-    let nodes = build_nodes_dyn(num_nodes, num_properties, num_updates);
+    build_graph_strat_r(
+        0..num_nodes,
+        0..=num_edges,
+        0..=num_properties,
+        0..=num_updates,
+        del_edges,
+    )
+}
+
+pub fn build_graph_strat_r(
+    num_nodes: Range<usize>,
+    num_edges: RangeInclusive<usize>,
+    num_properties: RangeInclusive<usize>,
+    num_updates: RangeInclusive<usize>,
+    del_edges: bool,
+) -> impl Strategy<Value = GraphFixture> {
+    let nodes = build_nodes_dyn(
+        num_nodes.clone(),
+        num_properties.clone(),
+        num_updates.clone(),
+    );
     let edges = build_edge_list_dyn(num_edges, num_nodes, num_properties, num_updates, del_edges);
     (nodes, edges).prop_map(|(nodes, edges)| GraphFixture { nodes, edges })
 }

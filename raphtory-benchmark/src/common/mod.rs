@@ -5,7 +5,7 @@ pub mod vectors;
 use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
-use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
+use rand::{distr::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::utils::logging::global_info_logger;
 use std::{collections::HashSet, path::PathBuf};
@@ -13,14 +13,14 @@ use tempfile::TempDir;
 use tracing::info;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
-    let rng = rand::thread_rng();
-    let range = Uniform::new(u64::MIN, u64::MAX);
+    let rng = rand::rng();
+    let range = Uniform::new(u64::MIN, u64::MAX).unwrap();
     Box::new(rng.sample_iter(range))
 }
 
 fn make_time_gen() -> Box<dyn Iterator<Item = i64>> {
-    let rng = rand::thread_rng();
-    let range = Uniform::new(i64::MIN, i64::MAX);
+    let rng = rand::rng();
+    let range = Uniform::new(i64::MIN, i64::MAX).unwrap();
     Box::new(rng.sample_iter(range))
 }
 
@@ -300,7 +300,7 @@ pub fn run_analysis_benchmarks<F, G>(
     });
 
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (src, dst) = edges.iter().choose(&mut rng).expect("non-empty graph");
         b.iter(|| graph.has_edge(src, dst))
     });
@@ -310,7 +310,7 @@ pub fn run_analysis_benchmarks<F, G>(
         "has_edge_nonexisting",
         parameter,
         |b: &mut Bencher| {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let edge = loop {
                 let edge: (&GID, &GID) = (
                     nodes.iter().choose(&mut rng).expect("non-empty graph"),
@@ -325,7 +325,7 @@ pub fn run_analysis_benchmarks<F, G>(
     );
 
     bench(group, "active edge", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (edge, active_t) = edges_t
             .choose(&mut rng)
             .and_then(|(src, dst, t)| graph.edge(src, dst).map(|e| (e, *t)))
@@ -341,7 +341,7 @@ pub fn run_analysis_benchmarks<F, G>(
     });
 
     bench(group, "edge has layer", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let edge = edges
             .iter()
             .choose(&mut rng)
@@ -361,7 +361,7 @@ pub fn run_analysis_benchmarks<F, G>(
     });
 
     bench(group, "has_node_existing", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let v = nodes.iter().choose(&mut rng).expect("non-empty graph");
         b.iter(|| graph.has_node(v))
     });
@@ -371,7 +371,7 @@ pub fn run_analysis_benchmarks<F, G>(
         "has_node_nonexisting",
         parameter,
         |b: &mut Bencher| {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let v: u64 = loop {
                 let v: u64 = rng.gen();
                 if !nodes.contains(&GID::U64(v)) {

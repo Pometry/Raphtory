@@ -296,7 +296,7 @@ mod test {
             .scan(0, |v, _| {
                 let new_v: f64 = dist.sample(rng);
                 let floor_v = new_v.floor();
-                let new_v = if rng.gen_bool(new_v - floor_v) {
+                let new_v = if rng.random_bool(new_v - floor_v) {
                     new_v.ceil() as i64
                 } else {
                     floor_v as i64

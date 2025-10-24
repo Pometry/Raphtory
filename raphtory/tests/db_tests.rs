@@ -3518,7 +3518,7 @@ fn test_id_filter() {
 
 #[test]
 fn test_indexed() {
-    proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+    proptest!(|(graph in build_graph_strat(10, 10, 10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
         let graph = Graph::from(build_graph(&graph));
         let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
         let nodes = graph.nodes().id_filter(nodes);
@@ -3528,7 +3528,7 @@ fn test_indexed() {
 
 #[test]
 fn materialize_window_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>())| {
         let g = Graph::from(build_graph(&graph_f));
         let gw = g.window(w.start, w.end);
         let gmw = gw.materialize().unwrap();

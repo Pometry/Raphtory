@@ -3,6 +3,7 @@ use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
+    loop_lock_write,
     persist::strategy::PersistentStrategy,
     segments::node_entry::{MemNodeEntry, MemNodeRef},
 };
@@ -454,7 +455,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     }
 
     fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemNodeSegment> {
-        self.inner.read()
+        self.inner.read_recursive()
     }
 
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
@@ -462,7 +463,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     }
 
     fn head_mut(&self) -> parking_lot::RwLockWriteGuard<'_, MemNodeSegment> {
-        self.inner.write()
+        loop_lock_write(&self.inner)
     }
 
     fn notify_write(

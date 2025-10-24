@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
-use rand::prelude::*;
+use rand::{prelude::*, rng};
 use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
     db::graph::graph::assert_graph_equal, prelude::*, test_storage, test_utils::test_graph,
@@ -132,8 +132,8 @@ fn windowed_graph_has_node() {
         vs.dedup_by_key(|v| v.1); // Have each node only once to avoid headaches
         vs.sort_by_key(|v| v.0); // Sorted by time
 
-        let rand_start_index = thread_rng().gen_range(0..vs.len());
-        let rand_end_index = thread_rng().gen_range(rand_start_index..vs.len());
+        let rand_start_index = rng().random_range(0..vs.len());
+        let rand_end_index = rng().random_range(rand_start_index..vs.len());
 
         let g = Graph::new();
 
@@ -148,7 +148,7 @@ fn windowed_graph_has_node() {
 
         let wg = g.window(start, end);
 
-        let rand_test_index: usize = thread_rng().gen_range(0..vs.len());
+        let rand_test_index: usize = rng().random_range(0..vs.len());
 
         let (i, v) = vs.get(rand_test_index).expect("test index in range");
         if (start..end).contains(i) {
@@ -168,8 +168,8 @@ fn windowed_graph_has_edge() {
         edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
         edges.sort_by_key(|e| e.0); // Sorted by time
 
-        let rand_start_index = thread_rng().gen_range(0..edges.len());
-        let rand_end_index = thread_rng().gen_range(rand_start_index..edges.len());
+        let rand_start_index = rng().random_range(0..edges.len());
+        let rand_end_index = rng().random_range(rand_start_index..edges.len());
 
         let g = Graph::new();
 
@@ -182,7 +182,7 @@ fn windowed_graph_has_edge() {
 
         let wg = g.window(start, end);
 
-        let rand_test_index: usize = thread_rng().gen_range(0..edges.len());
+        let rand_test_index: usize = rng().random_range(0..edges.len());
 
         let (i, e) = edges.get(rand_test_index).expect("test index in range");
         if (start..end).contains(i) {

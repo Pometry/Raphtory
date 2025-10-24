@@ -20,7 +20,7 @@ use crate::{
     },
     prelude::{NodeStateOps, NO_PROPS},
 };
-use rand::{prelude::IndexedRandom, rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rand::{prelude::IndexedRandom, rngs::StdRng, SeedableRng};
 use tracing::error;
 
 use super::next_id;

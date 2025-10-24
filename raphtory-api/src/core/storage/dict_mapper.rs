@@ -338,7 +338,7 @@ mod test {
                 .into_par_iter()
                 .map(|_| {
                     let mut ids: HashMap<String, usize> = Default::default();
-                    let mut rng = rand::thread_rng();
+                    let mut rng = rand::rng();
                     let mut write_s = write.clone();
                     write_s.shuffle(&mut rng);
                     for s in write_s {

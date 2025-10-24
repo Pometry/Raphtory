@@ -9,7 +9,7 @@ fn btree_set_u64(c: &mut Criterion) {
     for size in [10, 100, 300, 500, 1000].iter() {
         group.throughput(Throughput::Elements(*size as u64));
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let range = Uniform::new(u64::MIN, u64::MAX);
         let init_vals: Vec<u64> = (&mut rng).sample_iter(&range).take(*size).collect();
 
@@ -49,7 +49,7 @@ fn bm_tadjset(c: &mut Criterion) {
     for size in [10, 100, 1000, 10_000, 100_000, 1_000_000].iter() {
         group.throughput(Throughput::Elements(*size as u64));
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let range = Uniform::new(0, size * 10);
         let init_srcs: Vec<usize> = (&mut rng)
             .sample_iter(&range)
