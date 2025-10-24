@@ -10,8 +10,12 @@ use crate::{
     prelude::*,
 };
 use indexmap::IndexSet;
-use rand::{distr::Bernoulli, seq::IteratorRandom, Rng};
-use rand_distr::{Distribution, Exp};
+use rand::{
+    distr::{Bernoulli, Distribution},
+    seq::IteratorRandom,
+    Rng,
+};
+use rand_distr::Exp;
 use raphtory_core::utils::time::ParseTimeError;
 use std::{
     cmp::Reverse,
@@ -258,8 +262,8 @@ mod test {
         algorithms::dynamics::temporal::epidemics::{temporal_SEIR, Number},
         prelude::*,
     };
-    use rand::{rngs::SmallRng, Rng, SeedableRng};
-    use rand_distr::{Distribution, Exp};
+    use rand::{distr::Distribution, rngs::SmallRng, Rng, SeedableRng};
+    use rand_distr::Exp;
     use raphtory_api::core::utils::logging::global_info_logger;
     use rayon::prelude::*;
     use stats::{mean, stddev};
