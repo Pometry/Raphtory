@@ -389,6 +389,14 @@ impl<
     pub fn get_free_writer(&self) -> EdgeWriter<'_, RwLockWriteGuard<'_, MemEdgeSegment>, ES> {
         self.edges().get_free_writer()
     }
+
+    pub fn vacuum(self: &Arc<Self>) -> Result<(), StorageError> {
+        let mut locked_nodes = self.nodes.write_locked();
+        let mut locked_edges = self.edges.write_locked();
+        locked_nodes.vacuum()?;
+        locked_edges.vacuum()?;
+        Ok(())
+    }
 }
 
 impl<NS, ES, EXT: Config> Drop for GraphStore<NS, ES, EXT> {

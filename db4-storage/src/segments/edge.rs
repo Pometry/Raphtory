@@ -559,6 +559,13 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         }
     }
 
+    fn vacuum(
+        &self,
+        _locked_head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
     fn num_layers(&self) -> usize {
         self.head().layers.len()
     }

@@ -5,8 +5,10 @@ use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::{mutation::AdditionOps, view::StaticGraphViewOps},
     errors::GraphError,
-    serialise::parquet::{ParquetDecoder, ParquetEncoder},
-    serialise::GraphFolder,
+    serialise::{
+        parquet::{ParquetDecoder, ParquetEncoder},
+        GraphFolder,
+    },
 };
 use std::{fs, fs::File};
 use tempfile;

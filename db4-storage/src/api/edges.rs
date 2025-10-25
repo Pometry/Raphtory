@@ -84,6 +84,11 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     ) -> Option<Self::Entry<'a>>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
+
+    fn vacuum(
+        &self,
+        locked_head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedESegment: Send + Sync + std::fmt::Debug {

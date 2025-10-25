@@ -1,6 +1,7 @@
 use crate::{
     LocalPOS,
     api::nodes::NodeSegmentOps,
+    error::StorageError,
     pages::{layer_counter::GraphStats, node_page::writer::NodeWriter, resolve_pos},
     segments::node::MemNodeSegment,
 };
@@ -41,6 +42,10 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
         NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
+    }
+
+    pub fn vacuum(&mut self) {
+        self.page.vacuum(self.lock.deref_mut());
     }
 
     #[inline(always)]
@@ -100,5 +105,12 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> 
 
     pub fn len(&self) -> usize {
         self.writers.len()
+    }
+
+    pub fn vacuum(&mut self) -> Result<(), StorageError> {
+        for LockedNodePage { page, lock, .. } in &mut self.writers {
+            page.vacuum(lock.deref_mut())?;
+        }
+        Ok(())
     }
 }

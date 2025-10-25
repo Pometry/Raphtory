@@ -115,6 +115,11 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn est_size(&self) -> usize;
     fn increment_est_size(&self, size: usize) -> usize;
+
+    fn vacuum(
+        &self,
+        locked_head: impl DerefMut<Target = MemNodeSegment>,
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {

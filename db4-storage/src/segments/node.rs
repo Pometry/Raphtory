@@ -535,6 +535,13 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     fn increment_est_size(&self, size: usize) -> usize {
         self.est_size.fetch_add(size, Ordering::Relaxed)
     }
+
+    fn vacuum(
+        &self,
+        _locked_head: impl DerefMut<Target = MemNodeSegment>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
