@@ -2612,10 +2612,6 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_property_filter {
-        use crate::db::graph::views::filter::test_filters::init_nodes_graph;
-        use raphtory_api::core::entities::properties::prop::Prop;
-        use std::vec;
-
         use crate::db::graph::{
             assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
             views::filter::{
@@ -2625,9 +2621,11 @@ pub(crate) mod test_filters {
                     property_filter::{ListAggOps, PropertyFilterOps},
                     ComposableFilter, PropertyFilterFactory,
                 },
-                test_filters::IdentityGraphTransformer,
+                test_filters::{init_nodes_graph, IdentityGraphTransformer},
             },
         };
+        use raphtory_api::core::entities::properties::prop::Prop;
+        use std::vec;
 
         #[test]
         fn test_exact_match() {
@@ -3803,6 +3801,124 @@ pub(crate) mod test_filters {
                 init_nodes_graph,
                 IdentityGraphTransformer,
                 filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_nodes_window_filter() {
+            let filter = NodeFilter::window(1, 3)
+                .property("p2")
+                .temporal()
+                .sum()
+                .ge(2u64);
+
+            let expected_results = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            // Wider window includes node 3
+            let filter = NodeFilter::window(1, 5)
+                .property("p2")
+                .temporal()
+                .sum()
+                .ge(2u64);
+
+            let expected_results = vec!["2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_nodes_window_filter_on_non_temporal_property_has_no_effect() {
+            // p1 is used as latest (non-temporal); window should not change outcome
+            let filter1 = NodeFilter::window(1, 2).property("p1").eq("shivam_kapoor");
+            let filter2 = NodeFilter::window(100, 200)
+                .property("p1")
+                .eq("shivam_kapoor");
+
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter1.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter2.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_nodes_window_filter_any_all_over_window() {
+            let filter = NodeFilter::window(3, 5)
+                .property("p20")
+                .temporal()
+                .any()
+                .eq("Gold_boat");
+
+            let expected_results = vec!["4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::window(3, 5)
+                .property("p20")
+                .temporal()
+                .all()
+                .eq("Gold_boat");
+
+            let expected_results = vec![];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_nodes_window_filter_and() {
+            // Filters both node 1 and 3
+            let filter1 = NodeFilter::window(1, 4)
+                .property("p10")
+                .temporal()
+                .any()
+                .eq("Paper_airplane");
+
+            // Filters only node 3
+            let filter2 = NodeFilter::window(3, 6)
+                .property("p2")
+                .temporal()
+                .sum()
+                .eq(6u64);
+
+            let expected_results = vec!["3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter1.and(filter2).clone(),
                 &expected_results,
                 TestVariants::All,
             );
@@ -9813,6 +9929,127 @@ pub(crate) mod test_filters {
                 filter.clone(),
                 &expected_results,
                 TestVariants::EventOnly,
+            );
+        }
+
+        #[test]
+        fn test_edges_window_filter() {
+            let filter = EdgeFilter::window(1, 3)
+                .property("p2")
+                .temporal()
+                .sum()
+                .ge(2u64);
+
+            let expected_results = vec!["1->2", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::window(1, 5)
+                .property("p2")
+                .temporal()
+                .sum()
+                .ge(2u64);
+
+            let expected_results = vec![
+                "1->2",
+                "2->3",
+                "3->1",
+                "2->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_edges_window_filter_on_non_temporal_property_has_no_effect() {
+            let filter1 = EdgeFilter::window(1, 2).property("p1").eq("shivam_kapoor");
+            let filter2 = EdgeFilter::window(100, 200)
+                .property("p1")
+                .eq("shivam_kapoor");
+
+            let expected_results = vec!["1->2"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter1.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter2.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_edges_window_filter_any_all_over_window() {
+            let filter_any = EdgeFilter::window(2, 4)
+                .property("p20")
+                .temporal()
+                .any()
+                .eq("Gold_boat");
+
+            let expected_any = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter_any.clone(),
+                &expected_any,
+                TestVariants::All,
+            );
+
+            let filter_all = EdgeFilter::window(2, 4)
+                .property("p20")
+                .temporal()
+                .all()
+                .eq("Gold_boat");
+
+            let expected_all: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter_all.clone(),
+                &expected_all,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_edges_window_filter_and() {
+            let filter1 = EdgeFilter::window(3, 6)
+                .property("p10")
+                .temporal()
+                .any()
+                .eq("Paper_airplane");
+
+            let filter2 = EdgeFilter::window(3, 6)
+                .property("p2")
+                .temporal()
+                .sum()
+                .eq(6u64);
+
+            let expected_results = vec!["2->1"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter1.and(filter2).clone(),
+                &expected_results,
+                TestVariants::All,
             );
         }
     }

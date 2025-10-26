@@ -5,14 +5,15 @@ use crate::{
             internal::CreateFilter,
             model::{
                 node_filter::CompositeNodeFilter, property_filter::PropertyFilter, AndFilter,
-                Filter, NotFilter, OrFilter, PropertyFilterFactory, TryAsCompositeFilter,
+                Filter, NotFilter, OrFilter, PropertyFilterFactory, TryAsCompositeFilter, Windowed,
             },
         },
     },
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::GID;
+use raphtory_api::core::{entities::GID, storage::timeindex::TimeIndexEntry};
+use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -373,8 +374,13 @@ impl EdgeFilter {
     pub fn src() -> EdgeEndpointFilter {
         EdgeEndpointFilter::Src
     }
+
     pub fn dst() -> EdgeEndpointFilter {
         EdgeEndpointFilter::Dst
+    }
+
+    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<EdgeFilter> {
+        Windowed::from_times(start, end)
     }
 }
 
@@ -384,6 +390,12 @@ impl PropertyFilterFactory<EdgeFilter> for EdgeFilter {}
 pub struct ExplodedEdgeFilter;
 
 impl PropertyFilterFactory<ExplodedEdgeFilter> for ExplodedEdgeFilter {}
+
+impl ExplodedEdgeFilter {
+    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
+        Windowed::from_times(start, end)
+    }
+}
 
 impl TryAsCompositeFilter for EdgeFieldFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

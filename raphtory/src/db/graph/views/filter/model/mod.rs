@@ -6,14 +6,21 @@ use crate::{
         node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
         not_filter::NotFilter,
         or_filter::OrFilter,
-        property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
+        property_filter::{
+            MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder, PropertyRef,
+            WindowedPropertyRef,
+        },
     },
     errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::entities::{GidRef, GID};
+use raphtory_api::core::{
+    entities::{GidRef, GID},
+    storage::timeindex::TimeIndexEntry,
+};
+use raphtory_core::utils::time::IntoTime;
 use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
-use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Deref, sync::Arc};
 
 pub mod and_filter;
 pub mod edge_filter;
@@ -22,6 +29,56 @@ pub mod node_filter;
 pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
+
+#[derive(Debug, Clone, Copy)]
+pub struct Windowed<M> {
+    pub start: TimeIndexEntry,
+    pub end: TimeIndexEntry,
+    pub _marker: PhantomData<M>,
+}
+
+impl<M> Windowed<M> {
+    #[inline]
+    pub fn new(start: TimeIndexEntry, end: TimeIndexEntry) -> Self {
+        Self {
+            start,
+            end,
+            _marker: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn from_times<S: IntoTime, E: IntoTime>(start: S, end: E) -> Self {
+        let s = TimeIndexEntry::start(start.into_time());
+        let e = TimeIndexEntry::end(end.into_time());
+        Self::new(s, e)
+    }
+}
+
+impl<M> Windowed<M>
+where
+    M: Send + Sync + Clone + 'static,
+{
+    pub fn property(self, name: impl Into<String>) -> WindowedPropertyRef<M> {
+        WindowedPropertyRef {
+            prop_ref: PropertyRef::Property(name.into()),
+            ops: vec![],
+            start: self.start,
+            end: self.end,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn metadata(self, name: impl Into<String>) -> WindowedPropertyRef<M> {
+        WindowedPropertyRef {
+            prop_ref: PropertyRef::Metadata(name.into()),
+            ops: vec![],
+            start: self.start,
+            end: self.end,
+            _phantom: PhantomData,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilterValue {
