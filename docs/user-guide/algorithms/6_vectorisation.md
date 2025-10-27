@@ -11,14 +11,60 @@ To vectorise a graph you must create an embeddings function that takes a list of
 /// tab | :fontawesome-brands-python: Python
 ```{.python notest}
 def get_embeddings(documents, model="embeddinggemma"):
-    client = OpenAI(base_url='http://localhost:11434/v1/' api_key="ollama")
+    client = OpenAI(base_url='http://localhost:11434/v1/', api_key="ollama")
     return [client.embeddings.create(input=text, model=model).data[0].embedding for text in documents]
 
 v = g.vectorise(get_embeddings, nodes=node_document, edges=edge_document, verbose=True)
 ```
 ///
 
-When you call [Vectorise()][raphtory.GraphView.vectorise] Raphtory automatically creates documents for each node and edge entity in your graph, optionally you can create documents explicitly as properties and pass the property names to `vectorise()`. This is useful when you already have a deep understanding of your graphs semantics. Additionally, you can cache the embedded graph to disk to avoid having to recompute the vectors when nothing has changed.
+When you call [Vectorise()][raphtory.GraphView.vectorise] Raphtory automatically creates documents for each node and edge entity in your graph, optionally you can provide template strings to format documents and pass these to `vectorise()`. This is useful when you know which properties are semantically relevant or want to present information in a specific format when retrieved by a human or machine user. Additionally, you can cache the embedded graph to disk to avoid having to recompute the vectors when nothing has changed.
+
+### Document templates
+
+The templates for entity documents follow a subset of [Jinja](https://jinja.palletsprojects.com/en/stable/templates/) and graph attributes and properties are exposed so that you can use them in template expressions.
+
+Most attributes of graph entities are exposed and can be used in Jinja expressions. The nesting of attributes reflects the Python interface and the final result of any chain such as `properties.prop_name` or `src.name` should be a string.
+
+For example, in a money laundering case a simple template might be:
+
+/// tab | :fontawesome-brands-python: Python
+```{.python notest}
+node_document = """
+{% if properties.type == "Company" %}
+{{ name }} is a company with the following details:
+Employee count: {{ properties.employeeCount}}
+Account: {{ properties.account}}
+Location: {{ properties.location}}
+Jurisdiction: {{ properties.jurisdiction}}
+Partnerships: {{ properties.partnerships}}
+{% endif %}
+
+{% if properties.type == "Person" %}
+{{ name }} is a director with the follwing details:
+Age: {{ properties.age }}
+Mobile: {{ properties.mobile }}
+Home address: {{ properties.homeAddress }}
+Email: {{ properties.email }}
+{% endif %}
+
+{% if properties.type == "Report" %}
+{{name}} is a suspicious activity report with the following content:
+{{ properties.document }}
+{% endif %}
+"""
+
+edge_document = """
+{% if layers[0] == "report" %}
+{{ src.name }} was raised against {{ dst.name}}
+{% elif layers[0] == "director" %}
+{{ dst.name }} is a director of {{ src.name }}
+{% else %}
+{{ src.name }} transferred ${{ properties.amount_usd }} to {{ dst.name }}
+{% endif %}
+"""
+```
+///
 
 ## Retrieve documents
 
