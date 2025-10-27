@@ -13,6 +13,8 @@ use std::{
 };
 use tokio::{sync::mpsc, task::JoinHandle};
 
+use crate::db;
+
 #[derive(Deserialize, Debug)]
 struct EmbeddingRequest {
     input: Vec<String>,
@@ -87,7 +89,7 @@ pub async fn serve_custom_embedding(
     let execution = tokio::spawn(async {
         axum::serve(listener, app)
             .with_graceful_shutdown(async move {
-                receiver.recv().await;
+                receiver.recv().await; // TODO: add CTRL + C
             })
             .await
             .unwrap();

@@ -221,6 +221,8 @@ fn get_schema(dim: usize) -> Arc<Schema> {
 
 #[cfg(test)]
 mod lancedb_tests {
+    use std::sync::Arc;
+
     use crate::vectors::{
         vector_collection::{lancedb::LanceDb, VectorCollection, VectorCollectionFactory},
         Embedding,
@@ -230,7 +232,7 @@ mod lancedb_tests {
     async fn test_search() {
         let factory = LanceDb;
         let tempdir = tempfile::tempdir().unwrap();
-        let path = tempdir.path();
+        let path = Arc::new(tempdir);
         let collection = factory.new_collection(path, "vectors", 2).await.unwrap();
         let ids = vec![0, 1];
         let vectors: Vec<Embedding> = vec![vec![1.0, 0.0].into(), vec![0.0, 1.0].into()];

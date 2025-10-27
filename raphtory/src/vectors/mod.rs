@@ -51,7 +51,7 @@ mod vector_tests {
     };
     use itertools::Itertools;
     use raphtory_api::core::entities::properties::prop::Prop;
-    use std::{fs::remove_dir_all, path::PathBuf, sync::Arc};
+    use std::{fs::remove_dir_all, path::PathBuf, sync::Arc, time::Duration};
     use tokio;
 
     const NO_PROPS: [(&str, Prop); 0] = [];
@@ -63,8 +63,10 @@ mod vector_tests {
 
     async fn use_fake_model() -> CachedEmbeddingModel {
         tokio::spawn(async {
-            serve_custom_embedding("0.0.0.0:3070", fake_embedding).await;
+            let running = serve_custom_embedding("0.0.0.0:3070", fake_embedding).await;
+            running.wait().await;
         });
+        tokio::time::sleep(Duration::from_secs(1)).await;
         VectorCache::in_memory()
             .openai(OpenAIEmbeddings {
                 api_base: Some("http://localhost:3070/v1".to_owned()), // FIXME: the fact that I need to write /v1 is not ideal?
