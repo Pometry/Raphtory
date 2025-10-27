@@ -344,7 +344,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                 self.c_prop(0, NODE_ID_IDX)
                     .and_then(|prop| prop.into_u64().map(GidRef::U64))
             })
-            .expect("Node GID should be present")
+            .unwrap_or_else(|| panic!("GID should be present, for node {:?}", self.vid()))
     }
 
     fn node_type_id(&self) -> usize {
