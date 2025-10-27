@@ -5,11 +5,17 @@ use crate::{
             InternalEdgeFilterBuilderOps,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory,
+        PropertyFilterFactory, Windowed,
     },
-    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
+    python::{
+        filter::{
+            filter_expr::PyFilterExpr,
+            window_filter::{py_into_millis, PyEdgeWindow, PyExplodedEdgeWindow},
+        },
+        types::iterable::FromIterable,
+    },
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{exceptions::PyTypeError, pyclass, pymethods, Bound, PyAny, PyResult};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
@@ -186,6 +192,16 @@ impl PyEdgeFilter {
     fn metadata(name: String) -> MetadataFilterBuilder<EdgeFilter> {
         EdgeFilter::metadata(name)
     }
+
+    #[staticmethod]
+    fn window(py_start: Bound<PyAny>, py_end: Bound<PyAny>) -> PyResult<PyEdgeWindow> {
+        let s = py_into_millis(&py_start)?;
+        let e = py_into_millis(&py_end)?;
+        if s > e {
+            return Err(PyTypeError::new_err("window.start must be <= window.end"));
+        }
+        Ok(PyEdgeWindow(Windowed::<EdgeFilter>::from_times(s, e)))
+    }
 }
 
 #[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
@@ -202,5 +218,17 @@ impl PyExplodedEdgeFilter {
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<ExplodedEdgeFilter> {
         ExplodedEdgeFilter::metadata(name)
+    }
+
+    #[staticmethod]
+    fn window(py_start: Bound<PyAny>, py_end: Bound<PyAny>) -> PyResult<PyExplodedEdgeWindow> {
+        let s = py_into_millis(&py_start)?;
+        let e = py_into_millis(&py_end)?;
+        if s > e {
+            return Err(PyTypeError::new_err("window.start must be <= window.end"));
+        }
+        Ok(PyExplodedEdgeWindow(
+            Windowed::<ExplodedEdgeFilter>::from_times(s, e),
+        ))
     }
 }
