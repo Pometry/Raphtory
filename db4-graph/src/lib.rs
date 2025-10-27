@@ -222,7 +222,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn graph_meta(&self) -> &Arc<GraphMeta> {
-        &self.graph_meta
+        &self.storage.meta().graph_meta()
     }
 
     pub fn num_layers(&self) -> usize {
