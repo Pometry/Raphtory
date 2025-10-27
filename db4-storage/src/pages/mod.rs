@@ -96,6 +96,10 @@ impl<
         &self.edges
     }
 
+    pub fn meta(&self) -> &Arc<MetaStorageInner<MS, EXT>> {
+        &self.meta
+    }
+
     pub fn edge_meta(&self) -> &Meta {
         self.edges.edge_meta()
     }
