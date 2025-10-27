@@ -4,8 +4,10 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                node_filter::CompositeNodeFilter, property_filter::PropertyFilter, AndFilter,
-                Filter, NotFilter, OrFilter, PropertyFilterFactory, TryAsCompositeFilter,
+                node_filter::CompositeNodeFilter,
+                property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
+                AndFilter, Filter, NotFilter, OrFilter, PropertyFilterFactory,
+                TryAsCompositeFilter,
             },
         },
     },
@@ -28,6 +30,8 @@ impl Display for EdgeFieldFilter {
 pub enum CompositeEdgeFilter {
     Edge(Filter),
     Property(PropertyFilter<EdgeFilter>),
+    SrcEndpointProperty(PropertyFilter<EdgeSrcEndpoint>),
+    DstEndpointProperty(PropertyFilter<EdgeDstEndpoint>),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Not(Box<CompositeEdgeFilter>),
@@ -38,6 +42,8 @@ impl Display for CompositeEdgeFilter {
         match self {
             CompositeEdgeFilter::Edge(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::SrcEndpointProperty(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::DstEndpointProperty(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
             CompositeEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
@@ -55,6 +61,8 @@ impl CreateFilter for CompositeEdgeFilter {
         match self {
             CompositeEdgeFilter::Edge(i) => Ok(Arc::new(EdgeFieldFilter(i).create_filter(graph)?)),
             CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::SrcEndpointProperty(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::DstEndpointProperty(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeEdgeFilter::And(l, r) => Ok(Arc::new(
                 AndFilter {
                     left: l.deref().clone(),
@@ -367,6 +375,35 @@ impl EdgeEndpointFilter {
             EdgeEndpointFilter::Dst => Arc::new(EdgeDestinationFilterBuilder),
         }
     }
+
+    // we need two sets of functions because the return types for src and dst are different
+    pub fn src_property(&self, name: impl Into<String>) -> PropertyFilterBuilder<EdgeSrcEndpoint> {
+        match self {
+            EdgeEndpointFilter::Src => PropertyFilterBuilder::new(name),
+            EdgeEndpointFilter::Dst => unreachable!(),
+        }
+    }
+
+    pub fn src_metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<EdgeSrcEndpoint> {
+        match self {
+            EdgeEndpointFilter::Src => MetadataFilterBuilder::new(name),
+            EdgeEndpointFilter::Dst => unreachable!(),
+        }
+    }
+
+    pub fn dst_property(&self, name: impl Into<String>) -> PropertyFilterBuilder<EdgeDstEndpoint> {
+        match self {
+            EdgeEndpointFilter::Src => unreachable!(),
+            EdgeEndpointFilter::Dst => PropertyFilterBuilder::new(name),
+        }
+    }
+
+    pub fn dst_metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<EdgeDstEndpoint> {
+        match self {
+            EdgeEndpointFilter::Src => unreachable!(),
+            EdgeEndpointFilter::Dst => MetadataFilterBuilder::new(name),
+        }
+    }
 }
 
 impl EdgeFilter {
@@ -400,3 +437,9 @@ impl TryAsCompositeFilter for EdgeFieldFilter {
         Err(GraphError::NotSupported)
     }
 }
+
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+pub struct EdgeSrcEndpoint;
+
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+pub struct EdgeDstEndpoint;

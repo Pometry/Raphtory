@@ -248,6 +248,12 @@ impl<'a> EdgeFilterExecutor<'a> {
             CompositeEdgeFilter::Edge(filter) => {
                 self.filter_edge_index(graph, filter, limit, offset)
             }
+            CompositeEdgeFilter::SrcEndpointProperty(_) => {
+                fallback_filter_edges(graph, filter, limit, offset)
+            }
+            CompositeEdgeFilter::DstEndpointProperty(_) => {
+                fallback_filter_edges(graph, filter, limit, offset)
+            }
             CompositeEdgeFilter::And(left, right) => {
                 let left_result = self.filter_edges(graph, left, limit, offset)?;
                 let right_result = self.filter_edges(graph, right, limit, offset)?;

@@ -5,6 +5,7 @@ use crate::db::graph::views::filter::model::{
 };
 
 pub mod and_filtered_graph;
+pub mod edge_endpoint_property_filtered_graph;
 pub mod edge_field_filtered_graph;
 pub mod edge_property_filtered_graph;
 pub mod exploded_edge_property_filter;

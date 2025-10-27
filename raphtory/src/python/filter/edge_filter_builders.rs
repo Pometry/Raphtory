@@ -1,15 +1,21 @@
 use crate::{
     db::graph::views::filter::model::{
         edge_filter::{
-            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, EdgeIdFilterBuilder, ExplodedEdgeFilter,
-            InternalEdgeFilterBuilderOps,
+            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, EdgeIdFilterBuilder, EdgeSrcEndpoint,
+            ExplodedEdgeFilter, InternalEdgeFilterBuilderOps,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory,
     },
-    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
+    python::{
+        filter::{
+            filter_expr::PyFilterExpr,
+            property_filter_builders::{PyMetadataFilterBuilder, PyPropertyFilterBuilder},
+        },
+        types::iterable::FromIterable,
+    },
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, IntoPy, IntoPyObject, Py, PyResult, Python};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
@@ -158,6 +164,28 @@ impl PyEdgeEndpoint {
 
     fn name(&self) -> PyEdgeFilterOp {
         PyEdgeFilterOp(self.0.name())
+    }
+
+    fn property(&self, py: Python<'_>, name: String) -> PyResult<Py<PyPropertyFilterBuilder>> {
+        match self.0 {
+            EdgeEndpointFilter::Src => EdgeEndpointFilter::src_property(&self.0, name)
+                .into_pyobject(py)
+                .map(|b| b.unbind()),
+            EdgeEndpointFilter::Dst => EdgeEndpointFilter::dst_property(&self.0, name)
+                .into_pyobject(py)
+                .map(|b| b.unbind()),
+        }
+    }
+
+    fn metadata(&self, py: Python<'_>, name: String) -> PyResult<Py<PyMetadataFilterBuilder>> {
+        match self.0 {
+            EdgeEndpointFilter::Src => EdgeEndpointFilter::src_metadata(&self.0, name)
+                .into_pyobject(py)
+                .map(|b| b.unbind()),
+            EdgeEndpointFilter::Dst => EdgeEndpointFilter::dst_metadata(&self.0, name)
+                .into_pyobject(py)
+                .map(|b| b.unbind()),
+        }
     }
 }
 

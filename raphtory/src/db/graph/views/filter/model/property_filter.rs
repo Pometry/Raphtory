@@ -13,8 +13,8 @@ use crate::{
             node::NodeView,
             views::filter::model::{
                 edge_filter::{
-                    CompositeEdgeFilter, CompositeExplodedEdgeFilter, EdgeFilter,
-                    ExplodedEdgeFilter,
+                    CompositeEdgeFilter, CompositeExplodedEdgeFilter, EdgeDstEndpoint, EdgeFilter,
+                    EdgeSrcEndpoint, ExplodedEdgeFilter,
                 },
                 filter_operator::FilterOperator,
                 node_filter::{CompositeNodeFilter, NodeFilter},
@@ -1491,6 +1491,34 @@ impl TryAsCompositeFilter for PropertyFilter<ExplodedEdgeFilter> {
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Ok(CompositeExplodedEdgeFilter::Property(self.clone()))
+    }
+}
+
+impl TryAsCompositeFilter for PropertyFilter<EdgeSrcEndpoint> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(CompositeEdgeFilter::SrcEndpointProperty(self.clone()))
+    }
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+impl TryAsCompositeFilter for PropertyFilter<EdgeDstEndpoint> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(CompositeEdgeFilter::DstEndpointProperty(self.clone()))
+    }
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
 }
 
