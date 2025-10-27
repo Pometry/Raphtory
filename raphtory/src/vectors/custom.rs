@@ -5,15 +5,8 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
-use std::{
-    future::{Future, IntoFuture},
-    ops::Deref,
-    pin::Pin,
-    sync::Arc,
-};
+use std::sync::Arc;
 use tokio::{sync::mpsc, task::JoinHandle};
-
-use crate::db;
 
 #[derive(Deserialize, Debug)]
 struct EmbeddingRequest {
