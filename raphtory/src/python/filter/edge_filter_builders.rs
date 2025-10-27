@@ -1,8 +1,8 @@
 use crate::{
     db::graph::views::filter::model::{
         edge_filter::{
-            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, EdgeIdFilterBuilder, EdgeSrcEndpoint,
-            ExplodedEdgeFilter, InternalEdgeFilterBuilderOps,
+            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, EdgeIdFilterBuilder, ExplodedEdgeFilter,
+            InternalEdgeFilterBuilderOps,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory,
@@ -15,7 +15,7 @@ use crate::{
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, IntoPy, IntoPyObject, Py, PyResult, Python};
+use pyo3::{pyclass, pymethods, IntoPyObject, Py, PyResult, Python};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
