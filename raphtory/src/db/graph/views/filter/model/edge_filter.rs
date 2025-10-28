@@ -12,7 +12,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::GID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::entities::GID;
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 

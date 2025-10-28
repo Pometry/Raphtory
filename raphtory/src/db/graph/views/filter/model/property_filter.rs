@@ -3,7 +3,7 @@ use crate::{
         api::{
             properties::{internal::InternalPropertiesOps, Metadata, Properties},
             view::{
-                internal::{GraphTimeSemanticsOps, GraphView, NodeTimeSemanticsOps},
+                internal::{GraphView, NodeTimeSemanticsOps},
                 node::NodeViewOps,
                 EdgeViewOps,
             },
@@ -23,7 +23,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertiesOps, TimeOps},
+    prelude::{GraphViewOps, PropertiesOps},
 };
 use itertools::Itertools;
 use raphtory_api::core::{
@@ -39,12 +39,9 @@ use raphtory_api::core::{
         timeindex::{AsTime, TimeIndexEntry},
     },
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Deref, sync::Arc};
 
