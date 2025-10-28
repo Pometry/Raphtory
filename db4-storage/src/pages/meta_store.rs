@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use crate::api::meta::MetaSegmentOps;
+use crate::api::meta::GraphMetaSegmentOps;
 use crate::error::StorageError;
 use crate::persist::strategy::Config;
 use raphtory_core::entities::properties::graph_meta::GraphMeta;
@@ -8,14 +8,14 @@ use raphtory_core::entities::properties::graph_meta::GraphMeta;
 /// Backing store for graph temporal properties and graph metadata.
 /// MS: MetaSegment?
 #[derive(Debug)]
-pub struct MetaStorageInner<MS, EXT> {
+pub struct GraphMetaStorageInner<MS, EXT> {
     page: Arc<MS>,
     graph_meta: Arc<GraphMeta>,
     path: Option<PathBuf>,
     ext: EXT,
 }
 
-impl<MS: MetaSegmentOps, EXT: Config> MetaStorageInner<MS, EXT> {
+impl<MS: GraphMetaSegmentOps, EXT: Config> GraphMetaStorageInner<MS, EXT> {
     pub fn new(path: Option<PathBuf>, ext: EXT) -> Self {
         let page = Arc::new(MS::new());
         let graph_meta = Arc::new(GraphMeta::new());
