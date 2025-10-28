@@ -434,15 +434,16 @@ where
 mod test {
     use crate::db::api::state::node_state_ord_ops::{par_top_k, top_k};
 
-    use rand; // 0.8.5
-
-    use rand::distr::{Distribution, Uniform};
+    use rand::{
+        distr::{Distribution, Uniform},
+        Rng,
+    };
     use tokio::time::Instant;
 
     fn gen_x_ints(
         count: u32,
         distribution: impl Distribution<u32>,
-        rng: &mut (impl rand::Rng + ?Sized),
+        rng: &mut (impl Rng + ?Sized),
     ) -> Vec<u32> {
         let mut results = Vec::with_capacity(count as usize);
         let iter = distribution.sample_iter(rng);
