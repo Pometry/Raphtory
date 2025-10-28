@@ -351,6 +351,20 @@ impl InternalEdgeFilterBuilderOps for EdgeDestinationFilterBuilder {
     }
 }
 
+pub struct EdgeSrcNodeTypeFilterBuilder;
+impl InternalEdgeFilterBuilderOps for EdgeSrcNodeTypeFilterBuilder {
+    fn field_name(&self) -> &'static str {
+        "src_node_type"
+    }
+}
+
+pub struct EdgeDstNodeTypeFilterBuilder;
+impl InternalEdgeFilterBuilderOps for EdgeDstNodeTypeFilterBuilder {
+    fn field_name(&self) -> &'static str {
+        "dst_node_type"
+    }
+}
+
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct EdgeFilter;
 
@@ -376,7 +390,14 @@ impl EdgeEndpointFilter {
         }
     }
 
-    // we need two sets of functions because the return types for src and dst are different
+    pub fn node_type(&self) -> Arc<dyn InternalEdgeFilterBuilderOps> {
+        match self {
+            EdgeEndpointFilter::Src => Arc::new(EdgeSrcNodeTypeFilterBuilder),
+            EdgeEndpointFilter::Dst => Arc::new(EdgeDstNodeTypeFilterBuilder),
+        }
+    }
+
+    // two sets of property and metadata functions because the return types for src and dst are different
     pub fn src_property(&self, name: impl Into<String>) -> PropertyFilterBuilder<EdgeSrcEndpoint> {
         match self {
             EdgeEndpointFilter::Src => PropertyFilterBuilder::new(name),

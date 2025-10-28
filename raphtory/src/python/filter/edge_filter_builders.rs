@@ -166,6 +166,10 @@ impl PyEdgeEndpoint {
         PyEdgeFilterOp(self.0.name())
     }
 
+    fn node_type(&self) -> PyEdgeFilterOp {
+        PyEdgeFilterOp(self.0.node_type())
+    }
+
     fn property(&self, py: Python<'_>, name: String) -> PyResult<Py<PyPropertyFilterBuilder>> {
         match self.0 {
             EdgeEndpointFilter::Src => EdgeEndpointFilter::src_property(&self.0, name)

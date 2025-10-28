@@ -249,14 +249,16 @@ impl Filter {
         graph: &G,
         edge: EdgeStorageRef,
     ) -> bool {
-        let node_opt = match self.field_name.as_str() {
-            "src" => graph.node(edge.src()),
-            "dst" => graph.node(edge.dst()),
+        let (node_opt, want_type) = match self.field_name.as_str() {
+            "src" => (graph.node(edge.src()), false),
+            "dst" => (graph.node(edge.dst()), false),
+            "src_node_type" => (graph.node(edge.src()), true),
+            "dst_node_type" => (graph.node(edge.dst()), true),
             _ => return false,
         };
 
         match &self.field_value {
-            FilterValue::ID(_) | FilterValue::IDSet(_) => {
+            FilterValue::ID(_) | FilterValue::IDSet(_) if !want_type => {
                 if let Some(node) = node_opt {
                     self.id_matches(node.id().as_ref())
                 } else {
@@ -268,8 +270,13 @@ impl Filter {
                 }
             }
             _ => {
-                let name_opt = node_opt.map(|n| n.name());
-                self.matches(name_opt.as_deref())
+                if want_type {
+                    let ty = node_opt.and_then(|n| n.node_type());
+                    self.matches(ty.as_deref())
+                } else {
+                    let name_opt = node_opt.map(|n| n.name());
+                    self.matches(name_opt.as_deref())
+                }
             }
         }
     }
