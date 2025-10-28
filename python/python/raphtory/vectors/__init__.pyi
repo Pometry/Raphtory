@@ -23,77 +23,61 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ["VectorisedGraph", "Document", "Embedding", "VectorSelection"]
-
-class VectorisedGraph(object):
+__all__ = ['VectorisedGraph', 'Document', 'Embedding', 'VectorSelection']
+class VectorisedGraph(object): 
     """VectorisedGraph object that contains embedded documents that correspond to graph entities."""
 
-    def edges_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> VectorSelection:
+    def edges_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
         """
-        Search the top scoring edges according to `query` with no more than `limit` edges
+        Search the top similarity scoring edges according to matching a specified `query` with no more than `limit` edges in the result.
 
         Args:
           query (str | list): The text or the embedding to score against.
           limit (int): The maximum number of new edges in the results.
-          window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
+          window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
         Returns:
           VectorSelection: The vector selection resulting from the search.
         """
 
     def empty_selection(self):
-        """Return an empty selection of documents"""
+        """Return an empty selection of entities."""
 
-    def entities_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> VectorSelection:
+    def entities_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
         """
-        Search the top scoring entities according to `query` with no more than `limit` entities.
+        Search the top similarity scoring entities according to matching a specified `query` with no more than `limit` entities in the result.
 
         Args:
           query (str | list): The text or the embedding to score against.
           limit (int): The maximum number of new entities in the result.
-          window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
+          window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
         Returns:
           VectorSelection: The vector selection resulting from the search.
         """
 
-    def nodes_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> VectorSelection:
+    def nodes_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
         """
-        Search the top scoring nodes according to `query` with no more than `limit` nodes.
+        Search the top similarity scoring nodes according to matching a specified `query` with no more than `limit` nodes in the result.
 
         Args:
           query (str | list): The text or the embedding to score against.
           limit (int): The maximum number of new nodes in the result.
-          window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
+          window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
         Returns:
           VectorSelection: The vector selection resulting from the search.
         """
 
-class Document(object):
+class Document(object): 
     """
     A document corresponding to a graph entity. Used to generate embeddings.
 
     Args:
         content (str): The document content.
-        life (int | Tuple[int, int], optional): the optional lifespan for the document (single value
+        life (int | Tuple[int, int], optional): The optional lifespan of the document. A single value
                                                 corresponds to an event, a tuple corresponds to a
-                                                window).
+                                                window.
     """
 
     def __repr__(self):
@@ -105,32 +89,34 @@ class Document(object):
         The document content.
 
         Returns:
-            str:
+            str: Content of the document.
         """
 
     @property
     def embedding(self) -> Optional[Embedding]:
         """
-        The embedding.
+        The embedding of the document.
 
         Returns:
-            Optional[Embedding]: The embedding for the document if it was computed.
+            Optional[Embedding]: The embedding of the document if it was computed.
         """
 
     @property
     def entity(self) -> Optional[Any]:
         """
-        The entity corresponding to the document.
+        The graph entity corresponding to the document.
 
         Returns:
             Optional[Any]:
         """
 
-class Embedding(object):
+class Embedding(object): 
+
     def __repr__(self):
         """Return repr(self)."""
 
-class VectorSelection(object):
+class VectorSelection(object): 
+
     def add_edges(self, edges: list) -> None:
         """
         Add all the documents associated with the specified `edges` to the current selection.
@@ -159,13 +145,13 @@ class VectorSelection(object):
 
     def append(self, selection: VectorSelection) -> VectorSelection:
         """
-        Add all the documents in `selection` to the current selection.
+        Add all the documents in a specified `selection` to the current selection.
 
         Args:
           selection (VectorSelection): Selection to be added.
 
         Returns:
-          VectorSelection: The selection with the new documents.
+          VectorSelection: The combined selection.
         """
 
     def edges(self) -> list[Edge]:
@@ -176,51 +162,39 @@ class VectorSelection(object):
             list[Edge]: List of edges in the current selection.
         """
 
-    def expand(
-        self, hops: int, window: Optional[Tuple[int | str, int | str]] = None
-    ) -> None:
+    def expand(self, hops: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
         """
-        Add all the documents `hops` hops away to the selection
+        Add all the documents a specified number of `hops` away from the selection.
 
-        Two documents A and B are considered to be 1 hop away of each other if they are on the same
-        entity or if they are on the same node/edge pair. Provided that, two nodes A and C are n
-        hops away of  each other if there is a document B such that A is n - 1 hops away of B and B
+        Two documents A and B are considered to be 1 hop away from each other if they are on the same
+        entity or if they are on the same node/edge pair. Provided that two nodes A and C are n
+        hops away of each other if there is a document B such that A is n - 1 hops away of B and B
         is 1 hop away of C.
 
         Args:
-          hops (int): the number of hops to carry out the expansion
-          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+          hops (int): The number of hops to carry out the expansion.
+          window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
         Returns:
             None:
         """
 
-    def expand_edges_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> None:
+    def expand_edges_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
         """
         Add the top `limit` adjacent edges with higher score for `query` to the selection
 
-        This function has the same behavior as expand_entities_by_similarity but it only considers edges.
+        This function has the same behaviour as expand_entities_by_similarity but it only considers edges.
 
         Args:
-          query (str | list): the text or the embedding to score against
-          limit (int): the maximum number of new edges to add
-          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+          query (str | list): The text or the embedding to score against.
+          limit (int): The maximum number of new edges to add.
+          window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
         Returns:
             None:
         """
 
-    def expand_entities_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> None:
+    def expand_entities_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
         """
         Add the top `limit` adjacent entities with higher score for `query` to the selection
 
@@ -235,29 +209,24 @@ class VectorSelection(object):
         entities or until no more documents are available
 
         Args:
-          query (str | list): the text or the embedding to score against
-          limit (int): the number of documents to add
-          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+          query (str | list): The text or the embedding to score against.
+          limit (int): The number of documents to add.
+          window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
         Returns:
             None:
         """
 
-    def expand_nodes_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> None:
+    def expand_nodes_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
         """
         Add the top `limit` adjacent nodes with higher score for `query` to the selection
 
         This function has the same behaviour as expand_entities_by_similarity but it only considers nodes.
 
         Args:
-          query (str | list): the text or the embedding to score against
-          limit (int): the maximum number of new nodes to add
-          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+          query (str | list): The text or the embedding to score against.
+          limit (int): The maximum number of new nodes to add.
+          window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
         Returns:
             None:
@@ -273,7 +242,7 @@ class VectorSelection(object):
 
     def get_documents_with_scores(self) -> list[Tuple[Document, float]]:
         """
-        Returns the documents alongside their scores present in the current selection.
+        Returns the documents present in the current selection alongside their scores.
 
         Returns:
             list[Tuple[Document, float]]: List of documents and scores.
