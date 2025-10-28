@@ -13,29 +13,36 @@ use storage::Extension;
 
 pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
+
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error>;
+
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+
     fn internal_add_node_metadata(
         &self,
         vid: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error>;
+
     fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error>;
+
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error>;
+
     fn internal_update_edge_metadata(
         &self,
         eid: EID,

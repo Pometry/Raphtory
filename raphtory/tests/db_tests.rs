@@ -2049,7 +2049,7 @@ fn test_graph_metadata_names() {
             .map(|(name, value)| (name.into(), Prop::U64(value)))
             .collect::<Vec<_>>();
 
-    g.add_metadata(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()

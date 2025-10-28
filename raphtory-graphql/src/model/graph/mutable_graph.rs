@@ -758,6 +758,7 @@ mod tests {
         let folder = data
             .validate_path_for_insert("test_graph", overwrite)
             .unwrap();
+
         data.insert_graph(folder, graph).await.unwrap();
 
         let (graph_with_vectors, path) = data.get_graph("test_graph").await.unwrap();
