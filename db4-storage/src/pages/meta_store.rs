@@ -17,10 +17,22 @@ pub struct MetaStorageInner<MS, EXT> {
 
 impl<MS: MetaSegmentOps, EXT: Config> MetaStorageInner<MS, EXT> {
     pub fn new(path: Option<PathBuf>, ext: EXT) -> Self {
+        let page = Arc::new(MS::new());
         let graph_meta = Arc::new(GraphMeta::new());
 
         Self {
-            page: Arc::new(MS::new()),
+            page,
+            path,
+            graph_meta,
+            ext,
+        }
+    }
+
+    pub fn new_with_meta(path: Option<PathBuf>, graph_meta: Arc<GraphMeta>, ext: EXT) -> Self {
+        let page = Arc::new(MS::new());
+
+        Self {
+            page,
             path,
             graph_meta,
             ext,

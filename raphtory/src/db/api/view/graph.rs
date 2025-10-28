@@ -256,16 +256,17 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
 
-        let mut temporal_graph = TemporalGraph::new_with_meta(
+        // Copy all graph properties
+        let graph_meta = self.graph_meta().deep_clone();
+
+        let temporal_graph = TemporalGraph::new_with_meta(
             path.map(|p| p.into()),
             node_meta,
             edge_meta,
+            graph_meta,
             storage.extension().clone(),
         )
         .unwrap();
-
-        // Copy all graph properties
-        temporal_graph.graph_meta = self.graph_meta().deep_clone().into();
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
