@@ -12,7 +12,7 @@ use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
-use meta_store::MetaStorageInner;
+use meta_store::GraphMetaStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
@@ -50,7 +50,7 @@ pub mod test_utils;
 pub struct GraphStore<NS, ES, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
-    meta: Arc<MetaStorageInner<MS, EXT>>,
+    graph_meta: Arc<GraphMetaStorageInner<MS, EXT>>,
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -96,8 +96,8 @@ impl<
         &self.edges
     }
 
-    pub fn meta(&self) -> &Arc<MetaStorageInner<MS, EXT>> {
-        &self.meta
+    pub fn graph_meta(&self) -> &Arc<GraphMetaStorageInner<MS, EXT>> {
+        &self.graph_meta
     }
 
     pub fn edge_meta(&self) -> &Meta {
@@ -138,14 +138,14 @@ impl<
         }
 
         // Load graph temporal properties and metadata
-        let meta = Arc::new(MetaStorageInner::load(meta_path, ext.clone())?);
+        let meta = Arc::new(GraphMetaStorageInner::load(meta_path, ext.clone())?);
 
         let t_len = edges.t_len();
 
         Ok(Self {
             nodes,
             edges,
-            meta,
+            graph_meta: meta,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
@@ -177,7 +177,7 @@ impl<
             edge_meta,
             ext.clone(),
         ));
-        let meta = Arc::new(MetaStorageInner::new(meta_path, ext.clone()));
+        let meta = Arc::new(GraphMetaStorageInner::new(meta_path, ext.clone()));
 
         if let Some(graph_dir) = graph_dir {
             write_graph_config(graph_dir, &ext).expect("Unrecoverable! Failed to write graph meta");
@@ -186,7 +186,7 @@ impl<
         Self {
             nodes,
             edges,
-            meta,
+            graph_meta: meta,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,

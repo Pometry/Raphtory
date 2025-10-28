@@ -2,16 +2,16 @@ use raphtory_core::entities::properties::graph_meta::GraphMeta;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
-use crate::api::meta::MetaSegmentOps;
+use crate::api::meta::GraphMetaSegmentOps;
 use crate::error::StorageError;
 
 #[derive(Debug)]
-pub struct MetaSegmentView {
+pub struct GraphMetaSegmentView {
     inner: Arc<GraphMeta>,
     est_size: AtomicUsize,
 }
 
-impl MetaSegmentOps for MetaSegmentView {
+impl GraphMetaSegmentOps for GraphMetaSegmentView {
     fn new() -> Self {
         Self {
             inner: Arc::new(GraphMeta::new()),
