@@ -81,5 +81,75 @@ Once you have a selection containing the information you want you can:
 
 Each [Document][raphtory.vectors.Document] corresponds to unique entity in the graph, the contents of the associated document and it's vector representation. You can pull any of these out to retrieve information about an entity for a RAG system, compose a subgraph to analyse using Raphtory's algorithms, or feed into some more complex pipeline.
 
-## Example
+## Asking questions about your network
 
+Using the [Network example]() from XYZ you can set up a graph and add some simple AI tools in order to create a `VectorisedGraph`:
+
+/// tab | :fontawesome-brands-python: Python
+```{.python notest}
+from raphtory import Graph
+import pandas as pd
+from openai import OpenAI
+
+server_edges_df = pd.read_csv("./network_traffic_edges.csv")
+server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
+
+server_nodes_df = pd.read_csv("./network_traffic_nodes.csv")
+server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
+
+traffic_graph = Graph()
+traffic_graph.load_edges_from_pandas(
+    df=server_edges_df,
+    src="source",
+    dst="destination",
+    time="timestamp",
+    properties=["data_size_MB"],
+    layer_col="transaction_type",
+    metadata=["is_encrypted"],
+    shared_metadata={"datasource": "./network_traffic_edges.csv"},
+)
+traffic_graph.load_nodes_from_pandas(
+    df=server_nodes_df,
+    id="server_id",
+    time="timestamp",
+    properties=["OS_version", "primary_function", "uptime_days"],
+    metadata=["server_name", "hardware_type"],
+    shared_metadata={"datasource": "./network_traffic_edges.csv"},
+)
+
+def get_embeddings(documents, model="embeddinggemma"):
+    client = OpenAI(base_url='http://localhost:11434/v1/', api_key="ollama")
+    return [client.embeddings.create(input=text, model=model).data[0].embedding for text in documents]
+
+def send_query_with_docs(query: str, selection):
+    formatted_docs = "\n".join(doc.content for doc in selection.get_documents())
+    instruct_client = OpenAI(base_url="http://localhost:11434/v1/", api_key="ollama")
+    instructions = f"You are helpful assistant. Answer the user question using the following context:\n{formatted_docs}"
+
+    completion = instruct_client.chat.completions.create(
+        model="gemma3",
+        messages = [
+        {"role": "system", "content": f"You are helpful assistant. Answer the user question using the following context:\n{formatted_docs}"},
+        {"role": "user", "content": query}
+        ]
+    )
+    
+    return completion.choices[0].message.content
+
+v = traffic_graph.vectorise(get_embeddings, verbose=True)
+```
+///
+
+Using this `VectorisedGraph` you can perform similarity queries and feed the results into an LLM to ground it's responses in your data.
+
+/// tab | :fontawesome-brands-python: Python
+```{.python notest}
+query = "What's the status of my linux boxes?"
+
+s = v.nodes_by_similarity(query, limit=3)
+
+print(send_query_with_docs(query, s))
+```
+///
+
+However, you must note that LLM responses are still statistical and variations will occur. In production systems you 
