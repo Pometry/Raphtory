@@ -26,46 +26,6 @@ The templates for entity documents follow a subset of [Jinja](https://jinja.pall
 
 Most attributes of graph entities are exposed and can be used in Jinja expressions. The nesting of attributes reflects the Python interface and the final result of any chain such as `properties.prop_name` or `src.name` should be a string.
 
-For example, in a money laundering case a simple template might be:
-
-/// tab | :fontawesome-brands-python: Python
-```{.python notest}
-node_document = """
-{% if properties.type == "Company" %}
-{{ name }} is a company with the following details:
-Employee count: {{ properties.employeeCount}}
-Account: {{ properties.account}}
-Location: {{ properties.location}}
-Jurisdiction: {{ properties.jurisdiction}}
-Partnerships: {{ properties.partnerships}}
-{% endif %}
-
-{% if properties.type == "Person" %}
-{{ name }} is a director with the follwing details:
-Age: {{ properties.age }}
-Mobile: {{ properties.mobile }}
-Home address: {{ properties.homeAddress }}
-Email: {{ properties.email }}
-{% endif %}
-
-{% if properties.type == "Report" %}
-{{name}} is a suspicious activity report with the following content:
-{{ properties.document }}
-{% endif %}
-"""
-
-edge_document = """
-{% if layers[0] == "report" %}
-{{ src.name }} was raised against {{ dst.name}}
-{% elif layers[0] == "director" %}
-{{ dst.name }} is a director of {{ src.name }}
-{% else %}
-{{ src.name }} transferred ${{ properties.amount_usd }} to {{ dst.name }}
-{% endif %}
-"""
-```
-///
-
 ## Retrieve documents
 
 You can retrieve relevant information from the [VectorisedGraph][raphtory.vectors.VectorisedGraph] by making selections.
@@ -83,7 +43,7 @@ Each [Document][raphtory.vectors.Document] corresponds to unique entity in the g
 
 ## Asking questions about your network
 
-Using the [Network example]() from XYZ you can set up a graph and add some simple AI tools in order to create a `VectorisedGraph`:
+Using the Network example from the [ingestion using dataframes](../ingestion/3_dataframes.md) discussion you can set up a graph and add some simple AI tools in order to create a `VectorisedGraph`:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python notest}
@@ -123,17 +83,16 @@ def get_embeddings(documents, model="embeddinggemma"):
 
 def send_query_with_docs(query: str, selection):
     formatted_docs = "\n".join(doc.content for doc in selection.get_documents())
-    instruct_client = OpenAI(base_url="http://localhost:11434/v1/", api_key="ollama")
+    client = OpenAI(base_url="http://localhost:11434/v1/", api_key="ollama")
     instructions = f"You are helpful assistant. Answer the user question using the following context:\n{formatted_docs}"
 
-    completion = instruct_client.chat.completions.create(
+    completion = client.chat.completions.create(
         model="gemma3",
         messages = [
         {"role": "system", "content": f"You are helpful assistant. Answer the user question using the following context:\n{formatted_docs}"},
         {"role": "user", "content": query}
         ]
     )
-    
     return completion.choices[0].message.content
 
 v = traffic_graph.vectorise(get_embeddings, verbose=True)
@@ -146,10 +105,38 @@ Using this `VectorisedGraph` you can perform similarity queries and feed the res
 ```{.python notest}
 query = "What's the status of my linux boxes?"
 
-s = v.nodes_by_similarity(query, limit=3)
+node_selection = v.nodes_by_similarity(query, limit=3)
 
-print(send_query_with_docs(query, s))
+print(send_query_with_docs(query, node_selection))
 ```
 ///
 
-However, you must note that LLM responses are still statistical and variations will occur. In production systems you 
+However, you must always be aware that LLM responses are still statistical and variations will occur. In production systems you may want to use a structured output tool to enforce a specific format.
+
+The output of the example query should be similar to the following:
+
+!!! Output
+    ```output
+    Okay, here’s a rundown of the status of your Linux boxes as of today, September 3, 2023:
+
+    *   **ServerA (Alpha):**
+        *   Datasource: ./network_traffic_edges.csv
+        *   Hardware Type: Blade Server
+        *   OS Version: Ubuntu 20.04 (Changed Sep 1, 2023 08:00)
+        *   Primary Function: Database
+        *   Uptime: 120 days
+    *   **ServerD (Delta):**
+        *   Datasource: ./network_traffic_edges.csv
+        *   Hardware Type: Tower Server
+        *   OS Version: Ubuntu 20.04 (Changed Sep 1, 2023 08:15)
+        *   Primary Function: Application Server
+        *   Uptime: 60 days
+    *   **ServerE (Echo):**
+        *   Datasource: ./network_traffic_edges.csv
+        *   Hardware Type: Rack Server
+        *   OS Version: Red Hat 8.1 (Changed Sep 1, 2023 08:20)
+        *   Primary Function: Backup
+        *   Uptime: 30 days
+
+    Do you need any more details about any of these servers?
+    ```
