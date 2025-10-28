@@ -233,7 +233,7 @@ print(
 
 If you have data covering a large period of time, or have many time points of interest you can use `expanding()` to itterate over multiple time points.
 
-Using `expanding()` will return an iterable of views as if you called `before()` from the earliest time to the latest time at increments of a given `step`.
+Using `expanding()` will return an iterable of views as if you called `before()` from the earliest time to the latest time at increments of a given `step`. The start of each window is aligned with the smallest unit of time passed by the user within the `step`. Alteratively, you can explicitly specify a `alignment_unit` that determines when the window starts.
 
 The `step` can be specified using a simple epoch integer, or a natural language string describing the interval. For the latter, the string is converted into a iterator of datetimes, handling all corner cases like varying month length and leap years.
 
@@ -314,6 +314,8 @@ assert str(f"The full range of time in the graph is {g.earliest_date_time} to {g
 ## Rolling
 
 You can use `rolling()` to create a rolling window instead of including all prior history. This function will return an iterable of views, incrementing by a `window` size and only including the history from inside the window period, inclusive of start, exclusive of end. This allows you to easily extract daily or monthly metrics.
+
+Optionally you can specify a `step` and `alignment_unit` to determine how far forward the window should advance in each itteration and where it should begin.
 
 For example, you can take the code from [expanding](#expanding) and swap out the function for `rolling()`. In the first loop you can see both the start date and end date increase by seven days each time, and the number of monkey interactions sometimes decreases as older data is dropped from the window.
 

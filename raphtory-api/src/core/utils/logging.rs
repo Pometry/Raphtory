@@ -5,8 +5,9 @@ use tracing_subscriber::{
 
 pub fn get_log_env(log_level: String) -> EnvFilter {
     EnvFilter::new(format!(
-        "pometry-storage={},pometry-storage-private={},raphtory={},raphtory-api={},raphtory-benchmark={},raphtory-cypher={},raphtory-graphql={}",
-        log_level, log_level, log_level, log_level, log_level, log_level, log_level
+        // opentelemetry_otlp and tonic are added so we can get debug logs when there are problems with the tracing collector
+        "pometry-storage={},pometry-storage-private={},raphtory={},raphtory-api={},raphtory-benchmark={},raphtory-cypher={},raphtory-graphql={},opentelemetry_otlp={},tonic={}",
+        log_level, log_level, log_level, log_level, log_level, log_level, log_level, log_level, log_level
     ))
 }
 
