@@ -40,7 +40,6 @@ pub struct TemporalGraph<EXT: Config = Extension> {
     pub logical_to_physical: Arc<GIDResolver>,
     pub node_count: AtomicUsize,
     storage: Arc<Layer<EXT>>,
-    pub graph_meta: Arc<GraphMeta>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
     pub wal: Arc<WalImpl>,
@@ -131,13 +130,17 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(None, node_meta, edge_meta, ext)
+        let graph_meta = GraphMeta::new();
+
+        Self::new_with_meta(None, node_meta, edge_meta, graph_meta, ext)
     }
 
     pub fn new_with_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta, ext)
+        let graph_meta = GraphMeta::new();
+
+        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta, graph_meta, ext)
     }
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
@@ -155,7 +158,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             logical_to_physical: resolver.into(),
             node_count,
             storage: Arc::new(storage),
-            graph_meta: Arc::new(GraphMeta::default()),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
         })
@@ -165,6 +167,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         graph_dir: Option<GraphDir>,
         node_meta: Meta,
         edge_meta: Meta,
+        graph_meta: GraphMeta,
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let mut graph_dir = graph_dir;
@@ -189,6 +192,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             graph_dir.as_ref().map(|p| p.path()),
             node_meta,
             edge_meta,
+            graph_meta,
             ext,
         );
 
@@ -200,7 +204,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             logical_to_physical,
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
-            graph_meta: Arc::new(GraphMeta::default()),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
         })

@@ -23,7 +23,6 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
     utils::time::{InputTime, TryIntoInputTime},
 };
-use serde::{Deserialize, Serialize};
 use session::WriteSession;
 use std::{
     path::{Path, PathBuf},
@@ -32,6 +31,7 @@ use std::{
         atomic::{self, AtomicUsize},
     },
 };
+use raphtory_core::entities::properties::graph_meta::GraphMeta;
 
 pub mod edge_page;
 pub mod edge_store;
@@ -156,6 +156,7 @@ impl<
         graph_dir: Option<&Path>,
         node_meta: Meta,
         edge_meta: Meta,
+        graph_meta: GraphMeta,
         ext: EXT,
     ) -> Self {
         let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
@@ -193,7 +194,11 @@ impl<
     }
 
     pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
-        Self::new_with_meta(graph_dir, Meta::new_for_nodes(), Meta::new_for_edges(), ext)
+        let node_meta = Meta::new_for_nodes();
+        let edge_meta = Meta::new_for_edges();
+        let graph_meta = GraphMeta::new();
+
+        Self::new_with_meta(graph_dir, node_meta, edge_meta, graph_meta, ext)
     }
 
     pub fn add_edge<T: TryIntoInputTime>(
@@ -445,12 +450,6 @@ fn read_graph_config<EXT: PersistentStrategy>(
     let config_file = std::fs::File::open(config_file).unwrap();
     let config = serde_json::from_reader(config_file)?;
     Ok(config)
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-struct GraphMeta {
-    max_page_len_nodes: u32,
-    max_page_len_edges: u32,
 }
 
 #[inline(always)]

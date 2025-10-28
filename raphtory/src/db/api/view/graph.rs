@@ -291,16 +291,52 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
         node_meta.set_layer_mapper(layer_meta.clone());
 
-        let mut temporal_graph = TemporalGraph::new_with_meta(
+        // Copy all graph properties
+        let graph_meta = self.graph_meta().deep_clone();
+
+        let temporal_graph = TemporalGraph::new_with_meta(
             path.map(|p| p.into()),
             node_meta,
             edge_meta,
+            graph_meta,
             storage.extension().clone(),
         )
         .unwrap();
 
         // Copy all graph properties
         temporal_graph.graph_meta = self.graph_meta().deep_clone().into();
+
+        let layer_map: Vec<_> = match self.layer_ids() {
+            LayerIds::None => {
+                // no layers to map
+                vec![]
+            }
+            LayerIds::All => {
+                let layers = storage.edge_meta().layer_meta().keys();
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+                for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
+                    let new_id = temporal_graph.resolve_layer(Some(&name))?.inner();
+                    layer_map[id] = new_id;
+                }
+                layer_map
+            }
+            LayerIds::One(l_id) => {
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+                let new_id = temporal_graph
+                    .resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
+                layer_map[*l_id] = new_id.inner();
+                layer_map
+            }
+            LayerIds::Multiple(ids) => {
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+                let layers = storage.edge_meta().layer_meta().all_keys();
+                for id in ids {
+                    let new_id = temporal_graph.resolve_layer(Some(&layers[id]))?.inner();
+                    layer_map[id] = new_id;
+                }
+                layer_map
+            }
+        };
 
         if let Some(earliest) = self.earliest_time() {
             temporal_graph.update_time(TimeIndexEntry::start(earliest));

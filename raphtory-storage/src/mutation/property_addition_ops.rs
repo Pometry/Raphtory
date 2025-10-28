@@ -54,7 +54,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<(), Self::Error> {
         // FIXME: check atomicity
         for (id, prop) in props {
-            self.graph_meta.add_prop(t, *id, prop.clone())?;
+            self.graph_meta().add_prop(t, *id, prop.clone())?;
         }
         Ok(())
     }
@@ -62,7 +62,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         // FIXME: check atomicity
         for (id, prop) in props {
-            self.graph_meta.add_metadata(*id, prop.clone())?;
+            self.graph_meta().add_metadata(*id, prop.clone())?;
         }
         Ok(())
     }
@@ -70,7 +70,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         // FIXME: check atomicity
         for (id, prop) in props {
-            self.graph_meta.update_metadata(*id, prop.clone());
+            self.graph_meta().update_metadata(*id, prop.clone());
         }
         Ok(())
     }
