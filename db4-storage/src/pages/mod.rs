@@ -165,28 +165,33 @@ impl<
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
+        let graph_meta = Arc::new(graph_meta);
 
-        let nodes = Arc::new(NodeStorageInner::new_with_meta(
+        let node_storage = Arc::new(NodeStorageInner::new_with_meta(
             nodes_path,
             node_meta,
             edge_meta.clone(),
             ext.clone(),
         ));
-        let edges = Arc::new(EdgeStorageInner::new_with_meta(
+        let edge_storage = Arc::new(EdgeStorageInner::new_with_meta(
             edges_path,
             edge_meta,
             ext.clone(),
         ));
-        let meta = Arc::new(GraphMetaStorageInner::new(meta_path, ext.clone()));
+        let graph_meta_storage = Arc::new(GraphMetaStorageInner::new_with_meta(
+            meta_path,
+            graph_meta,
+            ext.clone(),
+        ));
 
         if let Some(graph_dir) = graph_dir {
-            write_graph_config(graph_dir, &ext).expect("Unrecoverable! Failed to write graph meta");
+            write_graph_config(graph_dir, &ext).expect("Unrecoverable! Failed to write graph config");
         }
 
         Self {
-            nodes,
-            edges,
-            graph_meta: meta,
+            nodes: node_storage,
+            edges: edge_storage,
+            graph_meta: graph_meta_storage,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,

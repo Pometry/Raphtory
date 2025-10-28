@@ -18,7 +18,7 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, Graph, NodeViewOps, StableDecode},
+    prelude::{EdgeViewOps, Graph, GraphViewOps, IndexMutationOps, NodeViewOps, PropertiesOps, StableDecode},
     serialise::GraphFolder,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
