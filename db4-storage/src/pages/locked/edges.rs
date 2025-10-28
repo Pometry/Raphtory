@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use crate::{
     LocalPOS,
     api::edges::EdgeSegmentOps,
+    error::StorageError,
     pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats, resolve_pos},
     segments::edge::MemEdgeSegment,
 };
@@ -110,5 +111,12 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> WriteLockedEdgePages<'a, ES> 
                 page.page.get_edge(pos, elid.layer(), locked_head)
             })
             .is_some()
+    }
+
+    pub fn vacuum(&mut self) -> Result<(), StorageError> {
+        for LockedEdgePage { page, lock, .. } in &mut self.writers {
+            page.vacuum(lock.deref_mut())?;
+        }
+        Ok(())
     }
 }

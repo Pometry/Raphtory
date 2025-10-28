@@ -102,6 +102,9 @@ pub mod error {
         GenericFailure(String),
         #[error(transparent)]
         InvalidNodeId(#[from] InvalidNodeId),
+
+        #[error("Failed to vacuum storage")]
+        VacuumError,
     }
 }
 
