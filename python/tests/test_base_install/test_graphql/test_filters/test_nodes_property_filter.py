@@ -1023,3 +1023,31 @@ def test_nodes_chained_selection_node_filter_paired_ver2(graph):
         }
     }
     run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = create_test_graph(Graph())
+PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_temporal_property_filter_any_avg_with_window(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          temporalProperty: {
+            name: "prop5"
+            window: { start: 1, end: 3 }
+            where: { any: { avg: { lt: { f64: 10.0 } } } }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+
+    expected = {
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
+    }
+    run_graphql_test(query, expected, graph)

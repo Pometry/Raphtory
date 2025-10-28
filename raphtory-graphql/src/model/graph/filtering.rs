@@ -16,7 +16,10 @@ use raphtory::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::{properties::prop::Prop, GID};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::TimeIndexEntry,
+};
 use std::{
     borrow::Cow,
     fmt,
@@ -285,6 +288,7 @@ impl Display for NodeField {
 #[derive(InputObject, Clone, Debug)]
 pub struct PropertyFilterNew {
     pub name: String,
+    pub window: Option<Window>,
     #[graphql(name = "where")]
     pub where_: PropCondition,
 }
@@ -856,6 +860,7 @@ fn build_property_filter_from_condition<M: Clone + Send + Sync + 'static>(
         prop_value,
         operator,
         ops,
+        window: None,
         _phantom: PhantomData,
     })
 }
@@ -918,16 +923,38 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                 }))
             }
             NodeFilter::Property(prop) => {
+                if prop.window.is_some() {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "window is only valid for TemporalProperty".into(),
+                    ));
+                }
                 let prop_ref = PropertyRef::Property(prop.name);
                 build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
             NodeFilter::Metadata(prop) => {
+                if prop.window.is_some() {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "window is only valid for TemporalProperty".into(),
+                    ));
+                }
                 let prop_ref = PropertyRef::Metadata(prop.name);
                 build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
             NodeFilter::TemporalProperty(prop) => {
                 let prop_ref = PropertyRef::TemporalProperty(prop.name);
-                build_node_filter_from_prop_condition(prop_ref, &prop.where_)
+                let mut pf = build_property_filter_from_condition::<
+                    raphtory::db::graph::views::filter::model::node_filter::NodeFilter,
+                >(prop_ref, &prop.where_)?;
+
+                if let Some(w) = prop.window {
+                    if w.start > w.end {
+                        return Err(GraphError::InvalidGqlFilter(
+                            "window.start must be <= window.end".into(),
+                        ));
+                    }
+                    pf = pf.with_window(TimeIndexEntry::start(w.start), TimeIndexEntry::end(w.end));
+                }
+                Ok(CompositeNodeFilter::Property(pf))
             }
             NodeFilter::And(and_filters) => {
                 let mut iter = and_filters.into_iter().map(TryInto::try_into);
@@ -1034,16 +1061,37 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 }))
             }
             EdgeFilter::Property(p) => {
+                if p.window.is_some() {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "window is only valid for TemporalProperty".into(),
+                    ));
+                }
                 let prop_ref = PropertyRef::Property(p.name);
                 build_edge_filter_from_prop_condition(prop_ref, &p.where_)
             }
             EdgeFilter::Metadata(p) => {
+                if p.window.is_some() {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "window is only valid for TemporalProperty".into(),
+                    ));
+                }
                 let prop_ref = PropertyRef::Metadata(p.name);
                 build_edge_filter_from_prop_condition(prop_ref, &p.where_)
             }
             EdgeFilter::TemporalProperty(p) => {
                 let prop_ref = PropertyRef::TemporalProperty(p.name);
-                build_edge_filter_from_prop_condition(prop_ref, &p.where_)
+                let mut pf = build_property_filter_from_condition::<
+                    raphtory::db::graph::views::filter::model::edge_filter::EdgeFilter,
+                >(prop_ref, &p.where_)?;
+                if let Some(w) = p.window {
+                    if w.start > w.end {
+                        return Err(GraphError::InvalidGqlFilter(
+                            "window.start must be <= window.end".into(),
+                        ));
+                    }
+                    pf = pf.with_window(TimeIndexEntry::start(w.start), TimeIndexEntry::end(w.end));
+                }
+                Ok(CompositeEdgeFilter::Property(pf))
             }
             EdgeFilter::And(and_filters) => {
                 let mut iter = and_filters.into_iter().map(TryInto::try_into);
