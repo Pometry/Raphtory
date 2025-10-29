@@ -1,23 +1,27 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use crate::api::meta::GraphMetaSegmentOps;
+use crate::api::graph_props::GraphPropSegmentOps;
 use crate::error::StorageError;
 use crate::persist::strategy::Config;
 use raphtory_core::entities::properties::graph_meta::GraphMeta;
 
 /// Backing store for graph temporal properties and graph metadata.
-/// MS: MetaSegment?
+/// GPS: GraphPropSegment?
 #[derive(Debug)]
-pub struct GraphMetaStorageInner<MS, EXT> {
-    page: Arc<MS>,
+pub struct GraphPropStorageInner<GPS, EXT> {
+    page: Arc<GPS>,
+
+    /// Stores graph prop metadata (prop name -> prop id mappings, etc).
     graph_meta: Arc<GraphMeta>,
+
     path: Option<PathBuf>,
+
     ext: EXT,
 }
 
-impl<MS: GraphMetaSegmentOps, EXT: Config> GraphMetaStorageInner<MS, EXT> {
+impl<GPS: GraphPropSegmentOps, EXT: Config> GraphPropStorageInner<GPS, EXT> {
     pub fn new(path: Option<PathBuf>, ext: EXT) -> Self {
-        let page = Arc::new(MS::new());
+        let page = Arc::new(GPS::new());
         let graph_meta = Arc::new(GraphMeta::new());
 
         Self {
@@ -29,7 +33,7 @@ impl<MS: GraphMetaSegmentOps, EXT: Config> GraphMetaStorageInner<MS, EXT> {
     }
 
     pub fn new_with_meta(path: Option<PathBuf>, graph_meta: Arc<GraphMeta>, ext: EXT) -> Self {
-        let page = Arc::new(MS::new());
+        let page = Arc::new(GPS::new());
 
         Self {
             page,
@@ -43,7 +47,7 @@ impl<MS: GraphMetaSegmentOps, EXT: Config> GraphMetaStorageInner<MS, EXT> {
         let graph_meta = Arc::new(GraphMeta::new());
 
         Ok(Self {
-            page: Arc::new(MS::load(path.as_ref())?),
+            page: Arc::new(GPS::load(path.as_ref())?),
             path: Some(path.as_ref().to_path_buf()),
             graph_meta,
             ext,

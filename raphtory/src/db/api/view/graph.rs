@@ -291,7 +291,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
         node_meta.set_layer_mapper(layer_meta.clone());
 
-        // Copy all graph properties
+        // Copy all graph property mappings
         let graph_meta = self.graph_meta().deep_clone();
 
         let temporal_graph = TemporalGraph::new_with_meta(

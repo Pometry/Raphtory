@@ -1,3 +1,3 @@
 pub mod edges;
 pub mod nodes;
-pub mod meta;
+pub mod graph_props;

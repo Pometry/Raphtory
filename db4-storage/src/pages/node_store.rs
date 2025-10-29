@@ -232,7 +232,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let nodes_path = nodes_path.as_ref();
-
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !nodes_path.exists() {

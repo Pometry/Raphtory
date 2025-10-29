@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::path::Path;
 use crate::error::StorageError;
 
-pub trait GraphMetaSegmentOps: Send + Sync + Debug + 'static
+pub trait GraphPropSegmentOps: Send + Sync + Debug + 'static
 where
     Self: Sized,
 {
