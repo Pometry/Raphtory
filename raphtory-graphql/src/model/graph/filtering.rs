@@ -8,7 +8,7 @@ use dynamic_graphql::{
 };
 use raphtory::{
     db::graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter,
+        edge_filter::{CompositeEdgeFilter, EdgeDstEndpoint, EdgeSrcEndpoint},
         filter_operator::FilterOperator,
         node_filter::CompositeNodeFilter,
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
@@ -421,6 +421,18 @@ pub enum EdgeFilter {
     Src(NodeFieldFilterNew),
     /// Destination node filter.
     Dst(NodeFieldFilterNew),
+    /// Source node property filter.
+    SrcProperty(PropertyFilterNew),
+    /// Destination node property filter.
+    DstProperty(PropertyFilterNew),
+    /// Source node metadata filter.
+    SrcMetadata(PropertyFilterNew),
+    /// Destination node metadata filter.
+    DstMetadata(PropertyFilterNew),
+    /// Source node temporal property filter.
+    SrcTemporalProperty(PropertyFilterNew),
+    /// Destination node temporal property filter.
+    DstTemporalProperty(PropertyFilterNew),
     /// Property filter.
     Property(PropertyFilterNew),
     /// Metadata filter.
@@ -1006,32 +1018,78 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     fn try_from(filter: EdgeFilter) -> Result<Self, Self::Error> {
         match filter {
             EdgeFilter::Src(src) => {
-                if matches!(src.field, NodeField::NodeType) {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "Src filter does not support NODE_TYPE".into(),
-                    ));
-                }
                 let (_, field_value, operator) =
                     translate_node_field_where(src.field, &src.where_)?;
+                let field_name = match src.field {
+                    NodeField::NodeType => "src_node_type".to_string(),
+                    _ => "src".to_string(),
+                };
                 Ok(CompositeEdgeFilter::Edge(Filter {
-                    field_name: "src".to_string(),
+                    field_name,
                     field_value,
                     operator,
                 }))
             }
             EdgeFilter::Dst(dst) => {
-                if matches!(dst.field, NodeField::NodeType) {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "Dst filter does not support NODE_TYPE".into(),
-                    ));
-                }
                 let (_, field_value, operator) =
                     translate_node_field_where(dst.field, &dst.where_)?;
+                let field_name = match dst.field {
+                    NodeField::NodeType => "dst_node_type".to_string(),
+                    _ => "dst".to_string(),
+                };
                 Ok(CompositeEdgeFilter::Edge(Filter {
-                    field_name: "dst".to_string(),
+                    field_name,
                     field_value,
                     operator,
                 }))
+            }
+            EdgeFilter::SrcProperty(prop) => {
+                let prop_ref = PropertyRef::Property(prop.name);
+                let pf = build_property_filter_from_condition::<EdgeSrcEndpoint>(
+                    prop_ref,
+                    &prop.where_,
+                )?;
+                Ok(CompositeEdgeFilter::SrcEndpointProperty(pf))
+            }
+            EdgeFilter::DstProperty(prop) => {
+                let prop_ref = PropertyRef::Property(prop.name);
+                let pf = build_property_filter_from_condition::<EdgeDstEndpoint>(
+                    prop_ref,
+                    &prop.where_,
+                )?;
+                Ok(CompositeEdgeFilter::DstEndpointProperty(pf))
+            }
+            EdgeFilter::SrcMetadata(prop) => {
+                let prop_ref = PropertyRef::Metadata(prop.name);
+                let pf = build_property_filter_from_condition::<EdgeSrcEndpoint>(
+                    prop_ref,
+                    &prop.where_,
+                )?;
+                Ok(CompositeEdgeFilter::SrcEndpointProperty(pf))
+            }
+            EdgeFilter::DstMetadata(prop) => {
+                let prop_ref = PropertyRef::Metadata(prop.name);
+                let pf = build_property_filter_from_condition::<EdgeDstEndpoint>(
+                    prop_ref,
+                    &prop.where_,
+                )?;
+                Ok(CompositeEdgeFilter::DstEndpointProperty(pf))
+            }
+            EdgeFilter::SrcTemporalProperty(prop) => {
+                let prop_ref = PropertyRef::TemporalProperty(prop.name);
+                let pf = build_property_filter_from_condition::<EdgeSrcEndpoint>(
+                    prop_ref,
+                    &prop.where_,
+                )?;
+                Ok(CompositeEdgeFilter::SrcEndpointProperty(pf))
+            }
+            EdgeFilter::DstTemporalProperty(prop) => {
+                let prop_ref = PropertyRef::TemporalProperty(prop.name);
+                let pf = build_property_filter_from_condition::<EdgeDstEndpoint>(
+                    prop_ref,
+                    &prop.where_,
+                )?;
+                Ok(CompositeEdgeFilter::DstEndpointProperty(pf))
             }
             EdgeFilter::Property(p) => {
                 let prop_ref = PropertyRef::Property(p.name);
