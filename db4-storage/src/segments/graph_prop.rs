@@ -4,17 +4,18 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use crate::api::graph_props::GraphPropSegmentOps;
 use crate::error::StorageError;
+use parking_lot::RwLock;
 
 #[derive(Debug)]
 pub struct GraphPropSegmentView {
-    inner: Arc<GraphMeta>,
+    head: Arc<RwLock<GraphMeta>>,
     est_size: AtomicUsize,
 }
 
 impl GraphPropSegmentOps for GraphPropSegmentView {
     fn new() -> Self {
         Self {
-            inner: Arc::new(GraphMeta::new()),
+            head: Arc::new(RwLock::new(GraphMeta::new())),
             est_size: AtomicUsize::new(0),
         }
     }
