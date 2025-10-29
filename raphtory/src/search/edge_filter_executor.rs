@@ -6,7 +6,7 @@ use crate::{
             views::filter::{
                 internal::CreateFilter,
                 model::{
-                    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter, EdgeFilter},
+                    edge_filter::{CompositeEdgeFilter, EdgeFilter},
                     property_filter::PropertyRef,
                     Filter,
                 },

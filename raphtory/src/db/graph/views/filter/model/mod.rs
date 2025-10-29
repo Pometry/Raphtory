@@ -1,7 +1,8 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter, EdgeFieldFilter},
+        edge_filter::{CompositeEdgeFilter, EndpointWrapper},
+        exploded_edge_filter::CompositeExplodedEdgeFilter,
         filter_operator::FilterOperator,
         node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
         not_filter::NotFilter,
@@ -24,6 +25,7 @@ use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Der
 
 pub mod and_filter;
 pub mod edge_filter;
+pub mod exploded_edge_filter;
 pub mod filter_operator;
 pub mod node_filter;
 pub mod not_filter;
@@ -382,7 +384,7 @@ pub trait ComposableFilter: Sized {
 impl<M> ComposableFilter for PropertyFilter<M> {}
 impl ComposableFilter for NodeNameFilter {}
 impl ComposableFilter for NodeTypeFilter {}
-impl ComposableFilter for EdgeFieldFilter {}
+impl<T> ComposableFilter for EndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 impl<T> ComposableFilter for NotFilter<T> {}

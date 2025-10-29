@@ -1,22 +1,29 @@
 use crate::{
     db::{
         api::view::BoxableGraphView,
-        graph::views::filter::{
-            internal::CreateFilter,
-            model::{
-                edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
-                filter_operator::FilterOperator,
-                property_filter::PropertyFilter,
-                AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
-                TryAsCompositeFilter, Windowed,
+        graph::{
+            node::NodeView,
+            views::filter::{
+                internal::CreateFilter,
+                model::{
+                    edge_filter::CompositeEdgeFilter,
+                    exploded_edge_filter::CompositeExplodedEdgeFilter,
+                    filter_operator::FilterOperator, property_filter::PropertyFilter, AndFilter,
+                    Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
+                    TryAsCompositeFilter, Windowed,
+                },
             },
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::entities::{GidType, GID};
 use raphtory_core::utils::time::IntoTime;
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+};
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -81,6 +88,41 @@ impl Display for CompositeNodeFilter {
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
             CompositeNodeFilter::Not(filter) => write!(f, "NOT({})", filter),
+        }
+    }
+}
+
+impl CompositeNodeFilter {
+    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
+        &self,
+        graph: &G,
+        node: NodeStorageRef,
+    ) -> bool {
+        match self {
+            CompositeNodeFilter::Node(filter) => {
+                let view = NodeView::new_internal(graph, node.vid());
+                match filter.field_name.as_str() {
+                    "node_id" => filter.id_matches(view.id().as_ref()),
+                    "node_name" => filter.matches(Some(&view.name())),
+                    "node_type" => filter.matches(view.node_type().as_deref()),
+                    _ => false,
+                }
+            }
+            CompositeNodeFilter::Property(filter) => {
+                let meta = graph.node_meta();
+                let expect_map = false;
+                let Ok(prop_id) = filter.resolve_prop_id(&meta, expect_map) else {
+                    return false;
+                };
+                filter.matches_node(graph, prop_id, node)
+            }
+            CompositeNodeFilter::And(l, r) => {
+                l.matches_node(graph, node) && r.matches_node(graph, node)
+            }
+            CompositeNodeFilter::Or(l, r) => {
+                l.matches_node(graph, node) || r.matches_node(graph, node)
+            }
+            CompositeNodeFilter::Not(x) => !x.matches_node(graph, node),
         }
     }
 }
@@ -199,6 +241,7 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
 
 impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
 
+#[derive(Clone, Debug)]
 pub struct NodeIdFilterBuilder;
 
 impl NodeIdFilterBuilder {
@@ -273,6 +316,7 @@ impl NodeIdFilterBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct NodeNameFilterBuilder;
 
 impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
@@ -283,6 +327,7 @@ impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct NodeTypeFilterBuilder;
 
 impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {

@@ -12,10 +12,8 @@ use crate::{
             edge::EdgeView,
             node::NodeView,
             views::filter::model::{
-                edge_filter::{
-                    CompositeEdgeFilter, CompositeExplodedEdgeFilter, EdgeFilter,
-                    ExplodedEdgeFilter,
-                },
+                edge_filter::{CompositeEdgeFilter, EdgeFilter},
+                exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                 filter_operator::FilterOperator,
                 node_filter::{CompositeNodeFilter, NodeFilter},
                 TryAsCompositeFilter,
@@ -1757,7 +1755,7 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
 }
 
 #[derive(Clone)]
-pub struct PropertyFilterBuilder<M>(pub String, PhantomData<M>);
+pub struct PropertyFilterBuilder<M>(String, PhantomData<M>);
 
 impl<M> PropertyFilterBuilder<M> {
     pub fn new(prop: impl Into<String>) -> Self {

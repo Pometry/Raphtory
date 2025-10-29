@@ -10,9 +10,8 @@ use crate::{
                 InheritTimeSemantics, InternalExplodedEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::edge_filter::ExplodedEdgeFilter},
+        graph::views::filter::model::exploded_edge_filter::ExplodedEdgeFilter,
     },
-    errors::GraphError,
     prelude::{GraphViewOps, LayerOps, PropertyFilter},
 };
 use raphtory_api::{
@@ -50,22 +49,6 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
     fn filter(&self, e: EID, t: TimeIndexEntry, layer: usize) -> bool {
         self.filter
             .matches_exploded_edge(&self.graph, self.prop_id, e, t, layer)
-    }
-}
-
-impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        Ok(ExplodedEdgePropertyFilteredGraph::new(
-            graph.clone(),
-            prop_id,
-            self,
-        ))
     }
 }
 
@@ -158,8 +141,9 @@ mod test_exploded_edge_property_filtered_graph {
                         exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                         internal::CreateFilter,
                         model::{
-                            edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilterOps,
-                            PropertyFilterFactory, TryAsCompositeFilter,
+                            exploded_edge_filter::ExplodedEdgeFilter,
+                            property_filter::PropertyFilterOps, PropertyFilterFactory,
+                            TryAsCompositeFilter,
                         },
                     },
                 },
