@@ -256,7 +256,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
 
-        // Copy all graph properties
+        // Copy all graph property mappings
         let graph_meta = self.graph_meta().deep_clone();
 
         let temporal_graph = TemporalGraph::new_with_meta(

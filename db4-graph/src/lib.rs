@@ -224,10 +224,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         &self.storage
     }
 
-    pub fn graph_meta(&self) -> &Arc<GraphMeta> {
-        &self.storage.graph_meta().graph_meta()
-    }
-
     pub fn num_layers(&self) -> usize {
         self.storage.nodes().num_layers() - 1
     }
@@ -264,6 +260,10 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     pub fn node_meta(&self) -> &Meta {
         self.storage().node_meta()
+    }
+
+    pub fn graph_meta(&self) -> &GraphMeta {
+        self.storage.graph_meta()
     }
 
     pub fn graph_dir(&self) -> Option<&Path> {
