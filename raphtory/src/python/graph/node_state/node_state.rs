@@ -5,7 +5,7 @@ use crate::{
         api::{
             state::{
                 ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
-                OrderedNodeStateOps, TypedNodeState,
+                OrderedNodeStateOps, OutputTypedNodeState,
             },
             view::{
                 internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
@@ -347,9 +347,7 @@ macro_rules! impl_lazy_node_state {
             ///
             /// Returns:
             #[doc = concat!("     ", $computed, ": the computed `OutputNodeState`")]
-            fn arrow_compute(
-                &self,
-            ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
+            fn arrow_compute(&self) -> OutputTypedNodeState<'static, DynamicGraph> {
                 self.inner.arrow_compute().transform()
             }
 
