@@ -20,16 +20,13 @@ use tokio::runtime::Runtime;
 ///
 ///
 /// Returns:
-///     Graph: A Graph containing the LOTR dataset
+///   Graph: A Graph containing the LOTR dataset
 #[pyfunction]
 pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(crate::graph_loader::lotr_graph::lotr_graph())
 }
 
 /// Same as `lotr_graph()` but with additional properties race and gender for some of the nodes
-///
-/// Returns:
-///     Graph:
 #[pyfunction]
 pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(crate::graph_loader::lotr_graph::lotr_graph_with_props())
@@ -65,10 +62,10 @@ pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
 ///    list of comma separated numbers. This can be found on the source website
 ///
 /// Arguments:
-///     timeout_seconds (int): The number of seconds to wait for the dataset to download. Defaults to 600.
+///   timeout_seconds (int): The number of seconds to wait for the dataset to download. Defaults to 600.
 ///
 /// Returns:
-///     Graph: A Graph containing the Reddit hyperlinks dataset
+///  Graph: A Graph containing the Reddit hyperlinks dataset
 #[pyfunction]
 #[pyo3(signature = (timeout_seconds=600))]
 pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
@@ -80,13 +77,6 @@ pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
 
 #[pyfunction]
 #[pyo3(signature = (file_path))]
-/// Returns the Reddit hyperlink graph example.
-///
-/// Arguments:
-///     file_path (str):
-///
-/// Returns:
-///     Graph:
 pub fn reddit_hyperlink_graph_local(file_path: &str) -> PyResult<Py<PyGraph>> {
     let file_path_buf = PathBuf::from(file_path);
     PyGraph::py_from_db_graph(
@@ -96,14 +86,6 @@ pub fn reddit_hyperlink_graph_local(file_path: &str) -> PyResult<Py<PyGraph>> {
 
 #[pyfunction]
 #[pyo3(signature = (path=None,subset=None))]
-/// Returns the stablecoin graph example.
-///
-/// Arguments:
-///     path (str):
-///     subset (bool):
-///
-/// Returns:
-///     Graph:
 pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(crate::graph_loader::stable_coins::stable_coin_graph(
         path,
@@ -113,16 +95,6 @@ pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult
 
 #[pyfunction]
 #[pyo3(signature = (uri,username,password,database="neo4j".to_string()))]
-/// Returns the neo4j movie graph example.
-///
-/// Arguments:
-///     uri (str):
-///     username (str):
-///     password (str):
-///     database (str):
-///
-/// Returns:
-///     Graph:
 pub fn neo4j_movie_graph(
     uri: String,
     username: String,
@@ -157,7 +129,7 @@ pub fn neo4j_movie_graph(
 ///   Zachary W. (1977). An information flow model for conflict and fission in small groups. Journal of Anthropological Research, 33, 452-473.
 ///
 /// Returns:
-///     Graph:
+///     A `Graph` object representing the karate club network.
 #[pyfunction]
 #[pyo3(signature = ())]
 pub fn karate_club_graph() -> PyResult<Py<PyGraph>> {

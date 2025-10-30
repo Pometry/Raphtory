@@ -35,37 +35,21 @@ impl PyIndexSpec {
     }
 
     #[getter]
-    /// Get node metadata.
-    ///
-    /// Returns:
-    ///     list[str]:
     fn node_metadata(&self) -> Vec<String> {
         self.prop_names(&self.spec.node_metadata, self.node_const_meta())
     }
 
     #[getter]
-    /// Get node properties.
-    ///
-    /// Returns:
-    ///     list[str]:
     fn node_properties(&self) -> Vec<String> {
         self.prop_names(&self.spec.node_properties, self.node_temp_meta())
     }
 
     #[getter]
-    /// Get edge metadata.
-    ///
-    /// Returns:
-    ///     list[str]:
     fn edge_metadata(&self) -> Vec<String> {
         self.prop_names(&self.spec.edge_metadata, self.edge_const_meta())
     }
 
     #[getter]
-    /// Get edge properties.
-    ///
-    /// Returns:
-    ///     list[str]:
     fn edge_properties(&self) -> Vec<String> {
         self.prop_names(&self.spec.edge_properties, self.edge_temp_meta())
     }
@@ -121,122 +105,66 @@ impl PyIndexSpecBuilder {
         }
     }
 
-    /// Adds all node properties and metadata to the spec.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_all_node_properties_and_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_node_properties_and_metadata(),
         })
     }
 
-    /// Adds all node metadata to the spec.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_all_node_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_node_metadata(),
         })
     }
 
-    /// Adds all node properties to the spec.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_all_node_properties(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_node_properties(),
         })
     }
 
-    /// Adds specified node metadata to the spec.
-    ///
-    /// Arguments:
-    ///     props: list of metadata.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_node_metadata(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_node_metadata(props)?,
         })
     }
 
-    /// Adds specified node properties to the spec.
-    ///
-    /// Arguments:
-    ///     props: list of properties.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_node_properties(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_node_properties(props)?,
         })
     }
 
-    /// Adds all edge properties and metadata to the spec.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_all_edge_properties_and_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_edge_properties_and_metadata(),
         })
     }
 
-    /// Adds all edge metadata to the spec.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_all_edge_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_edge_metadata(),
         })
     }
 
-    /// Adds all edge properties to the spec.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_all_edge_properties(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_edge_properties(),
         })
     }
 
-    /// Adds specified edge metadata to the spec.
-    ///
-    /// Arguments:
-    ///     props: List of metadata.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_edge_metadata(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_edge_metadata(props)?,
         })
     }
 
-    /// Adds specified edge properties to the spec.
-    ///
-    /// Arguments:
-    ///     props: List of properties.
-    ///
-    /// Returns:
-    ///     dict[str, Any]:
     pub fn with_edge_properties(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_edge_properties(props)?,
         })
     }
 
-    /// Return a spec
-    ///
-    /// Returns:
-    ///     IndexSpec:
     pub fn build(&self) -> PyIndexSpec {
         PyIndexSpec {
             graph: self.builder.graph.clone().into_dynamic(),
@@ -248,9 +176,6 @@ impl PyIndexSpecBuilder {
 #[pymethods]
 impl PyGraphView {
     /// Get index spec
-    ///
-    /// Returns:
-    ///     IndexSpec:
     fn get_index_spec(&self) -> Result<PyIndexSpec, GraphError> {
         let spec = self.graph.get_index_spec()?;
         Ok(PyIndexSpec {

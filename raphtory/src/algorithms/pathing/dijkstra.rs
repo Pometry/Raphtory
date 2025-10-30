@@ -2,10 +2,7 @@
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
-    db::{
-        api::state::{Index, NodeState},
-        graph::nodes::Nodes,
-    },
+    db::api::state::{GenericNodeState, Index, TypedNodeState},
     errors::GraphError,
     prelude::*,
 };
@@ -17,10 +14,17 @@ use raphtory_api::core::{
     },
     Direction,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct DistanceState {
+    pub distance: f64,
+    pub path: Vec<VID>,
+}
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
 #[derive(PartialEq)]
@@ -64,7 +68,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     targets: Vec<T>,
     weight: Option<&str>,
     direction: Direction,
-) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
+) -> Result<TypedNodeState<'static, DistanceState, G>, GraphError> {
     let source_ref = source.as_node_ref();
     let source_node = match g.node(source_ref) {
         Some(src) => src,
@@ -189,14 +193,16 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = paths
         .into_iter()
         .map(|(id, (cost, path))| {
-            let nodes = Nodes::new_filtered(g.clone(), g.clone(), Some(Index::new(path)), None);
+            let nodes: Vec<VID> = path.into_iter().collect();
             (id, (cost, nodes))
         })
         .unzip();
-    Ok(NodeState::new(
-        g.clone(),
-        g.clone(),
-        values.into(),
-        Some(Index::new(index)),
+    Ok(TypedNodeState::new(
+        GenericNodeState::new_from_eval_with_index(
+            g.clone(),
+            g.clone(),
+            values,
+            Some(Index::new(index)),
+        ),
     ))
 }

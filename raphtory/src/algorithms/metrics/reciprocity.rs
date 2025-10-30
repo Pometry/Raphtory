@@ -46,7 +46,7 @@
 use crate::{
     db::{
         api::{
-            state::NodeState,
+            state::{GenericNodeState, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         graph::node::NodeView,
@@ -54,7 +54,13 @@ use crate::{
     prelude::GraphViewOps,
 };
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct ReciprocityState {
+    pub reciprocity: f64,
+}
 
 /// Gets the unique edge counts excluding cycles for a node. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
@@ -110,7 +116,9 @@ pub fn global_reciprocity<G: StaticGraphViewOps>(g: &G) -> f64 {
 /// # Returns
 /// [AlgorithmResult] with string keys and float values mapping each node name to its reciprocity value.
 ///
-pub fn all_local_reciprocity<G: StaticGraphViewOps>(g: &G) -> NodeState<'static, f64, G> {
+pub fn all_local_reciprocity<G: StaticGraphViewOps>(
+    g: &G,
+) -> TypedNodeState<'static, ReciprocityState, G> {
     let values: Vec<_> = g
         .nodes()
         .par_iter()
@@ -119,5 +127,5 @@ pub fn all_local_reciprocity<G: StaticGraphViewOps>(g: &G) -> NodeState<'static,
             2.0 * intersect_count as f64 / (out_count + in_count) as f64
         })
         .collect();
-    NodeState::new_from_values(g.clone(), values)
+    TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values))
 }

@@ -252,10 +252,6 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         NodeHistory { additions, view }
     }
 
-    fn edge_history<G: GraphView + 'a>(self, view: G) -> NodeEdgeHistory<'a, G> {
-        self.history(view).edge_history()
-    }
-
     fn filtered_edges_iter<G: GraphViewOps<'a>>(
         self,
         view: G,

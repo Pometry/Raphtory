@@ -4,7 +4,7 @@ use crate::{
         utils::time::TryIntoTime,
     },
     db::api::{
-        state::{Index, NodeState},
+        state::{GenericNodeState, Index, TypedNodeState},
         view::StaticGraphViewOps,
     },
     prelude::*,
@@ -13,6 +13,7 @@ use indexmap::IndexSet;
 use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
 use raphtory_core::utils::time::ParseTimeError;
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap},
@@ -31,7 +32,7 @@ impl Probability {
 
 pub struct Number(pub usize);
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Infected {
     pub infected: i64,
     pub active: i64,
@@ -189,7 +190,7 @@ pub fn temporal_SEIR<
     initial_infection: T,
     seeds: S,
     rng: &mut R,
-) -> Result<NodeState<'static, Infected, G>, SeedError>
+) -> Result<TypedNodeState<'static, Infected, G>, SeedError>
 where
     SeedError: From<P::Error>,
 {
@@ -244,11 +245,13 @@ where
         }
     }
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
-    Ok(NodeState::new(
-        g.clone(),
-        g.clone(),
-        values.into(),
-        Some(Index::new(index)),
+    Ok(TypedNodeState::new(
+        GenericNodeState::new_from_eval_with_index(
+            g.clone(),
+            g.clone(),
+            values,
+            Some(Index::new(index)),
+        ),
     ))
 }
 
