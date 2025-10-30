@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761825533677,
+  "lastUpdate": 1761828662478,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2051,6 +2051,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1294,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c3b6b387487b72ff05107106a123dc247bf37d61",
+          "message": "Update UI to v0.1.18 (#2365)\n\n* Update UI to v0.1.18\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: louisch <772346+louisch@users.noreply.github.com>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-10-30T12:17:14Z",
+          "tree_id": "091d103092479b453f904dfafca242f2e3cc1a7f",
+          "url": "https://github.com/Pometry/Raphtory/commit/c3b6b387487b72ff05107106a123dc247bf37d61"
+        },
+        "date": 1761828658886,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1294,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 175,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 141,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1053,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 864,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1111,
             "unit": "req/s"
           }
         ]
