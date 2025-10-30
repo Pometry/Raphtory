@@ -417,8 +417,6 @@ mod rich_club_test {
         prelude::*,
     };
 
-    use crate::algo_tests::centrality::assert_eq_f64;
-
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
 

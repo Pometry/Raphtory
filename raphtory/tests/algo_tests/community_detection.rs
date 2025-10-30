@@ -12,8 +12,6 @@ use raphtory_core::entities::VID;
 use std::collections::{HashMap, HashSet};
 use tracing::info;
 
-
-
 fn group_by_value(map: &HashMap<String, usize>) -> Vec<HashSet<String>> {
     let mut grouped: HashMap<usize, HashSet<String>> = HashMap::new();
 

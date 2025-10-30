@@ -1,4 +1,3 @@
-
 use ahash::HashSet;
 use proptest::{prelude::Strategy, proptest, sample::Index};
 use raphtory::{
@@ -13,7 +12,11 @@ use raphtory::{
 };
 use std::{collections::BTreeSet, hash::Hash};
 
-fn assert_same_partition<V: NodeStateValue + Hash + Eq + 'static, G: GraphView + 'static, ID: Into<GID>>(
+fn assert_same_partition<
+    V: NodeStateValue + Hash + Eq + 'static,
+    G: GraphView + 'static,
+    ID: Into<GID>,
+>(
     left: TypedNodeState<'static, V, G>, // NodeState<usize, G>,
     right: impl IntoIterator<Item = impl IntoIterator<Item = ID>>,
 ) {

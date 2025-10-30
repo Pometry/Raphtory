@@ -436,7 +436,6 @@ mod sssp_tests {
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::collections::HashMap;
-    
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();

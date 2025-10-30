@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
