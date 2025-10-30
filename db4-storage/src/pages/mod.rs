@@ -6,13 +6,13 @@ use crate::{
     persist::strategy::{Config, PersistentStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    GPS,
+    GS,
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
-use graph_prop_store::GraphPropStorageInner;
+use graph_store::GraphStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
@@ -40,7 +40,7 @@ pub mod locked;
 pub mod node_page;
 pub mod node_store;
 pub mod session;
-pub mod graph_prop_store;
+pub mod graph_store;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
@@ -50,7 +50,7 @@ pub mod test_utils;
 pub struct GraphStore<NS, ES, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
-    graph_props: Arc<GraphPropStorageInner<GPS, EXT>>,
+    graph: Arc<GraphStorageInner<GS, EXT>>,
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -96,8 +96,8 @@ impl<
         &self.edges
     }
 
-    pub fn graph_props(&self) -> &Arc<GraphPropStorageInner<GPS, EXT>> {
-        &self.graph_props
+    pub fn graph(&self) -> &Arc<GraphStorageInner<GS, EXT>> {
+        &self.graph
     }
 
     pub fn edge_meta(&self) -> &Meta {
@@ -109,7 +109,7 @@ impl<
     }
 
     pub fn graph_meta(&self) -> &GraphMeta {
-        self.graph_props.graph_meta()
+        self.graph.graph_meta()
     }
 
     pub fn earliest(&self) -> i64 {
@@ -142,14 +142,14 @@ impl<
         }
 
         // Load graph temporal properties and metadata
-        let meta = Arc::new(GraphPropStorageInner::load(meta_path, ext.clone())?);
+        let meta = Arc::new(GraphStorageInner::load(meta_path, ext.clone())?);
 
         let t_len = edges.t_len();
 
         Ok(Self {
             nodes,
             edges,
-            graph_props: meta,
+            graph: meta,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
@@ -182,7 +182,7 @@ impl<
             edge_meta,
             ext.clone(),
         ));
-        let graph_prop_storage = Arc::new(GraphPropStorageInner::new_with_meta(
+        let graph_prop_storage = Arc::new(GraphStorageInner::new_with_meta(
             graph_props_path,
             graph_meta,
             ext.clone(),
@@ -195,7 +195,7 @@ impl<
         Self {
             nodes: node_storage,
             edges: edge_storage,
-            graph_props: graph_prop_storage,
+            graph: graph_prop_storage,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,
