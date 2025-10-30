@@ -8,7 +8,7 @@ use raphtory_core::entities::properties::tprop::IllegalPropType;
 use raphtory_core::storage::timeindex::TimeIndexEntry;
 use raphtory_api::core::entities::properties::prop::Prop;
 
-pub trait GraphPropSegmentOps: Send + Sync + Debug + 'static
+pub trait GraphSegmentOps: Send + Sync + Debug + 'static
 where
     Self: Sized,
 {

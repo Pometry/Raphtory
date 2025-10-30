@@ -26,7 +26,7 @@ use crate::{
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
-use segments::{edge::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::MemNodeSegment};
+use segments::{edge::MemEdgeSegment, graph::GraphSegmentView, node::MemNodeSegment};
 
 pub mod api;
 pub mod gen_t_props;
@@ -42,7 +42,7 @@ pub mod wal;
 pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
-pub type GPS = GraphPropSegmentView;
+pub type GS = GraphSegmentView;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
 
 pub type WalImpl = NoWal;

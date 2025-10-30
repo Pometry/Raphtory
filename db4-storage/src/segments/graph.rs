@@ -2,7 +2,7 @@ use raphtory_core::entities::properties::graph_meta::GraphMeta;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
-use crate::api::graph_props::{GraphPropSegmentOps, GraphPropOps};
+use crate::api::graph::{GraphSegmentOps, GraphPropOps};
 use crate::error::StorageError;
 use parking_lot::RwLock;
 use raphtory_core::entities::properties::props::MetadataError;
@@ -14,11 +14,11 @@ use crate::properties::Properties;
 
 /// In-memory segment that contains graph temporal properties and graph metadata.
 #[derive(Debug)]
-pub struct MemGraphPropSegment {
+pub struct MemGraphSegment {
     properties: Properties,
 }
 
-impl MemGraphPropSegment {
+impl MemGraphSegment {
     pub fn new() -> Self {
         Self {
             properties: Properties::default(),
@@ -26,22 +26,22 @@ impl MemGraphPropSegment {
     }
 }
 
-/// `GraphPropSegmentView` manages graph temporal properties and graph metadata
+/// `GraphSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
 #[derive(Debug)]
-pub struct GraphPropSegmentView {
+pub struct GraphSegmentView {
     /// In-memory segment that contains the latest graph properties
     /// and graph metadata writes.
-    head: Arc<RwLock<MemGraphPropSegment>>,
+    head: Arc<RwLock<MemGraphSegment>>,
 
     /// Estimated size of the segment in bytes.
     est_size: AtomicUsize,
 }
 
-impl GraphPropSegmentOps for GraphPropSegmentView {
+impl GraphSegmentOps for GraphSegmentView {
     fn new() -> Self {
         Self {
-            head: Arc::new(RwLock::new(MemGraphPropSegment::new())),
+            head: Arc::new(RwLock::new(MemGraphSegment::new())),
             est_size: AtomicUsize::new(0),
         }
     }
@@ -51,7 +51,7 @@ impl GraphPropSegmentOps for GraphPropSegmentView {
     }
 }
 
-impl GraphPropOps for GraphPropSegmentView {
+impl GraphPropOps for GraphSegmentView {
     fn get_temporal_prop(&self, prop_id: usize) -> Option<LockedView<'_, TProp>> {
         todo!()
     }

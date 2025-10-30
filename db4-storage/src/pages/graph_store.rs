@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use crate::api::graph_props::GraphPropSegmentOps;
+use crate::api::graph::GraphSegmentOps;
 use crate::error::StorageError;
 use crate::persist::strategy::Config;
 use raphtory_core::entities::properties::graph_meta::GraphMeta;
@@ -8,8 +8,8 @@ use raphtory_core::entities::properties::graph_meta::GraphMeta;
 /// Backing store for graph temporal properties and graph metadata.
 /// GPS: GraphPropSegment?
 #[derive(Debug)]
-pub struct GraphPropStorageInner<GPS, EXT> {
-    page: Arc<GPS>,
+pub struct GraphStorageInner<GS, EXT> {
+    page: Arc<GS>,
 
     /// Stores graph prop metadata (prop name -> prop id mappings, etc).
     graph_meta: Arc<GraphMeta>,
@@ -19,7 +19,7 @@ pub struct GraphPropStorageInner<GPS, EXT> {
     ext: EXT,
 }
 
-impl<GPS: GraphPropSegmentOps, EXT: Config> GraphPropStorageInner<GPS, EXT> {
+impl<GPS: GraphSegmentOps, EXT: Config> GraphStorageInner<GPS, EXT> {
     pub fn new(path: Option<PathBuf>, ext: EXT) -> Self {
         let page = Arc::new(GPS::new());
         let graph_meta = Arc::new(GraphMeta::new());
