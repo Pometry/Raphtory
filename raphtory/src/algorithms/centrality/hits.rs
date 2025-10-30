@@ -18,8 +18,6 @@ use crate::{
 };
 use num_traits::abs;
 use serde::{Deserialize, Serialize};
-use crate::db::graph::node::NodeView;
-use crate::prelude::GraphViewOps;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct Hits {

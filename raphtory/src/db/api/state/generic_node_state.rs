@@ -63,23 +63,16 @@ pub type PropMap = HashMap<String, Option<Prop>>;
 pub type TransformedPropMap<'graph, G, GH> =
     HashMap<String, Either<NodeView<'graph, G, GH>, Option<Prop>>>;
 
+/*
 pub type PropMapConverter<'graph, G, GH> =
     fn(&GenericNodeState<'graph, G, GH>, PropMap) -> TransformedPropMap<'graph, G, GH>;
+ */
 
-pub type OutputTypedNodeState<'graph, G, GH = G> = TypedNodeState<
-    'graph,
-    PropMap,
-    TransformedPropMap<'graph, G, GH>,
-    PropMapConverter<'graph, G, GH>,
-    G,
-    GH
->;
+pub type OutputTypedNodeState<'graph, G, GH = G> =
+    TypedNodeState<'graph, PropMap, G, GH, TransformedPropMap<'graph, G, GH>>;
 
 pub trait NodeTransform: Sized {
-    fn transform<'graph, G, GH>(
-        _state: &GenericNodeState<'graph, G, GH>,
-        value: Self,
-    ) -> Self
+    fn transform<'graph, G, GH>(_state: &GenericNodeState<'graph, G, GH>, value: Self) -> Self
     where
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
@@ -101,12 +94,9 @@ pub struct GenericNodeState<'graph, G, GH = G> {
 }
 
 #[derive(Clone)]
-pub struct TypedNodeState<'graph, V: NodeStateValue, T: Clone + Sync + Send, F, G, GH = G>
-where
-    F: Fn(&GenericNodeState<'graph, G, GH>, V) -> T + Send + Sync + 'graph,
-{
+pub struct TypedNodeState<'graph, V: NodeStateValue, G, GH = G, T: Clone + Sync + Send = V> {
     pub state: GenericNodeState<'graph, G, GH>,
-    converter: F,
+    converter: fn(&GenericNodeState<'graph, G, GH>, V) -> T,
     _v_marker: PhantomData<V>,
     _t_marker: PhantomData<T>,
 }
@@ -176,20 +166,33 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
     }
 
-    fn get_nodes(state: &GenericNodeState<'graph, G, GH>, value_map: PropMap) -> TransformedPropMap<'graph, G, GH> {
+    pub fn get_nodes(
+        state: &GenericNodeState<'graph, G, GH>,
+        value_map: PropMap,
+    ) -> TransformedPropMap<'graph, G, GH> {
         // for column in aux data structure
-        value_map.into_iter().map(|(key, value)| {
-            if let Some(Prop::U64(vid)) = value {
-                if let Some((base_graph, graph)) = state.node_cols.get(&key) {
-                    return (key, Either::Left(NodeView::new_one_hop_filtered(base_graph.as_ref().unwrap().clone(), graph.as_ref().unwrap().clone(), VID(vid as usize))));
+        value_map
+            .into_iter()
+            .map(|(key, value)| {
+                if let Some(Prop::U64(vid)) = value {
+                    if let Some((base_graph, graph)) = state.node_cols.get(&key) {
+                        return (
+                            key,
+                            Either::Left(NodeView::new_one_hop_filtered(
+                                base_graph.as_ref().unwrap().clone(),
+                                graph.as_ref().unwrap().clone(),
+                                VID(vid as usize),
+                            )),
+                        );
+                    }
                 }
-            }
-            (key, Either::Right(value))
-        }).collect()
+                (key, Either::Right(value))
+            })
+            .collect()
     }
 
     pub fn transform(self) -> OutputTypedNodeState<'graph, G, GH> {
-        TypedNodeState::new(self, Self::get_nodes)
+        TypedNodeState::new_mapped(self, Self::get_nodes)
     }
 
     pub fn into_inner(self) -> (RecordBatch, Option<Index<VID>>) {
@@ -459,17 +462,34 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
     }
 }
 
-impl<
-    'graph, 
-    V: NodeStateValue + 'graph, 
-    T: Clone + Send + Sync + 'graph, 
-    F: Fn(&GenericNodeState<'graph, G, GH>, V) -> T + Send + Sync, 
-    G: GraphViewOps<'graph>, 
-    GH: GraphViewOps<'graph>
->
-    TypedNodeState<'graph, V, T, F, G, GH>
+impl<'graph, V, G, GH> TypedNodeState<'graph, V, G, GH>
+where
+    V: NodeStateValue,
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
 {
-    pub fn new(state: GenericNodeState<'graph, G, GH>, converter: F) -> Self {
+    pub fn new(state: GenericNodeState<'graph, G, GH>) -> Self {
+        Self {
+            state,
+            converter: V::transform,
+            _v_marker: PhantomData,
+            _t_marker: PhantomData,
+        }
+    }
+}
+
+impl<
+        'graph,
+        V: NodeStateValue + 'graph,
+        T: Clone + Send + Sync + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+    > TypedNodeState<'graph, V, G, GH, T>
+{
+    pub fn new_mapped(
+        state: GenericNodeState<'graph, G, GH>,
+        converter: fn(&GenericNodeState<'graph, G, GH>, V) -> T,
+    ) -> Self {
         TypedNodeState {
             state,
             converter,
@@ -488,7 +508,7 @@ impl<
     }
 
     pub fn transform(self) -> OutputTypedNodeState<'graph, G, GH> {
-        TypedNodeState::new(self.state, GenericNodeState::get_nodes)
+        TypedNodeState::new_mapped(self.state, GenericNodeState::get_nodes)
     }
 
     pub fn values_to_rows(&self) -> Vec<V> {
@@ -503,17 +523,15 @@ impl<
 }
 
 impl<
-    'a, 
-    'graph, 
-    V: NodeStateValue + 'graph, 
-    T: Clone + Sync + Send + 'graph,
-    F: Fn(&GenericNodeState<'graph, G, GH>, V) -> T + Send + Sync + 'graph,
-    G: GraphViewOps<'graph>, 
-    GH: GraphViewOps<'graph>
->
-    PartialEq<TypedNodeState<'graph, V, T, F, G, GH>> for TypedNodeState<'graph, V, T, F, G, GH>
+        'a,
+        'graph,
+        V: NodeStateValue + 'graph,
+        T: Clone + Sync + Send + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+    > PartialEq<TypedNodeState<'graph, V, G, GH, T>> for TypedNodeState<'graph, V, G, GH, T>
 {
-    fn eq(&self, other: &TypedNodeState<'graph, V, T, F, G, GH>) -> bool {
+    fn eq(&self, other: &TypedNodeState<'graph, V, G, GH, T>) -> bool {
         self.len() == other.len()
             && self
                 .par_iter()
@@ -525,10 +543,9 @@ impl<
         'graph,
         RHS: NodeStateValue + Send + Sync + 'graph,
         T: Clone + Sync + Send + 'graph,
-        F: Fn(&GenericNodeState<'graph, G, GH>, RHS) -> T + Send + Sync + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
-    > PartialEq<Vec<RHS>> for TypedNodeState<'graph, RHS, T, F, G, GH>
+    > PartialEq<Vec<RHS>> for TypedNodeState<'graph, RHS, G, GH, T>
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.values_to_rows().par_iter().eq(other)
@@ -540,11 +557,10 @@ impl<
         K: AsNodeRef,
         RHS: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
-        F: Fn(&GenericNodeState<'graph, G, GH>, RHS) -> T + Send + Sync + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
         S,
-    > PartialEq<HashMap<K, RHS, S>> for TypedNodeState<'graph, RHS, T, F, G, GH>
+    > PartialEq<HashMap<K, RHS, S>> for TypedNodeState<'graph, RHS, G, GH, T>
 {
     fn eq(&self, other: &HashMap<K, RHS, S>) -> bool {
         other.len() == self.len()
@@ -605,11 +621,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: Debug + GraphViewOps<'graph>>
 impl<
         'graph,
         V: NodeStateValue + 'graph,
-        T: Clone + Send + Sync + 'graph, 
-        F: Fn(&GenericNodeState<'graph, G, GH>, V) -> T + Send + Sync + 'graph,
+        T: Clone + Send + Sync + 'graph,
         G: GraphViewOps<'graph>,
         GH: Debug + GraphViewOps<'graph>,
-    > Debug for TypedNodeState<'graph, V, T, F, G, GH>
+    > Debug for TypedNodeState<'graph, V, G, GH, T>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_map().entries(self.iter()).finish()
@@ -617,14 +632,12 @@ impl<
 }
 
 impl<
-    'graph, 
-    V: NodeStateValue + 'graph, 
-    T: Clone + Sync + Send + 'graph,
-    F: Fn(&GenericNodeState<'graph, G, GH>, V) -> T + Send + Sync,
-    G: GraphViewOps<'graph>, 
-    GH: GraphViewOps<'graph>
->
-    IntoIterator for TypedNodeState<'graph, V, T, F, G, GH>
+        'graph,
+        V: NodeStateValue + 'graph,
+        T: Clone + Sync + Send + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+    > IntoIterator for TypedNodeState<'graph, V, G, GH, T>
 {
     type Item = (NodeView<'graph, G, GH>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
@@ -643,10 +656,9 @@ impl<
         'graph: 'a,
         V: NodeStateValue + 'graph,
         T: Clone + Sync + Send + 'graph,
-        F: Fn(&GenericNodeState<'graph, G, GH>, V) -> T + Send + Sync + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
-    > NodeStateOps<'a, 'graph> for TypedNodeState<'graph, V, T, F, G, GH>
+    > NodeStateOps<'a, 'graph> for TypedNodeState<'graph, V, G, GH, T>
 {
     type Graph = GH;
     type BaseGraph = G;

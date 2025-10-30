@@ -1,6 +1,8 @@
 use crate::{
     core::storage::locked_view::LockedView,
-    db::api::state::{GenericNodeState, LazyNodeState, NodeOp, NodeState, NodeStateValue, TypedNodeState},
+    db::api::state::{
+        LazyNodeState, NodeOp, NodeState, NodeStateValue, TypedNodeState,
+    },
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
 use bigdecimal::BigDecimal;
@@ -304,8 +306,7 @@ impl<
         GH: GraphViewOps<'graph>,
         V: Repr + NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
-        F: Fn(&GenericNodeState<'graph, G, GH>, V) -> T + Send + Sync + 'graph,
-    > Repr for TypedNodeState<'graph, V, T, F, G, GH>
+    > Repr for TypedNodeState<'graph, V, G, GH, T>
 {
     fn repr(&self) -> String {
         StructReprBuilder::new("TypedNodeState")

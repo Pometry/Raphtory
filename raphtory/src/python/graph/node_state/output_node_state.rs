@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            state::{GenericNodeState, MergePriority, TypedNodeState},
+            state::{GenericNodeState, MergePriority, OutputTypedNodeState, TypedNodeState},
             view::DynamicGraph,
         },
         graph::nodes::Nodes,
@@ -29,13 +29,13 @@ use pyo3::{
     frozen
 )]
 pub struct PyOutputNodeState {
-    inner: TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph, DynamicGraph>,
+    inner: OutputTypedNodeState<'static, DynamicGraph>,
 }
 
 impl PyOutputNodeState {
     pub fn new(state: GenericNodeState<'static, DynamicGraph>) -> PyOutputNodeState {
         PyOutputNodeState {
-            inner: TypedNodeState::new(state),
+            inner: TypedNodeState::new_mapped(state, GenericNodeState::get_nodes).transform(),
         }
     }
 }
@@ -128,7 +128,7 @@ impl PyOutputNodeState {
     fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
-            TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph, DynamicGraph>,
+            OutputTypedNodeState<'static, DynamicGraph>,
             |inner| inner.iter_values()
         )
     }
@@ -136,7 +136,7 @@ impl PyOutputNodeState {
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
-            TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph, DynamicGraph>,
+            OutputTypedNodeState<'static, DynamicGraph>,
             |inner| inner.iter().map(|(n, v)| (n.cloned(), v))
         )
     }
@@ -215,7 +215,7 @@ impl<
         'py,
         // V: for<'py2> IntoPyObject<'py2> + NodeStateValue + 'static,
         // G: StaticGraphViewOps + IntoDynamicOrMutable,
-    > IntoPyObject<'py> for TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph>
+    > IntoPyObject<'py> for OutputTypedNodeState<'static, DynamicGraph>
 {
     type Target = PyOutputNodeState;
     type Output = Bound<'py, Self::Target>;
