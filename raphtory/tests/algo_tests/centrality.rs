@@ -1,5 +1,6 @@
 use std::{borrow::Borrow, collections::HashMap};
 
+use crate::algo_tests::assert_eq_hashmaps_approx;
 use itertools::Itertools;
 use raphtory::{
     algorithms::centrality::{
@@ -9,7 +10,6 @@ use raphtory::{
     prelude::*,
     test_storage,
 };
-use crate::algo_tests::assert_eq_hashmaps_approx;
 
 #[test]
 fn test_betweenness_centrality() {

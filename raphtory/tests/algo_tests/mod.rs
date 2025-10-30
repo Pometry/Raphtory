@@ -9,6 +9,10 @@ mod metrics;
 mod motifs;
 mod pathing;
 
+fn assert_eq_f64(a: f64, b: f64, precision: f64) {
+    assert!((a - b).abs() < precision);
+}
+
 fn assert_eq_hashmaps_approx(
     a: &HashMap<String, f64>,
     b: &HashMap<String, f64>,

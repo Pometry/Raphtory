@@ -411,6 +411,7 @@ mod triangle_count_tests {
 
 #[cfg(test)]
 mod rich_club_test {
+    use crate::algo_tests::assert_eq_f64;
     use raphtory::{
         algorithms::motifs::temporal_rich_club_coefficient::temporal_rich_club_coefficient,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
@@ -468,9 +469,9 @@ mod rich_club_test {
         let rc_coef_1 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 1);
         let rc_coef_3 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 3);
         let rc_coef_5 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 5);
-        assert_eq_f64(Some(rc_coef_1), Some(1.0), 3);
-        assert_eq_f64(Some(rc_coef_3), Some(0.66666), 3);
-        assert_eq_f64(Some(rc_coef_5), Some(0.5), 3);
+        assert_eq_f64(rc_coef_1, 1.0, 0.001);
+        assert_eq_f64(rc_coef_3, 0.66666, 0.001);
+        assert_eq_f64(rc_coef_5, 0.5, 0.001);
     }
 }
 

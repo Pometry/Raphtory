@@ -273,7 +273,9 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -478,7 +480,12 @@ class GraphView(object):
             Properties: Properties paired with their names
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -2446,7 +2453,9 @@ class Node(object):
              Node: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2691,7 +2700,12 @@ class Node(object):
             Properties: A list of properties.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -3011,7 +3025,9 @@ class Nodes(object):
              Nodes: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3249,7 +3265,12 @@ class Nodes(object):
             PropertiesView: A view of the node properties
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -3557,7 +3578,9 @@ class PathFromNode(object):
              PathFromNode: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3727,7 +3750,12 @@ class PathFromNode(object):
     def properties(self):
         """the node properties"""
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -4015,7 +4043,9 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4195,7 +4225,12 @@ class PathFromGraph(object):
     def properties(self):
         """the node properties"""
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -4582,7 +4617,9 @@ class Edge(object):
              Edge: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4782,7 +4819,12 @@ class Edge(object):
           Properties: Properties on the Edge.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -5111,7 +5153,9 @@ class Edges(object):
              Edges: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -5285,7 +5329,12 @@ class Edges(object):
             PropertiesView:
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -5619,7 +5668,9 @@ class NestedEdges(object):
              NestedEdges: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -5750,7 +5801,12 @@ class NestedEdges(object):
     def properties(self):
         """Returns all properties of the edges"""
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries

@@ -25,19 +25,6 @@ fn group_by_value(map: &HashMap<String, usize>) -> Vec<HashSet<String>> {
     grouped.into_values().collect()
 }
 
-fn group_by_value(map: &HashMap<String, usize>) -> Vec<HashSet<String>> {
-    let mut grouped: HashMap<usize, HashSet<String>> = HashMap::new();
-
-    for (key, &value) in map {
-        grouped
-            .entry(value)
-            .or_insert_with(HashSet::new)
-            .insert(key.clone());
-    }
-
-    grouped.into_values().collect()
-}
-
 #[test]
 fn lpa_test() {
     let graph: Graph = Graph::new();
