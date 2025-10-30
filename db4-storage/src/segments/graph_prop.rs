@@ -2,25 +2,73 @@ use raphtory_core::entities::properties::graph_meta::GraphMeta;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
-use crate::api::graph_props::GraphPropSegmentOps;
+use crate::api::graph_props::{GraphPropSegmentOps, GraphPropOps};
 use crate::error::StorageError;
 use parking_lot::RwLock;
+use raphtory_core::entities::properties::props::MetadataError;
+use raphtory_core::storage::locked_view::LockedView;
+use raphtory_core::entities::properties::tprop::{TProp, IllegalPropType};
+use raphtory_core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::entities::properties::prop::Prop;
+use crate::properties::Properties;
 
+/// In-memory segment that contains graph temporal properties and graph metadata.
+#[derive(Debug)]
+pub struct MemGraphPropSegment {
+    properties: Properties,
+}
+
+impl MemGraphPropSegment {
+    pub fn new() -> Self {
+        Self {
+            properties: Properties::default(),
+        }
+    }
+}
+
+/// `GraphPropSegmentView` manages graph temporal properties and graph metadata
+/// (constant properties). Reads / writes are always served from the in-memory segment.
 #[derive(Debug)]
 pub struct GraphPropSegmentView {
-    head: Arc<RwLock<GraphMeta>>,
+    /// In-memory segment that contains the latest graph properties
+    /// and graph metadata writes.
+    head: Arc<RwLock<MemGraphPropSegment>>,
+
+    /// Estimated size of the segment in bytes.
     est_size: AtomicUsize,
 }
 
 impl GraphPropSegmentOps for GraphPropSegmentView {
     fn new() -> Self {
         Self {
-            head: Arc::new(RwLock::new(GraphMeta::new())),
+            head: Arc::new(RwLock::new(MemGraphPropSegment::new())),
             est_size: AtomicUsize::new(0),
         }
     }
 
     fn load(path: impl AsRef<Path>) -> Result<Self, StorageError> {
+        todo!()
+    }
+}
+
+impl GraphPropOps for GraphPropSegmentView {
+    fn get_temporal_prop(&self, prop_id: usize) -> Option<LockedView<'_, TProp>> {
+        todo!()
+    }
+
+    fn add_prop(&self, t: TimeIndexEntry, prop_id: usize, prop: Prop) -> Result<(), IllegalPropType> {
+        todo!()
+    }
+
+    fn get_metadata(&self, id: usize) -> Option<Prop> {
+        todo!()
+    }
+
+    fn add_metadata(&self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
+        todo!()
+    }
+
+    fn update_metadata(&self, prop_id: usize, prop: Prop) {
         todo!()
     }
 }
