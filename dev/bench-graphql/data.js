@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761236559901,
+  "lastUpdate": 1761825533677,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -1997,6 +1997,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1266,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "25484244+rachchan@users.noreply.github.com",
+            "name": "Rachel Chan",
+            "username": "rachchan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1beacfb63f15a925b8adc9c0aa07d4d554190639",
+          "message": "Update UI test commit id (#2366)\n\nupdate ui test commit id",
+          "timestamp": "2025-10-30T11:23:33Z",
+          "tree_id": "ef375d4b7c0857ac890e6ca4a45e1b46d669a34a",
+          "url": "https://github.com/Pometry/Raphtory/commit/1beacfb63f15a925b8adc9c0aa07d4d554190639"
+        },
+        "date": 1761825529014,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 0,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 194,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 152,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1051,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 854,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1294,
             "unit": "req/s"
           }
         ]
