@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     core::entities::VID,
     db::{
-        api::state::{GenericNodeState, TypedNodeState},
+        api::state::{GenericNodeState, TypedNodeState, NodeTransform},
         graph::node::NodeView,
     },
     prelude::{GraphViewOps, NodeViewOps},
@@ -26,11 +26,11 @@ pub struct BetweennessCentrality {
 /// # Returns
 ///
 /// A NodeState containing the betweenness centrality of each node.
-pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
+pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>, F: Fn(&GenericNodeState<'graph, G, G>, BetweennessCentrality) -> BetweennessCentrality + Send + Sync>(
     g: &G,
     k: Option<usize>,
     normalized: bool,
-) -> TypedNodeState<'graph, BetweennessCentrality, G> {
+) -> TypedNodeState<'graph, BetweennessCentrality, BetweennessCentrality, F, G> {
     // Initialize a hashmap to store betweenness centrality values.
     let mut betweenness: Vec<f64> = vec![0.0; g.unfiltered_num_nodes()];
 
@@ -113,5 +113,5 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
         |value| BetweennessCentrality {
             betweenness_centrality: value,
         },
-    ))
+    ), BetweennessCentrality::transform)
 }
