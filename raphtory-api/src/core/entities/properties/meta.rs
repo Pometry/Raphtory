@@ -104,6 +104,20 @@ impl Meta {
         }
     }
 
+    pub fn new_for_graph() -> Self {
+        let meta_layer = DictMapper::new_layer_mapper();
+        let meta_node_type = DictMapper::default();
+        meta_node_type.get_or_create_id("_default");
+
+        // For now, only temporal and metadata mappers are used for graph metadata.
+        Self {
+            temporal_prop_mapper: PropMapper::default(),
+            metadata_mapper: PropMapper::default(),
+            layer_mapper: meta_layer,
+            node_type_mapper: meta_node_type,
+        }
+    }
+
     #[inline]
     pub fn resolve_prop_id(
         &self,
