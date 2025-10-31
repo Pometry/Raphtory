@@ -6,9 +6,11 @@ use crate::persist::strategy::Config;
 use raphtory_core::entities::properties::graph_meta::GraphMeta;
 
 /// Backing store for graph temporal properties and graph metadata.
-/// GPS: GraphPropSegment?
 #[derive(Debug)]
 pub struct GraphStorageInner<GS, EXT> {
+    /// The graph segment that contains all graph properties and graph metadata.
+    /// Unlike node and edge segments, which are split into multiple segments,
+    /// there is always only one graph segment.
     page: Arc<GS>,
 
     /// Stores graph prop metadata (prop name -> prop id mappings, etc).
