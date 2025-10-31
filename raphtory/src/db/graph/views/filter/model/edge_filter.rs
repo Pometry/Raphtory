@@ -384,7 +384,7 @@ impl EdgeFilter {
     }
 }
 
-impl PropertyFilterFactory<EdgeFilter> for EdgeFilter {}
+impl IsPropertyFilterFactory<EdgeFilter> for EdgeFilter {}
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;

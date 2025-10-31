@@ -171,8 +171,7 @@ pub struct PropertyFilter<M> {
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,
     pub ops: Vec<Op>, // validated by validate_chain_and_infer_effective_dtype
-    pub window: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    pub _phantom: PhantomData<M>,
+    pub entity: M,
 }
 
 impl<M> Display for PropertyFilter<M> {
@@ -1552,9 +1551,7 @@ pub trait InternalPropertyFilterOps: Send + Sync {
         &[]
     }
 
-    fn window(&self) -> Option<(TimeIndexEntry, TimeIndexEntry)> {
-        None
-    }
+    fn entity(&self) -> Self::Marker;
 }
 
 impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
@@ -1757,11 +1754,11 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
 }
 
 #[derive(Clone)]
-pub struct PropertyFilterBuilder<M>(pub String, PhantomData<M>);
+pub struct PropertyFilterBuilder<M>(pub String, M);
 
 impl<M> PropertyFilterBuilder<M> {
-    pub fn new(prop: impl Into<String>) -> Self {
-        Self(prop.into(), PhantomData)
+    pub fn new(prop: impl Into<String>, entity: M) -> Self {
+        Self(prop.into(), entity)
     }
 }
 
@@ -1792,7 +1789,7 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for MetadataFil
 pub struct OpChainBuilder<M> {
     pub prop_ref: PropertyRef,
     pub ops: Vec<Op>,
-    pub _phantom: PhantomData<M>,
+    pub entity: M,
 }
 
 impl<M> OpChainBuilder<M> {
@@ -1853,6 +1850,10 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for OpChainBuil
     fn ops(&self) -> &[Op] {
         &self.ops
     }
+
+    fn entity(&self) -> Self::Marker {
+        self.entity
+    }
 }
 
 pub trait ElemQualifierOps: InternalPropertyFilterOps {
@@ -1863,7 +1864,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterOps {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Any]).collect(),
-            _phantom: PhantomData,
+            entity: PhantomData,
         }
     }
 
@@ -1874,7 +1875,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterOps {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::All]).collect(),
-            _phantom: PhantomData,
+            entity: PhantomData,
         }
     }
 }
@@ -1885,7 +1886,7 @@ impl<M> PropertyFilterBuilder<M> {
         OpChainBuilder {
             prop_ref: PropertyRef::TemporalProperty(self.0),
             ops: vec![],
-            _phantom: PhantomData,
+            entity: PhantomData,
         }
     }
 }
@@ -1895,7 +1896,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Len]).collect(),
-            _phantom: PhantomData,
+            entity: PhantomData,
         }
     }
 
@@ -1903,7 +1904,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Sum]).collect(),
-            _phantom: PhantomData,
+            entity: PhantomData,
         }
     }
 
@@ -1911,7 +1912,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Avg]).collect(),
-            _phantom: PhantomData,
+            entity: PhantomData,
         }
     }
 
@@ -1919,7 +1920,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Min]).collect(),
-            _phantom: PhantomData,
+            entity: PhantomData,
         }
     }
 
@@ -1927,100 +1928,9 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Max]).collect(),
-            _phantom: PhantomData,
+            entity: PhantomData,
         }
     }
 }
 impl<T: InternalPropertyFilterOps + Sized> ListAggOps for T {}
 
-#[derive(Clone)]
-pub struct WindowedPropertyRef<M> {
-    pub prop_ref: PropertyRef,
-    pub ops: Vec<Op>,
-    pub start: TimeIndexEntry,
-    pub end: TimeIndexEntry,
-    pub _phantom: PhantomData<M>,
-}
-
-impl<M> InternalPropertyFilterOps for WindowedPropertyRef<M>
-where
-    M: Send + Sync + Clone + 'static,
-{
-    type Marker = M;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.prop_ref.clone()
-    }
-
-    fn ops(&self) -> &[Op] {
-        &self.ops
-    }
-
-    fn window(&self) -> Option<(TimeIndexEntry, TimeIndexEntry)> {
-        Some((self.start, self.end))
-    }
-}
-
-impl<M> WindowedPropertyRef<M> {
-    #[inline]
-    pub fn temporal(mut self) -> Self {
-        if let PropertyRef::Property(name) = self.prop_ref {
-            self.prop_ref = PropertyRef::TemporalProperty(name);
-        }
-        self
-    }
-
-    #[inline]
-    pub fn any(mut self) -> Self {
-        self.ops.push(Op::Any);
-        self
-    }
-
-    #[inline]
-    pub fn all(mut self) -> Self {
-        self.ops.push(Op::All);
-        self
-    }
-
-    #[inline]
-    pub fn len(mut self) -> Self {
-        self.ops.push(Op::Len);
-        self
-    }
-
-    #[inline]
-    pub fn sum(mut self) -> Self {
-        self.ops.push(Op::Sum);
-        self
-    }
-
-    #[inline]
-    pub fn avg(mut self) -> Self {
-        self.ops.push(Op::Avg);
-        self
-    }
-
-    #[inline]
-    pub fn min(mut self) -> Self {
-        self.ops.push(Op::Min);
-        self
-    }
-
-    #[inline]
-    pub fn max(mut self) -> Self {
-        self.ops.push(Op::Max);
-        self
-    }
-
-    #[inline]
-    pub fn first(mut self) -> Self {
-        self.ops.push(Op::First);
-        self
-    }
-
-    #[inline]
-    pub fn last(mut self) -> Self {
-        self.ops.push(Op::Last);
-        self
-    }
-}

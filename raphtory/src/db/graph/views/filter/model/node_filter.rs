@@ -18,6 +18,7 @@ use crate::{
 use raphtory_api::core::entities::{GidType, GID};
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
+use crate::db::graph::views::filter::model::EntityMarker;
 
 #[derive(Debug, Clone)]
 pub struct NodeIdFilter(pub Filter);
@@ -295,6 +296,8 @@ impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct NodeFilter;
+
+impl EntityMarker for NodeFilter {}
 
 impl NodeFilter {
     pub fn id() -> NodeIdFilterBuilder {
