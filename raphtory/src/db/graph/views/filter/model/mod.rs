@@ -302,36 +302,6 @@ impl Filter {
     pub fn id_matches(&self, node_value: GidRef<'_>) -> bool {
         self.operator.apply_id(&self.field_value, node_value)
     }
-
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: &G,
-        edge: EdgeStorageRef,
-    ) -> bool {
-        let node_opt = match self.field_name.as_str() {
-            "src" => graph.node(edge.src()),
-            "dst" => graph.node(edge.dst()),
-            _ => return false,
-        };
-
-        match &self.field_value {
-            FilterValue::ID(_) | FilterValue::IDSet(_) => {
-                if let Some(node) = node_opt {
-                    self.id_matches(node.id().as_ref())
-                } else {
-                    // No endpoint node -> no value present.
-                    match self.operator {
-                        FilterOperator::Ne | FilterOperator::IsNotIn => true,
-                        _ => false,
-                    }
-                }
-            }
-            _ => {
-                let name_opt = node_opt.map(|n| n.name());
-                self.matches(name_opt.as_deref())
-            }
-        }
-    }
 }
 
 // Fluent Composite Filter Builder APIs
