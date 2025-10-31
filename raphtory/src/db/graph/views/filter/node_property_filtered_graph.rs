@@ -8,15 +8,21 @@ use crate::{
                 InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{
-            internal::CreateFilter,
-            model::{node_filter::NodeFilter, property_filter::PropertyFilter},
+        graph::views::{
+            filter::{
+                internal::CreateFilter,
+                model::{node_filter::NodeFilter, property_filter::PropertyFilter, Windowed},
+            },
+            window_graph::WindowedGraph,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
 };
-use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_api::{
+    core::{entities::LayerIds, storage::timeindex::AsTime},
+    inherit::Base,
+};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 
 #[derive(Debug, Clone)]
@@ -33,6 +39,30 @@ impl<G> NodePropertyFilteredGraph<G> {
             prop_id,
             filter,
         }
+    }
+}
+
+impl CreateFilter for PropertyFilter<Windowed<NodeFilter>> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+        NodePropertyFilteredGraph<WindowedGraph<G>>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
+        let filter = PropertyFilter {
+            prop_ref: self.prop_ref,
+            prop_value: self.prop_value,
+            operator: self.operator,
+            ops: self.ops,
+            entity: NodeFilter,
+        };
+        Ok(NodePropertyFilteredGraph::new(
+            graph.window(self.entity.start.t(), self.entity.end.t()),
+            prop_id,
+            filter,
+        ))
     }
 }
 

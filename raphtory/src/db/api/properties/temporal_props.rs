@@ -92,18 +92,6 @@ impl<P: InternalPropertiesOps> TemporalPropertyView<P> {
         self.props.temporal_iter(self.id)
     }
 
-    #[inline]
-    pub fn iter_window(&self, start: i64, end: i64) -> impl Iterator<Item = (i64, Prop)> + '_ {
-        self.iter_indexed()
-            .filter(move |(ti, _)| ti.t() >= start && ti.t() < end)
-            .map(|(ti, p)| (ti.t(), p))
-    }
-
-    #[inline]
-    pub fn values_window(&self, start: i64, end: i64) -> impl Iterator<Item = Prop> + '_ {
-        self.iter_window(start, end).map(|(_, p)| p)
-    }
-
     pub fn histories(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
         self.iter()
     }

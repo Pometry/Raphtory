@@ -4,8 +4,9 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                node_filter::CompositeNodeFilter, property_filter::PropertyFilter, AndFilter,
-                Filter, NotFilter, OrFilter, PropertyFilterFactory, TryAsCompositeFilter, Windowed,
+                node_filter::CompositeNodeFilter,
+                property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
+                AndFilter, Filter, NotFilter, OrFilter, TryAsCompositeFilter, Windowed,
             },
         },
     },
@@ -384,16 +385,32 @@ impl EdgeFilter {
     }
 }
 
-impl PropertyFilterFactory<EdgeFilter> for EdgeFilter {}
+impl EdgeFilter {
+    pub fn property(name: impl Into<String>) -> PropertyFilterBuilder<Self> {
+        PropertyFilterBuilder::new(name, EdgeFilter)
+    }
+
+    pub fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<Self> {
+        MetadataFilterBuilder::new(name, EdgeFilter)
+    }
+}
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
 
-impl PropertyFilterFactory<ExplodedEdgeFilter> for ExplodedEdgeFilter {}
-
 impl ExplodedEdgeFilter {
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
         Windowed::from_times(start, end)
+    }
+}
+
+impl ExplodedEdgeFilter {
+    pub fn property(name: impl Into<String>) -> PropertyFilterBuilder<Self> {
+        PropertyFilterBuilder::new(name, ExplodedEdgeFilter)
+    }
+
+    pub fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<Self> {
+        MetadataFilterBuilder::new(name, ExplodedEdgeFilter)
     }
 }
 

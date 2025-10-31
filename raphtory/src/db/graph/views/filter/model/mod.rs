@@ -1,14 +1,16 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter, EdgeFieldFilter},
+        edge_filter::{
+            CompositeEdgeFilter, CompositeExplodedEdgeFilter, EdgeFieldFilter, EdgeFilter,
+            ExplodedEdgeFilter,
+        },
         filter_operator::FilterOperator,
-        node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+        node_filter::{CompositeNodeFilter, NodeFilter, NodeNameFilter, NodeTypeFilter},
         not_filter::NotFilter,
         or_filter::OrFilter,
         property_filter::{
             MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder, PropertyRef,
-            WindowedPropertyRef,
         },
     },
     errors::GraphError,
@@ -52,31 +54,6 @@ impl<M> Windowed<M> {
         let s = TimeIndexEntry::start(start.into_time());
         let e = TimeIndexEntry::end(end.into_time());
         Self::new(s, e)
-    }
-}
-
-impl<M> Windowed<M>
-where
-    M: Send + Sync + Clone + 'static,
-{
-    pub fn property(self, name: impl Into<String>) -> WindowedPropertyRef<M> {
-        WindowedPropertyRef {
-            prop_ref: PropertyRef::Property(name.into()),
-            ops: vec![],
-            start: self.start,
-            end: self.end,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn metadata(self, name: impl Into<String>) -> WindowedPropertyRef<M> {
-        WindowedPropertyRef {
-            prop_ref: PropertyRef::Metadata(name.into()),
-            ops: vec![],
-            start: self.start,
-            end: self.end,
-            _phantom: PhantomData,
-        }
     }
 }
 
@@ -387,12 +364,27 @@ impl<L, R> ComposableFilter for AndFilter<L, R> {}
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 impl<T> ComposableFilter for NotFilter<T> {}
 
-pub trait PropertyFilterFactory<M> {
-    fn property(name: impl Into<String>) -> PropertyFilterBuilder<M> {
-        PropertyFilterBuilder::new(name)
-    }
+trait EntityMarker: Clone + Send + Sync {}
 
-    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<M> {
-        MetadataFilterBuilder::new(name)
+impl EntityMarker for NodeFilter {}
+
+impl EntityMarker for EdgeFilter {}
+
+impl EntityMarker for ExplodedEdgeFilter {}
+
+impl<M: EntityMarker + Clone + Send + Sync + 'static> EntityMarker for Windowed<M> {}
+
+pub trait PropertyFilterFactory: EntityMarker {
+    fn property(&self, name: impl Into<String>) -> PropertyFilterBuilder<Self>;
+
+    fn metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<Self>;
+}
+
+impl<M: EntityMarker> PropertyFilterFactory for M {
+    fn property(&self, name: impl Into<String>) -> PropertyFilterBuilder<Self> {
+        PropertyFilterBuilder::new(name, self.clone())
+    }
+    fn metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<Self> {
+        MetadataFilterBuilder::new(name, self.clone())
     }
 }

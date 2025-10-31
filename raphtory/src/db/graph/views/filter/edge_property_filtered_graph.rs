@@ -10,14 +10,18 @@ use crate::{
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{
-            internal::CreateFilter, model::edge_filter::EdgeFilter, PropertyFilter,
+        graph::views::{
+            filter::{
+                internal::CreateFilter,
+                model::{edge_filter::EdgeFilter, property_filter::PropertyFilter, Windowed},
+            },
+            window_graph::WindowedGraph,
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, LayerOps},
+    prelude::{GraphViewOps, LayerOps, TimeOps},
 };
-use raphtory_api::inherit::Base;
+use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 
 #[derive(Debug, Clone)]
@@ -34,6 +38,30 @@ impl<G> EdgePropertyFilteredGraph<G> {
             prop_id,
             filter,
         }
+    }
+}
+
+impl CreateFilter for PropertyFilter<Windowed<EdgeFilter>> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+        EdgePropertyFilteredGraph<WindowedGraph<G>>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
+        let filter = PropertyFilter {
+            prop_ref: self.prop_ref,
+            prop_value: self.prop_value,
+            operator: self.operator,
+            ops: self.ops,
+            entity: EdgeFilter,
+        };
+        Ok(EdgePropertyFilteredGraph::new(
+            graph.window(self.entity.start.t(), self.entity.end.t()),
+            prop_id,
+            filter,
+        ))
     }
 }
 
