@@ -35,7 +35,7 @@ pub fn create_graph_for_vector_bench(size: usize) -> Graph {
 }
 
 pub async fn vectorise_graph_for_bench_async(graph: Graph) -> VectorisedGraph<Graph> {
-    let cache = VectorCache::in_memory(embedding_model);
+    let cache = VectorCache::in_memory(embedding_model).await.unwrap();
     let template = DocumentTemplate {
         node_template: Some("{{name}}".to_owned()),
         edge_template: None,
