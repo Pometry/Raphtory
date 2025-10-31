@@ -18,6 +18,8 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
 };
+use crate::db::api::view::internal::FilterOps;
+use crate::db::graph::views::filter::model::property_filter::PropertyFilterOps;
 
 #[derive(Debug, Clone)]
 pub struct EdgeNodeFilteredGraph<G, F> {
@@ -123,7 +125,6 @@ impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InternalEdgeFilte
             Endpoint::Dst => dst_binding.as_ref(),
         };
 
-        self.filtered_graph
-            .internal_filter_node(node_ref, layer_ids)
+        self.filtered_graph.filter_node(node_ref)
     }
 }
