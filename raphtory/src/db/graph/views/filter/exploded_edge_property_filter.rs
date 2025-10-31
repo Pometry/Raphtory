@@ -10,15 +10,23 @@ use crate::{
                 InheritTimeSemantics, InternalExplodedEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::edge_filter::ExplodedEdgeFilter},
+        graph::views::{
+            filter::{
+                internal::CreateFilter,
+                model::{
+                    edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilter, Windowed,
+                },
+            },
+            window_graph::WindowedGraph,
+        },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, LayerOps, PropertyFilter},
+    prelude::{GraphViewOps, LayerOps, TimeOps},
 };
 use raphtory_api::{
     core::{
         entities::{EID, ELID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::{AsTime, TimeIndexEntry},
     },
     inherit::Base,
 };
@@ -53,6 +61,30 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
     }
 }
 
+impl CreateFilter for PropertyFilter<Windowed<ExplodedEdgeFilter>> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+        ExplodedEdgePropertyFilteredGraph<WindowedGraph<G>>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
+        let filter = PropertyFilter {
+            prop_ref: self.prop_ref,
+            prop_value: self.prop_value,
+            operator: self.operator,
+            ops: self.ops,
+            entity: ExplodedEdgeFilter,
+        };
+        Ok(ExplodedEdgePropertyFilteredGraph::new(
+            graph.window(self.entity.start.t(), self.entity.end.t()),
+            prop_id,
+            filter,
+        ))
+    }
+}
+
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
 
@@ -61,11 +93,7 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        Ok(ExplodedEdgePropertyFilteredGraph::new(
-            graph.clone(),
-            prop_id,
-            self,
-        ))
+        Ok(ExplodedEdgePropertyFilteredGraph::new(graph, prop_id, self))
     }
 }
 
@@ -154,13 +182,9 @@ mod test_exploded_edge_property_filtered_graph {
                 },
                 views::{
                     deletion_graph::PersistentGraph,
-                    filter::{
-                        exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                        internal::CreateFilter,
-                        model::{
-                            edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilterOps,
-                            PropertyFilterFactory, TryAsCompositeFilter,
-                        },
+                    filter::model::{
+                        edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilterOps,
+                        PropertyFilterFactory, TryAsCompositeFilter,
                     },
                 },
             },
@@ -177,7 +201,7 @@ mod test_exploded_edge_property_filtered_graph {
     use raphtory_api::core::{entities::properties::prop::PropType, storage::arc_str::ArcStr};
     use raphtory_core::entities::nodes::node_ref::AsNodeRef;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
 
     fn build_filtered_graph(
         edges: &[(u64, u64, i64, String, i64)],

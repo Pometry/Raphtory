@@ -4,8 +4,9 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                node_filter::CompositeNodeFilter, property_filter::PropertyFilter, AndFilter,
-                Filter, NotFilter, OrFilter, PropertyFilterFactory, TryAsCompositeFilter,
+                node_filter::CompositeNodeFilter,
+                property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
+                AndFilter, Filter, NotFilter, OrFilter, TryAsCompositeFilter, Windowed,
             },
         },
     },
@@ -13,6 +14,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::GID;
+use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -373,17 +375,44 @@ impl EdgeFilter {
     pub fn src() -> EdgeEndpointFilter {
         EdgeEndpointFilter::Src
     }
+
     pub fn dst() -> EdgeEndpointFilter {
         EdgeEndpointFilter::Dst
     }
+
+    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<EdgeFilter> {
+        Windowed::from_times(start, end)
+    }
 }
 
-impl PropertyFilterFactory<EdgeFilter> for EdgeFilter {}
+impl EdgeFilter {
+    pub fn property(name: impl Into<String>) -> PropertyFilterBuilder<Self> {
+        PropertyFilterBuilder::new(name, EdgeFilter)
+    }
+
+    pub fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<Self> {
+        MetadataFilterBuilder::new(name, EdgeFilter)
+    }
+}
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
 
-impl PropertyFilterFactory<ExplodedEdgeFilter> for ExplodedEdgeFilter {}
+impl ExplodedEdgeFilter {
+    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
+        Windowed::from_times(start, end)
+    }
+}
+
+impl ExplodedEdgeFilter {
+    pub fn property(name: impl Into<String>) -> PropertyFilterBuilder<Self> {
+        PropertyFilterBuilder::new(name, ExplodedEdgeFilter)
+    }
+
+    pub fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<Self> {
+        MetadataFilterBuilder::new(name, ExplodedEdgeFilter)
+    }
+}
 
 impl TryAsCompositeFilter for EdgeFieldFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

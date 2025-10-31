@@ -6,9 +6,9 @@ use crate::{
             model::{
                 edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
                 filter_operator::FilterOperator,
-                property_filter::PropertyFilter,
-                AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
-                TryAsCompositeFilter,
+                property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
+                AndFilter, Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter,
+                Windowed,
             },
         },
     },
@@ -16,6 +16,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::{GidType, GID};
+use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -308,6 +309,10 @@ impl NodeFilter {
         NodeTypeFilterBuilder
     }
 
+    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<NodeFilter> {
+        Windowed::from_times(start, end)
+    }
+
     pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphError> {
         use FilterOperator::*;
         use GidType::*;
@@ -423,7 +428,15 @@ impl NodeFilter {
     }
 }
 
-impl PropertyFilterFactory<NodeFilter> for NodeFilter {}
+impl NodeFilter {
+    pub fn property(name: impl Into<String>) -> PropertyFilterBuilder<Self> {
+        PropertyFilterBuilder::new(name, NodeFilter)
+    }
+
+    pub fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<Self> {
+        MetadataFilterBuilder::new(name, NodeFilter)
+    }
+}
 
 impl TryAsCompositeFilter for NodeIdFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
