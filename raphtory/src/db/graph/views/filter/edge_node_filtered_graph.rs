@@ -20,24 +20,24 @@ use raphtory_storage::{
 };
 
 #[derive(Debug, Clone)]
-pub struct EdgeNodeFilteredGraph<G> {
+pub struct EdgeNodeFilteredGraph<G, F> {
     graph: G,
     endpoint: Endpoint,
-    filter: CompositeNodeFilter,
+    filtered_graph: F,
 }
 
-impl<G> EdgeNodeFilteredGraph<G> {
+impl<G, F> EdgeNodeFilteredGraph<G, F> {
     #[inline]
-    pub fn new(graph: G, endpoint: Endpoint, node_cf: CompositeNodeFilter) -> Self {
+    pub fn new(graph: G, endpoint: Endpoint, filtered_graph: F) -> Self {
         Self {
             graph,
             endpoint,
-            filter: node_cf,
+            filtered_graph,
         }
     }
 }
 
-impl<G> Base for EdgeNodeFilteredGraph<G> {
+impl<G, F> Base for EdgeNodeFilteredGraph<G, F> {
     type Base = G;
     #[inline]
     fn base(&self) -> &Self::Base {
@@ -45,23 +45,61 @@ impl<G> Base for EdgeNodeFilteredGraph<G> {
     }
 }
 
-impl<G> Static for EdgeNodeFilteredGraph<G> {}
-impl<G> Immutable for EdgeNodeFilteredGraph<G> {}
+impl<G, F> Static for EdgeNodeFilteredGraph<G, F> {}
+impl<G, F> Immutable for EdgeNodeFilteredGraph<G, F> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritListOps for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeLayerFilterOps for EdgeNodeFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps for EdgeNodeFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritCoreGraphOps
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritStorageOps
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritLayerOps
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritListOps
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritMaterialize
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritNodeFilterOps
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritPropertiesOps
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritTimeSemantics
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritNodeHistoryFilter
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritEdgeHistoryFilter
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritEdgeLayerFilterOps
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps
+    for EdgeNodeFilteredGraph<G, F>
+{
+}
 
-impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgeNodeFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InternalEdgeFilterOps
+    for EdgeNodeFilteredGraph<G, F>
+{
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
         true
@@ -78,15 +116,14 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgeNodeFiltered
             return false;
         }
 
-        // Fetch the endpoint node and delegate to the node composite filter.
-        let ok = match self.endpoint {
-            Endpoint::Src => self
-                .filter
-                .matches_node(&self.graph, self.graph.core_node(edge.src()).as_ref()),
-            Endpoint::Dst => self
-                .filter
-                .matches_node(&self.graph, self.graph.core_node(edge.dst()).as_ref()),
+        let src_binding = self.graph.core_node(edge.src());
+        let dst_binding = self.graph.core_node(edge.dst());
+        let node_ref = match self.endpoint {
+            Endpoint::Src => src_binding.as_ref(),
+            Endpoint::Dst => dst_binding.as_ref(),
         };
-        ok
+
+        self.filtered_graph
+            .internal_filter_node(node_ref, layer_ids)
     }
 }
