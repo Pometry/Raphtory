@@ -13,29 +13,36 @@ use storage::Extension;
 
 pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
+
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error>;
+
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+
     fn internal_add_node_metadata(
         &self,
         vid: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error>;
+
     fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error>;
+
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error>;
+
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
@@ -54,7 +61,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<(), Self::Error> {
         // FIXME: check atomicity
         for (id, prop) in props {
-            self.graph_meta.add_prop(t, *id, prop.clone())?;
+            self.graph_meta().add_prop(t, *id, prop.clone())?;
         }
         Ok(())
     }
@@ -62,7 +69,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         // FIXME: check atomicity
         for (id, prop) in props {
-            self.graph_meta.add_metadata(*id, prop.clone())?;
+            self.graph_meta().add_metadata(*id, prop.clone())?;
         }
         Ok(())
     }
@@ -70,7 +77,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         // FIXME: check atomicity
         for (id, prop) in props {
-            self.graph_meta.update_metadata(*id, prop.clone());
+            self.graph_meta().update_metadata(*id, prop.clone());
         }
         Ok(())
     }

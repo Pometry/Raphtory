@@ -26,7 +26,7 @@ use crate::{
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
-use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
+use segments::{edge::MemEdgeSegment, graph::GraphSegmentView, node::MemNodeSegment};
 
 pub mod api;
 pub mod gen_t_props;
@@ -42,6 +42,7 @@ pub mod wal;
 pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
+pub type GS = GraphSegmentView;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
 
 pub type WalImpl = NoWal;
@@ -55,12 +56,14 @@ pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNo
 pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
+// pub type GraphProps = MemGraphProps;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
 
 pub type EdgeAdditions<'a> = GenericTimeOps<'a, AdditionCellsRef<'a, MemEdgeRef<'a>>>;
 pub type EdgeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemEdgeRef<'a>>>;
+
 pub type NodeTProps<'a> = GenTProps<'a, MemNodeRef<'a>>;
 pub type EdgeTProps<'a> = GenTProps<'a, MemEdgeRef<'a>>;
 

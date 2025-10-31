@@ -6,11 +6,13 @@ use crate::{
     persist::strategy::{Config, PersistentStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    GS,
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
+use graph_store::GraphStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
@@ -21,7 +23,6 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
     utils::time::{InputTime, TryIntoInputTime},
 };
-use serde::{Deserialize, Serialize};
 use session::WriteSession;
 use std::{
     path::{Path, PathBuf},
@@ -30,6 +31,7 @@ use std::{
         atomic::{self, AtomicUsize},
     },
 };
+use raphtory_core::entities::properties::graph_meta::GraphMeta;
 
 pub mod edge_page;
 pub mod edge_store;
@@ -38,6 +40,7 @@ pub mod locked;
 pub mod node_page;
 pub mod node_store;
 pub mod session;
+pub mod graph_store;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
@@ -47,6 +50,7 @@ pub mod test_utils;
 pub struct GraphStore<NS, ES, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
+    graph: Arc<GraphStorageInner<GS, EXT>>,
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -72,6 +76,7 @@ impl<
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, EXT> {
         let nodes = self.nodes.locked().into();
         let edges = self.edges.locked().into();
+
         ReadLockedGraphStore {
             nodes,
             edges,
@@ -91,12 +96,20 @@ impl<
         &self.edges
     }
 
+    pub fn graph(&self) -> &Arc<GraphStorageInner<GS, EXT>> {
+        &self.graph
+    }
+
     pub fn edge_meta(&self) -> &Meta {
         self.edges.edge_meta()
     }
 
     pub fn node_meta(&self) -> &Meta {
         self.nodes.prop_meta()
+    }
+
+    pub fn graph_meta(&self) -> &GraphMeta {
+        self.graph.graph_meta()
     }
 
     pub fn earliest(&self) -> i64 {
@@ -113,6 +126,7 @@ impl<
     pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
+        let meta_path = graph_dir.as_ref().join("meta");
 
         let ext = read_graph_config::<EXT>(graph_dir.as_ref())?;
 
@@ -123,15 +137,19 @@ impl<
         let nodes = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
 
         let node_meta = nodes.prop_meta();
-        for tpe in ext.node_types().iter() {
-            node_meta.get_or_create_node_type_id(tpe);
+        for node_type in ext.node_types().iter() {
+            node_meta.get_or_create_node_type_id(node_type);
         }
+
+        // Load graph temporal properties and metadata
+        let meta = Arc::new(GraphStorageInner::load(meta_path, ext.clone())?);
 
         let t_len = edges.t_len();
 
         Ok(Self {
             nodes,
             edges,
+            graph: meta,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
@@ -142,33 +160,42 @@ impl<
         graph_dir: Option<&Path>,
         node_meta: Meta,
         edge_meta: Meta,
+        graph_meta: GraphMeta,
         ext: EXT,
     ) -> Self {
         let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
         let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
+        let graph_props_path = graph_dir.map(|graph_dir| graph_dir.join("graph_props"));
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
+        let graph_meta = Arc::new(graph_meta);
 
-        let nodes = Arc::new(NodeStorageInner::new_with_meta(
+        let node_storage = Arc::new(NodeStorageInner::new_with_meta(
             nodes_path,
             node_meta,
             edge_meta.clone(),
             ext.clone(),
         ));
-        let edges = Arc::new(EdgeStorageInner::new_with_meta(
+        let edge_storage = Arc::new(EdgeStorageInner::new_with_meta(
             edges_path,
             edge_meta,
             ext.clone(),
         ));
+        let graph_prop_storage = Arc::new(GraphStorageInner::new_with_meta(
+            graph_props_path,
+            graph_meta,
+            ext.clone(),
+        ));
 
         if let Some(graph_dir) = graph_dir {
-            write_graph_config(graph_dir, &ext).expect("Unrecoverable! Failed to write graph meta");
+            write_graph_config(graph_dir, &ext).expect("Unrecoverable! Failed to write graph config");
         }
 
         Self {
-            nodes,
-            edges,
+            nodes: node_storage,
+            edges: edge_storage,
+            graph: graph_prop_storage,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,
@@ -176,7 +203,11 @@ impl<
     }
 
     pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
-        Self::new_with_meta(graph_dir, Meta::new_for_nodes(), Meta::new_for_edges(), ext)
+        let node_meta = Meta::new_for_nodes();
+        let edge_meta = Meta::new_for_edges();
+        let graph_meta = GraphMeta::new();
+
+        Self::new_with_meta(graph_dir, node_meta, edge_meta, graph_meta, ext)
     }
 
     pub fn add_edge<T: TryIntoInputTime>(
@@ -420,12 +451,6 @@ fn read_graph_config<EXT: PersistentStrategy>(
     let config_file = std::fs::File::open(config_file).unwrap();
     let config = serde_json::from_reader(config_file)?;
     Ok(config)
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-struct GraphMeta {
-    max_page_len_nodes: u32,
-    max_page_len_edges: u32,
 }
 
 #[inline(always)]
