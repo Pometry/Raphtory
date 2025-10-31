@@ -15,7 +15,7 @@ use raphtory::{
     prelude::*,
     test_utils::{build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window},
 };
-use raphtory_api::core::entities::properties::prop::PropType;
+use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 
 #[test]
@@ -47,17 +47,9 @@ fn test_edge_filter() {
 
     let g_expected = Graph::new();
     g_expected
-        .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+        .add_edge((1, 1), "John", "David", [("band", "Dead & Company")], None)
         .unwrap();
 
-    assert_eq!(
-        filtered_edges
-            .edges()
-            .iter()
-            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-            .collect::<Vec<_>>(),
-        vec!["John->David"]
-    );
     assert_graph_equal(&filtered_edges, &g_expected);
 }
 
@@ -81,7 +73,7 @@ fn test_edge_filter_persistent() {
 
     let g_expected = PersistentGraph::new();
     g_expected
-        .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+        .add_edge((1, 1), "John", "David", [("band", "Dead & Company")], None)
         .unwrap();
 
     assert_eq!(
@@ -361,7 +353,7 @@ fn test_single_unfiltered_edge_window_persistent_2() {
         .unwrap();
     assert!(gwf.has_edge(0, 1));
     assert!(!gwf.has_edge(0, 0));
-    assert_eq!(gwf.node(0).unwrap().earliest_time(), Some(1));
+    assert_eq!(gwf.node(0).unwrap().earliest_time().map(|t| t.t()), Some(1));
     assert_persistent_materialize_graph_equal(&gwf, &gwf.materialize().unwrap());
 
     let gfw = g

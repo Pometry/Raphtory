@@ -38,7 +38,7 @@ mod query_builder;
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
-    pub const SECONDARY_TIME: &str = "secondary_time";
+    pub const EVENT_ID: &str = "event_id";
     pub const NODE_ID: &str = "node_id";
     pub const NODE_NAME: &str = "node_name";
     pub const NODE_NAME_TOKENIZED: &str = "node_name_tokenized";

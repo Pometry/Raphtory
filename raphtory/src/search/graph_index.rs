@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     db::api::view::IndexSpec,
     errors::GraphError,
@@ -80,7 +80,7 @@ impl MutableGraphIndex {
     pub(crate) fn add_node_update(
         &self,
         graph: &GraphStorage,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: MaybeNew<VID>,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
@@ -109,7 +109,7 @@ impl MutableGraphIndex {
         &self,
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {

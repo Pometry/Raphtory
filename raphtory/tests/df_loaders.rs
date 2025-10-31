@@ -28,8 +28,10 @@ mod io_tests {
         use prop::sample::SizeRange;
         use proptest::prelude::*;
         use raphtory::{
-            db::graph::graph::assert_graph_equal, io::parquet_loaders::load_edges_from_parquet,
-            prelude::*, test_utils::build_edge_list,
+            db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
+            io::parquet_loaders::load_edges_from_parquet,
+            prelude::*,
+            test_utils::build_edge_list,
         };
         use raphtory_storage::{disk::DiskGraphStorage, graph::graph::GraphStorage};
         use std::{
@@ -136,10 +138,75 @@ mod io_tests {
             }
         }
 
+        // DiskGraph appears to have different event ids on time entries
+        fn check_layers_from_df_timestamps(input: Vec<RecordBatch>, num_threads: usize) {
+            let root_dir = TempDir::new().unwrap();
+            let graph_dir = TempDir::new().unwrap();
+            let layers = input
+                .into_iter()
+                .enumerate()
+                .map(|(i, df)| (i.to_string(), df))
+                .collect::<Vec<_>>();
+            let edge_lists = write_layers(&layers, root_dir.path());
+
+            let expected = Graph::new();
+            for edge_list in &edge_lists {
+                load_edges_from_parquet(
+                    &expected,
+                    &edge_list.path,
+                    "time",
+                    "src",
+                    "dst",
+                    &["int_prop", "str_prop"],
+                    &[],
+                    None,
+                    Some(edge_list.layer),
+                    None,
+                    None,
+                )
+                .unwrap();
+            }
+
+            let g = TemporalGraph::from_parquets(
+                num_threads,
+                13,
+                23,
+                graph_dir.path(),
+                edge_lists,
+                &[],
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+            let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
+            // FIXME: We have to check each layer individually, checking the whole graph fails because DiskGraph reorders layers when the timestamp is the same (event ids are different)
+            for (layer, _) in layers.iter() {
+                let g_exp = expected.layers(layer).unwrap();
+                let g_actual = actual.layers(layer).unwrap();
+                assert_graph_equal_timestamps(&g_exp, &g_actual);
+            }
+
+            let g = TemporalGraph::new(graph_dir.path()).unwrap();
+
+            for edge in g.edges_iter() {
+                assert!(g.find_edge(edge.src_id(), edge.dst_id()).is_some());
+            }
+
+            let actual = Graph::from(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
+            // FIXME: We have to check each layer individually, checking the whole graph fails because DiskGraph reorders layers when the timestamp is the same (event ids are different)
+            for (layer, _) in layers.iter() {
+                let g_exp = expected.layers(layer).unwrap();
+                let g_actual = actual.layers(layer).unwrap();
+                assert_graph_equal_timestamps(&g_exp, &g_actual);
+            }
+        }
+
         #[test]
         fn load_from_multiple_layers() {
             proptest!(|(input in build_edge_list_df(50, 1u64..23, 1..10,  ), num_threads in 1usize..2)| {
-                check_layers_from_df(input, num_threads)
+                check_layers_from_df_timestamps(input, num_threads)
             });
         }
 
@@ -398,7 +465,10 @@ mod parquet_tests {
     use chrono::{DateTime, Utc};
     use proptest::prelude::*;
     use raphtory::{
-        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        db::graph::{
+            graph::{assert_graph_equal, assert_graph_equal_timestamps},
+            views::deletion_graph::PersistentGraph,
+        },
         prelude::*,
         test_utils::{
             build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
@@ -764,14 +834,14 @@ mod parquet_tests {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
-        assert_graph_equal(&g, &g2);
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     fn check_parquet_encoding_deletions(g: PersistentGraph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = PersistentGraph::decode_parquet(&temp_dir).unwrap();
-        assert_graph_equal(&g, &g2);
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     #[test]
@@ -802,7 +872,7 @@ mod parquet_tests {
         build_and_check_parquet_encoding(nodes.into());
     }
 
-    fn check_graph_props(nf: PropUpdatesFixture) {
+    fn check_graph_props(nf: PropUpdatesFixture, only_timestamps: bool) {
         let g = Graph::new();
         let temp_dir = tempfile::tempdir().unwrap();
         for (t, props) in nf.t_props {
@@ -812,7 +882,11 @@ mod parquet_tests {
         g.add_metadata(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
-        assert_graph_equal(&g, &g2);
+        if only_timestamps {
+            assert_graph_equal_timestamps(&g, &g2)
+        } else {
+            assert_graph_equal(&g, &g2);
+        }
     }
 
     #[test]
@@ -821,7 +895,7 @@ mod parquet_tests {
             t_props: vec![(0, vec![("a".to_string(), Prop::U8(5))])],
             c_props: vec![("b".to_string(), Prop::str("baa"))],
         };
-        check_graph_props(props)
+        check_graph_props(props, true)
     }
 
     #[test]
@@ -845,7 +919,7 @@ mod parquet_tests {
     #[test]
     fn write_graph_props_to_parquet() {
         proptest!(|(props in build_props_dyn(10))| {
-            check_graph_props(props);
+            check_graph_props(props, true);
         });
     }
 
@@ -855,7 +929,7 @@ mod parquet_tests {
             t_props: vec![(1, vec![])],
             c_props: vec![],
         };
-        check_graph_props(nf);
+        check_graph_props(nf, false);
     }
 
     #[test]

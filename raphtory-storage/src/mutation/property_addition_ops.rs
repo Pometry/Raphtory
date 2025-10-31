@@ -9,7 +9,7 @@ use raphtory_api::{
             properties::prop::{validate_prop, Prop},
             EID, VID,
         },
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     inherit::Base,
 };
@@ -22,7 +22,7 @@ pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error>;
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
@@ -55,7 +55,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     type Error = MutationError;
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         if !props.is_empty() {
@@ -179,7 +179,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
 
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         self.mutable()?.internal_add_properties(t, props)
@@ -241,7 +241,7 @@ where
     #[inline]
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         self.base().internal_add_properties(t, props)

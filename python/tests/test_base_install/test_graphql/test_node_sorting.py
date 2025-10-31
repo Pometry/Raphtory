@@ -134,7 +134,7 @@ def test_graph_nodes_sort_by_earliest_time(graph):
     expected_output = {
         "graph": {
             "nodes": {
-                "sorted": {"list": [{"id": "b"}, {"id": "d"}, {"id": "a"}, {"id": "c"}]}
+                "sorted": {"list": [{"id": "d"}, {"id": "b"}, {"id": "a"}, {"id": "c"}]}
             }
         }
     }

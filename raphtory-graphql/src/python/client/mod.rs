@@ -1,7 +1,14 @@
 use minijinja::{Environment, Value};
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
-use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
-use raphtory_api::core::entities::{properties::prop::Prop, GID};
+use raphtory::errors::GraphError;
+use raphtory_api::{
+    core::{
+        entities::{properties::prop::Prop, GID},
+        storage::timeindex::EventTime,
+        utils::time::IntoTime,
+    },
+    python::timeindex::PyEventTime,
+};
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
 use std::collections::HashMap;
@@ -19,7 +26,7 @@ pub mod remote_node;
 #[derive(Clone)]
 #[pyclass(name = "RemoteUpdate", module = "raphtory.graphql")]
 pub struct PyUpdate {
-    time: PyTime,
+    time: PyEventTime,
     properties: Option<HashMap<String, Prop>>,
 }
 
@@ -58,8 +65,11 @@ impl Serialize for PyUpdate {
 impl PyUpdate {
     #[new]
     #[pyo3(signature = (time, properties=None))]
-    pub(crate) fn new(time: PyTime, properties: Option<HashMap<String, Prop>>) -> Self {
-        Self { time, properties }
+    pub(crate) fn new(time: EventTime, properties: Option<HashMap<String, Prop>>) -> Self {
+        Self {
+            time: PyEventTime::new(time),
+            properties,
+        }
     }
 }
 

@@ -157,7 +157,7 @@ impl EntityIndex {
                 path.as_deref().map(|p| p.join("temporal_properties")),
                 |schema| {
                     schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
-                    schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
+                    schema.add_u64_field(fields::EVENT_ID, INDEXED | FAST | STORED);
                     schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
                 },
                 PropertyIndex::new_node_property,
@@ -250,7 +250,7 @@ impl EntityIndex {
                 path.as_deref().map(|p| p.join("temporal_properties")),
                 |schema| {
                     schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
-                    schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
+                    schema.add_u64_field(fields::EVENT_ID, INDEXED | FAST | STORED);
                     schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
                     schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
                 },
