@@ -3285,8 +3285,7 @@ mod views_test {
                             TestGraphVariants, TestVariants, WindowGraphTransformer,
                         },
                         views::filter::model::{
-                            edge_filter::{EdgeFilter, EdgeFilterOps},
-                            property_filter::PropertyFilterOps,
+                            edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
                             ComposableFilter, PropertyFilterFactory,
                         },
                     },

@@ -4,11 +4,10 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
-                filter_operator::FilterOperator,
-                property_filter::PropertyFilter,
-                AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
-                TryAsCompositeFilter, Windowed,
+                edge_filter::CompositeEdgeFilter,
+                exploded_edge_filter::CompositeExplodedEdgeFilter, filter_operator::FilterOperator,
+                property_filter::PropertyFilter, AndFilter, Filter, FilterValue, NotFilter,
+                OrFilter, PropertyFilterFactory, TryAsCompositeFilter, Windowed,
             },
         },
     },
@@ -199,6 +198,7 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
 
 impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
 
+#[derive(Clone, Debug)]
 pub struct NodeIdFilterBuilder;
 
 impl NodeIdFilterBuilder {
@@ -273,6 +273,7 @@ impl NodeIdFilterBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct NodeNameFilterBuilder;
 
 impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
@@ -283,6 +284,7 @@ impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct NodeTypeFilterBuilder;
 
 impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {

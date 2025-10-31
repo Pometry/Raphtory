@@ -1,8 +1,7 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
-        node_filter::CompositeNodeFilter,
-        TryAsCompositeFilter,
+        edge_filter::CompositeEdgeFilter, exploded_edge_filter::CompositeExplodedEdgeFilter,
+        node_filter::CompositeNodeFilter, TryAsCompositeFilter,
     },
     errors::GraphError,
 };

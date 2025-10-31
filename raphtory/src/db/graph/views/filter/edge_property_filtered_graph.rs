@@ -107,14 +107,12 @@ mod test_edge_property_filtered_graph {
                 views::{
                     deletion_graph::PersistentGraph,
                     filter::model::{
-                        edge_filter::{EdgeFilter, EdgeFilterOps},
-                        property_filter::PropertyFilterOps,
+                        edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
                         ComposableFilter, PropertyFilterFactory,
                     },
                 },
             },
         },
-        errors::GraphError,
         prelude::*,
         test_utils::{
             build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window,
