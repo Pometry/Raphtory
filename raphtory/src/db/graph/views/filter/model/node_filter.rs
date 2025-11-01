@@ -4,10 +4,12 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                edge_filter::CompositeEdgeFilter,
-                exploded_edge_filter::CompositeExplodedEdgeFilter, filter_operator::FilterOperator,
-                property_filter::PropertyFilter, AndFilter, Filter, FilterValue, NotFilter,
-                OrFilter, PropertyFilterFactory, TryAsCompositeFilter, Windowed,
+                edge_filter::{CompositeEdgeFilter, EndpointWrapper},
+                exploded_edge_filter::CompositeExplodedEdgeFilter,
+                filter_operator::FilterOperator,
+                property_filter::PropertyFilter,
+                AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
+                TryAsCompositeFilter, Windowed,
             },
         },
     },
@@ -198,24 +200,30 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
 
 impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
 
-#[derive(Clone, Debug)]
-pub struct NodeIdFilterBuilder;
+pub trait InternalNodeIdFilterBuilderOps: Send + Sync {
+    type NodeIdFilterType: From<Filter> + CreateFilter + TryAsCompositeFilter + Clone + 'static;
 
-impl NodeIdFilterBuilder {
-    #[inline]
+    fn field_name(&self) -> &'static str;
+}
+
+impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for Arc<T> {
+    type NodeIdFilterType = T::NodeIdFilterType;
+
     fn field_name(&self) -> &'static str {
-        "node_id"
+        self.deref().field_name()
     }
+}
 
-    pub fn eq<T: Into<GID>>(&self, value: T) -> NodeIdFilter {
+pub trait NodeIdFilterBuilderOps: InternalNodeIdFilterBuilderOps {
+    fn eq<T: Into<GID>>(&self, value: T) -> Self::NodeIdFilterType {
         Filter::eq_id(self.field_name(), value).into()
     }
 
-    pub fn ne<T: Into<GID>>(&self, value: T) -> NodeIdFilter {
+    fn ne<T: Into<GID>>(&self, value: T) -> Self::NodeIdFilterType {
         Filter::ne_id(self.field_name(), value).into()
     }
 
-    pub fn is_in<I, T>(&self, values: I) -> NodeIdFilter
+    fn is_in<I, T>(&self, values: I) -> Self::NodeIdFilterType
     where
         I: IntoIterator<Item = T>,
         T: Into<GID>,
@@ -223,7 +231,7 @@ impl NodeIdFilterBuilder {
         Filter::is_in_id(self.field_name(), values).into()
     }
 
-    pub fn is_not_in<I, T>(&self, values: I) -> NodeIdFilter
+    fn is_not_in<I, T>(&self, values: I) -> Self::NodeIdFilterType
     where
         I: IntoIterator<Item = T>,
         T: Into<GID>,
@@ -231,45 +239,58 @@ impl NodeIdFilterBuilder {
         Filter::is_not_in_id(self.field_name(), values).into()
     }
 
-    pub fn lt<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
+    fn lt<V: Into<GID>>(&self, value: V) -> Self::NodeIdFilterType {
         Filter::lt(self.field_name(), value).into()
     }
 
-    pub fn le<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
+    fn le<V: Into<GID>>(&self, value: V) -> Self::NodeIdFilterType {
         Filter::le(self.field_name(), value).into()
     }
 
-    pub fn gt<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
+    fn gt<V: Into<GID>>(&self, value: V) -> Self::NodeIdFilterType {
         Filter::gt(self.field_name(), value).into()
     }
 
-    pub fn ge<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
+    fn ge<V: Into<GID>>(&self, value: V) -> Self::NodeIdFilterType {
         Filter::ge(self.field_name(), value).into()
     }
 
-    pub fn starts_with<S: Into<String>>(&self, s: S) -> NodeIdFilter {
+    fn starts_with<S: Into<String>>(&self, s: S) -> Self::NodeIdFilterType {
         Filter::starts_with(self.field_name(), s.into()).into()
     }
 
-    pub fn ends_with<S: Into<String>>(&self, s: S) -> NodeIdFilter {
+    fn ends_with<S: Into<String>>(&self, s: S) -> Self::NodeIdFilterType {
         Filter::ends_with(self.field_name(), s.into()).into()
     }
 
-    pub fn contains<S: Into<String>>(&self, s: S) -> NodeIdFilter {
+    fn contains<S: Into<String>>(&self, s: S) -> Self::NodeIdFilterType {
         Filter::contains(self.field_name(), s.into()).into()
     }
 
-    pub fn not_contains<S: Into<String>>(&self, s: S) -> NodeIdFilter {
+    fn not_contains<S: Into<String>>(&self, s: S) -> Self::NodeIdFilterType {
         Filter::not_contains(self.field_name(), s.into()).into()
     }
 
-    pub fn fuzzy_search<S: Into<String>>(
+    fn fuzzy_search<S: Into<String>>(
         &self,
         s: S,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> NodeIdFilter {
+    ) -> Self::NodeIdFilterType {
         Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match).into()
+    }
+}
+
+impl<T: InternalNodeIdFilterBuilderOps + ?Sized> NodeIdFilterBuilderOps for T {}
+
+#[derive(Clone, Debug)]
+pub struct NodeIdFilterBuilder;
+
+impl InternalNodeIdFilterBuilderOps for NodeIdFilterBuilder {
+    type NodeIdFilterType = NodeIdFilter;
+    #[inline]
+    fn field_name(&self) -> &'static str {
+        "node_id"
     }
 }
 

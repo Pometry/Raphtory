@@ -1,16 +1,15 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{
-            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, EdgeIdFilterBuilder, ExplodedEdgeFilter,
-            InternalEdgeFilterBuilderOps,
-        },
+        edge_filter::{EdgeEndpoint, EdgeFilter, EndpointWrapper},
+        node_filter::NodeFilter,
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory, Windowed,
     },
     python::{
         filter::{
             filter_expr::PyFilterExpr,
-            window_filter::{py_into_millis, PyEdgeWindow, PyExplodedEdgeWindow},
+            node_filter_builders::{PyNodeFilterBuilder, PyNodeIdFilterBuilder},
+            window_filter::{py_into_millis, PyEdgeWindow, PyExplodedEdgeWindow, PyNodeWindow},
         },
         types::iterable::FromIterable,
     },
@@ -19,151 +18,39 @@ use pyo3::{exceptions::PyTypeError, pyclass, pymethods, Bound, PyAny, PyResult};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
-#[pyclass(frozen, name = "EdgeIdFilterOp", module = "raphtory.filter")]
-#[derive(Clone)]
-pub struct PyEdgeIdFilterOp(pub EdgeIdFilterBuilder);
-
-#[pymethods]
-impl PyEdgeIdFilterOp {
-    fn __eq__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.eq(value)))
-    }
-
-    fn __ne__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ne(value)))
-    }
-
-    fn __lt__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.lt(value)))
-    }
-
-    fn __le__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.le(value)))
-    }
-
-    fn __gt__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.gt(value)))
-    }
-
-    fn __ge__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ge(value)))
-    }
-
-    fn is_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.is_in(values)))
-    }
-
-    fn is_not_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.is_not_in(values)))
-    }
-
-    fn starts_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.starts_with(value)))
-    }
-
-    fn ends_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ends_with(value)))
-    }
-
-    fn contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.contains(value)))
-    }
-
-    fn not_contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.not_contains(value)))
-    }
-
-    fn fuzzy_search(
-        &self,
-        value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.fuzzy_search(
-            value,
-            levenshtein_distance,
-            prefix_match,
-        )))
-    }
-}
-
-#[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
-#[derive(Clone)]
-pub struct PyEdgeFilterOp(Arc<dyn InternalEdgeFilterBuilderOps>);
-
-impl<T: InternalEdgeFilterBuilderOps + 'static> From<T> for PyEdgeFilterOp {
-    fn from(value: T) -> Self {
-        PyEdgeFilterOp(Arc::new(value))
-    }
-}
-
-#[pymethods]
-impl PyEdgeFilterOp {
-    fn __eq__(&self, value: String) -> PyFilterExpr {
-        let field = self.0.eq(value);
-        PyFilterExpr(Arc::new(field))
-    }
-
-    fn __ne__(&self, value: String) -> PyFilterExpr {
-        let field = self.0.ne(value);
-        PyFilterExpr(Arc::new(field))
-    }
-
-    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.is_in(values);
-        PyFilterExpr(Arc::new(field))
-    }
-
-    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.is_not_in(values);
-        PyFilterExpr(Arc::new(field))
-    }
-
-    fn starts_with(&self, value: String) -> PyFilterExpr {
-        let field = self.0.starts_with(value);
-        PyFilterExpr(Arc::new(field))
-    }
-
-    fn ends_with(&self, value: String) -> PyFilterExpr {
-        let field = self.0.ends_with(value);
-        PyFilterExpr(Arc::new(field))
-    }
-
-    fn contains(&self, value: String) -> PyFilterExpr {
-        let field = self.0.contains(value);
-        PyFilterExpr(Arc::new(field))
-    }
-
-    fn not_contains(&self, value: String) -> PyFilterExpr {
-        let field = self.0.not_contains(value);
-        PyFilterExpr(Arc::new(field))
-    }
-
-    fn fuzzy_search(
-        &self,
-        value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        let field = self
-            .0
-            .fuzzy_search(value, levenshtein_distance, prefix_match);
-        PyFilterExpr(Arc::new(field))
-    }
-}
-
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpoint(pub EdgeEndpointFilter);
+pub struct PyEdgeEndpoint(pub EdgeEndpoint);
 
 #[pymethods]
 impl PyEdgeEndpoint {
-    fn id(&self) -> PyEdgeIdFilterOp {
-        PyEdgeIdFilterOp(self.0.id())
+    fn id(&self) -> PyNodeIdFilterBuilder {
+        self.0.id().into()
     }
 
-    fn name(&self) -> PyEdgeFilterOp {
-        PyEdgeFilterOp(self.0.name())
+    fn name(&self) -> PyNodeFilterBuilder {
+        self.0.name().into()
+    }
+
+    fn node_type(&self) -> PyNodeFilterBuilder {
+        self.0.node_type().into()
+    }
+
+    fn property(&self, name: String) -> EndpointWrapper<PropertyFilterBuilder<NodeFilter>> {
+        self.0.property(name)
+    }
+
+    fn metadata(&self, name: String) -> EndpointWrapper<MetadataFilterBuilder<NodeFilter>> {
+        self.0.metadata(name)
+    }
+
+    fn window(&self, py_start: Bound<PyAny>, py_end: Bound<PyAny>) -> PyResult<PyNodeWindow> {
+        let s = py_into_millis(&py_start)?;
+        let e = py_into_millis(&py_end)?;
+        if s > e {
+            return Err(PyTypeError::new_err("window.start must be <= window.end"));
+        }
+        Ok(PyNodeWindow(Arc::new(self.0.window(s, e))))
     }
 }
 

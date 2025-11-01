@@ -3,13 +3,16 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+                FilterOps, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::model::{edge_filter::Endpoint, node_filter::CompositeNodeFilter},
+        graph::views::filter::model::{
+            edge_filter::Endpoint, node_filter::CompositeNodeFilter,
+            property_filter::PropertyFilterOps,
+        },
     },
     prelude::GraphViewOps,
 };
@@ -18,8 +21,6 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
 };
-use crate::db::api::view::internal::FilterOps;
-use crate::db::graph::views::filter::model::property_filter::PropertyFilterOps;
 
 #[derive(Debug, Clone)]
 pub struct EdgeNodeFilteredGraph<G, F> {

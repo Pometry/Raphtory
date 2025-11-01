@@ -61,7 +61,7 @@ impl<M> Windowed<M>
 where
     M: Send + Sync + Clone + 'static,
 {
-    pub fn property(self, name: impl Into<String>) -> WindowedPropertyRef<M> {
+    pub fn property(&self, name: impl Into<String>) -> WindowedPropertyRef<M> {
         WindowedPropertyRef {
             prop_ref: PropertyRef::Property(name.into()),
             ops: vec![],
@@ -71,7 +71,7 @@ where
         }
     }
 
-    pub fn metadata(self, name: impl Into<String>) -> WindowedPropertyRef<M> {
+    pub fn metadata(&self, name: impl Into<String>) -> WindowedPropertyRef<M> {
         WindowedPropertyRef {
             prop_ref: PropertyRef::Metadata(name.into()),
             ops: vec![],

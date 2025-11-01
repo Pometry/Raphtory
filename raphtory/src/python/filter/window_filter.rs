@@ -1,6 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{EdgeFilter, ExplodedEdgeFilter},
+        edge_filter::{EdgeFilter, EndpointWrapper, ExplodedEdgeFilter},
         node_filter::NodeFilter,
         property_filter::WindowedPropertyRef,
         Windowed,
@@ -16,17 +16,46 @@ pub fn py_into_millis(obj: &Bound<PyAny>) -> PyResult<i64> {
 
 #[pyclass(frozen, name = "NodeWindow", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyNodeWindow(pub Windowed<NodeFilter>);
+pub struct PyNodeWindow(pub Arc<dyn DynWindowedNodeFilter>);
 
 #[pymethods]
 impl PyNodeWindow {
     fn property(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<NodeFilter> = self.0.clone().property(name);
+        self.0.property(name)
+    }
+
+    fn metadata(&self, name: String) -> PyPropertyFilterOps {
+        self.0.metadata(name)
+    }
+}
+
+trait DynWindowedNodeFilter: Send + Sync {
+    fn property(&self, name: String) -> PyPropertyFilterOps;
+    fn metadata(&self, name: String) -> PyPropertyFilterOps;
+}
+
+impl DynWindowedNodeFilter for Windowed<NodeFilter> {
+    fn property(&self, name: String) -> PyPropertyFilterOps {
+        let wpr: WindowedPropertyRef<NodeFilter> = self.property(name);
         PyPropertyFilterOps::from_arc(Arc::new(wpr))
     }
 
     fn metadata(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<NodeFilter> = self.0.clone().metadata(name);
+        let wpr: WindowedPropertyRef<NodeFilter> = self.metadata(name);
+        PyPropertyFilterOps::from_arc(Arc::new(wpr))
+    }
+}
+
+impl DynWindowedNodeFilter for EndpointWrapper<Windowed<NodeFilter>> {
+    fn property(&self, name: String) -> PyPropertyFilterOps {
+        let wpr: EndpointWrapper<WindowedPropertyRef<NodeFilter>> =
+            EndpointWrapper::property(self, name);
+        PyPropertyFilterOps::from_arc(Arc::new(wpr))
+    }
+
+    fn metadata(&self, name: String) -> PyPropertyFilterOps {
+        let wpr: EndpointWrapper<WindowedPropertyRef<NodeFilter>> =
+            EndpointWrapper::metadata(self, name);
         PyPropertyFilterOps::from_arc(Arc::new(wpr))
     }
 }

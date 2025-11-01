@@ -7,9 +7,10 @@ use crate::{
             model::{
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 node_filter::{
-                    CompositeNodeFilter, NodeFilter, NodeFilterBuilderOps, NodeIdFilter,
-                    NodeIdFilterBuilder, NodeNameFilter, NodeNameFilterBuilder, NodeTypeFilter,
-                    NodeTypeFilterBuilder,
+                    CompositeNodeFilter, InternalNodeFilterBuilderOps,
+                    InternalNodeIdFilterBuilderOps, NodeFilter, NodeFilterBuilderOps, NodeIdFilter,
+                    NodeIdFilterBuilder, NodeIdFilterBuilderOps, NodeNameFilter,
+                    NodeNameFilterBuilder, NodeTypeFilter, NodeTypeFilterBuilder,
                 },
                 property_filter::{
                     ElemQualifierOps, InternalPropertyFilterOps, ListAggOps, MetadataFilterBuilder,
@@ -162,23 +163,23 @@ impl EdgeEndpoint {
 
 impl EdgeEndpoint {
     #[inline]
-    pub fn id(self) -> EndpointWrapper<NodeIdFilterBuilder> {
+    pub fn id(&self) -> EndpointWrapper<NodeIdFilterBuilder> {
         EndpointWrapper::new(NodeFilter::id(), self.0)
     }
 
     #[inline]
-    pub fn name(self) -> EndpointWrapper<NodeNameFilterBuilder> {
+    pub fn name(&self) -> EndpointWrapper<NodeNameFilterBuilder> {
         EndpointWrapper::new(NodeFilter::name(), self.0)
     }
 
     #[inline]
-    pub fn node_type(self) -> EndpointWrapper<NodeTypeFilterBuilder> {
+    pub fn node_type(&self) -> EndpointWrapper<NodeTypeFilterBuilder> {
         EndpointWrapper::new(NodeFilter::node_type(), self.0)
     }
 
     #[inline]
     pub fn property(
-        self,
+        &self,
         name: impl Into<String>,
     ) -> EndpointWrapper<PropertyFilterBuilder<NodeFilter>> {
         EndpointWrapper::new(PropertyFilterBuilder::<NodeFilter>::new(name), self.0)
@@ -186,7 +187,7 @@ impl EdgeEndpoint {
 
     #[inline]
     pub fn metadata(
-        self,
+        &self,
         name: impl Into<String>,
     ) -> EndpointWrapper<MetadataFilterBuilder<NodeFilter>> {
         EndpointWrapper::new(MetadataFilterBuilder::<NodeFilter>::new(name), self.0)
@@ -194,7 +195,7 @@ impl EdgeEndpoint {
 
     #[inline]
     pub fn window<S: IntoTime, E: IntoTime>(
-        self,
+        &self,
         start: S,
         end: E,
     ) -> EndpointWrapper<Windowed<NodeFilter>> {
@@ -207,7 +208,7 @@ impl EdgeEndpoint {
 // and at the end convert into a composite node filter via TryAsCompositeFilter
 #[derive(Debug, Clone)]
 pub struct EndpointWrapper<T> {
-    inner: T,
+    pub(crate) inner: T,
     endpoint: Endpoint,
 }
 
@@ -304,38 +305,38 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for EndpointWrapper
 
 impl<T: InternalPropertyFilterOps> EndpointWrapper<T> {
     #[inline]
-    pub fn eq(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn eq(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.eq(v))
     }
 
     #[inline]
-    pub fn ne(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn ne(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.ne(v))
     }
 
     #[inline]
-    pub fn le(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn le(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.le(v))
     }
 
     #[inline]
-    pub fn ge(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn ge(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.ge(v))
     }
 
     #[inline]
-    pub fn lt(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn lt(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.lt(v))
     }
 
     #[inline]
-    pub fn gt(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn gt(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.gt(v))
     }
 
     #[inline]
     pub fn is_in(
-        self,
+        &self,
         vals: impl IntoIterator<Item = Prop>,
     ) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.is_in(vals))
@@ -343,45 +344,45 @@ impl<T: InternalPropertyFilterOps> EndpointWrapper<T> {
 
     #[inline]
     pub fn is_not_in(
-        self,
+        &self,
         vals: impl IntoIterator<Item = Prop>,
     ) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.is_not_in(vals))
     }
 
     #[inline]
-    pub fn is_none(self) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn is_none(&self) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.is_none())
     }
 
     #[inline]
-    pub fn is_some(self) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn is_some(&self) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.is_some())
     }
 
     #[inline]
-    pub fn starts_with(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn starts_with(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.starts_with(v))
     }
 
     #[inline]
-    pub fn ends_with(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn ends_with(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.ends_with(v))
     }
 
     #[inline]
-    pub fn contains(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn contains(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.contains(v))
     }
 
     #[inline]
-    pub fn not_contains(self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
+    pub fn not_contains(&self, v: impl Into<Prop>) -> EndpointWrapper<PropertyFilter<T::Marker>> {
         self.with(self.inner.not_contains(v))
     }
 
     #[inline]
     pub fn fuzzy_search(
-        self,
+        &self,
         s: impl Into<String>,
         d: usize,
         p: bool,
@@ -440,7 +441,7 @@ impl EndpointWrapper<OpChainBuilder<NodeFilter>> {
 impl EndpointWrapper<Windowed<NodeFilter>> {
     #[inline]
     pub fn property(
-        self,
+        &self,
         name: impl Into<String>,
     ) -> EndpointWrapper<WindowedPropertyRef<NodeFilter>> {
         self.with(self.inner.property(name))
@@ -448,7 +449,7 @@ impl EndpointWrapper<Windowed<NodeFilter>> {
 
     #[inline]
     pub fn metadata(
-        self,
+        &self,
         name: impl Into<String>,
     ) -> EndpointWrapper<WindowedPropertyRef<NodeFilter>> {
         self.with(self.inner.metadata(name))
@@ -616,28 +617,28 @@ impl EndpointWrapper<NodeNameFilterBuilder> {
     }
 
     #[inline]
-    pub fn starts_with<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeNameFilter> {
+    pub fn starts_with<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeNameFilter> {
         self.with(self.inner.starts_with(s.into()))
     }
 
     #[inline]
-    pub fn ends_with<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeNameFilter> {
+    pub fn ends_with<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeNameFilter> {
         self.with(self.inner.ends_with(s.into()))
     }
 
     #[inline]
-    pub fn contains<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeNameFilter> {
+    pub fn contains<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeNameFilter> {
         self.with(self.inner.contains(s.into()))
     }
 
     #[inline]
-    pub fn not_contains<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeNameFilter> {
+    pub fn not_contains<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeNameFilter> {
         self.with(self.inner.not_contains(s.into()))
     }
 
     #[inline]
     pub fn fuzzy_search<S: Into<String>>(
-        self,
+        &self,
         s: S,
         d: usize,
         p: bool,
@@ -648,17 +649,17 @@ impl EndpointWrapper<NodeNameFilterBuilder> {
 
 impl EndpointWrapper<NodeTypeFilterBuilder> {
     #[inline]
-    pub fn eq<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeTypeFilter> {
+    pub fn eq<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeTypeFilter> {
         self.with(self.inner.eq(s.into()))
     }
 
     #[inline]
-    pub fn ne<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeTypeFilter> {
+    pub fn ne<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeTypeFilter> {
         self.with(self.inner.ne(s.into()))
     }
 
     #[inline]
-    pub fn is_in<I>(self, vals: I) -> EndpointWrapper<NodeTypeFilter>
+    pub fn is_in<I>(&self, vals: I) -> EndpointWrapper<NodeTypeFilter>
     where
         I: IntoIterator<Item = String>,
     {
@@ -666,7 +667,7 @@ impl EndpointWrapper<NodeTypeFilterBuilder> {
     }
 
     #[inline]
-    pub fn is_not_in<I>(self, vals: I) -> EndpointWrapper<NodeTypeFilter>
+    pub fn is_not_in<I>(&self, vals: I) -> EndpointWrapper<NodeTypeFilter>
     where
         I: IntoIterator<Item = String>,
     {
@@ -674,28 +675,28 @@ impl EndpointWrapper<NodeTypeFilterBuilder> {
     }
 
     #[inline]
-    pub fn starts_with<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeTypeFilter> {
+    pub fn starts_with<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeTypeFilter> {
         self.with(self.inner.starts_with(s.into()))
     }
 
     #[inline]
-    pub fn ends_with<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeTypeFilter> {
+    pub fn ends_with<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeTypeFilter> {
         self.with(self.inner.ends_with(s.into()))
     }
 
     #[inline]
-    pub fn contains<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeTypeFilter> {
+    pub fn contains<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeTypeFilter> {
         self.with(self.inner.contains(s.into()))
     }
 
     #[inline]
-    pub fn not_contains<S: Into<String>>(self, s: S) -> EndpointWrapper<NodeTypeFilter> {
+    pub fn not_contains<S: Into<String>>(&self, s: S) -> EndpointWrapper<NodeTypeFilter> {
         self.with(self.inner.not_contains(s.into()))
     }
 
     #[inline]
     pub fn fuzzy_search<S: Into<String>>(
-        self,
+        &self,
         s: S,
         d: usize,
         p: bool,
