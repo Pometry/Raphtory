@@ -21,12 +21,15 @@ use crate::{
         edge_entry::{MemEdgeEntry, MemEdgeRef},
         node::NodeSegmentView,
         node_entry::{MemNodeEntry, MemNodeRef},
+        graph_entry::MemGraphEntry,
     },
     wal::no_wal::NoWal,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
-use segments::{edge::MemEdgeSegment, graph::GraphSegmentView, node::MemNodeSegment};
+use segments::{
+    edge::MemEdgeSegment, graph::GraphSegmentView, node::MemNodeSegment
+};
 
 pub mod api;
 pub mod gen_t_props;
@@ -56,7 +59,7 @@ pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNo
 pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
-pub type GraphEntry<'a> = &'a GraphSegmentView;
+pub type GraphEntry<'a> = MemGraphEntry<'a>;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;

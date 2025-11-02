@@ -14,7 +14,7 @@ use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
 use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
 use std::{fmt::Debug, iter, sync::Arc};
-use storage::Extension;
+use storage::{Extension, GraphEntry};
 use thiserror::Error;
 
 #[derive(Clone, Debug)]
@@ -207,6 +207,14 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 EdgeStorageEntry::Unlocked(storage.storage().edges().edge(eid))
             }
+        }
+    }
+
+    #[inline(always)]
+    pub fn graph_entry(&self) -> GraphEntry<'_> {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().graph().graph_entry(),
+            GraphStorage::Unlocked(storage) => storage.storage().graph().graph_entry(),
         }
     }
 

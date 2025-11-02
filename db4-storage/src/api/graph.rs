@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::path::Path;
 use crate::error::StorageError;
+use crate::segments::graph_entry::MemGraphEntry;
 use raphtory_core::entities::properties::props::MetadataError;
 use raphtory_core::storage::locked_view::LockedView;
 use raphtory_core::entities::properties::tprop::TProp;
@@ -14,20 +15,24 @@ pub trait GraphSegmentOps: Send + Sync + Debug + 'static
 where
     Self: Sized,
 {
+    type Entry<'a>: GraphEntryOps;
+
     fn new() -> Self;
 
     fn load(path: impl AsRef<Path>) -> Result<Self, StorageError>;
+
+    fn entry<'a>(&'a self) -> Self::Entry<'a>;
 }
 
 /// Methods for reading graph properties and metadata from storage.
-pub trait GraphPropOps: Send + Sync {
+pub trait GraphEntryOps: Send + Sync {
     fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>>;
 
-    fn get_metadata(&self, id: usize) -> Option<Prop>;
+    fn get_metadata(&self, prop_id: usize) -> Option<Prop>;
 }
 
 /// Methods for writing graph properties and metadata to storage.
-pub trait GraphPropMutOps: Send + Sync {
+pub trait GraphEntryMutOps: Send + Sync {
     fn add_prop(
         &self,
         t: TimeIndexEntry,
