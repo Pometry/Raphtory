@@ -4,6 +4,7 @@ use crate::api::graph::GraphSegmentOps;
 use crate::error::StorageError;
 use crate::persist::strategy::Config;
 use raphtory_core::entities::properties::graph_meta::GraphMeta;
+use crate::GraphEntry;
 
 /// Backing store for graph temporal properties and graph metadata.
 #[derive(Debug)]
@@ -21,9 +22,9 @@ pub struct GraphStorageInner<GS, EXT> {
     ext: EXT,
 }
 
-impl<GPS: GraphSegmentOps, EXT: Config> GraphStorageInner<GPS, EXT> {
+impl<GS: GraphSegmentOps, EXT: Config> GraphStorageInner<GS, EXT> {
     pub fn new(path: Option<PathBuf>, ext: EXT) -> Self {
-        let page = Arc::new(GPS::new());
+        let page = Arc::new(GS::new());
         let graph_meta = Arc::new(GraphMeta::new());
 
         Self {
@@ -35,7 +36,7 @@ impl<GPS: GraphSegmentOps, EXT: Config> GraphStorageInner<GPS, EXT> {
     }
 
     pub fn new_with_meta(path: Option<PathBuf>, graph_meta: Arc<GraphMeta>, ext: EXT) -> Self {
-        let page = Arc::new(GPS::new());
+        let page = Arc::new(GS::new());
 
         Self {
             page,
@@ -49,7 +50,7 @@ impl<GPS: GraphSegmentOps, EXT: Config> GraphStorageInner<GPS, EXT> {
         let graph_meta = Arc::new(GraphMeta::new());
 
         Ok(Self {
-            page: Arc::new(GPS::load(path.as_ref())?),
+            page: Arc::new(GS::load(path.as_ref())?),
             path: Some(path.as_ref().to_path_buf()),
             graph_meta,
             ext,
@@ -58,5 +59,9 @@ impl<GPS: GraphSegmentOps, EXT: Config> GraphStorageInner<GPS, EXT> {
 
     pub fn graph_meta(&self) -> &Arc<GraphMeta> {
         &self.graph_meta
+    }
+
+    pub fn graph_entry(&self) -> GS::Entry<'_> {
+        self.page.entry()
     }
 }

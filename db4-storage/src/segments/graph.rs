@@ -2,8 +2,9 @@ use raphtory_core::entities::properties::graph_meta::GraphMeta;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
-use crate::api::graph::{GraphSegmentOps, GraphPropOps};
+use crate::api::graph::{GraphSegmentOps, GraphEntryOps};
 use crate::error::StorageError;
+use crate::segments::graph_entry::MemGraphEntry;
 use crate::segments::{HasRow, SegmentContainer};
 use crate::LocalPOS;
 use parking_lot::RwLock;
@@ -18,7 +19,7 @@ use raphtory_api::core::entities::properties::meta::Meta;
 /// In-memory segment that contains graph temporal properties and graph metadata.
 #[derive(Debug)]
 pub struct MemGraphSegment {
-    /// Layerss containing graph properties and metadata.
+    /// Layers containing graph properties and metadata.
     layers: Vec<SegmentContainer<GraphSegmentEntry>>
 }
 
@@ -49,6 +50,10 @@ impl MemGraphSegment {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
         }
     }
+
+    pub fn layers(&self) -> &[SegmentContainer<GraphSegmentEntry>] {
+        &self.layers
+    }
 }
 
 /// `GraphSegmentView` manages graph temporal properties and graph metadata
@@ -64,6 +69,8 @@ pub struct GraphSegmentView {
 }
 
 impl GraphSegmentOps for GraphSegmentView {
+    type Entry<'a> = MemGraphEntry<'a>;
+
     fn new() -> Self {
         Self {
             head: Arc::new(RwLock::new(MemGraphSegment::new())),
@@ -74,14 +81,9 @@ impl GraphSegmentOps for GraphSegmentView {
     fn load(path: impl AsRef<Path>) -> Result<Self, StorageError> {
         todo!()
     }
-}
 
-impl<'a> GraphPropOps for &'a GraphSegmentView {
-    fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {
-        todo!()
-    }
-
-    fn get_metadata(&self, id: usize) -> Option<Prop> {
-        todo!()
+    fn entry<'a>(&'a self) -> Self::Entry<'a> {
+        let head = self.head.read();
+        MemGraphEntry::new(head)
     }
 }
