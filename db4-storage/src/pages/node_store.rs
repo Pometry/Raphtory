@@ -8,7 +8,7 @@ use crate::{
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
     },
     persist::strategy::Config,
-    segments::node::MemNodeSegment,
+    segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::meta::Meta;

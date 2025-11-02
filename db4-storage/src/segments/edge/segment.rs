@@ -1,4 +1,5 @@
-use super::{HasRow, SegmentContainer, edge_entry::MemEdgeEntry};
+use crate::segments::{HasRow, SegmentContainer};
+use crate::segments::edge::entry::MemEdgeEntry;
 use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
@@ -6,7 +7,7 @@ use crate::{
     pages::resolve_pos,
     persist::strategy::PersistentStrategy,
     properties::PropMutEntry,
-    segments::edge_entry::MemEdgeRef,
+    segments::edge::entry::MemEdgeRef,
     utils::Iter4,
 };
 use arrow_array::{ArrayRef, BooleanArray};
@@ -31,13 +32,13 @@ use std::{
 };
 
 #[derive(Debug, Default)]
-pub struct MemPageEntry {
+pub struct EdgeEntry {
     pub src: VID,
     pub dst: VID,
     pub row: usize,
 }
 
-impl HasRow for MemPageEntry {
+impl HasRow for EdgeEntry {
     fn row(&self) -> usize {
         self.row
     }
@@ -49,11 +50,11 @@ impl HasRow for MemPageEntry {
 
 #[derive(Debug)]
 pub struct MemEdgeSegment {
-    layers: Vec<SegmentContainer<MemPageEntry>>,
+    layers: Vec<SegmentContainer<EdgeEntry>>,
     est_size: usize,
 }
 
-impl<I: IntoIterator<Item = SegmentContainer<MemPageEntry>>> From<I> for MemEdgeSegment {
+impl<I: IntoIterator<Item = SegmentContainer<EdgeEntry>>> From<I> for MemEdgeSegment {
     fn from(inner: I) -> Self {
         let layers: Vec<_> = inner.into_iter().collect();
         let est_size = layers.iter().map(|seg| seg.est_size()).sum();
@@ -65,14 +66,14 @@ impl<I: IntoIterator<Item = SegmentContainer<MemPageEntry>>> From<I> for MemEdge
     }
 }
 
-impl AsRef<[SegmentContainer<MemPageEntry>]> for MemEdgeSegment {
-    fn as_ref(&self) -> &[SegmentContainer<MemPageEntry>] {
+impl AsRef<[SegmentContainer<EdgeEntry>]> for MemEdgeSegment {
+    fn as_ref(&self) -> &[SegmentContainer<EdgeEntry>] {
         &self.layers
     }
 }
 
-impl AsMut<[SegmentContainer<MemPageEntry>]> for MemEdgeSegment {
-    fn as_mut(&mut self) -> &mut [SegmentContainer<MemPageEntry>] {
+impl AsMut<[SegmentContainer<EdgeEntry>]> for MemEdgeSegment {
+    fn as_mut(&mut self) -> &mut [SegmentContainer<EdgeEntry>] {
         &mut self.layers
     }
 }
@@ -89,7 +90,7 @@ impl MemEdgeSegment {
         self.layers[0].meta()
     }
 
-    pub fn swap_out_layers(&mut self) -> Vec<SegmentContainer<MemPageEntry>> {
+    pub fn swap_out_layers(&mut self) -> Vec<SegmentContainer<EdgeEntry>> {
         let layers = self
             .as_mut()
             .iter_mut()
@@ -107,7 +108,7 @@ impl MemEdgeSegment {
         layers
     }
 
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<MemPageEntry> {
+    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<EdgeEntry> {
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -119,7 +120,7 @@ impl MemEdgeSegment {
         &mut self.layers[layer_id]
     }
 
-    pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<MemPageEntry>> {
+    pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<EdgeEntry>> {
         self.layers.get(layer_id)
     }
 

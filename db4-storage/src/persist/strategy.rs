@@ -3,8 +3,8 @@ use std::ops::DerefMut;
 use serde::{Deserialize, Serialize};
 
 use crate::segments::{
-    edge::{EdgeSegmentView, MemEdgeSegment},
-    node::{MemNodeSegment, NodeSegmentView},
+    edge::segment::{EdgeSegmentView, MemEdgeSegment},
+    node::segment::{MemNodeSegment, NodeSegmentView},
 };
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17

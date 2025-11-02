@@ -14,7 +14,7 @@ use crate::{
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     },
     persist::strategy::Config,
-    segments::edge::MemEdgeSegment,
+    segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};

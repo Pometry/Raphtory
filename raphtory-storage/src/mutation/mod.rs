@@ -22,7 +22,7 @@ use std::sync::Arc;
 use storage::{
     error::StorageError,
     pages::{edge_page::writer::EdgeWriter, node_page::writer::NodeWriter},
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     Extension, ES, NS,
 };
 use thiserror::Error;

@@ -28,7 +28,7 @@ use crate::{
     LocalPOS,
     error::StorageError,
     gen_ts::LayerIter,
-    segments::node::MemNodeSegment,
+    segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
 };
 

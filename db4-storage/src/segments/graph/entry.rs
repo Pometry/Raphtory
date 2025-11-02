@@ -1,4 +1,4 @@
-use crate::segments::graph::MemGraphSegment;
+use crate::segments::graph::segment::MemGraphSegment;
 use crate::api::graph::GraphEntryOps;
 use raphtory_core::entities::properties::tprop::TPropCell;
 use raphtory_api::core::entities::properties::prop::Prop;

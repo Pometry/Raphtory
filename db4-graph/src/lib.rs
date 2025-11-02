@@ -28,7 +28,7 @@ use storage::{
     resolver::GIDResolverOps,
     wal::{GraphWal, TransactionID, Wal},
     Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
-    GraphEntry,
+    segments::graph::entry::MemGraphEntry as GraphEntry,
 };
 use tempfile::TempDir;
 

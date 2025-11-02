@@ -23,9 +23,6 @@ pub mod node;
 pub mod graph;
 
 pub mod additions;
-pub mod edge_entry;
-pub mod node_entry;
-pub mod graph_entry;
 
 pub type PageIndexT = u32;
 

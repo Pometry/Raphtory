@@ -1,10 +1,7 @@
 use std::fmt::Debug;
 use std::path::Path;
 use crate::error::StorageError;
-use crate::segments::graph_entry::MemGraphEntry;
 use raphtory_core::entities::properties::props::MetadataError;
-use raphtory_core::storage::locked_view::LockedView;
-use raphtory_core::entities::properties::tprop::TProp;
 use raphtory_core::entities::properties::tprop::IllegalPropType;
 use raphtory_core::storage::timeindex::TimeIndexEntry;
 use raphtory_core::entities::properties::tprop::TPropCell;

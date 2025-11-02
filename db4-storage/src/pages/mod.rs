@@ -5,7 +5,7 @@ use crate::{
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::strategy::{Config, PersistentStrategy},
     properties::props_meta_writer::PropsMetaWriter,
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     GS,
 };
 use edge_page::writer::EdgeWriter;

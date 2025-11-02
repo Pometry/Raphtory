@@ -1,19 +1,11 @@
-use raphtory_core::entities::properties::graph_meta::GraphMeta;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
-use crate::api::graph::{GraphSegmentOps, GraphEntryOps};
+use crate::api::graph::GraphSegmentOps;
 use crate::error::StorageError;
-use crate::segments::graph_entry::MemGraphEntry;
+use crate::segments::graph::entry::MemGraphEntry;
 use crate::segments::{HasRow, SegmentContainer};
-use crate::LocalPOS;
 use parking_lot::RwLock;
-use raphtory_core::entities::properties::props::MetadataError;
-use raphtory_core::storage::locked_view::LockedView;
-use raphtory_core::entities::properties::tprop::{IllegalPropType, TProp, TPropCell};
-use raphtory_core::storage::timeindex::TimeIndexEntry;
-use raphtory_api::core::entities::properties::prop::Prop;
-use crate::properties::Properties;
 use raphtory_api::core::entities::properties::meta::Meta;
 
 /// In-memory segment that contains graph temporal properties and graph metadata.
@@ -78,7 +70,7 @@ impl GraphSegmentOps for GraphSegmentView {
         }
     }
 
-    fn load(path: impl AsRef<Path>) -> Result<Self, StorageError> {
+    fn load(_path: impl AsRef<Path>) -> Result<Self, StorageError> {
         todo!()
     }
 

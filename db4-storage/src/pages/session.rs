@@ -5,7 +5,7 @@ use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     persist::strategy::{Config, PersistentStrategy},
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
