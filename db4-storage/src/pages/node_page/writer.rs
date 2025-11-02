@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS, api::nodes::NodeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
-    segments::node::MemNodeSegment,
+    segments::node::segment::MemNodeSegment,
 };
 use raphtory_api::core::entities::{
     EID, VID,

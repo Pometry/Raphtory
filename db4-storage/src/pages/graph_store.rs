@@ -4,7 +4,6 @@ use crate::api::graph::GraphSegmentOps;
 use crate::error::StorageError;
 use crate::persist::strategy::Config;
 use raphtory_core::entities::properties::graph_meta::GraphMeta;
-use crate::GraphEntry;
 
 /// Backing store for graph temporal properties and graph metadata.
 #[derive(Debug)]

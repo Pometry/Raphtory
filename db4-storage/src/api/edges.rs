@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{LocalPOS, error::StorageError, segments::edge::MemEdgeSegment};
+use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment};
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type Extension;

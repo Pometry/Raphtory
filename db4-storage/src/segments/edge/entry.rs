@@ -14,7 +14,7 @@ use crate::{
     gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
 };
 
-use super::{additions::MemAdditions, edge::MemEdgeSegment};
+use crate::segments::{additions::MemAdditions, edge::segment::MemEdgeSegment};
 
 #[derive(Debug)]
 pub struct MemEdgeEntry<'a, MES> {

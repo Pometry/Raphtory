@@ -3,7 +3,7 @@ use crate::{
     api::nodes::{NodeEntryOps, NodeRefOps},
     gen_t_props::WithTProps,
     gen_ts::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
-    segments::node::MemNodeSegment,
+    segments::node::segment::MemNodeSegment,
 };
 use raphtory_api::core::{
     Direction,
@@ -18,7 +18,7 @@ use raphtory_core::{
 };
 use std::{ops::Deref, sync::Arc};
 
-use super::additions::MemAdditions;
+use crate::segments::additions::MemAdditions;
 
 pub struct MemNodeEntry<'a, MNS> {
     pos: LocalPOS,
