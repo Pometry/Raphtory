@@ -19,16 +19,12 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    error::StorageError,
-    pages::{
+    api::graph::GraphSegmentOps, error::StorageError, pages::{
         layer_counter::GraphStats,
         locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
-    },
-    persist::strategy::{Config, PersistentStrategy},
-    resolver::GIDResolverOps,
-    wal::{GraphWal, TransactionID, Wal},
-    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
-    segments::graph::entry::MemGraphEntry as GraphEntry,
+    }, persist::strategy::{Config, PersistentStrategy},
+    resolver::GIDResolverOps, wal::{GraphWal, TransactionID, Wal},
+    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, GS, NS
 };
 use tempfile::TempDir;
 
@@ -242,7 +238,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         }
     }
 
-    pub fn graph_entry(&self) -> GraphEntry {
+    pub fn graph_entry(&self) -> <GS as GraphSegmentOps>::Entry<'_> {
         self.storage().graph().graph_entry()
     }
 

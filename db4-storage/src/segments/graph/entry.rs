@@ -15,7 +15,7 @@ impl<'a> MemGraphEntry<'a> {
     }
 }
 
-impl GraphEntryOps for MemGraphEntry<'_> {
+impl<'a> GraphEntryOps<'a> for MemGraphEntry<'a> {
     fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {
         let row = 0; // GraphSegment has only one row
 
