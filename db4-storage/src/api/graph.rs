@@ -12,17 +12,17 @@ pub trait GraphSegmentOps: Send + Sync + Debug + 'static
 where
     Self: Sized,
 {
-    type Entry<'a>: GraphEntryOps;
+    type Entry<'a>: GraphEntryOps<'a>;
 
     fn new() -> Self;
 
     fn load(path: impl AsRef<Path>) -> Result<Self, StorageError>;
 
-    fn entry<'a>(&'a self) -> Self::Entry<'a>;
+    fn entry(&self) -> Self::Entry<'_>;
 }
 
 /// Methods for reading graph properties and metadata from storage.
-pub trait GraphEntryOps: Send + Sync {
+pub trait GraphEntryOps<'a>: Send + Sync + 'a {
     fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>>;
 
     fn get_metadata(&self, prop_id: usize) -> Option<Prop>;
