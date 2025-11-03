@@ -46,12 +46,12 @@ pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type GS = GraphSegmentView;
-pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
+pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS, P>;
 
 pub type WalImpl = NoWal;
 pub type GIDResolver = MappingResolver;
 
-pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, P>;
+pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS, P>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NS<P>, P>;
 pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<ES<P>, P>;
 
