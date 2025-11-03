@@ -17,6 +17,7 @@ use crate::{
 use pyo3::{exceptions::PyTypeError, pyclass, pymethods, Bound, PyAny, PyResult};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
+use crate::db::graph::views::filter::model::exploded_edge_filter::ExplodedEdgeFilter;
 
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 #[derive(Clone)]
@@ -97,6 +98,16 @@ pub struct PyExplodedEdgeFilter;
 
 #[pymethods]
 impl PyExplodedEdgeFilter {
+    #[staticmethod]
+    fn src() -> PyEdgeEndpoint {
+        PyEdgeEndpoint(EdgeFilter::src())
+    }
+
+    #[staticmethod]
+    fn dst() -> PyEdgeEndpoint {
+        PyEdgeEndpoint(EdgeFilter::dst())
+    }
+    
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<ExplodedEdgeFilter> {
         ExplodedEdgeFilter::property(name)

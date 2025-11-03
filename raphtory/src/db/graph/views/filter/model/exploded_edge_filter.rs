@@ -16,9 +16,13 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
+use crate::db::graph::views::filter::edge_node_filtered_graph::EdgeNodeFilteredGraph;
+use crate::db::graph::views::filter::model::edge_filter::{EdgeEndpoint, Endpoint};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeExplodedEdgeFilter {
+    Src(CompositeNodeFilter),
+    Dst(CompositeNodeFilter),
     Property(PropertyFilter<ExplodedEdgeFilter>),
     And(
         Box<CompositeExplodedEdgeFilter>,
@@ -34,6 +38,8 @@ pub enum CompositeExplodedEdgeFilter {
 impl Display for CompositeExplodedEdgeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            CompositeExplodedEdgeFilter::Src(filter) => write!(f, "SRC({})", filter),
+            CompositeExplodedEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
             CompositeExplodedEdgeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeExplodedEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -66,6 +72,22 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         match self {
+            CompositeExplodedEdgeFilter::Src(filter) => {
+                let filtered_graph = filter.clone().create_filter(graph.clone())?;
+                Ok(Arc::new(EdgeNodeFilteredGraph::new(
+                    graph,
+                    Endpoint::Src,
+                    filtered_graph
+                )))
+            },
+            CompositeExplodedEdgeFilter::Dst(filter) => {
+                let filtered_graph = filter.clone().create_filter(graph.clone())?;
+                Ok(Arc::new(EdgeNodeFilteredGraph::new(
+                    graph,
+                    Endpoint::Dst,
+                    filtered_graph
+                )))
+            },
             CompositeExplodedEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeExplodedEdgeFilter::And(l, r) => Ok(Arc::new(
                 AndFilter {
@@ -109,6 +131,16 @@ pub struct ExplodedEdgeFilter;
 impl PropertyFilterFactory<ExplodedEdgeFilter> for ExplodedEdgeFilter {}
 
 impl ExplodedEdgeFilter {
+    #[inline]
+    pub fn src() -> EdgeEndpoint {
+        EdgeEndpoint::src()
+    }
+
+    #[inline]
+    pub fn dst() -> EdgeEndpoint {
+        EdgeEndpoint::dst()
+    }
+
     #[inline]
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
         Windowed::from_times(start, end)
