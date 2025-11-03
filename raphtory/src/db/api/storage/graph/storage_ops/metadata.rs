@@ -1,5 +1,5 @@
 use raphtory_api::core::storage::arc_str::ArcStr;
-
+use storage::api::graph::GraphEntryOps;
 use crate::{
     db::api::{properties::internal::InternalMetadataOps, view::BoxedLIter},
     prelude::Prop,
@@ -21,7 +21,10 @@ impl InternalMetadataOps for GraphStorage {
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
-        self.graph_meta().get_metadata(id)
+        let graph_entry = self.graph_entry();
+
+        // Return the metadata value for the given property id.
+        graph_entry.get_metadata(id)
     }
 
     fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {
