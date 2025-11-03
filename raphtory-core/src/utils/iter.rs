@@ -1,6 +1,7 @@
 use ouroboros::self_referencing;
 use raphtory_api::iter::{BoxedLDIter, BoxedLIter};
 
+/// Iterator that returns elements from a locked object.
 #[self_referencing]
 pub struct GenLockedIter<'a, O, OUT> {
     owner: O,
@@ -37,6 +38,7 @@ impl<'a, O, OUT> GenLockedIter<'a, O, OUT> {
     }
 }
 
+/// Double-ended iterator that returns elements from a locked object.
 #[self_referencing]
 pub struct GenLockedDIter<'a, O, OUT> {
     owner: O,

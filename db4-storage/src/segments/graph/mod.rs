@@ -36,7 +36,7 @@ impl GraphSegmentOps for GraphSegmentView {
         todo!()
     }
 
-    fn entry<'a>(&'a self) -> Self::Entry<'a> {
+    fn entry(&self) -> Self::Entry<'_> {
         let head = self.head.read();
         MemGraphEntry::new(head)
     }
