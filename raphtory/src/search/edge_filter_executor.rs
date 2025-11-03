@@ -245,6 +245,9 @@ impl<'a> EdgeFilterExecutor<'a> {
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }
+            CompositeEdgeFilter::PropertyWindowed(filter) => {
+                fallback_filter_edges(graph, filter, limit, offset)
+            }
             CompositeEdgeFilter::Edge(filter) => {
                 self.filter_edge_index(graph, filter, limit, offset)
             }

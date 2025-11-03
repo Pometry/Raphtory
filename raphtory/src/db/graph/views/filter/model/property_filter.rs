@@ -34,10 +34,7 @@ use raphtory_api::core::{
         },
         EID,
     },
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
-    },
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
@@ -1747,11 +1744,12 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         }
     }
 }
+
 impl<T: InternalPropertyFilterOps + Sized> ListAggOps for T {}
 
 impl TryAsCompositeFilter for PropertyFilter<Windowed<NodeFilter>> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeNodeFilter::PropertyWindowed(self.clone()))
     }
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
         Err(GraphError::NotSupported)
@@ -1768,7 +1766,7 @@ impl TryAsCompositeFilter for PropertyFilter<Windowed<EdgeFilter>> {
         Err(GraphError::NotSupported)
     }
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeEdgeFilter::PropertyWindowed(self.clone()))
     }
     fn try_as_composite_exploded_edge_filter(
         &self,
@@ -1787,6 +1785,6 @@ impl TryAsCompositeFilter for PropertyFilter<Windowed<ExplodedEdgeFilter>> {
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeExplodedEdgeFilter::PropertyWindowed(self.clone()))
     }
 }

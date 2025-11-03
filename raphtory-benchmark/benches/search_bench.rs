@@ -199,7 +199,7 @@ fn convert_to_property_filter<M>(
     sampled_values: Option<Vec<Prop>>,
 ) -> Option<PropertyFilter<M>>
 where
-    M: PropertyFilterFactory<M>,
+    M: PropertyFilterFactory + Default,
     PropertyFilterBuilder<M>: PropertyFilterOps + InternalPropertyFilterOps<Marker = M>,
 {
     let mut rng = thread_rng();
@@ -216,22 +216,24 @@ where
                     let sub_str = tokens[start..=end].join(" ");
 
                     match filter_op {
-                        Eq => Some(M::property(prop_name).eq(sub_str)),
-                        Ne => Some(M::property(prop_name).ne(sub_str)),
-                        IsIn => sampled_values.map(|vals| M::property(prop_name).is_in(vals)),
-                        IsNotIn => {
-                            sampled_values.map(|vals| M::property(prop_name).is_not_in(vals))
+                        Eq => Some(M::default().property(prop_name).eq(sub_str)),
+                        Ne => Some(M::default().property(prop_name).ne(sub_str)),
+                        IsIn => {
+                            sampled_values.map(|vals| M::default().property(prop_name).is_in(vals))
                         }
+                        IsNotIn => sampled_values
+                            .map(|vals| M::default().property(prop_name).is_not_in(vals)),
                         _ => None, // No numeric comparison for strings
                     }
                 } else {
                     match filter_op {
-                        Eq => Some(M::property(prop_name).eq(full_str)),
-                        Ne => Some(M::property(prop_name).ne(full_str)),
-                        IsIn => sampled_values.map(|vals| M::property(prop_name).is_in(vals)),
-                        IsNotIn => {
-                            sampled_values.map(|vals| M::property(prop_name).is_not_in(vals))
+                        Eq => Some(M::default().property(prop_name).eq(full_str)),
+                        Ne => Some(M::default().property(prop_name).ne(full_str)),
+                        IsIn => {
+                            sampled_values.map(|vals| M::default().property(prop_name).is_in(vals))
                         }
+                        IsNotIn => sampled_values
+                            .map(|vals| M::default().property(prop_name).is_not_in(vals)),
                         _ => None, // No numeric comparison for strings
                     }
                 }
@@ -242,43 +244,43 @@ where
 
         // Numeric properties support all comparison operators
         PropType::U64 => prop_value.into_u64().and_then(|v| match filter_op {
-            Eq => Some(M::property(prop_name).eq(v)),
-            Ne => Some(M::property(prop_name).ne(v)),
-            Lt => Some(M::property(prop_name).lt(v)),
-            Le => Some(M::property(prop_name).le(v)),
-            Gt => Some(M::property(prop_name).gt(v)),
-            Ge => Some(M::property(prop_name).ge(v)),
-            IsIn => sampled_values.map(|vals| M::property(prop_name).is_in(vals)),
-            IsNotIn => sampled_values.map(|vals| M::property(prop_name).is_not_in(vals)),
+            Eq => Some(M::default().property(prop_name).eq(v)),
+            Ne => Some(M::default().property(prop_name).ne(v)),
+            Lt => Some(M::default().property(prop_name).lt(v)),
+            Le => Some(M::default().property(prop_name).le(v)),
+            Gt => Some(M::default().property(prop_name).gt(v)),
+            Ge => Some(M::default().property(prop_name).ge(v)),
+            IsIn => sampled_values.map(|vals| M::default().property(prop_name).is_in(vals)),
+            IsNotIn => sampled_values.map(|vals| M::default().property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::I64 => prop_value.into_i64().and_then(|v| match filter_op {
-            Eq => Some(M::property(prop_name).eq(v)),
-            Ne => Some(M::property(prop_name).ne(v)),
-            Lt => Some(M::property(prop_name).lt(v)),
-            Le => Some(M::property(prop_name).le(v)),
-            Gt => Some(M::property(prop_name).gt(v)),
-            Ge => Some(M::property(prop_name).ge(v)),
-            IsIn => sampled_values.map(|vals| M::property(prop_name).is_in(vals)),
-            IsNotIn => sampled_values.map(|vals| M::property(prop_name).is_not_in(vals)),
+            Eq => Some(M::default().property(prop_name).eq(v)),
+            Ne => Some(M::default().property(prop_name).ne(v)),
+            Lt => Some(M::default().property(prop_name).lt(v)),
+            Le => Some(M::default().property(prop_name).le(v)),
+            Gt => Some(M::default().property(prop_name).gt(v)),
+            Ge => Some(M::default().property(prop_name).ge(v)),
+            IsIn => sampled_values.map(|vals| M::default().property(prop_name).is_in(vals)),
+            IsNotIn => sampled_values.map(|vals| M::default().property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::F64 => prop_value.into_f64().and_then(|v| match filter_op {
-            Eq => Some(M::property(prop_name).eq(v)),
-            Ne => Some(M::property(prop_name).ne(v)),
-            Lt => Some(M::property(prop_name).lt(v)),
-            Le => Some(M::property(prop_name).le(v)),
-            Gt => Some(M::property(prop_name).gt(v)),
-            Ge => Some(M::property(prop_name).ge(v)),
-            IsIn => sampled_values.map(|vals| M::property(prop_name).is_in(vals)),
-            IsNotIn => sampled_values.map(|vals| M::property(prop_name).is_not_in(vals)),
+            Eq => Some(M::default().property(prop_name).eq(v)),
+            Ne => Some(M::default().property(prop_name).ne(v)),
+            Lt => Some(M::default().property(prop_name).lt(v)),
+            Le => Some(M::default().property(prop_name).le(v)),
+            Gt => Some(M::default().property(prop_name).gt(v)),
+            Ge => Some(M::default().property(prop_name).ge(v)),
+            IsIn => sampled_values.map(|vals| M::default().property(prop_name).is_in(vals)),
+            IsNotIn => sampled_values.map(|vals| M::default().property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
         PropType::Bool => prop_value.into_bool().and_then(|v| match filter_op {
-            Eq => Some(M::property(prop_name).eq(v)),
-            Ne => Some(M::property(prop_name).ne(v)),
-            IsIn => sampled_values.map(|vals| M::property(prop_name).is_in(vals)),
-            IsNotIn => sampled_values.map(|vals| M::property(prop_name).is_not_in(vals)),
+            Eq => Some(M::default().property(prop_name).eq(v)),
+            Ne => Some(M::default().property(prop_name).ne(v)),
+            IsIn => sampled_values.map(|vals| M::default().property(prop_name).is_in(vals)),
+            IsNotIn => sampled_values.map(|vals| M::default().property(prop_name).is_not_in(vals)),
             _ => return None,
         }),
 

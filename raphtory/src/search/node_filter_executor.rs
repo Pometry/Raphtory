@@ -249,6 +249,9 @@ impl<'a> NodeFilterExecutor<'a> {
             CompositeNodeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }
+            CompositeNodeFilter::PropertyWindowed(filter) => {
+                fallback_filter_nodes(graph, filter, limit, offset)
+            }
             CompositeNodeFilter::Node(filter) => {
                 self.filter_node_index(graph, filter, limit, offset)
             }

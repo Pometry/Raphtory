@@ -212,7 +212,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_nodes_tests(g);
             g.create_index().unwrap();
-            let filter = NodeFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let mut results = g
                 .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
@@ -244,7 +244,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);
             g.create_index().unwrap();
-            let filter = EdgeFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let mut results = g
                 .search_edges(filter, 10, 0)
                 .expect("Failed to search for nodes")

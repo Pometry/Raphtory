@@ -13,7 +13,6 @@ use std::{
     sync::Arc,
 };
 
-use raphtory_api::core::storage::timeindex::AsTime;
 #[cfg(feature = "arrow")]
 use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 

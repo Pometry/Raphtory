@@ -9,9 +9,7 @@ use crate::{
         node_filter::{CompositeNodeFilter, NodeFilter, NodeNameFilter, NodeTypeFilter},
         not_filter::NotFilter,
         or_filter::OrFilter,
-        property_filter::{
-            MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder, PropertyRef,
-        },
+        property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
     },
     errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
@@ -32,7 +30,7 @@ pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {
     pub start: TimeIndexEntry,
     pub end: TimeIndexEntry,
@@ -374,7 +372,7 @@ impl EntityMarker for ExplodedEdgeFilter {}
 
 impl<M: EntityMarker + Clone + Send + Sync + 'static> EntityMarker for Windowed<M> {}
 
-pub trait PropertyFilterFactory: EntityMarker {
+pub trait PropertyFilterFactory: Sized {
     fn property(&self, name: impl Into<String>) -> PropertyFilterBuilder<Self>;
 
     fn metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<Self>;
