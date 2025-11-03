@@ -15,6 +15,7 @@ use crate::{
     api::{
         edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps},
         nodes::{NodeEntryOps, NodeRefOps, NodeSegmentOps},
+        graph::GraphSegmentOps,
     },
     error::StorageError,
     pages::GraphStore,
@@ -26,15 +27,24 @@ use super::fixtures::{AddEdge, Fixture, NodeFixture};
 pub fn make_graph_from_edges<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphSegmentOps,
     EXT: PersistentStrategy,
 >(
     edges: &[(VID, VID, Option<usize>)], // src, dst, optional layer_id
     graph_dir: &Path,
     par_load: bool,
-    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
-) -> GraphStore<NS, ES, EXT> {
-    let graph = make_graph(graph_dir);
-    for (_, _, layer) in edges {
+    check_load: bool,
+    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
+) {
+    let mut edges = edges
+        .into_iter()
+        .map(|(src, dst, layer_id)| (src.into(), dst.into(), layer_id))
+        .collect::<Vec<_>>();
+
+    let graph_dir = tempfile::tempdir().unwrap();
+    let graph = make_graph(graph_dir.path());
+    let mut nodes = HashSet::new();
+    for (_, _, layer) in &edges {
         if let Some(layer) = layer {
             for layer in 0..=*layer {
                 let name = layer.to_string();
@@ -117,11 +127,12 @@ pub fn check_edges_support<
     fn check<
         NS: NodeSegmentOps<Extension = EXT>,
         ES: EdgeSegmentOps<Extension = EXT>,
+        GS: GraphSegmentOps,
         EXT: PersistentStrategy,
     >(
         stage: &str,
         expected_edges: &[(VID, VID, Option<usize>)], // (src, dst, layer_id)
-        graph: &GraphStore<NS, ES, EXT>,
+        graph: &GraphStore<NS, ES, GS, EXT>,
     ) {
         let nodes = graph.nodes();
         let edges = graph.edges();
@@ -203,7 +214,7 @@ pub fn check_edges_support<
     if check_load {
         drop(graph);
 
-        let maybe_ns = GraphStore::<NS, ES, EXT>::load(graph_dir.path());
+        let maybe_ns = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path());
 
         match maybe_ns {
             Ok(graph) => {
@@ -220,10 +231,11 @@ pub fn check_graph_with_nodes_support<
     EXT: PersistentStrategy,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphSegmentOps,
 >(
     fixture: &NodeFixture,
     check_load: bool,
-    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
+    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
 ) {
     let NodeFixture {
         temp_props,
@@ -248,7 +260,7 @@ pub fn check_graph_with_nodes_support<
 
     let check_fn = |temp_props: &[(VID, i64, Vec<(String, Prop)>)],
                     const_props: &[(VID, Vec<(String, Prop)>)],
-                    graph: &GraphStore<NS, ES, EXT>| {
+                    graph: &GraphStore<NS, ES, GS, EXT>| {
         let mut ts_for_nodes = HashMap::new();
         for (node, t, _) in temp_props {
             ts_for_nodes.entry(*node).or_insert_with(Vec::new).push(*t);
@@ -345,7 +357,7 @@ pub fn check_graph_with_nodes_support<
 
     if check_load {
         drop(graph);
-        let graph = GraphStore::<NS, ES, EXT>::load(graph_dir.path()).unwrap();
+        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path()).unwrap();
         check_fn(temp_props, const_props, &graph);
     }
 }
@@ -354,10 +366,11 @@ pub fn check_graph_with_props_support<
     EXT: PersistentStrategy,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphSegmentOps,
 >(
     fixture: &Fixture,
     check_load: bool,
-    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
+    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
 ) {
     let Fixture { edges, const_props } = fixture;
     let graph_dir = tempfile::tempdir().unwrap();
@@ -388,7 +401,7 @@ pub fn check_graph_with_props_support<
 
     black_box(assert!(graph.edges().num_edges() > 0));
 
-    let check_fn = |edges: &[AddEdge], graph: &GraphStore<NS, ES, EXT>| {
+    let check_fn = |edges: &[AddEdge], graph: &GraphStore<NS, ES, GS, EXT>| {
         let mut edge_groups = HashMap::new();
         let mut node_groups: HashMap<VID, Vec<i64>> = HashMap::new();
 
@@ -499,7 +512,7 @@ pub fn check_graph_with_props_support<
         // Load the graph from disk and check again
         drop(graph);
 
-        let graph = GraphStore::<NS, ES, EXT>::load(graph_dir.path()).unwrap();
+        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path()).unwrap();
         black_box(check_fn(edges, &graph));
     }
 }

@@ -1,12 +1,10 @@
 use crate::{
-    LocalPOS,
-    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError,
-    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
+    api::{edges::EdgeSegmentOps, graph::GraphSegmentOps, nodes::NodeSegmentOps},
+    error::StorageError, pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::strategy::{Config, PersistentStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    GS,
+    LocalPOS,
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -47,7 +45,7 @@ pub mod test_utils;
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 
 #[derive(Debug)]
-pub struct GraphStore<NS, ES, EXT: Config> {
+pub struct GraphStore<NS, ES, GS, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     graph: Arc<GraphStorageInner<GS, EXT>>,
@@ -60,20 +58,22 @@ pub struct GraphStore<NS, ES, EXT: Config> {
 pub struct ReadLockedGraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphSegmentOps,
     EXT: Config,
 > {
     pub nodes: Arc<ReadLockedNodeStorage<NS, EXT>>,
     pub edges: Arc<ReadLockedEdgeStorage<ES, EXT>>,
-    pub graph: Arc<GraphStore<NS, ES, EXT>>,
+    pub graph: Arc<GraphStore<NS, ES, GS, EXT>>,
 }
 
 impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphSegmentOps,
     EXT: PersistentStrategy,
-> GraphStore<NS, ES, EXT>
+> GraphStore<NS, ES, GS, EXT>
 {
-    pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, EXT> {
+    pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, GS, EXT> {
         let nodes = self.nodes.locked().into();
         let edges = self.edges.locked().into();
 
@@ -342,7 +342,7 @@ impl<
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-    ) -> WriteSession<'_, NS, ES, EXT> {
+    ) -> WriteSession<'_, NS, ES, GS, EXT> {
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
@@ -375,7 +375,7 @@ impl<
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-    ) -> WriteSession<'_, NS, ES, EXT> {
+    ) -> WriteSession<'_, NS, ES, GS, EXT> {
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
@@ -430,7 +430,7 @@ impl<
     }
 }
 
-impl<NS, ES, EXT: Config> Drop for GraphStore<NS, ES, EXT> {
+impl<NS, ES, GS, EXT: Config> Drop for GraphStore<NS, ES, GS, EXT> {
     fn drop(&mut self) {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         self._ext.set_node_types(node_types);

@@ -3,8 +3,7 @@ use std::ops::DerefMut;
 use serde::{Deserialize, Serialize};
 
 use crate::segments::{
-    edge::segment::{EdgeSegmentView, MemEdgeSegment},
-    node::segment::{MemNodeSegment, NodeSegmentView},
+    edge::segment::{EdgeSegmentView, MemEdgeSegment}, graph::GraphSegmentView, node::segment::{MemNodeSegment, NodeSegmentView}
 };
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
@@ -26,12 +25,15 @@ pub trait Config:
 pub trait PersistentStrategy: Config {
     type NS;
     type ES;
+    type GS;
+
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         node_page: &Self::NS,
         writer: MP,
     ) where
         Self: Sized;
+
     fn persist_edge_page<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         edge_page: &Self::ES,
@@ -93,6 +95,7 @@ impl Config for NoOpStrategy {
 impl PersistentStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
+    type GS = GraphSegmentView;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
