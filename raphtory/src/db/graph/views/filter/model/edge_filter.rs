@@ -392,7 +392,7 @@ impl EdgeFilter {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
 
 impl ExplodedEdgeFilter {

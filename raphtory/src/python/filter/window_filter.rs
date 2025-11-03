@@ -2,7 +2,7 @@ use crate::{
     db::graph::views::filter::model::{
         edge_filter::{EdgeFilter, ExplodedEdgeFilter},
         node_filter::NodeFilter,
-        property_filter::WindowedPropertyRef,
+        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         Windowed,
     },
     python::filter::property_filter_builders::PyPropertyFilterOps,
@@ -21,13 +21,15 @@ pub struct PyNodeWindow(pub Windowed<NodeFilter>);
 #[pymethods]
 impl PyNodeWindow {
     fn property(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<NodeFilter> = self.0.clone().property(name);
-        PyPropertyFilterOps::from_arc(Arc::new(wpr))
+        let b: PropertyFilterBuilder<Windowed<NodeFilter>> =
+            PropertyFilterBuilder::new(name, self.0.clone());
+        PyPropertyFilterOps::from_arc(Arc::new(b))
     }
 
     fn metadata(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<NodeFilter> = self.0.clone().metadata(name);
-        PyPropertyFilterOps::from_arc(Arc::new(wpr))
+        let b: MetadataFilterBuilder<Windowed<NodeFilter>> =
+            MetadataFilterBuilder::new(name, self.0.clone());
+        PyPropertyFilterOps::from_arc(Arc::new(b))
     }
 }
 
@@ -38,13 +40,15 @@ pub struct PyEdgeWindow(pub Windowed<EdgeFilter>);
 #[pymethods]
 impl PyEdgeWindow {
     fn property(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<EdgeFilter> = self.0.clone().property(name);
-        PyPropertyFilterOps::from_arc(Arc::new(wpr))
+        let b: PropertyFilterBuilder<Windowed<EdgeFilter>> =
+            PropertyFilterBuilder::new(name, self.0.clone());
+        PyPropertyFilterOps::from_arc(Arc::new(b))
     }
 
     fn metadata(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<EdgeFilter> = self.0.clone().metadata(name);
-        PyPropertyFilterOps::from_arc(Arc::new(wpr))
+        let b: MetadataFilterBuilder<Windowed<EdgeFilter>> =
+            MetadataFilterBuilder::new(name, self.0.clone());
+        PyPropertyFilterOps::from_arc(Arc::new(b))
     }
 }
 
@@ -55,12 +59,14 @@ pub struct PyExplodedEdgeWindow(pub Windowed<ExplodedEdgeFilter>);
 #[pymethods]
 impl PyExplodedEdgeWindow {
     fn property(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<ExplodedEdgeFilter> = self.0.clone().property(name);
-        PyPropertyFilterOps::from_arc(Arc::new(wpr))
+        let b: PropertyFilterBuilder<Windowed<ExplodedEdgeFilter>> =
+            PropertyFilterBuilder::new(name, self.0.clone());
+        PyPropertyFilterOps::from_arc(Arc::new(b))
     }
 
     fn metadata(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<ExplodedEdgeFilter> = self.0.clone().metadata(name);
-        PyPropertyFilterOps::from_arc(Arc::new(wpr))
+        let b: MetadataFilterBuilder<Windowed<ExplodedEdgeFilter>> =
+            MetadataFilterBuilder::new(name, self.0.clone());
+        PyPropertyFilterOps::from_arc(Arc::new(b))
     }
 }

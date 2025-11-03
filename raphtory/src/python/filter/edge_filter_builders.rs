@@ -185,12 +185,12 @@ impl PyEdgeFilter {
 
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<EdgeFilter> {
-        EdgeFilter::property(name)
+        EdgeFilter::default().property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<EdgeFilter> {
-        EdgeFilter::metadata(name)
+        EdgeFilter::default().metadata(name)
     }
 
     #[staticmethod]
@@ -212,12 +212,12 @@ pub struct PyExplodedEdgeFilter;
 impl PyExplodedEdgeFilter {
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<ExplodedEdgeFilter> {
-        ExplodedEdgeFilter::property(name)
+        ExplodedEdgeFilter::default().property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<ExplodedEdgeFilter> {
-        ExplodedEdgeFilter::metadata(name)
+        ExplodedEdgeFilter::default().metadata(name)
     }
 
     #[staticmethod]

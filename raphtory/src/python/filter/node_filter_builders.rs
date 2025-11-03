@@ -176,12 +176,12 @@ impl PyNodeFilter {
 
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<NodeFilter> {
-        NodeFilter::property(name)
+        NodeFilter::default().property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<NodeFilter> {
-        NodeFilter::metadata(name)
+        NodeFilter::default().metadata(name)
     }
 
     #[staticmethod]

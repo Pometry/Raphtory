@@ -1,7 +1,6 @@
 use crate::db::graph::views::filter::model::{
     edge_filter::EdgeFieldFilter,
     node_filter::{NodeNameFilter, NodeTypeFilter},
-    property_filter::PropertyFilter,
 };
 
 pub mod and_filtered_graph;
