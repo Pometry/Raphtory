@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use super::GraphStorage;
 use crate::{
     core::utils::iter::GenLockedIter,
@@ -9,6 +7,7 @@ use crate::{
     },
     prelude::Prop,
 };
+use storage::api::graph::GraphEntryOps;
 use raphtory_api::{
     core::{
         entities::properties::{prop::PropType, tprop::TPropOps},
@@ -23,36 +22,55 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(id)
-            .into_iter()
-            .flat_map(|prop| GenLockedIter::from(prop, |prop| prop.deref().iter().into_dyn_boxed()))
-            .into_dyn_boxed()
+        let graph_entry = self.graph_entry();
+
+        // Return a boxed iterator of temporal props over the locked graph entry.
+        let iter = GenLockedIter::from(
+            graph_entry,
+            |entry| {
+                entry.get_temporal_prop(id)
+                    .into_iter()
+                    .flat_map(|prop| prop.iter()).into_dyn_boxed()
+            }
+        );
+
+        iter.into_dyn_boxed()
     }
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(id)
-            .into_iter()
-            .flat_map(|prop| {
-                GenLockedIter::from(prop, |prop| {
-                    prop.deref().iter_inner_rev(None).into_dyn_boxed()
-                })
-            })
-            .into_dyn_boxed()
+        let graph_entry = self.graph_entry();
+
+        // Return a boxed iterator of temporal props in reverse order over
+        // the locked graph entry.
+        let iter = GenLockedIter::from(
+            graph_entry,
+            |entry| {
+                entry.get_temporal_prop(id)
+                    .into_iter()
+                    .flat_map(|prop| prop.iter_inner_rev(None)).into_dyn_boxed()
+            }
+        );
+
+        iter.into_dyn_boxed()
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
-        self.graph_meta().get_temporal_prop(id).and_then(|prop| {
-            prop.deref()
+        let graph_entry = self.graph_entry();
+
+        // Return the latest temporal prop value.
+        graph_entry.get_temporal_prop(id).and_then(|prop| {
+            prop
                 .last_before(TimeIndexEntry::MAX)
                 .map(|(_, v)| v)
         })
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
-        self.graph_meta().get_temporal_prop(id).and_then(|prop| {
-            prop.deref()
+        let graph_entry = self.graph_entry();
+
+        // Return the temporal prop value at the given time.
+        graph_entry.get_temporal_prop(id).and_then(|prop| {
+            prop
                 .last_before(TimeIndexEntry::start(t.saturating_add(1)))
                 .map(|(_, v)| v)
         })

@@ -210,6 +210,7 @@ impl GraphStorage {
         }
     }
 
+    /// Acquired a locked, read-only view of graph properties / metadata.
     #[inline(always)]
     pub fn graph_entry(&self) -> GraphEntry<'_> {
         match self {
