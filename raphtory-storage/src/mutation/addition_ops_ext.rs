@@ -1,3 +1,7 @@
+use crate::mutation::{
+    addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+    MutationError,
+};
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
@@ -15,16 +19,12 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
+    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     Extension, WalImpl, ES, NS,
-};
-
-use crate::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-    MutationError,
 };
 
 pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> {
@@ -223,6 +223,16 @@ impl InternalAdditionOps for TemporalGraph {
             if id > MAX_LAYER {
                 Err(TooManyLayers)?;
             }
+            let edge_segment = self.storage().edges().get_or_create_segment(0);
+            let mut edge_segment_head = edge_segment.head_mut();
+            edge_segment_head.get_or_create_layer(id);
+            edge_segment.notify_write(edge_segment_head)?;
+
+            let node_segment = self.storage().nodes().get_or_create_segment(0);
+
+            let mut node_segment_head = node_segment.head_mut();
+            node_segment_head.get_or_create_layer(id);
+            node_segment.notify_write(node_segment_head)?;
         }
         Ok(id)
     }
