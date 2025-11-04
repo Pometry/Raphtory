@@ -10,10 +10,6 @@ use crate::{
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-pub fn py_into_millis(obj: &Bound<PyAny>) -> PyResult<i64> {
-    obj.extract::<i64>()
-}
-
 #[pyclass(frozen, name = "NodeWindow", module = "raphtory.filter")]
 #[derive(Clone)]
 pub struct PyNodeWindow(pub Windowed<NodeFilter>);

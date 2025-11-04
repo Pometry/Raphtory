@@ -1259,17 +1259,16 @@ impl<M> PropertyFilter<M> {
                 let props = edge.metadata();
                 self.is_metadata_matched(prop_id, props)
             }
-            PropertyRef::TemporalProperty(_) | PropertyRef::Property(_) => {
-                if matches!(self.prop_ref, PropertyRef::TemporalProperty(_)) {
-                    let seq: Vec<Prop> = edge
-                        .properties()
-                        .temporal()
-                        .get_by_id(prop_id)
-                        .map(|tv| tv.values().collect())
-                        .unwrap_or_default();
-                    return self.eval_temporal_and_apply(seq);
-                }
-
+            PropertyRef::TemporalProperty(_) => {
+                let seq: Vec<Prop> = edge
+                    .properties()
+                    .temporal()
+                    .get_by_id(prop_id)
+                    .map(|tv| tv.values().collect())
+                    .unwrap_or_default();
+                self.eval_temporal_and_apply(seq)
+            }
+            PropertyRef::Property(_) => {
                 let props = edge.properties();
                 self.is_property_matched(prop_id, props)
             }

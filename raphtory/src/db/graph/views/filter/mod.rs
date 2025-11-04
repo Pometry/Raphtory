@@ -17,6 +17,107 @@ pub mod not_filtered_graph;
 pub mod or_filtered_graph;
 
 #[cfg(test)]
+mod test_composite_filters {
+    use crate::{
+        db::graph::views::filter::model::{
+            edge_filter::EdgeFilter, node_filter::NodeFilter, property_filter::PropertyFilterOps,
+            Filter, PropertyFilterFactory,
+        },
+        prelude::IntoProp,
+    };
+    use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+
+    #[test]
+    fn test_fuzzy_search() {
+        let filter = Filter::fuzzy_search("name", "pomet", 2, false);
+        assert!(filter.matches(Some("pometry")));
+
+        let filter = Filter::fuzzy_search("name", "shivam_kapoor", 2, false);
+        assert!(filter.matches(Some("shivam_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
+        assert!(filter.matches(Some("shivam_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
+        assert!(filter.matches(Some("shivam_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
+        assert!(!filter.matches(Some("shivam1_kapoor2")));
+
+        let filter = Filter::fuzzy_search("name", "khivam sapoor", 2, false);
+        assert!(!filter.matches(Some("shivam1_kapoor2")));
+    }
+
+    #[test]
+    fn test_fuzzy_search_prefix_match() {
+        let filter = Filter::fuzzy_search("name", "pome", 2, false);
+        assert!(!filter.matches(Some("pometry")));
+
+        let filter = Filter::fuzzy_search("name", "pome", 2, true);
+        assert!(filter.matches(Some("pometry")));
+    }
+
+    #[test]
+    fn test_fuzzy_search_property() {
+        let filter = NodeFilter.property("prop").fuzzy_search("pomet", 2, false);
+        assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
+    }
+
+    #[test]
+    fn test_fuzzy_search_property_prefix_match() {
+        let filter = EdgeFilter.property("prop").fuzzy_search("pome", 2, false);
+        assert!(!filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
+
+        let filter = EdgeFilter.property("prop").fuzzy_search("pome", 2, true);
+        assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
+    }
+
+    #[test]
+    fn test_contains_match() {
+        let filter = EdgeFilter.property("prop").contains("shivam");
+        let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
+        assert!(res);
+        let res = filter.matches(None);
+        assert!(!res);
+
+        let filter = EdgeFilter.property("prop").contains("am_ka");
+        let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
+        assert!(res);
+    }
+
+    #[test]
+    fn test_contains_not_match() {
+        let filter = NodeFilter.property("prop").not_contains("shivam");
+        let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
+        assert!(!res);
+        let res = filter.matches(None);
+        assert!(!res);
+    }
+
+    #[test]
+    fn test_is_in_match() {
+        let filter = NodeFilter
+            .property("prop")
+            .is_in(vec!["shivam".into_prop()]);
+        let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam"))));
+        assert!(res);
+        let res = filter.matches(None);
+        assert!(!res);
+    }
+
+    #[test]
+    fn test_is_not_in_match() {
+        let filter = EdgeFilter
+            .property("prop")
+            .is_not_in(vec!["shivam".into_prop()]);
+        let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam"))));
+        assert!(!res);
+        let res = filter.matches(None);
+        assert!(!res);
+    }
+}
+
+#[cfg(test)]
 pub(crate) mod test_filters {
     use crate::{db::api::view::StaticGraphViewOps, prelude::*};
     use raphtory_api::core::entities::properties::prop::IntoProp;
@@ -3424,7 +3525,6 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_nodes_window_filter_on_non_temporal_property() {
-            // p1 is used as latest (non-temporal); window should not change outcome
             let filter1 = NodeFilter::window(1, 2).property("p1").eq("shivam_kapoor");
             let filter2 = NodeFilter::window(100, 200)
                 .property("p1")
@@ -3461,10 +3561,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-        }
 
-        #[test]
-        fn test_nodes_window_filter_on_non_temporal_property2() {
             let filter = NodeFilter::window(100, 200)
                 .property("p1")
                 .eq("shivam_kapoor");
@@ -9899,10 +9996,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-        }
 
-        #[test]
-        fn test_edges_window_filter_on_non_temporal_property2() {
             let filter = EdgeFilter::window(4, 5).property("p1").eq("shivam_kapoor");
             let expected_results = vec!["1->2"];
             assert_filter_edges_results(

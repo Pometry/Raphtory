@@ -6,14 +6,14 @@ use crate::{
             views::filter::{
                 internal::CreateFilter,
                 model::{
-                    edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
+                    edge_filter::{CompositeExplodedEdgeFilter, EdgeFilter, ExplodedEdgeFilter},
                     property_filter::PropertyRef,
                 },
             },
         },
     },
     errors::GraphError,
-    prelude::{EdgeViewOps, PropertyFilter},
+    prelude::{EdgeViewOps, PropertyFilter, TimeOps},
     search::{
         collectors::{
             exploded_edge_property_filter_collector::ExplodedEdgePropertyFilterCollector,
@@ -26,7 +26,10 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::EID,
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{collector::Collector, query::Query, IndexReader};
@@ -223,7 +226,23 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                 self.filter_property_index(graph, filter, limit, offset)
             }
             CompositeExplodedEdgeFilter::PropertyWindowed(filter) => {
-                fallback_filter_exploded_edges(graph, filter, limit, offset)
+                let start = filter.entity.start.t();
+                let end = filter.entity.end.t();
+
+                let filter = PropertyFilter {
+                    prop_ref: filter.prop_ref.clone(),
+                    prop_value: filter.prop_value.clone(),
+                    operator: filter.operator,
+                    ops: filter.ops.clone(),
+                    entity: ExplodedEdgeFilter,
+                };
+
+                let res =
+                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
             }
             CompositeExplodedEdgeFilter::And(left, right) => {
                 let left_result = self.filter_exploded_edges(graph, left, limit, offset)?;

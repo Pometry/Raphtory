@@ -871,11 +871,6 @@ fn build_windowed_property_filter_from_condition<M: Clone + Send + Sync + 'stati
     start: i64,
     end: i64,
 ) -> Result<PropertyFilter<raphtory::db::graph::views::filter::model::Windowed<M>>, GraphError> {
-    if start > end {
-        return Err(GraphError::InvalidGqlFilter(
-            "window.start must be <= window.end".into(),
-        ));
-    }
     build_property_filter_from_condition_with_entity::<
         raphtory::db::graph::views::filter::model::Windowed<M>,
     >(
@@ -947,20 +942,10 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                 }))
             }
             NodeFilter::Property(prop) => {
-                if prop.window.is_some() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "window is only valid for TemporalProperty".into(),
-                    ));
-                }
                 let prop_ref = PropertyRef::Property(prop.name);
                 build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
             NodeFilter::Metadata(prop) => {
-                if prop.window.is_some() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "window is only valid for TemporalProperty".into(),
-                    ));
-                }
                 let prop_ref = PropertyRef::Metadata(prop.name);
                 build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
@@ -1091,20 +1076,10 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 }))
             }
             EdgeFilter::Property(p) => {
-                if p.window.is_some() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "window is only valid for TemporalProperty".into(),
-                    ));
-                }
                 let prop_ref = PropertyRef::Property(p.name);
                 build_edge_filter_from_prop_condition(prop_ref, &p.where_)
             }
             EdgeFilter::Metadata(p) => {
-                if p.window.is_some() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "window is only valid for TemporalProperty".into(),
-                    ));
-                }
                 let prop_ref = PropertyRef::Metadata(p.name);
                 build_edge_filter_from_prop_condition(prop_ref, &p.where_)
             }

@@ -7,14 +7,12 @@ use crate::{
         PropertyFilterFactory, Windowed,
     },
     python::{
-        filter::{
-            filter_expr::PyFilterExpr,
-            window_filter::{py_into_millis, PyNodeWindow},
-        },
+        filter::{filter_expr::PyFilterExpr, window_filter::PyNodeWindow},
         types::iterable::FromIterable,
+        utils::PyTime,
     },
 };
-use pyo3::{exceptions::PyTypeError, pyclass, pymethods, Bound, PyAny, PyResult};
+use pyo3::{pyclass, pymethods, PyResult};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
@@ -176,22 +174,19 @@ impl PyNodeFilter {
 
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<NodeFilter> {
-        NodeFilter::default().property(name)
+        NodeFilter.property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<NodeFilter> {
-        NodeFilter::default().metadata(name)
+        NodeFilter.metadata(name)
     }
 
     #[staticmethod]
-    fn window(py_start: Bound<PyAny>, py_end: Bound<PyAny>) -> PyResult<PyNodeWindow> {
-        let s = py_into_millis(&py_start)?;
-        let e = py_into_millis(&py_end)?;
-        if s > e {
-            return Err(PyTypeError::new_err("window.start must be <= window.end"));
-        }
-        Ok(PyNodeWindow(Windowed::<NodeFilter>::from_times(s, e)))
+    fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyNodeWindow> {
+        Ok(PyNodeWindow(Windowed::<NodeFilter>::from_times(
+            py_start, py_end,
+        )))
     }
 }
 

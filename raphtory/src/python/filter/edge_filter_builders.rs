@@ -10,12 +10,13 @@ use crate::{
     python::{
         filter::{
             filter_expr::PyFilterExpr,
-            window_filter::{py_into_millis, PyEdgeWindow, PyExplodedEdgeWindow},
+            window_filter::{PyEdgeWindow, PyExplodedEdgeWindow},
         },
         types::iterable::FromIterable,
+        utils::PyTime,
     },
 };
-use pyo3::{exceptions::PyTypeError, pyclass, pymethods, Bound, PyAny, PyResult};
+use pyo3::{pyclass, pymethods, PyResult};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
@@ -185,22 +186,19 @@ impl PyEdgeFilter {
 
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<EdgeFilter> {
-        EdgeFilter::default().property(name)
+        EdgeFilter.property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<EdgeFilter> {
-        EdgeFilter::default().metadata(name)
+        EdgeFilter.metadata(name)
     }
 
     #[staticmethod]
-    fn window(py_start: Bound<PyAny>, py_end: Bound<PyAny>) -> PyResult<PyEdgeWindow> {
-        let s = py_into_millis(&py_start)?;
-        let e = py_into_millis(&py_end)?;
-        if s > e {
-            return Err(PyTypeError::new_err("window.start must be <= window.end"));
-        }
-        Ok(PyEdgeWindow(Windowed::<EdgeFilter>::from_times(s, e)))
+    fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyEdgeWindow> {
+        Ok(PyEdgeWindow(Windowed::<EdgeFilter>::from_times(
+            py_start, py_end,
+        )))
     }
 }
 
@@ -212,23 +210,18 @@ pub struct PyExplodedEdgeFilter;
 impl PyExplodedEdgeFilter {
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<ExplodedEdgeFilter> {
-        ExplodedEdgeFilter::default().property(name)
+        ExplodedEdgeFilter.property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<ExplodedEdgeFilter> {
-        ExplodedEdgeFilter::default().metadata(name)
+        ExplodedEdgeFilter.metadata(name)
     }
 
     #[staticmethod]
-    fn window(py_start: Bound<PyAny>, py_end: Bound<PyAny>) -> PyResult<PyExplodedEdgeWindow> {
-        let s = py_into_millis(&py_start)?;
-        let e = py_into_millis(&py_end)?;
-        if s > e {
-            return Err(PyTypeError::new_err("window.start must be <= window.end"));
-        }
+    fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyExplodedEdgeWindow> {
         Ok(PyExplodedEdgeWindow(
-            Windowed::<ExplodedEdgeFilter>::from_times(s, e),
+            Windowed::<ExplodedEdgeFilter>::from_times(py_start, py_end),
         ))
     }
 }

@@ -14,7 +14,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::{GraphViewOps, PropertyFilter, TimeOps},
     search::{
         collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
         fallback_filter_edges, fields, get_reader, graph_index::Index,
@@ -22,7 +22,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::EID;
+use raphtory_api::core::{entities::EID, storage::timeindex::AsTime};
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
@@ -246,7 +246,23 @@ impl<'a> EdgeFilterExecutor<'a> {
                 self.filter_property_index(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::PropertyWindowed(filter) => {
-                fallback_filter_edges(graph, filter, limit, offset)
+                let start = filter.entity.start.t();
+                let end = filter.entity.end.t();
+
+                let filter = PropertyFilter {
+                    prop_ref: filter.prop_ref.clone(),
+                    prop_value: filter.prop_value.clone(),
+                    operator: filter.operator,
+                    ops: filter.ops.clone(),
+                    entity: EdgeFilter,
+                };
+
+                let res =
+                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
             }
             CompositeEdgeFilter::Edge(filter) => {
                 self.filter_edge_index(graph, filter, limit, offset)

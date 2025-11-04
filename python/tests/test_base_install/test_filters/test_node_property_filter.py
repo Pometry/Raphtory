@@ -1139,8 +1139,3 @@ def test_filter_nodes_window_out_of_range_is_empty():
         assert list(graph.filter(expr).nodes.id) == []
 
     return check
-
-
-def test_filter_nodes_window_start_must_be_less_than_end():
-    with pytest.raises(Exception, match="window.start must be <= window.end"):
-        filter.Node.window(3, 1).property("prop5").temporal().sum() >= 0
