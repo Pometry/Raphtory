@@ -210,30 +210,6 @@ impl<'a> EdgeFilterExecutor<'a> {
         }
     }
 
-    fn filter_edge_index<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &Filter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
-        let reader = get_reader(&edge_index.entity_index.index)?;
-        let results = match query {
-            Some(query) => self.execute_filter_query(
-                EdgeFieldFilter(filter.clone()),
-                graph,
-                query,
-                &reader,
-                limit,
-                offset,
-            )?,
-            None => fallback_filter_edges(graph, &EdgeFieldFilter(filter.clone()), limit, offset)?,
-        };
-
-        Ok(results)
-    }
-
     pub fn filter_edges_internal<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -242,11 +218,12 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match filter {
+            CompositeEdgeFilter::Src(_) | CompositeEdgeFilter::Dst(_) => {
+                // TODO: Can we use an index here to speed up search?
+                fallback_filter_edges(graph, filter, limit, offset)
+            }
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
-            }
-            CompositeEdgeFilter::Edge(filter) => {
-                self.filter_edge_index(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::And(left, right) => {
                 let left_result = self.filter_edges(graph, left, limit, offset)?;

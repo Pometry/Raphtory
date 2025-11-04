@@ -1033,32 +1033,24 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     fn try_from(filter: EdgeFilter) -> Result<Self, Self::Error> {
         match filter {
             EdgeFilter::Src(src) => {
-                if matches!(src.field, NodeField::NodeType) {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "Src filter does not support NODE_TYPE".into(),
-                    ));
-                }
-                let (_, field_value, operator) =
+                let (field_name, field_value, operator) =
                     translate_node_field_where(src.field, &src.where_)?;
-                Ok(CompositeEdgeFilter::Edge(Filter {
-                    field_name: "src".to_string(),
+                let node_filter = CompositeNodeFilter::Node(Filter {
+                    field_name,
                     field_value,
                     operator,
-                }))
+                });
+                Ok(CompositeEdgeFilter::Src(node_filter))
             }
             EdgeFilter::Dst(dst) => {
-                if matches!(dst.field, NodeField::NodeType) {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "Dst filter does not support NODE_TYPE".into(),
-                    ));
-                }
-                let (_, field_value, operator) =
+                let (field_name, field_value, operator) =
                     translate_node_field_where(dst.field, &dst.where_)?;
-                Ok(CompositeEdgeFilter::Edge(Filter {
-                    field_name: "dst".to_string(),
+                let node_filter = CompositeNodeFilter::Node(Filter {
+                    field_name,
                     field_value,
                     operator,
-                }))
+                });
+                Ok(CompositeEdgeFilter::Dst(node_filter))
             }
             EdgeFilter::Property(p) => {
                 if p.window.is_some() {

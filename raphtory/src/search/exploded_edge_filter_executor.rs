@@ -6,7 +6,7 @@ use crate::{
             views::filter::{
                 internal::CreateFilter,
                 model::{
-                    edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
+                    exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                     property_filter::PropertyRef,
                 },
             },
@@ -219,6 +219,10 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match filter {
+            CompositeExplodedEdgeFilter::Src(_) | CompositeExplodedEdgeFilter::Dst(_) => {
+                // TODO: Can we use an index here to speed up search?
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
+            }
             CompositeExplodedEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }

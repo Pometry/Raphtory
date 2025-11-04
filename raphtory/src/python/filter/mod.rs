@@ -1,5 +1,5 @@
 use crate::python::filter::{
-    edge_filter_builders::{PyEdgeEndpoint, PyEdgeFilter, PyEdgeFilterOp, PyExplodedEdgeFilter},
+    edge_filter_builders::{PyEdgeEndpoint, PyEdgeFilter, PyExplodedEdgeFilter},
     filter_expr::PyFilterExpr,
     node_filter_builders::PyNodeFilter,
     property_filter_builders::{
@@ -24,7 +24,6 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyFilterExpr>()?;
     filter_module.add_class::<PyPropertyFilterOps>()?;
     filter_module.add_class::<PyNodeFilter>()?;
-    filter_module.add_class::<PyEdgeFilterOp>()?;
     filter_module.add_class::<PyEdgeEndpoint>()?;
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyExplodedEdgeFilter>()?;

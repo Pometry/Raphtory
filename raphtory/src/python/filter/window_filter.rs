@@ -1,6 +1,7 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{EdgeFilter, EndpointWrapper, ExplodedEdgeFilter},
+        edge_filter::{EdgeFilter, EndpointWrapper},
+        exploded_edge_filter::ExplodedEdgeFilter,
         node_filter::NodeFilter,
         property_filter::WindowedPropertyRef,
         Windowed,
@@ -29,7 +30,7 @@ impl PyNodeWindow {
     }
 }
 
-trait DynWindowedNodeFilter: Send + Sync {
+pub(crate) trait DynWindowedNodeFilter: Send + Sync {
     fn property(&self, name: String) -> PyPropertyFilterOps;
     fn metadata(&self, name: String) -> PyPropertyFilterOps;
 }

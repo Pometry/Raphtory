@@ -2,12 +2,15 @@ use crate::{
     db::{
         api::view::BoxableGraphView,
         graph::views::filter::{
+            edge_node_filtered_graph::EdgeNodeFilteredGraph,
             exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
             internal::CreateFilter,
             model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
-                property_filter::PropertyFilter, AndFilter, NotFilter, OrFilter,
-                PropertyFilterFactory, TryAsCompositeFilter, Windowed,
+                edge_filter::{CompositeEdgeFilter, EdgeEndpoint, Endpoint},
+                node_filter::CompositeNodeFilter,
+                property_filter::PropertyFilter,
+                AndFilter, NotFilter, OrFilter, PropertyFilterFactory, TryAsCompositeFilter,
+                Windowed,
             },
         },
     },
@@ -16,8 +19,6 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
-use crate::db::graph::views::filter::edge_node_filtered_graph::EdgeNodeFilteredGraph;
-use crate::db::graph::views::filter::model::edge_filter::{EdgeEndpoint, Endpoint};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeExplodedEdgeFilter {
@@ -77,17 +78,17 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
                 Ok(Arc::new(EdgeNodeFilteredGraph::new(
                     graph,
                     Endpoint::Src,
-                    filtered_graph
+                    filtered_graph,
                 )))
-            },
+            }
             CompositeExplodedEdgeFilter::Dst(filter) => {
                 let filtered_graph = filter.clone().create_filter(graph.clone())?;
                 Ok(Arc::new(EdgeNodeFilteredGraph::new(
                     graph,
                     Endpoint::Dst,
-                    filtered_graph
+                    filtered_graph,
                 )))
-            },
+            }
             CompositeExplodedEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeExplodedEdgeFilter::And(l, r) => Ok(Arc::new(
                 AndFilter {
