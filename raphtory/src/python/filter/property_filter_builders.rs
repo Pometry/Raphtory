@@ -331,59 +331,59 @@ where
 
 impl DynFilterOps for EndpointWrapper<PropertyFilterBuilder<NodeFilter>> {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
+        PyFilterExpr(Arc::new(self.eq(value)))
     }
 
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ne(self, value)))
+        PyFilterExpr(Arc::new(self.ne(value)))
     }
 
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::lt(self, value)))
+        PyFilterExpr(Arc::new(self.lt(value)))
     }
 
     fn __le__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::le(self, value)))
+        PyFilterExpr(Arc::new(self.le(value)))
     }
 
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::gt(self, value)))
+        PyFilterExpr(Arc::new(self.gt(value)))
     }
 
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ge(self, value)))
+        PyFilterExpr(Arc::new(self.ge(value)))
     }
 
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_in(self, values)))
+        PyFilterExpr(Arc::new(self.is_in(values)))
     }
 
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_not_in(self, values)))
+        PyFilterExpr(Arc::new(self.is_not_in(values)))
     }
 
     fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_none(self)))
+        PyFilterExpr(Arc::new(self.is_none()))
     }
 
     fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_some(self)))
+        PyFilterExpr(Arc::new(self.is_some()))
     }
 
     fn starts_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::starts_with(self, value)))
+        PyFilterExpr(Arc::new(self.starts_with(value)))
     }
 
     fn ends_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ends_with(self, value)))
+        PyFilterExpr(Arc::new(self.ends_with(value)))
     }
 
     fn contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::contains(self, value)))
+        PyFilterExpr(Arc::new(self.contains(value)))
     }
 
     fn not_contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::not_contains(self, value)))
+        PyFilterExpr(Arc::new(self.not_contains(value)))
     }
 
     fn fuzzy_search(
@@ -392,8 +392,7 @@ impl DynFilterOps for EndpointWrapper<PropertyFilterBuilder<NodeFilter>> {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::fuzzy_search(
-            self,
+        PyFilterExpr(Arc::new(self.fuzzy_search(
             prop_value,
             levenshtein_distance,
             prefix_match,
@@ -401,31 +400,38 @@ impl DynFilterOps for EndpointWrapper<PropertyFilterBuilder<NodeFilter>> {
     }
 
     fn any(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ElemQualifierOps::any(self)))
+        let chain = ElemQualifierOps::any(self);
+        Ok(PyPropertyFilterOps::wrap(self.with(chain)))
     }
 
     fn all(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ElemQualifierOps::all(self)))
+        let chain = ElemQualifierOps::all(self);
+        Ok(PyPropertyFilterOps::wrap(self.with(chain)))
     }
 
     fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::len(self)))
+        let chain = ListAggOps::len(self);
+        Ok(PyPropertyFilterOps::wrap(self.with(chain)))
     }
 
     fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::sum(self)))
+        let chain = ListAggOps::sum(self);
+        Ok(PyPropertyFilterOps::wrap(self.with(chain)))
     }
 
     fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::avg(self)))
+        let chain = ListAggOps::avg(self);
+        Ok(PyPropertyFilterOps::wrap(self.with(chain)))
     }
 
     fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::min(self)))
+        let chain = ListAggOps::min(self);
+        Ok(PyPropertyFilterOps::wrap(self.with(chain)))
     }
 
     fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::max(self)))
+        let chain = ListAggOps::max(self);
+        Ok(PyPropertyFilterOps::wrap(self.with(chain)))
     }
 
     fn first(&self) -> PyResult<PyPropertyFilterOps> {
@@ -571,59 +577,59 @@ where
 
 impl DynFilterOps for EndpointWrapper<MetadataFilterBuilder<NodeFilter>> {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
+        PyFilterExpr(Arc::new(self.eq(value)))
     }
 
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ne(self, value)))
+        PyFilterExpr(Arc::new(self.ne(value)))
     }
 
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::lt(self, value)))
+        PyFilterExpr(Arc::new(self.lt(value)))
     }
 
     fn __le__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::le(self, value)))
+        PyFilterExpr(Arc::new(self.le(value)))
     }
 
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::gt(self, value)))
+        PyFilterExpr(Arc::new(self.gt(value)))
     }
 
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ge(self, value)))
+        PyFilterExpr(Arc::new(self.ge(value)))
     }
 
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_in(self, values)))
+        PyFilterExpr(Arc::new(self.is_in(values)))
     }
 
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_not_in(self, values)))
+        PyFilterExpr(Arc::new(self.is_not_in(values)))
     }
 
     fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_none(self)))
+        PyFilterExpr(Arc::new(self.is_none()))
     }
 
     fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_some(self)))
+        PyFilterExpr(Arc::new(self.is_some()))
     }
 
     fn starts_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::starts_with(self, value)))
+        PyFilterExpr(Arc::new(self.starts_with(value)))
     }
 
     fn ends_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ends_with(self, value)))
+        PyFilterExpr(Arc::new(self.ends_with(value)))
     }
 
     fn contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::contains(self, value)))
+        PyFilterExpr(Arc::new(self.contains(value)))
     }
 
     fn not_contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::not_contains(self, value)))
+        PyFilterExpr(Arc::new(self.not_contains(value)))
     }
 
     fn fuzzy_search(
@@ -632,8 +638,7 @@ impl DynFilterOps for EndpointWrapper<MetadataFilterBuilder<NodeFilter>> {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::fuzzy_search(
-            self,
+        PyFilterExpr(Arc::new(self.fuzzy_search(
             prop_value,
             levenshtein_distance,
             prefix_match,
@@ -641,31 +646,35 @@ impl DynFilterOps for EndpointWrapper<MetadataFilterBuilder<NodeFilter>> {
     }
 
     fn any(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ElemQualifierOps::any(self)))
+        Ok(PyPropertyFilterOps::wrap(
+            self.with(ElemQualifierOps::any(self)),
+        ))
     }
 
     fn all(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ElemQualifierOps::all(self)))
+        Ok(PyPropertyFilterOps::wrap(
+            self.with(ElemQualifierOps::all(self)),
+        ))
     }
 
     fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::len(self)))
+        Ok(PyPropertyFilterOps::wrap(self.with(ListAggOps::len(self))))
     }
 
     fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::sum(self)))
+        Ok(PyPropertyFilterOps::wrap(self.with(ListAggOps::sum(self))))
     }
 
     fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::avg(self)))
+        Ok(PyPropertyFilterOps::wrap(self.with(ListAggOps::avg(self))))
     }
 
     fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::min(self)))
+        Ok(PyPropertyFilterOps::wrap(self.with(ListAggOps::min(self))))
     }
 
     fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::max(self)))
+        Ok(PyPropertyFilterOps::wrap(self.with(ListAggOps::max(self))))
     }
 
     fn first(&self) -> PyResult<PyPropertyFilterOps> {
@@ -805,59 +814,59 @@ where
 
 impl DynFilterOps for EndpointWrapper<OpChainBuilder<NodeFilter>> {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
+        PyFilterExpr(Arc::new(self.eq(value)))
     }
 
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ne(self, value)))
+        PyFilterExpr(Arc::new(self.ne(value)))
     }
 
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::lt(self, value)))
+        PyFilterExpr(Arc::new(self.lt(value)))
     }
 
     fn __le__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::le(self, value)))
+        PyFilterExpr(Arc::new(self.le(value)))
     }
 
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::gt(self, value)))
+        PyFilterExpr(Arc::new(self.gt(value)))
     }
 
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ge(self, value)))
+        PyFilterExpr(Arc::new(self.ge(value)))
     }
 
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_in(self, values)))
+        PyFilterExpr(Arc::new(self.is_in(values)))
     }
 
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_not_in(self, values)))
+        PyFilterExpr(Arc::new(self.is_not_in(values)))
     }
 
     fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_none(self)))
+        PyFilterExpr(Arc::new(self.is_none()))
     }
 
     fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_some(self)))
+        PyFilterExpr(Arc::new(self.is_some()))
     }
 
     fn starts_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::starts_with(self, value)))
+        PyFilterExpr(Arc::new(self.starts_with(value)))
     }
 
     fn ends_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ends_with(self, value)))
+        PyFilterExpr(Arc::new(self.ends_with(value)))
     }
 
     fn contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::contains(self, value)))
+        PyFilterExpr(Arc::new(self.contains(value)))
     }
 
     fn not_contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::not_contains(self, value)))
+        PyFilterExpr(Arc::new(self.not_contains(value)))
     }
 
     fn fuzzy_search(
@@ -866,8 +875,7 @@ impl DynFilterOps for EndpointWrapper<OpChainBuilder<NodeFilter>> {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::fuzzy_search(
-            self,
+        PyFilterExpr(Arc::new(self.fuzzy_search(
             prop_value,
             levenshtein_distance,
             prefix_match,
@@ -1023,63 +1031,63 @@ where
 
 impl DynFilterOps for EndpointWrapper<WindowedPropertyRef<NodeFilter>> {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
+        PyFilterExpr(Arc::new(self.eq(value)))
     }
 
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ne(self, value)))
+        PyFilterExpr(Arc::new(self.ne(value)))
     }
 
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::lt(self, value)))
+        PyFilterExpr(Arc::new(self.lt(value)))
     }
 
     fn __le__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::le(self, value)))
+        PyFilterExpr(Arc::new(self.le(value)))
     }
 
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::gt(self, value)))
+        PyFilterExpr(Arc::new(self.gt(value)))
     }
 
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ge(self, value)))
+        PyFilterExpr(Arc::new(self.ge(value)))
     }
 
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_in(self, values)))
+        PyFilterExpr(Arc::new(self.is_in(values)))
     }
 
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_not_in(self, values)))
+        PyFilterExpr(Arc::new(self.is_not_in(values)))
     }
 
     fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_none(self)))
+        PyFilterExpr(Arc::new(self.is_none()))
     }
 
     fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_some(self)))
+        PyFilterExpr(Arc::new(self.is_some()))
     }
 
     fn starts_with(&self, v: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::starts_with(self, v)))
+        PyFilterExpr(Arc::new(self.starts_with(v)))
     }
 
     fn ends_with(&self, v: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ends_with(self, v)))
+        PyFilterExpr(Arc::new(self.ends_with(v)))
     }
 
     fn contains(&self, v: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::contains(self, v)))
+        PyFilterExpr(Arc::new(self.contains(v)))
     }
 
     fn not_contains(&self, v: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::not_contains(self, v)))
+        PyFilterExpr(Arc::new(self.not_contains(v)))
     }
 
     fn fuzzy_search(&self, s: String, d: usize, p: bool) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::fuzzy_search(self, s, d, p)))
+        PyFilterExpr(Arc::new(self.fuzzy_search(s, d, p)))
     }
 
     fn any(&self) -> PyResult<PyPropertyFilterOps> {
