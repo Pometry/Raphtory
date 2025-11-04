@@ -131,16 +131,6 @@ pub trait EdgeWriteLock: Send + Sync {
     fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
 }
 
-pub trait AtomicNodeAddition: Send + Sync {
-    /// add node update
-    fn internal_add_node(
-        &mut self,
-        t: TimeIndexEntry,
-        v: impl Into<VID>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> Result<(), MutationError>;
-}
-
 pub trait SessionAdditionOps: Send + Sync {
     type Error: From<MutationError>;
 
