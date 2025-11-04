@@ -111,6 +111,7 @@ pub fn balance<G: StaticGraphViewOps>(
         Ok(TypedNodeState::new(GenericNodeState::new_from_eval(
             graph.clone(),
             values,
+            None,
         )))
     } else {
         Err(GraphError::InvalidProperty {

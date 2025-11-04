@@ -113,5 +113,6 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
         |value| BetweennessCentrality {
             betweenness_centrality: value,
         },
+        None,
     ))
 }

@@ -4,7 +4,10 @@ use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            state::{GenericNodeState, MergePriority, OutputTypedNodeState, TypedNodeState},
+            state::{
+                GenericNodeState, MergePriority, NodeStateOutput, OutputTypedNodeState,
+                TransformedPropMap, TypedNodeState,
+            },
             view::DynamicGraph,
         },
         graph::nodes::Nodes,
@@ -20,7 +23,7 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     pyclass, pymethods,
     types::{PyAnyMethods, PyDict, PyDictMethods, PyNotImplemented},
-    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult, Python,
+    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 #[pyclass(
@@ -50,6 +53,7 @@ impl PyOutputNodeState {
         self.inner.nodes()
     }
 
+    // TODO
     fn __eq__<'py>(
         &self,
         other: &Bound<'py, PyAny>,
@@ -90,26 +94,38 @@ impl PyOutputNodeState {
         Ok(res.into_pyobject(py)?.to_owned().into_any())
     }
 
+    // TODO?
     fn __repr__(&self) -> String {
         self.inner.repr()
     }
 
-    fn __getitem__(&self, node: PyNodeRef) -> PyResult<HashMap<String, Option<Prop>>> {
+    fn __getitem__(&self, node: PyNodeRef) -> PyResult<TransformedPropMap<'static, DynamicGraph>> {
         let node = node.as_node_ref();
-        self.inner.get_by_node(node).ok_or_else(|| match node {
-            NodeRef::External(id) => {
-                PyKeyError::new_err(format!("Missing value for node with id {id}"))
-            }
-            NodeRef::Internal(vid) => {
-                let node = self.inner.graph().node(vid);
-                match node {
-                    Some(node) => PyKeyError::new_err(format!("Missing value {}", node.repr())),
-                    None => PyTypeError::new_err("Invalid node reference"),
+        self.inner
+            .get_by_node(node)
+            .map(|value| self.inner.convert(value))
+            .ok_or_else(|| match node {
+                NodeRef::External(id) => {
+                    PyKeyError::new_err(format!("Missing value for node with id {id}"))
                 }
-            }
-        })
+                NodeRef::Internal(vid) => {
+                    let node = self.inner.graph().node(vid);
+                    match node {
+                        Some(node) => PyKeyError::new_err(format!("Missing value {}", node.repr())),
+                        None => PyTypeError::new_err("Invalid node reference"),
+                    }
+                }
+            })
     }
 
+    fn test_get(&self, node: PyNodeRef) -> TransformedPropMap<'static, DynamicGraph> {
+        self.inner
+            .get_by_node(node)
+            .map(|value| self.inner.convert(value))
+            .unwrap()
+    }
+
+    // TODO
     /// Get value for node
     ///
     /// Arguments:
@@ -125,6 +141,7 @@ impl PyOutputNodeState {
         self.inner.get_by_node(node).or(default)
     }
 
+    // TODO
     fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
@@ -133,6 +150,7 @@ impl PyOutputNodeState {
         )
     }
 
+    // TODO
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
@@ -223,5 +241,19 @@ impl<
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyOutputNodeState { inner: self }.into_pyobject(py)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(match self {
+            NodeStateOutput::Node(node_view) => node_view.into_pyobject(py)?.into_any(),
+            NodeStateOutput::Nodes(nodes) => nodes.into_pyobject(py)?.into_any(),
+            NodeStateOutput::Prop(prop) => prop.into_pyobject(py)?.into_any(),
+        })
     }
 }

@@ -7,8 +7,8 @@ mod node_state_ord_ops;
 pub(crate) mod ops;
 
 pub use generic_node_state::{
-    GenericNodeState, MergePriority, NodeStateValue, NodeTransform, OutputTypedNodeState,
-    TypedNodeState,
+    GenericNodeState, MergePriority, NodeStateOutput, NodeStateOutputType, NodeStateValue,
+    NodeTransform, OutputTypedNodeState, PropMap, TransformedPropMap, TypedNodeState,
 };
 pub use group_by::{NodeGroups, NodeStateGroupBy};
 pub use lazy_node_state::LazyNodeState;

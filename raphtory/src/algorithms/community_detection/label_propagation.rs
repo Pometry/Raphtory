@@ -96,7 +96,9 @@ where
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
         None,
-        |_, _, _, local| TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local)),
+        |_, _, _, local| {
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
+        },
         threads,
         iter_count,
         None,

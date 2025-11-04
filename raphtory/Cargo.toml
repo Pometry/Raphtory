@@ -193,5 +193,5 @@ proto = [
 ]
 
 test-utils = [
-    "dep:proptest", "dep:proptest-derive"
+    "dep:proptest", "dep:proptest-derive", "arrow"
 ]

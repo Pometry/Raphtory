@@ -76,5 +76,6 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
         |value| LouvainState {
             community_id: value,
         },
+        None,
     ))
 }

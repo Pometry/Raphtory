@@ -111,5 +111,5 @@ where
         }
     }
 
-    TypedNodeState::new(GenericNodeState::new_from_eval(graph.clone(), values))
+    TypedNodeState::new(GenericNodeState::new_from_eval(graph.clone(), values, None))
 }

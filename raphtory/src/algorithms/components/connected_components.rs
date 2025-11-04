@@ -221,5 +221,6 @@ where
         |value| ConnectedComponent {
             component_id: value,
         },
+        None,
     ))
 }

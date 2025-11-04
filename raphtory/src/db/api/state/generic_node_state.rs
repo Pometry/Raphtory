@@ -19,7 +19,7 @@ use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterPr
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType, PropUnwrap};
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -58,10 +58,23 @@ pub enum MergePriority {
     Exclude,
 }
 
+#[derive(Clone, PartialEq, Debug)]
+pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> = G> {
+    Node(NodeView<'graph, G, GH>),
+    Nodes(Nodes<'graph, G, GH>),
+    Prop(Option<Prop>),
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum NodeStateOutputType {
+    Node,
+    Nodes,
+    Prop,
+}
+
 pub type PropMap = HashMap<String, Option<Prop>>;
 
-pub type TransformedPropMap<'graph, G, GH> =
-    HashMap<String, Either<NodeView<'graph, G, GH>, Option<Prop>>>;
+pub type TransformedPropMap<'graph, G, GH = G> = HashMap<String, NodeStateOutput<'graph, G, GH>>;
 
 /*
 pub type PropMapConverter<'graph, G, GH> =
@@ -71,8 +84,31 @@ pub type PropMapConverter<'graph, G, GH> =
 pub type OutputTypedNodeState<'graph, G, GH = G> =
     TypedNodeState<'graph, PropMap, G, GH, TransformedPropMap<'graph, G, GH>>;
 
-pub trait NodeTransform: Sized {
-    fn transform<'graph, G, GH>(_state: &GenericNodeState<'graph, G, GH>, value: Self) -> Self
+pub trait NodeTransform {
+    type Input;
+    type Output;
+
+    fn transform<'graph, G, GH>(
+        state: &GenericNodeState<'graph, G, GH>,
+        value: Self::Input,
+    ) -> Self::Output
+    where
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>;
+}
+
+// --- Blanket implementation for identity transforms ---
+impl<T> NodeTransform for T
+where
+    T: NodeStateValue,
+{
+    type Input = Self;
+    type Output = Self;
+
+    fn transform<'graph, G, GH>(
+        _state: &GenericNodeState<'graph, G, GH>,
+        value: Self::Input,
+    ) -> Self::Output
     where
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
@@ -81,22 +117,20 @@ pub trait NodeTransform: Sized {
     }
 }
 
-impl<T> NodeTransform for T where T: NodeStateValue {}
-
 #[derive(Clone, Debug)]
 pub struct GenericNodeState<'graph, G, GH = G> {
-    base_graph: G,
-    graph: GH,
+    pub base_graph: G,
+    pub graph: GH,
     values: RecordBatch,
     keys: Option<Index<VID>>,
-    node_cols: HashMap<String, (Option<G>, Option<GH>)>,
+    node_cols: HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>,
     _marker: PhantomData<&'graph ()>,
 }
 
 #[derive(Clone)]
 pub struct TypedNodeState<'graph, V: NodeStateValue, G, GH = G, T: Clone + Sync + Send = V> {
     pub state: GenericNodeState<'graph, G, GH>,
-    converter: fn(&GenericNodeState<'graph, G, GH>, V) -> T,
+    pub converter: fn(&GenericNodeState<'graph, G, GH>, V) -> T,
     _v_marker: PhantomData<V>,
     _t_marker: PhantomData<T>,
 }
@@ -145,26 +179,51 @@ where
 
 impl<'graph, G: IntoDynamic, GH: IntoDynamic> GenericNodeState<'graph, G, GH> {
     pub fn into_dyn(self) -> GenericNodeState<'graph, DynamicGraph> {
+        let node_cols = Some(
+            self.node_cols
+                .into_iter()
+                .map(|(k, (output_type, bg, g))| {
+                    (
+                        k,
+                        (
+                            output_type,
+                            bg.map(|bg| bg.into_dynamic()),
+                            g.map(|g| g.into_dynamic()),
+                        ),
+                    )
+                })
+                .collect(),
+        );
         GenericNodeState::new(
             self.base_graph.into_dynamic(),
             self.graph.into_dynamic(),
             self.values,
             self.keys,
+            node_cols,
         )
     }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState<'graph, G, GH> {
-    pub fn new(base_graph: G, graph: GH, values: RecordBatch, keys: Option<Index<VID>>) -> Self {
+    pub fn new(
+        base_graph: G,
+        graph: GH,
+        values: RecordBatch,
+        keys: Option<Index<VID>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>>,
+    ) -> Self {
         Self {
             base_graph,
             graph,
             values,
             keys,
-            node_cols: HashMap::new(),
+            node_cols: node_cols.unwrap_or(HashMap::new()),
             _marker: PhantomData,
         }
     }
+
+    // get node (base_graph, graph, Prop::U64)
+    // get nodes(base_graph, graph, Vec<u64>)
 
     pub fn get_nodes(
         state: &GenericNodeState<'graph, G, GH>,
@@ -174,19 +233,70 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         value_map
             .into_iter()
             .map(|(key, value)| {
-                if let Some(Prop::U64(vid)) = value {
-                    if let Some((base_graph, graph)) = state.node_cols.get(&key) {
-                        return (
-                            key,
-                            Either::Left(NodeView::new_one_hop_filtered(
-                                base_graph.as_ref().unwrap().clone(),
-                                graph.as_ref().unwrap().clone(),
-                                VID(vid as usize),
-                            )),
-                        );
+                let node_col_entry = state.node_cols.get(&key);
+                let mut result = None;
+                if value.is_none() || node_col_entry.is_none() {
+                    return (key, NodeStateOutput::Prop(value));
+                } else {
+                    let (node_state_type, base_graph, graph) = node_col_entry.unwrap();
+                    if node_state_type == &NodeStateOutputType::Node {
+                        if let Some(Prop::U64(vid)) = value {
+                            result = Some((
+                                key,
+                                NodeStateOutput::Node(NodeView::new_one_hop_filtered(
+                                    base_graph.as_ref().unwrap_or(&state.base_graph).clone(),
+                                    graph.as_ref().unwrap_or(&state.graph).clone(),
+                                    VID(vid as usize),
+                                )),
+                            ));
+                        }
+                    } else if node_state_type == &NodeStateOutputType::Nodes {
+                        if let Some(Prop::Array(vid_arr)) = value {
+                            return (
+                                key,
+                                NodeStateOutput::Nodes(Nodes::new_filtered(
+                                    base_graph.as_ref().unwrap_or(&state.base_graph).clone(),
+                                    graph.as_ref().unwrap_or(&state.graph).clone(),
+                                    Some(Index::from_iter(
+                                        vid_arr
+                                            .iter_prop()
+                                            .map(|vid| VID(vid.into_u64().unwrap() as usize)),
+                                    )),
+                                    None,
+                                )),
+                            );
+                        } else if let Some(PropType::List(_)) =
+                            value.as_ref().map(|value| value.dtype())
+                        {
+                            if let Some(Prop::List(vid_list)) = value {
+                                if let Some(vid_list) = Arc::into_inner(vid_list) {
+                                    result = Some((
+                                        key,
+                                        NodeStateOutput::Nodes(Nodes::new_filtered(
+                                            base_graph
+                                                .as_ref()
+                                                .unwrap_or(&state.base_graph)
+                                                .clone(),
+                                            graph.as_ref().unwrap_or(&state.graph).clone(),
+                                            Some(Index::from_iter(vid_list.into_iter().map(
+                                                |vid| {
+                                                    VID(vid
+                                                        .try_cast(PropType::U64)
+                                                        .unwrap()
+                                                        .into_u64()
+                                                        .unwrap()
+                                                        as usize)
+                                                },
+                                            ))),
+                                            None,
+                                        )),
+                                    ));
+                                }
+                            }
+                        }
                     }
                 }
-                (key, Either::Right(value))
+                result.unwrap()
             })
             .collect()
     }
@@ -402,12 +512,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 &self.values,
             ),
             MergePriority::Exclude => {
+                // TODO: handle node cols merge
                 return GenericNodeState::new(
                     self.base_graph.clone(),
                     self.graph.clone(),
                     RecordBatch::try_new(Schema::new(fields).into(), cols).unwrap(),
                     tgt_idx_set.cloned(),
-                )
+                    Some(self.node_cols.clone()),
+                );
             }
         };
         // iterate over columns in lh, if not in priority_map, merge columns
@@ -435,6 +547,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             self.graph.clone(),
             RecordBatch::try_new(Schema::new(fields).into(), cols).unwrap(),
             tgt_idx_set.cloned(),
+            Some(self.node_cols.clone()),
         )
     }
 
@@ -519,6 +632,10 @@ impl<
     pub fn values_from_rows(&mut self, rows: Vec<V>) {
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         self.state.values = to_record_batch(&fields, &rows).unwrap();
+    }
+
+    pub fn convert(&self, value: V) -> T {
+        (self.converter)(&self.state, value)
     }
 }
 
@@ -816,8 +933,16 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         filtered_graph: GH,
         values: Vec<V>,
         index: Option<Index<VID>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>>,
     ) -> Self {
-        Self::new_from_eval_with_index_mapped(graph, filtered_graph, values, index, |v| v)
+        Self::new_from_eval_with_index_mapped(
+            graph,
+            filtered_graph,
+            values,
+            index,
+            |v| v,
+            node_cols,
+        )
     }
 
     pub fn new_from_eval_with_index_mapped<R: Clone, V: InputNodeStateValue>(
@@ -826,6 +951,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         values: Vec<R>,
         index: Option<Index<VID>>,
         map: impl Fn(R) -> V,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>>,
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
         /*match &index {
@@ -839,7 +965,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
 
-        Self::new(graph, filtered_graph, values, index)
+        Self::new(graph, filtered_graph, values, index, node_cols)
     }
 }
 
@@ -851,6 +977,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             graph,
             RecordBatch::new_empty(Schema::empty().into()),
             Some(Index::default()),
+            None,
         )
     }
 
@@ -859,8 +986,12 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// # Arguments
     /// - `graph`: the graph view
     /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
-    pub fn new_from_eval<V: InputNodeStateValue>(graph: G, values: Vec<V>) -> Self {
-        Self::new_from_eval_mapped(graph, values, |v| v)
+    pub fn new_from_eval<V: InputNodeStateValue>(
+        graph: G,
+        values: Vec<V>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<G>)>>,
+    ) -> Self {
+        Self::new_from_eval_mapped(graph, values, |v| v, node_cols)
     }
 
     /// Construct a node state from an eval result, mapping values
@@ -873,20 +1004,26 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         values: Vec<R>,
         map: impl Fn(R) -> V,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<G>)>>,
     ) -> Self {
         let index = Index::for_graph(graph.clone());
-        Self::new_from_eval_with_index_mapped(graph.clone(), graph, values, index, map)
+        Self::new_from_eval_with_index_mapped(graph.clone(), graph, values, index, map, node_cols)
     }
 
     /// create a new NodeState from a list of values for the node (takes care of creating an index for
     /// node filtering when needed)
-    pub fn new_from_values(graph: G, values: impl Into<RecordBatch>) -> Self {
+    pub fn new_from_values(
+        graph: G,
+        values: impl Into<RecordBatch>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<G>)>>,
+    ) -> Self {
         let index = Index::for_graph(&graph);
         Self::new(
             graph.clone(),
             graph,
             Self::convert_recordbatch(values.into()).unwrap(),
             index,
+            node_cols,
         )
     }
 
@@ -895,6 +1032,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         mut values: HashMap<VID, R, S>,
         map: impl Fn(R) -> V,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<G>)>>,
     ) -> Self {
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         if values.len() == graph.count_nodes() {
@@ -904,7 +1042,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 .map(|node| map(values.remove(&node.node).unwrap()))
                 .collect();
             let values = to_record_batch(&fields, &values).unwrap();
-            Self::new_from_values(graph, values)
+            Self::new_from_values(graph, values, node_cols)
         } else {
             let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = graph
                 .nodes()
@@ -912,7 +1050,13 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
                 .unzip();
             let values = to_record_batch(&fields, &values).unwrap();
-            Self::new(graph.clone(), graph, values, Some(Index::new(index)))
+            Self::new(
+                graph.clone(),
+                graph,
+                values,
+                Some(Index::new(index)),
+                node_cols,
+            )
         }
     }
 }

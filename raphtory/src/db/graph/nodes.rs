@@ -146,6 +146,7 @@ where
             self.graph.clone(),
             batch,
             Index::for_graph(self.graph.clone()),
+            None,
         )
     }
 }

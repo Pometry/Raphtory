@@ -203,6 +203,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             g.clone(),
             values,
             Some(Index::new(index)),
+            None,
         ),
     ))
 }

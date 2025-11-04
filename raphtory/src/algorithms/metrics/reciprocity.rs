@@ -127,5 +127,5 @@ pub fn all_local_reciprocity<G: StaticGraphViewOps>(
             2.0 * intersect_count as f64 / (out_count + in_count) as f64
         })
         .collect();
-    TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values))
+    TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values, None))
 }

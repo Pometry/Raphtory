@@ -39,12 +39,12 @@ pub enum Prop {
     F32(f32),
     F64(f64),
     Bool(bool),
+    #[cfg(feature = "arrow")]
+    Array(PropArray),
     List(Arc<Vec<Prop>>),
     Map(Arc<FxHashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
-    #[cfg(feature = "arrow")]
-    Array(PropArray),
     Decimal(BigDecimal),
 }
 

@@ -70,5 +70,6 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
         paths,
         Some(Index::from_iter(targets)),
         |value| PathState { path: value },
+        None,
     ))
 }

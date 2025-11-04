@@ -43,5 +43,5 @@ pub fn degree_centrality<G: StaticGraphViewOps>(
         })
         .collect();
 
-    TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values))
+    TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values, None))
 }

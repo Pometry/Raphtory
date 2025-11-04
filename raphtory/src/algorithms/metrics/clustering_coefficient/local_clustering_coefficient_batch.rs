@@ -53,6 +53,7 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
         graph.clone(),
         values,
         Some(Index::new(_index)),
+        None,
     ))
 }
 /// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.

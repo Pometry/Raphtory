@@ -76,7 +76,7 @@ where
         vec![],
         None,
         |_, _, _, local: Vec<InState>| {
-            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local))
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
         },
         threads,
         1,
@@ -133,5 +133,6 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
             .map(|value| InComponentState { distance: value })
             .collect(),
         Some(Index::new(nodes)),
+        None,
     ))
 }

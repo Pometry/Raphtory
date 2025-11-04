@@ -36,7 +36,7 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
         .map(|node| positions.get(&node.id()).unwrap().to_array())
         .collect();
 
-    TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), res))
+    TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), res, None))
 }
 
 fn update_positions<'graph, G: GraphViewOps<'graph>>(

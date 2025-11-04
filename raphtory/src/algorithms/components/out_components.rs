@@ -2,10 +2,10 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{GenericNodeState, Index, TypedNodeState},
+            state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
-        graph::node::NodeView,
+        graph::{node::NodeView, nodes::Nodes},
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -24,6 +24,35 @@ use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 pub struct OutState {
     pub out_components: Vec<VID>,
 }
+
+#[derive(Clone, Debug)]
+pub struct TransformedOutState<'graph, G, GH = G>
+where
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
+{
+    pub out_components: Nodes<'graph, G, GH>,
+}
+
+impl OutState {
+    pub fn node_transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
+        value: OutState,
+    ) -> TransformedOutState<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        TransformedOutState {
+            out_components: Nodes::new_filtered(
+                state.base_graph.clone(),
+                state.graph.clone(),
+                Some(Index::from_iter(value.out_components)),
+                None,
+            ),
+        }
+    }
+}
+
 /// Computes the out components of each node in the graph
 ///
 /// # Arguments
@@ -35,7 +64,10 @@ pub struct OutState {
 ///
 /// An [AlgorithmResult] containing the mapping from each node to a vector of node ids (the nodes out component)
 ///
-pub fn out_components<G>(g: &G, threads: Option<usize>) -> TypedNodeState<'static, OutState, G>
+pub fn out_components<G>(
+    g: &G,
+    threads: Option<usize>,
+) -> TypedNodeState<'static, OutState, G, G, TransformedOutState<'static, G>>
 where
     G: StaticGraphViewOps,
 {
@@ -72,7 +104,17 @@ where
         vec![],
         None,
         |_, _, _, local: Vec<OutState>| {
-            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local))
+            TypedNodeState::new_mapped(
+                GenericNodeState::new_from_eval(
+                    g.clone(),
+                    local,
+                    Some(HashMap::from([(
+                        "out_components".to_string(),
+                        (NodeStateOutputType::Nodes, None, None),
+                    )])),
+                ),
+                OutState::node_transform,
+            )
         },
         threads,
         1,
@@ -129,5 +171,6 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
             .map(|value| OutComponentState { distance: value })
             .collect(),
         Some(Index::new(nodes)),
+        None,
     ))
 }

@@ -168,6 +168,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         }
     }
 
+    // TODO: if value is node, construct node_cols accordingly
     pub fn arrow_compute(&self) -> GenericNodeState<'graph, G, GH> {
         if self.nodes.is_filtered() {
             let storage = self.graph().core_graph().lock();
@@ -181,6 +182,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 self.nodes.graph.clone(),
                 values,
                 Some(Index::new(keys)),
+                None,
             )
         } else {
             let storage = self.graph().core_graph().lock();
@@ -193,6 +195,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
                 values,
+                None,
                 None,
             )
         }

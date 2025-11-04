@@ -393,7 +393,7 @@ where
                     counts
                 })
                 .collect();
-            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values))
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values, None))
         },
         threads,
         1,

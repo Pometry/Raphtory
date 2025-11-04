@@ -210,7 +210,10 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
         None,
     );
     let result: FxHashMap<_, _> = result.into_iter().map(|(k, v)| (VID(k), v)).collect();
-    TypedNodeState::new(GenericNodeState::new_from_map(g.clone(), result, |v| {
-        ReachabilityState { reachable_nodes: v }
-    }))
+    TypedNodeState::new(GenericNodeState::new_from_map(
+        g.clone(),
+        result,
+        |v| ReachabilityState { reachable_nodes: v },
+        None,
+    ))
 }

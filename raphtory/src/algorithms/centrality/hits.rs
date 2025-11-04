@@ -142,7 +142,9 @@ pub fn hits<G: StaticGraphViewOps>(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
-        |_, _, _, local| TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local)),
+        |_, _, _, local| {
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
+        },
         threads,
         iter_count,
         None,
