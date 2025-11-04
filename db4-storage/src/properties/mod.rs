@@ -1,13 +1,14 @@
 use crate::error::StorageError;
 use arrow_array::{
     ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array, Int64Array,
-    StringViewArray, TimestampMillisecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
+    StringViewArray, StructArray, TimestampMillisecondArray, UInt8Array, UInt16Array, UInt32Array,
+    UInt64Array,
 };
-use arrow_schema::DECIMAL128_MAX_PRECISION;
+use arrow_schema::{DECIMAL128_MAX_PRECISION, Field, Fields};
 use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
-    prop::{Prop, PropType},
+    prop::{Prop, PropType, SerdeMap, SerdeProp, arrow_dtype_from_prop_type},
 };
 use raphtory_core::{
     entities::{
@@ -16,6 +17,7 @@ use raphtory_core::{
     },
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
 };
+use serde_arrow::ArrayBuilder;
 use std::sync::Arc;
 
 pub mod props_meta_writer;
@@ -193,7 +195,29 @@ impl Properties {
             }
             // PropColumn::Array(lazy_vec) => todo!(),
             // PropColumn::List(lazy_vec) => todo!(),
-            // PropColumn::Map(lazy_vec) => todo!(),
+            PropColumn::Map(lazy_vec) => {
+                let dt = meta
+                    .get_dtype(col_id)
+                    .as_ref()
+                    .map(arrow_dtype_from_prop_type)
+                    .unwrap();
+                let fields = match dt {
+                    arrow::datatypes::DataType::Struct(fields) => fields,
+                    _ => panic!("Expected Struct data type for Map property"),
+                };
+                let array_iter = indices.map(|i| lazy_vec.get_opt(i).cloned());
+
+                let mut builder = ArrayBuilder::from_arrow(&fields).unwrap();
+
+                for prop in array_iter {
+                    builder.push(prop.as_ref().map(|m| SerdeMap(m))).unwrap();
+                }
+
+                let arrays = builder.to_arrow().unwrap();
+                let struct_array = StructArray::new(fields, arrays, None);
+
+                Some(Arc::new(struct_array))
+            }
             _ => None, //todo!("Unsupported column type"),
         }
     }

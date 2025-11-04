@@ -8,8 +8,11 @@ use crate::core::{
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use rustc_hash::{FxBuildHasher, FxHashMap};
+use serde::{
+    ser::{SerializeMap, SerializeSeq},
+    Deserialize, Serialize,
+};
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -144,6 +147,64 @@ impl PartialOrd for Prop {
             (Prop::List(a), Prop::List(b)) => a.partial_cmp(b),
             (Prop::Decimal(a), Prop::Decimal(b)) => a.partial_cmp(b),
             _ => None,
+        }
+    }
+}
+
+pub struct SerdeProp<'a>(pub &'a Prop);
+pub struct SedeList<'a>(pub &'a Vec<Prop>);
+pub struct SerdeMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
+
+impl<'a> Serialize for SedeList<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_seq(Some(self.0.len()))?;
+        for prop in self.0.iter() {
+            state.serialize_element(&SerdeProp(prop))?;
+        }
+        state.end()
+    }
+}
+
+impl<'a> Serialize for SerdeMap<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(self.0.len()))?;
+        for (k, v) in self.0.iter() {
+            state.serialize_entry(k, &SerdeProp(v))?;
+        }
+        state.end()
+    }
+}
+
+impl<'a> Serialize for SerdeProp<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self.0 {
+            Prop::I32(i) => serializer.serialize_i32(*i),
+            Prop::I64(i) => serializer.serialize_i64(*i),
+            Prop::F32(f) => serializer.serialize_f32(*f),
+            Prop::F64(f) => serializer.serialize_f64(*f),
+            Prop::U8(u) => serializer.serialize_u8(*u),
+            Prop::U16(u) => serializer.serialize_u16(*u),
+            Prop::U32(u) => serializer.serialize_u32(*u),
+            Prop::U64(u) => serializer.serialize_u64(*u),
+            Prop::Str(s) => serializer.serialize_str(s),
+            Prop::Bool(b) => serializer.serialize_bool(*b),
+            Prop::DTime(dt) => serializer.serialize_i64(dt.timestamp_millis()),
+            Prop::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
+            Prop::List(l) => SedeList(l).serialize(serializer),
+            Prop::Map(m) => SerdeMap(m).serialize(serializer),
+            Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
+            _ => {
+                todo!("Serializer not implemented")
+            }
         }
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, Prop, PropertiesOps},
     serialise::parquet::{
-        model::ParquetProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
+        model::SerdeProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
         PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
     },
 };
@@ -85,7 +85,7 @@ impl Serialize for Row {
         let mut state = serializer.serialize_map(Some(self.row.len()))?;
 
         for (k, v) in self.row.iter() {
-            state.serialize_entry(k, &ParquetProp(v))?;
+            state.serialize_entry(k, &SerdeProp(v))?;
         }
 
         state.serialize_entry(TIME_COL, &self.t.0)?;
