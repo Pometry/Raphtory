@@ -180,7 +180,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     #[inline]
     pub fn est_size(&self) -> usize {
-        //TODO: this is a rough estimate and should be improved
+        // TODO: this is a rough estimate and should be improved
         let data_size =
             (self.data.num_filled() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
         let timestamp_size = std::mem::size_of::<TimeIndexEntry>();
