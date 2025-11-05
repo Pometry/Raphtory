@@ -115,7 +115,7 @@ def test_out_components():
         "7": [],
         "8": [],
     }
-    print(actual["1"])
+    print(actual.get("1", None))
     """
     assert len(actual) == len(expected)
     print(actual)

@@ -15,6 +15,7 @@ use crate::{
     prelude::{GraphViewOps, NodeStateOps, Prop},
     py_borrowing_iter,
     python::{
+        graph::node::{PyNode, PyNodes},
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -23,7 +24,7 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     pyclass, pymethods,
     types::{PyAnyMethods, PyDict, PyDictMethods, PyNotImplemented},
-    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
+    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
 };
 
 #[pyclass(
@@ -63,7 +64,7 @@ impl PyOutputNodeState {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) = other.extract::<Vec<HashMap<String, Option<Prop>>>>() {
-            self.inner == other //self.inner.iter_values().map($to_owned).eq(other.into_iter())
+            self.inner == other
         } else if let Ok(other) =
             other.extract::<HashMap<PyNodeRef, HashMap<String, Option<Prop>>>>()
         {
@@ -118,44 +119,36 @@ impl PyOutputNodeState {
             })
     }
 
-    fn test_get(&self, node: PyNodeRef) -> TransformedPropMap<'static, DynamicGraph> {
-        self.inner
-            .get_by_node(node)
-            .map(|value| self.inner.convert(value))
-            .unwrap()
-    }
-
-    // TODO
     /// Get value for node
     ///
     /// Arguments:
     ///     node (NodeInput): the node
     ///
     /// Returns:
-    #[pyo3(signature = (node, default=None::<HashMap<String, Option<Prop>>>))]
+    #[pyo3(signature = (node, default=None::<TransformedPropMap<'static, DynamicGraph>>))]
     fn get(
         &self,
         node: PyNodeRef,
-        default: Option<HashMap<String, Option<Prop>>>,
-    ) -> Option<HashMap<String, Option<Prop>>> {
-        self.inner.get_by_node(node).or(default)
+        default: Option<TransformedPropMap<'static, DynamicGraph>>,
+    ) -> Option<TransformedPropMap<'static, DynamicGraph>> {
+        self.inner
+            .get_by_node(node)
+            .map_or(default, |value| Some(self.inner.convert(value)))
     }
 
-    // TODO
     fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
             OutputTypedNodeState<'static, DynamicGraph>,
-            |inner| inner.iter_values()
+            |inner| inner.iter_values().map(|v| inner.convert(v))
         )
     }
 
-    // TODO
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
             OutputTypedNodeState<'static, DynamicGraph>,
-            |inner| inner.iter().map(|(n, v)| (n.cloned(), v))
+            |inner| inner.iter().map(|(n, v)| (n.cloned(), inner.convert(v)))
         )
     }
 
@@ -168,6 +161,7 @@ impl PyOutputNodeState {
         self.inner.state.to_parquet(file_path, Some(id_column));
     }
 
+    // TOOD?
     #[pyo3(signature = (other, index_merge_priority, default_column_merge_priority, column_merge_priority_map=None::<HashMap<String, String>>))]
     fn merge<'py>(
         &self,
@@ -255,5 +249,23 @@ impl<'py> IntoPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
             NodeStateOutput::Nodes(nodes) => nodes.into_pyobject(py)?.into_any(),
             NodeStateOutput::Prop(prop) => prop.into_pyobject(py)?.into_any(),
         })
+    }
+}
+
+impl<'py> FromPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        if let Ok(nodes) = ob.downcast::<PyNodes>() {
+            return Ok(NodeStateOutput::Nodes(nodes.get().nodes.clone()));
+        }
+
+        if let Ok(node) = ob.downcast::<PyNode>() {
+            return Ok(NodeStateOutput::Node(node.get().node.clone()));
+        }
+
+        if let Ok(prop) = ob.extract::<Option<Prop>>() {
+            return Ok(NodeStateOutput::Prop(prop));
+        }
+
+        return Err(PyTypeError::new_err("Invalid type conversion"));
     }
 }
