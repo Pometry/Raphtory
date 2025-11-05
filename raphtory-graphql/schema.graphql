@@ -583,7 +583,13 @@ type Edges {
 	Returns a list of all objects in the current selection of the collection. You should filter filter the collection first then call list.
 	"""
 	list: [Edge!]!
+	"""
+	Returns a filtered view that applies to list down the chain
+	"""
 	filter(expr: EdgeFilter!): Edges!
+	"""
+	Returns filtered list of edges
+	"""
 	select(expr: EdgeFilter!): Edges!
 }
 
