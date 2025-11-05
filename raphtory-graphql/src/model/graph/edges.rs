@@ -222,7 +222,7 @@ impl GqlEdges {
                 }
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => return_view.select(filter).await?,
+                EdgesViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
             }
         }
 
@@ -368,7 +368,7 @@ impl GqlEdges {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = expr.try_into()?;
-            let filtered = self_clone.ee.filter_iter(filter)?;
+            let filtered = self_clone.ee.select(filter)?;
             Ok(self_clone.update(filtered))
         })
         .await

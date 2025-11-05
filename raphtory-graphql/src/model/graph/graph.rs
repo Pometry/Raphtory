@@ -374,22 +374,14 @@ impl GqlGraph {
     }
 
     /// Gets (optionally a subset of) the nodes in the graph.
-    async fn nodes(
-        &self,
-        ids: Option<Vec<String>>,
-        select: Option<NodeFilter>,
-    ) -> Result<GqlNodes, GraphError> {
-        let base = self.graph.nodes();
-        let nn = match ids {
-            None => base,
-            Some(ids) => blocking_compute(move || base.id_filter(ids)).await,
-        };
+    async fn nodes(&self, select: Option<NodeFilter>) -> Result<GqlNodes, GraphError> {
+        let nn = self.graph.nodes();
 
         if let Some(sel) = select {
             let nf: CompositeNodeFilter = sel.try_into()?;
             let narrowed = blocking_compute({
                 let nn_clone = nn.clone();
-                move || nn_clone.filter_iter(nf)
+                move || nn_clone.select(nf)
             })
             .await?;
             return Ok(GqlNodes::new(narrowed.into_dyn()));
@@ -409,7 +401,7 @@ impl GqlGraph {
 
         if let Some(sel) = select {
             let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.filter_iter(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(ef)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
 

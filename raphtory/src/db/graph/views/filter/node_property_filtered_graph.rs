@@ -289,7 +289,7 @@ mod test_node_property_filtered_graph {
 
         let filtered_nodes = g
             .nodes()
-            .filter_iter(NodeFilter.property("test").gt(1i64))
+            .select(NodeFilter.property("test").gt(1i64))
             .unwrap();
         assert_eq!(
             filtered_nodes
@@ -312,7 +312,7 @@ mod test_node_property_filtered_graph {
         let filtered_nodes_p = g
             .persistent_graph()
             .nodes()
-            .filter_iter(NodeFilter.property("test").gt(1i64))
+            .select(NodeFilter.property("test").gt(1i64))
             .unwrap();
         assert_eq!(
             filtered_nodes_p
