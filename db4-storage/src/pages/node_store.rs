@@ -92,22 +92,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
 }
 
 impl<NS, EXT: Config> NodeStorageInner<NS, EXT> {
-    pub fn new_with_meta(
-        nodes_path: Option<PathBuf>,
-        node_meta: Arc<Meta>,
-        edge_meta: Arc<Meta>,
-        ext: EXT,
-    ) -> Self {
-        Self {
-            pages: boxcar::Vec::new(),
-            stats: GraphStats::new().into(),
-            nodes_path,
-            node_meta,
-            edge_meta,
-            ext,
-        }
-    }
-
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -147,6 +131,37 @@ impl<NS, EXT: Config> NodeStorageInner<NS, EXT> {
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT> {
+    pub fn new_with_meta(
+        nodes_path: Option<PathBuf>,
+        node_meta: Arc<Meta>,
+        edge_meta: Arc<Meta>,
+        ext: EXT,
+    ) -> Self {
+        let empty = Self {
+            pages: boxcar::Vec::new(),
+            stats: GraphStats::new().into(),
+            nodes_path,
+            node_meta,
+            edge_meta,
+            ext,
+        };
+        let layer_mapper = empty.node_meta.layer_meta();
+        let prop_mapper = empty.node_meta.temporal_prop_mapper();
+        let metadata_mapper = empty.node_meta.metadata_mapper();
+        if layer_mapper.num_fields() > 0
+            || prop_mapper.num_fields() > 0
+            || metadata_mapper.num_fields() > 0
+        {
+            let segment = empty.get_or_create_segment(0);
+            let mut head = segment.head_mut();
+            if prop_mapper.num_fields() > 0 {
+                head.get_or_create_layer(0)
+                    .properties_mut()
+                    .set_has_properties()
+            }
+        }
+        empty
+    }
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
         let locked_segments = self
             .pages
