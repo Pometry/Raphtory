@@ -2,14 +2,17 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, Prop, PropertiesOps},
     serialise::parquet::{
-        model::SerdeProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
+        run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
         PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
     },
 };
 use arrow::datatypes::{DataType, Field};
 use itertools::Itertools;
 use parquet::format::KeyValue;
-use raphtory_api::{core::storage::arc_str::ArcStr, GraphType};
+use raphtory_api::{
+    core::{entities::properties::prop::SerdeProp, storage::arc_str::ArcStr},
+    GraphType,
+};
 use raphtory_core::storage::timeindex::TimeIndexEntry;
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};

@@ -17,6 +17,7 @@ use raphtory_core::{
     },
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
 };
+use rustc_hash::FxHashMap;
 use serde_arrow::ArrayBuilder;
 use std::sync::Arc;
 
@@ -209,8 +210,13 @@ impl Properties {
 
                 let mut builder = ArrayBuilder::from_arrow(&fields).unwrap();
 
+                let empty_map = FxHashMap::default();
                 for prop in array_iter {
-                    builder.push(prop.as_ref().map(|m| SerdeMap(m))).unwrap();
+                    let item = prop
+                        .as_ref()
+                        .map(|m| SerdeMap(m))
+                        .unwrap_or_else(|| SerdeMap(&empty_map));
+                    builder.push(item).unwrap();
                 }
 
                 let arrays = builder.to_arrow().unwrap();

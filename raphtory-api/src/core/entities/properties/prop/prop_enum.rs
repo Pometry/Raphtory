@@ -5,6 +5,9 @@ use crate::core::{
     },
     storage::arc_str::ArcStr,
 };
+#[cfg(feature = "arrow")]
+use arrow_array::StructArray;
+use arrow_schema::DataType;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -13,6 +16,8 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize,
 };
+#[cfg(feature = "arrow")]
+use std::borrow::Borrow;
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -79,8 +84,8 @@ impl<'a> From<PropRef<'a>> for Prop {
             PropRef::Bool(b) => Prop::Bool(b),
             PropRef::List(v) => Prop::List(v.clone()),
             PropRef::Map(m) => Prop::Map(m.clone()),
-            PropRef::NDTime(dt) => Prop::NDTime(dt.clone()),
-            PropRef::DTime(dt) => Prop::DTime(dt.clone()),
+            PropRef::NDTime(dt) => Prop::NDTime(*dt),
+            PropRef::DTime(dt) => Prop::DTime(*dt),
             #[cfg(feature = "arrow")]
             PropRef::Array(arr) => Prop::Array(arr.clone()),
             PropRef::Decimal(d) => Prop::Decimal(d.clone()),
@@ -328,6 +333,41 @@ impl Prop {
             _ => None,
         }
     }
+}
+
+#[cfg(feature = "arrow")]
+pub fn struct_array_from_props<P: Borrow<Prop>>(
+    dt: &DataType,
+    props: impl IntoIterator<Item = Option<P>>,
+) -> StructArray {
+    use serde_arrow::ArrayBuilder;
+
+    let fields = match dt {
+        DataType::Struct(fields) => fields,
+        _ => panic!("Expected DataType::Struct, got {:?}", dt),
+    };
+
+    let mut builder = ArrayBuilder::from_arrow(fields)
+        .unwrap_or_else(|e| panic!("Failed to make array builder {e}"));
+
+    let empty_map = FxHashMap::default();
+
+    for p in props {
+        match p.map(|p| p.borrow()) {
+            Some(Prop::Map(map)) =>
+            builder.push(SerdeMap(map))
+                .unwrap_or_else(|e| panic!("Failed to push map to array builder {e}")),
+            _ => {
+                builder
+                    .push(SerdeMap(&empty_map))
+                    .unwrap_or_else(|e| panic!("Failed to push empty map to array builder {e}"));
+        }
+    }
+
+    let arrays = builder
+        .to_arrow()
+        .unwrap_or_else(|e| panic!("Failed to convert to arrow array {e}"));
+    StructArray::new(fields.clone(), arrays, None)
 }
 
 impl Display for Prop {

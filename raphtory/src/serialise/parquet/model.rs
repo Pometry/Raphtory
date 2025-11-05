@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{
     Prop, DST_COL, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, SRC_COL, TIME_COL, TYPE_COL,
 };
@@ -12,12 +10,12 @@ use crate::{
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
-    entities::GidType,
+    entities::{properties::prop::SerdeProp, GidType},
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{
-    ser::{Error, SerializeMap, SerializeSeq},
+    ser::{Error, SerializeMap},
     Serialize,
 };
 

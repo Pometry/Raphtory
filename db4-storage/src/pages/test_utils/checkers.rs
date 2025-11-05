@@ -297,7 +297,7 @@ pub fn check_graph_with_nodes_support<
                 let actual_prop = actual_props
                     .unwrap_or_else(|| panic!("Failed to get prop {name} for {node:?}"));
                 assert!(
-                    const_props.contains(&actual_prop),
+                    const_props.iter().any(|c_prop| c_prop == &actual_prop),
                     "failed to get const prop {name} for {node:?}, expected {const_props:?}, got {actual_prop:?}"
                 );
             }
