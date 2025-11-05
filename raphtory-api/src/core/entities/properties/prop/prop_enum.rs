@@ -158,6 +158,7 @@ impl PartialOrd for Prop {
 
 pub struct SerdeProp<'a>(pub &'a Prop);
 pub struct SedeList<'a>(pub &'a Vec<Prop>);
+#[derive(Clone, Copy)]
 pub struct SerdeMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
 
 impl<'a> Serialize for SedeList<'a> {
@@ -240,6 +241,13 @@ impl Prop {
             .map(|(k, v)| (k.into(), v.into()))
             .collect();
         Prop::Map(h_map.into())
+    }
+
+    pub fn as_map(&self) -> Option<SerdeMap<'_>> {
+        match self {
+            Prop::Map(map) => Some(SerdeMap(map)),
+            _ => None,
+        }
     }
 
     pub fn dtype(&self) -> PropType {
@@ -336,8 +344,9 @@ impl Prop {
 }
 
 #[cfg(feature = "arrow")]
-pub fn struct_array_from_props<P: Borrow<Prop>>(
+pub fn struct_array_from_props<P>(
     dt: &DataType,
+    as_serde_map: impl Fn(&P) -> SerdeMap<'_> + Copy,
     props: impl IntoIterator<Item = Option<P>>,
 ) -> StructArray {
     use serde_arrow::ArrayBuilder;
@@ -353,14 +362,13 @@ pub fn struct_array_from_props<P: Borrow<Prop>>(
     let empty_map = FxHashMap::default();
 
     for p in props {
-        match p.map(|p| p.borrow()) {
-            Some(Prop::Map(map)) =>
-            builder.push(SerdeMap(map))
+        match p.as_ref().map(as_serde_map) {
+            Some(map) => builder
+                .push(map)
                 .unwrap_or_else(|e| panic!("Failed to push map to array builder {e}")),
-            _ => {
-                builder
-                    .push(SerdeMap(&empty_map))
-                    .unwrap_or_else(|e| panic!("Failed to push empty map to array builder {e}"));
+            _ => builder
+                .push(SerdeMap(&empty_map))
+                .unwrap_or_else(|e| panic!("Failed to push empty map to array builder {e}")),
         }
     }
 

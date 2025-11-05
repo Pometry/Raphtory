@@ -8,7 +8,9 @@ use arrow_schema::{DECIMAL128_MAX_PRECISION, Field, Fields};
 use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
-    prop::{Prop, PropType, SerdeMap, SerdeProp, arrow_dtype_from_prop_type},
+    prop::{
+        Prop, PropType, SerdeMap, SerdeProp, arrow_dtype_from_prop_type, struct_array_from_props,
+    },
 };
 use raphtory_core::{
     entities::{
@@ -17,8 +19,6 @@ use raphtory_core::{
     },
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
 };
-use rustc_hash::FxHashMap;
-use serde_arrow::ArrayBuilder;
 use std::sync::Arc;
 
 pub mod props_meta_writer;
@@ -202,25 +202,11 @@ impl Properties {
                     .as_ref()
                     .map(arrow_dtype_from_prop_type)
                     .unwrap();
-                let fields = match dt {
-                    arrow::datatypes::DataType::Struct(fields) => fields,
-                    _ => panic!("Expected Struct data type for Map property"),
-                };
-                let array_iter = indices.map(|i| lazy_vec.get_opt(i).cloned());
+                let array_iter = indices
+                    .map(|i| lazy_vec.get_opt(i))
+                    .map(|e| e.map(|m| SerdeMap(m)));
 
-                let mut builder = ArrayBuilder::from_arrow(&fields).unwrap();
-
-                let empty_map = FxHashMap::default();
-                for prop in array_iter {
-                    let item = prop
-                        .as_ref()
-                        .map(|m| SerdeMap(m))
-                        .unwrap_or_else(|| SerdeMap(&empty_map));
-                    builder.push(item).unwrap();
-                }
-
-                let arrays = builder.to_arrow().unwrap();
-                let struct_array = StructArray::new(fields, arrays, None);
+                let struct_array = struct_array_from_props(&dt, |sm| *sm, array_iter);
 
                 Some(Arc::new(struct_array))
             }
