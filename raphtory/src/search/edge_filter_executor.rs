@@ -29,6 +29,8 @@ use tantivy::{
     collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
     Searcher, TantivyDocument,
 };
+use crate::prelude::{EdgeViewOps, NodeViewOps};
+use crate::search::node_filter_executor::NodeFilterExecutor;
 
 #[derive(Clone, Copy)]
 pub struct EdgeFilterExecutor<'a> {
@@ -218,9 +220,24 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match filter {
-            CompositeEdgeFilter::Src(_) | CompositeEdgeFilter::Dst(_) => {
+            CompositeEdgeFilter::Src(node_filter) => {
+                let nfe = NodeFilterExecutor::new(self.index);
+                let nodes = nfe.filter_nodes(graph, node_filter, usize::MAX, 0)?;
+                let mut edges: Vec<EdgeView<G>> = nodes.into_iter().flat_map(|n| n.out_edges().into_iter()).collect();
+                if offset != 0 || limit < edges.len() {
+                    edges = edges.into_iter().skip(offset).take(limit).collect();
+                }
+                Ok(edges)
+            }
+            CompositeEdgeFilter::Dst(node_filter) => {
                 // TODO: Can we use an index here to speed up search?
-                fallback_filter_edges(graph, filter, limit, offset)
+                let nfe = NodeFilterExecutor::new(self.index);
+                let nodes = nfe.filter_nodes(graph, node_filter, usize::MAX, 0)?;
+                let mut edges: Vec<EdgeView<G>> = nodes.into_iter().flat_map(|n| n.in_edges().into_iter()).collect();
+                if offset != 0 || limit < edges.len() {
+                    edges = edges.into_iter().skip(offset).take(limit).collect();
+                }
+                Ok(edges)
             }
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)

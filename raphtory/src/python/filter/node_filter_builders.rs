@@ -7,7 +7,7 @@ use crate::{
             NodeNameFilterBuilder, NodeTypeFilterBuilder,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory, Windowed,
+        PropertyFilterFactory, TryAsCompositeFilter, Windowed,
     },
     python::{
         filter::{
@@ -297,37 +297,58 @@ where
     }
 }
 
-impl DynNodeFilterBuilderOps for EndpointWrapper<NodeNameFilterBuilder> {
+impl<T> DynNodeFilterBuilderOps for EndpointWrapper<T>
+where
+    T: InternalNodeFilterBuilderOps + Clone + 'static,
+    // We will produce EndpointWrapper<T::NodeFilterType>
+    T::NodeFilterType: TryAsCompositeFilter + Clone + 'static,
+{
     fn eq(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.eq(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeFilterBuilderOps::eq(&self.inner, value)),
+        ))
     }
 
     fn ne(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.ne(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeFilterBuilderOps::ne(&self.inner, value)),
+        ))
     }
 
     fn is_in(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.is_in(values)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeFilterBuilderOps::is_in(&self.inner, values)),
+        ))
     }
 
     fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.is_not_in(values)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeFilterBuilderOps::is_not_in(&self.inner, values)),
+        ))
     }
 
     fn starts_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.starts_with(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeFilterBuilderOps::starts_with(&self.inner, value)),
+        ))
     }
 
     fn ends_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.ends_with(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeFilterBuilderOps::ends_with(&self.inner, value)),
+        ))
     }
 
     fn contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.contains(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeFilterBuilderOps::contains(&self.inner, value)),
+        ))
     }
 
     fn not_contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.not_contains(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeFilterBuilderOps::not_contains(&self.inner, value)),
+        ))
     }
 
     fn fuzzy_search(
@@ -336,58 +357,12 @@ impl DynNodeFilterBuilderOps for EndpointWrapper<NodeNameFilterBuilder> {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.fuzzy_search(
+        PyFilterExpr(Arc::new(self.with(NodeFilterBuilderOps::fuzzy_search(
+            &self.inner,
             value,
             levenshtein_distance,
             prefix_match,
-        )))
-    }
-}
-
-impl DynNodeFilterBuilderOps for EndpointWrapper<NodeTypeFilterBuilder> {
-    fn eq(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.eq(value)))
-    }
-
-    fn ne(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.ne(value)))
-    }
-
-    fn is_in(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.is_in(values)))
-    }
-
-    fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.is_not_in(values)))
-    }
-
-    fn starts_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.starts_with(value)))
-    }
-
-    fn ends_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.ends_with(value)))
-    }
-
-    fn contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.contains(value)))
-    }
-
-    fn not_contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.not_contains(value)))
-    }
-
-    fn fuzzy_search(
-        &self,
-        value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.fuzzy_search(
-            value,
-            levenshtein_distance,
-            prefix_match,
-        )))
+        ))))
     }
 }
 
@@ -491,53 +466,82 @@ where
     }
 }
 
-impl DynNodeIdFilterBuilderOps for EndpointWrapper<NodeIdFilterBuilder> {
+impl<T> DynNodeIdFilterBuilderOps for EndpointWrapper<T>
+where
+    T: InternalNodeIdFilterBuilderOps + Clone + 'static,
+    // We will produce EndpointWrapper<T::NodeIdFilterType>
+    T::NodeIdFilterType: TryAsCompositeFilter + Clone + 'static,
+{
     fn eq(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.eq(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::eq(&self.inner, value)),
+        ))
     }
 
     fn ne(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.ne(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::ne(&self.inner, value)),
+        ))
     }
 
     fn lt(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.lt(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::lt(&self.inner, value)),
+        ))
     }
 
     fn le(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.le(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::le(&self.inner, value)),
+        ))
     }
 
     fn gt(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.gt(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::gt(&self.inner, value)),
+        ))
     }
 
     fn ge(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.ge(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::ge(&self.inner, value)),
+        ))
     }
 
     fn is_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.is_in(values)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::is_in(&self.inner, values)),
+        ))
     }
 
     fn is_not_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.is_not_in(values)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::is_not_in(&self.inner, values)),
+        ))
     }
 
     fn starts_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.starts_with(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::starts_with(&self.inner, value)),
+        ))
     }
 
     fn ends_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.ends_with(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::ends_with(&self.inner, value)),
+        ))
     }
 
     fn contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.contains(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::contains(&self.inner, value)),
+        ))
     }
 
     fn not_contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.not_contains(value)))
+        PyFilterExpr(Arc::new(
+            self.with(NodeIdFilterBuilderOps::not_contains(&self.inner, value)),
+        ))
     }
 
     fn fuzzy_search(
@@ -546,10 +550,11 @@ impl DynNodeIdFilterBuilderOps for EndpointWrapper<NodeIdFilterBuilder> {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.fuzzy_search(
+        PyFilterExpr(Arc::new(self.with(NodeIdFilterBuilderOps::fuzzy_search(
+            &self.inner,
             value,
             levenshtein_distance,
             prefix_match,
-        )))
+        ))))
     }
 }

@@ -438,12 +438,15 @@ impl EndpointWrapper<OpChainBuilder<NodeFilter>> {
     }
 }
 
-impl EndpointWrapper<Windowed<NodeFilter>> {
+impl<M> EndpointWrapper<Windowed<M>>
+where
+    M: Send + Sync + Clone + 'static,
+{
     #[inline]
     pub fn property(
         &self,
         name: impl Into<String>,
-    ) -> EndpointWrapper<WindowedPropertyRef<NodeFilter>> {
+    ) -> EndpointWrapper<WindowedPropertyRef<M>> {
         self.with(self.inner.property(name))
     }
 
@@ -451,7 +454,7 @@ impl EndpointWrapper<Windowed<NodeFilter>> {
     pub fn metadata(
         &self,
         name: impl Into<String>,
-    ) -> EndpointWrapper<WindowedPropertyRef<NodeFilter>> {
+    ) -> EndpointWrapper<WindowedPropertyRef<M>> {
         self.with(self.inner.metadata(name))
     }
 }

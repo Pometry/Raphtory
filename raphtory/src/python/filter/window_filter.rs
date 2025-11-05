@@ -10,6 +10,11 @@ use crate::{
 };
 use pyo3::prelude::*;
 use std::sync::Arc;
+use crate::db::graph::views::filter::internal::CreateFilter;
+use crate::db::graph::views::filter::model::{PropertyFilterFactory, TryAsCompositeFilter};
+use crate::db::graph::views::filter::model::property_filter::{MetadataFilterBuilder, PropertyFilterBuilder};
+use crate::prelude::PropertyFilter;
+use crate::python::filter::property_filter_builders::DynFilterOps;
 
 pub fn py_into_millis(obj: &Bound<PyAny>) -> PyResult<i64> {
     obj.extract::<i64>()
@@ -17,7 +22,7 @@ pub fn py_into_millis(obj: &Bound<PyAny>) -> PyResult<i64> {
 
 #[pyclass(frozen, name = "NodeWindow", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyNodeWindow(pub Arc<dyn DynWindowedNodeFilter>);
+pub struct PyNodeWindow(pub Arc<dyn DynNodePropertyFilterFactory>);
 
 #[pymethods]
 impl PyNodeWindow {
@@ -30,34 +35,58 @@ impl PyNodeWindow {
     }
 }
 
-pub(crate) trait DynWindowedNodeFilter: Send + Sync {
+pub(crate) trait DynNodePropertyFilterFactory: Send + Sync {
     fn property(&self, name: String) -> PyPropertyFilterOps;
     fn metadata(&self, name: String) -> PyPropertyFilterOps;
 }
 
-impl DynWindowedNodeFilter for Windowed<NodeFilter> {
+impl<M> DynNodePropertyFilterFactory for Windowed<M>
+where
+    M: Send + Sync + Clone + 'static,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter
+{
     fn property(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<NodeFilter> = self.property(name);
+        let wpr: WindowedPropertyRef<M> = self.property(name);
         PyPropertyFilterOps::from_arc(Arc::new(wpr))
     }
 
     fn metadata(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: WindowedPropertyRef<NodeFilter> = self.metadata(name);
+        let wpr: WindowedPropertyRef<M> = self.metadata(name);
         PyPropertyFilterOps::from_arc(Arc::new(wpr))
     }
 }
 
-impl DynWindowedNodeFilter for EndpointWrapper<Windowed<NodeFilter>> {
+impl<M> DynNodePropertyFilterFactory for EndpointWrapper<Windowed<M>>
+where
+    M: Send + Sync + Clone + 'static,
+    EndpointWrapper<WindowedPropertyRef<M>>: DynFilterOps
+{
     fn property(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: EndpointWrapper<WindowedPropertyRef<NodeFilter>> =
+        let wpr: EndpointWrapper<WindowedPropertyRef<M>> =
             EndpointWrapper::property(self, name);
         PyPropertyFilterOps::from_arc(Arc::new(wpr))
     }
 
     fn metadata(&self, name: String) -> PyPropertyFilterOps {
-        let wpr: EndpointWrapper<WindowedPropertyRef<NodeFilter>> =
+        let wpr: EndpointWrapper<WindowedPropertyRef<M>> =
             EndpointWrapper::metadata(self, name);
         PyPropertyFilterOps::from_arc(Arc::new(wpr))
+    }
+}
+
+impl<M> DynNodePropertyFilterFactory for M
+where
+    M: PropertyFilterFactory<M> + Send + Sync + Clone + 'static,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+{
+    fn property(&self, name: String) -> PyPropertyFilterOps {
+        let builder: PropertyFilterBuilder<M> = <M as PropertyFilterFactory<M>>::property(name);
+        PyPropertyFilterOps::from_arc(Arc::new(builder))
+    }
+
+    fn metadata(&self, name: String) -> PyPropertyFilterOps {
+        let builder: MetadataFilterBuilder<M> = <M as PropertyFilterFactory<M>>::metadata(name);
+        PyPropertyFilterOps::from_arc(Arc::new(builder))
     }
 }
 
