@@ -38,6 +38,7 @@ pub mod locked;
 pub mod node_page;
 pub mod node_store;
 pub mod session;
+pub mod graph_page;
 pub mod graph_store;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
