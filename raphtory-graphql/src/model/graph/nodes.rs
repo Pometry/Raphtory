@@ -358,7 +358,7 @@ impl GqlNodes {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter_iter(filter)?;
+            let filtered = self_clone.nn.select(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await

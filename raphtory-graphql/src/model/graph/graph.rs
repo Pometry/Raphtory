@@ -389,7 +389,7 @@ impl GqlGraph {
             let nf: CompositeNodeFilter = sel.try_into()?;
             let narrowed = blocking_compute({
                 let nn_clone = nn.clone();
-                move || nn_clone.filter_iter(nf)
+                move || nn_clone.select(nf)
             })
             .await?;
             return Ok(GqlNodes::new(narrowed.into_dyn()));
@@ -409,7 +409,7 @@ impl GqlGraph {
 
         if let Some(sel) = select {
             let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.filter_iter(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(ef)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
 
