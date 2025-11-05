@@ -31,8 +31,8 @@ pub struct Properties {
     t_properties: TColumns,
     earliest: Option<TimeIndexEntry>,
     latest: Option<TimeIndexEntry>,
-    has_node_additions: bool,
-    has_node_properties: bool,
+    has_additions: bool,
+    has_properties: bool,
     has_deletions: bool,
     pub additions_count: usize,
 }
@@ -107,12 +107,16 @@ impl Properties {
         self.times_from_props.get(row)
     }
 
-    pub fn has_node_properties(&self) -> bool {
-        self.has_node_properties
+    pub fn has_properties(&self) -> bool {
+        self.has_properties
     }
 
-    pub fn has_node_additions(&self) -> bool {
-        self.has_node_additions
+    pub fn set_has_properties(&mut self) {
+        self.has_properties = true
+    }
+
+    pub fn has_additions(&self) -> bool {
+        self.has_additions
     }
 
     pub fn has_deletions(&self) -> bool {
@@ -263,7 +267,7 @@ impl<'a> PropMutEntry<'a> {
         self.ensure_times_from_props();
         self.set_time(t, t_prop_row);
 
-        self.properties.has_node_properties = true;
+        self.properties.has_properties = true;
         self.properties.update_earliest_latest(t);
     }
 
@@ -287,7 +291,7 @@ impl<'a> PropMutEntry<'a> {
                 .resize_with(self.row + 1, Default::default);
         }
 
-        self.properties.has_node_additions = true;
+        self.properties.has_additions = true;
         let prop_timestamps = &mut self.properties.additions[self.row];
         prop_timestamps.set(t, edge_id);
 
