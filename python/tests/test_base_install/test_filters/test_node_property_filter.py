@@ -1104,3 +1104,38 @@ def test_filter_nodes_for_temporal_property_fails():
             graph.filter(filter_expr).nodes.id
 
     return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_temporal_window_sum_ge():
+    def check(graph):
+        expr = filter.Node.window(1, 2).property("prop5").temporal().last().sum() >= 12
+        assert sorted(graph.filter(expr).nodes.id) == ["c"]
+
+        expr = filter.Node.window(1, 2).property("prop5").temporal().last().sum() >= 6
+        assert sorted(graph.filter(expr).nodes.id) == ["a", "c"]
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_two_windows_and():
+    def check(graph):
+        filter1 = (
+            filter.Node.window(1, 2).property("prop5").temporal().first().sum() == 6
+        )
+        filter2 = (
+            filter.Node.window(2, 3).property("prop6").temporal().last().sum() == 12
+        )
+        assert sorted(graph.filter(filter1 & filter2).nodes.id) == ["a"]
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_window_out_of_range_is_empty():
+    def check(graph):
+        expr = filter.Node.window(10, 20).property("prop5").temporal().sum() >= 0
+        assert list(graph.filter(expr).nodes.id) == []
+
+    return check

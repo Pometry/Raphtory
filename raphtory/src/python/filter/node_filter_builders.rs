@@ -4,11 +4,15 @@ use crate::{
             InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory,
+        PropertyFilterFactory, Windowed,
     },
-    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
+    python::{
+        filter::{filter_expr::PyFilterExpr, window_filter::PyNodeWindow},
+        types::iterable::FromIterable,
+        utils::PyTime,
+    },
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyResult};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
@@ -170,12 +174,19 @@ impl PyNodeFilter {
 
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<NodeFilter> {
-        NodeFilter::property(name)
+        NodeFilter.property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<NodeFilter> {
-        NodeFilter::metadata(name)
+        NodeFilter.metadata(name)
+    }
+
+    #[staticmethod]
+    fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyNodeWindow> {
+        Ok(PyNodeWindow(Windowed::<NodeFilter>::from_times(
+            py_start, py_end,
+        )))
     }
 }
 

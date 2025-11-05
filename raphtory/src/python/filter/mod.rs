@@ -5,6 +5,7 @@ use crate::python::filter::{
     property_filter_builders::{
         PyMetadataFilterBuilder, PyPropertyFilterBuilder, PyPropertyFilterOps,
     },
+    window_filter::{PyEdgeWindow, PyExplodedEdgeWindow, PyNodeWindow},
 };
 use pyo3::{
     prelude::{PyModule, PyModuleMethods},
@@ -16,6 +17,7 @@ pub mod edge_filter_builders;
 pub mod filter_expr;
 pub mod node_filter_builders;
 pub mod property_filter_builders;
+pub mod window_filter;
 
 pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     let filter_module = PyModule::new(py, "filter")?;
@@ -28,6 +30,9 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
     filter_module.add_class::<PyMetadataFilterBuilder>()?;
+    filter_module.add_class::<PyNodeWindow>()?;
+    filter_module.add_class::<PyEdgeWindow>()?;
+    filter_module.add_class::<PyExplodedEdgeWindow>()?;
 
     Ok(filter_module)
 }

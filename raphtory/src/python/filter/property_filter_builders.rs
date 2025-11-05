@@ -582,7 +582,7 @@ impl PyPropertyFilterOps {
         Self { ops: Arc::new(t) }
     }
 
-    fn from_arc(ops: Arc<dyn DynFilterOps>) -> Self {
+    pub fn from_arc(ops: Arc<dyn DynFilterOps>) -> Self {
         Self { ops }
     }
 }
@@ -689,6 +689,10 @@ impl PyPropertyFilterOps {
 
     fn max(&self) -> PyResult<PyPropertyFilterOps> {
         self.ops.max()
+    }
+
+    pub fn temporal(&self) -> PyResult<PyPropertyFilterOps> {
+        self.ops.temporal()
     }
 }
 

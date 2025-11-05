@@ -8,15 +8,21 @@ use crate::{
                 InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{
-            internal::CreateFilter,
-            model::{node_filter::NodeFilter, property_filter::PropertyFilter},
+        graph::views::{
+            filter::{
+                internal::CreateFilter,
+                model::{node_filter::NodeFilter, property_filter::PropertyFilter, Windowed},
+            },
+            window_graph::WindowedGraph,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
 };
-use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_api::{
+    core::{entities::LayerIds, storage::timeindex::AsTime},
+    inherit::Base,
+};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 
 #[derive(Debug, Clone)]
@@ -33,6 +39,30 @@ impl<G> NodePropertyFilteredGraph<G> {
             prop_id,
             filter,
         }
+    }
+}
+
+impl CreateFilter for PropertyFilter<Windowed<NodeFilter>> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+        NodePropertyFilteredGraph<WindowedGraph<G>>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
+        let filter = PropertyFilter {
+            prop_ref: self.prop_ref,
+            prop_value: self.prop_value,
+            operator: self.operator,
+            ops: self.ops,
+            entity: NodeFilter,
+        };
+        Ok(NodePropertyFilteredGraph::new(
+            graph.window(self.entity.start.t(), self.entity.end.t()),
+            prop_id,
+            filter,
+        ))
     }
 }
 
@@ -120,7 +150,7 @@ mod test_node_property_filtered_graph {
 
         let filter_expr = NodeFilter::name()
             .eq("John")
-            .and(NodeFilter::property("band").eq("Dead & Company"));
+            .and(NodeFilter.property("band").eq("Dead & Company"));
         let filtered_nodes = g.nodes().filter(filter_expr).unwrap();
 
         // filter_nodes doesn't filter the iterator, it only filters the view of the nodes which includes history, edges, etc.
@@ -169,7 +199,7 @@ mod test_node_property_filtered_graph {
         let n1 = g.node(1).unwrap();
 
         assert_eq!(
-            n1.filter(NodeFilter::property("test").eq(1i64))
+            n1.filter(NodeFilter.property("test").eq(1i64))
                 .unwrap()
                 .edges()
                 .id()
@@ -177,7 +207,7 @@ mod test_node_property_filtered_graph {
             vec![]
         );
         assert_eq!(
-            n1.filter(NodeFilter::property("test").eq(2i64))
+            n1.filter(NodeFilter.property("test").eq(2i64))
                 .unwrap()
                 .out_neighbours()
                 .id()
@@ -188,7 +218,7 @@ mod test_node_property_filtered_graph {
         let n2 = g.node(2).unwrap();
 
         assert_eq!(
-            n2.filter(NodeFilter::property("test").gt(1i64))
+            n2.filter(NodeFilter.property("test").gt(1i64))
                 .unwrap()
                 .neighbours()
                 .id()
@@ -197,7 +227,7 @@ mod test_node_property_filtered_graph {
         );
 
         assert_eq!(
-            n2.filter(NodeFilter::property("test").gt(0i64))
+            n2.filter(NodeFilter.property("test").gt(0i64))
                 .unwrap()
                 .neighbours()
                 .id()
@@ -209,7 +239,7 @@ mod test_node_property_filtered_graph {
         let n1p = gp.node(1).unwrap();
 
         assert_eq!(
-            n1p.filter(NodeFilter::property("test").eq(1i64))
+            n1p.filter(NodeFilter.property("test").eq(1i64))
                 .unwrap()
                 .edges()
                 .id()
@@ -217,7 +247,7 @@ mod test_node_property_filtered_graph {
             vec![]
         );
         assert_eq!(
-            n1p.filter(NodeFilter::property("test").eq(2i64))
+            n1p.filter(NodeFilter.property("test").eq(2i64))
                 .unwrap()
                 .out_neighbours()
                 .id()
@@ -228,7 +258,7 @@ mod test_node_property_filtered_graph {
         let n2p = gp.node(2).unwrap();
 
         assert_eq!(
-            n2p.filter(NodeFilter::property("test").gt(1i64))
+            n2p.filter(NodeFilter.property("test").gt(1i64))
                 .unwrap()
                 .neighbours()
                 .id()
@@ -237,7 +267,7 @@ mod test_node_property_filtered_graph {
         );
 
         assert_eq!(
-            n2p.filter(NodeFilter::property("test").gt(0i64))
+            n2p.filter(NodeFilter.property("test").gt(0i64))
                 .unwrap()
                 .neighbours()
                 .id()
@@ -259,7 +289,7 @@ mod test_node_property_filtered_graph {
 
         let filtered_nodes = g
             .nodes()
-            .select(NodeFilter::property("test").gt(1i64))
+            .select(NodeFilter.property("test").gt(1i64))
             .unwrap();
         assert_eq!(
             filtered_nodes
@@ -282,7 +312,7 @@ mod test_node_property_filtered_graph {
         let filtered_nodes_p = g
             .persistent_graph()
             .nodes()
-            .select(NodeFilter::property("test").gt(1i64))
+            .select(NodeFilter.property("test").gt(1i64))
             .unwrap();
         assert_eq!(
             filtered_nodes_p
@@ -305,32 +335,32 @@ mod test_node_property_filtered_graph {
         g.add_edge(1, 2, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1, 3, NO_PROPS, None).unwrap();
 
-        let gf = g.filter(NodeFilter::property("test").eq(1i64)).unwrap();
+        let gf = g.filter(NodeFilter.property("test").eq(1i64)).unwrap();
         assert_eq!(gf.edges().id().collect_vec(), vec![]);
 
-        let gf = g.filter(NodeFilter::property("test").gt(1i64)).unwrap();
+        let gf = g.filter(NodeFilter.property("test").gt(1i64)).unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(2), GID::U64(3))]
         );
 
-        let gf = g.filter(NodeFilter::property("test").lt(3i64)).unwrap();
+        let gf = g.filter(NodeFilter.property("test").lt(3i64)).unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(1), GID::U64(2)), (GID::U64(2), GID::U64(1))]
         );
 
         let gp = g.persistent_graph();
-        let gf = gp.filter(NodeFilter::property("test").eq(1i64)).unwrap();
+        let gf = gp.filter(NodeFilter.property("test").eq(1i64)).unwrap();
         assert_eq!(gf.edges().id().collect_vec(), vec![]);
 
-        let gf = gp.filter(NodeFilter::property("test").gt(1i64)).unwrap();
+        let gf = gp.filter(NodeFilter.property("test").gt(1i64)).unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(2), GID::U64(3))]
         );
 
-        let gf = gp.filter(NodeFilter::property("test").lt(3i64)).unwrap();
+        let gf = gp.filter(NodeFilter.property("test").lt(3i64)).unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(1), GID::U64(2)), (GID::U64(2), GID::U64(1))]
@@ -344,7 +374,7 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filter = NodeFilter::property("int_prop").gt(v);
+            let filter = NodeFilter.property("int_prop").gt(v);
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
                     int_v.filter(|&vv| *vv > v).is_some()
                 });
@@ -367,7 +397,7 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filter = NodeFilter::property("int_prop").ge(v);
+            let filter = NodeFilter.property("int_prop").ge(v);
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
                 int_v.filter(|&vv| *vv >= v ).is_some()
             });
@@ -389,7 +419,7 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filter = NodeFilter::property("int_prop").lt(v);
+            let filter = NodeFilter.property("int_prop").lt(v);
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
                 int_v.filter(|&vv| *vv < v ).is_some()
             });
@@ -411,7 +441,7 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filter = NodeFilter::property("int_prop").le(v);
+            let filter = NodeFilter.property("int_prop").le(v);
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
                 int_v.filter(|&vv| *vv <= v ).is_some()
             });
@@ -433,7 +463,7 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filter = NodeFilter::property("int_prop").eq(v);
+            let filter = NodeFilter.property("int_prop").eq(v);
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
                 int_v.filter(|&vv| *vv == v ).is_some()
             });
@@ -455,7 +485,7 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filter = NodeFilter::property("int_prop").ne(v);
+            let filter = NodeFilter.property("int_prop").ne(v);
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
                 int_v.filter(|&vv| *vv != v ).is_some()
             });
@@ -477,7 +507,7 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filter = NodeFilter::property("int_prop").is_some();
+            let filter = NodeFilter.property("int_prop").is_some();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
                 int_v.is_some()
             });
@@ -499,7 +529,7 @@ mod test_node_property_filtered_graph {
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
-            let filter = NodeFilter::property("int_prop").is_none();
+            let filter = NodeFilter.property("int_prop").is_none();
             let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {
                 int_v.is_none()
             });
@@ -532,7 +562,7 @@ mod test_node_property_filtered_graph {
 
         assert_eq!(graph.count_nodes(), 3);
 
-        let filtered = graph.filter(NodeFilter::property("p2").is_none()).unwrap();
+        let filtered = graph.filter(NodeFilter.property("p2").is_none()).unwrap();
         let ids = filtered.nodes().name().collect_vec();
 
         assert_eq!(ids, vec!["2"]);
