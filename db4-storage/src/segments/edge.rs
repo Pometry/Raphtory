@@ -575,6 +575,8 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())
     }
+
+    fn mark_dirty(&self) {}
 }
 
 #[cfg(test)]

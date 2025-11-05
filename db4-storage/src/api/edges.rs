@@ -53,6 +53,10 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
+    /// mark segment as dirty without triggering a write
+    fn mark_dirty(&self);
+
+    /// notify that an edge was added (might need to write to disk)
     fn notify_write(
         &self,
         head_lock: impl DerefMut<Target = MemEdgeSegment>,
