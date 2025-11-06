@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761828662478,
+  "lastUpdate": 1762437154085,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2105,6 +2105,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1111,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "19470cce49edc5e89236192c403ae3ba17a5341b",
+          "message": "James/concepts (#2308)\n\n* skeleton\n\n* graph and nodes\n\n* edges\n\n* layers\n\n* Views\n\n* history\n\n* tidy\n\n* chore: apply tidy-public auto-fixes\n\n* typo\n\n* update name\n\n* review comments\n\n* chore: apply tidy-public auto-fixes\n\n* add nodestate mention\n\n* review fixes\n\n* soften update description\n\n* chore: apply tidy-public auto-fixes\n\n* review fixes\n\n* Update 4_key_concepts.md\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2025-11-06T13:17:09Z",
+          "tree_id": "defaa56c84709203944566aba192d07ebdd41547",
+          "url": "https://github.com/Pometry/Raphtory/commit/19470cce49edc5e89236192c403ae3ba17a5341b"
+        },
+        "date": 1762437150920,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1303,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 180,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 149,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1001,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 942,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1313,
             "unit": "req/s"
           }
         ]
