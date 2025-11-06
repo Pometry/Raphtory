@@ -724,15 +724,17 @@ mod test_index {
             );
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
-            let filter = NodeFilter::property("p1")
+            let filter = NodeFilter
+                .property("p1")
                 .eq(5u64)
-                .and(NodeFilter::metadata("x").eq(true));
+                .and(NodeFilter.metadata("x").eq(true));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry"]);
 
-            let filter = EdgeFilter::property("e_p1")
+            let filter = EdgeFilter
+                .property("e_p1")
                 .lt(5f64)
-                .and(EdgeFilter::metadata("e_y").eq(false));
+                .and(EdgeFilter.metadata("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
@@ -756,19 +758,21 @@ mod test_index {
             );
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
-            let filter = NodeFilter::property("p1")
+            let filter = NodeFilter
+                .property("p1")
                 .eq(5u64)
-                .or(NodeFilter::metadata("y").eq(false));
+                .or(NodeFilter.metadata("y").eq(false));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry", "raphtory"]);
 
-            let filter = NodeFilter::metadata("y").eq(false);
+            let filter = NodeFilter.metadata("y").eq(false);
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["raphtory"]);
 
-            let filter = EdgeFilter::property("e_p1")
+            let filter = EdgeFilter
+                .property("e_p1")
                 .lt(5f64)
-                .or(EdgeFilter::metadata("e_y").eq(false));
+                .or(EdgeFilter.metadata("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
@@ -793,15 +797,17 @@ mod test_index {
 
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
-            let filter = NodeFilter::property("p1")
+            let filter = NodeFilter
+                .property("p1")
                 .eq(5u64)
-                .and(NodeFilter::metadata("x").eq(true));
+                .and(NodeFilter.metadata("x").eq(true));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry"]);
 
-            let filter = EdgeFilter::property("e_p1")
+            let filter = EdgeFilter
+                .property("e_p1")
                 .lt(5f64)
-                .or(EdgeFilter::metadata("e_y").eq(false));
+                .or(EdgeFilter.metadata("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
@@ -828,15 +834,17 @@ mod test_index {
 
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
-            let filter = NodeFilter::property("p1")
+            let filter = NodeFilter
+                .property("p1")
                 .eq(5u64)
-                .or(NodeFilter::metadata("y").eq(false));
+                .or(NodeFilter.metadata("y").eq(false));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry", "raphtory"]);
 
-            let filter = EdgeFilter::property("e_p1")
+            let filter = EdgeFilter
+                .property("e_p1")
                 .lt(5f64)
-                .or(EdgeFilter::metadata("e_y").eq(false));
+                .or(EdgeFilter.metadata("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
@@ -870,9 +878,9 @@ mod test_index {
             graph.create_index_with_spec(index_spec.clone()).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let results = search_nodes(&graph, NodeFilter::metadata("y").eq(false));
+            let results = search_nodes(&graph, NodeFilter.metadata("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, EdgeFilter::metadata("e_y").eq(false));
+            let results = search_edges(&graph, EdgeFilter.metadata("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
@@ -886,9 +894,9 @@ mod test_index {
             graph.create_index_with_spec(index_spec.clone()).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let results = search_nodes(&graph, NodeFilter::metadata("y").eq(false));
+            let results = search_nodes(&graph, NodeFilter.metadata("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, EdgeFilter::metadata("e_y").eq(false));
+            let results = search_edges(&graph, EdgeFilter.metadata("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
 
@@ -908,9 +916,9 @@ mod test_index {
             let graph = Graph::decode(path.clone()).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let results = search_nodes(&graph, NodeFilter::metadata("y").eq(false));
+            let results = search_nodes(&graph, NodeFilter.metadata("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, EdgeFilter::metadata("e_y").eq(false));
+            let results = search_edges(&graph, EdgeFilter.metadata("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
@@ -928,9 +936,9 @@ mod test_index {
             let graph = Graph::decode(path).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let results = search_nodes(&graph, NodeFilter::metadata("y").eq(false));
+            let results = search_nodes(&graph, NodeFilter.metadata("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, EdgeFilter::metadata("e_y").eq(false));
+            let results = search_edges(&graph, EdgeFilter.metadata("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
 
@@ -1019,7 +1027,7 @@ mod test_index {
                 .build();
             create_index_fn(&graph, index_spec.clone()).unwrap();
 
-            let filter = NodeFilter::property("p2").temporal().latest().eq(50u64);
+            let filter = NodeFilter.property("p2").temporal().last().eq(50u64);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["pometry"]);
 
             let node = graph
@@ -1027,17 +1035,17 @@ mod test_index {
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
 
-            let filter = NodeFilter::property("p1").temporal().latest().eq(100u64);
+            let filter = NodeFilter.property("p1").temporal().last().eq(100u64);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
 
             node.add_metadata([("z", true)]).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = NodeFilter::metadata("z").eq(true);
+            let filter = NodeFilter.metadata("z").eq(true);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
 
             node.update_metadata([("z", false)]).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = NodeFilter::metadata("z").eq(false);
+            let filter = NodeFilter.metadata("z").eq(false);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
         }
 
@@ -1059,17 +1067,17 @@ mod test_index {
                 .add_edge(1, "shivam", "kapoor", [("p1", 100u64)], None)
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = EdgeFilter::property("p1").temporal().latest().eq(100u64);
+            let filter = EdgeFilter.property("p1").temporal().last().eq(100u64);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
 
             edge.add_metadata([("z", true)], None).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = EdgeFilter::metadata("z").eq(true);
+            let filter = EdgeFilter.metadata("z").eq(true);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
 
             edge.update_metadata([("z", false)], None).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = EdgeFilter::metadata("z").eq(false);
+            let filter = EdgeFilter.metadata("z").eq(false);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
         }
     }

@@ -1456,30 +1456,27 @@ def test_apply_view_node_filter():
     graph = Graph()
     create_graph_date(graph)
     query = """
-{
-  graph(path: "g") {
-    applyViews(views: [
-      {
-        nodeFilter: {
-            property: {
-              name: "where"
-              operator: EQUAL
-              value: {str: "Berlin"}
-            
+    {
+      graph(path: "g") {
+        applyViews(views: [
+          {
+            nodeFilter: {
+              property: {
+                name: "where"
+                where: { eq: { str: "Berlin" } }
+              }
+            }
+          }
+        ]) {
+          nodes {
+            list {
+              name
+            }
           }
         }
       }
-      
-    ]) {
-       nodes {
-        list {
-          name
-        }
-      }
     }
-  }
-  }
-"""
+    """
     correct = {"graph": {"applyViews": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, correct, graph)
 
@@ -1488,30 +1485,27 @@ def test_apply_view_edge_filter():
     graph = Graph()
     create_graph_date(graph)
     query = """
-{
-  graph(path: "g") {
-    applyViews(views: [
-      {
-        edgeFilter: {
-            property: {
-              name: "where"
-              operator: EQUAL
-              value: {str: "fishbowl"}
-            
+    {
+      graph(path: "g") {
+        applyViews(views: [
+          {
+            edgeFilter: {
+              property: {
+                name: "where"
+                where: { eq: { str: "fishbowl" } }
+              }
+            }
+          }
+        ]) {
+          edges {
+            list {
+              history
+            }
           }
         }
       }
-      
-    ]) {
-       edges {
-        list {
-          history
-        }
-      }
     }
-  }
-  }
-"""
+    """
     correct = {
         "graph": {"applyViews": {"edges": {"list": [{"history": [1736035200000]}]}}}
     }
@@ -1634,27 +1628,34 @@ def test_apply_view_a_lot_of_views():
     graph = Graph()
     create_graph_date(graph)
     query = """
-{
-  graph(path: "g") {
-      nodes{
-         applyViews(views: [
-        {window: {start: 1735689600000, end: 1735862400000}},
-        {layer: "follows"},
-        {nodeFilter: {property: {name: "where", operator: EQUAL, value: {str: "Berlin"}}}},
-      ]) {
-      list {
-          name
-          history
+    {
+      graph(path: "g") {
+        nodes {
+          applyViews(views: [
+            { window: { start: 1735689600000, end: 1735862400000 } },
+            { layer: "follows" },
+            { nodeFilter: { property: { name: "where", where: { eq: { str: "Berlin" } } } } }
+          ]) {
+            list {
+              name
+              history
+            }
+          }
         }
       }
     }
-}
-}"""
+    """
     correct = {
         "graph": {
             "nodes": {
                 "applyViews": {
-                    "list": [{"history": [1735689600000, 1735776000000], "name": "1"}]
+                    "list": [
+                        {"history": [1735689600000], "name": "1"},
+                        {"history": [], "name": "2"},
+                        {"history": [], "name": "3"},
+                        {"history": [], "name": "6"},
+                        {"history": [], "name": "7"},
+                    ]
                 }
             }
         }

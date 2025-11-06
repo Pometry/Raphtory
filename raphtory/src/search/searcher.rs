@@ -159,18 +159,18 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search_property() {
-            let filter = NodeFilter::property("p1").fuzzy_search("tano", 2, false);
+            let filter = NodeFilter.property("p1").fuzzy_search("tano", 2, false);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, vec!["pometry"]);
         }
 
         #[test]
         fn test_fuzzy_search_property_prefix_match() {
-            let filter = NodeFilter::property("p1").fuzzy_search("char", 2, false);
+            let filter = NodeFilter.property("p1").fuzzy_search("char", 2, false);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, Vec::<String>::new());
 
-            let filter = NodeFilter::property("p1").fuzzy_search("char", 2, true);
+            let filter = NodeFilter.property("p1").fuzzy_search("char", 2, true);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, vec!["shivam_kapoor"]);
         }
@@ -258,18 +258,18 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search_property() {
-            let filter = EdgeFilter::property("p1").fuzzy_search("tano", 2, false);
+            let filter = EdgeFilter.property("p1").fuzzy_search("tano", 2, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("shivam".into(), "raphtory".into())]);
         }
 
         #[test]
         fn test_fuzzy_search_property_prefix_match() {
-            let filter = EdgeFilter::property("p1").fuzzy_search("charl", 1, false);
+            let filter = EdgeFilter.property("p1").fuzzy_search("charl", 1, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, Vec::<(String, String)>::new());
 
-            let filter = EdgeFilter::property("p1").fuzzy_search("charl", 1, true);
+            let filter = EdgeFilter.property("p1").fuzzy_search("charl", 1, true);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }

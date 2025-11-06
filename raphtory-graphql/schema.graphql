@@ -291,6 +291,7 @@ type Edge {
 	Returns: boolean
 	"""
 	isSelfLoop: Boolean!
+	filter(expr: EdgeFilter!): Edge!
 }
 
 input EdgeAddition {
@@ -315,25 +316,25 @@ input EdgeAddition {
 
 input EdgeFilter @oneOf {
 	"""
-	Source node.
+	Source node filter.
 	"""
-	src: NodeFieldFilter
+	src: NodeFieldFilterNew
 	"""
-	Destination node.
+	Destination node filter.
 	"""
-	dst: NodeFieldFilter
+	dst: NodeFieldFilterNew
 	"""
-	Property.
+	Property filter.
 	"""
-	property: PropertyFilterExpr
+	property: PropertyFilterNew
 	"""
-	Metadata.
+	Metadata filter.
 	"""
-	metadata: MetadataFilterExpr
+	metadata: PropertyFilterNew
 	"""
-	Temporal property.
+	Temporal property filter.
 	"""
-	temporalProperty: TemporalPropertyFilterExpr
+	temporalProperty: PropertyFilterNew
 	"""
 	AND operator.
 	"""
@@ -451,6 +452,10 @@ input EdgeViewCollection @oneOf {
 	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
+	"""
+	Edge filter
+	"""
+	edgeFilter: EdgeFilter
 }
 
 type EdgeWindowSet {
@@ -578,6 +583,14 @@ type Edges {
 	Returns a list of all objects in the current selection of the collection. You should filter filter the collection first then call list.
 	"""
 	list: [Edge!]!
+	"""
+	Returns a filtered view that applies to list down the chain
+	"""
+	filter(expr: EdgeFilter!): Edges!
+	"""
+	Returns filtered list of edges
+	"""
+	select(expr: EdgeFilter!): Edges!
 }
 
 input EdgesViewCollection @oneOf {
@@ -641,6 +654,10 @@ input EdgesViewCollection @oneOf {
 	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
+	"""
+	Edge filter
+	"""
+	edgeFilter: EdgeFilter
 }
 
 type EdgesWindowSet {
@@ -811,7 +828,7 @@ type Graph {
 	"""
 	Gets (optionally a subset of) the nodes in the graph.
 	"""
-	nodes(ids: [String!]): Nodes!
+	nodes(select: NodeFilter): Nodes!
 	"""
 	Gets the edge with the specified source and destination nodes.
 	"""
@@ -819,7 +836,7 @@ type Graph {
 	"""
 	Gets the edges in the graph.
 	"""
-	edges: Edges!
+	edges(select: EdgeFilter): Edges!
 	"""
 	Returns the properties of the graph.
 	"""
@@ -850,8 +867,8 @@ type Graph {
 	Export all nodes and edges from this graph view to another existing graph
 	"""
 	exportTo(path: String!): Boolean!
-	nodeFilter(filter: NodeFilter!): Graph!
-	edgeFilter(filter: EdgeFilter!): Graph!
+	filterNodes(expr: NodeFilter!): Graph!
+	filterEdges(expr: EdgeFilter!): Graph!
 	"""
 	(Experimental) Get index specification.
 	"""
@@ -876,8 +893,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
@@ -1053,19 +1070,6 @@ type LayerSchema {
 	edges: [EdgeSchema!]!
 }
 
-enum ListAgg {
-	LEN
-	SUM
-	AVG
-	MIN
-	MAX
-}
-
-enum ListElemQualifier {
-	ANY
-	ALL
-}
-
 type MetaGraph {
 	"""
 	Returns the graph name.
@@ -1118,29 +1122,6 @@ type Metadata {
 	/// Return all metadata values.
 	"""
 	values(keys: [String!]): [Property!]!
-}
-
-input MetadataFilterExpr {
-	"""
-	Node metadata to compare against.
-	"""
-	name: String!
-	"""
-	Operator.
-	"""
-	operator: Operator!
-	"""
-	Value.
-	"""
-	value: Value
-	"""
-	List aggregate
-	"""
-	listAgg: ListAgg
-	"""
-	List qualifier
-	"""
-	elemQualifier: ListElemQualifier
 }
 
 type MutRoot {
@@ -1481,28 +1462,28 @@ type Node {
 	"""
 	Returns all connected edges.
 	"""
-	edges: Edges!
+	edges(select: EdgeFilter): Edges!
 	"""
 	Returns outgoing edges.
 	"""
-	outEdges: Edges!
+	outEdges(select: EdgeFilter): Edges!
 	"""
 	Returns incoming edges.
 	"""
-	inEdges: Edges!
+	inEdges(select: EdgeFilter): Edges!
 	"""
 	Returns neighbouring nodes.
 	"""
-	neighbours: PathFromNode!
+	neighbours(select: NodeFilter): PathFromNode!
 	"""
 	Returns the number of neighbours that have at least one in-going edge to this node.
 	"""
-	inNeighbours: PathFromNode!
+	inNeighbours(select: NodeFilter): PathFromNode!
 	"""
 	Returns the number of neighbours that have at least one out-going edge from this node.
 	"""
-	outNeighbours: PathFromNode!
-	nodeFilter(filter: NodeFilter!): Node!
+	outNeighbours(select: NodeFilter): PathFromNode!
+	filter(expr: NodeFilter!): Node!
 }
 
 input NodeAddition {
@@ -1539,38 +1520,43 @@ enum NodeField {
 	NODE_TYPE
 }
 
-input NodeFieldFilter {
-	"""
-	Node component to compare against.
-	"""
+input NodeFieldCondition @oneOf {
+	eq: Value
+	ne: Value
+	gt: Value
+	ge: Value
+	lt: Value
+	le: Value
+	startsWith: Value
+	endsWith: Value
+	contains: Value
+	notContains: Value
+	isIn: Value
+	isNotIn: Value
+}
+
+input NodeFieldFilterNew {
 	field: NodeField!
-	"""
-	Operator filter.
-	"""
-	operator: Operator!
-	"""
-	Value filter.
-	"""
-	value: Value!
+	where: NodeFieldCondition!
 }
 
 input NodeFilter @oneOf {
 	"""
 	Node filter.
 	"""
-	node: NodeFieldFilter
+	node: NodeFieldFilterNew
 	"""
 	Property filter.
 	"""
-	property: PropertyFilterExpr
+	property: PropertyFilterNew
 	"""
 	Metadata filter.
 	"""
-	metadata: MetadataFilterExpr
+	metadata: PropertyFilterNew
 	"""
 	Temporal property filter.
 	"""
-	temporalProperty: TemporalPropertyFilterExpr
+	temporalProperty: PropertyFilterNew
 	"""
 	AND operator.
 	"""
@@ -1766,10 +1752,6 @@ type Nodes {
 	Filter nodes by node type.
 	"""
 	typeFilter(nodeTypes: [String!]!): Nodes!
-	"""
-	Returns a view of the node types.
-	"""
-	nodeFilter(filter: NodeFilter!): Nodes!
 	applyViews(views: [NodesViewCollection!]!): Nodes!
 	sorted(sortBys: [NodeSortBy!]!): Nodes!
 	"""
@@ -1794,6 +1776,14 @@ type Nodes {
 	Returns a view of the node ids.
 	"""
 	ids: [String!]!
+	"""
+	Returns a filtered view that applies to list down the chain
+	"""
+	filter(expr: NodeFilter!): Nodes!
+	"""
+	Returns filtered list of nodes
+	"""
+	select(expr: NodeFilter!): Nodes!
 }
 
 input NodesViewCollection @oneOf {
@@ -1889,59 +1879,6 @@ input ObjectEntry {
 	Value.
 	"""
 	value: Value!
-}
-
-enum Operator {
-	"""
-	Equality operator.
-	"""
-	EQUAL
-	"""
-	Inequality operator.
-	"""
-	NOT_EQUAL
-	"""
-	Greater Than Or Equal operator.
-	"""
-	GREATER_THAN_OR_EQUAL
-	"""
-	Less Than Or Equal operator.
-	"""
-	LESS_THAN_OR_EQUAL
-	"""
-	Greater Than operator.
-	"""
-	GREATER_THAN
-	"""
-	Less Than operator.
-	"""
-	LESS_THAN
-	"""
-	Is None operator.
-	"""
-	IS_NONE
-	"""
-	Is Some operator.
-	"""
-	IS_SOME
-	"""
-	Is In operator.
-	"""
-	IS_IN
-	"""
-	Is Not In operator.
-	"""
-	IS_NOT_IN
-	STARTS_WITH
-	ENDS_WITH
-	"""
-	Contains operator.
-	"""
-	CONTAINS
-	"""
-	Not Contains operator.
-	"""
-	NOT_CONTAINS
 }
 
 """
@@ -2047,6 +1984,14 @@ type PathFromNode {
 	Takes a specified selection of views and applies them in given order.
 	"""
 	applyViews(views: [PathFromNodeViewCollection!]!): PathFromNode!
+	"""
+	Returns a filtered view that applies to list down the chain
+	"""
+	filter(expr: NodeFilter!): PathFromNode!
+	"""
+	Returns filtered list of neighbour nodes
+	"""
+	select(expr: NodeFilter!): PathFromNode!
 }
 
 input PathFromNodeViewCollection @oneOf {
@@ -2121,6 +2066,35 @@ type PathFromNodeWindowSet {
 	list: [PathFromNode!]!
 }
 
+input PropCondition @oneOf {
+	eq: Value
+	ne: Value
+	gt: Value
+	ge: Value
+	lt: Value
+	le: Value
+	startsWith: Value
+	endsWith: Value
+	contains: Value
+	notContains: Value
+	isIn: Value
+	isNotIn: Value
+	isSome: Boolean
+	isNone: Boolean
+	and: [PropCondition!]
+	or: [PropCondition!]
+	not: PropCondition
+	first: PropCondition
+	last: PropCondition
+	any: PropCondition
+	all: PropCondition
+	sum: PropCondition
+	avg: PropCondition
+	min: PropCondition
+	max: PropCondition
+	len: PropCondition
+}
+
 type Properties {
 	"""
 	Get property value matching the specified key.
@@ -2147,27 +2121,10 @@ type Property {
 	value: PropertyOutput!
 }
 
-input PropertyFilterExpr {
-	"""
-	Node property to compare against.
-	"""
+input PropertyFilterNew {
 	name: String!
-	"""
-	Operator.
-	"""
-	operator: Operator!
-	"""
-	Value.
-	"""
-	value: Value
-	"""
-	List aggregate
-	"""
-	listAgg: ListAgg
-	"""
-	List qualifier
-	"""
-	elemQualifier: ListElemQualifier
+	window: Window
+	where: PropCondition!
 }
 
 input PropertyInput {
@@ -2325,33 +2282,6 @@ type TemporalProperty {
 	orderedDedupe(latestTime: Boolean!): [PropertyTuple!]!
 }
 
-input TemporalPropertyFilterExpr {
-	"""
-	Name.
-	"""
-	name: String!
-	"""
-	Type of temporal property. Choose from: any, latest.
-	"""
-	temporal: TemporalType!
-	"""
-	Operator.
-	"""
-	operator: Operator!
-	"""
-	Value.
-	"""
-	value: Value
-	"""
-	List aggregate
-	"""
-	listAgg: ListAgg
-	"""
-	List qualifier
-	"""
-	elemQualifier: ListElemQualifier
-}
-
 input TemporalPropertyInput {
 	"""
 	Time.
@@ -2361,20 +2291,6 @@ input TemporalPropertyInput {
 	Properties.
 	"""
 	properties: [PropertyInput!]
-}
-
-enum TemporalType {
-	"""
-	Any.
-	"""
-	ANY
-	"""
-	Latest.
-	"""
-	LATEST
-	FIRST
-	ALL
-	VALUES
 }
 
 scalar Upload

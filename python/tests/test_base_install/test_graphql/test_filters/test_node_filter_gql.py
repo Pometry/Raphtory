@@ -12,25 +12,22 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-            filter: {
-                 node: {
-                    field: NODE_ID
-                    operator: EQUAL
-                    value: { str: "1" }
-                }
+        filterNodes(
+          expr: {
+            node: {
+              field: NODE_ID
+              where: { eq: { str: "1" } }
             }
-          ) {
-              nodes {
-                list {
-                  name
-                }
-              }
+          }
+        ) {
+          nodes {
+            list { name }
+          }
         }
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "1"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -39,20 +36,17 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-            filter: {
-                 node: {
-                    field: NODE_ID
-                    operator: EQUAL
-                    value: { u64: 1 }
-                }
+        filterNodes(
+          expr: {
+            node: {
+              field: NODE_ID
+              where: { eq: { u64: 1 } }
             }
-          ) {
-              nodes {
-                list {
-                  name
-                }
-              }
+          }
+        ) {
+          nodes {
+            list { name }
+          }
         }
       }
     }
@@ -70,23 +64,52 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-            filter: {
-                 node: {
-                    field: NODE_ID
-                    operator: EQUAL
-                    value: { u64: 1 }
-                }
+        filterNodes(
+          expr: {
+            node: {
+              field: NODE_ID
+              where: { eq: { u64: 1 } }
             }
-          ) {
-              nodes {
-                list {
-                  name
-                }
-              }
+          }
+        ) {
+          nodes {
+            list { name }
+          }
         }
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "1"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "1"}]}}}}
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_chained_selection_with_node_filter(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes {
+          select(expr: { node: { 
+            field: NODE_TYPE
+            where: { eq: { str: "fire_nation" } }
+          } }) {
+            select(expr: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
+              filter(expr:{
+                property: { name: "p100", where: { gt: { i64: 30 } } }
+              }) {
+                list {
+                  name
+                }
+              }
+            }        
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {"select": {"select": {"filter": {"list": [{"name": "1"}]}}}}
+        }
+    }
     run_graphql_test(query, expected_output, graph)

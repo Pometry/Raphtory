@@ -12,21 +12,16 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(filter: {
-         src: {
-          field: NODE_ID
-          operator: EQUAL
-          value: { str: "3" }
-        }
+        filterEdges(expr: {
+          src: {
+            field: NODE_ID
+            where: { eq: { str: "3" } }
+          }
         }) {
           edges {
             list {
-              src {
-                name
-              }
-              dst {
-                name
-              }
+              src { name }
+              dst { name }
             }
           }
         }
@@ -35,7 +30,7 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {
                     "list": [
                         {"dst": {"name": "1"}, "src": {"name": "3"}},
@@ -57,21 +52,16 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(filter: {
-         src: {
-          field: NODE_ID
-          operator: EQUAL
-          value: { u64: 1 }
-        }
+        filterEdges(expr: {
+          src: {
+            field: NODE_ID
+            where: { eq: { u64: 1 } }
+          }
         }) {
           edges {
             list {
-              src {
-                name
-              }
-              dst {
-                name
-              }
+              src { name }
+              dst { name }
             }
           }
         }
@@ -80,8 +70,38 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {"list": [{"src": {"name": "1"}, "dst": {"name": "2"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_chained_selection_with_edge_filter(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          select(expr: { dst: { 
+            field: NODE_ID
+            where: { eq: { u64: 2 } }
+          } }) {
+            select(expr: { property: { name: "p2", where: { gt:{ i64: 2 } } } }) {
+              list { src { name } dst { name } }
+            }        
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "select": {
+                    "select": {"list": [{"dst": {"name": "2"}, "src": {"name": "1"}}]}
+                }
             }
         }
     }

@@ -7,8 +7,8 @@ use crate::{
                 edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
                 filter_operator::FilterOperator,
                 property_filter::PropertyFilter,
-                AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
-                TryAsCompositeFilter,
+                AndFilter, Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter,
+                Windowed,
             },
         },
     },
@@ -16,6 +16,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::{GidType, GID};
+use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -67,6 +68,7 @@ impl From<Filter> for NodeTypeFilter {
 pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter<NodeFilter>),
+    PropertyWindowed(PropertyFilter<Windowed<NodeFilter>>),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Not(Box<CompositeNodeFilter>),
@@ -76,6 +78,7 @@ impl Display for CompositeNodeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::PropertyWindowed(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -101,6 +104,7 @@ impl CreateFilter for CompositeNodeFilter {
                 }
             },
             CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeNodeFilter::PropertyWindowed(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeNodeFilter::And(l, r) => Ok(Arc::new(
                 AndFilter {
                     left: l.deref().clone(),
@@ -292,7 +296,7 @@ impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]
 pub struct NodeFilter;
 
 impl NodeFilter {
@@ -306,6 +310,10 @@ impl NodeFilter {
 
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
+    }
+
+    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<NodeFilter> {
+        Windowed::from_times(start, end)
     }
 
     pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphError> {
@@ -349,7 +357,10 @@ impl NodeFilter {
         };
 
         let op_allowed = match kind {
-            U64 => matches!(filter.operator, Eq | Ne | Lt | Le | Gt | Ge | In | NotIn),
+            U64 => matches!(
+                filter.operator,
+                Eq | Ne | Lt | Le | Gt | Ge | IsIn | IsNotIn
+            ),
             Str => matches!(
                 filter.operator,
                 Eq | Ne
@@ -358,8 +369,8 @@ impl NodeFilter {
                     | Contains
                     | NotContains
                     | FuzzySearch { .. }
-                    | In
-                    | NotIn
+                    | IsIn
+                    | IsNotIn
             ),
         };
 
@@ -379,7 +390,7 @@ impl NodeFilter {
         }
 
         match filter.operator {
-            In | NotIn => {
+            IsIn | IsNotIn => {
                 if !matches!(
                     filter.field_value,
                     FilterValue::IDSet(_) | FilterValue::Set(_)
@@ -419,8 +430,6 @@ impl NodeFilter {
         Ok(())
     }
 }
-
-impl PropertyFilterFactory<NodeFilter> for NodeFilter {}
 
 impl TryAsCompositeFilter for NodeIdFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

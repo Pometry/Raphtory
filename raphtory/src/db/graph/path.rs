@@ -275,6 +275,15 @@ pub struct PathFromNode<'graph, G> {
     pub(crate) op: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
 }
 
+impl<'graph, G: IntoDynamic> PathFromNode<'graph, G> {
+    pub fn into_dyn(self) -> PathFromNode<'graph, DynamicGraph> {
+        PathFromNode {
+            base_graph: self.base_graph.into_dynamic(),
+            op: self.op,
+        }
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> PathFromNode<'graph, G> {
     pub(crate) fn new<OP: Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>(
         graph: G,

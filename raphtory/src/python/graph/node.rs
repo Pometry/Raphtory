@@ -481,7 +481,7 @@ impl PyNodes {
     }
 
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNodes> {
-        let r = self.nodes.filter_iter(filter)?;
+        let r = self.nodes.select(filter)?;
         Ok(PyNodes::from(r))
     }
 }
@@ -928,7 +928,7 @@ impl PyPathFromGraph {
     }
 
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyPathFromGraph> {
-        let r = self.path.filter_iter(filter)?;
+        let r = self.path.select(filter)?;
         Ok(PyPathFromGraph::from(r))
     }
 }
@@ -1093,7 +1093,7 @@ impl PyPathFromNode {
     }
 
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyPathFromNode> {
-        let r = self.path.filter_iter(filter)?;
+        let r = self.path.select(filter)?;
         Ok(PyPathFromNode::from(r))
     }
 }
