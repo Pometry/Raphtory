@@ -223,16 +223,6 @@ impl InternalAdditionOps for TemporalGraph {
             if id > MAX_LAYER {
                 Err(TooManyLayers)?;
             }
-            let edge_segment = self.storage().edges().get_or_create_segment(0);
-            let mut edge_segment_head = edge_segment.head_mut();
-            edge_segment_head.get_or_create_layer(id);
-            edge_segment.notify_write(edge_segment_head)?;
-
-            let node_segment = self.storage().nodes().get_or_create_segment(0);
-
-            let mut node_segment_head = node_segment.head_mut();
-            node_segment_head.get_or_create_layer(id);
-            node_segment.notify_write(node_segment_head)?;
         }
         Ok(id)
     }

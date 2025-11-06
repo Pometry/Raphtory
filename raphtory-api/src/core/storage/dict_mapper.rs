@@ -13,7 +13,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct DictMapper {
     map: Arc<RwLock<FxHashMap<ArcStr, usize>>>,
     reverse_map: Arc<RwLock<Vec<ArcStr>>>,
