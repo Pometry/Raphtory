@@ -24,7 +24,7 @@ use crate::{
     errors::GraphError,
     prelude::PropertiesOps,
     python::{
-        filter::filter_expr::{AcceptFilter, PyFilterExpr},
+        filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::BaseFilter,
             properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},

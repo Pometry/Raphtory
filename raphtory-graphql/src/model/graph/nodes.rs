@@ -1,7 +1,7 @@
 use crate::{
     model::{
         graph::{
-            filtering::{NodeFilter, NodesViewCollection},
+            filtering::{GqlNodeFilter, NodesViewCollection},
             node::GqlNode,
             windowset::GqlNodesWindowSet,
             WindowDuration,
@@ -181,7 +181,7 @@ impl GqlNodes {
     }
 
     /// Returns a view of the node types.
-    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+    async fn node_filter(&self, filter: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = filter.try_into()?;

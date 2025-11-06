@@ -1542,49 +1542,63 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
     fn eq(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::eq(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
+
     fn ne(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::ne(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
+
     fn le(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::le(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
+
     fn ge(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::ge(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
+
     fn lt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::lt(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
+
     fn gt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::gt(self.property_ref(), value.into()).with_ops(self.ops().iter().copied())
     }
+
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::is_in(self.property_ref(), values).with_ops(self.ops().iter().copied())
     }
+
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::is_not_in(self.property_ref(), values).with_ops(self.ops().iter().copied())
     }
+
     fn is_none(&self) -> PropertyFilter<Self::Marker> {
         PropertyFilter::is_none(self.property_ref()).with_ops(self.ops().iter().copied())
     }
+
     fn is_some(&self) -> PropertyFilter<Self::Marker> {
         PropertyFilter::is_some(self.property_ref()).with_ops(self.ops().iter().copied())
     }
+
     fn starts_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::starts_with(self.property_ref(), value.into())
             .with_ops(self.ops().iter().copied())
     }
+
     fn ends_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::ends_with(self.property_ref(), value.into())
             .with_ops(self.ops().iter().copied())
     }
+
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::contains(self.property_ref(), value.into())
             .with_ops(self.ops().iter().copied())
     }
+
     fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::not_contains(self.property_ref(), value.into())
             .with_ops(self.ops().iter().copied())
     }
+
     fn fuzzy_search(
         &self,
         prop_value: impl Into<String>,
@@ -1713,6 +1727,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterOps {
         }
     }
 }
+
 impl<T: InternalPropertyFilterOps> ElemQualifierOps for T {}
 
 impl<M> PropertyFilterBuilder<M> {
@@ -1733,6 +1748,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
+
     fn sum(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
@@ -1740,6 +1756,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
+
     fn avg(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
@@ -1747,6 +1764,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
+
     fn min(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
@@ -1754,6 +1772,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
+
     fn max(&self) -> OpChainBuilder<Self::Marker> {
         OpChainBuilder {
             prop_ref: self.property_ref(),
@@ -1761,5 +1780,22 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
             _phantom: PhantomData,
         }
     }
+
+    fn first(&self) -> OpChainBuilder<Self::Marker> {
+        OpChainBuilder {
+            prop_ref: self.property_ref(),
+            ops: self.ops().iter().copied().chain([Op::First]).collect(),
+            _phantom: PhantomData,
+        }
+    }
+
+    fn last(&self) -> OpChainBuilder<Self::Marker> {
+        OpChainBuilder {
+            prop_ref: self.property_ref(),
+            ops: self.ops().iter().copied().chain([Op::Last]).collect(),
+            _phantom: PhantomData,
+        }
+    }
 }
+
 impl<T: InternalPropertyFilterOps + Sized> ListAggOps for T {}

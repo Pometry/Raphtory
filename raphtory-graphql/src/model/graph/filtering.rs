@@ -8,9 +8,9 @@ use dynamic_graphql::{
 };
 use raphtory::{
     db::graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter,
+        edge_filter::{CompositeEdgeFilter, EdgeFilter},
         filter_operator::FilterOperator,
-        node_filter::CompositeNodeFilter,
+        node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         Filter, FilterValue,
     },
@@ -19,6 +19,7 @@ use raphtory::{
 use raphtory_api::core::entities::{properties::prop::Prop, GID};
 use std::{
     borrow::Cow,
+    collections::HashSet,
     fmt,
     fmt::{Display, Formatter},
     marker::PhantomData,
@@ -75,9 +76,9 @@ pub enum GraphViewCollection {
     /// Set the window end to a specified time.
     ShrinkEnd(i64),
     /// Node filter.
-    NodeFilter(NodeFilter),
+    NodeFilter(GqlNodeFilter),
     /// Edge filter.
-    EdgeFilter(EdgeFilter),
+    EdgeFilter(GqlEdgeFilter),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
@@ -113,7 +114,7 @@ pub enum NodesViewCollection {
     /// Set the window end to a specified time.
     ShrinkEnd(i64),
     /// Node filter.
-    NodeFilter(NodeFilter),
+    NodeFilter(GqlNodeFilter),
     /// List of types.
     TypeFilter(Vec<String>),
 }
@@ -151,7 +152,7 @@ pub enum NodeViewCollection {
     /// Set the window end to a specified time.
     ShrinkEnd(i64),
     /// Node filter.
-    NodeFilter(NodeFilter),
+    NodeFilter(GqlNodeFilter),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
@@ -321,30 +322,42 @@ pub enum PropCondition {
 }
 
 impl PropCondition {
-    pub fn op_name(&self) -> Option<&'static str> {
+    pub fn op_name(&self) -> &'static str {
         use PropCondition::*;
-        Some(match self {
+        match self {
             Eq(_) => "eq",
             Ne(_) => "ne",
             Gt(_) => "gt",
             Ge(_) => "ge",
             Lt(_) => "lt",
             Le(_) => "le",
-            
+
             StartsWith(_) => "startsWith",
             EndsWith(_) => "endsWith",
             Contains(_) => "contains",
             NotContains(_) => "notContains",
-            
+
             IsIn(_) => "isIn",
             IsNotIn(_) => "isNotIn",
-            
+
             IsSome(_) => "isSome",
             IsNone(_) => "isNone",
-            
-            And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_) | Avg(_)
-            | Min(_) | Max(_) | Len(_) => return None,
-        })
+
+            And(_) => "and",
+            Or(_) => "or",
+            Not(_) => "not",
+
+            First(_) => "first",
+            Last(_) => "last",
+            Any(_) => "any",
+            All(_) => "all",
+
+            Sum(_) => "sum",
+            Avg(_) => "avg",
+            Min(_) => "min",
+            Max(_) => "max",
+            Len(_) => "len",
+        }
     }
 }
 
@@ -367,9 +380,9 @@ pub enum NodeFieldCondition {
 }
 
 impl NodeFieldCondition {
-    pub fn op_name(&self) -> Option<&'static str> {
+    pub fn op_name(&self) -> &'static str {
         use NodeFieldCondition::*;
-        Some(match self {
+        match self {
             Eq(_) => "eq",
             Ne(_) => "ne",
             Gt(_) => "gt",
@@ -382,7 +395,7 @@ impl NodeFieldCondition {
             NotContains(_) => "notContains",
             IsIn(_) => "isIn",
             IsNotIn(_) => "isNotIn",
-        })
+        }
     }
 }
 
@@ -394,7 +407,8 @@ pub struct NodeFieldFilterNew {
 }
 
 #[derive(OneOfInput, Clone, Debug)]
-pub enum NodeFilter {
+#[graphql(name = "NodeFilter")]
+pub enum GqlNodeFilter {
     /// Node filter.
     Node(NodeFieldFilterNew),
     /// Property filter.
@@ -404,15 +418,16 @@ pub enum NodeFilter {
     /// Temporal property filter.
     TemporalProperty(PropertyFilterNew),
     /// AND operator.
-    And(Vec<NodeFilter>),
+    And(Vec<GqlNodeFilter>),
     /// OR operator.
-    Or(Vec<NodeFilter>),
+    Or(Vec<GqlNodeFilter>),
     /// NOT operator.
-    Not(Wrapped<NodeFilter>),
+    Not(Wrapped<GqlNodeFilter>),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
-pub enum EdgeFilter {
+#[graphql(name = "EdgeFilter")]
+pub enum GqlEdgeFilter {
     /// Source node filter.
     Src(NodeFieldFilterNew),
     /// Destination node filter.
@@ -424,11 +439,11 @@ pub enum EdgeFilter {
     /// Temporal property filter.
     TemporalProperty(PropertyFilterNew),
     /// AND operator.
-    And(Vec<EdgeFilter>),
+    And(Vec<GqlEdgeFilter>),
     /// OR operator.
-    Or(Vec<EdgeFilter>),
+    Or(Vec<GqlEdgeFilter>),
     /// NOT operator.
-    Not(Wrapped<EdgeFilter>),
+    Not(Wrapped<GqlEdgeFilter>),
 }
 
 #[derive(Clone, Debug)]
@@ -509,18 +524,17 @@ fn peel_prop_wrappers_and_collect_ops<'a>(
     }
 }
 
-fn require_string_value(op: Option<&str>, v: &Value) -> Result<String, GraphError> {
+fn require_string_value(op: &str, v: &Value) -> Result<String, GraphError> {
     if let Value::Str(s) = v {
         Ok(s.clone())
     } else {
-        let name = op.unwrap_or("UNKNOWN");
         Err(GraphError::InvalidGqlFilter(format!(
-            "{name} requires a string value, got {v}"
+            "{op} requires a string value, got {v}"
         )))
     }
 }
 
-fn require_prop_list_value(op: Option<&str>, v: &Value) -> Result<PropertyFilterValue, GraphError> {
+fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, GraphError> {
     if let Value::List(vs) = v {
         let props = vs
             .iter()
@@ -531,42 +545,36 @@ fn require_prop_list_value(op: Option<&str>, v: &Value) -> Result<PropertyFilter
             props.into_iter().collect(),
         )))
     } else {
-        let name = op.unwrap_or("UNKNOWN");
         Err(GraphError::InvalidGqlFilter(format!(
-            "{name} requires a list value, got {v}"
+            "{op} requires a list value, got {v}"
         )))
     }
 }
 
-fn require_u64_value(op: Option<&str>, v: &Value) -> Result<u64, GraphError> {
+fn require_u64_value(op: &str, v: &Value) -> Result<u64, GraphError> {
     if let Value::U64(i) = v {
         Ok(*i)
     } else {
-        let name = op.unwrap_or("UNKNOWN");
         Err(GraphError::InvalidGqlFilter(format!(
-            "{name} requires a u64 value, got {v}"
+            "{op} requires a u64 value, got {v}"
         )))
     }
 }
 
-fn parse_node_id_scalar(op: Option<&str>, v: &Value) -> Result<FilterValue, GraphError> {
+fn parse_node_id_scalar(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     match v {
         Value::U64(i) => Ok(FilterValue::ID(GID::U64(*i))),
         Value::Str(s) => Ok(FilterValue::ID(GID::Str(s.clone()))),
-        other => {
-            let name = op.unwrap_or("UNKNOWN");
-            Err(GraphError::InvalidGqlFilter(format!(
-                "{name} requires int or str, got {other}"
-            )))
-        }
+        other => Err(GraphError::InvalidGqlFilter(format!(
+            "{op} requires int or str, got {other}"
+        ))),
     }
 }
 
-fn parse_node_id_list(op: Option<&str>, v: &Value) -> Result<FilterValue, GraphError> {
-    let name = op.unwrap_or("UNKNOWN");
+fn parse_node_id_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     let Value::List(vs) = v else {
         return Err(GraphError::InvalidGqlFilter(format!(
-            "{name} requires a list value, got {v}"
+            "{op} requires a list value, got {v}"
         )));
     };
 
@@ -574,11 +582,11 @@ fn parse_node_id_list(op: Option<&str>, v: &Value) -> Result<FilterValue, GraphE
     let all_str = vs.iter().all(|v| matches!(v, Value::Str(_)));
     if !(all_u64 || all_str) {
         return Err(GraphError::InvalidGqlFilter(format!(
-            "{name} requires a homogeneous list of ints or strings"
+            "{op} requires a homogeneous list of ints or strings"
         )));
     }
 
-    let mut set = std::collections::HashSet::with_capacity(vs.len());
+    let mut set = HashSet::with_capacity(vs.len());
     if all_u64 {
         for v in vs {
             if let Value::U64(i) = v {
@@ -595,11 +603,10 @@ fn parse_node_id_list(op: Option<&str>, v: &Value) -> Result<FilterValue, GraphE
     Ok(FilterValue::IDSet(Arc::new(set)))
 }
 
-fn parse_string_list(op: Option<&str>, v: &Value) -> Result<FilterValue, GraphError> {
-    let name = op.unwrap_or("UNKNOWN");
+fn parse_string_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     let Value::List(vs) = v else {
         return Err(GraphError::InvalidGqlFilter(format!(
-            "{name} requires a list value, got {v}"
+            "{op} requires a list value, got {v}"
         )));
     };
 
@@ -610,7 +617,7 @@ fn parse_string_list(op: Option<&str>, v: &Value) -> Result<FilterValue, GraphEr
                 Ok(s.clone())
             } else {
                 Err(GraphError::InvalidGqlFilter(format!(
-                    "Expected list of strings for {name}, got {v}"
+                    "Expected list of strings for {op}, got {v}"
                 )))
             }
         })
@@ -827,11 +834,11 @@ fn translate_prop_leaf_to_filter(
         IsSome(true) => (FO::IsSome, PropertyFilterValue::None),
         IsNone(true) => (FO::IsNone, PropertyFilterValue::None),
 
-        And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_)
-        | Avg(_) | Min(_) | Max(_) | Len(_) | IsSome(false) | IsNone(false) => {
+        And(_) | Or(_) | Not(_) | First(_) | Last(_) | Any(_) | All(_) | Sum(_) | Avg(_)
+        | Min(_) | Max(_) | Len(_) | IsSome(false) | IsNone(false) => {
+            let op = cmp.op_name();
             return Err(GraphError::InvalidGqlFilter(format!(
-                "Expected comparison at leaf for {}",
-                name_for_errors
+                "Expected comparison at leaf for {name_for_errors}; got '{op}'"
             )));
         }
     })
@@ -892,19 +899,17 @@ fn build_node_filter_from_prop_condition(
             Ok(CompositeNodeFilter::Not(Box::new(nf)))
         }
         _ => {
-            let pf = build_property_filter_from_condition::<
-                raphtory::db::graph::views::filter::model::node_filter::NodeFilter,
-            >(prop_ref, cond)?;
+            let pf = build_property_filter_from_condition::<NodeFilter>(prop_ref, cond)?;
             Ok(CompositeNodeFilter::Property(pf))
         }
     }
 }
 
-impl TryFrom<NodeFilter> for CompositeNodeFilter {
+impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
     type Error = GraphError;
-    fn try_from(filter: NodeFilter) -> Result<Self, Self::Error> {
+    fn try_from(filter: GqlNodeFilter) -> Result<Self, Self::Error> {
         match filter {
-            NodeFilter::Node(node) => {
+            GqlNodeFilter::Node(node) => {
                 let (field_name, field_value, operator) =
                     translate_node_field_where(node.field, &node.where_)?;
                 Ok(CompositeNodeFilter::Node(Filter {
@@ -913,19 +918,19 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                     operator,
                 }))
             }
-            NodeFilter::Property(prop) => {
+            GqlNodeFilter::Property(prop) => {
                 let prop_ref = PropertyRef::Property(prop.name);
                 build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
-            NodeFilter::Metadata(prop) => {
+            GqlNodeFilter::Metadata(prop) => {
                 let prop_ref = PropertyRef::Metadata(prop.name);
                 build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
-            NodeFilter::TemporalProperty(prop) => {
+            GqlNodeFilter::TemporalProperty(prop) => {
                 let prop_ref = PropertyRef::TemporalProperty(prop.name);
                 build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
-            NodeFilter::And(and_filters) => {
+            GqlNodeFilter::And(and_filters) => {
                 let mut iter = and_filters.into_iter().map(TryInto::try_into);
                 let first = iter.next().ok_or_else(|| {
                     GraphError::InvalidGqlFilter("Filter 'and' requires non-empty list".into())
@@ -935,7 +940,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                     Ok::<_, GraphError>(CompositeNodeFilter::And(Box::new(acc), Box::new(n)))
                 })?)
             }
-            NodeFilter::Or(or_filters) => {
+            GqlNodeFilter::Or(or_filters) => {
                 let mut iter = or_filters.into_iter().map(TryInto::try_into);
                 let first = iter.next().ok_or_else(|| {
                     GraphError::InvalidGqlFilter("Filter 'or' requires non-empty list".into())
@@ -945,7 +950,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                     Ok::<_, GraphError>(CompositeNodeFilter::Or(Box::new(acc), Box::new(n)))
                 })?)
             }
-            NodeFilter::Not(not_filters) => {
+            GqlNodeFilter::Not(not_filters) => {
                 let inner = CompositeNodeFilter::try_from(not_filters.deref().clone())?;
                 Ok(CompositeNodeFilter::Not(Box::new(inner)))
             }
@@ -989,57 +994,57 @@ fn build_edge_filter_from_prop_condition(
             Ok(CompositeEdgeFilter::Not(Box::new(ef)))
         }
         _ => {
-            let pf = build_property_filter_from_condition::<
-                raphtory::db::graph::views::filter::model::edge_filter::EdgeFilter,
-            >(prop_ref, cond)?;
+            let pf = build_property_filter_from_condition::<EdgeFilter>(prop_ref, cond)?;
             Ok(CompositeEdgeFilter::Property(pf))
         }
     }
 }
 
-impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
+impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
     type Error = GraphError;
-    fn try_from(filter: EdgeFilter) -> Result<Self, Self::Error> {
+    fn try_from(filter: GqlEdgeFilter) -> Result<Self, Self::Error> {
         match filter {
-            EdgeFilter::Src(src) => {
+            GqlEdgeFilter::Src(src) => {
                 if matches!(src.field, NodeField::NodeType) {
                     return Err(GraphError::InvalidGqlFilter(
                         "Src filter does not support NODE_TYPE".into(),
                     ));
                 }
-                let (_, field_value, operator) = translate_node_field_where(src.field, &src.where_)?;
+                let (_, field_value, operator) =
+                    translate_node_field_where(src.field, &src.where_)?;
                 Ok(CompositeEdgeFilter::Edge(Filter {
                     field_name: "src".to_string(),
                     field_value,
                     operator,
                 }))
             }
-            EdgeFilter::Dst(dst) => {
+            GqlEdgeFilter::Dst(dst) => {
                 if matches!(dst.field, NodeField::NodeType) {
                     return Err(GraphError::InvalidGqlFilter(
                         "Dst filter does not support NODE_TYPE".into(),
                     ));
                 }
-                let (_, field_value, operator) = translate_node_field_where(dst.field, &dst.where_)?;
+                let (_, field_value, operator) =
+                    translate_node_field_where(dst.field, &dst.where_)?;
                 Ok(CompositeEdgeFilter::Edge(Filter {
                     field_name: "dst".to_string(),
                     field_value,
                     operator,
                 }))
             }
-            EdgeFilter::Property(p) => {
+            GqlEdgeFilter::Property(p) => {
                 let prop_ref = PropertyRef::Property(p.name);
                 build_edge_filter_from_prop_condition(prop_ref, &p.where_)
             }
-            EdgeFilter::Metadata(p) => {
+            GqlEdgeFilter::Metadata(p) => {
                 let prop_ref = PropertyRef::Metadata(p.name);
                 build_edge_filter_from_prop_condition(prop_ref, &p.where_)
             }
-            EdgeFilter::TemporalProperty(p) => {
+            GqlEdgeFilter::TemporalProperty(p) => {
                 let prop_ref = PropertyRef::TemporalProperty(p.name);
                 build_edge_filter_from_prop_condition(prop_ref, &p.where_)
             }
-            EdgeFilter::And(and_filters) => {
+            GqlEdgeFilter::And(and_filters) => {
                 let mut iter = and_filters.into_iter().map(TryInto::try_into);
                 let first = iter.next().ok_or_else(|| {
                     GraphError::InvalidGqlFilter("Filter 'and' requires non-empty list".into())
@@ -1049,7 +1054,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                     Ok::<_, GraphError>(CompositeEdgeFilter::And(Box::new(acc), Box::new(n)))
                 })?)
             }
-            EdgeFilter::Or(or_filters) => {
+            GqlEdgeFilter::Or(or_filters) => {
                 let mut iter = or_filters.into_iter().map(TryInto::try_into);
                 let first = iter.next().ok_or_else(|| {
                     GraphError::InvalidGqlFilter("Filter 'or' requires non-empty list".into())
@@ -1059,7 +1064,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                     Ok::<_, GraphError>(CompositeEdgeFilter::Or(Box::new(acc), Box::new(n)))
                 })?)
             }
-            EdgeFilter::Not(not_filters) => {
+            GqlEdgeFilter::Not(not_filters) => {
                 let inner = CompositeEdgeFilter::try_from(not_filters.deref().clone())?;
                 Ok(CompositeEdgeFilter::Not(Box::new(inner)))
             }
