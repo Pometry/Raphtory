@@ -14,7 +14,7 @@ To represent your data as a stream you can use a [Graph][raphtory.Graph] object 
 
 ### The `Graph` object
 
-When beginning a new project you will need to [create a new `Graph` object](../ingestion/1_intro.md). You can start by start adding nodes and edges to the graph from scratch or by importing existing data in standard formats.
+When beginning a new project you will need to [create a new `Graph` object](../ingestion/1_intro.md). You can then start adding nodes and edges to the graph from scratch or by importing existing data in standard formats.
 
 As you get new data you can make global updates, like adding new nodes, using the `Graph` object and make global queries using a [GraphView][raphtory.GraphView]. You can also make local updates to the properties and metadata of individual nodes and edges.
 
