@@ -12,8 +12,8 @@ def test_graph_node_property_filter_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             property: {
               name: "prop5"
               where: { eq: { list: [ {i64: 1}, {i64: 2}, {i64: 3} ] } }
@@ -25,7 +25,7 @@ def test_graph_node_property_filter_equal(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -34,8 +34,8 @@ def test_graph_node_property_filter_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             property: {
               name: "prop5"
               where: { eq: { i64: 1 } }
@@ -58,8 +58,8 @@ def test_graph_node_property_filter_not_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             property: {
               name: "prop4"
               where: { ne: { bool: true } }
@@ -72,7 +72,7 @@ def test_graph_node_property_filter_not_equal(graph):
     }
     """
     expected_output = {
-        "graph": {"nodeFilter": {"nodes": {"list": [{"name": "b"}, {"name": "d"}]}}}
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
     run_graphql_test(query, expected_output, graph)
 
@@ -82,8 +82,8 @@ def test_graph_node_property_filter_not_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             property: {
               name: "prop4"
               where: { ne: { i64: 1 } }
@@ -106,8 +106,8 @@ def test_graph_node_property_filter_greater_than_or_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             property: {
               name: "prop1"
               where: { ge: { i64: 60 } }
@@ -119,7 +119,7 @@ def test_graph_node_property_filter_greater_than_or_equal(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -128,8 +128,8 @@ def test_graph_node_property_filter_greater_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             property: {
               name: "prop1"
               where: { ge: { bool: true } }
@@ -152,8 +152,8 @@ def test_graph_node_property_filter_less_than_or_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             property: { name: "prop1", where: { le: { i64: 30 } } }
           }
         ) {
@@ -164,7 +164,7 @@ def test_graph_node_property_filter_less_than_or_equal(graph):
     """
     expected_output = {
         "graph": {
-            "nodeFilter": {
+            "filterNodes": {
                 "nodes": {"list": [{"name": "b"}, {"name": "c"}, {"name": "d"}]}
             }
         }
@@ -177,8 +177,8 @@ def test_graph_node_property_filter_less_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { le: { str: "shivam" } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { le: { str: "shivam" } } } }
         ) {
           nodes { list { name } }
         }
@@ -196,15 +196,15 @@ def test_graph_node_property_filter_greater_than(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { gt: { i64: 30 } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { gt: { i64: 30 } } } }
         ) {
           nodes { list { name } }
         }
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -213,8 +213,8 @@ def test_graph_node_property_filter_greater_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { gt: { str: "shivam" } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { gt: { str: "shivam" } } } }
         ) {
           nodes { list { name } }
         }
@@ -232,8 +232,8 @@ def test_graph_node_property_filter_less_than(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { lt: { i64: 30 } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { lt: { i64: 30 } } } }
         ) {
           nodes { list { name } }
         }
@@ -241,7 +241,7 @@ def test_graph_node_property_filter_less_than(graph):
     }
     """
     expected_output = {
-        "graph": {"nodeFilter": {"nodes": {"list": [{"name": "b"}, {"name": "c"}]}}}
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "b"}, {"name": "c"}]}}}
     }
     run_graphql_test(query, expected_output, graph)
 
@@ -251,8 +251,8 @@ def test_graph_node_property_filter_less_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { lt: { str: "shivam" } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { lt: { str: "shivam" } } } }
         ) {
           nodes { list { name } }
         }
@@ -270,8 +270,8 @@ def test_graph_node_property_filter_is_none(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop5", where: { isNone: true } } }
+        filterNodes(
+          expr: { property: { name: "prop5", where: { isNone: true } } }
         ) {
           nodes { list { name } }
         }
@@ -279,7 +279,7 @@ def test_graph_node_property_filter_is_none(graph):
     }
     """
     expected_output = {
-        "graph": {"nodeFilter": {"nodes": {"list": [{"name": "b"}, {"name": "d"}]}}}
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
     run_graphql_test(query, expected_output, graph)
 
@@ -289,8 +289,8 @@ def test_graph_node_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop5", where: { isSome: true } } }
+        filterNodes(
+          expr: { property: { name: "prop5", where: { isSome: true } } }
         ) {
           nodes { list { name } }
         }
@@ -298,7 +298,7 @@ def test_graph_node_property_filter_is_some(graph):
     }
     """
     expected_output = {
-        "graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
     }
     run_graphql_test(query, expected_output, graph)
 
@@ -308,8 +308,8 @@ def test_graph_node_property_filter_is_in(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { isIn: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}] } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { isIn: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}] } } } }
         ) {
           nodes { list { name } }
         }
@@ -317,7 +317,7 @@ def test_graph_node_property_filter_is_in(graph):
     }
     """
     expected_output = {
-        "graph": {"nodeFilter": {"nodes": {"list": [{"name": "b"}, {"name": "d"}]}}}
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
     run_graphql_test(query, expected_output, graph)
 
@@ -328,8 +328,8 @@ def test_node_property_filter_is_in_empty_list(graph):
     query {
       graph(path: "g") {
         nodes {
-          nodeFilter(
-            filter: { property: { name: "prop1", where: { isIn: { list: [] } } } }
+          select(
+            expr: { property: { name: "prop1", where: { isIn: { list: [] } } } }
           ) {
             list { name }
           }
@@ -337,7 +337,7 @@ def test_node_property_filter_is_in_empty_list(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": []}}}}
+    expected_output = {"graph": {"nodes": {"select": {"list": []}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -347,15 +347,15 @@ def test_graph_node_property_filter_is_in_no_value(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { isIn: { list: [] } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { isIn: { list: [] } } } }
         ) {
           nodes { list { name } }
         }
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": []}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": []}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -364,8 +364,8 @@ def test_graph_node_property_filter_is_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { isIn: { str: "shivam" } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { isIn: { str: "shivam" } } } }
         ) {
           nodes { list { name } }
         }
@@ -383,8 +383,8 @@ def test_graph_node_property_filter_is_not_in_any(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { isNotIn: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}] } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { isNotIn: { list: [{i64: 10},{i64: 30},{i64: 50},{i64: 70}] } } } }
         ) {
           nodes { list { name } }
         }
@@ -392,7 +392,7 @@ def test_graph_node_property_filter_is_not_in_any(graph):
     }
     """
     expected_output = {
-        "graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
     }
     run_graphql_test(query, expected_output, graph)
 
@@ -403,8 +403,8 @@ def test_node_property_filter_not_is_not_in_empty_list(graph):
     query {
       graph(path: "g") {
         nodes {
-          nodeFilter(
-            filter: { property: { name: "prop1", where: { isNotIn: { list: [] } } } }
+          filter(
+            expr: { property: { name: "prop1", where: { isNotIn: { list: [] } } } }
           ) {
             list { name }
           }
@@ -415,7 +415,7 @@ def test_node_property_filter_not_is_not_in_empty_list(graph):
     expected_output = {
         "graph": {
             "nodes": {
-                "nodeFilter": {
+                "filter": {
                     "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
                 }
             }
@@ -429,8 +429,8 @@ def test_graph_node_property_filter_is_not_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: { property: { name: "prop1", where: { isNotIn: { str: "shivam" } } } }
+        filterNodes(
+          expr: { property: { name: "prop1", where: { isNotIn: { str: "shivam" } } } }
         ) {
           nodes { list { name } }
         }
@@ -448,8 +448,8 @@ def test_graph_node_not_property_filter(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter (
-          filter: {
+        filterNodes (
+          expr: {
             not: {
               property: {
                 name: "prop5"
@@ -465,7 +465,7 @@ def test_graph_node_not_property_filter(graph):
     """
     expected_output = {
         "graph": {
-            "nodeFilter": {
+            "filterNodes": {
                 "nodes": {
                     "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
                 }
@@ -481,7 +481,7 @@ def test_graph_node_type_and_property_filter(graph):
     query {
       graph(path: "g") {
         nodes {
-          nodeFilter(filter: {
+          select(expr: {
             and: [
               {
                 node: {
@@ -507,7 +507,7 @@ def test_graph_node_type_and_property_filter(graph):
     expected_output = {
         "graph": {
             "nodes": {
-                "nodeFilter": {
+                "select": {
                     "count": 3,
                     "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}],
                 }
@@ -522,7 +522,7 @@ def test_graph_nodes_property_filter_starts_with(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(filter: {
+        filterNodes(expr: {
           property: {
             name: "prop3"
             where: { startsWith: { str: "abc" } }
@@ -535,7 +535,7 @@ def test_graph_nodes_property_filter_starts_with(graph):
     """
     expected_output = {
         "graph": {
-            "nodeFilter": {
+            "filterNodes": {
                 "nodes": {
                     "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
                 }
@@ -550,7 +550,7 @@ def test_graph_nodes_property_filter_ends_with(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(filter: {
+        filterNodes(expr: {
           property: {
             name: "prop3"
             where: { endsWith: { str: "123" } }
@@ -561,7 +561,7 @@ def test_graph_nodes_property_filter_ends_with(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -570,8 +570,8 @@ def test_graph_nodes_property_filter_starts_with_temporal_any(graph):
     query = """
     query {
       graph(path: "g") {
-        nodeFilter(
-          filter: {
+        filterNodes(
+          expr: {
             temporalProperty: {
               name: "prop3",
               where: { any: { startsWith: { str: "abc1" } } }
@@ -583,5 +583,5 @@ def test_graph_nodes_property_filter_starts_with_temporal_any(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    expected_output = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph)

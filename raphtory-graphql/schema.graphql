@@ -291,6 +291,7 @@ type Edge {
 	Returns: boolean
 	"""
 	isSelfLoop: Boolean!
+	filter(expr: EdgeFilter!): Edge!
 }
 
 input EdgeAddition {
@@ -451,6 +452,10 @@ input EdgeViewCollection @oneOf {
 	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
+	"""
+	Edge filter
+	"""
+	edgeFilter: EdgeFilter
 }
 
 type EdgeWindowSet {
@@ -578,6 +583,14 @@ type Edges {
 	Returns a list of all objects in the current selection of the collection. You should filter filter the collection first then call list.
 	"""
 	list: [Edge!]!
+	"""
+	Returns a filtered view that applies to list down the chain
+	"""
+	filter(expr: EdgeFilter!): Edges!
+	"""
+	Returns filtered list of edges
+	"""
+	select(expr: EdgeFilter!): Edges!
 }
 
 input EdgesViewCollection @oneOf {
@@ -641,6 +654,10 @@ input EdgesViewCollection @oneOf {
 	Set the window end to a specified time.
 	"""
 	shrinkEnd: Int
+	"""
+	Edge filter
+	"""
+	edgeFilter: EdgeFilter
 }
 
 type EdgesWindowSet {
@@ -811,7 +828,7 @@ type Graph {
 	"""
 	Gets (optionally a subset of) the nodes in the graph.
 	"""
-	nodes(ids: [String!]): Nodes!
+	nodes(select: NodeFilter): Nodes!
 	"""
 	Gets the edge with the specified source and destination nodes.
 	"""
@@ -819,7 +836,7 @@ type Graph {
 	"""
 	Gets the edges in the graph.
 	"""
-	edges: Edges!
+	edges(select: EdgeFilter): Edges!
 	"""
 	Returns the properties of the graph.
 	"""
@@ -850,8 +867,8 @@ type Graph {
 	Export all nodes and edges from this graph view to another existing graph
 	"""
 	exportTo(path: String!): Boolean!
-	nodeFilter(filter: NodeFilter!): Graph!
-	edgeFilter(filter: EdgeFilter!): Graph!
+	filterNodes(expr: NodeFilter!): Graph!
+	filterEdges(expr: EdgeFilter!): Graph!
 	"""
 	(Experimental) Get index specification.
 	"""
@@ -876,8 +893,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
@@ -1445,28 +1462,28 @@ type Node {
 	"""
 	Returns all connected edges.
 	"""
-	edges: Edges!
+	edges(select: EdgeFilter): Edges!
 	"""
 	Returns outgoing edges.
 	"""
-	outEdges: Edges!
+	outEdges(select: EdgeFilter): Edges!
 	"""
 	Returns incoming edges.
 	"""
-	inEdges: Edges!
+	inEdges(select: EdgeFilter): Edges!
 	"""
 	Returns neighbouring nodes.
 	"""
-	neighbours: PathFromNode!
+	neighbours(select: NodeFilter): PathFromNode!
 	"""
 	Returns the number of neighbours that have at least one in-going edge to this node.
 	"""
-	inNeighbours: PathFromNode!
+	inNeighbours(select: NodeFilter): PathFromNode!
 	"""
 	Returns the number of neighbours that have at least one out-going edge from this node.
 	"""
-	outNeighbours: PathFromNode!
-	nodeFilter(filter: NodeFilter!): Node!
+	outNeighbours(select: NodeFilter): PathFromNode!
+	filter(expr: NodeFilter!): Node!
 }
 
 input NodeAddition {
@@ -1735,10 +1752,6 @@ type Nodes {
 	Filter nodes by node type.
 	"""
 	typeFilter(nodeTypes: [String!]!): Nodes!
-	"""
-	Returns a view of the node types.
-	"""
-	nodeFilter(filter: NodeFilter!): Nodes!
 	applyViews(views: [NodesViewCollection!]!): Nodes!
 	sorted(sortBys: [NodeSortBy!]!): Nodes!
 	"""
@@ -1763,6 +1776,14 @@ type Nodes {
 	Returns a view of the node ids.
 	"""
 	ids: [String!]!
+	"""
+	Returns a filtered view that applies to list down the chain
+	"""
+	filter(expr: NodeFilter!): Nodes!
+	"""
+	Returns filtered list of nodes
+	"""
+	select(expr: NodeFilter!): Nodes!
 }
 
 input NodesViewCollection @oneOf {
@@ -1963,6 +1984,14 @@ type PathFromNode {
 	Takes a specified selection of views and applies them in given order.
 	"""
 	applyViews(views: [PathFromNodeViewCollection!]!): PathFromNode!
+	"""
+	Returns a filtered view that applies to list down the chain
+	"""
+	filter(expr: NodeFilter!): PathFromNode!
+	"""
+	Returns filtered list of neighbour nodes
+	"""
+	select(expr: NodeFilter!): PathFromNode!
 }
 
 input PathFromNodeViewCollection @oneOf {
@@ -2094,6 +2123,7 @@ type Property {
 
 input PropertyFilterNew {
 	name: String!
+	window: Window
 	where: PropCondition!
 }
 

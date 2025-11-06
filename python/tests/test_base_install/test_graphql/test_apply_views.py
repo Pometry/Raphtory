@@ -1649,7 +1649,13 @@ def test_apply_view_a_lot_of_views():
         "graph": {
             "nodes": {
                 "applyViews": {
-                    "list": [{"history": [1735689600000, 1735776000000], "name": "1"}]
+                    "list": [
+                        {"history": [1735689600000], "name": "1"},
+                        {"history": [], "name": "2"},
+                        {"history": [], "name": "3"},
+                        {"history": [], "name": "6"},
+                        {"history": [], "name": "7"},
+                    ]
                 }
             }
         }

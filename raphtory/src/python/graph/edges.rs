@@ -84,7 +84,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G>> for PyEdges {
 #[pymethods]
 impl PyEdges {
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyEdges> {
-        let r = self.edges.filter_iter(filter)?;
+        let r = self.edges.select(filter)?;
         Ok(PyEdges::from(r))
     }
 
@@ -431,7 +431,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNe
 #[pymethods]
 impl PyNestedEdges {
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNestedEdges> {
-        let r = self.edges.filter_iter(filter)?;
+        let r = self.edges.select(filter)?;
         Ok(PyNestedEdges::from(r))
     }
 

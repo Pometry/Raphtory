@@ -11,11 +11,9 @@ use crate::{
     },
     errors::GraphError,
     prelude::GraphViewOps,
-    python::filter::{
-        create_filter::DynInternalFilterOps, property_filter_builders::PyPropertyFilterBuilder,
-    },
+    python::filter::create_filter::DynInternalFilterOps,
 };
-use pyo3::{exceptions::PyTypeError, prelude::*};
+use pyo3::prelude::*;
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter")]

@@ -5,11 +5,18 @@ use crate::{
             InternalEdgeFilterBuilderOps,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory,
+        PropertyFilterFactory, Windowed,
     },
-    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
+    python::{
+        filter::{
+            filter_expr::PyFilterExpr,
+            window_filter::{PyEdgeWindow, PyExplodedEdgeWindow},
+        },
+        types::iterable::FromIterable,
+        utils::PyTime,
+    },
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyResult};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
@@ -179,12 +186,19 @@ impl PyEdgeFilter {
 
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<EdgeFilter> {
-        EdgeFilter::property(name)
+        EdgeFilter.property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<EdgeFilter> {
-        EdgeFilter::metadata(name)
+        EdgeFilter.metadata(name)
+    }
+
+    #[staticmethod]
+    fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyEdgeWindow> {
+        Ok(PyEdgeWindow(Windowed::<EdgeFilter>::from_times(
+            py_start, py_end,
+        )))
     }
 }
 
@@ -196,11 +210,18 @@ pub struct PyExplodedEdgeFilter;
 impl PyExplodedEdgeFilter {
     #[staticmethod]
     fn property(name: String) -> PropertyFilterBuilder<ExplodedEdgeFilter> {
-        ExplodedEdgeFilter::property(name)
+        ExplodedEdgeFilter.property(name)
     }
 
     #[staticmethod]
     fn metadata(name: String) -> MetadataFilterBuilder<ExplodedEdgeFilter> {
-        ExplodedEdgeFilter::metadata(name)
+        ExplodedEdgeFilter.metadata(name)
+    }
+
+    #[staticmethod]
+    fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyExplodedEdgeWindow> {
+        Ok(PyExplodedEdgeWindow(
+            Windowed::<ExplodedEdgeFilter>::from_times(py_start, py_end),
+        ))
     }
 }

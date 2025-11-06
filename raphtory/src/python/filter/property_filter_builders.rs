@@ -3,8 +3,8 @@ use crate::{
         internal::CreateFilter,
         model::{
             property_filter::{
-                ElemQualifierOps, ListAggOps, MetadataFilterBuilder, OpChainBuilder,
-                PropertyFilterBuilder, PropertyFilterOps,
+                ElemQualifierOps, ListAggOps, MetadataFilterBuilder, PropertyFilterBuilder,
+                PropertyFilterOps,
             },
             TryAsCompositeFilter,
         },
@@ -194,7 +194,7 @@ impl PyFilterOps {
         Self { ops: Arc::new(t) }
     }
 
-    fn from_arc(ops: Arc<dyn DynFilterOps>) -> Self {
+    pub fn from_arc(ops: Arc<dyn DynFilterOps>) -> Self {
         Self { ops }
     }
 }
@@ -316,16 +316,12 @@ pub struct PyPropertyFilterBuilder {
 }
 
 impl PyPropertyFilterBuilder {
-    fn wrap<T: DynPropertyFilterBuilderOps + 'static>(t: T) -> Self {
-        Self { ops: Arc::new(t) }
-    }
-
-    fn from_arc(ops: Arc<dyn DynPropertyFilterBuilderOps>) -> Self {
+    pub fn from_arc(ops: Arc<dyn DynPropertyFilterBuilderOps>) -> Self {
         Self { ops }
     }
 }
 
-trait DynPropertyFilterBuilderOps: DynFilterOps {
+pub trait DynPropertyFilterBuilderOps: DynFilterOps {
     fn temporal(&self) -> PyFilterOps;
 }
 

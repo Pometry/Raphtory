@@ -16,7 +16,10 @@ use raphtory::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::{properties::prop::Prop, GID};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::TimeIndexEntry,
+};
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -187,6 +190,8 @@ pub enum EdgesViewCollection {
     ShrinkStart(i64),
     /// Set the window end to a specified time.
     ShrinkEnd(i64),
+    /// Edge filter
+    EdgeFilter(GqlEdgeFilter),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
@@ -221,6 +226,8 @@ pub enum EdgeViewCollection {
     ShrinkStart(i64),
     /// Set the window end to a specified time.
     ShrinkEnd(i64),
+    /// Edge filter
+    EdgeFilter(GqlEdgeFilter),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
@@ -282,6 +289,7 @@ impl Display for NodeField {
 #[derive(InputObject, Clone, Debug)]
 pub struct PropertyFilterNew {
     pub name: String,
+    pub window: Option<Window>,
     #[graphql(name = "where")]
     pub where_: PropCondition,
 }
@@ -844,9 +852,10 @@ fn translate_prop_leaf_to_filter(
     })
 }
 
-fn build_property_filter_from_condition<M: Clone + Send + Sync + 'static>(
+fn build_property_filter_from_condition_with_entity<M: Clone + Send + Sync + 'static>(
     prop_ref: PropertyRef,
     cond: &PropCondition,
+    entity: M,
 ) -> Result<PropertyFilter<M>, GraphError> {
     let mut ops: Vec<Op> = Vec::new();
     let mut cursor = cond;
@@ -859,8 +868,23 @@ fn build_property_filter_from_condition<M: Clone + Send + Sync + 'static>(
         prop_value,
         operator,
         ops,
-        _phantom: PhantomData,
+        entity,
     })
+}
+
+fn build_windowed_property_filter_from_condition<M: Clone + Send + Sync + 'static>(
+    prop_ref: PropertyRef,
+    cond: &PropCondition,
+    start: i64,
+    end: i64,
+) -> Result<PropertyFilter<raphtory::db::graph::views::filter::model::Windowed<M>>, GraphError> {
+    build_property_filter_from_condition_with_entity::<
+        raphtory::db::graph::views::filter::model::Windowed<M>,
+    >(
+        prop_ref,
+        cond,
+        raphtory::db::graph::views::filter::model::Windowed::from_times(start, end),
+    )
 }
 
 fn build_node_filter_from_prop_condition(
@@ -899,7 +923,9 @@ fn build_node_filter_from_prop_condition(
             Ok(CompositeNodeFilter::Not(Box::new(nf)))
         }
         _ => {
-            let pf = build_property_filter_from_condition::<NodeFilter>(prop_ref, cond)?;
+            let pf = build_property_filter_from_condition_with_entity::<NodeFilter>(
+                prop_ref, cond, NodeFilter,
+            )?;
             Ok(CompositeNodeFilter::Property(pf))
         }
     }
@@ -928,7 +954,22 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             }
             GqlNodeFilter::TemporalProperty(prop) => {
                 let prop_ref = PropertyRef::TemporalProperty(prop.name);
-                build_node_filter_from_prop_condition(prop_ref, &prop.where_)
+                if let Some(w) = prop.window {
+                    let pf = build_windowed_property_filter_from_condition::<NodeFilter>(
+                        prop_ref,
+                        &prop.where_,
+                        w.start,
+                        w.end,
+                    )?;
+                    return Ok(CompositeNodeFilter::PropertyWindowed(pf));
+                }
+
+                let pf = build_property_filter_from_condition_with_entity::<NodeFilter>(
+                    prop_ref,
+                    &prop.where_,
+                    NodeFilter,
+                )?;
+                Ok(CompositeNodeFilter::Property(pf))
             }
             GqlNodeFilter::And(and_filters) => {
                 let mut iter = and_filters.into_iter().map(TryInto::try_into);
@@ -994,7 +1035,9 @@ fn build_edge_filter_from_prop_condition(
             Ok(CompositeEdgeFilter::Not(Box::new(ef)))
         }
         _ => {
-            let pf = build_property_filter_from_condition::<EdgeFilter>(prop_ref, cond)?;
+            let pf = build_property_filter_from_condition_with_entity::<EdgeFilter>(
+                prop_ref, cond, EdgeFilter,
+            )?;
             Ok(CompositeEdgeFilter::Property(pf))
         }
     }
@@ -1042,7 +1085,17 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             }
             GqlEdgeFilter::TemporalProperty(p) => {
                 let prop_ref = PropertyRef::TemporalProperty(p.name);
-                build_edge_filter_from_prop_condition(prop_ref, &p.where_)
+                if let Some(w) = p.window {
+                    let pf = build_windowed_property_filter_from_condition::<EdgeFilter>(
+                        prop_ref, &p.where_, w.start, w.end,
+                    )?;
+                    return Ok(CompositeEdgeFilter::PropertyWindowed(pf));
+                }
+
+                let pf = build_property_filter_from_condition_with_entity::<EdgeFilter>(
+                    prop_ref, &p.where_, EdgeFilter,
+                )?;
+                Ok(CompositeEdgeFilter::Property(pf))
             }
             GqlEdgeFilter::And(and_filters) => {
                 let mut iter = and_filters.into_iter().map(TryInto::try_into);
