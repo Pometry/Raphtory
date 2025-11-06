@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 import pyarrow as pa
@@ -867,3 +868,54 @@ def test_node_both_option_failures_parquet(parquet_files):
         nodes_parquet_file_path, "id", node_type_col="node_type"
     )
     assert g.nodes.node_type.sorted_by_id() == ["p1", "p2", "p3", "p4", "p5", "p6"]
+
+def _utc_midnight(dt: datetime.date) -> datetime.datetime:
+    return datetime.datetime(dt.year, dt.month, dt.day, tzinfo=datetime.timezone.utc)
+
+def _ms_from_date(d: datetime.date) -> int:
+    return int(datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc).timestamp() * 1000)
+
+def test_load_nodes_from_parquet_date32(tmp_path):
+    dates = [
+        datetime.date(1970, 1, 1),
+        datetime.date(1970, 1, 2),
+        datetime.date(1970, 1, 3),
+    ]
+    table = pa.table(
+        {
+            "id": pa.array([1, 2, 3], type=pa.int64()),
+            "time": pa.array(dates, type=pa.date32()),
+        }
+    )
+    path = tmp_path / "nodes_date32.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_nodes_from_parquet(parquet_path=str(path), time="time", id="id")
+
+    expected = {1: _utc_midnight(dates[0]), 2: _utc_midnight(dates[1]), 3: _utc_midnight(dates[2])}
+    actual = {v.id: v.history_date_time()[0] for v in g.nodes}
+    assert actual == expected
+
+def test_load_edges_from_parquet_date32(tmp_path):
+    dates = [
+        datetime.date(1970, 1, 1),
+        datetime.date(1970, 1, 2),
+        datetime.date(1970, 1, 3),
+    ]
+    table = pa.table(
+        {
+            "src": pa.array([1, 2, 3], type=pa.int64()),
+            "dst": pa.array([2, 3, 4], type=pa.int64()),
+            "time": pa.array(dates, type=pa.date32()),
+        }
+    )
+    path = tmp_path / "edges_date32.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_edges_from_parquet(parquet_path=str(path), time="time", src="src", dst="dst")
+
+    expected_times = sorted([_ms_from_date(d) for d in dates])
+    actual_times = sorted([e.time for e in g.edges.explode()])
+    assert actual_times == expected_times

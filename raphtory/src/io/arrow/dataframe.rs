@@ -5,7 +5,7 @@ use crate::{
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
+    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
 };
 use either::Either;
 use itertools::Itertools;
@@ -75,6 +75,12 @@ impl TimeCol {
         }
         match arr.data_type() {
             DataType::Int64 => Ok(Self(arr.as_primitive::<Int64Type>().clone())),
+            DataType::Date32 => {
+                let arr = cast(arr, &DataType::Date64)?
+                    .as_primitive::<Date64Type>()
+                    .clone();
+                Ok(Self(arr.reinterpret_cast()))
+            }
             DataType::Timestamp(_, _) => {
                 let arr = cast(
                     arr,
