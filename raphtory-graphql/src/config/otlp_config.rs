@@ -7,7 +7,6 @@ use opentelemetry_sdk::{
 };
 use serde::Deserialize;
 use std::time::Duration;
-use tracing::{error, info};
 
 pub const DEFAULT_TRACING_ENABLED: bool = false;
 pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
@@ -34,8 +33,18 @@ impl Default for TracingConfig {
 }
 
 impl TracingConfig {
-    pub fn tracer_provider(&self) -> Option<TracerProvider> {
+    pub fn tracer_provider(&self) -> std::io::Result<Option<TracerProvider>> {
         if self.tracing_enabled {
+            if !self.otlp_agent_host.starts_with("http://")
+                && !self.otlp_agent_host.starts_with("https://")
+            {
+                return Err(std::io::Error::other(
+                    format!(
+                        "otlp_agent_host needs to include the protocol, either http:// or https://, current value: {}",
+                        self.otlp_agent_host
+                    ),
+                ));
+            }
             match SpanExporter::builder()
                 .with_tonic()
                 .with_endpoint(format!(
@@ -55,20 +64,21 @@ impl TracingConfig {
                             self.otlp_tracing_service_name.clone(),
                         )]))
                         .build();
-                    info!(
+                    println!(
+                        // info!() here does not work since tracing is not enabled yet
                         "Sending traces to {}:{}",
                         self.otlp_agent_host.clone(),
                         self.otlp_agent_port.clone()
                     );
-                    Some(tracer_provider)
+                    Ok(Some(tracer_provider))
                 }
                 Err(e) => {
-                    error!("{}", e.to_string());
-                    None
+                    println!("{}", e.to_string()); // error!() here does not work since tracing is not enabled yet
+                    Ok(None)
                 }
             }
         } else {
-            None
+            Ok(None)
         }
     }
 }

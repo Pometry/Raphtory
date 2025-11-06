@@ -178,7 +178,7 @@ impl GraphServer {
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.otlp_tracing_service_name.clone();
-        let tp = config.tracing.tracer_provider();
+        let tp = config.tracing.tracer_provider()?;
         // Create the base registry
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
@@ -192,7 +192,6 @@ impl GraphServer {
                     .try_init()
                     .ok();
             }
-
             None => {
                 registry.try_init().ok();
             }

@@ -2222,7 +2222,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.1",
 ]
 
 [[package]]
@@ -4467,7 +4467,7 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.16.2"
+version = "0.16.3"
 
 [[package]]
 name = "portable-atomic"
@@ -4909,7 +4909,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "ahash",
  "arrow",
@@ -4988,7 +4988,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arrow-array",
  "arrow-ipc",
@@ -5021,7 +5021,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "chrono",
  "criterion",
@@ -5042,7 +5042,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-core"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -5066,7 +5066,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -5096,7 +5096,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -5145,7 +5145,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5155,7 +5155,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arrow-array",
  "arrow-schema",
@@ -5188,7 +5188,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5439,7 +5439,7 @@ dependencies = [
 
 [[package]]
 name = "rust-examples"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "chrono",
  "itertools 0.13.0",

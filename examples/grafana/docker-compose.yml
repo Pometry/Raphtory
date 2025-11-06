@@ -1,0 +1,32 @@
+version: "3"
+
+services:
+  tempo:
+    image: grafana/tempo:2.9.0
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+    restart: unless-stopped
+
+  raphtory:
+    image: pometry/raphtory:latest
+    depends_on: [ tempo ]
+    command: --tracing --otlp-agent-host=http://tempo --otlp-agent-port=4317 --otlp-tracing-service-name=raphtory
+    ports:
+      - "1736:1736"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    depends_on: [ tempo ]
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_DEFAULT_THEME=system
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning
+      - ./dashboards:/etc/grafana/dashboards
+    restart: unless-stopped
