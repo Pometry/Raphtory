@@ -68,6 +68,7 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
         self.layer_counter.get(layer_id);
     }
 }
+
 pub struct WriteLockedNodePages<'a, NS> {
     writers: Vec<LockedNodePage<'a, NS>>,
 }

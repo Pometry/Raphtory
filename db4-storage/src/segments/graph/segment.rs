@@ -7,6 +7,8 @@ use crate::segments::graph::entry::MemGraphEntry;
 use crate::segments::{HasRow, SegmentContainer};
 use parking_lot::RwLock;
 use raphtory_api::core::entities::properties::meta::Meta;
+use raphtory_core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::entities::properties::prop::Prop;
 
 /// In-memory segment that contains graph temporal properties and graph metadata.
 #[derive(Debug)]
@@ -32,6 +34,12 @@ impl HasRow for GraphSegmentEntry {
 }
 
 impl MemGraphSegment {
+    /// Graph segments only have a single row.
+    pub const ROW: usize = 0;
+
+    /// Graph segments are currently only written to a single layer.
+    pub const LAYER: usize = 0;
+
     pub fn new() -> Self {
         // Technically, these aren't used since there is always only one graph segment.
         let segment_id = 0;
@@ -45,5 +53,23 @@ impl MemGraphSegment {
 
     pub fn layers(&self) -> &[SegmentContainer<GraphSegmentEntry>] {
         &self.layers
+    }
+
+    pub fn add_properties(&mut self, t: TimeIndexEntry, props: impl IntoIterator<Item = (usize, Prop)>) {
+        let layer = &mut self.layers[Self::LAYER];
+
+        layer.properties_mut().get_mut_entry(Self::ROW).append_t_props(t, props);
+    }
+
+    pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
+        let layer = &mut self.layers[Self::LAYER];
+
+        layer.properties_mut().get_mut_entry(Self::ROW).append_const_props(props);
+    }
+
+    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
+        let layer = &mut self.layers[Self::LAYER];
+
+        layer.properties_mut().get_mut_entry(Self::ROW).append_const_props(props);
     }
 }

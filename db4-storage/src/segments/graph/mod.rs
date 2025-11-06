@@ -9,6 +9,7 @@ use crate::api::graph::GraphSegmentOps;
 use crate::error::StorageError;
 use crate::segments::graph::segment::MemGraphSegment;
 use crate::segments::graph::entry::MemGraphEntry;
+use parking_lot::RwLockWriteGuard;
 
 /// `GraphSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
@@ -38,6 +39,11 @@ impl GraphSegmentOps for GraphSegmentView {
 
     fn entry(&self) -> Self::Entry<'_> {
         let head = self.head.read();
+
         MemGraphEntry::new(head)
+    }
+
+    fn head_mut(&self) -> RwLockWriteGuard<'_, MemGraphSegment> {
+        self.head.write()
     }
 }
