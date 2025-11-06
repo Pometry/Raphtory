@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use crate::api::graph::GraphSegmentOps;
 use crate::error::StorageError;
+use crate::pages::graph_page::writer::GraphWriter;
 use crate::persist::strategy::Config;
 use raphtory_core::entities::properties::graph_meta::GraphMeta;
 
@@ -62,5 +63,11 @@ impl<GS: GraphSegmentOps, EXT: Config> GraphStorageInner<GS, EXT> {
 
     pub fn graph_entry(&self) -> GS::Entry<'_> {
         self.page.entry()
+    }
+
+    pub fn writer(&self) -> GraphWriter<'_> {
+        let head = self.page.head_mut();
+
+        GraphWriter::new(head)
     }
 }
