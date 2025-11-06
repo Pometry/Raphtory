@@ -2,7 +2,7 @@ use crate::{
     model::{
         graph::{
             edge::GqlEdge,
-            filtering::{EdgeFilter, EdgesViewCollection},
+            filtering::EdgesViewCollection,
             windowset::GqlEdgesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -24,6 +24,7 @@ use raphtory::{
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
 
+use crate::model::graph::filtering::GqlEdgeFilter;
 use raphtory::db::api::view::BaseFilterOps;
 
 #[derive(ResolvedObject, Clone)]
@@ -353,7 +354,7 @@ impl GqlEdges {
     }
 
     /// Returns a filtered view that applies to list down the chain
-    async fn filter(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
+    async fn filter(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = expr.try_into()?;
@@ -364,7 +365,7 @@ impl GqlEdges {
     }
 
     /// Returns filtered list of edges
-    async fn select(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
+    async fn select(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = expr.try_into()?;

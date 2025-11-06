@@ -1690,6 +1690,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterOps {
         }
     }
 }
+
 impl<T: InternalPropertyFilterOps> ElemQualifierOps for T {}
 
 impl<M> PropertyFilterBuilder<M> {
@@ -1739,6 +1740,22 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Max]).collect(),
+            entity: self.entity(),
+        }
+    }
+
+    fn first(&self) -> OpChainBuilder<Self::Marker> {
+        OpChainBuilder {
+            prop_ref: self.property_ref(),
+            ops: self.ops().iter().copied().chain([Op::First]).collect(),
+            entity: self.entity(),
+        }
+    }
+
+    fn last(&self) -> OpChainBuilder<Self::Marker> {
+        OpChainBuilder {
+            prop_ref: self.property_ref(),
+            ops: self.ops().iter().copied().chain([Op::Last]).collect(),
             entity: self.entity(),
         }
     }

@@ -3,8 +3,8 @@ use crate::{
         internal::CreateFilter,
         model::{
             property_filter::{
-                ElemQualifierOps, ListAggOps, MetadataFilterBuilder, OpChainBuilder,
-                PropertyFilterBuilder, PropertyFilterOps,
+                ElemQualifierOps, ListAggOps, MetadataFilterBuilder, PropertyFilterBuilder,
+                PropertyFilterOps,
             },
             TryAsCompositeFilter,
         },
@@ -12,9 +12,7 @@ use crate::{
     prelude::PropertyFilter,
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
-use pyo3::{
-    exceptions::PyTypeError, pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python,
-};
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
@@ -54,163 +52,29 @@ pub trait DynFilterOps: Send + Sync {
         prefix_match: bool,
     ) -> PyFilterExpr;
 
-    fn any(&self) -> PyResult<PyPropertyFilterOps>;
+    fn any(&self) -> PyResult<PyFilterOps>;
 
-    fn all(&self) -> PyResult<PyPropertyFilterOps>;
+    fn all(&self) -> PyResult<PyFilterOps>;
 
-    fn len(&self) -> PyResult<PyPropertyFilterOps>;
+    fn len(&self) -> PyResult<PyFilterOps>;
 
-    fn sum(&self) -> PyResult<PyPropertyFilterOps>;
+    fn sum(&self) -> PyResult<PyFilterOps>;
 
-    fn avg(&self) -> PyResult<PyPropertyFilterOps>;
+    fn avg(&self) -> PyResult<PyFilterOps>;
 
-    fn min(&self) -> PyResult<PyPropertyFilterOps>;
+    fn min(&self) -> PyResult<PyFilterOps>;
 
-    fn max(&self) -> PyResult<PyPropertyFilterOps>;
+    fn max(&self) -> PyResult<PyFilterOps>;
 
-    fn first(&self) -> PyResult<PyPropertyFilterOps>;
+    fn first(&self) -> PyResult<PyFilterOps>;
 
-    fn last(&self) -> PyResult<PyPropertyFilterOps>;
-
-    fn temporal(&self) -> PyResult<PyPropertyFilterOps>;
+    fn last(&self) -> PyResult<PyFilterOps>;
 }
 
-impl DynFilterOps for Arc<dyn DynFilterOps> {
-    #[inline]
-    fn __eq__(&self, v: Prop) -> PyFilterExpr {
-        (**self).__eq__(v)
-    }
-
-    #[inline]
-    fn __ne__(&self, v: Prop) -> PyFilterExpr {
-        (**self).__ne__(v)
-    }
-
-    #[inline]
-    fn __lt__(&self, v: Prop) -> PyFilterExpr {
-        (**self).__lt__(v)
-    }
-
-    #[inline]
-    fn __le__(&self, v: Prop) -> PyFilterExpr {
-        (**self).__le__(v)
-    }
-
-    #[inline]
-    fn __gt__(&self, v: Prop) -> PyFilterExpr {
-        (**self).__gt__(v)
-    }
-
-    #[inline]
-    fn __ge__(&self, v: Prop) -> PyFilterExpr {
-        (**self).__ge__(v)
-    }
-
-    #[inline]
-    fn is_in(&self, vs: FromIterable<Prop>) -> PyFilterExpr {
-        (**self).is_in(vs)
-    }
-
-    #[inline]
-    fn is_not_in(&self, vs: FromIterable<Prop>) -> PyFilterExpr {
-        (**self).is_not_in(vs)
-    }
-
-    #[inline]
-    fn is_none(&self) -> PyFilterExpr {
-        (**self).is_none()
-    }
-
-    #[inline]
-    fn is_some(&self) -> PyFilterExpr {
-        (**self).is_some()
-    }
-
-    #[inline]
-    fn starts_with(&self, v: Prop) -> PyFilterExpr {
-        (**self).starts_with(v)
-    }
-
-    #[inline]
-    fn ends_with(&self, v: Prop) -> PyFilterExpr {
-        (**self).ends_with(v)
-    }
-
-    #[inline]
-    fn contains(&self, v: Prop) -> PyFilterExpr {
-        (**self).contains(v)
-    }
-
-    #[inline]
-    fn not_contains(&self, v: Prop) -> PyFilterExpr {
-        (**self).not_contains(v)
-    }
-
-    #[inline]
-    fn fuzzy_search(
-        &self,
-        prop_value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        (**self).fuzzy_search(prop_value, levenshtein_distance, prefix_match)
-    }
-
-    #[inline]
-    fn any(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).any()
-    }
-
-    #[inline]
-    fn all(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).all()
-    }
-
-    #[inline]
-    fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).len()
-    }
-
-    #[inline]
-    fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).sum()
-    }
-
-    #[inline]
-    fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).avg()
-    }
-
-    #[inline]
-    fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).min()
-    }
-
-    #[inline]
-    fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).max()
-    }
-
-    #[inline]
-    fn first(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).first()
-    }
-
-    #[inline]
-    fn last(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).last()
-    }
-
-    #[inline]
-    fn temporal(&self) -> PyResult<PyPropertyFilterOps> {
-        (**self).temporal()
-    }
-}
-
-impl<M> DynFilterOps for PropertyFilterBuilder<M>
+impl<T> DynFilterOps for T
 where
-    M: Clone + Send + Sync + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+    T: PropertyFilterOps + ElemQualifierOps + ListAggOps + Clone + Send + Sync + 'static,
+    PropertyFilter<T::Marker>: CreateFilter + TryAsCompositeFilter,
 {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
@@ -282,302 +146,50 @@ where
         )))
     }
 
-    fn any(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ElemQualifierOps::any(self)))
+    fn any(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ElemQualifierOps::any(self)))
     }
 
-    fn all(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ElemQualifierOps::all(self)))
+    fn all(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ElemQualifierOps::all(self)))
     }
 
-    fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::len(self)))
+    fn len(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ListAggOps::len(self)))
     }
 
-    fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::sum(self)))
+    fn sum(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ListAggOps::sum(self)))
     }
 
-    fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::avg(self)))
+    fn avg(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ListAggOps::avg(self)))
     }
 
-    fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::min(self)))
+    fn min(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ListAggOps::min(self)))
     }
 
-    fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::max(self)))
+    fn max(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ListAggOps::max(self)))
     }
 
-    fn first(&self) -> PyResult<PyPropertyFilterOps> {
-        Err(PyTypeError::new_err(
-            "first() is only valid on temporal properties. Call temporal() first.",
-        ))
+    fn first(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ListAggOps::first(self)))
     }
 
-    fn last(&self) -> PyResult<PyPropertyFilterOps> {
-        Err(PyTypeError::new_err(
-            "last() is only valid on temporal properties. Call temporal() first.",
-        ))
-    }
-
-    fn temporal(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().temporal()))
+    fn last(&self) -> PyResult<PyFilterOps> {
+        Ok(PyFilterOps::wrap(ListAggOps::last(self)))
     }
 }
 
-impl<M> DynFilterOps for MetadataFilterBuilder<M>
-where
-    M: Clone + Send + Sync + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-{
-    fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
-    }
-
-    fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ne(self, value)))
-    }
-
-    fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::lt(self, value)))
-    }
-
-    fn __le__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::le(self, value)))
-    }
-
-    fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::gt(self, value)))
-    }
-
-    fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ge(self, value)))
-    }
-
-    fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_in(self, values)))
-    }
-
-    fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_not_in(self, values)))
-    }
-
-    fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_none(self)))
-    }
-
-    fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_some(self)))
-    }
-
-    fn starts_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::starts_with(self, value)))
-    }
-
-    fn ends_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ends_with(self, value)))
-    }
-
-    fn contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::contains(self, value)))
-    }
-
-    fn not_contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::not_contains(self, value)))
-    }
-
-    fn fuzzy_search(
-        &self,
-        prop_value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::fuzzy_search(
-            self,
-            prop_value,
-            levenshtein_distance,
-            prefix_match,
-        )))
-    }
-
-    fn any(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ElemQualifierOps::any(self)))
-    }
-
-    fn all(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ElemQualifierOps::all(self)))
-    }
-
-    fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::len(self)))
-    }
-
-    fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::sum(self)))
-    }
-
-    fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::avg(self)))
-    }
-
-    fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::min(self)))
-    }
-
-    fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(ListAggOps::max(self)))
-    }
-
-    fn first(&self) -> PyResult<PyPropertyFilterOps> {
-        Err(PyTypeError::new_err(
-            "first() is only valid on temporal properties.",
-        ))
-    }
-
-    fn last(&self) -> PyResult<PyPropertyFilterOps> {
-        Err(PyTypeError::new_err(
-            "last() is only valid on temporal properties.",
-        ))
-    }
-
-    fn temporal(&self) -> PyResult<PyPropertyFilterOps> {
-        Err(PyTypeError::new_err(
-            "temporal() is only valid on standard properties, not metadata.",
-        ))
-    }
-}
-
-impl<M> DynFilterOps for OpChainBuilder<M>
-where
-    M: Send + Sync + Clone + 'static,
-    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-{
-    fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
-    }
-
-    fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ne(self, value)))
-    }
-
-    fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::lt(self, value)))
-    }
-
-    fn __le__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::le(self, value)))
-    }
-
-    fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::gt(self, value)))
-    }
-
-    fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ge(self, value)))
-    }
-
-    fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_in(self, values)))
-    }
-
-    fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_not_in(self, values)))
-    }
-
-    fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_none(self)))
-    }
-
-    fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_some(self)))
-    }
-
-    fn starts_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::starts_with(self, value)))
-    }
-
-    fn ends_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ends_with(self, value)))
-    }
-
-    fn contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::contains(self, value)))
-    }
-
-    fn not_contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::not_contains(self, value)))
-    }
-
-    fn fuzzy_search(
-        &self,
-        prop_value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::fuzzy_search(
-            self,
-            prop_value,
-            levenshtein_distance,
-            prefix_match,
-        )))
-    }
-
-    fn any(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().any()))
-    }
-
-    fn all(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().all()))
-    }
-
-    fn len(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().len()))
-    }
-
-    fn sum(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().sum()))
-    }
-
-    fn avg(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().avg()))
-    }
-
-    fn min(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().min()))
-    }
-
-    fn max(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().max()))
-    }
-
-    fn first(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().first()))
-    }
-
-    fn last(&self) -> PyResult<PyPropertyFilterOps> {
-        Ok(PyPropertyFilterOps::wrap(self.clone().last()))
-    }
-
-    fn temporal(&self) -> PyResult<PyPropertyFilterOps> {
-        Err(PyTypeError::new_err(
-            "temporal() must be called on a property builder, not on an existing chain.",
-        ))
-    }
-}
-
-#[pyclass(
-    frozen,
-    name = "PropertyFilterOps",
-    module = "raphtory.filter",
-    subclass
-)]
-pub struct PyPropertyFilterOps {
+#[pyclass(frozen, name = "FilterOps", module = "raphtory.filter", subclass)]
+#[derive(Clone)]
+pub struct PyFilterOps {
     ops: Arc<dyn DynFilterOps>,
 }
 
-impl PyPropertyFilterOps {
+impl PyFilterOps {
     fn wrap<T: DynFilterOps + 'static>(t: T) -> Self {
         Self { ops: Arc::new(t) }
     }
@@ -588,7 +200,7 @@ impl PyPropertyFilterOps {
 }
 
 #[pymethods]
-impl PyPropertyFilterOps {
+impl PyFilterOps {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         self.ops.__eq__(value)
     }
@@ -655,68 +267,80 @@ impl PyPropertyFilterOps {
             .fuzzy_search(prop_value, levenshtein_distance, prefix_match)
     }
 
-    pub fn first(&self) -> PyResult<PyPropertyFilterOps> {
+    pub fn first(&self) -> PyResult<PyFilterOps> {
         self.ops.first()
     }
 
-    pub fn last(&self) -> PyResult<PyPropertyFilterOps> {
+    pub fn last(&self) -> PyResult<PyFilterOps> {
         self.ops.last()
     }
 
-    pub fn any(&self) -> PyResult<PyPropertyFilterOps> {
+    pub fn any(&self) -> PyResult<PyFilterOps> {
         self.ops.any()
     }
 
-    pub fn all(&self) -> PyResult<PyPropertyFilterOps> {
+    pub fn all(&self) -> PyResult<PyFilterOps> {
         self.ops.all()
     }
 
-    fn len(&self) -> PyResult<PyPropertyFilterOps> {
+    fn len(&self) -> PyResult<PyFilterOps> {
         self.ops.len()
     }
 
-    fn sum(&self) -> PyResult<PyPropertyFilterOps> {
+    fn sum(&self) -> PyResult<PyFilterOps> {
         self.ops.sum()
     }
 
-    fn avg(&self) -> PyResult<PyPropertyFilterOps> {
+    fn avg(&self) -> PyResult<PyFilterOps> {
         self.ops.avg()
     }
 
-    fn min(&self) -> PyResult<PyPropertyFilterOps> {
+    fn min(&self) -> PyResult<PyFilterOps> {
         self.ops.min()
     }
 
-    fn max(&self) -> PyResult<PyPropertyFilterOps> {
+    fn max(&self) -> PyResult<PyFilterOps> {
         self.ops.max()
-    }
-
-    pub fn temporal(&self) -> PyResult<PyPropertyFilterOps> {
-        self.ops.temporal()
-    }
-}
-
-trait DynPropertyFilterBuilderOps: DynFilterOps {
-    fn as_dyn(self: Arc<Self>) -> Arc<dyn DynFilterOps>;
-}
-
-impl<T> DynPropertyFilterBuilderOps for T
-where
-    T: DynFilterOps + 'static,
-{
-    fn as_dyn(self: Arc<Self>) -> Arc<dyn DynFilterOps> {
-        self
     }
 }
 
 #[pyclass(
     frozen,
-    name = "Property",
+    name = "PropertyFilterOps",
     module = "raphtory.filter",
-    extends = PyPropertyFilterOps
+    extends = PyFilterOps
 )]
 #[derive(Clone)]
-pub struct PyPropertyFilterBuilder(Arc<dyn DynPropertyFilterBuilderOps>);
+pub struct PyPropertyFilterBuilder {
+    ops: Arc<dyn DynPropertyFilterBuilderOps>,
+}
+
+impl PyPropertyFilterBuilder {
+    pub fn from_arc(ops: Arc<dyn DynPropertyFilterBuilderOps>) -> Self {
+        Self { ops }
+    }
+}
+
+pub trait DynPropertyFilterBuilderOps: DynFilterOps {
+    fn temporal(&self) -> PyFilterOps;
+}
+
+impl<T> DynPropertyFilterBuilderOps for PropertyFilterBuilder<T>
+where
+    PropertyFilter<T>: CreateFilter + TryAsCompositeFilter,
+    T: Clone + Send + Sync + 'static,
+{
+    fn temporal(&self) -> PyFilterOps {
+        PyFilterOps::wrap(self.clone().temporal())
+    }
+}
+
+#[pymethods]
+impl PyPropertyFilterBuilder {
+    fn temporal(&self) -> PyFilterOps {
+        self.ops.temporal()
+    }
+}
 
 impl<'py, M: Clone + Send + Sync + 'static> IntoPyObject<'py> for PropertyFilterBuilder<M>
 where
@@ -728,40 +352,21 @@ where
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let inner: Arc<PropertyFilterBuilder<M>> = Arc::new(self);
-        let parent = PyPropertyFilterOps::from_arc(inner.clone().as_dyn());
-        let child = PyPropertyFilterBuilder(inner);
+        let child = PyPropertyFilterBuilder::from_arc(inner.clone());
+        let parent = PyFilterOps::from_arc(inner);
         Bound::new(py, (child, parent))
     }
 }
-
-#[pymethods]
-impl PyPropertyFilterBuilder {
-    fn temporal(&self) -> PyResult<PyPropertyFilterOps> {
-        self.0.temporal()
-    }
-}
-
-#[pyclass(
-    frozen,
-    name = "Metadata",
-    module = "raphtory.filter",
-    extends = PyPropertyFilterOps
-)]
-#[derive(Clone)]
-pub struct PyMetadataFilterBuilder;
 
 impl<'py, M: Send + Sync + Clone + 'static> IntoPyObject<'py> for MetadataFilterBuilder<M>
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
-    type Target = PyMetadataFilterBuilder;
+    type Target = PyFilterOps;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let inner: Arc<MetadataFilterBuilder<M>> = Arc::new(self);
-        let parent = PyPropertyFilterOps::from_arc(inner.clone().as_dyn());
-        let child = PyMetadataFilterBuilder;
-        Bound::new(py, (child, parent))
+        PyFilterOps::wrap(self).into_pyobject(py)
     }
 }

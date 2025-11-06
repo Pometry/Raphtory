@@ -4,7 +4,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{EdgeFilter, GraphViewCollection, NodeFilter},
+            filtering::{GqlEdgeFilter, GqlNodeFilter, GraphViewCollection},
             index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
@@ -374,7 +374,7 @@ impl GqlGraph {
     }
 
     /// Gets (optionally a subset of) the nodes in the graph.
-    async fn nodes(&self, select: Option<NodeFilter>) -> Result<GqlNodes, GraphError> {
+    async fn nodes(&self, select: Option<GqlNodeFilter>) -> Result<GqlNodes, GraphError> {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
@@ -396,7 +396,7 @@ impl GqlGraph {
     }
 
     /// Gets the edges in the graph.
-    async fn edges<'a>(&self, select: Option<EdgeFilter>) -> Result<GqlEdges, GraphError> {
+    async fn edges<'a>(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
         let base = self.graph.edges();
 
         if let Some(sel) = select {
@@ -518,7 +518,7 @@ impl GqlGraph {
         .await
     }
 
-    async fn filter_nodes(&self, expr: NodeFilter) -> Result<Self, GraphError> {
+    async fn filter_nodes(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;
@@ -531,7 +531,7 @@ impl GqlGraph {
         .await
     }
 
-    async fn filter_edges(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
+    async fn filter_edges(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = expr.try_into()?;
@@ -573,7 +573,7 @@ impl GqlGraph {
     /// Uses Tantivy's exact search.
     async fn search_nodes(
         &self,
-        filter: NodeFilter,
+        filter: GqlNodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlNode>, GraphError> {
@@ -599,7 +599,7 @@ impl GqlGraph {
     /// Uses Tantivy's exact search.
     async fn search_edges(
         &self,
-        filter: EdgeFilter,
+        filter: GqlEdgeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlEdge>, GraphError> {

@@ -1,7 +1,7 @@
 use crate::{
     model::{
         graph::{
-            filtering::{NodeFilter, NodesViewCollection},
+            filtering::{GqlNodeFilter, NodesViewCollection},
             node::GqlNode,
             windowset::GqlNodesWindowSet,
             WindowDuration,
@@ -343,7 +343,7 @@ impl GqlNodes {
     }
 
     /// Returns a filtered view that applies to list down the chain
-    async fn filter(&self, expr: NodeFilter) -> Result<Self, GraphError> {
+    async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;
@@ -354,7 +354,7 @@ impl GqlNodes {
     }
 
     /// Returns filtered list of nodes
-    async fn select(&self, expr: NodeFilter) -> Result<Self, GraphError> {
+    async fn select(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;

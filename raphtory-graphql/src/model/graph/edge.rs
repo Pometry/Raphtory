@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{EdgeFilter, EdgeViewCollection, NodeFilter},
+        filtering::{EdgeViewCollection, GqlEdgeFilter},
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
         windowset::GqlEdgeWindowSet,
@@ -14,13 +14,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::view::{BaseFilterOps, DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
-        graph::{
-            edge::EdgeView,
-            node::NodeView,
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
-            },
-        },
+        graph::{edge::EdgeView, views::filter::model::edge_filter::CompositeEdgeFilter},
     },
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
@@ -376,7 +370,7 @@ impl GqlEdge {
         self.ee.is_self_loop()
     }
 
-    async fn filter(&self, expr: EdgeFilter) -> Result<Self, GraphError> {
+    async fn filter(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = expr.try_into()?;
