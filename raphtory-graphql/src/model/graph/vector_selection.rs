@@ -21,7 +21,6 @@ pub(super) struct InputEdge {
 }
 
 #[derive(ResolvedObject)]
-#[graphql(name = "VectorSelection")]
 pub(crate) struct GqlVectorSelection(VectorSelection<MaterializedGraph>);
 
 impl From<VectorSelection<MaterializedGraph>> for GqlVectorSelection {

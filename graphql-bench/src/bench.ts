@@ -2,19 +2,34 @@ import { check, fail, sleep } from 'k6';
 import http from 'k6/http';
 import { Rate } from 'k6/metrics';
 
-import { fetchAndCheck, fetchAndParse, mutate } from './utils';
+import {
+    generateQueryOp,
+    generateMutationOp,
+    QueryRootGenqlSelection,
+    MutRootGenqlSelection,
+} from './__generated';
 
 const TIME_RANGE = 2000 * 365 * 24 * 60 * 60 * 1000;
 const randomTime = () => Math.floor(Math.random() * TIME_RANGE);
+
+const URL = __ENV.RAPHTORY_URL ?? 'http://localhost:1736';
 
 export const errorRate = new Rate('errors');
 
 const duration = 1;
 const stagesInMinutes: { duration: number; target: number }[] = [
+    // { duration, target: 50 },
     { duration, target: 100 },
+    // { duration, target: 200 },
     { duration, target: 400 },
+    // { duration, target: 800 },
     { duration, target: 1600 },
+    // { duration, target: 3200 },
     { duration, target: 6400 },
+    // { duration, target: 12800 },
+    // { duration, target: 25600 },
+    // { duration, target: 51200 },
+    // { duration, target: 102400 },
 ];
 
 // +1 to leave enough time for the server to recover from prev scenario
@@ -53,6 +68,55 @@ export const options = {
     scenarios: Object.fromEntries(scenarios),
 };
 
+const params = {
+    headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip' },
+};
+function fetch(query: QueryRootGenqlSelection) {
+    const { query: compiledQuery, variables } = generateQueryOp(query);
+    const payload = JSON.stringify({
+        query: compiledQuery,
+        variables: variables,
+    });
+    return http.post(URL, payload, params);
+}
+
+function mutate(query: MutRootGenqlSelection) {
+    const { query: compiledQuery, variables } = generateMutationOp(query);
+    const payload = JSON.stringify({
+        query: compiledQuery,
+        variables: variables,
+    });
+    return http.post(URL, payload, params);
+}
+
+function fetchAndParse(query: QueryRootGenqlSelection) {
+    const response = fetch(query);
+    if (typeof response.body !== 'string') {
+        fail(JSON.stringify(response));
+    }
+    return JSON.parse(response.body);
+}
+
+function fetchAndCheck(query: QueryRootGenqlSelection) {
+    const response = fetch(query);
+    const result = check(response, {
+        'variable query status is 200': (r) => r.status === 200,
+        'variable query has user data': (r) => {
+            if (typeof r.body === 'string') {
+                const body = JSON.parse(r.body as string);
+                return (
+                    'data' in body &&
+                    body.data !== undefined &&
+                    body.data !== null // FIXME: improve query checking, I wish I could just rely on genql
+                );
+            } else {
+                return false;
+            }
+        },
+    });
+    errorRate.add(!result);
+}
+
 type SetupData = {
     graphPaths: string[];
     countNodes: number;
@@ -73,16 +137,6 @@ export function setup(): SetupData {
                 path: 'empty',
                 graphType: 'EVENT',
             },
-        },
-    });
-
-    // this is to trigger the load of the empty graph into memory
-    fetchAndCheck(errorRate, {
-        graph: {
-            __args: {
-                path: 'empty',
-            },
-            countNodes: true,
         },
     });
 
@@ -108,7 +162,7 @@ export function setup(): SetupData {
 export function addNode() {
     const name = Math.random().toString();
     const time = randomTime();
-    fetchAndCheck(errorRate, {
+    fetchAndCheck({
         updateGraph: {
             __args: {
                 path: 'empty',
@@ -126,7 +180,7 @@ export function addNode() {
 
 export function randomNodePage(input: SetupData) {
     const offset = Math.floor(Math.random() * (input.countNodes - 20));
-    fetchAndCheck(errorRate, {
+    fetchAndCheck({
         graph: {
             __args: { path: 'master' },
             nodes: {
@@ -142,7 +196,7 @@ export function randomNodePage(input: SetupData) {
 
 export function randomEdgePage(input: SetupData) {
   const offset = Math.floor(Math.random() * (input.countEdges - 20));
-    fetchAndCheck(errorRate, {
+    fetchAndCheck({
         graph: {
             __args: { path: 'master' },
             edges: {
@@ -161,7 +215,7 @@ export function randomEdgePage(input: SetupData) {
 }
 
 export function nodePropsByName() {
-    fetchAndCheck(errorRate, {
+    fetchAndCheck({
         graph: {
             __args: { path: 'master' },
             node: {
@@ -180,7 +234,7 @@ export function nodePropsByName() {
 }
 
 export function nodeNeighboursByName() {
-    fetchAndCheck(errorRate, {
+    fetchAndCheck({
         graph: {
             __args: { path: 'master' },
             node: {
@@ -202,7 +256,7 @@ export function readAndWriteNodeProperties(input: SetupData) {
     const random = Math.random();
     const time = randomTime();
     if (random < 0.3) {
-      fetchAndCheck(errorRate, {
+      fetchAndCheck({
           updateGraph: {
               __args: {
                   path: 'master',
@@ -222,7 +276,7 @@ export function readAndWriteNodeProperties(input: SetupData) {
           },
       });
     } else {
-      fetchAndCheck(errorRate, {
+      fetchAndCheck({
           graph: {
               __args: { path: 'master' },
               node: {

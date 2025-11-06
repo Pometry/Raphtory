@@ -2,7 +2,7 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{Index, NodeState},
+            state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -17,11 +17,40 @@ use crate::{
 };
 use indexmap::IndexSet;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
-#[derive(Clone, Debug, Default)]
-struct OutState {
-    out_components: Vec<VID>,
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct OutState {
+    pub out_components: Vec<VID>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TransformedOutState<'graph, G, GH = G>
+where
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
+{
+    pub out_components: Nodes<'graph, G, GH>,
+}
+
+impl OutState {
+    pub fn node_transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
+        value: OutState,
+    ) -> TransformedOutState<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        TransformedOutState {
+            out_components: Nodes::new_filtered(
+                state.base_graph.clone(),
+                state.graph.clone(),
+                Some(Index::from_iter(value.out_components)),
+                None,
+            ),
+        }
+    }
 }
 
 /// Computes the out components of each node in the graph
@@ -35,7 +64,10 @@ struct OutState {
 ///
 /// An [AlgorithmResult] containing the mapping from each node to a vector of node ids (the nodes out component)
 ///
-pub fn out_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
+pub fn out_components<G>(
+    g: &G,
+    threads: Option<usize>,
+) -> TypedNodeState<'static, OutState, G, G, TransformedOutState<'static, G>>
 where
     G: StaticGraphViewOps,
 {
@@ -72,20 +104,28 @@ where
         vec![],
         None,
         |_, _, _, local: Vec<OutState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
-                Nodes::new_filtered(
+            TypedNodeState::new_mapped(
+                GenericNodeState::new_from_eval(
                     g.clone(),
-                    g.clone(),
-                    Some(Index::from_iter(v.out_components)),
-                    None,
-                )
-            })
+                    local,
+                    Some(HashMap::from([(
+                        "out_components".to_string(),
+                        (NodeStateOutputType::Nodes, None, None),
+                    )])),
+                ),
+                OutState::node_transform,
+            )
         },
         threads,
         1,
         None,
         None,
     )
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct OutComponentState {
+    pub distance: usize,
 }
 
 /// Computes the out-component of a given node in the graph
@@ -100,7 +140,7 @@ where
 ///
 pub fn out_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
     node: NodeView<'graph, G, GH>,
-) -> NodeState<'graph, usize, G> {
+) -> TypedNodeState<'graph, OutComponentState, G> {
     let mut out_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();
     node.out_neighbours().iter().for_each(|node| {
@@ -123,10 +163,14 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
 
     let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
         out_components.into_iter().sorted().unzip();
-    NodeState::new(
+    TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
         node.base_graph.clone(),
         node.base_graph.clone(),
-        distances.into(),
+        distances
+            .into_iter()
+            .map(|value| OutComponentState { distance: value })
+            .collect(),
         Some(Index::new(nodes)),
-    )
+        None,
+    ))
 }

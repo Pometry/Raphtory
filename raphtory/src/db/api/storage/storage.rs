@@ -60,12 +60,6 @@ pub struct Storage {
     // vector index
 }
 
-impl From<GraphStorage> for Storage {
-    fn from(graph: GraphStorage) -> Self {
-        Self::from_inner(graph)
-    }
-}
-
 impl InheritLayerOps for Storage {}
 impl InheritCoreGraphOps for Storage {}
 

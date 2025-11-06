@@ -38,13 +38,13 @@ impl PyRemoteEdge {
     /// This function allows for the addition of property updates to an edge within the graph.
     /// The updates are time-stamped, meaning they are applied at the specified time.
     ///
-    /// Arguments:
-    ///   t (int | str | datetime): The timestamp at which the updates should be applied.
-    ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
-    ///   layer (str, optional): The layer you want the updates to be applied.
+    /// Parameters:
+    /// t (int | str | datetime): The timestamp at which the updates should be applied.
+    /// properties (dict[str, PropValue], optional): A dictionary of properties to update.
+    /// layer (str, optional): The layer you want the updates to be applied.
     ///
     /// Returns:
-    ///   None:
+    /// None:
     #[pyo3(signature = (t, properties=None, layer=None))]
     fn add_updates(
         &self,
@@ -80,15 +80,12 @@ impl PyRemoteEdge {
 
     /// Mark the edge as deleted at the specified time.
     ///
-    /// Arguments:
-    ///   t (int | str | datetime): The timestamp at which the deletion should be applied.
-    ///   layer (str, optional): The layer you want the deletion applied to.
+    /// Parameters:
+    /// t (int | str | datetime): The timestamp at which the deletion should be applied.
+    /// layer (str, optional): The layer you want the deletion applied to.
     ///
     /// Returns:
-    ///   None:
-    ///
-    /// Raises:
-    ///   GraphError: If the operation fails.
+    /// None:
     #[pyo3(signature = (t, layer=None))]
     fn delete(&self, py: Python, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         let template = r#"
@@ -119,12 +116,12 @@ impl PyRemoteEdge {
     /// This function is used to add metadata to an edge that does not
     /// change over time. This metadata is fundamental information of the edge.
     ///
-    /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
-    ///   layer (str, optional): The layer you want these properties to be added on to.
+    /// Parameters:
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+    /// layer (str, optional): The layer you want these properties to be added on to.
     ///
     /// Returns:
-    ///   None:
+    /// None:
     #[pyo3(signature = (properties, layer=None))]
     fn add_metadata(
         &self,
@@ -160,12 +157,12 @@ impl PyRemoteEdge {
     /// This function is used to add properties to an edge that does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
-    /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
-    ///   layer (str, optional): The layer you want these properties to be added on to.
+    /// Parameters:
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+    /// layer (str, optional): The layer you want these properties to be added on to.
     ///
     /// Returns:
-    ///   None:
+    /// None:
     #[pyo3(signature = (properties, layer=None))]
     pub fn update_metadata(
         &self,

@@ -7,7 +7,10 @@ use crate::{
         },
     },
     db::{
-        api::{state::NodeState, view::StaticGraphViewOps},
+        api::{
+            state::{GenericNodeState, TypedNodeState},
+            view::StaticGraphViewOps,
+        },
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -21,7 +24,13 @@ use itertools::Itertools;
 use num_traits::Zero;
 use raphtory_api::core::entities::VID;
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, ops::Add};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct ReachabilityState {
+    pub reachable_nodes: Vec<(i64, String)>,
+}
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -74,7 +83,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
     start_time: i64,
     seed_nodes: Vec<T>,
     stop_nodes: Option<Vec<T>>,
-) -> NodeState<'static, Vec<(i64, String)>, G> {
+) -> TypedNodeState<'static, ReachabilityState, G> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let infected_nodes = seed_nodes
@@ -201,5 +210,10 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
         None,
     );
     let result: FxHashMap<_, _> = result.into_iter().map(|(k, v)| (VID(k), v)).collect();
-    NodeState::new_from_map(g.clone(), result, |v| v)
+    TypedNodeState::new(GenericNodeState::new_from_map(
+        g.clone(),
+        result,
+        |v| ReachabilityState { reachable_nodes: v },
+        None,
+    ))
 }

@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::{Index, LazyNodeState, NodeOp},
+            state::{GenericNodeState, Index, LazyNodeState, NodeOp},
             view::{
                 internal::{FilterOps, NodeList, OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, ExplodedEdgePropertyFilterOps,
@@ -13,6 +13,7 @@ use crate::{
     },
     prelude::*,
 };
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use raphtory_storage::{
     core_ops::is_view_compatible,
     graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
@@ -21,8 +22,10 @@ use rayon::iter::ParallelIterator;
 use std::{
     collections::HashSet,
     fmt::{Debug, Formatter},
+    fs::File,
     hash::{BuildHasher, Hash},
     marker::PhantomData,
+    path::Path,
     sync::Arc,
 };
 
@@ -120,6 +123,31 @@ where
             node_types_filter: None,
             _marker: PhantomData,
         }
+    }
+
+    pub fn nodestate_from_parquet<P: AsRef<Path>>(
+        &self,
+        file_path: P,
+        id_column: Option<String>,
+    ) -> GenericNodeState<'graph, G> {
+        let file = File::open(file_path).unwrap();
+        let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
+        let mut reader = builder.build().unwrap();
+        let mut batch = reader.next().unwrap().unwrap();
+        if let Some(id_col) = id_column {
+            if let Some(idx) = batch.schema().index_of(&id_col).ok() {
+                batch.remove_column(idx);
+            } else {
+                panic!("Column '{}' not found in Parquet file", id_col);
+            }
+        }
+        GenericNodeState::new(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            batch,
+            Index::for_graph(self.graph.clone()),
+            None,
+        )
     }
 }
 
@@ -317,7 +345,6 @@ where
         self.indexed(index)
     }
 
-    /// Collect nodes into a vec
     pub fn collect(&self) -> Vec<NodeView<'graph, G, GH>> {
         self.iter_owned().collect()
     }
@@ -462,5 +489,35 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        prelude::*,
+        test_utils::{build_graph, build_graph_strat},
+    };
+    use proptest::{proptest, sample::subsequence};
+
+    #[test]
+    fn test_id_filter() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+
+        assert_eq!(graph.nodes().id(), [0, 1]);
+        assert_eq!(graph.nodes().id_filter([0]).len(), 1);
+        assert_eq!(graph.nodes().id_filter([0]).id(), [0]);
+        assert_eq!(graph.nodes().id_filter([0]).degree(), [1]);
+    }
+
+    #[test]
+    fn test_indexed() {
+        proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+            let graph = Graph::from(build_graph(&graph));
+            let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
+            let nodes = graph.nodes().id_filter(nodes);
+            assert_eq!(nodes.id(), expected_node_ids);
+        })
     }
 }

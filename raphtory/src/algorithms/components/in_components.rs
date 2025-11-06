@@ -2,10 +2,10 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{Index, NodeState},
+            state::{GenericNodeState, Index, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
-        graph::{node::NodeView, nodes::Nodes},
+        graph::node::NodeView,
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -17,11 +17,15 @@ use crate::{
 };
 use indexmap::IndexSet;
 use itertools::Itertools;
-use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
+    fmt::Debug,
+};
 
-#[derive(Clone, Debug, Default)]
-struct InState {
-    in_components: Vec<VID>,
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct InState {
+    pub in_components: Vec<VID>,
 }
 
 /// Computes the in components of each node in the graph
@@ -35,7 +39,7 @@ struct InState {
 ///
 /// An [AlgorithmResult] containing the mapping from each node to a vector of node ids (the nodes in component)
 ///
-pub fn in_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
+pub fn in_components<G>(g: &G, threads: Option<usize>) -> TypedNodeState<'static, InState, G>
 where
     G: StaticGraphViewOps,
 {
@@ -72,20 +76,18 @@ where
         vec![],
         None,
         |_, _, _, local: Vec<InState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
-                Nodes::new_filtered(
-                    g.clone(),
-                    g.clone(),
-                    Some(Index::from_iter(v.in_components)),
-                    None,
-                )
-            })
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
         },
         threads,
         1,
         None,
         None,
     )
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct InComponentState {
+    pub distance: usize,
 }
 
 /// Computes the in-component of a given node in the graph
@@ -100,7 +102,7 @@ where
 ///
 pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
     node: NodeView<'graph, G, GH>,
-) -> NodeState<'graph, usize, G> {
+) -> TypedNodeState<'graph, InComponentState, G> {
     let mut in_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();
     node.in_neighbours().iter().for_each(|node| {
@@ -123,10 +125,14 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
 
     let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
         in_components.into_iter().sorted().unzip();
-    NodeState::new(
+    TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
         node.base_graph.clone(),
         node.base_graph.clone(),
-        distances.into(),
+        distances
+            .into_iter()
+            .map(|value| InComponentState { distance: value })
+            .collect(),
         Some(Index::new(nodes)),
-    )
+        None,
+    ))
 }

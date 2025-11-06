@@ -11,6 +11,8 @@ use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
+use super::node_state_ops::ToOwnedValue;
+
 #[derive(Clone, Debug)]
 pub struct NodeGroups<V, G> {
     groups: Arc<[(V, Index<VID>)]>,
@@ -114,15 +116,107 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
     }
 }
 
-pub trait NodeStateGroupBy<'graph>: NodeStateOps<'graph> {
-    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Graph>;
+pub trait NodeStateGroupBy<'a, 'graph: 'a>: NodeStateOps<'a, 'graph> {
+    fn groups(&'a self) -> NodeGroups<Self::OwnedValue, Self::Graph>;
 }
 
-impl<'graph, S: NodeStateOps<'graph>> NodeStateGroupBy<'graph> for S
+impl<'a, 'graph: 'a, S: NodeStateOps<'a, 'graph>> NodeStateGroupBy<'a, 'graph> for S
 where
     S::OwnedValue: Hash + Eq + Debug,
 {
-    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Graph> {
-        self.group_by(|v| v.clone())
+    fn groups(&'a self) -> NodeGroups<Self::OwnedValue, Self::Graph> {
+        self.group_by(|v| v.to_owned_value())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{prelude::*, test_storage};
+    use std::{collections::HashMap, ops::Deref, sync::Arc};
+
+    #[test]
+    fn test() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        g.add_edge(0, 4, 5, NO_PROPS, None).unwrap();
+
+        test_storage!(&g, |g| {
+            let groups_from_lazy = g.nodes().out_degree().groups();
+
+            let groups_from_eager = g.nodes().out_degree().compute().groups();
+
+            let expected_groups: HashMap<usize, Arc<[GID]>> = HashMap::from([
+                (0, Arc::from_iter([GID::U64(3), GID::U64(5)])),
+                (1, Arc::from_iter([GID::U64(1), GID::U64(2), GID::U64(4)])),
+            ]);
+
+            let expected_subgraphs: HashMap<usize, Arc<[GID]>> = HashMap::from([
+                (0, Arc::from_iter([])),
+                (1, Arc::from_iter([GID::U64(1), GID::U64(2)])),
+            ]);
+
+            assert_eq!(
+                groups_from_lazy
+                    .iter()
+                    .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
+                    .collect::<HashMap<_, _>>(),
+                expected_groups
+            );
+
+            assert_eq!(
+                groups_from_lazy
+                    .clone()
+                    .into_iter_groups()
+                    .map(|(v, nodes)| (v, nodes.id().sort_by_values(false).values().clone()))
+                    .collect::<HashMap<_, _>>(),
+                expected_groups
+            );
+
+            assert_eq!(
+                groups_from_lazy
+                    .iter_subgraphs()
+                    .map(|(v, graph)| (
+                        *v,
+                        graph.nodes().id().sort_by_values(false).values().clone()
+                    ))
+                    .collect::<HashMap<_, _>>(),
+                expected_subgraphs
+            );
+
+            assert_eq!(
+                groups_from_lazy
+                    .clone()
+                    .into_iter_subgraphs()
+                    .map(|(v, graph)| (
+                        v,
+                        graph.nodes().id().sort_by_values(false).values().clone()
+                    ))
+                    .collect::<HashMap<_, _>>(),
+                expected_subgraphs
+            );
+
+            assert_eq!(
+                groups_from_eager
+                    .iter()
+                    .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
+                    .collect::<HashMap<_, _>>(),
+                expected_groups
+            );
+
+            assert_eq!(groups_from_lazy.len(), expected_groups.len());
+
+            for (i, (v, nodes)) in groups_from_eager.iter().enumerate() {
+                let (v2, nodes2) = groups_from_eager.group(i).unwrap();
+                assert_eq!(v, v2);
+                assert!(nodes.iter().eq(nodes2.iter()));
+                let (v3, graph) = groups_from_eager.group_subgraph(i).unwrap();
+                assert_eq!(v, v3);
+                assert_eq!(
+                    graph.nodes().id().sort_by_values(false),
+                    expected_subgraphs[v].deref()
+                );
+            }
+        });
     }
 }

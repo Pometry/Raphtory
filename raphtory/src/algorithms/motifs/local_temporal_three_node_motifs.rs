@@ -4,7 +4,7 @@ use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::{
-            state::NodeState,
+            state::{GenericNodeState, TypedNodeState},
             view::{NodeViewOps, *},
         },
         graph::views::node_subgraph::NodeSubgraph,
@@ -21,9 +21,15 @@ use num_traits::Zero;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem, ops::Add, slice::Iter};
 use tracing::debug;
 ///////////////////////////////////////////////////////
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct MotifState {
+    pub motif_counter: Vec<usize>,
+}
 
 // State objects for three node motifs
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -340,7 +346,7 @@ pub fn temporal_three_node_motif<G>(
     g: &G,
     delta: i64,
     threads: Option<usize>,
-) -> NodeState<'static, Vec<usize>, G>
+) -> TypedNodeState<'static, MotifState, G>
 where
     G: StaticGraphViewOps,
 {
@@ -387,7 +393,7 @@ where
                     counts
                 })
                 .collect();
-            NodeState::new_from_values(g.clone(), values)
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values, None))
         },
         threads,
         1,

@@ -10,7 +10,7 @@ use crate::{
     prelude::PropertiesOps,
     python::{
         graph::properties::{
-            MetadataListList, MetadataView, PyMetadata, PyTemporalPropsList,
+            MetadataView, PyMetadata, PyMetadataListList, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
@@ -88,87 +88,54 @@ impl PyProperties {
     ///
     /// First searches temporal properties and returns latest value if it exists.
     /// If not, it falls back to static properties.
-    ///
-    /// Arguments:
-    ///     key (str): the name of the property.
-    ///
-    /// Returns:
-    ///     PropValue:
     pub fn get(&self, key: &str) -> Option<Prop> {
         self.props.get(key)
     }
 
     /// Check if property `key` exists.
-    ///
-    /// Returns:
-    ///     bool:
     pub fn __contains__(&self, key: &str) -> bool {
         self.props.get(key).is_some()
     }
 
-    /// Gets property value if it exists, otherwise raises `KeyError`
-    ///
-    /// Returns:
-    ///     dict[PropValue]:
+    /// gets property value if it exists, otherwise raises `KeyError`
     fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         self.props
             .get(key)
             .ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Iterate over property keys
-    ///
-    /// Returns:
-    ///     Iterator[str]:
+    /// iterate over property keys
     fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
-    /// Number of properties
-    ///
-    /// Returns:
-    ///     int:
+    /// number of properties
     fn __len__(&self) -> usize {
         self.keys().len()
     }
 
-    /// Get the names for all properties
-    ///
-    /// Returns:
-    ///     list[str]:
+    /// Get the names for all properties (includes temporal and static properties)
     pub fn keys(&self) -> Vec<ArcStr> {
         self.props.iter_filtered().map(|(key, _)| key).collect()
     }
 
-    /// Get the values of the properties.
-    ///
-    /// Returns:
-    ///     list[PropValue]:
+    /// Get the values of the properties
     pub fn values(&self) -> Vec<Prop> {
         self.props.iter_filtered().map(|(_, value)| value).collect()
     }
 
     /// Get a list of key-value pairs
-    ///
-    /// Returns:
-    ///     list[Tuple[str, PropValue]]:
     pub fn items(&self) -> Vec<(ArcStr, Prop)> {
         self.props.as_vec()
     }
 
     /// Get a view of the temporal properties only.
-    ///
-    /// Returns:
-    ///     TemporalProp:
     #[getter]
     pub fn temporal(&self) -> DynTemporalProperties {
         self.props.temporal()
     }
 
-    /// Convert properties view to a dict.
-    ///
-    /// Returns:
-    ///     dict[str, PropValue]:
+    /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
     }
@@ -280,12 +247,6 @@ py_eq!(PropertiesView, PyPropsListCmp);
 #[pymethods]
 impl PropertiesView {
     /// Get property value.
-    ///
-    /// Arguments:
-    ///     key (str): the name of the property.
-    ///
-    /// Returns:
-    ///     PyPropValueList:
     pub fn get(&self, key: &str) -> Option<PyPropValueList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -311,10 +272,7 @@ impl PropertiesView {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get the names for all properties.
-    ///
-    /// Returns:
-    ///     list[str]:
+    /// Get the names for all properties
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .next()
@@ -322,10 +280,7 @@ impl PropertiesView {
             .unwrap_or_default()
     }
 
-    /// Get the values of the properties.
-    ///
-    /// Returns:
-    ///     list[list[PropValue]]:
+    /// Get the values of the properties
     pub fn values(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         let keys = Arc::new(self.keys());
@@ -344,10 +299,7 @@ impl PropertiesView {
         .into()
     }
 
-    /// Get a list of key-value pairs.
-    ///
-    /// Returns:
-    ///     list[Tuple[str, List[PropValue]]]:
+    /// Get a list of key-value pairs
     pub fn items(&self) -> Vec<(ArcStr, PyPropValueList)> {
         self.keys()
             .into_iter()
@@ -356,19 +308,13 @@ impl PropertiesView {
     }
 
     /// Get a view of the temporal properties only.
-    ///
-    /// Returns:
-    ///     List[TemporalProp]:
     #[getter]
     pub fn temporal(&self) -> PyTemporalPropsList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.temporal())).into()
     }
 
-    /// Convert properties view to a dict.
-    ///
-    /// Returns:
-    ///     dict[str, List[PropValue]]:
+    /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Option<Prop>>> {
         self.items()
             .into_iter()
@@ -392,7 +338,7 @@ pub struct PyMetadataListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
 
 impl<'source> FromPyObject<'source> for PyMetadataListListCmp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<MetadataListList>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyMetadataListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
             Ok(p.deref().into())
@@ -404,8 +350,8 @@ impl<'source> FromPyObject<'source> for PyMetadataListListCmp {
     }
 }
 
-impl From<&MetadataListList> for PyMetadataListListCmp {
-    fn from(value: &MetadataListList) -> Self {
+impl From<&PyMetadataListList> for PyMetadataListListCmp {
+    fn from(value: &PyMetadataListList) -> Self {
         Self(
             value
                 .items()
@@ -431,12 +377,6 @@ impl From<&PyNestedPropsIterable> for PyMetadataListListCmp {
 #[pymethods]
 impl PyNestedPropsIterable {
     /// Get property value.
-    ///
-    /// Arguments:
-    ///     key (str): the name of the property.
-    ///
-    /// Returns:
-    ///     PyPropValueListList:
     pub fn get(&self, key: &str) -> Option<PyPropValueListList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -464,10 +404,7 @@ impl PyNestedPropsIterable {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get the names for all properties.
-    ///
-    /// Returns:
-    ///     List[Str]:
+    /// Get the names for all properties
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .filter_map(|mut it| it.next())
@@ -480,11 +417,7 @@ impl PyNestedPropsIterable {
         self.keys().into_iter().into()
     }
 
-    /// Get the values of the properties.
-    ///
-    ///
-    /// Returns:
-    ///     list[list[list[PropValue]]]:
+    /// Get the values of the properties
     pub fn values(&self) -> Vec<PyPropValueListList> {
         self.keys()
             .into_iter()
@@ -492,28 +425,19 @@ impl PyNestedPropsIterable {
             .collect()
     }
 
-    /// Get a list of key-value pairs.
-    ///
-    /// Returns:
-    ///     list[Tuple[str, List[PropValue]]]:
+    /// Get a list of key-value pairs
     pub fn items(&self) -> Vec<(ArcStr, PyPropValueListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
     /// Get a view of the temporal properties only.
-    ///
-    /// Returns:
-    ///     List[List[temporalprop]]:
     #[getter]
     pub fn temporal(&self) -> PyTemporalPropsListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.temporal()))).into()
     }
 
-    /// Convert properties view to a dict.
-    ///
-    /// Returns:
-    ///     dict[str, List[List[PropValue]]]:
+    /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Vec<Option<Prop>>>> {
         self.items()
             .into_iter()

@@ -106,7 +106,8 @@ fn main() {
     assert_eq!(graph.node(gandalf).unwrap().name(), "Gandalf");
 
     let r: Vec<String> = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None)
-        .into_iter_values()
+        .to_hashmap(|value| value.reachable_nodes)
+        .into_values()
         .flatten()
         .map(|(_, s)| s)
         .collect();

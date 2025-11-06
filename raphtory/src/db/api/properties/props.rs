@@ -10,7 +10,7 @@ use std::{
 };
 
 /// View of the properties of an entity (graph|node|edge)
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Properties<P: InternalPropertiesOps + Clone> {
     pub(crate) props: P,
 }
@@ -86,9 +86,6 @@ impl<P: InternalPropertiesOps + Clone> Properties<P> {
     }
 
     /// Get a view of the temporal properties only.
-    ///
-    /// Returns:
-    ///     TemporalProperties:
     pub fn temporal(&self) -> TemporalProperties<P> {
         TemporalProperties::new(self.props.clone())
     }

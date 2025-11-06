@@ -23,9 +23,33 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['NestedUtcDateTimeIterable', 'NestedGIDIterable', 'GIDIterable', 'StringIterable', 'OptionArcStringIterable', 'UsizeIterable', 'OptionI64Iterable', 'NestedOptionArcStringIterable', 'NestedStringIterable', 'NestedOptionI64Iterable', 'NestedI64VecIterable', 'NestedUsizeIterable', 'BoolIterable', 'ArcStringIterable', 'NestedVecUtcDateTimeIterable', 'OptionVecUtcDateTimeIterable', 'GIDGIDIterable', 'NestedGIDGIDIterable', 'NestedBoolIterable', 'U64Iterable', 'OptionUtcDateTimeIterable', 'ArcStringVecIterable', 'NestedArcStringVecIterable']
-class NestedUtcDateTimeIterable(object): 
+__all__ = [
+    "NestedUtcDateTimeIterable",
+    "NestedGIDIterable",
+    "GIDIterable",
+    "StringIterable",
+    "OptionArcStringIterable",
+    "UsizeIterable",
+    "OptionI64Iterable",
+    "NestedOptionArcStringIterable",
+    "NestedStringIterable",
+    "NestedOptionI64Iterable",
+    "NestedI64VecIterable",
+    "NestedUsizeIterable",
+    "BoolIterable",
+    "ArcStringIterable",
+    "NestedVecUtcDateTimeIterable",
+    "OptionVecUtcDateTimeIterable",
+    "GIDGIDIterable",
+    "NestedGIDGIDIterable",
+    "NestedBoolIterable",
+    "U64Iterable",
+    "OptionUtcDateTimeIterable",
+    "ArcStringVecIterable",
+    "NestedArcStringVecIterable",
+]
 
+class NestedUtcDateTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -53,11 +77,9 @@ class NestedUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedGIDIterable(object): 
-
+class NestedGIDIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -85,17 +107,11 @@ class NestedGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class GIDIterable(object): 
-
+class GIDIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -123,17 +139,11 @@ class GIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class StringIterable(object): 
-
+class StringIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -161,11 +171,9 @@ class StringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class OptionArcStringIterable(object): 
-
+class OptionArcStringIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -193,11 +201,9 @@ class OptionArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class UsizeIterable(object): 
-
+class UsizeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -225,23 +231,13 @@ class UsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def min(self): ...
+    def sum(self): ...
 
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class OptionI64Iterable(object): 
-
+class OptionI64Iterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -269,17 +265,11 @@ class OptionI64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedOptionArcStringIterable(object): 
-
+class NestedOptionArcStringIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -307,11 +297,9 @@ class NestedOptionArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedStringIterable(object): 
-
+class NestedStringIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -339,11 +327,9 @@ class NestedStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedOptionI64Iterable(object): 
-
+class NestedOptionI64Iterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -371,17 +357,11 @@ class NestedOptionI64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedI64VecIterable(object): 
-
+class NestedI64VecIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -409,11 +389,9 @@ class NestedI64VecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedUsizeIterable(object): 
-
+class NestedUsizeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -441,23 +419,13 @@ class NestedUsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def min(self): ...
+    def sum(self): ...
 
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class BoolIterable(object): 
-
+class BoolIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -485,11 +453,9 @@ class BoolIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class ArcStringIterable(object): 
-
+class ArcStringIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -499,11 +465,9 @@ class ArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedVecUtcDateTimeIterable(object): 
-
+class NestedVecUtcDateTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -531,11 +495,9 @@ class NestedVecUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class OptionVecUtcDateTimeIterable(object): 
-
+class OptionVecUtcDateTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -563,11 +525,9 @@ class OptionVecUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class GIDGIDIterable(object): 
-
+class GIDGIDIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -595,17 +555,11 @@ class GIDGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedGIDGIDIterable(object): 
-
+class NestedGIDGIDIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -633,17 +587,11 @@ class NestedGIDGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedBoolIterable(object): 
-
+class NestedBoolIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -671,11 +619,9 @@ class NestedBoolIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class U64Iterable(object): 
-
+class U64Iterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -703,23 +649,13 @@ class U64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def min(self): ...
+    def sum(self): ...
 
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class OptionUtcDateTimeIterable(object): 
-
+class OptionUtcDateTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -747,11 +683,9 @@ class OptionUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class ArcStringVecIterable(object): 
-
+class ArcStringVecIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -779,11 +713,9 @@ class ArcStringVecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedArcStringVecIterable(object): 
-
+class NestedArcStringVecIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -811,5 +743,4 @@ class NestedArcStringVecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
