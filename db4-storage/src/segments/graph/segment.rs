@@ -43,7 +43,7 @@ impl MemGraphSegment {
     pub fn new() -> Self {
         // Technically, these aren't used since there is always only one graph segment.
         let segment_id = 0;
-        let max_page_len = 0;
+        let max_page_len = 1;
         let meta = Arc::new(Meta::new_for_graph());
 
         Self {
