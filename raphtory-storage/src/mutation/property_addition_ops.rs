@@ -59,26 +59,35 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        // FIXME: check atomicity
-        for (id, prop) in props {
-            self.graph_meta().add_prop(t, *id, prop.clone())?;
-        }
+        let mut writer = self.storage().graph().writer();
+
+        // TODO: props should be passed as a vec instead of cloning
+        let props: Vec<_> = props.iter().map(|(id, prop)| (*id, prop.clone())).collect();
+
+        writer.add_properties(t, props);
+
         Ok(())
     }
 
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        // FIXME: check atomicity
-        for (id, prop) in props {
-            self.graph_meta().add_metadata(*id, prop.clone())?;
-        }
+        let mut writer = self.storage().graph().writer();
+
+        // TODO: props should be passed as a vec instead of cloning
+        let props: Vec<_> = props.iter().map(|(id, prop)| (*id, prop.clone())).collect();
+
+        writer.add_metadata(props);
+
         Ok(())
     }
 
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        // FIXME: check atomicity
-        for (id, prop) in props {
-            self.graph_meta().update_metadata(*id, prop.clone());
-        }
+        let mut writer = self.storage().graph().writer();
+
+        // TODO: props should be passed as a vec instead of cloning
+        let props: Vec<_> = props.iter().map(|(id, prop)| (*id, prop.clone())).collect();
+
+        writer.update_metadata(props);
+
         Ok(())
     }
 

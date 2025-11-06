@@ -1993,7 +1993,7 @@ fn test_graph_metadata() {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-    g.add_metadata(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
