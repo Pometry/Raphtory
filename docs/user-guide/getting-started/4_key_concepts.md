@@ -8,19 +8,21 @@ In the most general sense, a graph is set of entities (nodes or vertices) where 
 
 In Raphtory we adopt the naming convention of nodes and edges. All Raphtory graphs are directional and edges have a source and destination, although loops are allowed so the source and destination node may be the same.
 
-Additionally, Raphtory graphs are designed to capture temporal relationships which can be categorised as either a stream of discrete events or a persistent state over a duration of time. To represent these two cases Raphtory provides the [Graph][raphtory.Graph] and [PersistentGraph][raphtory.PersistentGraph] objects.
+Additionally, Raphtory graphs are designed to capture temporal relationships. You can view temporal data as either a stream of discrete events or a persistent state over a duration of time and Raphtory allows you to adopt either perspective.
+
+To represent your data as a stream you can use a [Graph][raphtory.Graph] object and to adopt the extended events representation you can use a [PersistentGraph][raphtory.PersistentGraph] object. Raphtory allows you to easily switch between these representations by calling `event_graph()` or `persistent_graph()`.
 
 ### The `Graph` object
 
-When beginning a new project you will need to select which type of graph you need based on the data you want to investigate then [create a new `Graph` object](../ingestion/1_intro.md). You will typically begin by adding nodes and edges to the graph from scratch or by import existing data in standard formats.
+When beginning a new project you will need to [create a new `Graph` object](../ingestion/1_intro.md). You can start by start adding nodes and edges to the graph from scratch or by importing existing data in standard formats.
 
 As you get new data you can make global updates, like adding new nodes, using the `Graph` object and make global queries using a [GraphView][raphtory.GraphView]. You can also make local updates to the properties and metadata of individual nodes and edges.
 
 ## Nodes
 
-The [Node][raphtory.Node] object in Raphtory typically represents some entity in your data. You create nodes using the [.add_node()][raphtory.Graph.add_node] function on your `Graph` object, subsequent updates can be made using a [MutableNode][raphtory.MutableNode] that you can get by calling `my_graph.node(node_id)`. Any queries are performed using the Node object or an appropriate view.
+The [Node][raphtory.Node] object in Raphtory typically represents some entity in your data. You create nodes using the [.add_node()][raphtory.Graph.add_node] function on your `Graph` object, subsequent updates can be made using a [MutableNode][raphtory.MutableNode] that you get by calling `my_graph.node(node_id)`. Additionally, calling `.add_node()` repeatedly will not overwrite the original object, instead additional properties and events are added to the existing object.
 
-To make queries more convenient Raphtory provides the [Nodes][raphtory.Nodes] iterable that allows you to make queries over all the nodes in the current view. Typically, queries on an individual Node will return a result directly, while queries over the `Nodes` iterable will often return a view or NodeState.
+Queries are performed using the Node object or an appropriate view. To make queries more convenient Raphtory provides the [Nodes][raphtory.Nodes] iterable that allows you to make queries over all the nodes in the current view. Typically, queries on an individual Node will return a result directly, while queries over the `Nodes` iterable will often return a view or NodeState.
 
 NodeStates are tabular representations of a collection across all nodes in the current view. You can easily transform a NodeState into a dataframe or other tabular format to integrate into your existing workflow.
 
@@ -35,7 +37,7 @@ Some graph tools create multiple edges for each relationship or time dependent i
 
 To represent multiple relationships you can use the properties and metadata of an edge or create edges on specific layers which are agreagated into the unified edge object.
 
-Similarly to nodes, you must create edges using [.add_edge()][raphtory.Graph.add_edge] and make changes using a [MutableEdge][raphtory.MutableEdge] object. There is also an [Edges][raphtory.Edges] iterable that allows you to make queries over all the edges in the current view.
+Similarly to nodes, you must create edges using [.add_edge()][raphtory.Graph.add_edge] and can make changes using a [MutableEdge][raphtory.MutableEdge] object or by calling `.add_edge()` repeatedly. There is also an [Edges][raphtory.Edges] iterable that allows you to make queries over all the edges in the current view.
 
 An Edge object contains the combined information for that edge across all points in time. Often it is more useful to look at the changes across time. To do this Raphtory provides the option to [explode][raphtory.Edge.explode] an edge, which returns an edge object for each update within the original edge.
 
