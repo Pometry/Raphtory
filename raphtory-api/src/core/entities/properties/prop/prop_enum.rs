@@ -1,6 +1,6 @@
 use crate::core::{
     entities::{
-        properties::prop::{prop_ref_enum::PropRef, PropType},
+        properties::prop::{prop_ref_enum::PropRef, PropNum, PropType},
         GidRef,
     },
     storage::arc_str::ArcStr,
@@ -16,8 +16,6 @@ use serde::{
     ser::{SerializeMap, SerializeSeq},
     Deserialize, Serialize,
 };
-#[cfg(feature = "arrow")]
-use std::borrow::Borrow;
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -70,25 +68,31 @@ impl From<GidRef<'_>> for Prop {
 }
 
 impl<'a> From<PropRef<'a>> for Prop {
-    fn from(prop_ref: PropRef<'a>) -> Self {
-        match prop_ref {
-            PropRef::Str(s) => Prop::str(s),
-            PropRef::U8(u) => Prop::U8(u),
-            PropRef::U16(u) => Prop::U16(u),
-            PropRef::I32(i) => Prop::I32(i),
-            PropRef::I64(i) => Prop::I64(i),
-            PropRef::U32(u) => Prop::U32(u),
-            PropRef::U64(u) => Prop::U64(u),
-            PropRef::F32(f) => Prop::F32(f),
-            PropRef::F64(f) => Prop::F64(f),
+    fn from(value: PropRef<'a>) -> Self {
+        match value {
+            PropRef::Str(s) => Prop::Str(s.into()),
+            PropRef::Num(n) => match n {
+                PropNum::U8(u) => Prop::U8(u),
+                PropNum::U16(u) => Prop::U16(u),
+                PropNum::I32(i) => Prop::I32(i),
+                PropNum::I64(i) => Prop::I64(i),
+                PropNum::U32(u) => Prop::U32(u),
+                PropNum::U64(u) => Prop::U64(u),
+                PropNum::F32(f) => Prop::F32(f),
+                PropNum::F64(f) => Prop::F64(f),
+            },
             PropRef::Bool(b) => Prop::Bool(b),
             PropRef::List(v) => Prop::List(v.clone()),
-            PropRef::Map(m) => Prop::Map(m.clone()),
-            PropRef::NDTime(dt) => Prop::NDTime(*dt),
-            PropRef::DTime(dt) => Prop::DTime(*dt),
+            PropRef::Map(m) => m
+                .into_prop()
+                .unwrap_or_else(|| Prop::Map(Arc::new(Default::default()))),
+            PropRef::NDTime(dt) => Prop::NDTime(dt),
+            PropRef::DTime(dt) => Prop::DTime(dt),
             #[cfg(feature = "arrow")]
             PropRef::Array(arr) => Prop::Array(arr.clone()),
-            PropRef::Decimal(d) => Prop::Decimal(d.clone()),
+            PropRef::Decimal { num, scale } => {
+                Prop::Decimal(BigDecimal::from_bigint(num.into(), scale as i64))
+            }
         }
     }
 }
@@ -593,6 +597,7 @@ impl From<&Prop> for Prop {
         value.clone()
     }
 }
+
 
 pub trait IntoPropMap {
     fn into_prop_map(self) -> Prop;

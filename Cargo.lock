@@ -5099,6 +5099,7 @@ dependencies = [
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_arrow",
  "serde_json",
  "sorted_vector_map",
  "thiserror 2.0.17",
