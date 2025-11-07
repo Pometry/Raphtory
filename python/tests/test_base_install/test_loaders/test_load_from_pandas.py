@@ -1499,3 +1499,52 @@ def test_load_nodes_from_pandas_time_date32_astype():
     expected = {10: _utc_midnight(dates[0]), 20: _utc_midnight(dates[1]), 30: _utc_midnight(dates[2])}
     actual = {v.id: v.history_date_time()[0] for v in g.nodes}
     assert actual == expected
+
+CSV_CONTENT = """src,dst,time,value
+1,2,2020-01-01T00:00:00Z,10
+2,3,2020-01-02T00:00:00Z,20
+3,4,2020-01-03T00:00:00Z,30
+"""
+
+def test_load_edges_from_pandas_csv_c_engine_time_utf8_passes(tmp_path):
+    p = tmp_path / "edges.csv"
+    p.write_text(CSV_CONTENT)
+    cols = ["src", "dst", "time", "value"]
+
+    df = pd.read_csv(p, usecols=cols, engine="c")
+    # Expect string/object dtype for time
+    assert "string" in str(df["time"].dtype) or df["time"].dtype == object
+
+    g = Graph()
+    # this line should not raise an exception
+    g.load_edges_from_pandas(df=df, time="time", src="src", dst="dst", properties=["value"])
+
+def test_load_edges_from_pandas_csv_pyarrow_engine_works(tmp_path):
+    p = tmp_path / "edges.csv"
+    p.write_text(CSV_CONTENT)
+    cols = ["src", "dst", "time", "value"]
+
+    # Prefer pyarrow engine if available; otherwise fall back to python engine and convert dtype
+    try:
+        import pyarrow
+
+        df = pd.read_csv(p, usecols=cols, engine="pyarrow", dtype_backend="pyarrow")
+        # ensure it’s datetime64[ns, UTC]
+        if "date" not in str(df["time"].dtype) and "datetime" not in str(df["time"].dtype):
+            df["time"] = pd.to_datetime(df["time"], utc=True)
+    except Exception:
+        df = pd.read_csv(p, usecols=cols, engine="python")
+        df["time"] = pd.to_datetime(df["time"], utc=True)
+
+    g = Graph()
+    g.load_edges_from_pandas(
+        df=df, time="time", src="src", dst="dst", properties=["value"]
+    )
+    # sanity check
+    expected = [
+        datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 3, tzinfo=datetime.timezone.utc),
+    ]
+    actual = sorted(e.history_date_time()[0] for e in g.edges)
+    assert actual == expected
