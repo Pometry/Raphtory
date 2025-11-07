@@ -123,7 +123,9 @@ impl GraphFolder {
                         );
 
                         // Either decode a graph serialized using encode or load using underlying storage.
-                        let graph = if MaterializedGraph::is_decodable(self.get_graph_path()) {
+                        let graph = if self.is_zip()
+                            || MaterializedGraph::is_decodable(self.get_graph_path())
+                        {
                             MaterializedGraph::decode(self, None)?
                         } else {
                             // We currently do not have a way of figuring out the graph type
