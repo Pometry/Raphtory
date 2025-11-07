@@ -89,6 +89,8 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         head_lock: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
 
+    fn mark_dirty(&self);
+
     fn check_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
 
     fn get_out_edge(

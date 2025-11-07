@@ -479,6 +479,8 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         Ok(())
     }
 
+    fn mark_dirty(&self) {}
+
     fn check_node(&self, _pos: LocalPOS, _layer_id: usize) -> bool {
         false
     }
