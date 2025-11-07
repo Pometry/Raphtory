@@ -38,7 +38,7 @@ While `before()` and `after()` are more useful for continuous time datasets, `at
 In the example below we print the degree of `Lome` across the full dataset, before 12:17 on the 13th of June, and after 9:07 on the 30th of June. We also use two time functions here, [start_date_time][raphtory.GraphView.start_date_time] and [end_date_time][raphtory.GraphView.end_date_time], which return information about a view.
 
 !!! note
-    In this code example we have called the `before()` on the graph and `after()` on the node. This is important, as there are some subtle differences in outcomes that depend on where these functions are called. This is discussed in detail [below](2_time.md#traversing-the-graph-with-views).
+    In this code example we have called the `before()` on the graph and `after()` on the node. This is important, as there are some subtle differences in outcomes that depend on where these functions are called. This is discussed in detail [below](2_time.md#propagation-of-time-filters).
 
 /// tab | :fontawesome-brands-python: Python
 ```python

@@ -6,7 +6,7 @@ Before reading this topic, please ensure you are familiar with:
 
 - [Edge layers](../ingestion/2_direct-updates.md#edge-layers)
 - [Exploded Edges](../querying/4_edge-metrics.md#exploded-edges)
-- [Traversing graphs](2_time.md#traversing-the-graph-with-views)
+- [Traversing graphs](2_time.md#propagation-of-time-filters)
 
 ## Creating layers views
 
@@ -81,7 +81,7 @@ assert str(f"Total weight across Grooming and Resting between {start_day} and {e
 
 ## Traversing the graph with layers
 
-Expanding on the example from [the time views](2_time.md#traversing-the-graph-with-views), if you wanted to look at which neighbours LOME has groomed, followed by who those monkeys have rested with, then you could write the following query.
+Expanding on the example from [the time views](2_time.md#propagation-of-time-filters), if you wanted to look at which neighbours LOME has groomed, followed by who those monkeys have rested with, then you could write the following query.
 
 !!! note
     Similar to the time based filters, if a layer view is applied to the graph then all extracted entities will have this view applied to them. However, if the layer view is applied to a node or edge, it will only last until you have moved to a new node.
