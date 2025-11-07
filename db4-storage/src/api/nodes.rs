@@ -42,12 +42,15 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type ArcLockedSegment: LockedNSSegment;
 
     fn latest(&self) -> Option<TimeIndexEntry>;
+
     fn earliest(&self) -> Option<TimeIndexEntry>;
 
     fn t_len(&self) -> usize;
 
     fn event_id(&self) -> i64;
+
     fn increment_event_id(&self, i: i64);
+
     fn decrement_event_id(&self) -> i64;
 
     fn load(
@@ -59,6 +62,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     ) -> Result<Self, StorageError>
     where
         Self: Sized;
+
     fn new(
         page_id: usize,
         node_meta: Arc<Meta>,
@@ -108,13 +112,14 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
-    fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a>;
+    fn entry(&self, pos: impl Into<LocalPOS>) -> Self::Entry<'_>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 
     fn flush(&self);
 
     fn est_size(&self) -> usize;
+
     fn increment_est_size(&self, size: usize) -> usize;
 }
 

@@ -166,12 +166,14 @@ pub struct SegmentContainer<T> {
 
 pub trait HasRow: Default + Send + Sync + Sized {
     fn row(&self) -> usize;
+
     fn row_mut(&mut self) -> &mut usize;
 }
 
 impl<T: HasRow> SegmentContainer<T> {
     pub fn new(segment_id: usize, max_page_len: u32, meta: Arc<Meta>) -> Self {
         assert!(max_page_len > 0, "max_page_len must be greater than 0");
+
         Self {
             segment_id,
             data: Default::default(),
