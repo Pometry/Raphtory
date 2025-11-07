@@ -36,7 +36,7 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         let folder: GraphFolder = path.into();
 
         if folder.write_as_zip_format {
-            let file = File::create(&folder.get_base_path())?;
+            let file = File::create_new(&folder.get_base_path())?;
             self.encode_parquet_to_zip(file)?;
 
             #[cfg(feature = "search")]
