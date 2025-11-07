@@ -1,11 +1,5 @@
-use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
-use crate::api::graph::GraphSegmentOps;
-use crate::error::StorageError;
-use crate::segments::graph::entry::MemGraphEntry;
 use crate::segments::{HasRow, SegmentContainer};
-use parking_lot::RwLock;
 use raphtory_api::core::entities::properties::meta::Meta;
 use raphtory_core::storage::timeindex::TimeIndexEntry;
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -23,13 +17,15 @@ pub struct MemGraphSegment {
 #[derive(Debug, Default)]
 pub struct GraphSegmentEntry;
 
+// GraphSegmentEntry does not store data, but HasRow has to be implemented
+// for SegmentContainer to work.
 impl HasRow for GraphSegmentEntry {
     fn row(&self) -> usize {
-        todo!()
+        panic!("GraphSegmentEntry does not support row access");
     }
 
     fn row_mut(&mut self) -> &mut usize {
-        todo!()
+        panic!("GraphSegmentEntry does not support row access");
     }
 }
 
