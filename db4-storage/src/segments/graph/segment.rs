@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use crate::segments::{HasRow, SegmentContainer};
 use raphtory_api::core::entities::properties::meta::Meta;
-use raphtory_core::storage::timeindex::TimeIndexEntry;
+use raphtory_core::{entities::properties::tprop::TPropCell, storage::timeindex::TimeIndexEntry};
 use raphtory_api::core::entities::properties::prop::Prop;
 
 /// In-memory segment that contains graph temporal properties and graph metadata.
@@ -67,5 +67,17 @@ impl MemGraphSegment {
         let layer = &mut self.layers[Self::LAYER];
 
         layer.properties_mut().get_mut_entry(Self::ROW).append_const_props(props);
+    }
+
+    pub fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {
+        let layer = &self.layers[Self::LAYER];
+
+        layer.t_prop(Self::ROW, prop_id)
+    }
+
+    pub fn get_metadata(&self, prop_id: usize) -> Option<Prop> {
+        let layer = &self.layers[Self::LAYER];
+
+        layer.c_prop(Self::ROW, prop_id)
     }
 }
