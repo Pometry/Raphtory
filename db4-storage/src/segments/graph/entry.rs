@@ -18,11 +18,11 @@ impl<'a> MemGraphEntry<'a> {
 impl<'a> GraphEntryOps<'a> for MemGraphEntry<'a> {
     type TProp = TPropCell<'a>;
 
-    fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {
+    fn get_temporal_prop(&'a self, prop_id: usize) -> Option<Self::TProp> {
         self.mem.get_temporal_prop(prop_id)
     }
 
-    fn get_metadata(&self, prop_id: usize) -> Option<Prop> {
+    fn get_metadata(&'a self, prop_id: usize) -> Option<Prop> {
         self.mem.get_metadata(prop_id)
     }
 }

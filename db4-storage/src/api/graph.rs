@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::path::Path;
 use crate::error::StorageError;
-use raphtory_core::entities::properties::tprop::TPropCell;
 use raphtory_api::core::entities::properties::prop::Prop;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use crate::segments::graph::segment::MemGraphSegment;
@@ -28,7 +27,7 @@ where
 pub trait GraphEntryOps<'a>: Send + Sync + 'a {
     type TProp: TPropOps<'a>;
 
-    fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>>;
+    fn get_temporal_prop(&'a self, prop_id: usize) -> Option<Self::TProp>;
 
-    fn get_metadata(&self, prop_id: usize) -> Option<Prop>;
+    fn get_metadata(&'a self, prop_id: usize) -> Option<Prop>;
 }
