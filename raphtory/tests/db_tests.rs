@@ -1984,7 +1984,7 @@ fn test_prop_display_str() {
 }
 
 #[test]
-fn test_graph_metadata() {
+fn test_graph_metadata_proptest() {
     proptest!(|(u64_props: HashMap<String, u64>)| {
         let g = Graph::new();
 
@@ -2004,7 +2004,7 @@ fn test_graph_metadata() {
 }
 
 #[test]
-fn test_graph_metadata2() {
+fn test_graph_metadata() {
     let g = Graph::new();
 
     let as_props: Vec<(&str, Prop)> = vec![(
