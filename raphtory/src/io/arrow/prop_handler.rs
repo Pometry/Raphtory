@@ -6,14 +6,15 @@ use crate::{
 use arrow::{
     array::{
         Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
-        FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait,
-        PrimitiveArray, StringViewArray, StructArray,
+        FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
+        StringViewArray, StructArray,
     },
     buffer::NullBuffer,
     datatypes::{
-        DataType, Date32Type, Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
-        TimeUnit, TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
-        TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+        DataType, Date32Type, Date64Type, Decimal128Type, Float32Type, Float64Type, Int32Type,
+        Int64Type, TimeUnit, TimestampMicrosecondType, TimestampMillisecondType,
+        TimestampNanosecondType, TimestampSecondType, UInt16Type, UInt32Type, UInt64Type,
+        UInt8Type,
     },
 };
 use bigdecimal::BigDecimal;
@@ -142,21 +143,41 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
             let arr = arr.as_list::<i64>();
             arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
-        DataType::Timestamp(TimeUnit::Millisecond, Some(_)) => {
-            let arr = arr.as_primitive::<TimestampMillisecondType>();
-            arr.iter()
-                .flatten()
-                .map(|elem| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(elem).unwrap()))
-                .into_prop_list()
+        DataType::Timestamp(TimeUnit::Second, tz) => {
+            let map_fn = if tz.is_some() {
+                |elem: i64| Prop::DTime(DateTime::<Utc>::from_timestamp_secs(elem).unwrap())
+            } else {
+                |elem: i64| Prop::NDTime(DateTime::from_timestamp_secs(elem).unwrap().naive_utc())
+            };
+            let arr = arr.as_primitive::<TimestampSecondType>();
+            arr.iter().flatten().map(map_fn).into_prop_list()
         }
-        DataType::Timestamp(TimeUnit::Millisecond, None) => {
+        DataType::Timestamp(TimeUnit::Millisecond, tz) => {
+            let map_fn = if tz.is_some() {
+                |elem: i64| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(elem).unwrap())
+            } else {
+                |elem: i64| Prop::NDTime(DateTime::from_timestamp_millis(elem).unwrap().naive_utc())
+            };
             let arr = arr.as_primitive::<TimestampMillisecondType>();
-            arr.iter()
-                .flatten()
-                .map(|elem| {
-                    Prop::NDTime(DateTime::from_timestamp_millis(elem).unwrap().naive_utc())
-                })
-                .into_prop_list()
+            arr.iter().flatten().map(map_fn).into_prop_list()
+        }
+        DataType::Timestamp(TimeUnit::Microsecond, tz) => {
+            let map_fn = if tz.is_some() {
+                |elem: i64| Prop::DTime(DateTime::<Utc>::from_timestamp_micros(elem).unwrap())
+            } else {
+                |elem: i64| Prop::NDTime(DateTime::from_timestamp_micros(elem).unwrap().naive_utc())
+            };
+            let arr = arr.as_primitive::<TimestampMicrosecondType>();
+            arr.iter().flatten().map(map_fn).into_prop_list()
+        }
+        DataType::Timestamp(TimeUnit::Nanosecond, tz) => {
+            let map_fn = if tz.is_some() {
+                |elem: i64| Prop::DTime(DateTime::<Utc>::from_timestamp_nanos(elem))
+            } else {
+                |elem: i64| Prop::NDTime(DateTime::from_timestamp_nanos(elem).naive_utc())
+            };
+            let arr = arr.as_primitive::<TimestampNanosecondType>();
+            arr.iter().flatten().map(map_fn).into_prop_list()
         }
         DataType::Date32 => {
             let arr = arr.as_primitive::<Date32Type>();
@@ -167,6 +188,19 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
                     Prop::NDTime(
                         DateTime::from_timestamp_millis(ms)
                             .expect("DateTime conversion failed for Date32 type")
+                            .naive_utc(),
+                    )
+                })
+                .into_prop_list()
+        }
+        DataType::Date64 => {
+            let arr = arr.as_primitive::<Date64Type>();
+            arr.iter()
+                .flatten()
+                .map(|ms| {
+                    Prop::NDTime(
+                        DateTime::from_timestamp_millis(ms)
+                            .expect("DateTime conversion failed for Date64 type")
                             .naive_utc(),
                     )
                 })
@@ -240,6 +274,7 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
             Some(_) => Ok(PropType::DTime),
         },
         DataType::Date32 => Ok(PropType::NDTime),
+        DataType::Date64 => Ok(PropType::NDTime),
         DataType::Decimal128(precision, scale) if *precision <= 38 => Ok(PropType::Decimal {
             scale: *scale as i64,
         }),
@@ -486,6 +521,16 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
                 Prop::NDTime(
                     DateTime::from_timestamp_millis(ms)
                         .expect("DateTime conversion failed for Date32 type")
+                        .naive_utc(),
+                )
+            },
+        }),
+        DataType::Date64 => Box::new(MappedPrimitiveCol {
+            arr: arr.as_primitive::<Date64Type>().clone(),
+            map: |ms| {
+                Prop::NDTime(
+                    DateTime::from_timestamp_millis(ms)
+                        .expect("DateTime conversion failed for Date64 type")
                         .naive_utc(),
                 )
             },
