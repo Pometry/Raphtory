@@ -123,7 +123,6 @@ io = [
     "dep:tokio",
     "dep:parquet",
     "dep:tempfile",
-    "proto",
     "kdam",
 ]
 
@@ -149,7 +148,6 @@ python = [
     "io",
     "arrow",
     "vectors",
-    "proto",
     "dep:pyo3",
     "dep:numpy",
     "dep:num",
