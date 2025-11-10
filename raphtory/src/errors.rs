@@ -82,6 +82,11 @@ pub enum LoadError {
     InvalidNodeIdType(DataType),
     #[error("{0:?} not supported for time column")]
     InvalidTimestamp(DataType),
+    #[error("Error during parsing of time string: {source}")]
+    ParseTime {
+        #[from]
+        source: ParseTimeError,
+    },
     #[error("Missing value for src id")]
     MissingSrcError,
     #[error("Missing value for dst id")]
@@ -98,6 +103,11 @@ pub enum LoadError {
     FatalError,
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
+}
+
+#[cfg(feature = "arrow")]
+pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
+    err.into()
 }
 
 #[cfg(feature = "proto")]

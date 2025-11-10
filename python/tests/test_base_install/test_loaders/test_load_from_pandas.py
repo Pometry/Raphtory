@@ -1548,3 +1548,119 @@ def test_load_edges_from_pandas_csv_pyarrow_engine_works(tmp_path):
     ]
     actual = sorted(e.history_date_time()[0] for e in g.edges)
     assert actual == expected
+
+def test_load_nodes_from_pandas_csv_c_engine_time_utf8(tmp_path):
+    text = """id,time
+    1,2020-01-01T00:00:00Z
+    2,2020-01-02T00:00:00Z
+    3,2020-01-03T00:00:00Z
+    """
+    p = tmp_path / "nodes.csv"
+    p.write_text(text)
+    cols = ["id", "time"]
+
+    df = pd.read_csv(p, usecols=cols, engine="c")
+    assert "string" in str(df["time"].dtype) or df["time"].dtype == object
+
+    g = Graph()
+    g.load_nodes_from_pandas(df=df, time="time", id="id")
+
+    expected = {
+        1: datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        2: datetime.datetime(2020, 1, 2, tzinfo=datetime.timezone.utc),
+        3: datetime.datetime(2020, 1, 3, tzinfo=datetime.timezone.utc),
+    }
+    actual = {v.id: v.history_date_time()[0] for v in g.nodes}
+    assert actual == expected
+
+def test_load_edges_from_pandas_csv_c_engine_various_time_formats(tmp_path):
+    # Mixed formats supported by TryIntoTime: RFC3339, RFC2822, date-only, with/without millis, space ' ' or 'T'
+    csv_mixed = """src,dst,time,value
+1,2,2020-01-01T00:00:00Z,10
+2,3,"Wed, 02 Oct 2002 13:00:00 GMT",20
+3,4,2020-01-03,30
+4,5,2020-01-04T12:34:56.789,40
+5,6,2020-01-05 23:59:59.000,50
+6,7,2020-01-06T00:00:00,60
+"""
+    p = tmp_path / "edges_mixed.csv"
+    p.write_text(csv_mixed)
+    cols = ["src", "dst", "time", "value"]
+
+    df = pd.read_csv(p, usecols=cols, engine="c")
+    # time stays as strings/objects with engine='c'
+    assert "string" in str(df["time"].dtype) or df["time"].dtype == object
+
+    g = Graph()
+    g.load_edges_from_pandas(df=df, time="time", src="src", dst="dst", properties=["value"])
+
+    expected = [
+        datetime.datetime(2002, 10, 2, 13, 0, 0, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 3, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 4, 12, 34, 56, 789000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 5, 23, 59, 59, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 6, tzinfo=datetime.timezone.utc),
+    ]
+    actual = sorted(e.history_date_time()[0] for e in g.edges)
+    assert actual == expected
+
+def test_load_nodes_from_pandas_csv_c_engine_various_time_formats(tmp_path):
+    csv_mixed = """id,time
+1,2020-01-01T00:00:00Z
+2,"Wed, 02 Oct 2002 13:00:00 GMT"
+3,2020-01-03
+4,2020-01-04T12:34:56.789
+5,2020-01-05 23:59:59.000
+6,2020-01-06T00:00:00
+"""
+    p = tmp_path / "nodes_mixed.csv"
+    p.write_text(csv_mixed)
+    cols = ["id", "time"]
+
+    df = pd.read_csv(p, usecols=cols, engine="c")
+    assert "string" in str(df["time"].dtype) or df["time"].dtype == object
+
+    g = Graph()
+    g.load_nodes_from_pandas(df=df, time="time", id="id")
+
+    expected = {
+        1: datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        2: datetime.datetime(2002, 10, 2, 13, 0, 0, tzinfo=datetime.timezone.utc),
+        3: datetime.datetime(2020, 1, 3, tzinfo=datetime.timezone.utc),
+        4: datetime.datetime(2020, 1, 4, 12, 34, 56, 789000, tzinfo=datetime.timezone.utc),
+        5: datetime.datetime(2020, 1, 5, 23, 59, 59, tzinfo=datetime.timezone.utc),
+        6: datetime.datetime(2020, 1, 6, tzinfo=datetime.timezone.utc),
+    }
+    actual = {v.id: v.history_date_time()[0] for v in g.nodes}
+    assert actual == expected
+
+def test_load_edges_from_pandas_datetime64_naive():
+    ts = pd.to_datetime(["2020-01-01 00:00:00", "2020-01-02 12:00:00", "2020-01-03 23:59:59"])
+    df = pd.DataFrame({"time": ts, "src": [1, 2, 3], "dst": [2, 3, 4]})
+
+    g = Graph()
+    g.load_edges_from_pandas(df=df, time="time", src="src", dst="dst")
+
+    expected = [
+        datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 12, 0, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc),
+    ]
+    actual = sorted(e.history_date_time()[0] for e in g.edges)
+    assert actual == expected
+
+def test_load_nodes_from_pandas_datetime64_naive_passes():
+    ts = pd.to_datetime(["2020-01-01 00:00:00", "2020-01-02 12:00:00", "2020-01-03 23:59:59"])
+    df = pd.DataFrame({"id": [1, 2, 3], "time": ts})
+
+    g = Graph()
+    g.load_nodes_from_pandas(df=df, time="time", id="id")
+
+    expected = {
+        1: datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        2: datetime.datetime(2020, 1, 2, 12, 0, tzinfo=datetime.timezone.utc),
+        3: datetime.datetime(2020, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc),
+    }
+    actual = {v.id: v.history_date_time()[0] for v in g.nodes}
+    assert actual == expected

@@ -1,5 +1,5 @@
 use crate::{
-    errors::{GraphError, LoadError},
+    errors::{into_load_err, GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
 use arrow::{
@@ -84,10 +84,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| {
-                        v.try_into_time()
-                            .map_err(|_| LoadError::InvalidTimestamp(DataType::Utf8))
-                    })
+                    .map(|v| v.try_into_time().map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))
@@ -98,10 +95,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| {
-                        v.try_into_time()
-                            .map_err(|_| LoadError::InvalidTimestamp(DataType::LargeUtf8))
-                    })
+                    .map(|v| v.try_into_time().map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))
@@ -112,10 +106,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| {
-                        v.try_into_time()
-                            .map_err(|_| LoadError::InvalidTimestamp(DataType::Utf8View))
-                    })
+                    .map(|v| v.try_into_time().map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))
