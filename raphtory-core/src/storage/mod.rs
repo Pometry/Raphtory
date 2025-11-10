@@ -15,7 +15,7 @@ use chrono::DateTime;
 use either::Either;
 use lazy_vec::LazyVec;
 use raphtory_api::core::{
-    entities::properties::prop::{prop_type_from_arrow_dtype, Prop, PropRef, PropType},
+    entities::properties::prop::{Prop, PropRef, PropType},
     storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHashMap;
@@ -138,9 +138,7 @@ pub enum PropColumn {
     F32(LazyVec<f32>),
     F64(LazyVec<f64>),
     Str(LazyVec<ArcStr>),
-    #[cfg(feature = "arrow")]
-    Array(LazyVec<PropArray>),
-    List(LazyVec<Arc<Vec<Prop>>>),
+    List(LazyVec<PropArray>),
     Map(LazyVec<Arc<FxHashMap<ArcStr, Prop>>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
     DTime(LazyVec<chrono::DateTime<chrono::Utc>>),
@@ -193,8 +191,6 @@ impl PropColumn {
             PropColumn::F32(_) => PropType::F32,
             PropColumn::F64(_) => PropType::F64,
             PropColumn::Str(_) => PropType::Str,
-            #[cfg(feature = "arrow")]
-            PropColumn::Array(_) => PropType::Array(Box::new(PropType::Empty)),
             PropColumn::List(_) => PropType::List(Box::new(PropType::Empty)),
             PropColumn::Map(_) => PropType::Map(HashMap::new().into()),
             PropColumn::NDTime(_) => PropType::NDTime,
@@ -209,9 +205,9 @@ impl PropColumn {
         }
     }
 
-    fn init_from_prop_type(&mut self, prop_type: PropType) {
+    fn init_from_prop_type(&mut self, prop_type: impl Into<PropType>) {
         if let PropColumn::Empty(len) = self {
-            match prop_type {
+            match prop_type.into() {
                 PropType::Bool => *self = PropColumn::Bool(LazyVec::with_len(*len)),
                 PropType::I64 => *self = PropColumn::I64(LazyVec::with_len(*len)),
                 PropType::U32 => *self = PropColumn::U32(LazyVec::with_len(*len)),
@@ -219,8 +215,6 @@ impl PropColumn {
                 PropType::F32 => *self = PropColumn::F32(LazyVec::with_len(*len)),
                 PropType::F64 => *self = PropColumn::F64(LazyVec::with_len(*len)),
                 PropType::Str => *self = PropColumn::Str(LazyVec::with_len(*len)),
-                #[cfg(feature = "arrow")]
-                PropType::Array(_) => *self = PropColumn::Array(LazyVec::with_len(*len)),
                 PropType::U8 => *self = PropColumn::U8(LazyVec::with_len(*len)),
                 PropType::U16 => *self = PropColumn::U16(LazyVec::with_len(*len)),
                 PropType::I32 => *self = PropColumn::I32(LazyVec::with_len(*len)),
@@ -229,13 +223,15 @@ impl PropColumn {
                 PropType::NDTime => *self = PropColumn::NDTime(LazyVec::with_len(*len)),
                 PropType::DTime => *self = PropColumn::DTime(LazyVec::with_len(*len)),
                 PropType::Decimal { .. } => *self = PropColumn::Decimal(LazyVec::with_len(*len)),
-                _ => {}
+                PropType::Empty => {
+                    panic!("Cannot initialize PropColumn from Empty PropType")
+                }
             }
         }
     }
 
     pub fn append(&mut self, col: &dyn Array, mask: &BooleanArray) {
-        self.init_from_prop_type(prop_type_from_arrow_dtype(col.data_type()));
+        self.init_from_prop_type(col.data_type());
         match self {
             PropColumn::Bool(v) => v.append(col.as_boolean(), mask),
             PropColumn::I64(v) => v.append(col.as_primitive::<Int64Type>(), mask),
@@ -301,8 +297,6 @@ impl PropColumn {
             (PropColumn::F32(col), Prop::F32(v)) => col.upsert(index, v),
             (PropColumn::F64(col), Prop::F64(v)) => col.upsert(index, v),
             (PropColumn::Str(col), Prop::Str(v)) => col.upsert(index, v),
-            #[cfg(feature = "arrow")]
-            (PropColumn::Array(col), Prop::Array(v)) => col.upsert(index, v),
             (PropColumn::U8(col), Prop::U8(v)) => col.upsert(index, v),
             (PropColumn::U16(col), Prop::U16(v)) => col.upsert(index, v),
             (PropColumn::I32(col), Prop::I32(v)) => col.upsert(index, v),
@@ -331,8 +325,6 @@ impl PropColumn {
             (PropColumn::F32(col), Prop::F32(v)) => col.check(index, v)?,
             (PropColumn::F64(col), Prop::F64(v)) => col.check(index, v)?,
             (PropColumn::Str(col), Prop::Str(v)) => col.check(index, v)?,
-            #[cfg(feature = "arrow")]
-            (PropColumn::Array(col), Prop::Array(v)) => col.check(index, v)?,
             (PropColumn::U8(col), Prop::U8(v)) => col.check(index, v)?,
             (PropColumn::U16(col), Prop::U16(v)) => col.check(index, v)?,
             (PropColumn::I32(col), Prop::I32(v)) => col.check(index, v)?,
@@ -362,8 +354,6 @@ impl PropColumn {
             (PropColumn::F32(col), Prop::F32(v)) => col.push(Some(v)),
             (PropColumn::F64(col), Prop::F64(v)) => col.push(Some(v)),
             (PropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
-            #[cfg(feature = "arrow")]
-            (PropColumn::Array(col), Prop::Array(v)) => col.push(Some(v)),
             (PropColumn::U16(col), Prop::U16(v)) => col.push(Some(v)),
             (PropColumn::I32(col), Prop::I32(v)) => col.push(Some(v)),
             (PropColumn::List(col), Prop::List(v)) => col.push(Some(v)),
@@ -391,8 +381,6 @@ impl PropColumn {
                 Prop::F32(_) => *self = PropColumn::F32(LazyVec::with_len(*len)),
                 Prop::F64(_) => *self = PropColumn::F64(LazyVec::with_len(*len)),
                 Prop::Str(_) => *self = PropColumn::Str(LazyVec::with_len(*len)),
-                #[cfg(feature = "arrow")]
-                Prop::Array(_) => *self = PropColumn::Array(LazyVec::with_len(*len)),
                 Prop::U8(_) => *self = PropColumn::U8(LazyVec::with_len(*len)),
                 Prop::U16(_) => *self = PropColumn::U16(LazyVec::with_len(*len)),
                 Prop::I32(_) => *self = PropColumn::I32(LazyVec::with_len(*len)),
@@ -418,8 +406,6 @@ impl PropColumn {
             PropColumn::F32(col) => col.push(None),
             PropColumn::F64(col) => col.push(None),
             PropColumn::Str(col) => col.push(None),
-            #[cfg(feature = "arrow")]
-            PropColumn::Array(col) => col.push(None),
             PropColumn::U8(col) => col.push(None),
             PropColumn::U16(col) => col.push(None),
             PropColumn::I32(col) => col.push(None),
@@ -442,9 +428,7 @@ impl PropColumn {
             PropColumn::U64(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::F32(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::F64(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            PropColumn::Str(col) => col.get_opt(index).map(|prop| prop.into()),
-            #[cfg(feature = "arrow")]
-            PropColumn::Array(col) => col.get_opt(index).map(|prop| Prop::Array(prop.clone())),
+            PropColumn::Str(col) => col.get_opt(index).map(|prop| prop.clone().into()),
             PropColumn::U8(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::U16(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),
@@ -466,8 +450,6 @@ impl PropColumn {
             PropColumn::F32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::F64(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::Str(col) => col.get_opt(index).map(|prop| PropRef::Str(prop.as_ref())),
-            #[cfg(feature = "arrow")]
-            PropColumn::Array(col) => col.get_opt(index).map(PropRef::Array),
             PropColumn::U8(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::U16(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::I32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
@@ -489,8 +471,6 @@ impl PropColumn {
             PropColumn::F32(col) => col.len(),
             PropColumn::F64(col) => col.len(),
             PropColumn::Str(col) => col.len(),
-            #[cfg(feature = "arrow")]
-            PropColumn::Array(col) => col.len(),
             PropColumn::U8(col) => col.len(),
             PropColumn::U16(col) => col.len(),
             PropColumn::I32(col) => col.len(),

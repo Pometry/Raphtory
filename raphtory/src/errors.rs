@@ -28,7 +28,7 @@ use tracing::error;
 use {
     arrow::{datatypes::DataType, error::ArrowError},
     parquet::errors::ParquetError,
-    raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
+    raphtory_api::core::entities::{GidType, VID},
 };
 
 #[cfg(feature = "python")]
@@ -330,10 +330,6 @@ pub enum GraphError {
     #[cfg(feature = "io")]
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
-
-    #[cfg(feature = "arrow")]
-    #[error(transparent)]
-    DeserialisationError(#[from] DeserialisationError),
 
     #[cfg(feature = "proto")]
     #[error("Cache is not initialised")]

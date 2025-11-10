@@ -18,16 +18,11 @@ pub enum PropRef<'a> {
     Str(&'a str),
     Num(PropNum),
     Bool(bool),
-    List(&'a Arc<Vec<Prop>>),
+    List(&'a PropArray),
     Map(PropMapRef<'a>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
-    #[cfg(feature = "arrow")]
-    Array(&'a PropArray),
-    Decimal {
-        num: i128,
-        scale: i8,
-    },
+    Decimal { num: i128, scale: i8 },
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -45,6 +40,12 @@ impl<'a> PropMapRef<'a> {
     }
 }
 
+impl<T: Into<PropNum>> From<T> for PropRef<'static> {
+    fn from(n: T) -> Self {
+        PropRef::Num(n.into())
+    }
+}
+
 impl<'a> From<bool> for PropRef<'a> {
     fn from(b: bool) -> Self {
         PropRef::Bool(b)
@@ -54,54 +55,6 @@ impl<'a> From<bool> for PropRef<'a> {
 impl<'a> From<&'a str> for PropRef<'a> {
     fn from(s: &'a str) -> Self {
         PropRef::Str(s)
-    }
-}
-
-impl From<u8> for PropRef<'_> {
-    fn from(n: u8) -> Self {
-        PropRef::Num(PropNum::U8(n))
-    }
-}
-
-impl From<u16> for PropRef<'_> {
-    fn from(n: u16) -> Self {
-        PropRef::Num(PropNum::U16(n))
-    }
-}
-
-impl From<i32> for PropRef<'_> {
-    fn from(n: i32) -> Self {
-        PropRef::Num(PropNum::I32(n))
-    }
-}
-
-impl From<i64> for PropRef<'_> {
-    fn from(n: i64) -> Self {
-        PropRef::Num(PropNum::I64(n))
-    }
-}
-
-impl From<u32> for PropRef<'_> {
-    fn from(n: u32) -> Self {
-        PropRef::Num(PropNum::U32(n))
-    }
-}
-
-impl From<u64> for PropRef<'_> {
-    fn from(n: u64) -> Self {
-        PropRef::Num(PropNum::U64(n))
-    }
-}
-
-impl From<f32> for PropRef<'_> {
-    fn from(n: f32) -> Self {
-        PropRef::Num(PropNum::F32(n))
-    }
-}
-
-impl From<f64> for PropRef<'_> {
-    fn from(n: f64) -> Self {
-        PropRef::Num(PropNum::F64(n))
     }
 }
 
@@ -145,7 +98,7 @@ impl<'a> From<&'a Arc<FxHashMap<ArcStr, Prop>>> for PropRef<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, derive_more::From)]
 pub enum PropNum {
     U8(u8),
     U16(u16),
@@ -201,8 +154,6 @@ impl<'a> Serialize for PropRef<'a> {
             PropRef::Map(map_ref) => map_ref.serialize(serializer),
             PropRef::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
             PropRef::DTime(dt) => serializer.serialize_i64(dt.timestamp_millis()),
-            #[cfg(feature = "arrow")]
-            PropRef::Array(arr) => arr.serialize(serializer),
             PropRef::Decimal { num, scale } => {
                 let decimal = BigDecimal::new((*num).into(), (*scale).into());
                 decimal.serialize(serializer)

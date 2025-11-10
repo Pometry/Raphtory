@@ -1,4 +1,6 @@
-use arrow_array::{cast::AsArray, types::*, Array, ArrowPrimitiveType, StructArray};
+use arrow_array::{
+    cast::AsArray, types::*, Array, ArrowPrimitiveType, OffsetSizeTrait, StructArray,
+};
 use arrow_schema::{DataType, TimeUnit};
 use chrono::DateTime;
 use serde::{ser::SerializeMap, Serialize};
@@ -18,6 +20,7 @@ impl<'a> PartialEq for ArrowRow<'a> {
             return false;
         }
 
+        //FIXME: it could be that the fields don't match in order but the values are the same
         for col in 0..self.array.num_columns() {
             let self_prop = self.prop_ref(col);
             let other_prop = other.prop_ref(col);
@@ -73,9 +76,23 @@ impl<'a> ArrowRow<'a> {
     }
 
     fn struct_prop(&self, col: usize) -> Option<Prop> {
-        let column = self.array.column(col).as_struct_opt()?;
-        let row = ArrowRow::new(column, self.index);
-        row.into_prop()
+        let col = self.array.column(col).as_struct_opt()?;
+        let row = ArrowRow::new(col, self.index);
+        if col.len() > self.index && !col.is_null(self.index) {
+            row.into_prop()
+        } else {
+            None
+        }
+    }
+
+    fn list_prop<O: OffsetSizeTrait>(&self, col: usize) -> Option<Prop> {
+        let col = self.array.column(col).as_list_opt::<O>()?;
+        let row = col.value(self.index);
+        if col.len() > self.index && !col.is_null(self.index) {
+            Some(row.into())
+        } else {
+            None
+        }
     }
 
     fn struct_prop_ref(&self, col: usize) -> Option<PropRef<'a>> {
@@ -137,6 +154,8 @@ impl<'a> ArrowRow<'a> {
             }
             DataType::Decimal128(_, _) => self.primitive_prop::<Decimal128Type>(col),
             DataType::Struct(_) => self.struct_prop(col),
+            DataType::List(_) => self.list_prop::<i32>(col),
+            DataType::LargeList(_) => self.list_prop::<i64>(col),
             _ => None,
         }
     }

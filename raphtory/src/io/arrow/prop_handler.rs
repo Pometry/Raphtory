@@ -19,7 +19,7 @@ use arrow::{
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use raphtory_api::core::{
-    entities::properties::prop::{IntoPropList, PropType},
+    entities::properties::prop::{IntoPropList, PropArray, PropType},
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rayon::prelude::*;
@@ -197,7 +197,7 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
                 .map(|elem| Prop::Decimal(BigDecimal::new(elem.into(), *scale as i64)))
                 .into_prop_list()
         }
-        DataType::Null => Prop::List(vec![].into()),
+        DataType::Null => Prop::List(PropArray::default()),
         dt => panic!("Data type not recognized {dt:?}"),
     }
 }

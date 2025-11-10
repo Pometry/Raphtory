@@ -787,7 +787,7 @@ impl PyNodes {
                 );
 
                 let row_header: Vec<Prop> = vec![
-                    Prop::from(item.name()),
+                    Prop::Str(item.name().into()),
                     Prop::from(item.node_type().unwrap_or_else(|| ArcStr::from(""))),
                 ];
 

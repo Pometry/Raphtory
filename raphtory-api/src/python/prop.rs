@@ -53,18 +53,13 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
             Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
             Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
-            #[cfg(feature = "arrow")]
-            Prop::Array(blob) => {
-                if let Some(arr_ref) = blob.into_array_ref() {
-                    PyArray::from_array_ref(arr_ref).into_pyarrow(py)?
-                } else {
-                    py.None().into_bound(py)
-                }
-            }
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
-            Prop::List(v) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::List(PropArray::Array(arr_ref)) => {
+                PyArray::from_array_ref(arr_ref).into_pyarrow(py)?
+            }
+            Prop::List(PropArray::Vec(v)) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
             Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
             Prop::Decimal(d) => {
                 let decl_cls = get_decimal_cls(py)?;
@@ -109,13 +104,12 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }
-        #[cfg(feature = "arrow")]
         if let Ok(arrow) = ob.extract::<PyArray>() {
             let (arr, _) = arrow.into_inner();
-            return Ok(Prop::Array(PropArray::Array(arr)));
+            return Ok(Prop::List(PropArray::Array(arr)));
         }
         if let Ok(list) = ob.extract() {
-            return Ok(Prop::List(Arc::new(list)));
+            return Ok(Prop::List(PropArray::Vec(Arc::new(list))));
         }
         if let Ok(map) = ob.extract() {
             return Ok(Prop::Map(Arc::new(map)));

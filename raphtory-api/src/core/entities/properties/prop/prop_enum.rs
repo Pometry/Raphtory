@@ -6,9 +6,10 @@ use crate::core::{
     storage::arc_str::ArcStr,
 };
 use arrow_array::cast::AsArray;
+use arrow_array::ArrayRef;
 #[cfg(feature = "arrow")]
-use arrow_array::StructArray;
 use arrow_schema::{DataType, Field, FieldRef};
+use arrow_array::{LargeListArray, ListArray, StructArray};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -38,7 +39,7 @@ pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equ
 pub struct InvalidBigDecimal(BigDecimal);
 
 /// Denotes the types of properties allowed to be stored in the graph.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, derive_more::From)]
 pub enum Prop {
     Str(ArcStr),
     U8(u8),
@@ -50,12 +51,10 @@ pub enum Prop {
     F32(f32),
     F64(f64),
     Bool(bool),
-    List(Arc<Vec<Prop>>),
+    List(PropArray),
     Map(Arc<FxHashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
-    #[cfg(feature = "arrow")]
-    Array(PropArray),
     Decimal(BigDecimal),
 }
 
@@ -83,14 +82,12 @@ impl<'a> From<PropRef<'a>> for Prop {
                 PropNum::F64(f) => Prop::F64(f),
             },
             PropRef::Bool(b) => Prop::Bool(b),
-            PropRef::List(v) => Prop::List(v.clone()),
+            PropRef::List(v) => Prop::List(v.clone().into()),
             PropRef::Map(m) => m
                 .into_prop()
                 .unwrap_or_else(|| Prop::Map(Arc::new(Default::default()))),
             PropRef::NDTime(dt) => Prop::NDTime(dt),
             PropRef::DTime(dt) => Prop::DTime(dt),
-            #[cfg(feature = "arrow")]
-            PropRef::Array(arr) => Prop::Array(arr.clone()),
             PropRef::Decimal { num, scale } => {
                 Prop::Decimal(BigDecimal::from_bigint(num.into(), scale as i64))
             }
@@ -118,8 +115,6 @@ impl Hash for Prop {
             }
             Prop::Bool(b) => b.hash(state),
             Prop::NDTime(dt) => dt.hash(state),
-            #[cfg(feature = "arrow")]
-            Prop::Array(b) => b.hash(state),
             Prop::DTime(dt) => dt.hash(state),
             Prop::List(v) => {
                 for prop in v.iter() {
@@ -162,7 +157,8 @@ impl PartialOrd for Prop {
 }
 
 pub struct SerdeProp<'a>(pub &'a Prop);
-pub struct SerdeList<'a>(pub &'a Vec<Prop>);
+#[derive(Clone, Copy)]
+pub struct SerdeList<'a>(pub &'a PropArray);
 #[derive(Clone, Copy)]
 pub struct SerdeMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
 
@@ -178,7 +174,7 @@ impl<'a> Serialize for SerdeList<'a> {
     {
         let mut state = serializer.serialize_seq(Some(self.0.len()))?;
         for prop in self.0.iter() {
-            state.serialize_element(&SerdeProp(prop))?;
+            state.serialize_element(&SerdeProp(&prop))?;
         }
         state.end()
     }
@@ -218,9 +214,6 @@ impl<'a> Serialize for SerdeProp<'a> {
             Prop::List(l) => SerdeList(l).serialize(serializer),
             Prop::Map(m) => SerdeMap(m).serialize(serializer),
             Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
-            _ => {
-                todo!("Serializer not implemented")
-            }
         }
     }
 }
@@ -272,26 +265,9 @@ impl Prop {
             Prop::F32(_) => PropType::F32,
             Prop::F64(_) => PropType::F64,
             Prop::Bool(_) => PropType::Bool,
-            Prop::List(list) => {
-                let list_type = list
-                    .iter()
-                    .map(|p| Ok(p.dtype()))
-                    .reduce(|a, b| unify_types(&a?, &b?, &mut false))
-                    .transpose()
-                    .map(|e| e.unwrap_or(PropType::Empty))
-                    .unwrap_or_else(|e| panic!("Cannot unify types for list {list:?}: {e:?}"));
-                PropType::List(Box::new(list_type))
-            }
+            Prop::List(list) => PropType::List(Box::new(list.dtype())),
             Prop::Map(map) => PropType::map(map.iter().map(|(k, v)| (k, v.dtype()))),
             Prop::NDTime(_) => PropType::NDTime,
-            #[cfg(feature = "arrow")]
-            Prop::Array(arr) => {
-                let arrow_dtype = arr
-                    .as_array_ref()
-                    .expect("Should not call dtype on empty PropArray")
-                    .data_type();
-                PropType::Array(Box::new(prop_type_from_arrow_dtype(arrow_dtype)))
-            }
             Prop::DTime(_) => PropType::DTime,
             Prop::Decimal(d) => PropType::Decimal {
                 scale: d.as_bigint_and_scale().1,
@@ -301,6 +277,12 @@ impl Prop {
 
     pub fn str<S: Into<ArcStr>>(s: S) -> Prop {
         Prop::Str(s.into())
+    }
+
+    pub fn list<P: Into<Prop>, I: IntoIterator<Item = P>>(vals: I) -> Prop {
+        Prop::List(PropArray::Vec(
+            vals.into_iter().map_into().collect::<Vec<_>>().into(),
+        ))
     }
 
     pub fn add(self, other: Prop) -> Option<Prop> {
@@ -354,6 +336,45 @@ impl Prop {
 }
 
 #[cfg(feature = "arrow")]
+pub fn list_array_from_props<P>(
+    dt: &DataType,
+    as_serde_map: impl Fn(&P) -> SerdeList<'_> + Copy,
+    props: impl IntoIterator<Item = Option<P>>,
+) -> LargeListArray {
+    use arrow_array::LargeListArray;
+    use arrow_schema::{Field, Fields};
+    use serde_arrow::ArrayBuilder;
+
+    let fields: Fields = vec![Field::new("list", dt.clone(), false)].into();
+
+    let mut builder = ArrayBuilder::from_arrow(&fields)
+        .unwrap_or_else(|e| panic!("Failed to make array builder {e}"));
+
+    let empty_list = PropArray::default();
+    for p in props {
+        match p.as_ref().map(as_serde_map) {
+            todo!("USE SerdeRow");
+            Some(list) => builder
+                .push(Value { list })
+                .unwrap_or_else(|e| panic!("Failed to push list to array builder {e}")),
+            _ => builder
+                .push(SerdeList(&empty_list))
+                .unwrap_or_else(|e| panic!("Failed to push empty list to array builder {e}")),
+        }
+    }
+
+    let arrays = builder
+        .to_arrow()
+        .unwrap_or_else(|e| panic!("Failed to convert to arrow array {e}"));
+    arrays[0]
+        .clone()
+        .as_any()
+        .downcast_ref::<LargeListArray>()
+        .unwrap()
+        .clone()
+}
+
+#[cfg(feature = "arrow")]
 pub fn struct_array_from_props<P: Serialize>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
@@ -392,8 +413,6 @@ impl Display for Prop {
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
-            #[cfg(feature = "arrow")]
-            Prop::Array(value) => write!(f, "{:?}", value),
             Prop::List(value) => {
                 write!(
                     f,
@@ -437,141 +456,21 @@ impl Display for Prop {
     }
 }
 
-impl From<ArcStr> for Prop {
-    fn from(value: ArcStr) -> Self {
-        Prop::Str(value)
-    }
-}
-
-impl From<&ArcStr> for Prop {
-    fn from(value: &ArcStr) -> Self {
-        Prop::Str(value.clone())
-    }
-}
-
-impl From<String> for Prop {
-    fn from(value: String) -> Self {
-        Prop::Str(value.into())
-    }
-}
-
-impl From<&String> for Prop {
-    fn from(s: &String) -> Self {
-        Prop::Str(s.as_str().into())
-    }
-}
-
-impl From<Arc<str>> for Prop {
-    fn from(s: Arc<str>) -> Self {
+impl From<&str> for Prop {
+    fn from(s: &str) -> Self {
         Prop::Str(s.into())
     }
 }
 
-impl From<&Arc<str>> for Prop {
-    fn from(value: &Arc<str>) -> Self {
-        Prop::Str(value.clone().into())
+impl From<String> for Prop {
+    fn from(s: String) -> Self {
+        Prop::Str(s.into())
     }
 }
 
-impl From<&str> for Prop {
-    fn from(s: &str) -> Self {
-        Prop::Str(s.to_owned().into())
-    }
-}
-
-impl From<i32> for Prop {
-    fn from(i: i32) -> Self {
-        Prop::I32(i)
-    }
-}
-
-impl From<u8> for Prop {
-    fn from(i: u8) -> Self {
-        Prop::U8(i)
-    }
-}
-
-impl From<u16> for Prop {
-    fn from(i: u16) -> Self {
-        Prop::U16(i)
-    }
-}
-
-impl From<i64> for Prop {
-    fn from(i: i64) -> Self {
-        Prop::I64(i)
-    }
-}
-
-impl From<BigDecimal> for Prop {
-    fn from(d: BigDecimal) -> Self {
-        Prop::Decimal(d)
-    }
-}
-
-impl From<u32> for Prop {
-    fn from(u: u32) -> Self {
-        Prop::U32(u)
-    }
-}
-
-impl From<u64> for Prop {
-    fn from(u: u64) -> Self {
-        Prop::U64(u)
-    }
-}
-
-impl From<f32> for Prop {
-    fn from(f: f32) -> Self {
-        Prop::F32(f)
-    }
-}
-
-impl From<f64> for Prop {
-    fn from(f: f64) -> Self {
-        Prop::F64(f)
-    }
-}
-
-impl From<DateTime<Utc>> for Prop {
-    fn from(f: DateTime<Utc>) -> Self {
-        Prop::DTime(f)
-    }
-}
-
-impl From<NaiveDateTime> for Prop {
-    fn from(value: NaiveDateTime) -> Self {
-        Prop::NDTime(value)
-    }
-}
-
-impl From<bool> for Prop {
-    fn from(b: bool) -> Self {
-        Prop::Bool(b)
-    }
-}
-
-impl From<Arc<Vec<Prop>>> for Prop {
-    fn from(value: Arc<Vec<Prop>>) -> Self {
-        Prop::List(value)
-    }
-}
-
-#[cfg(feature = "arrow")]
-impl From<PropArray> for Prop {
-    fn from(value: PropArray) -> Self {
-        Prop::Array(value)
-    }
-}
 impl From<HashMap<ArcStr, Prop>> for Prop {
     fn from(value: HashMap<ArcStr, Prop>) -> Self {
         Prop::Map(Arc::new(value.into_iter().collect()))
-    }
-}
-
-impl From<Arc<FxHashMap<ArcStr, Prop>>> for Prop {
-    fn from(value: Arc<FxHashMap<ArcStr, Prop>>) -> Self {
-        Prop::Map(value)
     }
 }
 
@@ -583,13 +482,20 @@ impl From<FxHashMap<ArcStr, Prop>> for Prop {
 
 impl From<Vec<Prop>> for Prop {
     fn from(value: Vec<Prop>) -> Self {
-        Prop::List(Arc::new(value))
+        Prop::List(Arc::new(value).into())
     }
 }
 
 impl From<&Prop> for Prop {
     fn from(value: &Prop) -> Self {
         value.clone()
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<ArrayRef> for Prop {
+    fn from(value: ArrayRef) -> Self {
+        Prop::List(PropArray::from(value))
     }
 }
 
@@ -613,7 +519,8 @@ pub trait IntoPropList {
 
 impl<I: IntoIterator<Item = K>, K: Into<Prop>> IntoPropList for I {
     fn into_prop_list(self) -> Prop {
-        Prop::List(Arc::new(self.into_iter().map(|v| v.into()).collect()))
+        let vec = self.into_iter().map(|v| v.into()).collect::<Vec<_>>();
+        Prop::List(Arc::new(vec).into())
     }
 }
 

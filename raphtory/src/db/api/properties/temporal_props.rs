@@ -2,7 +2,7 @@ use crate::db::api::{properties::internal::InternalPropertiesOps, view::BoxedLIt
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropType, PropUnwrap},
+    entities::properties::prop::{Prop, PropArray, PropType, PropUnwrap},
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use rustc_hash::FxHashMap;
@@ -277,7 +277,7 @@ impl<P: InternalPropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_bool()
     }
 
-    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+    fn into_list(self) -> Option<PropArray> {
         self.latest().into_list()
     }
 

@@ -55,7 +55,7 @@ fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
 
 fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
     match p_type {
-        PropType::Array(tpe) => {
+        PropType::List(tpe) => {
             let prop_type = as_proto_prop_type(tpe)?;
             Some(PType {
                 kind: Some(proto_generated::prop_type::p_type::Kind::Array(ArrayType {
@@ -78,7 +78,7 @@ fn as_prop_type2(p_type: PType) -> Option<PropType> {
         proto_generated::prop_type::p_type::Kind::Scalar(scalar) => as_prop_type(scalar.p_type()),
         proto_generated::prop_type::p_type::Kind::Array(array) => {
             let p_type = as_prop_type(array.p_type())?;
-            Some(PropType::Array(Box::new(p_type)))
+            Some(PropType::List(Box::new(p_type)))
         }
         proto_generated::prop_type::p_type::Kind::Decimal(decimal) => Some(PropType::Decimal {
             scale: decimal.scale as i64,
@@ -627,13 +627,14 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Option<Prop>, GraphError
         prop::Value::F32(f) => Some(Prop::F32(*f)),
         prop::Value::F64(f) => Some(Prop::F64(*f)),
         prop::Value::Str(s) => Some(Prop::Str(ArcStr::from(s.as_str()))),
-        prop::Value::Prop(props) => Some(Prop::List(Arc::new(
+        prop::Value::Prop(props) => Some(Prop::List(
             props
                 .properties
                 .iter()
                 .filter_map(|prop| as_prop_value(prop.value.as_ref()).transpose())
-                .collect::<Result<Vec<_>, _>>()?,
-        ))),
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        )),
         prop::Value::Map(dict) => Some(Prop::Map(Arc::new(
             dict.map
                 .iter()
@@ -663,7 +664,7 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Option<Prop>, GraphError
         prop::Value::DTime(dt) => Some(Prop::DTime(
             DateTime::parse_from_rfc3339(dt).unwrap().into(),
         )),
-        prop::Value::Array(blob) => Some(Prop::Array(PropArray::from_vec_u8(&blob.data)?)),
+        prop::Value::Array(_) => None,
         _ => None,
     };
     Ok(value)
@@ -699,7 +700,7 @@ fn as_proto_prop(prop: &Prop) -> proto_generated::Prop {
         Prop::F64(f) => Some(prop::Value::F64(*f)),
         Prop::Str(s) => Some(prop::Value::Str(s.to_string())),
         Prop::List(list) => {
-            let properties = list.iter().map(as_proto_prop).collect();
+            let properties = list.iter().map(|p| as_proto_prop(&p)).collect();
             Some(prop::Value::Prop(prop::Props { properties }))
         }
         Prop::Map(map) => {
@@ -732,9 +733,6 @@ fn as_proto_prop(prop: &Prop) -> proto_generated::Prop {
         Prop::DTime(dt) => Some(prop::Value::DTime(
             dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true),
         )),
-        Prop::Array(blob) => Some(prop::Value::Array(Array {
-            data: blob.to_vec_u8(),
-        })),
         Prop::Decimal(bd) => Some(prop::Value::Decimal(bd.to_string())),
     };
 

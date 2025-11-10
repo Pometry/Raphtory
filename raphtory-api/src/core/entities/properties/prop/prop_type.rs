@@ -38,7 +38,6 @@ pub enum PropType {
     Map(Arc<HashMap<String, PropType>>),
     NDTime,
     DTime,
-    Array(Box<PropType>),
     Decimal {
         scale: i64,
     },
@@ -69,7 +68,6 @@ impl Display for PropType {
             }
             PropType::NDTime => "NDTime",
             PropType::DTime => "DTime",
-            PropType::Array(p_type) => return write!(f, "Array<{}>", p_type),
             PropType::Decimal { scale } => return write!(f, "Decimal({})", scale),
         };
 
@@ -148,24 +146,20 @@ impl PropType {
             PropType::Map(p_map) => {
                 p_map.iter().map(|(_, v)| v.est_size()).sum::<usize>() * CONTAINER_SIZE
             }
-            PropType::Array(p_type) => p_type.est_size() * CONTAINER_SIZE,
             PropType::Decimal { .. } => 16,
             PropType::Empty => 0,
         }
     }
 }
 
-#[cfg(any(feature = "arrow"))]
-mod arrow {
+pub mod arrow {
     use crate::core::entities::properties::prop::PropType;
-    use arrow_schema::DataType;
+    use arrow_schema::{DataType, TimeUnit};
 
     impl From<&DataType> for PropType {
         fn from(value: &DataType) -> Self {
             match value {
-                DataType::Utf8 => PropType::Str,
-                DataType::LargeUtf8 => PropType::Str,
-                DataType::Utf8View => PropType::Str,
+                DataType::Utf8View | DataType::LargeUtf8 | DataType::Utf8 => PropType::Str,
                 DataType::UInt8 => PropType::U8,
                 DataType::UInt16 => PropType::U16,
                 DataType::Int32 => PropType::I32,
@@ -178,7 +172,18 @@ mod arrow {
                     scale: *scale as i64,
                 },
                 DataType::Boolean => PropType::Bool,
-
+                DataType::Timestamp(TimeUnit::Millisecond, None) => PropType::NDTime,
+                DataType::Timestamp(TimeUnit::Microsecond, tz) if tz.as_deref() == Some("UTC") => {
+                    PropType::DTime
+                }
+                DataType::Struct(fields) => PropType::map(
+                    fields
+                        .iter()
+                        .map(|f| (f.name().to_string(), PropType::from(f.data_type()))),
+                ),
+                DataType::List(field) | DataType::LargeList(field) => {
+                    PropType::List(Box::new(PropType::from(field.data_type())))
+                }
                 _ => PropType::Empty,
             }
         }
@@ -212,9 +217,6 @@ pub fn unify_types(l: &PropType, r: &PropType, unified: &mut bool) -> Result<Pro
         (PropType::DTime, PropType::DTime) => Ok(PropType::DTime),
         (PropType::List(l_type), PropType::List(r_type)) => {
             unify_types(l_type, r_type, unified).map(|t| PropType::List(Box::new(t)))
-        }
-        (PropType::Array(l_type), PropType::Array(r_type)) => {
-            unify_types(l_type, r_type, unified).map(|t| PropType::Array(Box::new(t)))
         }
         (PropType::Map(l_map), PropType::Map(r_map)) => {
             // maps need to be merged and only overlapping keys need to be unified
@@ -272,7 +274,6 @@ pub fn check_for_unification(l: &PropType, r: &PropType) -> Option<bool> {
         (PropType::NDTime, PropType::NDTime) => None,
         (PropType::DTime, PropType::DTime) => None,
         (PropType::List(l_type), PropType::List(r_type)) => check_for_unification(l_type, r_type),
-        (PropType::Array(l_type), PropType::Array(r_type)) => check_for_unification(l_type, r_type),
         (PropType::Map(l_map), PropType::Map(r_map)) => {
             let keys_check = l_map
                 .keys()
