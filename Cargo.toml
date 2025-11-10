@@ -159,6 +159,7 @@ parquet = { version = "56.2.0" }
 arrow-json = { version = "56.2.0" }
 arrow-buffer = { version = "56.2.0" }
 arrow-schema = { version = "56.2.0" }
+serde_arrow = {version = "0.13.6", features = ["arrow-56"]}
 arrow-array = { version = "56.2.0", features = ["chrono-tz"] }
 arrow-ipc = { version = "56.2.0" }
 arrow-csv = { version = "56.2.0" }

@@ -218,7 +218,7 @@ impl Prop {
 
 pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
     match prop_type {
-        PropType::Str => DataType::LargeUtf8,
+        PropType::Str => DataType::Utf8View,
         PropType::U8 => DataType::UInt8,
         PropType::U16 => DataType::UInt16,
         PropType::I32 => DataType::Int32,

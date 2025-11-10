@@ -191,18 +191,18 @@ pub fn prop_type() -> impl Strategy<Value = PropType> {
         PropType::Bool,
         PropType::DTime,
         PropType::NDTime,
-        // PropType::Decimal { scale },
+        PropType::Decimal { scale: 7 },
     ]);
 
-    // leaf.prop_recursive(3, 10, 10, |inner| {
-    //     let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-    //         .prop_map(PropType::map);
-    //     let list = inner
-    //         .clone()
-    //         .prop_map(|p_type| PropType::List(Box::new(p_type)));
-    //     prop_oneof![inner, list, dict]
-    // })
-    leaf
+    leaf.prop_recursive(3, 10, 10, |inner| {
+        let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
+            .prop_map(PropType::map);
+        // let list = inner
+        //     .clone()
+        //     .prop_map(|p_type| PropType::List(Box::new(p_type)));
+        // prop_oneof![inner, list, dict]
+        prop_oneof![inner, dict]
+    })
 }
 
 #[derive(Debug, Clone)]

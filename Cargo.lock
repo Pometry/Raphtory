@@ -2132,6 +2132,7 @@ dependencies = [
  "roaring",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_arrow",
  "serde_json",
  "sysinfo",
  "tempfile",
@@ -2712,6 +2713,7 @@ version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e54c115d4f30f52c67202f079c5f9d8b49db4691f460fdb0b4c2e838261b2ba5"
 dependencies = [
+ "bytemuck",
  "cfg-if",
  "crunchy",
  "num-traits",
@@ -3552,6 +3554,21 @@ dependencies = [
  "cc",
  "libc",
  "pkg-config",
+]
+
+[[package]]
+name = "marrow"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64369333feea08a4c974cc5d7bad82197999624d0c9508bec4b97ea9fc0e3f63"
+dependencies = [
+ "arrow-array",
+ "arrow-buffer",
+ "arrow-data",
+ "arrow-schema",
+ "bytemuck",
+ "half",
+ "serde",
 ]
 
 [[package]]
@@ -5082,6 +5099,7 @@ dependencies = [
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_arrow",
  "serde_json",
  "sorted_vector_map",
  "thiserror 2.0.17",
@@ -5741,6 +5759,21 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde_arrow"
+version = "0.13.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "197c925e607eaed897d7912f53895097c6994fdc04fe5f7a2e61eb3898de1d26"
+dependencies = [
+ "arrow-array",
+ "arrow-schema",
+ "bytemuck",
+ "chrono",
+ "half",
+ "marrow",
+ "serde",
 ]
 
 [[package]]

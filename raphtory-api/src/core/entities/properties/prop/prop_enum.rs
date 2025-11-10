@@ -1,15 +1,21 @@
 use crate::core::{
     entities::{
-        properties::prop::{prop_ref_enum::PropRef, PropType},
+        properties::prop::{prop_ref_enum::PropRef, PropNum, PropType},
         GidRef,
     },
     storage::arc_str::ArcStr,
 };
+#[cfg(feature = "arrow")]
+use arrow_array::StructArray;
+use arrow_schema::DataType;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use rustc_hash::{FxBuildHasher, FxHashMap};
+use serde::{
+    ser::{SerializeMap, SerializeSeq},
+    Deserialize, Serialize,
+};
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -62,25 +68,31 @@ impl From<GidRef<'_>> for Prop {
 }
 
 impl<'a> From<PropRef<'a>> for Prop {
-    fn from(prop_ref: PropRef<'a>) -> Self {
-        match prop_ref {
-            PropRef::Str(s) => Prop::str(s),
-            PropRef::U8(u) => Prop::U8(u),
-            PropRef::U16(u) => Prop::U16(u),
-            PropRef::I32(i) => Prop::I32(i),
-            PropRef::I64(i) => Prop::I64(i),
-            PropRef::U32(u) => Prop::U32(u),
-            PropRef::U64(u) => Prop::U64(u),
-            PropRef::F32(f) => Prop::F32(f),
-            PropRef::F64(f) => Prop::F64(f),
+    fn from(value: PropRef<'a>) -> Self {
+        match value {
+            PropRef::Str(s) => Prop::Str(s.into()),
+            PropRef::Num(n) => match n {
+                PropNum::U8(u) => Prop::U8(u),
+                PropNum::U16(u) => Prop::U16(u),
+                PropNum::I32(i) => Prop::I32(i),
+                PropNum::I64(i) => Prop::I64(i),
+                PropNum::U32(u) => Prop::U32(u),
+                PropNum::U64(u) => Prop::U64(u),
+                PropNum::F32(f) => Prop::F32(f),
+                PropNum::F64(f) => Prop::F64(f),
+            },
             PropRef::Bool(b) => Prop::Bool(b),
             PropRef::List(v) => Prop::List(v.clone()),
-            PropRef::Map(m) => Prop::Map(m.clone()),
-            PropRef::NDTime(dt) => Prop::NDTime(dt.clone()),
-            PropRef::DTime(dt) => Prop::DTime(dt.clone()),
+            PropRef::Map(m) => m
+                .into_prop()
+                .unwrap_or_else(|| Prop::Map(Arc::new(Default::default()))),
+            PropRef::NDTime(dt) => Prop::NDTime(dt),
+            PropRef::DTime(dt) => Prop::DTime(dt),
             #[cfg(feature = "arrow")]
             PropRef::Array(arr) => Prop::Array(arr.clone()),
-            PropRef::Decimal(d) => Prop::Decimal(d.clone()),
+            PropRef::Decimal { num, scale } => {
+                Prop::Decimal(BigDecimal::from_bigint(num.into(), scale as i64))
+            }
         }
     }
 }
@@ -148,6 +160,65 @@ impl PartialOrd for Prop {
     }
 }
 
+pub struct SerdeProp<'a>(pub &'a Prop);
+pub struct SedeList<'a>(pub &'a Vec<Prop>);
+#[derive(Clone, Copy)]
+pub struct SerdeMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
+
+impl<'a> Serialize for SedeList<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_seq(Some(self.0.len()))?;
+        for prop in self.0.iter() {
+            state.serialize_element(&SerdeProp(prop))?;
+        }
+        state.end()
+    }
+}
+
+impl<'a> Serialize for SerdeMap<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(self.0.len()))?;
+        for (k, v) in self.0.iter() {
+            state.serialize_entry(k, &SerdeProp(v))?;
+        }
+        state.end()
+    }
+}
+
+impl<'a> Serialize for SerdeProp<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self.0 {
+            Prop::I32(i) => serializer.serialize_i32(*i),
+            Prop::I64(i) => serializer.serialize_i64(*i),
+            Prop::F32(f) => serializer.serialize_f32(*f),
+            Prop::F64(f) => serializer.serialize_f64(*f),
+            Prop::U8(u) => serializer.serialize_u8(*u),
+            Prop::U16(u) => serializer.serialize_u16(*u),
+            Prop::U32(u) => serializer.serialize_u32(*u),
+            Prop::U64(u) => serializer.serialize_u64(*u),
+            Prop::Str(s) => serializer.serialize_str(s),
+            Prop::Bool(b) => serializer.serialize_bool(*b),
+            Prop::DTime(dt) => serializer.serialize_i64(dt.timestamp_millis()),
+            Prop::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
+            Prop::List(l) => SedeList(l).serialize(serializer),
+            Prop::Map(m) => SerdeMap(m).serialize(serializer),
+            Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
+            _ => {
+                todo!("Serializer not implemented")
+            }
+        }
+    }
+}
+
 pub fn validate_prop(prop: Prop) -> Result<Prop, InvalidBigDecimal> {
     match prop {
         Prop::Decimal(ref bd) => {
@@ -174,6 +245,13 @@ impl Prop {
             .map(|(k, v)| (k.into(), v.into()))
             .collect();
         Prop::Map(h_map.into())
+    }
+
+    pub fn as_map(&self) -> Option<SerdeMap<'_>> {
+        match self {
+            Prop::Map(map) => Some(SerdeMap(map)),
+            _ => None,
+        }
     }
 
     pub fn dtype(&self) -> PropType {
@@ -267,6 +345,41 @@ impl Prop {
             _ => None,
         }
     }
+}
+
+#[cfg(feature = "arrow")]
+pub fn struct_array_from_props<P>(
+    dt: &DataType,
+    as_serde_map: impl Fn(&P) -> SerdeMap<'_> + Copy,
+    props: impl IntoIterator<Item = Option<P>>,
+) -> StructArray {
+    use serde_arrow::ArrayBuilder;
+
+    let fields = match dt {
+        DataType::Struct(fields) => fields,
+        _ => panic!("Expected DataType::Struct, got {:?}", dt),
+    };
+
+    let mut builder = ArrayBuilder::from_arrow(fields)
+        .unwrap_or_else(|e| panic!("Failed to make array builder {e}"));
+
+    let empty_map = FxHashMap::default();
+
+    for p in props {
+        match p.as_ref().map(as_serde_map) {
+            Some(map) => builder
+                .push(map)
+                .unwrap_or_else(|e| panic!("Failed to push map to array builder {e}")),
+            _ => builder
+                .push(SerdeMap(&empty_map))
+                .unwrap_or_else(|e| panic!("Failed to push empty map to array builder {e}")),
+        }
+    }
+
+    let arrays = builder
+        .to_arrow()
+        .unwrap_or_else(|e| panic!("Failed to convert to arrow array {e}"));
+    StructArray::new(fields.clone(), arrays, None)
 }
 
 impl Display for Prop {
@@ -484,6 +597,7 @@ impl From<&Prop> for Prop {
         value.clone()
     }
 }
+
 
 pub trait IntoPropMap {
     fn into_prop_map(self) -> Prop;

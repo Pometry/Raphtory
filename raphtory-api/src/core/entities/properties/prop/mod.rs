@@ -1,4 +1,6 @@
 #[cfg(feature = "arrow")]
+pub mod arrow;
+#[cfg(feature = "arrow")]
 mod prop_array;
 mod prop_enum;
 mod prop_ref_enum;
@@ -10,6 +12,8 @@ mod serde;
 #[cfg(feature = "template")]
 mod template;
 
+#[cfg(feature = "arrow")]
+pub use arrow::*;
 #[cfg(feature = "arrow")]
 pub use prop_array::*;
 pub use prop_enum::*;

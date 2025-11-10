@@ -99,7 +99,7 @@ pub fn edges_strat(size: usize) -> impl Strategy<Value = Vec<(VID, VID)>> {
         let srcs = (0usize..num_nodes).prop_map(VID);
         let dsts = (0usize..num_nodes).prop_map(VID);
         num_edges.prop_flat_map(move |num_edges| {
-            collection::vec((srcs.clone(), dsts.clone()), num_edges as usize)
+            collection::vec((srcs.clone(), dsts.clone()), num_edges)
         })
     })
 }
@@ -121,19 +121,16 @@ pub fn edges_strat_with_layers(
     })
 }
 
-pub fn build_raw_edges(
-    len: usize,
-    num_nodes: usize,
-) -> impl Strategy<
-    Value = Vec<(
-        VID,
-        VID,
-        i64,
-        Vec<(String, Prop)>,
-        Vec<(String, Prop)>,
-        Option<&'static str>,
-    )>,
-> {
+pub type EdgeValues = (
+    VID,
+    VID,
+    i64,
+    Vec<(String, Prop)>,
+    Vec<(String, Prop)>,
+    Option<&'static str>,
+);
+
+pub fn build_raw_edges(len: usize, num_nodes: usize) -> impl Strategy<Value = Vec<EdgeValues>> {
     proptest::collection::hash_map((0i32..1000).prop_map(|i| i.to_string()), prop_type(), 0..20)
         .prop_flat_map(move |schema| {
             let (t_props, c_props) = make_props(&schema);

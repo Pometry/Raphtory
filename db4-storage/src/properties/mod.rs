@@ -7,7 +7,7 @@ use arrow_schema::DECIMAL128_MAX_PRECISION;
 use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
-    prop::{Prop, PropType},
+    prop::{Prop, PropType, SerdeMap, arrow_dtype_from_prop_type, struct_array_from_props},
 };
 use raphtory_core::{
     entities::{
@@ -197,7 +197,20 @@ impl Properties {
             }
             // PropColumn::Array(lazy_vec) => todo!(),
             // PropColumn::List(lazy_vec) => todo!(),
-            // PropColumn::Map(lazy_vec) => todo!(),
+            PropColumn::Map(lazy_vec) => {
+                let dt = meta
+                    .get_dtype(col_id)
+                    .as_ref()
+                    .map(arrow_dtype_from_prop_type)
+                    .unwrap();
+                let array_iter = indices
+                    .map(|i| lazy_vec.get_opt(i))
+                    .map(|e| e.map(|m| SerdeMap(m)));
+
+                let struct_array = struct_array_from_props(&dt, |sm| *sm, array_iter);
+
+                Some(Arc::new(struct_array))
+            }
             _ => None, //todo!("Unsupported column type"),
         }
     }
@@ -234,7 +247,7 @@ impl Properties {
         }
     }
 
-    pub(crate) fn t_len(&self) -> usize {
+    pub fn t_len(&self) -> usize {
         self.t_properties.len()
     }
 
