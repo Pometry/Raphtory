@@ -7,28 +7,22 @@ use crate::{
             model::{
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 node_filter::{
-                    CompositeNodeFilter, InternalNodeFilterBuilderOps,
-                    InternalNodeIdFilterBuilderOps, NodeFilter, NodeFilterBuilderOps, NodeIdFilter,
+                    CompositeNodeFilter, NodeFilter, NodeFilterBuilderOps, NodeIdFilter,
                     NodeIdFilterBuilder, NodeIdFilterBuilderOps, NodeNameFilter,
                     NodeNameFilterBuilder, NodeTypeFilter, NodeTypeFilterBuilder,
                 },
                 property_filter::{
-                    ElemQualifierOps, InternalPropertyFilterOps, ListAggOps, MetadataFilterBuilder,
-                    Op, OpChainBuilder, PropertyFilter, PropertyFilterBuilder, PropertyFilterOps,
-                    WindowedPropertyRef,
+                    InternalPropertyFilterOps, MetadataFilterBuilder, Op, OpChainBuilder,
+                    PropertyFilter, PropertyFilterBuilder, PropertyFilterOps, PropertyRef,
                 },
-                AndFilter, NotFilter, OrFilter, PropertyFilterFactory, TryAsCompositeFilter,
-                Windowed,
+                AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed,
             },
         },
     },
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
-    storage::timeindex::TimeIndexEntry,
-};
+use raphtory_api::core::entities::{properties::prop::Prop, GID};
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
@@ -43,6 +37,7 @@ pub enum CompositeEdgeFilter {
     Src(CompositeNodeFilter),
     Dst(CompositeNodeFilter),
     Property(PropertyFilter<EdgeFilter>),
+    PropertyWindowed(PropertyFilter<Windowed<EdgeFilter>>),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Not(Box<CompositeEdgeFilter>),
@@ -54,6 +49,7 @@ impl Display for CompositeEdgeFilter {
             CompositeEdgeFilter::Src(filter) => write!(f, "SRC({})", filter),
             CompositeEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
             CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::PropertyWindowed(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
             CompositeEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
@@ -70,7 +66,7 @@ impl CreateFilter for CompositeEdgeFilter {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         match self {
             CompositeEdgeFilter::Src(filter) => {
-                let filtered_graph = filter.clone().create_filter(graph.clone())?;
+                let filtered_graph = filter.create_filter(graph.clone())?;
                 Ok(Arc::new(EdgeNodeFilteredGraph::new(
                     graph,
                     Endpoint::Src,
@@ -78,7 +74,7 @@ impl CreateFilter for CompositeEdgeFilter {
                 )))
             }
             CompositeEdgeFilter::Dst(filter) => {
-                let filtered_graph = filter.clone().create_filter(graph.clone())?;
+                let filtered_graph = filter.create_filter(graph.clone())?;
                 Ok(Arc::new(EdgeNodeFilteredGraph::new(
                     graph,
                     Endpoint::Dst,
@@ -86,22 +82,21 @@ impl CreateFilter for CompositeEdgeFilter {
                 )))
             }
             CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeEdgeFilter::And(l, r) => Ok(Arc::new(
-                AndFilter {
-                    left: l.deref().clone(),
-                    right: r.deref().clone(),
-                }
-                .create_filter(graph)?,
-            )),
-            CompositeEdgeFilter::Or(l, r) => Ok(Arc::new(
-                OrFilter {
-                    left: l.deref().clone(),
-                    right: r.deref().clone(),
-                }
-                .create_filter(graph)?,
-            )),
-            CompositeEdgeFilter::Not(filter) => {
-                let base = filter.deref().clone();
+            CompositeEdgeFilter::PropertyWindowed(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::And(l, r) => {
+                let (l, r) = (*l, *r);
+                Ok(Arc::new(
+                    AndFilter { left: l, right: r }.create_filter(graph)?,
+                ))
+            }
+            CompositeEdgeFilter::Or(l, r) => {
+                let (l, r) = (*l, *r);
+                Ok(Arc::new(
+                    OrFilter { left: l, right: r }.create_filter(graph)?,
+                ))
+            }
+            CompositeEdgeFilter::Not(f) => {
+                let base = *f;
                 Ok(Arc::new(NotFilter(base).create_filter(graph)?))
             }
         }
@@ -112,9 +107,11 @@ impl TryAsCompositeFilter for CompositeEdgeFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }
+
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
         Ok(self.clone())
     }
+
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
@@ -123,10 +120,8 @@ impl TryAsCompositeFilter for CompositeEdgeFilter {
 }
 
 // User facing entry for building edge filters.
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct EdgeFilter;
-
-impl PropertyFilterFactory<EdgeFilter> for EdgeFilter {}
 
 impl EdgeFilter {
     #[inline]
@@ -159,9 +154,7 @@ impl EdgeEndpoint {
     pub fn dst() -> Self {
         Self(Endpoint::Dst)
     }
-}
 
-impl EdgeEndpoint {
     #[inline]
     pub fn id(&self) -> EndpointWrapper<NodeIdFilterBuilder> {
         EndpointWrapper::new(NodeFilter::id(), self.0)
@@ -181,16 +174,16 @@ impl EdgeEndpoint {
     pub fn property(
         &self,
         name: impl Into<String>,
-    ) -> EndpointWrapper<PropertyFilterBuilder<NodeFilter>> {
-        EndpointWrapper::new(PropertyFilterBuilder::<NodeFilter>::new(name), self.0)
+    ) -> PropertyFilterBuilder<EndpointWrapper<NodeFilter>> {
+        PropertyFilterBuilder::new(name.into(), EndpointWrapper::new(NodeFilter, self.0))
     }
 
     #[inline]
     pub fn metadata(
         &self,
         name: impl Into<String>,
-    ) -> EndpointWrapper<MetadataFilterBuilder<NodeFilter>> {
-        EndpointWrapper::new(MetadataFilterBuilder::<NodeFilter>::new(name), self.0)
+    ) -> MetadataFilterBuilder<EndpointWrapper<NodeFilter>> {
+        MetadataFilterBuilder::new(name.into(), EndpointWrapper::new(NodeFilter, self.0))
     }
 
     #[inline]
@@ -288,7 +281,7 @@ where
 impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for EndpointWrapper<T> {
     type Marker = T::Marker;
     #[inline]
-    fn property_ref(&self) -> crate::db::graph::views::filter::model::property_filter::PropertyRef {
+    fn property_ref(&self) -> PropertyRef {
         self.inner.property_ref()
     }
 
@@ -298,8 +291,8 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for EndpointWrapper
     }
 
     #[inline]
-    fn window(&self) -> Option<(TimeIndexEntry, TimeIndexEntry)> {
-        self.inner.window()
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
     }
 }
 
@@ -440,74 +433,75 @@ impl EndpointWrapper<OpChainBuilder<NodeFilter>> {
 
 impl<M> EndpointWrapper<Windowed<M>>
 where
-    M: Send + Sync + Clone + 'static,
+    M: EntityMarker + Send + Sync + Clone + 'static,
 {
     #[inline]
     pub fn property(
         &self,
         name: impl Into<String>,
-    ) -> EndpointWrapper<WindowedPropertyRef<M>> {
-        self.with(self.inner.property(name))
+    ) -> PropertyFilterBuilder<EndpointWrapper<Windowed<M>>> {
+        PropertyFilterBuilder::new(
+            name.into(),
+            EndpointWrapper::new(self.inner.clone(), self.endpoint),
+        )
     }
 
     #[inline]
     pub fn metadata(
         &self,
         name: impl Into<String>,
-    ) -> EndpointWrapper<WindowedPropertyRef<M>> {
-        self.with(self.inner.metadata(name))
+    ) -> MetadataFilterBuilder<EndpointWrapper<Windowed<M>>> {
+        MetadataFilterBuilder::new(
+            name.into(),
+            EndpointWrapper::new(self.inner.clone(), self.endpoint),
+        )
     }
 }
 
-impl EndpointWrapper<WindowedPropertyRef<NodeFilter>> {
-    #[inline]
-    pub fn temporal(self) -> Self {
-        self.map(|w| w.temporal())
-    }
-
+impl EndpointWrapper<OpChainBuilder<Windowed<NodeFilter>>> {
     #[inline]
     pub fn any(self) -> Self {
-        self.map(|w| w.any())
+        self.map(|b| b.any())
     }
 
     #[inline]
     pub fn all(self) -> Self {
-        self.map(|w| w.all())
+        self.map(|b| b.all())
     }
 
     #[inline]
     pub fn len(self) -> Self {
-        self.map(|w| w.len())
+        self.map(|b| b.len())
     }
 
     #[inline]
     pub fn sum(self) -> Self {
-        self.map(|w| w.sum())
+        self.map(|b| b.sum())
     }
 
     #[inline]
     pub fn avg(self) -> Self {
-        self.map(|w| w.avg())
+        self.map(|b| b.avg())
     }
 
     #[inline]
     pub fn min(self) -> Self {
-        self.map(|w| w.min())
+        self.map(|b| b.min())
     }
 
     #[inline]
     pub fn max(self) -> Self {
-        self.map(|w| w.max())
+        self.map(|b| b.max())
     }
 
     #[inline]
     pub fn first(self) -> Self {
-        self.map(|w| w.first())
+        self.map(|b| b.first())
     }
 
     #[inline]
     pub fn last(self) -> Self {
-        self.map(|w| w.last())
+        self.map(|b| b.last())
     }
 }
 
@@ -708,9 +702,80 @@ impl EndpointWrapper<NodeTypeFilterBuilder> {
     }
 }
 
-impl EndpointWrapper<PropertyFilterBuilder<NodeFilter>> {
-    #[inline]
-    pub fn temporal(self) -> EndpointWrapper<OpChainBuilder<NodeFilter>> {
-        self.clone().with(self.inner.temporal())
+impl TryAsCompositeFilter for PropertyFilter<EndpointWrapper<NodeFilter>> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        let node_prop = PropertyFilter::<NodeFilter> {
+            prop_ref: self.prop_ref.clone(),
+            prop_value: self.prop_value.clone(),
+            operator: self.operator.clone(),
+            ops: self.ops.clone(),
+            entity: NodeFilter,
+        };
+        let node_cf = node_prop.try_as_composite_node_filter()?;
+        Ok(match self.entity.endpoint {
+            Endpoint::Src => CompositeEdgeFilter::Src(node_cf),
+            Endpoint::Dst => CompositeEdgeFilter::Dst(node_cf),
+        })
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
 }
+
+impl CreateFilter for PropertyFilter<EndpointWrapper<NodeFilter>> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        self.try_as_composite_edge_filter()?.create_filter(graph)
+    }
+}
+
+impl TryAsCompositeFilter for PropertyFilter<EndpointWrapper<Windowed<NodeFilter>>> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        let node_prop = PropertyFilter::<Windowed<NodeFilter>> {
+            prop_ref: self.prop_ref.clone(),
+            prop_value: self.prop_value.clone(),
+            operator: self.operator.clone(),
+            ops: self.ops.clone(),
+            entity: self.entity.inner.clone(),
+        };
+        let node_cf = node_prop.try_as_composite_node_filter()?;
+        Ok(match self.entity.endpoint {
+            Endpoint::Src => CompositeEdgeFilter::Src(node_cf),
+            Endpoint::Dst => CompositeEdgeFilter::Dst(node_cf),
+        })
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+impl CreateFilter for PropertyFilter<EndpointWrapper<Windowed<NodeFilter>>> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        self.try_as_composite_edge_filter()?.create_filter(graph)
+    }
+}
+
+impl<M> EntityMarker for EndpointWrapper<M> where M: EntityMarker + Send + Sync + Clone + 'static {}

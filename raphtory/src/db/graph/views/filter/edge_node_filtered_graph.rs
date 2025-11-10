@@ -126,6 +126,7 @@ impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InternalEdgeFilte
             Endpoint::Dst => dst_binding.as_ref(),
         };
 
-        self.filtered_graph.filter_node(node_ref)
+        self.filtered_graph
+            .internal_filter_node(node_ref, layer_ids)
     }
 }

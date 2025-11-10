@@ -14,23 +14,22 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
     search::{
         collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
         fallback_filter_edges, fields, get_reader, graph_index::Index,
-        property_index::PropertyIndex, query_builder::QueryBuilder,
+        node_filter_executor::NodeFilterExecutor, property_index::PropertyIndex,
+        query_builder::QueryBuilder,
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::EID;
+use raphtory_api::core::{entities::EID, storage::timeindex::AsTime};
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
     Searcher, TantivyDocument,
 };
-use crate::prelude::{EdgeViewOps, NodeViewOps};
-use crate::search::node_filter_executor::NodeFilterExecutor;
 
 #[derive(Clone, Copy)]
 pub struct EdgeFilterExecutor<'a> {
@@ -223,17 +222,23 @@ impl<'a> EdgeFilterExecutor<'a> {
             CompositeEdgeFilter::Src(node_filter) => {
                 let nfe = NodeFilterExecutor::new(self.index);
                 let nodes = nfe.filter_nodes(graph, node_filter, usize::MAX, 0)?;
-                let mut edges: Vec<EdgeView<G>> = nodes.into_iter().flat_map(|n| n.out_edges().into_iter()).collect();
+                let mut edges: Vec<EdgeView<G>> = nodes
+                    .into_iter()
+                    .flat_map(|n| n.out_edges().into_iter())
+                    .collect();
                 if offset != 0 || limit < edges.len() {
                     edges = edges.into_iter().skip(offset).take(limit).collect();
                 }
                 Ok(edges)
             }
             CompositeEdgeFilter::Dst(node_filter) => {
-                // TODO: Can we use an index here to speed up search?
                 let nfe = NodeFilterExecutor::new(self.index);
                 let nodes = nfe.filter_nodes(graph, node_filter, usize::MAX, 0)?;
-                let mut edges: Vec<EdgeView<G>> = nodes.into_iter().flat_map(|n| n.in_edges().into_iter()).collect();
+                println!("nodes {:?}", nodes);
+                let mut edges: Vec<EdgeView<G>> = nodes
+                    .into_iter()
+                    .flat_map(|n| n.in_edges().into_iter())
+                    .collect();
                 if offset != 0 || limit < edges.len() {
                     edges = edges.into_iter().skip(offset).take(limit).collect();
                 }
@@ -241,6 +246,25 @@ impl<'a> EdgeFilterExecutor<'a> {
             }
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
+            }
+            CompositeEdgeFilter::PropertyWindowed(filter) => {
+                let start = filter.entity.start.t();
+                let end = filter.entity.end.t();
+
+                let filter = PropertyFilter {
+                    prop_ref: filter.prop_ref.clone(),
+                    prop_value: filter.prop_value.clone(),
+                    operator: filter.operator,
+                    ops: filter.ops.clone(),
+                    entity: EdgeFilter,
+                };
+
+                let res =
+                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
             }
             CompositeEdgeFilter::And(left, right) => {
                 let left_result = self.filter_edges(graph, left, limit, offset)?;

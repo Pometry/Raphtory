@@ -8,8 +8,8 @@ use crate::{
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 filter_operator::FilterOperator,
                 property_filter::PropertyFilter,
-                AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
-                TryAsCompositeFilter, Windowed,
+                AndFilter, Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter,
+                Windowed,
             },
         },
     },
@@ -69,6 +69,7 @@ impl From<Filter> for NodeTypeFilter {
 pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter<NodeFilter>),
+    PropertyWindowed(PropertyFilter<Windowed<NodeFilter>>),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Not(Box<CompositeNodeFilter>),
@@ -78,6 +79,7 @@ impl Display for CompositeNodeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::PropertyWindowed(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -103,6 +105,7 @@ impl CreateFilter for CompositeNodeFilter {
                 }
             },
             CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeNodeFilter::PropertyWindowed(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeNodeFilter::And(l, r) => Ok(Arc::new(
                 AndFilter {
                     left: l.deref().clone(),
@@ -316,7 +319,7 @@ impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]
 pub struct NodeFilter;
 
 impl NodeFilter {
@@ -450,8 +453,6 @@ impl NodeFilter {
         Ok(())
     }
 }
-
-impl PropertyFilterFactory<NodeFilter> for NodeFilter {}
 
 impl TryAsCompositeFilter for NodeIdFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

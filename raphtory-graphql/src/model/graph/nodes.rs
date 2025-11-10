@@ -1,7 +1,7 @@
 use crate::{
     model::{
         graph::{
-            filtering::{NodeFilter, NodesViewCollection},
+            filtering::{GqlNodeFilter, NodesViewCollection},
             node::GqlNode,
             windowset::GqlNodesWindowSet,
             WindowDuration,
@@ -224,7 +224,7 @@ impl GqlNodes {
                 NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 NodesViewCollection::NodeFilter(node_filter) => {
-                    return_view.select(node_filter).await?
+                    return_view.filter(node_filter).await?
                 }
                 NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
             }
@@ -343,7 +343,7 @@ impl GqlNodes {
     }
 
     /// Returns a filtered view that applies to list down the chain
-    async fn filter(&self, expr: NodeFilter) -> Result<Self, GraphError> {
+    async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;
@@ -354,11 +354,11 @@ impl GqlNodes {
     }
 
     /// Returns filtered list of nodes
-    async fn select(&self, expr: NodeFilter) -> Result<Self, GraphError> {
+    async fn select(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter_iter(filter)?;
+            let filtered = self_clone.nn.select(filter)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await

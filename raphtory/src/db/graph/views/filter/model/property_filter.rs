@@ -16,7 +16,7 @@ use crate::{
                 exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                 filter_operator::FilterOperator,
                 node_filter::{CompositeNodeFilter, NodeFilter},
-                TryAsCompositeFilter,
+                TryAsCompositeFilter, Windowed,
             },
         },
     },
@@ -41,7 +41,7 @@ use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Deref, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Op {
@@ -169,8 +169,7 @@ pub struct PropertyFilter<M> {
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,
     pub ops: Vec<Op>, // validated by validate_chain_and_infer_effective_dtype
-    pub window: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    pub _phantom: PhantomData<M>,
+    pub entity: M,
 }
 
 impl<M> Display for PropertyFilter<M> {
@@ -223,184 +222,6 @@ impl<M> PropertyFilter<M> {
     pub fn with_ops(mut self, ops: impl IntoIterator<Item = Op>) -> Self {
         self.ops.extend(ops);
         self
-    }
-
-    pub fn with_window(mut self, start: TimeIndexEntry, end: TimeIndexEntry) -> Self {
-        self.window = Some((start, end));
-        self
-    }
-
-    pub fn eq(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Eq,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn ne(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Ne,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn le(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Le,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn ge(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Ge,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn lt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Lt,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn gt(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Gt,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn is_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
-            operator: FilterOperator::IsIn,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn is_not_in(prop_ref: PropertyRef, prop_values: impl IntoIterator<Item = Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
-            operator: FilterOperator::IsNotIn,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn is_none(prop_ref: PropertyRef) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::None,
-            operator: FilterOperator::IsNone,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn is_some(prop_ref: PropertyRef) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::None,
-            operator: FilterOperator::IsSome,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn starts_with(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::StartsWith,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn ends_with(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::EndsWith,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::Contains,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn not_contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(prop_value.into()),
-            operator: FilterOperator::NotContains,
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn fuzzy_search(
-        prop_ref: PropertyRef,
-        prop_value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> Self {
-        Self {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(Prop::Str(ArcStr::from(prop_value.into()))),
-            operator: FilterOperator::FuzzySearch {
-                levenshtein_distance,
-                prefix_match,
-            },
-            ops: vec![],
-            window: None,
-            _phantom: PhantomData,
-        }
     }
 
     #[inline]
@@ -1349,11 +1170,7 @@ impl<M> PropertyFilter<M> {
                 let Some(tview) = props.temporal().get_by_id(t_prop_id) else {
                     return false;
                 };
-                let seq = if let Some((start, end)) = self.window {
-                    tview.values_window(start.t(), end.t()).collect()
-                } else {
-                    tview.values().collect()
-                };
+                let seq = tview.values().collect();
                 self.eval_temporal_and_apply(seq)
             }
         }
@@ -1398,11 +1215,7 @@ impl<M> PropertyFilter<M> {
                     return false;
                 };
 
-                let seq = if let Some((start, end)) = self.window {
-                    tview.values_window(start.t(), end.t()).collect()
-                } else {
-                    tview.values().collect()
-                };
+                let seq = tview.values().collect();
 
                 if self.ops.is_empty() {
                     return self.eval_temporal_and_apply(seq);
@@ -1447,24 +1260,16 @@ impl<M> PropertyFilter<M> {
                 let props = edge.metadata();
                 self.is_metadata_matched(prop_id, props)
             }
-            PropertyRef::TemporalProperty(_) | PropertyRef::Property(_) => {
-                if matches!(self.prop_ref, PropertyRef::TemporalProperty(_)) {
-                    let seq: Vec<Prop> = if let Some((start, end)) = self.window {
-                        edge.properties()
-                            .temporal()
-                            .get_by_id(prop_id)
-                            .map(|tv| tv.values_window(start.t(), end.t()).collect())
-                            .unwrap_or_default()
-                    } else {
-                        edge.properties()
-                            .temporal()
-                            .get_by_id(prop_id)
-                            .map(|tv| tv.values().collect())
-                            .unwrap_or_default()
-                    };
-                    return self.eval_temporal_and_apply(seq);
-                }
-
+            PropertyRef::TemporalProperty(_) => {
+                let seq: Vec<Prop> = edge
+                    .properties()
+                    .temporal()
+                    .get_by_id(prop_id)
+                    .map(|tv| tv.values().collect())
+                    .unwrap_or_default();
+                self.eval_temporal_and_apply(seq)
+            }
+            PropertyRef::Property(_) => {
                 let props = edge.properties();
                 self.is_property_matched(prop_id, props)
             }
@@ -1550,9 +1355,7 @@ pub trait InternalPropertyFilterOps: Send + Sync {
         &[]
     }
 
-    fn window(&self) -> Option<(TimeIndexEntry, TimeIndexEntry)> {
-        None
-    }
+    fn entity(&self) -> Self::Marker;
 }
 
 impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
@@ -1566,8 +1369,8 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
         self.deref().ops()
     }
 
-    fn window(&self) -> Option<(TimeIndexEntry, TimeIndexEntry)> {
-        self.deref().window()
+    fn entity(&self) -> Self::Marker {
+        self.deref().entity()
     }
 }
 
@@ -1596,140 +1399,142 @@ pub trait PropertyFilterOps: InternalPropertyFilterOps {
 
 impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
     fn eq(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::eq(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::Eq,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn ne(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::ne(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::Ne,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn le(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::le(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::Le,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn ge(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::ge(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::Ge,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn lt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::lt(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::Lt,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn gt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::gt(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::Gt,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
-        let pf =
-            PropertyFilter::is_in(self.property_ref(), values).with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Set(Arc::new(values.into_iter().collect())),
+            operator: FilterOperator::IsIn,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::is_not_in(self.property_ref(), values)
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Set(Arc::new(values.into_iter().collect())),
+            operator: FilterOperator::IsNotIn,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn is_none(&self) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::is_none(self.property_ref()).with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::None,
+            operator: FilterOperator::IsNone,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn is_some(&self) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::is_some(self.property_ref()).with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::None,
+            operator: FilterOperator::IsSome,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn starts_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::starts_with(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::StartsWith,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn ends_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::ends_with(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::EndsWith,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::contains(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::Contains,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
     fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::not_contains(self.property_ref(), value.into())
-            .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(value.into()),
+            operator: FilterOperator::NotContains,
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 
@@ -1739,43 +1544,46 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PropertyFilter<Self::Marker> {
-        let pf = PropertyFilter::fuzzy_search(
-            self.property_ref(),
-            prop_value.into(),
-            levenshtein_distance,
-            prefix_match,
-        )
-        .with_ops(self.ops().iter().copied());
-        if let Some((s, e)) = self.window() {
-            pf.with_window(s, e)
-        } else {
-            pf
+        PropertyFilter {
+            prop_ref: self.property_ref(),
+            prop_value: PropertyFilterValue::Single(Prop::Str(ArcStr::from(prop_value.into()))),
+            operator: FilterOperator::FuzzySearch {
+                levenshtein_distance,
+                prefix_match,
+            },
+            ops: self.ops().to_vec(),
+            entity: self.entity(),
         }
     }
 }
 
 #[derive(Clone)]
-pub struct PropertyFilterBuilder<M>(String, PhantomData<M>);
+pub struct PropertyFilterBuilder<M>(String, pub M);
 
 impl<M> PropertyFilterBuilder<M> {
-    pub fn new(prop: impl Into<String>) -> Self {
-        Self(prop.into(), PhantomData)
+    pub fn new(prop: impl Into<String>, entity: M) -> Self {
+        Self(prop.into(), entity)
     }
 }
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for PropertyFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Property(self.0.clone())
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.1.clone()
     }
 }
 
 #[derive(Clone)]
-pub struct MetadataFilterBuilder<M>(pub String, PhantomData<M>);
+pub struct MetadataFilterBuilder<M>(pub String, pub M);
 
 impl<M> MetadataFilterBuilder<M> {
-    pub fn new(prop: impl Into<String>) -> Self {
-        Self(prop.into(), PhantomData)
+    pub fn new(prop: impl Into<String>, entity: M) -> Self {
+        Self(prop.into(), entity)
     }
 }
 
@@ -1784,13 +1592,17 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for MetadataFil
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Metadata(self.0.clone())
     }
+
+    fn entity(&self) -> Self::Marker {
+        self.1.clone()
+    }
 }
 
 #[derive(Clone)]
 pub struct OpChainBuilder<M> {
     pub prop_ref: PropertyRef,
     pub ops: Vec<Op>,
-    pub _phantom: PhantomData<M>,
+    pub entity: M,
 }
 
 impl<M> OpChainBuilder<M> {
@@ -1851,6 +1663,10 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for OpChainBuil
     fn ops(&self) -> &[Op] {
         &self.ops
     }
+
+    fn entity(&self) -> Self::Marker {
+        self.entity.clone()
+    }
 }
 
 pub trait ElemQualifierOps: InternalPropertyFilterOps {
@@ -1861,7 +1677,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterOps {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Any]).collect(),
-            _phantom: PhantomData,
+            entity: self.entity(),
         }
     }
 
@@ -1872,10 +1688,11 @@ pub trait ElemQualifierOps: InternalPropertyFilterOps {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::All]).collect(),
-            _phantom: PhantomData,
+            entity: self.entity(),
         }
     }
 }
+
 impl<T: InternalPropertyFilterOps> ElemQualifierOps for T {}
 
 impl<M> PropertyFilterBuilder<M> {
@@ -1883,7 +1700,7 @@ impl<M> PropertyFilterBuilder<M> {
         OpChainBuilder {
             prop_ref: PropertyRef::TemporalProperty(self.0),
             ops: vec![],
-            _phantom: PhantomData,
+            entity: self.1,
         }
     }
 }
@@ -1893,7 +1710,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Len]).collect(),
-            _phantom: PhantomData,
+            entity: self.entity(),
         }
     }
 
@@ -1901,7 +1718,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Sum]).collect(),
-            _phantom: PhantomData,
+            entity: self.entity(),
         }
     }
 
@@ -1909,7 +1726,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Avg]).collect(),
-            _phantom: PhantomData,
+            entity: self.entity(),
         }
     }
 
@@ -1917,7 +1734,7 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Min]).collect(),
-            _phantom: PhantomData,
+            entity: self.entity(),
         }
     }
 
@@ -1925,100 +1742,67 @@ pub trait ListAggOps: InternalPropertyFilterOps + Sized {
         OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Max]).collect(),
-            _phantom: PhantomData,
+            entity: self.entity(),
+        }
+    }
+
+    fn first(&self) -> OpChainBuilder<Self::Marker> {
+        OpChainBuilder {
+            prop_ref: self.property_ref(),
+            ops: self.ops().iter().copied().chain([Op::First]).collect(),
+            entity: self.entity(),
+        }
+    }
+
+    fn last(&self) -> OpChainBuilder<Self::Marker> {
+        OpChainBuilder {
+            prop_ref: self.property_ref(),
+            ops: self.ops().iter().copied().chain([Op::Last]).collect(),
+            entity: self.entity(),
         }
     }
 }
+
 impl<T: InternalPropertyFilterOps + Sized> ListAggOps for T {}
 
-#[derive(Clone)]
-pub struct WindowedPropertyRef<M> {
-    pub prop_ref: PropertyRef,
-    pub ops: Vec<Op>,
-    pub start: TimeIndexEntry,
-    pub end: TimeIndexEntry,
-    pub _phantom: PhantomData<M>,
-}
-
-impl<M> InternalPropertyFilterOps for WindowedPropertyRef<M>
-where
-    M: Send + Sync + Clone + 'static,
-{
-    type Marker = M;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.prop_ref.clone()
+impl TryAsCompositeFilter for PropertyFilter<Windowed<NodeFilter>> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(CompositeNodeFilter::PropertyWindowed(self.clone()))
     }
-
-    fn ops(&self) -> &[Op] {
-        &self.ops
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
-
-    fn window(&self) -> Option<(TimeIndexEntry, TimeIndexEntry)> {
-        Some((self.start, self.end))
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
 }
 
-impl<M> WindowedPropertyRef<M> {
-    #[inline]
-    pub fn temporal(mut self) -> Self {
-        if let PropertyRef::Property(name) = self.prop_ref {
-            self.prop_ref = PropertyRef::TemporalProperty(name);
-        }
-        self
+impl TryAsCompositeFilter for PropertyFilter<Windowed<EdgeFilter>> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
-
-    #[inline]
-    pub fn any(mut self) -> Self {
-        self.ops.push(Op::Any);
-        self
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(CompositeEdgeFilter::PropertyWindowed(self.clone()))
     }
-
-    #[inline]
-    pub fn all(mut self) -> Self {
-        self.ops.push(Op::All);
-        self
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
+}
 
-    #[inline]
-    pub fn len(mut self) -> Self {
-        self.ops.push(Op::Len);
-        self
+impl TryAsCompositeFilter for PropertyFilter<Windowed<ExplodedEdgeFilter>> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
-
-    #[inline]
-    pub fn sum(mut self) -> Self {
-        self.ops.push(Op::Sum);
-        self
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
-
-    #[inline]
-    pub fn avg(mut self) -> Self {
-        self.ops.push(Op::Avg);
-        self
-    }
-
-    #[inline]
-    pub fn min(mut self) -> Self {
-        self.ops.push(Op::Min);
-        self
-    }
-
-    #[inline]
-    pub fn max(mut self) -> Self {
-        self.ops.push(Op::Max);
-        self
-    }
-
-    #[inline]
-    pub fn first(mut self) -> Self {
-        self.ops.push(Op::First);
-        self
-    }
-
-    #[inline]
-    pub fn last(mut self) -> Self {
-        self.ops.push(Op::Last);
-        self
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Ok(CompositeExplodedEdgeFilter::PropertyWindowed(self.clone()))
     }
 }

@@ -1,16 +1,13 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{CompositeEdgeFilter, EndpointWrapper},
-        exploded_edge_filter::CompositeExplodedEdgeFilter,
+        edge_filter::{CompositeEdgeFilter, EdgeFilter, EndpointWrapper},
+        exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
         filter_operator::FilterOperator,
-        node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+        node_filter::{CompositeNodeFilter, NodeFilter, NodeNameFilter, NodeTypeFilter},
         not_filter::NotFilter,
         or_filter::OrFilter,
-        property_filter::{
-            MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder, PropertyRef,
-            WindowedPropertyRef,
-        },
+        property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
     },
     errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
@@ -20,7 +17,7 @@ use raphtory_api::core::{
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_core::utils::time::IntoTime;
-use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
+use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Deref, sync::Arc};
 
 pub mod and_filter;
@@ -32,7 +29,7 @@ pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {
     pub start: TimeIndexEntry,
     pub end: TimeIndexEntry,
@@ -54,31 +51,6 @@ impl<M> Windowed<M> {
         let s = TimeIndexEntry::start(start.into_time());
         let e = TimeIndexEntry::end(end.into_time());
         Self::new(s, e)
-    }
-}
-
-impl<M> Windowed<M>
-where
-    M: Send + Sync + Clone + 'static,
-{
-    pub fn property(&self, name: impl Into<String>) -> WindowedPropertyRef<M> {
-        WindowedPropertyRef {
-            prop_ref: PropertyRef::Property(name.into()),
-            ops: vec![],
-            start: self.start,
-            end: self.end,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn metadata(&self, name: impl Into<String>) -> WindowedPropertyRef<M> {
-        WindowedPropertyRef {
-            prop_ref: PropertyRef::Metadata(name.into()),
-            ops: vec![],
-            start: self.start,
-            end: self.end,
-            _phantom: PhantomData,
-        }
     }
 }
 
@@ -359,12 +331,28 @@ impl<L, R> ComposableFilter for AndFilter<L, R> {}
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 impl<T> ComposableFilter for NotFilter<T> {}
 
-pub trait PropertyFilterFactory<M> {
-    fn property(name: impl Into<String>) -> PropertyFilterBuilder<M> {
-        PropertyFilterBuilder::new(name)
+trait EntityMarker: Clone + Send + Sync {}
+
+impl EntityMarker for NodeFilter {}
+
+impl EntityMarker for EdgeFilter {}
+
+impl EntityMarker for ExplodedEdgeFilter {}
+
+impl<M: EntityMarker + Clone + Send + Sync + 'static> EntityMarker for Windowed<M> {}
+
+pub trait PropertyFilterFactory: Sized {
+    fn property(&self, name: impl Into<String>) -> PropertyFilterBuilder<Self>;
+
+    fn metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<Self>;
+}
+
+impl<M: EntityMarker> PropertyFilterFactory for M {
+    fn property(&self, name: impl Into<String>) -> PropertyFilterBuilder<Self> {
+        PropertyFilterBuilder::new(name, self.clone())
     }
 
-    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<M> {
-        MetadataFilterBuilder::new(name)
+    fn metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<Self> {
+        MetadataFilterBuilder::new(name, self.clone())
     }
 }

@@ -318,11 +318,11 @@ input EdgeFilter @oneOf {
 	"""
 	Source node filter.
 	"""
-	src: NodeFieldFilterNew
+	src: NodeFilter
 	"""
 	Destination node filter.
 	"""
-	dst: NodeFieldFilterNew
+	dst: NodeFilter
 	"""
 	Property filter.
 	"""
@@ -828,7 +828,7 @@ type Graph {
 	"""
 	Gets (optionally a subset of) the nodes in the graph.
 	"""
-	nodes(ids: [String!], select: NodeFilter): Nodes!
+	nodes(select: NodeFilter): Nodes!
 	"""
 	Gets the edge with the specified source and destination nodes.
 	"""
@@ -1462,27 +1462,27 @@ type Node {
 	"""
 	Returns all connected edges.
 	"""
-	edges: Edges!
+	edges(select: EdgeFilter): Edges!
 	"""
 	Returns outgoing edges.
 	"""
-	outEdges: Edges!
+	outEdges(select: EdgeFilter): Edges!
 	"""
 	Returns incoming edges.
 	"""
-	inEdges: Edges!
+	inEdges(select: EdgeFilter): Edges!
 	"""
 	Returns neighbouring nodes.
 	"""
-	neighbours: PathFromNode!
+	neighbours(select: NodeFilter): PathFromNode!
 	"""
 	Returns the number of neighbours that have at least one in-going edge to this node.
 	"""
-	inNeighbours: PathFromNode!
+	inNeighbours(select: NodeFilter): PathFromNode!
 	"""
 	Returns the number of neighbours that have at least one out-going edge from this node.
 	"""
-	outNeighbours: PathFromNode!
+	outNeighbours(select: NodeFilter): PathFromNode!
 	filter(expr: NodeFilter!): Node!
 }
 

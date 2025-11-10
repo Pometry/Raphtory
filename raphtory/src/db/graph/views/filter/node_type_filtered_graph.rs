@@ -157,14 +157,14 @@ mod tests_node_type_filtered_subgraph {
         assert_eq!(
             type_filtered_subgraph
                 .clone()
-                .filter(NodeFilter::property("p1").eq(1u64))
+                .filter(NodeFilter.property("p1").eq(1u64))
                 .unwrap()
                 .nodes(),
             vec!["C", "D"]
         );
 
         assert!(type_filtered_subgraph
-            .filter(EdgeFilter::property("p1").eq(1u64))
+            .filter(EdgeFilter.property("p1").eq(1u64))
             .unwrap()
             .edges()
             .is_empty())
@@ -348,7 +348,7 @@ mod tests_node_type_filtered_subgraph {
 
             #[test]
             fn test_nodes_filters() {
-                let filter = NodeFilter::property("p1").eq(1u64);
+                let filter = NodeFilter.property("p1").eq(1u64);
                 // NodePropertyFilter
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_nodes_results(
@@ -368,7 +368,7 @@ mod tests_node_type_filtered_subgraph {
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
-                let filter = NodeFilter::property("p1").eq(1u64);
+                let filter = NodeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -389,7 +389,7 @@ mod tests_node_type_filtered_subgraph {
             #[test]
             fn test_nodes_filters_w() {
                 // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-                let filter = NodeFilter::property("p1").eq(1u64);
+                let filter = NodeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -408,7 +408,7 @@ mod tests_node_type_filtered_subgraph {
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
-                let filter = NodeFilter::property("p1").eq(1u64);
+                let filter = NodeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -428,7 +428,7 @@ mod tests_node_type_filtered_subgraph {
 
             #[test]
             fn test_nodes_filters_pg_w() {
-                let filter = NodeFilter::property("p1").eq(1u64);
+                let filter = NodeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -447,7 +447,7 @@ mod tests_node_type_filtered_subgraph {
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
-                let filter = NodeFilter::property("p1").eq(1u64);
+                let filter = NodeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -587,7 +587,7 @@ mod tests_node_type_filtered_subgraph {
 
             #[test]
             fn test_edges_filters() {
-                let filter = EdgeFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
                     init_graph,
@@ -606,7 +606,7 @@ mod tests_node_type_filtered_subgraph {
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
-                let filter = EdgeFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5"];
                 assert_filter_edges_results(
                     init_graph,
@@ -643,7 +643,7 @@ mod tests_node_type_filtered_subgraph {
 
             #[test]
             fn test_edges_filters_w() {
-                let filter = EdgeFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
                 assert_filter_edges_results(
                     init_graph,
@@ -662,7 +662,7 @@ mod tests_node_type_filtered_subgraph {
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
-                let filter = EdgeFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4"];
                 assert_filter_edges_results(
                     init_graph,
@@ -703,7 +703,7 @@ mod tests_node_type_filtered_subgraph {
 
             #[test]
             fn test_edges_filters_pg_w() {
-                let filter = EdgeFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
                 let graph = init_graph(Graph::new()).persistent_graph();
                 let edge = graph.edge("N8", "N1").unwrap();
@@ -737,7 +737,7 @@ mod tests_node_type_filtered_subgraph {
 
                 let node_types: Option<Vec<String>> =
                     Some(vec!["air_nomad".into(), "water_tribe".into()]);
-                let filter = EdgeFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter.property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4"];
                 assert_filter_edges_results(
                     init_graph,

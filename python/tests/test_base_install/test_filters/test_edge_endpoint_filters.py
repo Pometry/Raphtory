@@ -11,6 +11,7 @@ def test_edges_src_property_eq():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "1"), ("2", "3")])
         assert result == expected
+
     return check
 
 
@@ -22,7 +23,9 @@ def test_edges_dst_property_contains():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "3")])
         assert result == expected
+
     return check
+
 
 @with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
 def test_edges_dst_property_any_contains():
@@ -32,6 +35,7 @@ def test_edges_dst_property_any_contains():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "3"), ("3", "4")])
         assert result == expected
+
     return check
 
 
@@ -40,8 +44,11 @@ def test_edges_dst_property_gt():
     def check(graph):
         expr = filter.Edge.dst().property("p100") > 55
         result = sorted(graph.filter(expr).edges.id)
-        expected = sorted([("2", "3")])  # edge (2,3) is at times 2 and 3; IDs dedup by view
+        expected = sorted(
+            [("2", "3")]
+        )  # edge (2,3) is at times 2 and 3; IDs dedup by view
         assert result == expected
+
     return check
 
 
@@ -52,6 +59,7 @@ def test_edges_src_property_temporal_sum():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d")])
         assert result == expected
+
     return check
 
 
@@ -63,6 +71,7 @@ def test_edges_src_property_any_equals():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d")])
         assert result == expected
+
     return check
 
 
@@ -75,6 +84,7 @@ def test_edges_src_metadata_sum_with_same_name_property():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d")])
         assert result == expected
+
     return check
 
 
@@ -85,6 +95,7 @@ def test_edges_src_metadata_avg():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d"), ("b", "d")])
         assert result == expected
+
     return check
 
 
@@ -97,7 +108,9 @@ def test_edges_src_property_and_edge_property():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "3")])
         assert result == expected
+
     return check
+
 
 @with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
 def test_edges_src_and_dst_property():
@@ -108,6 +121,7 @@ def test_edges_src_and_dst_property():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "3")])
         assert result == expected
+
     return check
 
 
@@ -120,6 +134,7 @@ def test_edges_src_or_dst_property():
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "1"), ("2", "3")])
         assert result == expected
+
     return check
 
 
@@ -127,11 +142,12 @@ def test_edges_src_or_dst_property():
 def test_edges_src_property_and_dst_name():
     def check(graph):
         expr = (filter.Edge.src().property("prop1") >= 20) & (
-                filter.Edge.dst().name() == "d"
+            filter.Edge.dst().name() == "d"
         )
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d"), ("c", "d")])
         assert result == expected
+
     return check
 
 
@@ -139,11 +155,12 @@ def test_edges_src_property_and_dst_name():
 def test_edges_src_metadata_and_edge_property():
     def check(graph):
         expr = (filter.Edge.src().metadata("prop1").sum() == 36) & (
-                filter.Edge.property("eprop1") > 20
+            filter.Edge.property("eprop1") > 20
         )
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d")])
         assert result == expected
+
     return check
 
 
@@ -173,10 +190,9 @@ def test_edges_dst_node_type_contains():
 @with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
 def test_edges_src_and_dst_node_type():
     def check(graph):
-        expr = (
-                filter.Edge.src().node_type().starts_with("fire")
-                & filter.Edge.dst().node_type().contains("nomads")
-        )
+        expr = filter.Edge.src().node_type().starts_with(
+            "fire"
+        ) & filter.Edge.dst().node_type().contains("nomads")
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("1", "2")])
         assert result == expected
@@ -187,9 +203,8 @@ def test_edges_src_and_dst_node_type():
 @with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
 def test_edges_src_or_dst_node_type():
     def check(graph):
-        expr = (
-                (filter.Edge.src().node_type() == "air_nomads")
-                | (filter.Edge.dst().node_type() == "fire_nation")
+        expr = (filter.Edge.src().node_type() == "air_nomads") | (
+            filter.Edge.dst().node_type() == "fire_nation"
         )
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "3"), ("2", "1"), ("3", "1")])
@@ -220,9 +235,8 @@ def test_edges_not_src_node_type():
 def test_edges_src_node_type_eq_compose_with_edge_prop():
     def check(graph):
         # edge ("c","d") has eprop1 > 20 but src node_type isn't fire_nation, so not included here
-        expr = (
-                (filter.Edge.src().node_type() == "fire_nation")
-                & (filter.Edge.property("eprop1") > 20)
+        expr = (filter.Edge.src().node_type() == "fire_nation") & (
+            filter.Edge.property("eprop1") > 20
         )
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d")])

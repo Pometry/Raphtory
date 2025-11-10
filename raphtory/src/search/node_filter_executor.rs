@@ -2,6 +2,7 @@ use crate::{
     db::{
         api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
         graph::{
+            edge::EdgeView,
             node::NodeView,
             views::filter::{
                 internal::CreateFilter,
@@ -14,7 +15,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::{GraphViewOps, PropertyFilter, TimeOps},
     search::{
         collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
         fallback_filter_nodes, fields, get_reader, graph_index::Index,
@@ -22,11 +23,13 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
-    collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
-    Searcher, TantivyDocument,
+    collector::{Collector, Count, TopDocs},
+    query::Query,
+    schema::Value,
+    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -45,7 +48,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn execute_filter_query<G: StaticGraphViewOps>(
         &self,
-        filter: impl CreateFilter,
+        filter: impl CreateFilter + std::fmt::Display + std::fmt::Debug,
         graph: &G,
         query: Box<dyn Query>,
         reader: &IndexReader,
@@ -55,7 +58,9 @@ impl<'a> NodeFilterExecutor<'a> {
         let searcher = reader.searcher();
         let collector = UniqueEntityFilterCollector::new(fields::NODE_ID.to_string());
         let node_ids = searcher.search(&query, &collector)?;
+        println!("node_ids: {:?}", node_ids);
         let nodes = self.resolve_nodes_from_node_ids(filter, graph, node_ids)?;
+        println!("resolved_nodes: {:?}", nodes);
 
         if offset == 0 && limit >= nodes.len() {
             Ok(nodes)
@@ -66,7 +71,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn execute_filter_property_query<G, C>(
         &self,
-        filter: impl CreateFilter,
+        filter: impl CreateFilter + std::fmt::Display + std::fmt::Debug,
         graph: &G,
         query: Box<dyn Query>,
         reader: &IndexReader,
@@ -217,6 +222,7 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
+        println!("query {:?}, filter {}", query, filter);
         let reader = get_reader(&node_index.entity_index.index)?;
         let results = match query {
             Some(query) => self.execute_filter_query(
@@ -248,6 +254,25 @@ impl<'a> NodeFilterExecutor<'a> {
         match filter {
             CompositeNodeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
+            }
+            CompositeNodeFilter::PropertyWindowed(filter) => {
+                let start = filter.entity.start.t();
+                let end = filter.entity.end.t();
+
+                let filter = PropertyFilter {
+                    prop_ref: filter.prop_ref.clone(),
+                    prop_value: filter.prop_value.clone(),
+                    operator: filter.operator,
+                    ops: filter.ops.clone(),
+                    entity: NodeFilter,
+                };
+
+                let res =
+                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| NodeView::new_internal(graph.clone(), x.node))
+                    .collect())
             }
             CompositeNodeFilter::Node(filter) => {
                 self.filter_node_index(graph, filter, limit, offset)
@@ -317,10 +342,11 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn resolve_nodes_from_node_ids<G: StaticGraphViewOps>(
         &self,
-        filter: impl CreateFilter,
+        filter: impl CreateFilter + std::fmt::Display + std::fmt::Debug,
         graph: &G,
         node_ids: HashSet<u64>,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
+        println!("filter {:?}", filter);
         let filtered_graph = graph.filter(filter)?;
         let nodes = node_ids
             .into_iter()

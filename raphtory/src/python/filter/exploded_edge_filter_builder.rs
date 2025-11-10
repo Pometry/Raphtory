@@ -1,6 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{EdgeEndpoint, EdgeFilter, EndpointWrapper},
+        exploded_edge_filter::{ExplodedEdgeEndpoint, ExplodedEdgeFilter, ExplodedEndpointWrapper},
         node_filter::{
             NodeFilter, NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
         },
@@ -11,7 +11,7 @@ use crate::{
         filter::{
             filter_expr::PyFilterExpr,
             property_filter_builders::{PyFilterOps, PyPropertyFilterBuilder},
-            window_filter::PyEdgeWindow,
+            window_filter::PyExplodedEdgeWindow,
         },
         types::iterable::FromIterable,
         utils::PyTime,
@@ -21,12 +21,12 @@ use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
-#[pyclass(frozen, name = "EdgeIdFilterOp", module = "raphtory.filter")]
+#[pyclass(frozen, name = "ExplodedEdgeIdFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeIdFilterOp(pub EndpointWrapper<NodeIdFilterBuilder>);
+pub struct PyExplodedEdgeIdFilterOp(pub ExplodedEndpointWrapper<NodeIdFilterBuilder>);
 
 #[pymethods]
-impl PyEdgeIdFilterOp {
+impl PyExplodedEdgeIdFilterOp {
     fn __eq__(&self, value: GID) -> PyFilterExpr {
         PyFilterExpr(Arc::new(self.0.eq(value)))
     }
@@ -89,44 +89,44 @@ impl PyEdgeIdFilterOp {
     }
 }
 
-#[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
+#[pyclass(frozen, name = "ExplodedEdgeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeFilterOp(EdgeTextBuilder);
+pub struct PyExplodedEdgeFilterOp(ExplodedEdgeTextBuilder);
 
 #[derive(Clone)]
-enum EdgeTextBuilder {
-    Name(EndpointWrapper<NodeNameFilterBuilder>),
-    Type(EndpointWrapper<NodeTypeFilterBuilder>),
+enum ExplodedEdgeTextBuilder {
+    Name(ExplodedEndpointWrapper<NodeNameFilterBuilder>),
+    Type(ExplodedEndpointWrapper<NodeTypeFilterBuilder>),
 }
 
-impl From<EndpointWrapper<NodeNameFilterBuilder>> for PyEdgeFilterOp {
-    fn from(v: EndpointWrapper<NodeNameFilterBuilder>) -> Self {
-        PyEdgeFilterOp(EdgeTextBuilder::Name(v))
+impl From<ExplodedEndpointWrapper<NodeNameFilterBuilder>> for PyExplodedEdgeFilterOp {
+    fn from(v: ExplodedEndpointWrapper<NodeNameFilterBuilder>) -> Self {
+        PyExplodedEdgeFilterOp(ExplodedEdgeTextBuilder::Name(v))
     }
 }
 
-impl From<EndpointWrapper<NodeTypeFilterBuilder>> for PyEdgeFilterOp {
-    fn from(v: EndpointWrapper<NodeTypeFilterBuilder>) -> Self {
-        PyEdgeFilterOp(EdgeTextBuilder::Type(v))
+impl From<ExplodedEndpointWrapper<NodeTypeFilterBuilder>> for PyExplodedEdgeFilterOp {
+    fn from(v: ExplodedEndpointWrapper<NodeTypeFilterBuilder>) -> Self {
+        PyExplodedEdgeFilterOp(ExplodedEdgeTextBuilder::Type(v))
     }
 }
 
-impl PyEdgeFilterOp {
+impl PyExplodedEdgeFilterOp {
     #[inline]
     fn map<T>(
         &self,
-        f_name: impl FnOnce(&EndpointWrapper<NodeNameFilterBuilder>) -> T,
-        f_type: impl FnOnce(&EndpointWrapper<NodeTypeFilterBuilder>) -> T,
+        f_name: impl FnOnce(&ExplodedEndpointWrapper<NodeNameFilterBuilder>) -> T,
+        f_type: impl FnOnce(&ExplodedEndpointWrapper<NodeTypeFilterBuilder>) -> T,
     ) -> T {
         match &self.0 {
-            EdgeTextBuilder::Name(n) => f_name(n),
-            EdgeTextBuilder::Type(t) => f_type(t),
+            ExplodedEdgeTextBuilder::Name(n) => f_name(n),
+            ExplodedEdgeTextBuilder::Type(t) => f_type(t),
         }
     }
 }
 
 #[pymethods]
-impl PyEdgeFilterOp {
+impl PyExplodedEdgeFilterOp {
     fn __eq__(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| PyFilterExpr(Arc::new(n.eq(value.clone()))),
@@ -210,22 +210,22 @@ impl PyEdgeFilterOp {
     }
 }
 
-#[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
+#[pyclass(frozen, name = "ExplodedEdgeEndpoint", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpoint(pub EdgeEndpoint);
+pub struct PyExplodedEdgeEndpoint(pub ExplodedEdgeEndpoint);
 
 #[pymethods]
-impl PyEdgeEndpoint {
-    fn id(&self) -> PyEdgeIdFilterOp {
-        PyEdgeIdFilterOp(self.0.id())
+impl PyExplodedEdgeEndpoint {
+    fn id(&self) -> PyExplodedEdgeIdFilterOp {
+        PyExplodedEdgeIdFilterOp(self.0.id())
     }
 
-    fn name(&self) -> PyEdgeFilterOp {
-        PyEdgeFilterOp::from(self.0.name())
+    fn name(&self) -> PyExplodedEdgeFilterOp {
+        PyExplodedEdgeFilterOp::from(self.0.name())
     }
 
-    fn node_type(&self) -> PyEdgeFilterOp {
-        PyEdgeFilterOp::from(self.0.node_type())
+    fn node_type(&self) -> PyExplodedEdgeFilterOp {
+        PyExplodedEdgeFilterOp::from(self.0.node_type())
     }
 
     fn property<'py>(
@@ -233,34 +233,36 @@ impl PyEdgeEndpoint {
         py: Python<'py>,
         name: String,
     ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<EndpointWrapper<NodeFilter>> = self.0.property(name);
+        let b: PropertyFilterBuilder<ExplodedEndpointWrapper<NodeFilter>> = self.0.property(name);
         b.into_pyobject(py)
     }
 
     fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
-        let b: MetadataFilterBuilder<EndpointWrapper<NodeFilter>> = self.0.metadata(name);
+        let b: MetadataFilterBuilder<ExplodedEndpointWrapper<NodeFilter>> = self.0.metadata(name);
         b.into_pyobject(py)
     }
 
-    fn window(&self, py_start: PyTime, py_end: PyTime) -> PyResult<PyEdgeEndpointWindow> {
-        Ok(PyEdgeEndpointWindow(self.0.window(py_start, py_end)))
+    fn window(&self, py_start: PyTime, py_end: PyTime) -> PyResult<PyExplodedEdgeEndpointWindow> {
+        Ok(PyExplodedEdgeEndpointWindow(
+            self.0.window(py_start, py_end),
+        ))
     }
 }
 
-#[pyclass(frozen, name = "Edge", module = "raphtory.filter")]
+#[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeFilter;
+pub struct PyExplodedEdgeFilter;
 
 #[pymethods]
-impl PyEdgeFilter {
+impl PyExplodedEdgeFilter {
     #[staticmethod]
-    fn src() -> PyEdgeEndpoint {
-        PyEdgeEndpoint(EdgeFilter::src())
+    fn src() -> PyExplodedEdgeEndpoint {
+        PyExplodedEdgeEndpoint(ExplodedEdgeEndpoint::src())
     }
 
     #[staticmethod]
-    fn dst() -> PyEdgeEndpoint {
-        PyEdgeEndpoint(EdgeFilter::dst())
+    fn dst() -> PyExplodedEdgeEndpoint {
+        PyExplodedEdgeEndpoint(ExplodedEdgeEndpoint::dst())
     }
 
     #[staticmethod]
@@ -268,41 +270,49 @@ impl PyEdgeFilter {
         py: Python<'py>,
         name: String,
     ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<EdgeFilter> =
-            PropertyFilterFactory::property(&EdgeFilter, name);
+        let b: PropertyFilterBuilder<ExplodedEdgeFilter> =
+            PropertyFilterFactory::property(&ExplodedEdgeFilter, name);
         b.into_pyobject(py)
     }
 
     #[staticmethod]
     fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
-        let b: MetadataFilterBuilder<EdgeFilter> =
-            PropertyFilterFactory::metadata(&EdgeFilter, name);
+        let b: MetadataFilterBuilder<ExplodedEdgeFilter> =
+            PropertyFilterFactory::metadata(&ExplodedEdgeFilter, name);
         b.into_pyobject(py)
     }
 
     #[staticmethod]
-    fn window(start: PyTime, end: PyTime) -> PyResult<PyEdgeWindow> {
-        Ok(PyEdgeWindow(Windowed::<EdgeFilter>::from_times(start, end)))
+    fn window(start: PyTime, end: PyTime) -> PyResult<PyExplodedEdgeWindow> {
+        Ok(PyExplodedEdgeWindow(
+            Windowed::<ExplodedEdgeFilter>::from_times(start, end),
+        ))
     }
 }
 
-#[pyclass(frozen, name = "EdgeEndpointWindow", module = "raphtory.filter")]
+#[pyclass(
+    frozen,
+    name = "ExplodedEdgeEndpointWindow",
+    module = "raphtory.filter"
+)]
 #[derive(Clone)]
-pub struct PyEdgeEndpointWindow(pub EndpointWrapper<Windowed<NodeFilter>>);
+pub struct PyExplodedEdgeEndpointWindow(pub ExplodedEndpointWrapper<Windowed<NodeFilter>>);
 
 #[pymethods]
-impl PyEdgeEndpointWindow {
+impl PyExplodedEdgeEndpointWindow {
     fn property<'py>(
         &self,
         py: Python<'py>,
         name: String,
     ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<_> = self.0.property(name);
+        let b: PropertyFilterBuilder<ExplodedEndpointWrapper<Windowed<NodeFilter>>> =
+            self.0.property(name);
         b.into_pyobject(py)
     }
 
     fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
-        let b: MetadataFilterBuilder<_> = self.0.metadata(name);
+        let b: MetadataFilterBuilder<ExplodedEndpointWrapper<Windowed<NodeFilter>>> =
+            self.0.metadata(name);
         b.into_pyobject(py)
     }
 }

@@ -16,7 +16,7 @@ pub trait BaseFilterOps<'graph>: BaseFilter<'graph> {
 }
 
 pub trait IterFilterOps<'graph>: IterFilter<'graph> {
-    fn filter_iter<F: CreateFilter>(
+    fn select<F: CreateFilter>(
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F::EntityFiltered<'graph, Self::IterGraph>>, GraphError> {

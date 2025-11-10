@@ -813,14 +813,14 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
 def test_filter_nodes_with_with_qualifier_alongside_illegal_agg_operators():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").all().len()
+        filter_expr = filter.Node.property("prop8").all().len() > 0
         with pytest.raises(
             Exception,
             match=r"List aggregation len cannot be used after an element qualifier \(any/all\)",
         ):
             graph.filter(filter_expr).nodes.id
 
-        filter_expr = filter.Node.property("prop8").sum().any()
+        filter_expr = filter.Node.property("prop8").sum().any() > 0
         with pytest.raises(
             Exception,
             match=r"Element qualifiers \(any/all\) cannot be used after a list aggregation \(len/sum/avg/min/max\).",
@@ -1139,8 +1139,3 @@ def test_filter_nodes_window_out_of_range_is_empty():
         assert list(graph.filter(expr).nodes.id) == []
 
     return check
-
-
-def test_filter_nodes_window_start_must_be_less_than_end():
-    with pytest.raises(Exception, match="window.start must be <= window.end"):
-        filter.Node.window(3, 1).property("prop5").temporal().sum() >= 0
