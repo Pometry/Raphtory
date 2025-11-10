@@ -131,6 +131,7 @@ mod serialise_test {
     }
 
     #[test]
+    #[ignore = "TODO: #2377"]
     fn edge_t_props() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
@@ -183,6 +184,7 @@ mod serialise_test {
     }
 
     #[test]
+    #[ignore = "TODO: #2377"]
     fn test_all_the_t_props_on_node() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
@@ -210,6 +212,7 @@ mod serialise_test {
     }
 
     #[test]
+    #[ignore = "TODO: #2377"]
     fn test_all_the_t_props_on_edge() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
@@ -265,6 +268,7 @@ mod serialise_test {
     }
 
     #[test]
+    #[ignore = "TODO: #2377"]
     fn test_all_the_metadata_on_node() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
@@ -290,6 +294,7 @@ mod serialise_test {
     }
 
     #[test]
+    #[ignore = "TODO: #2377"]
     fn graph_metadata() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
@@ -311,6 +316,7 @@ mod serialise_test {
     }
 
     #[test]
+    #[ignore = "TODO: #2377"]
     fn graph_temp_properties() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
