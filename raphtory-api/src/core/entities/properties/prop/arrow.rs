@@ -168,16 +168,19 @@ impl<'a> ArrowRow<'a> {
     }
 
     pub fn into_prop(self) -> Option<Prop> {
-        let map = Prop::map(
-            self.array
-                .fields()
-                .iter()
-                .enumerate()
-                .filter_map(|(col, field)| Some((field.name().as_ref(), self.prop_value(col)?))),
-        );
-        match map {
-            Prop::Map(m) if m.is_empty() => None,
-            _ => Some(map),
+        if self.index >= self.array.len() || self.array.is_null(self.index) {
+            None
+        } else {
+            let map = Prop::map(
+                self.array
+                    .fields()
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(col, field)| {
+                        Some((field.name().as_ref(), self.prop_value(col)?))
+                    }),
+            );
+            Some(map)
         }
     }
 
