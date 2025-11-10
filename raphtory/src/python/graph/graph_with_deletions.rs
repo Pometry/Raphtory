@@ -16,9 +16,9 @@ use crate::{
     },
     errors::GraphError,
     io::parquet_loaders::*,
-    prelude::{DeletionOps, GraphViewOps, ImportOps, IndexMutationOps},
+    prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
-        graph::{edge::PyEdge, index::PyIndexSpec, node::PyNode, views::graph_view::PyGraphView},
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
     },
     serialise::StableEncode,
@@ -34,6 +34,9 @@ use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
 };
+
+#[cfg(feature = "search")]
+use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
@@ -1007,6 +1010,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
     }
@@ -1017,6 +1021,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph.create_index_with_spec(py_spec.spec.clone())
     }
@@ -1028,6 +1033,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
@@ -1045,6 +1051,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())

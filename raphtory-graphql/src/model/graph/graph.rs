@@ -27,10 +27,7 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
-            view::{
-                DynamicGraph, IntoDynamic, NodeViewOps, SearchableGraphOps, StaticGraphViewOps,
-                TimeOps,
-            },
+            view::{DynamicGraph, IntoDynamic, NodeViewOps, StaticGraphViewOps, TimeOps},
         },
         graph::{
             node::NodeView,
@@ -47,6 +44,9 @@ use std::{
     convert::{Into, TryInto},
     sync::Arc,
 };
+
+#[cfg(feature = "search")]
+use raphtory::db::api::view::SearchableGraphOps;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Graph")]

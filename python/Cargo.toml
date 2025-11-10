@@ -21,16 +21,16 @@ crate-type = ["cdylib"]
 pyo3 = { workspace = true }
 raphtory = { workspace = true, features = [
     "python",
-    "search",
     "vectors",
     "proto",
 ] }
 raphtory-graphql = { workspace = true, features = [
-    "python", "search"
+    "python",
 ] }
 
 [features]
 extension-module = ["pyo3/extension-module"]
+search = ["raphtory/search", "raphtory-graphql/search"]
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }

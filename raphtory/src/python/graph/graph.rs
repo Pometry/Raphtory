@@ -14,8 +14,8 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyPersistentGraph, index::PyIndexSpec,
-            io::pandas_loaders::*, node::PyNode, views::graph_view::PyGraphView,
+            edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
+            node::PyNode, views::graph_view::PyGraphView,
         },
         types::iterable::FromIterable,
         utils::{PyNodeRef, PyTime},
@@ -33,6 +33,9 @@ use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
 };
+
+#[cfg(feature = "search")]
+use crate::python::graph::index::PyIndexSpec;
 
 /// A temporal graph with event semantics.
 ///
@@ -990,6 +993,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
     }
@@ -1001,6 +1005,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph.create_index_with_spec(py_spec.spec.clone())
     }
@@ -1012,6 +1017,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
@@ -1029,6 +1035,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())

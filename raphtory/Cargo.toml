@@ -148,7 +148,6 @@ vectors = [
 python = [
     "io",
     "arrow",
-    "search",
     "vectors",
     "proto",
     "dep:pyo3",
