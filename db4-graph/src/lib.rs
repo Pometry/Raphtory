@@ -207,7 +207,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn disk_storage_enabled(&self) -> bool {
-        Extension::disk_storage_enabled()
+        self.graph_dir().is_some() && Extension::disk_storage_enabled()
     }
     pub fn extension(&self) -> &EXT {
         self.storage().extension()
