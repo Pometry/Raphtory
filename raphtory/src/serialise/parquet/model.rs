@@ -55,7 +55,7 @@ impl<'a> Serialize for ParquetProp<'a> {
             }
             Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
             Prop::Array(_) => {
-                todo!("Serializer not implemented for Array (TODO: ")
+                todo!("Serializer not implemented for Array (TODO: #2377)")
             }
         }
     }

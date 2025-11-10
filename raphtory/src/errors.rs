@@ -255,7 +255,7 @@ pub enum GraphError {
     #[error("The path {0} does not contain a vector DB")]
     VectorDbDoesntExist(String),
 
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
         #[from]
@@ -327,7 +327,7 @@ pub enum GraphError {
     #[error("Protobuf decode error{0}")]
     EncodeError(#[from] prost::EncodeError),
 
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "io")]
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
 

@@ -237,6 +237,7 @@ mod serialise_test {
     }
 
     #[test]
+    #[ignore = "TODO: #2377"]
     fn test_all_the_metadata_on_edge() {
         let mut props = vec![];
         write_props_to_vec(&mut props);

@@ -106,7 +106,7 @@ pub mod io;
 pub mod api;
 pub mod core;
 pub mod errors;
-#[cfg(feature = "proto")]
+#[cfg(feature = "io")]
 pub mod serialise;
 pub mod storage;
 
@@ -149,7 +149,7 @@ pub mod prelude {
         },
     };
 
-    #[cfg(feature = "proto")]
+    #[cfg(all(feature = "io", feature = "arrow"))]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
         StableDecode, StableEncode,

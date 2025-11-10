@@ -22,7 +22,6 @@ pyo3 = { workspace = true }
 raphtory = { workspace = true, features = [
     "python",
     "vectors",
-    "proto",
 ] }
 raphtory-graphql = { workspace = true, features = [
     "python",
@@ -31,6 +30,7 @@ raphtory-graphql = { workspace = true, features = [
 [features]
 extension-module = ["pyo3/extension-module"]
 search = ["raphtory/search", "raphtory-graphql/search"]
+proto = ["raphtory/proto"]
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }

@@ -123,6 +123,7 @@ io = [
     "dep:tokio",
     "dep:parquet",
     "dep:tempfile",
+    "dep:zip",
     "kdam",
 ]
 
@@ -168,7 +169,6 @@ arrow = [
 proto = [
     "dep:prost",
     "dep:prost-types",
-    "dep:zip",
     "dep:prost-build",
     "dep:memmap2",
     "arrow",
