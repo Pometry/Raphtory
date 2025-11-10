@@ -1,7 +1,3 @@
-use std::path::Path;
-
-#[cfg(feature = "search")]
-use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::{mutation::AdditionOps, view::StaticGraphViewOps},
     errors::GraphError,
@@ -10,8 +6,11 @@ use crate::{
         GraphFolder,
     },
 };
-use std::{fs, fs::File};
+use std::{fs, fs::File, path::Path};
 use tempfile;
+
+#[cfg(feature = "search")]
+use crate::prelude::IndexMutationOps;
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     /// Encode the graph into bytes.

@@ -121,10 +121,10 @@ io = [
     "dep:csv",
     "dep:reqwest",
     "dep:tokio",
-    "dep:parquet",
     "dep:tempfile",
     "dep:zip",
     "kdam",
+    "arrow",
 ]
 
 # search
