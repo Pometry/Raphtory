@@ -68,12 +68,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Run Python tests
-        run: |
-          cd python && tox run
-      - name: Run Python extension tests
-        run: |
-          cd examples/netflow/test && pytest .
       - name: Validate graphQL schema
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
@@ -114,3 +108,9 @@ jobs:
           else
             echo "No changes to commit."
           fi
+      - name: Run Python tests
+        run: |
+          cd python && tox run
+      - name: Run Python extension tests
+        run: |
+          cd examples/netflow/test && pytest .
