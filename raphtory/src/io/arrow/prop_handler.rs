@@ -6,13 +6,13 @@ use crate::{
 use arrow::{
     array::{
         Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
-        FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
-        StringViewArray, StructArray,
+        FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait,
+        PrimitiveArray, StringViewArray, StructArray,
     },
     buffer::NullBuffer,
     datatypes::{
-        DataType, Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type, TimeUnit,
-        TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
+        DataType, Date32Type, Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
+        TimeUnit, TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
         TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
     },
 };
@@ -158,6 +158,20 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
                 })
                 .into_prop_list()
         }
+        DataType::Date32 => {
+            let arr = arr.as_primitive::<Date32Type>();
+            arr.iter()
+                .flatten()
+                .map(|days| {
+                    let ms = (days as i64) * 86_400_000;
+                    Prop::NDTime(
+                        DateTime::from_timestamp_millis(ms)
+                            .expect("DateTime conversion failed for Date32 type")
+                            .naive_utc(),
+                    )
+                })
+                .into_prop_list()
+        }
         DataType::Struct(_) => {
             let arr = arr.as_struct();
             let cols = arr
@@ -225,6 +239,7 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
             None => Ok(PropType::NDTime),
             Some(_) => Ok(PropType::DTime),
         },
+        DataType::Date32 => Ok(PropType::NDTime),
         DataType::Decimal128(precision, scale) if *precision <= 38 => Ok(PropType::Decimal {
             scale: *scale as i64,
         }),
@@ -464,6 +479,17 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
                 }),
             },
         },
+        DataType::Date32 => Box::new(MappedPrimitiveCol {
+            arr: arr.as_primitive::<Date32Type>().clone(),
+            map: |days| {
+                let ms = (days as i64) * 86_400_000; // convert days to ms
+                Prop::NDTime(
+                    DateTime::from_timestamp_millis(ms)
+                        .expect("DateTime conversion failed for Date32 type")
+                        .naive_utc(),
+                )
+            },
+        }),
         DataType::Decimal128(precision, scale) if *precision <= 38 => {
             let arr = arr.as_primitive::<Decimal128Type>().clone();
             Box::new(DecimalPropCol {
