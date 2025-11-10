@@ -168,9 +168,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         let max_page_len = ext.max_edge_page_len();
 
         let meta = Arc::new(Meta::new_for_edges());
+
         if !edges_path.exists() {
             return Ok(Self::new(Some(edges_path.to_path_buf()), ext.clone()));
         }
+
         let mut pages = std::fs::read_dir(edges_path)?
             .filter(|entry| {
                 entry
@@ -187,6 +189,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
                 let page = ES::load(page_id, max_page_len, meta.clone(), edges_path, ext.clone())
                     .map(|page| (page_id, page));
+
                 Some(page)
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
@@ -231,11 +234,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                 }
             })
             .collect::<Vec<_>>();
+
         let mut next_free_page = free_pages
             .last()
             .map(|page| *(page.read()))
             .map(|last| last + 1)
             .unwrap_or_else(|| pages.count());
+
         free_pages.resize_with(N, || {
             let lock = RwLock::new(next_free_page);
             next_free_page += 1;
@@ -297,6 +302,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         while self.segments.get(segment_id).is_none() {
             // wait
         }
+
         segment_id
     }
 

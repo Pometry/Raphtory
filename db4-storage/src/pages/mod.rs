@@ -127,30 +127,28 @@ impl<
     pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
-        let meta_path = graph_dir.as_ref().join("meta");
+        let graph_path = graph_dir.as_ref().join("graph");
 
         let ext = read_graph_config::<EXT>(graph_dir.as_ref())?;
 
-        let edges = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
+        let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
+        let edge_meta = edge_storage.edge_meta().clone();
+        let node_storage = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
+        let node_meta = node_storage.prop_meta();
 
-        let edge_meta = edges.edge_meta().clone();
+        // Load graph temporal properties and metadata
+        let graph_storage = Arc::new(GraphStorageInner::load(graph_path, ext.clone())?);
 
-        let nodes = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
-
-        let node_meta = nodes.prop_meta();
         for node_type in ext.node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
         }
 
-        // Load graph temporal properties and metadata
-        let meta = Arc::new(GraphStorageInner::load(meta_path, ext.clone())?);
-
-        let t_len = edges.t_len();
+        let t_len = edge_storage.t_len();
 
         Ok(Self {
-            nodes,
-            edges,
-            graph: meta,
+            nodes: node_storage,
+            edges: edge_storage,
+            graph: graph_storage,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
@@ -166,7 +164,7 @@ impl<
     ) -> Self {
         let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
         let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
-        let graph_props_path = graph_dir.map(|graph_dir| graph_dir.join("graph_props"));
+        let graph_path = graph_dir.map(|graph_dir| graph_dir.join("graph"));
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
@@ -183,8 +181,8 @@ impl<
             edge_meta,
             ext.clone(),
         ));
-        let graph_prop_storage = Arc::new(GraphStorageInner::new_with_meta(
-            graph_props_path,
+        let graph_storage = Arc::new(GraphStorageInner::new_with_meta(
+            graph_path,
             graph_meta,
             ext.clone(),
         ));
@@ -196,7 +194,7 @@ impl<
         Self {
             nodes: node_storage,
             edges: edge_storage,
-            graph: graph_prop_storage,
+            graph: graph_storage,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,
