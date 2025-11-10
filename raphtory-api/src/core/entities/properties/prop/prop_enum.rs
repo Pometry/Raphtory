@@ -598,7 +598,6 @@ impl From<&Prop> for Prop {
     }
 }
 
-
 pub trait IntoPropMap {
     fn into_prop_map(self) -> Prop;
 }

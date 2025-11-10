@@ -48,12 +48,14 @@ impl<'a> Serialize for ArrowRow<'a> {
 impl<'a> ArrowRow<'a> {
     pub fn primitive_value<T: ArrowPrimitiveType>(&self, col: usize) -> Option<T::Native> {
         let primitive_array = self.array.column(col).as_primitive_opt::<T>()?;
-        (primitive_array.len() > self.index && !primitive_array.is_null(self.index)).then(|| primitive_array.value(self.index))
+        (primitive_array.len() > self.index && !primitive_array.is_null(self.index))
+            .then(|| primitive_array.value(self.index))
     }
 
     fn primitive_dt<T: DirectConvert>(&self, col: usize) -> Option<(T::Native, &DataType)> {
         let col = self.array.column(col).as_primitive_opt::<T>()?;
-        (col.len() > self.index && !col.is_null(self.index)).then(|| (col.value(self.index), col.data_type()))
+        (col.len() > self.index && !col.is_null(self.index))
+            .then(|| (col.value(self.index), col.data_type()))
     }
 
     fn primitive_prop<T: DirectConvert>(&self, col: usize) -> Option<Prop> {
@@ -64,8 +66,8 @@ impl<'a> ArrowRow<'a> {
 
     fn primitive_prop_ref<T: DirectConvert>(self, col: usize) -> Option<PropRef<'static>> {
         let col = self.array.column(col).as_primitive_opt::<T>()?;
-        let (value, dt) =
-            (col.len() > self.index && !col.is_null(self.index)).then(|| (col.value(self.index), col.data_type()))?;
+        let (value, dt) = (col.len() > self.index && !col.is_null(self.index))
+            .then(|| (col.value(self.index), col.data_type()))?;
         let prop_ref = T::prop_ref(value, dt);
         Some(prop_ref)
     }
@@ -98,15 +100,9 @@ impl<'a> ArrowRow<'a> {
         let len = column.len();
         let valid = len > self.index && !column.is_null(self.index);
         match column.data_type() {
-            DataType::Utf8 => {
-                valid.then(|| column.as_string::<i32>().value(self.index))
-            }
-            DataType::LargeUtf8 => {
-                valid.then(|| column.as_string::<i64>().value(self.index))
-            }
-            DataType::Utf8View => {
-                valid.then(|| column.as_string_view().value(self.index))
-            }
+            DataType::Utf8 => valid.then(|| column.as_string::<i32>().value(self.index)),
+            DataType::LargeUtf8 => valid.then(|| column.as_string::<i64>().value(self.index)),
+            DataType::Utf8View => valid.then(|| column.as_string_view().value(self.index)),
             _ => None,
         }
     }
