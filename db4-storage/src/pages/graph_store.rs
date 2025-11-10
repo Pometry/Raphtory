@@ -24,7 +24,7 @@ pub struct GraphStorageInner<GS, EXT> {
 
 impl<GS: GraphSegmentOps, EXT: Config> GraphStorageInner<GS, EXT> {
     pub fn new(path: Option<PathBuf>, ext: EXT) -> Self {
-        let page = Arc::new(GS::new());
+        let page = Arc::new(GS::new(path.clone()));
         let graph_meta = Arc::new(GraphMeta::new());
 
         Self {
@@ -36,7 +36,7 @@ impl<GS: GraphSegmentOps, EXT: Config> GraphStorageInner<GS, EXT> {
     }
 
     pub fn new_with_meta(path: Option<PathBuf>, graph_meta: Arc<GraphMeta>, ext: EXT) -> Self {
-        let page = Arc::new(GS::new());
+        let page = Arc::new(GS::new(path.clone()));
 
         Self {
             page,

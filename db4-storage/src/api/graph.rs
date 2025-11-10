@@ -5,6 +5,7 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use crate::segments::graph::segment::MemGraphSegment;
 use raphtory_api::core::entities::properties::tprop::TPropOps;
+use std::path::PathBuf;
 
 pub trait GraphSegmentOps: Send + Sync + Debug + 'static
 where
@@ -12,7 +13,7 @@ where
 {
     type Entry<'a>: GraphEntryOps<'a>;
 
-    fn new() -> Self;
+    fn new(path: Option<PathBuf>) -> Self;
 
     fn load(path: impl AsRef<Path>) -> Result<Self, StorageError>;
 
