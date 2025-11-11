@@ -763,6 +763,43 @@ impl PyGraph {
         )
     }
 
+    #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
+    fn load_edges_from_polars(
+        &self,
+        df: &Bound<PyAny>,
+        time: &str,
+        src: &str,
+        dst: &str,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+
+        // Convert Polars DataFrame -> pandas.DataFrame
+        let pandas_df = df.call_method0("to_pandas").map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Failed converting Polars DataFrame to pandas via to_pandas(): {e}"
+            ))
+        })?;
+
+        load_edges_from_pandas(
+            &self.graph,
+            &pandas_df,
+            time,
+            src,
+            dst,
+            &properties,
+            &metadata,
+            shared_metadata.as_ref(),
+            layer,
+            layer_col,
+        )
+    }
+
     /// Load edges from a Parquet file into the graph.
     ///
     /// Arguments:

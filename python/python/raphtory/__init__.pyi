@@ -1173,6 +1173,9 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def load_edges_from_polars(self, df, time, src, dst, properties=None, metadata=None, shared_metadata=None, layer=None, layer_col=None):
+        ...
+
     @staticmethod
     def load_from_file(path: str) -> Graph:
         """
