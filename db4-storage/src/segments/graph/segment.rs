@@ -51,6 +51,18 @@ impl MemGraphSegment {
         &self.layers
     }
 
+    /// Replaces this segment with an empty instance, returning the old segment
+    /// with its data.
+    ///
+    /// The new segment will have the same number of layers as the original.
+    pub fn take(&mut self) -> Self {
+        let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
+
+        Self {
+            layers,
+        }
+    }
+
     pub fn add_properties(&mut self, t: TimeIndexEntry, props: impl IntoIterator<Item = (usize, Prop)>) {
         let layer = &mut self.layers[Self::LAYER];
 

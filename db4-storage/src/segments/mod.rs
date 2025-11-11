@@ -184,6 +184,15 @@ impl<T: HasRow> SegmentContainer<T> {
         }
     }
 
+    /// Replaces this container with an empty instance, returning the
+    /// old container with its data.
+    pub fn take(&mut self) -> Self {
+        std::mem::replace(
+            self,
+            Self::new(self.segment_id, self.max_page_len, self.meta.clone()),
+        )
+    }
+
     #[inline]
     pub fn est_size(&self) -> usize {
         // TODO: this is a rough estimate and should be improved
