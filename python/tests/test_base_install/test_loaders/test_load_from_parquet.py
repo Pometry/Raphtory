@@ -869,11 +869,19 @@ def test_node_both_option_failures_parquet(parquet_files):
     )
     assert g.nodes.node_type.sorted_by_id() == ["p1", "p2", "p3", "p4", "p5", "p6"]
 
+
 def _utc_midnight(dt: datetime.date) -> datetime.datetime:
     return datetime.datetime(dt.year, dt.month, dt.day, tzinfo=datetime.timezone.utc)
 
+
 def _ms_from_date(d: datetime.date) -> int:
-    return int(datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc).timestamp() * 1000)
+    return int(
+        datetime.datetime(
+            d.year, d.month, d.day, tzinfo=datetime.timezone.utc
+        ).timestamp()
+        * 1000
+    )
+
 
 def test_load_nodes_from_parquet_date32(tmp_path):
     dates = [
@@ -893,9 +901,14 @@ def test_load_nodes_from_parquet_date32(tmp_path):
     g = Graph()
     g.load_nodes_from_parquet(parquet_path=str(path), time="time", id="id")
 
-    expected = {1: _utc_midnight(dates[0]), 2: _utc_midnight(dates[1]), 3: _utc_midnight(dates[2])}
+    expected = {
+        1: _utc_midnight(dates[0]),
+        2: _utc_midnight(dates[1]),
+        3: _utc_midnight(dates[2]),
+    }
     actual = {v.id: v.history_date_time()[0] for v in g.nodes}
     assert actual == expected
+
 
 def test_load_edges_from_parquet_date32(tmp_path):
     dates = [
@@ -920,6 +933,7 @@ def test_load_edges_from_parquet_date32(tmp_path):
     actual_times = sorted([e.time for e in g.edges.explode()])
     assert actual_times == expected_times
 
+
 def test_load_edges_from_parquet_timestamp_ms_utc(tmp_path):
     # Arrow Timestamp(ms, tz='UTC') should ingest as millisecond epoch UTC
     times = [
@@ -927,8 +941,12 @@ def test_load_edges_from_parquet_timestamp_ms_utc(tmp_path):
         datetime.datetime(2020, 1, 2, 12, 0, tzinfo=datetime.timezone.utc),
         datetime.datetime(2020, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc),
     ]
-    ts_arr = pa.array([int(t.timestamp() * 1000) for t in times], type=pa.timestamp("ms", tz="UTC"))
-    table = pa.table({"src": pa.array([1, 2, 3]), "dst": pa.array([2, 3, 4]), "time": ts_arr})
+    ts_arr = pa.array(
+        [int(t.timestamp() * 1000) for t in times], type=pa.timestamp("ms", tz="UTC")
+    )
+    table = pa.table(
+        {"src": pa.array([1, 2, 3]), "dst": pa.array([2, 3, 4]), "time": ts_arr}
+    )
     path = tmp_path / "edges_ts_ms_tz.parquet"
     pq.write_table(table, str(path))
 
@@ -938,13 +956,16 @@ def test_load_edges_from_parquet_timestamp_ms_utc(tmp_path):
     actual = sorted(e.history_date_time()[0] for e in g.edges)
     assert actual == times
 
+
 def test_load_nodes_from_parquet_timestamp_ms_utc(tmp_path):
     times = [
         datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
         datetime.datetime(2020, 1, 2, 12, 0, tzinfo=datetime.timezone.utc),
         datetime.datetime(2020, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc),
     ]
-    ts_arr = pa.array([int(t.timestamp() * 1000) for t in times], type=pa.timestamp("ms", tz="UTC"))
+    ts_arr = pa.array(
+        [int(t.timestamp() * 1000) for t in times], type=pa.timestamp("ms", tz="UTC")
+    )
     table = pa.table({"id": pa.array([1, 2, 3], type=pa.int64()), "time": ts_arr})
     path = tmp_path / "nodes_ts_ms_tz.parquet"
     pq.write_table(table, str(path))
@@ -955,10 +976,13 @@ def test_load_nodes_from_parquet_timestamp_ms_utc(tmp_path):
     actual = sorted(v.history_date_time()[0] for v in g.nodes)
     assert actual == times
 
+
 # needed to avoid floating point errors
 def to_ns(dt: datetime.datetime) -> int:
     delta = dt - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-    return (delta.days * 86_400 + delta.seconds) * 1_000_000_000 + delta.microseconds * 1000
+    return (
+        delta.days * 86_400 + delta.seconds
+    ) * 1_000_000_000 + delta.microseconds * 1000
 
 
 def test_load_edges_from_parquet_timestamp_ns_no_tz(tmp_path):
@@ -983,6 +1007,7 @@ def test_load_edges_from_parquet_timestamp_ns_no_tz(tmp_path):
     ]
     actual = sorted(e.history_date_time()[0] for e in g.edges)
     assert actual == expected
+
 
 def test_load_nodes_from_parquet_timestamp_ns_no_tz(tmp_path):
     base = [

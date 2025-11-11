@@ -1378,7 +1378,13 @@ def test_node_both_option_failures_pandas():
 
 
 def _ms_from_date(d: datetime.date) -> int:
-    return int(datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc).timestamp() * 1000)
+    return int(
+        datetime.datetime(
+            d.year, d.month, d.day, tzinfo=datetime.timezone.utc
+        ).timestamp()
+        * 1000
+    )
+
 
 def _utc_midnight(dt: datetime.date) -> datetime.datetime:
     return datetime.datetime(dt.year, dt.month, dt.day, tzinfo=datetime.timezone.utc)
@@ -1387,6 +1393,7 @@ def _utc_midnight(dt: datetime.date) -> datetime.datetime:
 def test_load_edges_from_pandas_time_date32_arrowdtype():
     try:
         import pyarrow as pa
+
         arrow_dtype = pd.ArrowDtype(pa.date32())
     except Exception:
         pytest.skip("pandas ArrowDtype(pa.date32()) not available")
@@ -1418,6 +1425,7 @@ def test_load_edges_from_pandas_time_date32_arrowdtype():
 def test_load_edges_from_pandas_time_date32_astype():
     try:
         import pyarrow as pa
+
         arrow_dtype = pd.ArrowDtype(pa.date32())
     except Exception:
         pytest.skip("pandas ArrowDtype(pa.date32()) not available")
@@ -1438,14 +1446,20 @@ def test_load_edges_from_pandas_time_date32_astype():
     g = Graph()
     g.load_edges_from_pandas(df, "time", "src", "dst")
 
-    dates = [datetime.date(1970, 1, 1), datetime.date(1970, 1, 2), datetime.date(1970, 1, 3)]
+    dates = [
+        datetime.date(1970, 1, 1),
+        datetime.date(1970, 1, 2),
+        datetime.date(1970, 1, 3),
+    ]
     expected_times = [_ms_from_date(d) for d in dates]
     actual_times = sorted([e.time for e in g.edges.explode()])
     assert actual_times == expected_times
 
+
 def test_load_nodes_from_pandas_time_date32_arrowdtype():
     try:
         import pyarrow as pa
+
         arrow_dtype = pd.ArrowDtype(pa.date32())
     except Exception:
         pytest.skip("pandas ArrowDtype(pa.date32()) not available")
@@ -1467,7 +1481,11 @@ def test_load_nodes_from_pandas_time_date32_arrowdtype():
     g = Graph()
     g.load_nodes_from_pandas(df, time="time", id="id")
 
-    expected = {1: _utc_midnight(dates[0]), 2: _utc_midnight(dates[1]), 3: _utc_midnight(dates[2])}
+    expected = {
+        1: _utc_midnight(dates[0]),
+        2: _utc_midnight(dates[1]),
+        3: _utc_midnight(dates[2]),
+    }
     actual = {v.id: v.history_date_time()[0] for v in g.nodes}
     assert actual == expected
 
@@ -1475,6 +1493,7 @@ def test_load_nodes_from_pandas_time_date32_arrowdtype():
 def test_load_nodes_from_pandas_time_date32_astype():
     try:
         import pyarrow as pa
+
         arrow_dtype = pd.ArrowDtype(pa.date32())
     except Exception:
         pytest.skip("pandas ArrowDtype(pa.date32()) not available")
@@ -1496,15 +1515,21 @@ def test_load_nodes_from_pandas_time_date32_astype():
         datetime.date(1970, 1, 2),
         datetime.date(1970, 1, 3),
     ]
-    expected = {10: _utc_midnight(dates[0]), 20: _utc_midnight(dates[1]), 30: _utc_midnight(dates[2])}
+    expected = {
+        10: _utc_midnight(dates[0]),
+        20: _utc_midnight(dates[1]),
+        30: _utc_midnight(dates[2]),
+    }
     actual = {v.id: v.history_date_time()[0] for v in g.nodes}
     assert actual == expected
+
 
 CSV_CONTENT = """src,dst,time,value
 1,2,2020-01-01T00:00:00Z,10
 2,3,2020-01-02T00:00:00Z,20
 3,4,2020-01-03T00:00:00Z,30
 """
+
 
 def test_load_edges_from_pandas_csv_c_engine_time_utf8_passes(tmp_path):
     p = tmp_path / "edges.csv"
@@ -1517,7 +1542,10 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8_passes(tmp_path):
 
     g = Graph()
     # this line should not raise an exception
-    g.load_edges_from_pandas(df=df, time="time", src="src", dst="dst", properties=["value"])
+    g.load_edges_from_pandas(
+        df=df, time="time", src="src", dst="dst", properties=["value"]
+    )
+
 
 def test_load_edges_from_pandas_csv_pyarrow_engine_works(tmp_path):
     p = tmp_path / "edges.csv"
@@ -1530,7 +1558,9 @@ def test_load_edges_from_pandas_csv_pyarrow_engine_works(tmp_path):
 
         df = pd.read_csv(p, usecols=cols, engine="pyarrow", dtype_backend="pyarrow")
         # ensure it’s datetime64[ns, UTC]
-        if "date" not in str(df["time"].dtype) and "datetime" not in str(df["time"].dtype):
+        if "date" not in str(df["time"].dtype) and "datetime" not in str(
+            df["time"].dtype
+        ):
             df["time"] = pd.to_datetime(df["time"], utc=True)
     except Exception:
         df = pd.read_csv(p, usecols=cols, engine="python")
@@ -1548,6 +1578,7 @@ def test_load_edges_from_pandas_csv_pyarrow_engine_works(tmp_path):
     ]
     actual = sorted(e.history_date_time()[0] for e in g.edges)
     assert actual == expected
+
 
 def test_load_nodes_from_pandas_csv_c_engine_time_utf8(tmp_path):
     text = """id,time
@@ -1573,6 +1604,7 @@ def test_load_nodes_from_pandas_csv_c_engine_time_utf8(tmp_path):
     actual = {v.id: v.history_date_time()[0] for v in g.nodes}
     assert actual == expected
 
+
 def test_load_edges_from_pandas_csv_c_engine_various_time_formats(tmp_path):
     # Mixed formats supported by TryIntoTime: RFC3339, RFC2822, date-only, with/without millis, space ' ' or 'T'
     csv_mixed = """src,dst,time,value
@@ -1592,7 +1624,9 @@ def test_load_edges_from_pandas_csv_c_engine_various_time_formats(tmp_path):
     assert "string" in str(df["time"].dtype) or df["time"].dtype == object
 
     g = Graph()
-    g.load_edges_from_pandas(df=df, time="time", src="src", dst="dst", properties=["value"])
+    g.load_edges_from_pandas(
+        df=df, time="time", src="src", dst="dst", properties=["value"]
+    )
 
     expected = [
         datetime.datetime(2002, 10, 2, 13, 0, 0, tzinfo=datetime.timezone.utc),
@@ -1604,6 +1638,7 @@ def test_load_edges_from_pandas_csv_c_engine_various_time_formats(tmp_path):
     ]
     actual = sorted(e.history_date_time()[0] for e in g.edges)
     assert actual == expected
+
 
 def test_load_nodes_from_pandas_csv_c_engine_various_time_formats(tmp_path):
     csv_mixed = """id,time
@@ -1628,15 +1663,20 @@ def test_load_nodes_from_pandas_csv_c_engine_various_time_formats(tmp_path):
         1: datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
         2: datetime.datetime(2002, 10, 2, 13, 0, 0, tzinfo=datetime.timezone.utc),
         3: datetime.datetime(2020, 1, 3, tzinfo=datetime.timezone.utc),
-        4: datetime.datetime(2020, 1, 4, 12, 34, 56, 789000, tzinfo=datetime.timezone.utc),
+        4: datetime.datetime(
+            2020, 1, 4, 12, 34, 56, 789000, tzinfo=datetime.timezone.utc
+        ),
         5: datetime.datetime(2020, 1, 5, 23, 59, 59, tzinfo=datetime.timezone.utc),
         6: datetime.datetime(2020, 1, 6, tzinfo=datetime.timezone.utc),
     }
     actual = {v.id: v.history_date_time()[0] for v in g.nodes}
     assert actual == expected
 
+
 def test_load_edges_from_pandas_datetime64_naive():
-    ts = pd.to_datetime(["2020-01-01 00:00:00", "2020-01-02 12:00:00", "2020-01-03 23:59:59"])
+    ts = pd.to_datetime(
+        ["2020-01-01 00:00:00", "2020-01-02 12:00:00", "2020-01-03 23:59:59"]
+    )
     df = pd.DataFrame({"time": ts, "src": [1, 2, 3], "dst": [2, 3, 4]})
 
     g = Graph()
@@ -1650,8 +1690,11 @@ def test_load_edges_from_pandas_datetime64_naive():
     actual = sorted(e.history_date_time()[0] for e in g.edges)
     assert actual == expected
 
+
 def test_load_nodes_from_pandas_datetime64_naive_passes():
-    ts = pd.to_datetime(["2020-01-01 00:00:00", "2020-01-02 12:00:00", "2020-01-03 23:59:59"])
+    ts = pd.to_datetime(
+        ["2020-01-01 00:00:00", "2020-01-02 12:00:00", "2020-01-03 23:59:59"]
+    )
     df = pd.DataFrame({"id": [1, 2, 3], "time": ts})
 
     g = Graph()
