@@ -173,7 +173,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         let storage = self.graph().core_graph().lock();
         self.nodes
             .iter_refs()
-            .map(move |vid| self.op.apply(&storage, vid))
+            .map(move |vid| self.op.apply(&self.graph(), &storage, vid))
     }
 
     fn par_iter_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
