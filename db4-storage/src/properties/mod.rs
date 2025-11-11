@@ -207,7 +207,7 @@ impl Properties {
                     .map(|i| lazy_vec.get_opt(i))
                     .map(|e| e.map(|m| SerdeMap(m)));
 
-                let struct_array = struct_array_from_props(&dt, |sm| *sm, array_iter);
+                let struct_array = struct_array_from_props(&dt, array_iter);
 
                 Some(Arc::new(struct_array))
             }

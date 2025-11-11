@@ -167,8 +167,8 @@ pub struct SerdeList<'a>(pub &'a Vec<Prop>);
 pub struct SerdeMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
 
 #[derive(Clone, Copy, Serialize)]
-pub struct SerdeRow<'a> {
-    value: Option<SerdeMap<'a>>,
+pub struct SerdeRow<P: Serialize> {
+    value: Option<P>,
 }
 
 impl<'a> Serialize for SerdeList<'a> {
@@ -354,9 +354,8 @@ impl Prop {
 }
 
 #[cfg(feature = "arrow")]
-pub fn struct_array_from_props<P>(
+pub fn struct_array_from_props<P: Serialize>(
     dt: &DataType,
-    as_serde_map: impl Fn(&P) -> SerdeMap<'_> + Copy,
     props: impl IntoIterator<Item = Option<P>>,
 ) -> StructArray {
     use serde_arrow::ArrayBuilder;
@@ -368,9 +367,7 @@ pub fn struct_array_from_props<P>(
 
     for p in props {
         builder
-            .push(SerdeRow {
-                value: p.as_ref().map(as_serde_map),
-            })
+            .push(SerdeRow { value: p })
             .unwrap_or_else(|e| panic!("Failed to push map to array builder {e}"))
     }
 
