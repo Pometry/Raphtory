@@ -9,7 +9,7 @@ use rustc_hash::FxHashMap;
 #[cfg(feature = "arrow")]
 use crate::core::entities::properties::prop::PropArray;
 use crate::core::{
-    entities::properties::prop::{ArrowRow, Prop, SedeList, SerdeMap},
+    entities::properties::prop::{ArrowRow, Prop, SerdeList, SerdeMap},
     storage::arc_str::ArcStr,
 };
 
@@ -197,7 +197,7 @@ impl<'a> Serialize for PropRef<'a> {
                 PropNum::F64(v) => serializer.serialize_f64(*v),
             },
             PropRef::Bool(b) => serializer.serialize_bool(*b),
-            PropRef::List(lst) => SedeList(lst).serialize(serializer),
+            PropRef::List(lst) => SerdeList(lst).serialize(serializer),
             PropRef::Map(map_ref) => map_ref.serialize(serializer),
             PropRef::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
             PropRef::DTime(dt) => serializer.serialize_i64(dt.timestamp_millis()),

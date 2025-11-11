@@ -5,9 +5,10 @@ use crate::core::{
     },
     storage::arc_str::ArcStr,
 };
+use arrow_array::cast::AsArray;
 #[cfg(feature = "arrow")]
 use arrow_array::StructArray;
-use arrow_schema::DataType;
+use arrow_schema::{DataType, Field, FieldRef};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -161,11 +162,16 @@ impl PartialOrd for Prop {
 }
 
 pub struct SerdeProp<'a>(pub &'a Prop);
-pub struct SedeList<'a>(pub &'a Vec<Prop>);
+pub struct SerdeList<'a>(pub &'a Vec<Prop>);
 #[derive(Clone, Copy)]
 pub struct SerdeMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
 
-impl<'a> Serialize for SedeList<'a> {
+#[derive(Clone, Copy, Serialize)]
+pub struct SerdeRow<'a> {
+    value: Option<SerdeMap<'a>>,
+}
+
+impl<'a> Serialize for SerdeList<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -209,7 +215,7 @@ impl<'a> Serialize for SerdeProp<'a> {
             Prop::Bool(b) => serializer.serialize_bool(*b),
             Prop::DTime(dt) => serializer.serialize_i64(dt.timestamp_millis()),
             Prop::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
-            Prop::List(l) => SedeList(l).serialize(serializer),
+            Prop::List(l) => SerdeList(l).serialize(serializer),
             Prop::Map(m) => SerdeMap(m).serialize(serializer),
             Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
             _ => {
@@ -355,31 +361,23 @@ pub fn struct_array_from_props<P>(
 ) -> StructArray {
     use serde_arrow::ArrayBuilder;
 
-    let fields = match dt {
-        DataType::Struct(fields) => fields,
-        _ => panic!("Expected DataType::Struct, got {:?}", dt),
-    };
+    let fields = [FieldRef::new(Field::new("value", dt.clone(), true))];
 
-    let mut builder = ArrayBuilder::from_arrow(fields)
+    let mut builder = ArrayBuilder::from_arrow(&fields)
         .unwrap_or_else(|e| panic!("Failed to make array builder {e}"));
 
-    let empty_map = FxHashMap::default();
-
     for p in props {
-        match p.as_ref().map(as_serde_map) {
-            Some(map) => builder
-                .push(map)
-                .unwrap_or_else(|e| panic!("Failed to push map to array builder {e}")),
-            _ => builder
-                .push(SerdeMap(&empty_map))
-                .unwrap_or_else(|e| panic!("Failed to push empty map to array builder {e}")),
-        }
+        builder
+            .push(SerdeRow {
+                value: p.as_ref().map(as_serde_map),
+            })
+            .unwrap_or_else(|e| panic!("Failed to push map to array builder {e}"))
     }
 
     let arrays = builder
         .to_arrow()
         .unwrap_or_else(|e| panic!("Failed to convert to arrow array {e}"));
-    StructArray::new(fields.clone(), arrays, None)
+    arrays.first().unwrap().as_struct().clone()
 }
 
 impl Display for Prop {
