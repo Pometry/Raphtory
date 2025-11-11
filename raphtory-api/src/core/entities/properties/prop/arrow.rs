@@ -80,8 +80,12 @@ impl<'a> ArrowRow<'a> {
 
     fn struct_prop_ref(&self, col: usize) -> Option<PropRef<'a>> {
         let column = self.array.column(col).as_struct_opt()?;
-        let row = ArrowRow::new(column, self.index);
-        (column.len() > self.index).then(|| PropRef::from(row))
+        if self.index < column.len() && column.is_valid(self.index) {
+            let row = ArrowRow::new(column, self.index);
+            Some(PropRef::from(row))
+        } else {
+            None
+        }
     }
 
     pub fn bool_value(&self, col: usize) -> Option<bool> {
