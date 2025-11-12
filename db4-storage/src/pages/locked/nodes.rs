@@ -45,7 +45,7 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
     }
 
     pub fn vacuum(&mut self) {
-        self.page.vacuum(self.lock.deref_mut());
+        let _ = self.page.vacuum(self.lock.deref_mut());
     }
 
     #[inline(always)]

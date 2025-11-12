@@ -55,11 +55,8 @@ pub fn make_edges(num_edges: usize, num_nodes: usize) -> impl Strategy<Value = F
 
 pub fn make_nodes(num_nodes: usize) -> impl Strategy<Value = NodeFixture> {
     assert!(num_nodes > 0);
-    let schema = proptest::collection::hash_map(
-        (0i32..1000).prop_map(|i| i.to_string()),
-        prop_type(),
-        0..30,
-    );
+    let schema =
+        proptest::collection::hash_map((0i32..10).prop_map(|i| i.to_string()), prop_type(), 0..30);
 
     schema.prop_flat_map(move |schema| {
         let (t_props, c_props) = make_props(&schema);

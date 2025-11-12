@@ -28,7 +28,6 @@ use thiserror::Error;
 
 #[cfg(feature = "arrow")]
 use crate::core::entities::properties::prop::prop_array::*;
-use crate::core::entities::properties::prop::unify_types;
 
 pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
 

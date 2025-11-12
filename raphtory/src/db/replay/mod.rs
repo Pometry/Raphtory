@@ -3,7 +3,6 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, EID, GID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use storage::{
     api::edges::EdgeSegmentOps,
     error::StorageError,

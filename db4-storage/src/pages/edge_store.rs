@@ -20,7 +20,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
 use raphtory_core::{
     entities::{ELID, LayerIds},
-    storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
 

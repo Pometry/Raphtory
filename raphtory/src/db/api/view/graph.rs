@@ -17,13 +17,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView,
-                filter::{
-                    model::{AsEdgeFilter, AsNodeFilter},
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
-                },
-                node_subgraph::NodeSubgraph,
-                valid_graph::ValidGraph,
+                cached_view::CachedView, filter::node_type_filtered_graph::NodeTypeFilteredGraph,
+                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
             },
         },
     },
@@ -62,7 +57,6 @@ use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
 };
-use storage::Extension;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

@@ -9,7 +9,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     cmp::{Ordering, Reverse},
     collections::BinaryHeap,
-    fmt::{Binary, Debug, Formatter},
+    fmt::{Debug, Formatter},
     ops::Deref,
 };
 

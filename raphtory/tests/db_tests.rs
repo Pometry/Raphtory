@@ -2007,10 +2007,8 @@ fn test_graph_metadata() {
 fn test_graph_metadata2() {
     let g = Graph::new();
 
-    let as_props: Vec<(&str, Prop)> = vec![(
-        "mylist",
-        Prop::List(Arc::from(vec![Prop::I64(1), Prop::I64(2)])),
-    )];
+    let as_props: Vec<(&str, Prop)> =
+        vec![("mylist", Prop::list(vec![Prop::I64(1), Prop::I64(2)]))];
 
     g.add_metadata(as_props.clone()).unwrap();
 
@@ -2075,7 +2073,7 @@ fn test_graph_temporal_props() {
             .enumerate()
             .map(|(i, props)| {
                 let (name, value) = props;
-                let value = Prop::from(value);
+                let value = Prop::from(value.as_str());
                 (name.as_str().into(), value, i % 2)
             })
             .partition(|(_, _, i)| *i == 0);

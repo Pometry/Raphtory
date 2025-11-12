@@ -19,7 +19,6 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,

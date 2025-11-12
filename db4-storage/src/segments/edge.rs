@@ -9,7 +9,7 @@ use crate::{
     segments::edge_entry::MemEdgeRef,
     utils::Iter4,
 };
-use arrow_array::{Array, ArrayRef, BooleanArray};
+use arrow_array::{ArrayRef, BooleanArray};
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::entities::{
     VID,

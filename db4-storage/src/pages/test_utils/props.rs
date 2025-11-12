@@ -20,8 +20,9 @@ pub fn prop_type() -> impl Strategy<Value = PropType> {
     ]);
 
     leaf.prop_recursive(3, 10, 10, |inner| {
-        let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-            .prop_map(PropType::map);
+        let keys = (0..1_000_000).prop_map(|i| format!("k_{i}"));
+        let dict =
+            proptest::collection::hash_map(keys, inner.clone(), 1..10).prop_map(PropType::map);
         let list = inner
             .clone()
             .prop_map(|p_type| PropType::List(Box::new(p_type)));

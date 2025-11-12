@@ -76,10 +76,6 @@ impl PageIndex {
     fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<usize>> {
         self.0.par_iter().map(|i| i.index())
     }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
 }
 
 #[derive(Default)]

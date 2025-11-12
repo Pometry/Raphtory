@@ -559,7 +559,6 @@ pub(crate) mod test_filters_window_graph {
         use raphtory_storage::mutation::{
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };
-        use std::sync::Arc;
 
         use raphtory::prelude::GraphViewOps;
 
@@ -748,7 +747,7 @@ pub(crate) mod test_filters_window_graph {
                     ("q1", Prop::U64(0u64)),
                     (
                         "x",
-                        Prop::List(Arc::from(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)])),
+                        Prop::list(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)]),
                     ),
                 ],
                 None,
@@ -1256,11 +1255,11 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("x").eq(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = vec!["N14"];
             // TODO: List(U64) not supported as disk_graph property
             // assert_filter_nodes_results_w!(
@@ -1375,11 +1374,11 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("x").eq(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = vec!["N14"];
             // TODO: List(U64) not supported as disk_graph property
             // assert_filter_nodes_results_pg_w!(
@@ -1494,11 +1493,11 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("x").ne(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").ne(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_graph,
@@ -1604,11 +1603,11 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("x").ne(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").ne(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_graph,
@@ -1844,11 +1843,11 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").le(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(2),
                 Prop::U64(3),
-            ])));
+            ]));
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_graph,
@@ -1921,11 +1920,11 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("x").gt(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").gt(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_graph,
@@ -2750,7 +2749,6 @@ pub(crate) mod test_filters_window_graph {
             prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps, PropertyFilter},
         };
         use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
-        use std::sync::Arc;
 
         use crate::test_filters_window_graph::WindowGraphTransformer;
 
@@ -2978,7 +2976,7 @@ pub(crate) mod test_filters_window_graph {
                     ("q1", Prop::U64(0u64)),
                     (
                         "x",
-                        Prop::List(Arc::from(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)])),
+                        Prop::list(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)]),
                     ),
                 ],
                 None,
@@ -3288,11 +3286,11 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("x").eq(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = vec!["N14->N15"];
             // TODO: List(U64) not supported as disk_graph property
             // assert_filter_edges_results_w!(
@@ -3409,11 +3407,11 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("x").eq(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = vec!["N14->N15"];
             // TODO: List(U64) not supported as disk_graph property
             // assert_filter_edges_results_pg_w!(
@@ -3527,11 +3525,11 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("x").ne(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").ne(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = Vec::<&str>::new();
             assert_filter_edges_results(
                 init_graph,
@@ -3642,11 +3640,11 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("x").ne(Prop::List(Arc::new(vec![
+            let filter = PropertyFilter::property("x").ne(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = Vec::<&str>::new();
             assert_filter_edges_results(
                 init_graph2,
@@ -3938,11 +3936,9 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("x").gt(Prop::List(Arc::new(vec![
-                Prop::U64(1),
-                Prop::U64(6),
-                Prop::U64(9),
-            ])));
+            let filter = PropertyFilter::property("x").gt(Prop::List(
+                vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)].into(),
+            ));
             let expected_results = Vec::<&str>::new();
             assert_filter_edges_results(
                 init_graph,
