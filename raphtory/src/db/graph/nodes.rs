@@ -12,10 +12,13 @@ use crate::{
             },
         },
         graph::{
-            edges::NestedEdges, node::NodeView, path::PathFromGraph,
-            views::filter::model::AndFilter,
+            edges::NestedEdges,
+            node::NodeView,
+            path::PathFromGraph,
+            views::filter::{internal::CreateNodeFilter, model::AndFilter},
         },
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::inherit::Base;
@@ -281,17 +284,20 @@ where
             .is_some()
     }
 
-    pub fn select<Filter: NodeFilterOp>(
+    pub fn select<Filter: CreateNodeFilter>(
         &self,
         filter: Filter,
-    ) -> Nodes<'graph, G, AndFilter<GH, Filter>> {
-        let node_select = self.node_select.clone().and(filter);
-        Nodes {
+    ) -> Result<Nodes<'graph, G, AndFilter<GH, Filter::NodeFilter<G>>>, GraphError> {
+        let node_select = self
+            .node_select
+            .clone()
+            .and(filter.create_node_filter(self.graph.clone())?);
+        Ok(Nodes {
             graph: self.graph.clone(),
             node_select,
             nodes: self.nodes.clone(),
             _marker: Default::default(),
-        }
+        })
     }
 }
 

@@ -59,7 +59,10 @@ use crate::{
     },
     db::{
         api::{
-            state::{Index, NodeState},
+            state::{
+                ops::{filter::NO_FILTER, DynNodeFilter, DynNodeOp},
+                Index, NodeState,
+            },
             view::internal::DynamicGraph,
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -777,7 +780,7 @@ pub fn k_core(
     } else {
         Some(Index::from_iter(v_set))
     };
-    Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), index, None)
+    Nodes::new_filtered(graph.graph.clone(), NO_FILTER, index)
 }
 
 /// Simulate an SEIR dynamic on the network

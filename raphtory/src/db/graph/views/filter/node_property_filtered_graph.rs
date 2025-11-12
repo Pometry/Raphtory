@@ -2,15 +2,16 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::NodeOp,
             view::internal::{
-                Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritTimeSemantics, InternalNodeFilterOps, Static,
+                GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter,
+                InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
         graph::views::{
             filter::{
-                internal::CreateFilter,
+                internal::{CreateFilter, CreateNodeFilter},
                 model::{node_filter::NodeFilter, property_filter::PropertyFilter, Windowed},
             },
             window_graph::WindowedGraph,
@@ -20,10 +21,16 @@ use crate::{
     prelude::{GraphViewOps, TimeOps},
 };
 use raphtory_api::{
-    core::{entities::LayerIds, storage::timeindex::AsTime},
+    core::{
+        entities::{LayerIds, VID},
+        storage::timeindex::AsTime,
+    },
     inherit::Base,
 };
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
+use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::{graph::GraphStorage, nodes::node_ref::NodeStorageRef},
+};
 
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
@@ -75,6 +82,25 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
         Ok(NodePropertyFilteredGraph::new(graph, prop_id, self))
+    }
+}
+
+impl<G: GraphView> NodeOp for NodePropertyFilteredGraph<G> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let layer_ids = self.graph.layer_ids();
+        let nodes = storage.nodes();
+        let node_ref = nodes.node(node);
+        self.internal_filter_node(node_ref, layer_ids)
+    }
+}
+
+impl CreateNodeFilter for PropertyFilter<NodeFilter> {
+    type NodeFilter<G: GraphView> = NodePropertyFilteredGraph<G>;
+
+    fn create_node_filter<G: GraphView>(self, graph: G) -> Result<Self::NodeFilter<G>, GraphError> {
+        self.create_filter(graph)
     }
 }
 

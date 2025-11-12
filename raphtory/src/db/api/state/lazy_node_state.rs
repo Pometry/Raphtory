@@ -3,12 +3,12 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::{Const, NodeFilterOp, NodeOp},
+                ops::{Const, DynNodeFilter, DynNodeOp, IntoDynNodeOp, NodeFilterOp, NodeOp},
                 Index, NodeState, NodeStateOps,
             },
             view::{
                 internal::{FilterOps, NodeList},
-                BoxedLIter, IntoDynBoxed,
+                BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -117,6 +117,17 @@ impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clo
             .into_iter()
             .zip(self.into_iter_values())
             .into_dyn_boxed()
+    }
+}
+
+impl<O, G: IntoDynamic, GH: IntoDynNodeOp + NodeFilterOp + 'static>
+    LazyNodeState<'static, O, G, GH>
+{
+    pub fn into_dyn(self) -> LazyNodeState<'static, O, DynamicGraph, DynNodeFilter> {
+        LazyNodeState {
+            nodes: self.nodes.into_dyn(),
+            op: self.op,
+        }
     }
 }
 

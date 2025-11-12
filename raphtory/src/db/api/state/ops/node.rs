@@ -90,6 +90,8 @@ pub trait IntoDynNodeOp: NodeOp + Sized + 'static {
     }
 }
 
+pub type DynNodeOp<O> = Arc<dyn NodeOp<Output = O>>;
+
 impl<Left, Right> NodeOp for Eq<Left, Right>
 where
     Left: NodeOp,

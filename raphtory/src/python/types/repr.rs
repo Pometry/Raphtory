@@ -1,6 +1,6 @@
 use crate::{
     core::storage::locked_view::LockedView,
-    db::api::state::{LazyNodeState, NodeOp, NodeState},
+    db::api::state::{ops::NodeFilterOp, LazyNodeState, NodeOp, NodeState},
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
 use bigdecimal::BigDecimal;
@@ -272,7 +272,7 @@ impl<R: Repr> Repr for &R {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, Op: NodeOp + 'graph> Repr
+impl<'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + 'graph, Op: NodeOp + 'graph> Repr
     for LazyNodeState<'graph, Op, G, GH>
 where
     Op::Output: Repr + Send + Sync + 'graph,
@@ -284,12 +284,8 @@ where
     }
 }
 
-impl<
-        'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        V: Repr + Clone + Send + Sync + 'graph,
-    > Repr for NodeState<'graph, V, G, GH>
+impl<'graph, G: GraphViewOps<'graph>, V: Repr + Clone + Send + Sync + 'graph> Repr
+    for NodeState<'graph, V, G>
 {
     fn repr(&self) -> String {
         StructReprBuilder::new("NodeState")
