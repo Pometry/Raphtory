@@ -491,7 +491,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 {
     fn from(value: Nodes<'static, G, GH>) -> Self {
         let graph = value.iter_graph.into_dynamic();
-        let base_graph = value.base_graph.into_dynamic();
+        let base_graph = value.graph.into_dynamic();
         Self {
             nodes: Nodes::new_filtered(base_graph, graph, value.nodes, value.node_types_filter),
         }

@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::state::Index,
+        api::state::{ops::Const, Index},
         graph::{nodes::Nodes, views::node_subgraph::NodeSubgraph},
     },
     prelude::{GraphViewOps, NodeStateOps},
@@ -37,12 +37,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
         self.groups.iter().map(|(v, nodes)| {
             (
                 v,
-                Nodes::new_filtered(
-                    self.graph.clone(),
-                    self.graph.clone(),
-                    Some(nodes.clone()),
-                    None,
-                ),
+                Nodes::new_filtered(self.graph.clone(), Const(true), Some(nodes.clone())),
             )
         })
     }
@@ -83,12 +78,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
         self.groups.get(index).map(|(v, nodes)| {
             (
                 v,
-                Nodes::new_filtered(
-                    self.graph.clone(),
-                    self.graph.clone(),
-                    Some(nodes.clone()),
-                    None,
-                ),
+                Nodes::new_filtered(self.graph.clone(), Const(true), Some(nodes.clone())),
             )
         })
     }
@@ -115,14 +105,14 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
 }
 
 pub trait NodeStateGroupBy<'graph>: NodeStateOps<'graph> {
-    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Select>;
+    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::BaseGraph>;
 }
 
 impl<'graph, S: NodeStateOps<'graph>> NodeStateGroupBy<'graph> for S
 where
     S::OwnedValue: Hash + Eq + Debug,
 {
-    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Select> {
+    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::BaseGraph> {
         self.group_by(|v| v.clone())
     }
 }

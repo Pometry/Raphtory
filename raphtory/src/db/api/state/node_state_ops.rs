@@ -18,7 +18,7 @@ pub trait NodeStateOps<'graph>:
     IntoIterator<Item = (NodeView<'graph, Self::BaseGraph>, Self::OwnedValue)> + Send + Sync + 'graph
 {
     type BaseGraph: GraphViewOps<'graph>;
-    type Select: NodeFilterOp<Self::BaseGraph>;
+    type Select: NodeFilterOp;
     type Value<'a>: Send + Sync + Borrow<Self::OwnedValue>
     where
         'graph: 'a,
@@ -26,7 +26,7 @@ pub trait NodeStateOps<'graph>:
 
     type OwnedValue: Clone + Send + Sync + 'graph;
 
-    fn base_graph(&self) -> &Self::BaseGraph;
+    fn graph(&self) -> &Self::BaseGraph;
 
     fn iter_values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
     where
@@ -73,7 +73,7 @@ pub trait NodeStateOps<'graph>:
             .par_iter()
             .map(|(n, v)| (n.node, v.borrow().clone()))
             .collect();
-        let base_graph = self.base_graph();
+        let base_graph = self.graph();
         state.par_sort_by(|(n1, v1), (n2, v2)| {
             cmp(
                 (NodeView::new_internal(base_graph, *n1), v1),
@@ -84,11 +84,7 @@ pub trait NodeStateOps<'graph>:
         let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) =
             state.into_par_iter().unzip();
 
-        NodeState::new(
-            self.base_graph().clone(),
-            values.into(),
-            Some(Index::new(keys)),
-        )
+        NodeState::new(self.graph().clone(), values.into(), Some(Index::new(keys)))
     }
 
     /// Sorts the by its values in ascending or descending order.
@@ -143,11 +139,7 @@ pub trait NodeStateOps<'graph>:
             .map(|(n, v)| (n.node, v.borrow().clone()))
             .unzip();
 
-        NodeState::new(
-            self.base_graph().clone(),
-            values.into(),
-            Some(Index::new(keys)),
-        )
+        NodeState::new(self.graph().clone(), values.into(), Some(Index::new(keys)))
     }
 
     fn bottom_k_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
@@ -194,11 +186,11 @@ pub trait NodeStateOps<'graph>:
     >(
         &self,
         group_fn: F,
-    ) -> NodeGroups<V, Self::Select> {
+    ) -> NodeGroups<V, Self::BaseGraph> {
         NodeGroups::new(
             self.par_iter()
                 .map(|(node, v)| (node.node, group_fn(v.borrow()))),
-            self.base_graph().clone(),
+            self.graph().clone(),
         )
     }
 

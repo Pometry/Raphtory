@@ -19,6 +19,7 @@ use super::views::deletion_graph::PersistentGraph;
 use crate::{
     db::{
         api::{
+            state::ops::NodeFilterOp,
             storage::storage::Storage,
             view::{
                 internal::{
@@ -231,9 +232,9 @@ pub fn assert_node_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOp
 pub fn assert_nodes_equal<
     'graph,
     G1: GraphViewOps<'graph>,
-    GH1: GraphViewOps<'graph>,
+    GH1: NodeFilterOp + 'graph,
     G2: GraphViewOps<'graph>,
-    GH2: GraphViewOps<'graph>,
+    GH2: NodeFilterOp + 'graph,
 >(
     nodes1: &Nodes<'graph, G1, GH1>,
     nodes2: &Nodes<'graph, G2, GH2>,
@@ -244,9 +245,9 @@ pub fn assert_nodes_equal<
 pub fn assert_nodes_equal_layer<
     'graph,
     G1: GraphViewOps<'graph>,
-    GH1: GraphViewOps<'graph>,
+    GH1: NodeFilterOp + 'graph,
     G2: GraphViewOps<'graph>,
-    GH2: GraphViewOps<'graph>,
+    GH2: NodeFilterOp + 'graph,
 >(
     nodes1: &Nodes<'graph, G1, GH1>,
     nodes2: &Nodes<'graph, G2, GH2>,

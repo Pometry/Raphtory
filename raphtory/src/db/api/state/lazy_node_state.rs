@@ -95,7 +95,7 @@ where
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clone, O: NodeOp + 'graph> Debug
+impl<'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + 'graph, O: NodeOp + 'graph> Debug
     for LazyNodeState<'graph, O, G, GH>
 where
     O::Output: Debug,
@@ -142,18 +142,18 @@ impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clo
                 .map(|(node, value)| (node.node, value))
                 .unzip();
             NodeState::new(
-                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
                 values.into(),
                 Some(Index::new(keys)),
             )
         } else {
             let values = self.collect_vec();
-            NodeState::new(self.nodes.base_graph.clone(), values.into(), None)
+            NodeState::new(self.nodes.graph.clone(), values.into(), None)
         }
     }
 }
 
-impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clone + 'graph>
+impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + 'graph>
     NodeStateOps<'graph> for LazyNodeState<'graph, O, G, GH>
 {
     type Select = GH;
@@ -165,8 +165,8 @@ impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clo
         Self: 'a;
     type OwnedValue = O::Output;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        &self.nodes.base_graph
+    fn graph(&self) -> &Self::BaseGraph {
+        &self.nodes.graph
     }
 
     fn iter_values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
@@ -176,7 +176,7 @@ impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clo
         let storage = self.graph().core_graph().lock();
         self.nodes
             .iter_refs()
-            .map(move |vid| self.op.apply(&self.graph(), &storage, vid))
+            .map(move |vid| self.op.apply(&storage, vid))
     }
 
     fn par_iter_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
@@ -247,7 +247,7 @@ impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clo
             };
             let cg = self.graph().core_graph();
             Some((
-                NodeView::new_internal(self.base_graph(), vid),
+                NodeView::new_internal(self.graph(), vid),
                 self.op.apply(cg, vid),
             ))
         }
@@ -292,7 +292,7 @@ mod test {
         let g_dyn = g.clone().into_dynamic();
 
         let deg = Degree {
-            graph: g_dyn,
+            view: g_dyn,
             dir: Direction::BOTH,
         };
         let arc_deg: Arc<dyn NodeOp<Output = usize>> = Arc::new(deg);

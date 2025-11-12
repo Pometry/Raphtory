@@ -2,7 +2,7 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{Index, NodeState},
+            state::{ops::Const, Index, NodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -75,9 +75,8 @@ where
             NodeState::new_from_eval_mapped(g.clone(), local, |v| {
                 Nodes::new_filtered(
                     g.clone(),
-                    g.clone(),
+                    Const(true),
                     Some(Index::from_iter(v.in_components)),
-                    None,
                 )
             })
         },
@@ -124,7 +123,6 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>>(
     let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
         in_components.into_iter().sorted().unzip();
     NodeState::new(
-        node.graph.clone(),
         node.graph.clone(),
         distances.into(),
         Some(Index::new(nodes)),

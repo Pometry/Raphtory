@@ -310,7 +310,7 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
         'graph: 'a;
     type OwnedValue = V;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn graph(&self) -> &Self::BaseGraph {
         &self.base_graph
     }
 

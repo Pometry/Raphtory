@@ -61,7 +61,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn edges(&self) -> Edges<'graph, Self>;
 
     /// Return a View of the nodes in the Graph
-    fn nodes(&self) -> Nodes<'graph, Self, Self>;
+    fn nodes(&self) -> Nodes<'graph, Self>;
 
     /// Get a graph clone
     ///
@@ -210,7 +210,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         }
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self, Self> {
+    fn nodes(&self) -> Nodes<'graph, Self> {
         let graph = self.clone();
         Nodes::new(graph)
     }

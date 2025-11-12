@@ -1,12 +1,16 @@
-pub mod filter;
-
 use crate::{
     db::{
-        api::view::internal::{
-            time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
-            GraphView,
+        api::{
+            state::ops::filter::{Mask, MaskOp},
+            view::internal::{
+                time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
+                GraphView,
+            },
         },
-        graph::views::filter::model::{not_filter::NotFilter, or_filter::OrFilter, AndFilter},
+        graph::{
+            create_node_type_filter,
+            views::filter::model::{not_filter::NotFilter, or_filter::OrFilter, AndFilter},
+        },
     },
     prelude::GraphViewOps,
 };
@@ -31,7 +35,7 @@ pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn not(self) -> NotFilter<Self>;
 }
 
-impl<T: NodeOp<Output = bool> + Clone> NodeFilterOp for T {
+impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
     fn is_filtered(&self) -> bool {
         // If there is a const true value, it is not filtered
         self.const_value().is_none_or(|v| !v)
@@ -70,7 +74,7 @@ pub trait NodeOp: Send + Sync {
         None
     }
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output;
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output;
 
     fn map<V: Clone + Send + Sync>(self, map: fn(Self::Output) -> V) -> Map<Self, V>
     where
@@ -78,10 +82,12 @@ pub trait NodeOp: Send + Sync {
     {
         Map { op: self, map }
     }
+}
 
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized;
+pub trait IntoDynNodeOp: NodeOp + Sized + 'static {
+    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> {
+        Arc::new(self)
+    }
 }
 
 impl<Left, Right> NodeOp for Eq<Left, Right>
@@ -92,17 +98,12 @@ where
 {
     type Output = bool;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
-        self.left.apply(view, storage, node) == self.right.apply(view, storage, node)
-    }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.left.apply(storage, node) == self.right.apply(storage, node)
     }
 }
+
+impl<Left, Right> IntoDynNodeOp for Eq<Left, Right> where Eq<Left, Right>: NodeOp + 'static {}
 
 impl<L, R> NodeOp for AndFilter<L, R>
 where
@@ -111,17 +112,12 @@ where
 {
     type Output = bool;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
-        self.left.apply(view, storage, node) && self.right.apply(view, storage, node)
-    }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.left.apply(storage, node) && self.right.apply(storage, node)
     }
 }
+
+impl<L, R> IntoDynNodeOp for AndFilter<L, R> where Self: NodeOp + 'static {}
 
 impl<L, R> NodeOp for OrFilter<L, R>
 where
@@ -130,17 +126,12 @@ where
 {
     type Output = bool;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
-        self.left.apply(view, storage, node) || self.right.apply(view, storage, node)
-    }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.left.apply(storage, node) || self.right.apply(storage, node)
     }
 }
+
+impl<L, R> IntoDynNodeOp for OrFilter<L, R> where Self: NodeOp + 'static {}
 
 impl<T> NodeOp for NotFilter<T>
 where
@@ -148,42 +139,32 @@ where
 {
     type Output = bool;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
-        !self.0.apply(view, storage, node)
-    }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        !self.0.apply(storage, node)
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct Const<V>(V);
+impl<T> IntoDynNodeOp for NotFilter<T> where Self: NodeOp + 'static {}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Const<V>(pub V);
 
 impl<V> NodeOp for Const<V>
 where
-    V: Clone,
+    V: Send + Sync + Clone,
 {
     type Output = V;
 
     fn const_value(&self) -> Option<Self::Output> {
-        self.0.clone()
+        Some(self.0.clone())
     }
 
-    fn apply<G: GraphView>(&self, _view: &G, _storage: &GraphStorage, _node: VID) -> Self::Output {
+    fn apply(&self, __storage: &GraphStorage, _node: VID) -> Self::Output {
         self.0.clone()
-    }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
     }
 }
+
+impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Const<V> {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Name;
@@ -191,17 +172,12 @@ pub struct Name;
 impl NodeOp for Name {
     type Output = String;
 
-    fn apply<G: GraphView>(&self, _view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_name(node)
     }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
-    }
 }
+
+impl IntoDynNodeOp for Name {}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Id;
@@ -209,88 +185,68 @@ pub struct Id;
 impl NodeOp for Id {
     type Output = GID;
 
-    fn apply<G: GraphView>(&self, _view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_id(node)
     }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
-    }
 }
+
+impl IntoDynNodeOp for Id {}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Type;
 impl NodeOp for Type {
     type Output = Option<ArcStr>;
 
-    fn apply<G: GraphView>(&self, _view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_type(node)
     }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
-    }
 }
+
+impl IntoDynNodeOp for Type {}
 
 #[derive(Debug, Copy, Clone)]
 pub struct TypeId;
 impl NodeOp for TypeId {
     type Output = usize;
 
-    fn apply<G: GraphView>(&self, _view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_type_id(node)
     }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
-    }
 }
+
+impl IntoDynNodeOp for TypeId {}
 
 #[derive(Debug, Clone)]
-pub struct Degree {
+pub struct Degree<G> {
     pub(crate) dir: Direction,
+    pub(crate) view: G,
 }
 
-impl NodeOp for Degree {
+impl<G: GraphView> NodeOp for Degree<G> {
     type Output = usize;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> usize {
+    fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
         let node = storage.core_node(node);
-        if matches!(view.filter_state(), FilterState::Neither) {
-            node.degree(view.layer_ids(), self.dir)
+        if matches!(self.view.filter_state(), FilterState::Neither) {
+            node.degree(self.view.layer_ids(), self.dir)
         } else {
-            node.filtered_neighbours_iter(view, view.layer_ids(), self.dir)
+            node.filtered_neighbours_iter(&self.view, self.view.layer_ids(), self.dir)
                 .count()
         }
     }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
-    }
 }
+
+impl<G: GraphView + 'static> IntoDynNodeOp for Degree<G> {}
 
 impl<V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V>> {
     type Output = V;
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> V {
-        self.deref().apply(view, storage, node)
+    fn apply(&self, storage: &GraphStorage, node: VID) -> V {
+        self.deref().apply(storage, node)
     }
+}
 
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
+impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Arc<dyn NodeOp<Output = V>> {
+    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> {
         self.clone()
     }
 }
@@ -304,14 +260,32 @@ pub struct Map<Op: NodeOp, V> {
 impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
     type Output = V;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
-        (self.map)(self.op.apply(view, storage, node))
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        (self.map)(self.op.apply(storage, node))
     }
+}
 
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>>
-    where
-        Self: Sized,
-    {
-        Arc::new(self)
+impl<Op: NodeOp + 'static, V: Clone + Send + Sync + 'static> IntoDynNodeOp for Map<Op, V> {}
+
+pub type NodeTypeFilter = Mask<TypeId>;
+
+impl NodeTypeFilter {
+    pub fn new<I: IntoIterator<Item = V>, V: AsRef<str>>(
+        node_types: I,
+        view: impl GraphView,
+    ) -> Self {
+        let mask = create_node_type_filter(view.node_meta().node_type_meta(), node_types);
+        TypeId.mask(mask)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::db::api::state::ops::{Const, NodeFilterOp};
+
+    #[test]
+    fn test_const() {
+        let c = Const(true);
+        assert!(!c.is_filtered());
     }
 }

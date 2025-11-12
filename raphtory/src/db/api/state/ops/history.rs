@@ -1,79 +1,79 @@
-use std::sync::Arc;
-use crate::{
-    db::api::{state::NodeOp, view::internal::NodeTimeSemanticsOps},
+use crate::db::api::{
+    state::{ops::IntoDynNodeOp, NodeOp},
+    view::internal::{GraphView, NodeTimeSemanticsOps},
 };
 use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
-use crate::db::api::view::internal::GraphView;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub struct EarliestTime;
+pub struct EarliestTime<G> {
+    pub view: G,
+}
 
-impl NodeOp for EarliestTime {
+impl<G: GraphView> NodeOp for EarliestTime<G> {
     type Output = Option<i64>;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
-        let semantics = view.node_time_semantics();
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let semantics = self.view.node_time_semantics();
         let node = storage.core_node(node);
-        semantics.node_earliest_time(node.as_ref(), view)
-    }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> where Self: Sized {
-        Arc::new(self)
+        semantics.node_earliest_time(node.as_ref(), &self.view)
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct LatestTime;
+impl<G: GraphView + 'static> IntoDynNodeOp for EarliestTime<G> {}
 
-impl NodeOp for LatestTime {
+#[derive(Debug, Clone)]
+pub struct LatestTime<G> {
+    pub(crate) view: G,
+}
+
+impl<G: GraphView> NodeOp for LatestTime<G> {
     type Output = Option<i64>;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
-        let semantics = view.node_time_semantics();
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let semantics = self.view.node_time_semantics();
         let node = storage.core_node(node);
-        semantics.node_latest_time(node.as_ref(), view)
-    }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> where Self: Sized {
-        Arc::new(self)
+        semantics.node_latest_time(node.as_ref(), &self.view)
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct History;
+impl<G: GraphView + 'static> IntoDynNodeOp for LatestTime<G> {}
 
-impl NodeOp for History {
+#[derive(Debug, Clone)]
+pub struct History<G> {
+    pub(crate) view: G,
+}
+
+impl<G: GraphView> NodeOp for History<G> {
     type Output = Vec<i64>;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
-        let semantics = view.node_time_semantics();
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let semantics = self.view.node_time_semantics();
         let node = storage.core_node(node);
         semantics
-            .node_history(node.as_ref(), view)
+            .node_history(node.as_ref(), &self.view)
             .dedup()
             .collect()
     }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> where Self: Sized {
-        Arc::new(self)
-    }
 }
+
+impl<G: GraphView + 'static> IntoDynNodeOp for History<G> {}
 
 #[derive(Debug, Copy, Clone)]
-pub struct EdgeHistoryCount;
+pub struct EdgeHistoryCount<G> {
+    pub(crate) view: G,
+}
 
-impl NodeOp for EdgeHistoryCount {
+impl<G: GraphView> NodeOp for EdgeHistoryCount<G> {
     type Output = usize;
 
-    fn apply<G: GraphView>(&self, view: &G, storage: &GraphStorage, node: VID) -> Self::Output {
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node = storage.core_node(node);
-        let ts = view.node_time_semantics();
-        ts.node_edge_history_count(node.as_ref(), view)
-    }
-
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> where Self: Sized {
-        Arc::new(self)
+        let ts = self.view.node_time_semantics();
+        ts.node_edge_history_count(node.as_ref(), &self.view)
     }
 }
+
+impl<G: GraphView + 'static> IntoDynNodeOp for EdgeHistoryCount<G> {}

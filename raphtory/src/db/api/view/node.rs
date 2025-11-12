@@ -72,30 +72,31 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     fn node_type_id(&self) -> Self::ValueType<ops::TypeId>;
 
     /// Get the timestamp for the earliest activity of the node
-    fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime>;
+    fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>>;
 
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime, Option<DateTime<Utc>>>>;
+    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>>;
 
     /// Get the timestamp for the latest activity of the node
-    fn latest_time(&self) -> Self::ValueType<ops::LatestTime>;
+    fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>>;
 
-    fn latest_date_time(&self)
-        -> Self::ValueType<ops::Map<ops::LatestTime, Option<DateTime<Utc>>>>;
+    fn latest_date_time(
+        &self,
+    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
-    fn history(&self) -> Self::ValueType<ops::History>;
+    fn history(&self) -> Self::ValueType<ops::History<Self::Graph>>;
 
-    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount>;
+    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::History, Option<Vec<DateTime<Utc>>>>>;
+    ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>>;
 
     //Returns true if the node has any updates within the current window, otherwise false
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History, bool>>;
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>>;
 
     /// Get a view of the temporal properties of this node.
     ///
@@ -112,21 +113,21 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Returns:
     ///
     /// The degree of this node.
-    fn degree(&self) -> Self::ValueType<ops::Degree>;
+    fn degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>>;
 
     /// Get the in-degree of this node (i.e., the number of edges that point into it).
     ///
     /// Returns:
     ///
     /// The in-degree of this node.
-    fn in_degree(&self) -> Self::ValueType<ops::Degree>;
+    fn in_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>>;
 
     /// Get the out-degree of this node (i.e., the number of edges that point out of it).
     ///
     /// Returns:
     ///
     /// The out-degree of this node.
-    fn out_degree(&self) -> Self::ValueType<ops::Degree>;
+    fn out_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>>;
 
     /// Get the edges that are incident to this node.
     ///
@@ -201,55 +202,75 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime> {
-        let op = ops::EarliestTime;
+    fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>> {
+        let op = ops::EarliestTime {
+            view: self.graph().clone(),
+        };
         self.map(op)
     }
 
     #[inline]
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime, Option<DateTime<Utc>>>> {
-        let op = ops::EarliestTime.map(|t| t.and_then(|t| t.dt()));
+    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>> {
+        let op = ops::EarliestTime {
+            view: self.graph().clone(),
+        }
+        .map(|t| t.and_then(|t| t.dt()));
         self.map(op)
     }
 
     #[inline]
-    fn latest_time(&self) -> Self::ValueType<ops::LatestTime> {
-        let op = ops::LatestTime;
+    fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>> {
+        let op = ops::LatestTime {
+            view: self.graph().clone(),
+        };
         self.map(op)
     }
 
     #[inline]
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime, Option<DateTime<Utc>>>> {
-        let op = ops::LatestTime.map(|t| t.and_then(|t| t.dt()));
+    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>> {
+        let op = ops::LatestTime {
+            view: self.graph().clone(),
+        }
+        .map(|t| t.and_then(|t| t.dt()));
         self.map(op)
     }
 
     #[inline]
-    fn history(&self) -> Self::ValueType<ops::History> {
-        let op = ops::History;
+    fn history(&self) -> Self::ValueType<ops::History<Self::Graph>> {
+        let op = ops::History {
+            view: self.graph().clone(),
+        };
         self.map(op)
     }
 
     #[inline]
-    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount> {
-        let op = ops::EdgeHistoryCount;
+    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>> {
+        let op = ops::EdgeHistoryCount {
+            view: self.graph().clone(),
+        };
         self.map(op)
     }
 
     #[inline]
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::History, Option<Vec<DateTime<Utc>>>>> {
-        let op = ops::History.map(|h| h.into_iter().map(|t| t.dt()).collect());
+    ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>> {
+        let op = ops::History {
+            view: self.graph().clone(),
+        }
+        .map(|h| h.into_iter().map(|t| t.dt()).collect());
         self.map(op)
     }
 
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History, bool>> {
-        let op = ops::History.map(|h| !h.is_empty());
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>> {
+        let op = ops::History {
+            view: self.graph().clone(),
+        }
+        .map(|h| !h.is_empty());
         self.map(op)
     }
 
@@ -266,22 +287,27 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn degree(&self) -> Self::ValueType<ops::Degree> {
+    fn degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
+            view: self.graph().clone(),
             dir: Direction::BOTH,
         };
         self.map(op)
     }
 
     #[inline]
-    fn in_degree(&self) -> Self::ValueType<ops::Degree> {
-        let op = ops::Degree { dir: Direction::IN };
+    fn in_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
+        let op = ops::Degree {
+            dir: Direction::IN,
+            view: self.graph().clone(),
+        };
         self.map(op)
     }
 
     #[inline]
-    fn out_degree(&self) -> Self::ValueType<ops::Degree> {
+    fn out_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
+            view: self.graph().clone(),
             dir: Direction::OUT,
         };
         self.map(op)
