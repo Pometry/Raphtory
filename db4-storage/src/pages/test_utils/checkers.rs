@@ -336,7 +336,7 @@ pub fn check_graph_with_nodes_support<
 
             assert_eq!(
                 actual_props, props,
-                "Expected properties for node ({node:?}) to be {props:?}, but got {actual_props:?}"
+                "Expected temporal properties for node ({node:?}) to be {props:?}, but got {actual_props:?}"
             );
         }
     };

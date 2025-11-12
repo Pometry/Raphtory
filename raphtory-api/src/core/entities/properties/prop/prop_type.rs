@@ -420,15 +420,15 @@ mod test {
         );
         assert!(unify);
 
-        let l = PropType::Array(Box::new(PropType::map([("a".to_string(), PropType::U8)])));
-        let r = PropType::Array(Box::new(PropType::map([
+        let l = PropType::List(Box::new(PropType::map([("a".to_string(), PropType::U8)])));
+        let r = PropType::List(Box::new(PropType::map([
             ("a".to_string(), PropType::Empty),
             ("b".to_string(), PropType::Str),
         ])));
         let mut unify = false;
         assert_eq!(
             unify_types(&l, &r, &mut unify),
-            Ok(PropType::Array(Box::new(PropType::map([
+            Ok(PropType::List(Box::new(PropType::map([
                 ("a".to_string(), PropType::U8),
                 ("b".to_string(), PropType::Str)
             ]))))

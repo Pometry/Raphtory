@@ -269,6 +269,26 @@ mod test {
     }
 
     #[test]
+    fn complex_props_meta_writer() {
+        let meta = Meta::default();
+        let prop_list_map = Prop::list([Prop::map([("a", 1)]), Prop::map([("b", 2f64)])]);
+        let props = vec![("a", prop_list_map.clone())];
+
+        let writer = PropsMetaWriter::temporal(&meta, props.into_iter()).unwrap();
+        let props = writer.into_props_temporal().unwrap();
+        assert_eq!(props.len(), 1);
+
+        assert_eq!(props, vec![(0, prop_list_map.clone())]);
+
+        let expected_d_type = prop_list_map.dtype();
+
+        assert_eq!(
+            meta.temporal_prop_mapper().d_types().first().unwrap(),
+            &expected_d_type
+        );
+    }
+
+    #[test]
     fn test_fail_typecheck() {
         let meta = Meta::default();
         let prop1 = Prop::U32(0);

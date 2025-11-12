@@ -198,8 +198,6 @@ impl Properties {
                     .unwrap(),
                 ))
             }
-            // PropColumn::Array(lazy_vec) => todo!(),
-            // PropColumn::List(lazy_vec) => todo!(),
             PropColumn::Map(lazy_vec) => {
                 let dt = meta
                     .get_dtype(col_id)
@@ -223,13 +221,12 @@ impl Properties {
 
                 let array_iter = indices
                     .map(|i| lazy_vec.get_opt(i))
-                    .map(|opt_list| opt_list.map(|list| SerdeList(list)));
+                    .map(|opt_list| opt_list.map(SerdeList));
 
-                let list_array = list_array_from_props(&dt, |lst| *lst, array_iter);
+                let list_array = list_array_from_props(&dt, array_iter);
 
                 Some(Arc::new(list_array))
             }
-            _ => None, //todo!("Unsupported column type"),
         }
     }
 

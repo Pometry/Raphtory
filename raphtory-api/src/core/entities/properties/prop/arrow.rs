@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use arrow_array::{
     cast::AsArray, types::*, Array, ArrowPrimitiveType, OffsetSizeTrait, StructArray,
 };
@@ -5,7 +7,7 @@ use arrow_schema::{DataType, TimeUnit};
 use chrono::DateTime;
 use serde::{ser::SerializeMap, Serialize};
 
-use crate::core::entities::properties::prop::{Prop, PropRef};
+use crate::core::entities::properties::prop::{Prop, PropArray, PropRef};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ArrowRow<'a> {
@@ -105,6 +107,16 @@ impl<'a> ArrowRow<'a> {
         }
     }
 
+    fn list_prop_ref(&self, col: usize) -> Option<PropRef<'a>> {
+        let column = self.array.column(col).as_list_opt::<i64>()?;
+        if self.index < column.len() && column.is_valid(self.index) {
+            let list_array = column.value(self.index);
+            Some(PropRef::List(Cow::Owned(PropArray::from(list_array))))
+        } else {
+            None
+        }
+    }
+
     pub fn bool_value(&self, col: usize) -> Option<bool> {
         let column = self.array.column(col);
         match column.data_type() {
@@ -186,6 +198,7 @@ impl<'a> ArrowRow<'a> {
             }
             DataType::Decimal128(_, _) => self.primitive_prop_ref::<Decimal128Type>(col),
             DataType::Struct(_) => self.struct_prop_ref(col),
+            DataType::LargeList(_) => self.list_prop_ref(col),
             _ => None,
         }
     }

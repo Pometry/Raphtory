@@ -1,6 +1,6 @@
 use num_traits::ToPrimitive;
 use serde::Serialize;
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -13,12 +13,12 @@ use crate::core::{
     storage::arc_str::ArcStr,
 };
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PropRef<'a> {
     Str(&'a str),
     Num(PropNum),
     Bool(bool),
-    List(&'a PropArray),
+    List(Cow<'a, PropArray>),
     Map(PropMapRef<'a>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),

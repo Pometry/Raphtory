@@ -5,11 +5,9 @@ use crate::core::{
     },
     storage::arc_str::ArcStr,
 };
-use arrow_array::cast::AsArray;
-use arrow_array::ArrayRef;
+use arrow_array::{cast::AsArray, ArrayRef, LargeListArray, StructArray};
 #[cfg(feature = "arrow")]
 use arrow_schema::{DataType, Field, FieldRef};
-use arrow_array::{LargeListArray, ListArray, StructArray};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -82,7 +80,7 @@ impl<'a> From<PropRef<'a>> for Prop {
                 PropNum::F64(f) => Prop::F64(f),
             },
             PropRef::Bool(b) => Prop::Bool(b),
-            PropRef::List(v) => Prop::List(v.clone().into()),
+            PropRef::List(v) => Prop::List(v.as_ref().clone()),
             PropRef::Map(m) => m
                 .into_prop()
                 .unwrap_or_else(|| Prop::Map(Arc::new(Default::default()))),
@@ -157,7 +155,7 @@ impl PartialOrd for Prop {
 }
 
 pub struct SerdeProp<'a>(pub &'a Prop);
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct SerdeList<'a>(pub &'a PropArray);
 #[derive(Clone, Copy)]
 pub struct SerdeMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
@@ -336,42 +334,29 @@ impl Prop {
 }
 
 #[cfg(feature = "arrow")]
-pub fn list_array_from_props<P>(
+pub fn list_array_from_props<P: Serialize + std::fmt::Debug + Clone>(
     dt: &DataType,
-    as_serde_map: impl Fn(&P) -> SerdeList<'_> + Copy,
     props: impl IntoIterator<Item = Option<P>>,
 ) -> LargeListArray {
-    use arrow_array::LargeListArray;
     use arrow_schema::{Field, Fields};
     use serde_arrow::ArrayBuilder;
 
-    let fields: Fields = vec![Field::new("list", dt.clone(), false)].into();
+    let fields: Fields = vec![Field::new("value", dt.clone(), true)].into();
 
     let mut builder = ArrayBuilder::from_arrow(&fields)
         .unwrap_or_else(|e| panic!("Failed to make array builder {e}"));
 
-    let empty_list = PropArray::default();
-    for p in props {
-        match p.as_ref().map(as_serde_map) {
-            todo!("USE SerdeRow");
-            Some(list) => builder
-                .push(Value { list })
-                .unwrap_or_else(|e| panic!("Failed to push list to array builder {e}")),
-            _ => builder
-                .push(SerdeList(&empty_list))
-                .unwrap_or_else(|e| panic!("Failed to push empty list to array builder {e}")),
-        }
+    for value in props {
+        builder.push(SerdeRow { value }).unwrap_or_else(|e| {
+            panic!("Failed to push list to array builder {e} for type {fields:?}",)
+        });
     }
 
     let arrays = builder
         .to_arrow()
         .unwrap_or_else(|e| panic!("Failed to convert to arrow array {e}"));
-    arrays[0]
-        .clone()
-        .as_any()
-        .downcast_ref::<LargeListArray>()
-        .unwrap()
-        .clone()
+
+    arrays.first().unwrap().as_list::<i64>().clone()
 }
 
 #[cfg(feature = "arrow")]

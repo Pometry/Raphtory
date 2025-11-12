@@ -1,5 +1,7 @@
 use crate::{
-    core::entities::properties::prop::{ArrowRow, DirectConvert, Prop, PropType},
+    core::entities::properties::prop::{
+        unify_types, ArrowRow, DirectConvert, Prop, PropType, SerdeProp,
+    },
     iter::{BoxedLIter, IntoDynBoxed},
 };
 use arrow_array::{
@@ -68,7 +70,14 @@ impl PropArray {
     pub fn dtype(&self) -> PropType {
         match self {
             PropArray::Vec(ps) if ps.is_empty() => PropType::Empty,
-            PropArray::Vec(ps) => ps[0].dtype(),
+            PropArray::Vec(ps) => ps
+                .iter()
+                .map(|p| p.dtype())
+                .reduce(|dt1, dt2| {
+                    unify_types(&dt1, &dt2, &mut false)
+                        .unwrap_or_else(|e| panic!("Failed to unify props {e}"))
+                })
+                .unwrap(),
             PropArray::Array(a) => PropType::from(a.data_type()),
         }
     }
@@ -192,7 +201,7 @@ impl Serialize for PropArray {
     {
         let mut state = serializer.serialize_seq(Some(self.len()))?;
         for prop in self.iter_all() {
-            state.serialize_element(&prop)?;
+            state.serialize_element(&prop.as_ref().map(SerdeProp))?;
         }
         state.end()
     }

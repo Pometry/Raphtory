@@ -20,7 +20,7 @@ use raphtory_api::core::{
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
 #[cfg(feature = "arrow")]
@@ -453,7 +453,9 @@ impl PropColumn {
             PropColumn::U8(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::U16(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::I32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
-            PropColumn::List(col) => col.get_opt(index).map(PropRef::List),
+            PropColumn::List(col) => col
+                .get_opt(index)
+                .map(|prop| PropRef::List(Cow::Borrowed(prop))),
             PropColumn::Map(col) => col.get_opt(index).map(PropRef::from),
             PropColumn::NDTime(col) => col.get_opt(index).copied().map(PropRef::from),
             PropColumn::DTime(col) => col.get_opt(index).copied().map(PropRef::from),

@@ -22,7 +22,7 @@ thiserror = { workspace = true }
 bytemuck = { workspace = true }
 chrono.workspace = true
 dashmap = { workspace = true }
-derive_more = { workspace = true }
+derive_more = { workspace = true, features = ["from"] }
 rustc-hash = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
