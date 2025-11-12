@@ -1,10 +1,12 @@
-use crate::db::api::view::internal::GraphView;
-use crate::db::graph::views::filter::model::not_filter::NotFilter;
-use crate::db::graph::views::filter::model::or_filter::OrFilter;
-use crate::db::graph::views::filter::model::AndFilter;
+pub mod filter;
+
 use crate::{
-    db::api::view::internal::{
-        time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
+    db::{
+        api::view::internal::{
+            time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
+            GraphView,
+        },
+        graph::views::filter::model::{not_filter::NotFilter, or_filter::OrFilter, AndFilter},
     },
     prelude::GraphViewOps,
 };

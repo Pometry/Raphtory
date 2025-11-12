@@ -1,7 +1,10 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::state::{group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, Index},
+        api::state::{
+            group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, ops::NodeFilterOp,
+            Index,
+        },
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::{GraphViewOps, NodeViewOps},
@@ -15,15 +18,13 @@ pub trait NodeStateOps<'graph>:
     IntoIterator<Item = (NodeView<'graph, Self::BaseGraph>, Self::OwnedValue)> + Send + Sync + 'graph
 {
     type BaseGraph: GraphViewOps<'graph>;
-    type Graph: GraphViewOps<'graph>;
+    type Select: NodeFilterOp<Self::BaseGraph>;
     type Value<'a>: Send + Sync + Borrow<Self::OwnedValue>
     where
         'graph: 'a,
         Self: 'a;
 
     type OwnedValue: Clone + Send + Sync + 'graph;
-
-    fn graph(&self) -> &Self::Graph;
 
     fn base_graph(&self) -> &Self::BaseGraph;
 
@@ -44,7 +45,7 @@ pub trait NodeStateOps<'graph>:
     where
         'graph: 'a;
 
-    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph>;
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Select>;
 
     fn par_iter<'a>(
         &'a self,
@@ -67,7 +68,7 @@ pub trait NodeStateOps<'graph>:
     >(
         &self,
         cmp: F,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph> {
         let mut state: Vec<_> = self
             .par_iter()
             .map(|(n, v)| (n.node, v.borrow().clone()))
@@ -85,7 +86,6 @@ pub trait NodeStateOps<'graph>:
 
         NodeState::new(
             self.base_graph().clone(),
-            self.graph().clone(),
             values.into(),
             Some(Index::new(keys)),
         )
@@ -105,12 +105,12 @@ pub trait NodeStateOps<'graph>:
     >(
         &self,
         cmp: F,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph> {
         self.sort_by(|(_, v1), (_, v2)| cmp(v1, v2))
     }
 
     /// Sort the results by global node id
-    fn sort_by_id(&self) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn sort_by_id(&self) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph> {
         self.sort_by(|(n1, _), (n2, _)| n1.id().cmp(&n2.id()))
     }
 
@@ -132,7 +132,7 @@ pub trait NodeStateOps<'graph>:
         &self,
         cmp: F,
         k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph> {
         let values = node_state_ord_ops::top_k(
             self.iter(),
             |(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()),
@@ -145,7 +145,6 @@ pub trait NodeStateOps<'graph>:
 
         NodeState::new(
             self.base_graph().clone(),
-            self.graph().clone(),
             values.into(),
             Some(Index::new(keys)),
         )
@@ -155,7 +154,7 @@ pub trait NodeStateOps<'graph>:
         &self,
         cmp: F,
         k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph> {
         self.top_k_by(|v1, v2| cmp(v1, v2).reverse(), k)
     }
 
@@ -195,11 +194,11 @@ pub trait NodeStateOps<'graph>:
     >(
         &self,
         group_fn: F,
-    ) -> NodeGroups<V, Self::Graph> {
+    ) -> NodeGroups<V, Self::Select> {
         NodeGroups::new(
             self.par_iter()
                 .map(|(node, v)| (node.node, group_fn(v.borrow()))),
-            self.graph().clone(),
+            self.base_graph().clone(),
         )
     }
 

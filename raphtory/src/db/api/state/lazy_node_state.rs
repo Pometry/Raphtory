@@ -2,7 +2,10 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::{ops::node::NodeOp, Index, NodeState, NodeStateOps},
+            state::{
+                ops::{Const, NodeFilterOp, NodeOp},
+                Index, NodeState, NodeStateOps,
+            },
             view::{
                 internal::{FilterOps, NodeList},
                 BoxedLIter, IntoDynBoxed,
@@ -20,15 +23,20 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct LazyNodeState<'graph, Op, G, GH = G> {
+pub struct LazyNodeState<'graph, Op, G, GH = Const<bool>> {
     nodes: Nodes<'graph, G, GH>,
     pub(crate) op: Op,
 }
 
-impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, RHS>
-    PartialEq<&[RHS]> for LazyNodeState<'graph, Op, G, GH>
+impl<
+        'graph,
+        O: NodeOp + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: NodeFilterOp + Clone + 'graph,
+        RHS,
+    > PartialEq<&[RHS]> for LazyNodeState<'graph, O, G, GH>
 where
-    Op::Output: PartialEq<RHS>,
+    O::Output: PartialEq<RHS>,
 {
     fn eq(&self, other: &&[RHS]) -> bool {
         self.len() == other.len() && self.iter_values().zip(other.iter()).all(|(a, b)| a == *b)
@@ -37,14 +45,14 @@ where
 
 impl<
         'graph,
-        Op: NodeOp + 'graph,
+        O: NodeOp + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
+        GH: NodeFilterOp + Clone + 'graph,
         RHS,
         const N: usize,
-    > PartialEq<[RHS; N]> for LazyNodeState<'graph, Op, G, GH>
+    > PartialEq<[RHS; N]> for LazyNodeState<'graph, O, G, GH>
 where
-    Op::Output: PartialEq<RHS>,
+    O::Output: PartialEq<RHS>,
 {
     fn eq(&self, other: &[RHS; N]) -> bool {
         self.len() == other.len() && self.iter_values().zip(other.iter()).all(|(a, b)| a == *b)
@@ -53,13 +61,13 @@ where
 
 impl<
         'graph,
-        Op: NodeOp + 'graph,
+        O: NodeOp + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        RHS: NodeStateOps<'graph, OwnedValue = Op::Output>,
-    > PartialEq<RHS> for LazyNodeState<'graph, Op, G, GH>
+        GH: NodeFilterOp + Clone + 'graph,
+        RHS: NodeStateOps<'graph, OwnedValue = O::Output>,
+    > PartialEq<RHS> for LazyNodeState<'graph, O, G, GH>
 where
-    Op::Output: PartialEq,
+    O::Output: PartialEq,
 {
     fn eq(&self, other: &RHS) -> bool {
         self.len() == other.len()
@@ -72,30 +80,35 @@ where
     }
 }
 
-impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, RHS>
-    PartialEq<Vec<RHS>> for LazyNodeState<'graph, Op, G, GH>
+impl<
+        'graph,
+        O: NodeOp + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: NodeFilterOp + Clone + 'graph,
+        RHS,
+    > PartialEq<Vec<RHS>> for LazyNodeState<'graph, O, G, GH>
 where
-    Op::Output: PartialEq<RHS>,
+    O::Output: PartialEq<RHS>,
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.len() == other.len() && self.iter_values().zip(other.iter()).all(|(a, b)| a == *b)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, Op: NodeOp + 'graph> Debug
-    for LazyNodeState<'graph, Op, G, GH>
+impl<'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clone, O: NodeOp + 'graph> Debug
+    for LazyNodeState<'graph, O, G, GH>
 where
-    Op::Output: Debug,
+    O::Output: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter_values()).finish()
     }
 }
 
-impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
-    for LazyNodeState<'graph, Op, G, GH>
+impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clone + 'graph>
+    IntoIterator for LazyNodeState<'graph, O, G, GH>
 {
-    type Item = (NodeView<'graph, G>, Op::Output);
+    type Item = (NodeView<'graph, G>, O::Output);
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -107,22 +120,22 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
     }
 }
 
-impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    LazyNodeState<'graph, Op, G, GH>
+impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clone + 'graph>
+    LazyNodeState<'graph, O, G, GH>
 {
-    pub(crate) fn new(op: Op, nodes: Nodes<'graph, G, GH>) -> Self {
+    pub(crate) fn new(op: O, nodes: Nodes<'graph, G, GH>) -> Self {
         Self { nodes, op }
     }
 
-    pub fn collect<C: FromParallelIterator<Op::Output>>(&self) -> C {
+    pub fn collect<C: FromParallelIterator<O::Output>>(&self) -> C {
         self.par_iter_values().collect()
     }
 
-    pub fn collect_vec(&self) -> Vec<Op::Output> {
+    pub fn collect_vec(&self) -> Vec<O::Output> {
         self.collect()
     }
 
-    pub fn compute(&self) -> NodeState<'graph, Op::Output, G, GH> {
+    pub fn compute(&self) -> NodeState<'graph, O::Output, G> {
         if self.nodes.is_filtered() {
             let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = self
                 .par_iter()
@@ -130,37 +143,27 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 .unzip();
             NodeState::new(
                 self.nodes.base_graph.clone(),
-                self.nodes.iter_graph.clone(),
                 values.into(),
                 Some(Index::new(keys)),
             )
         } else {
             let values = self.collect_vec();
-            NodeState::new(
-                self.nodes.base_graph.clone(),
-                self.nodes.iter_graph.clone(),
-                values.into(),
-                None,
-            )
+            NodeState::new(self.nodes.base_graph.clone(), values.into(), None)
         }
     }
 }
 
-impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    NodeStateOps<'graph> for LazyNodeState<'graph, Op, G, GH>
+impl<'graph, O: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + Clone + 'graph>
+    NodeStateOps<'graph> for LazyNodeState<'graph, O, G, GH>
 {
-    type Graph = GH;
+    type Select = GH;
     type BaseGraph = G;
     type Value<'a>
-        = Op::Output
+        = O::Output
     where
         'graph: 'a,
         Self: 'a;
-    type OwnedValue = Op::Output;
-
-    fn graph(&self) -> &Self::Graph {
-        &self.nodes.iter_graph
-    }
+    type OwnedValue = O::Output;
 
     fn base_graph(&self) -> &Self::BaseGraph {
         &self.nodes.base_graph
@@ -212,7 +215,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             .map(move |node| (node, self.op.apply(&storage, node.node)))
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph> {
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Select> {
         self.nodes.clone()
     }
 
@@ -229,10 +232,10 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
     }
 
     fn get_by_index(&self, index: usize) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)> {
-        if self.graph().filtered() {
+        if self.nodes().is_list_filtered() {
             self.iter().nth(index)
         } else {
-            let vid = match self.graph().node_list() {
+            let vid = match self.nodes().node_list() {
                 NodeList::All { len } => {
                     if index < len {
                         VID(index)

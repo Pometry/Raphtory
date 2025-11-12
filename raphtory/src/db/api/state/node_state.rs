@@ -2,7 +2,7 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::node_state_ops::NodeStateOps,
+            state::{node_state_ops::NodeStateOps, ops::Const},
             view::{
                 internal::{FilterOps, NodeList},
                 DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -116,20 +116,15 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
 }
 
 #[derive(Clone)]
-pub struct NodeState<'graph, V, G, GH = G> {
+pub struct NodeState<'graph, V, G> {
     base_graph: G,
-    graph: GH,
     values: Arc<[V]>,
     keys: Option<Index<VID>>,
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<
-        'graph,
-        V: Debug + Clone + Send + Sync + 'graph,
-        G: GraphViewOps<'graph>,
-        GH: Debug + GraphViewOps<'graph>,
-    > Debug for NodeState<'graph, V, G, GH>
+impl<'graph, V: Debug + Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> Debug
+    for NodeState<'graph, V, G>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_map()
@@ -138,16 +133,16 @@ impl<
     }
 }
 
-impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G, GH>
-    PartialEq<Vec<RHS>> for NodeState<'graph, V, G, GH>
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G>
+    PartialEq<Vec<RHS>> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.values.par_iter().eq(other)
     }
 }
 
-impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G, GH>
-    PartialEq<&[RHS]> for NodeState<'graph, V, G, GH>
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G>
+    PartialEq<&[RHS]> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &&[RHS]) -> bool {
         self.values.par_iter().eq(*other)
@@ -158,9 +153,8 @@ impl<
         'graph,
         V: Clone + Send + Sync + PartialEq + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
         RHS: NodeStateOps<'graph, OwnedValue = V>,
-    > PartialEq<RHS> for NodeState<'graph, V, G, GH>
+    > PartialEq<RHS> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &RHS) -> bool {
         self.len() == other.len()
@@ -179,9 +173,8 @@ impl<
         RHS: Send + Sync,
         V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
         S,
-    > PartialEq<HashMap<K, RHS, S>> for NodeState<'graph, V, G, GH>
+    > PartialEq<HashMap<K, RHS, S>> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &HashMap<K, RHS, S>) -> bool {
         other.len() == self.len()
@@ -191,14 +184,9 @@ impl<
     }
 }
 
-impl<'graph, V, G: IntoDynamic, GH: IntoDynamic> NodeState<'graph, V, G, GH> {
+impl<'graph, V, G: IntoDynamic> NodeState<'graph, V, G> {
     pub fn into_dyn(self) -> NodeState<'graph, V, DynamicGraph> {
-        NodeState::new(
-            self.base_graph.into_dynamic(),
-            self.graph.into_dynamic(),
-            self.values,
-            self.keys,
-        )
+        NodeState::new(self.base_graph.into_dynamic(), self.values, self.keys)
     }
 }
 
@@ -220,7 +208,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .map(|vid| values[vid.index()].clone())
                 .collect(),
         };
-        Self::new(graph.clone(), graph, values.into(), index)
+        Self::new(graph, values.into(), index)
     }
 
     /// Construct a node state from an eval result, mapping values
@@ -238,19 +226,19 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .map(|vid| map(values[vid.index()].clone()))
                 .collect(),
         };
-        Self::new(graph.clone(), graph, values, index)
+        Self::new(graph, values, index)
     }
 
     /// create a new empty NodeState
     pub fn new_empty(graph: G) -> Self {
-        Self::new(graph.clone(), graph, [].into(), Some(Index::default()))
+        Self::new(graph, [].into(), Some(Index::default()))
     }
 
     /// create a new NodeState from a list of values for the node (takes care of creating an index for
     /// node filtering when needed)
     pub fn new_from_values(graph: G, values: impl Into<Arc<[V]>>) -> Self {
         let index = Index::for_graph(&graph);
-        Self::new(graph.clone(), graph, values.into(), index)
+        Self::new(graph, values.into(), index)
     }
 
     /// create a new NodeState from a HashMap of values
@@ -272,16 +260,15 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .iter()
                 .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
                 .unzip();
-            Self::new(graph.clone(), graph, values.into(), Some(Index::new(index)))
+            Self::new(graph, values.into(), Some(Index::new(index)))
         }
     }
 }
 
-impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {
-    pub fn new(base_graph: G, graph: GH, values: Arc<[V]>, keys: Option<Index<VID>>) -> Self {
+impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
+    pub fn new(base_graph: G, values: Arc<[V]>, keys: Option<Index<VID>>) -> Self {
         Self {
             base_graph,
-            graph,
             values,
             keys,
             _marker: PhantomData,
@@ -297,12 +284,8 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
     }
 }
 
-impl<
-        'graph,
-        V: Send + Sync + Clone + 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > IntoIterator for NodeState<'graph, V, G, GH>
+impl<'graph, V: Send + Sync + Clone + 'graph, G: GraphViewOps<'graph>> IntoIterator
+    for NodeState<'graph, V, G>
 {
     type Item = (NodeView<'graph, G>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
@@ -316,24 +299,16 @@ impl<
     }
 }
 
-impl<
-        'graph,
-        V: Clone + Send + Sync + 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > NodeStateOps<'graph> for NodeState<'graph, V, G, GH>
+impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeStateOps<'graph>
+    for NodeState<'graph, V, G>
 {
     type BaseGraph = G;
-    type Graph = GH;
+    type Select = Const<bool>;
     type Value<'a>
         = &'a V
     where
         'graph: 'a;
     type OwnedValue = V;
-
-    fn graph(&self) -> &Self::Graph {
-        &self.graph
-    }
 
     fn base_graph(&self) -> &Self::BaseGraph {
         &self.base_graph
@@ -384,13 +359,8 @@ impl<
         }
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph> {
-        Nodes::new_filtered(
-            self.base_graph.clone(),
-            self.graph.clone(),
-            self.keys.clone(),
-            None,
-        )
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Select> {
+        Nodes::new_filtered(self.base_graph.clone(), Const(true), self.keys.clone())
     }
 
     fn par_iter<'a>(
@@ -436,7 +406,7 @@ impl<
     }
 
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
-        let id = self.graph.internalise_node(node.as_node_ref())?;
+        let id = self.base_graph.internalise_node(node.as_node_ref())?;
         match &self.keys {
             Some(index) => index.index(&id).map(|i| &self.values[i]),
             None => Some(&self.values[id.0]),
@@ -461,7 +431,6 @@ mod test {
         g.add_node(0, 0, NO_PROPS, None).unwrap();
         let float_state = NodeState {
             base_graph: g.clone(),
-            graph: g.clone(),
             values: [0.0f64].into(),
             keys: None,
             _marker: Default::default(),
@@ -469,7 +438,6 @@ mod test {
 
         let int_state = NodeState {
             base_graph: g.clone(),
-            graph: g.clone(),
             values: [1i64].into(),
             keys: None,
             _marker: Default::default(),

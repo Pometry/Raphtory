@@ -61,7 +61,7 @@ where
     fn sort_by_values(
         &self,
         reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select>;
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
@@ -77,12 +77,13 @@ where
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    fn top_k(&self, k: usize)
+        -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select>;
 
     fn bottom_k(
         &self,
         k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select>;
 
     /// Returns a tuple of the min result with its key
     fn min_item(&self) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)>;
@@ -119,7 +120,7 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     fn sort_by_values(
         &self,
         reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select>;
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
@@ -135,12 +136,13 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    fn top_k(&self, k: usize)
+        -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select>;
 
     fn bottom_k(
         &self,
         k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select>;
 
     /// Returns a tuple of the min result with its key
     fn min_item(&self) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)>;
@@ -171,7 +173,7 @@ where
     fn sort_by_values(
         &self,
         reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select> {
         if reverse {
             self.sort_by_values_by(|a, b| a.cmp(b).reverse())
         } else {
@@ -179,14 +181,17 @@ where
         }
     }
 
-    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn top_k(
+        &self,
+        k: usize,
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select> {
         self.top_k_by(Ord::cmp, k)
     }
 
     fn bottom_k(
         &self,
         k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select> {
         self.bottom_k_by(Ord::cmp, k)
     }
 
@@ -210,7 +215,7 @@ where
     fn sort_by_values(
         &self,
         reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select> {
         if reverse {
             self.sort_by_values_by(|a, b| a.as_ord().cmp(b.as_ord()).reverse())
         } else {
@@ -218,14 +223,17 @@ where
         }
     }
 
-    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn top_k(
+        &self,
+        k: usize,
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select> {
         self.top_k_by(|a, b| a.as_ord().cmp(b.as_ord()), k)
     }
 
     fn bottom_k(
         &self,
         k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Select> {
         self.bottom_k_by(|a, b| a.as_ord().cmp(b.as_ord()), k)
     }
 
