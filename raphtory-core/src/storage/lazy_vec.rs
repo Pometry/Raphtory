@@ -1,6 +1,6 @@
 use arrow_array::BooleanArray;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{fmt::Debug, iter};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("Cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]

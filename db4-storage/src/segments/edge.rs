@@ -582,7 +582,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
 #[cfg(test)]
 mod test {
     use super::*;
-    use arrow_array::{BooleanArray, StringArray};
+    use arrow_array::{Array, BooleanArray, StringArray};
     use raphtory_api::core::entities::properties::{prop::PropType, tprop::TPropOps};
     use raphtory_core::storage::timeindex::TimeIndexEntry;
 
