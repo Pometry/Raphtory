@@ -10,7 +10,6 @@ use crate::error::StorageError;
 use crate::segments::graph::segment::MemGraphSegment;
 use crate::segments::graph::entry::MemGraphEntry;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use std::path::PathBuf;
 
 /// `GraphSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
@@ -27,7 +26,7 @@ pub struct GraphSegmentView {
 impl GraphSegmentOps for GraphSegmentView {
     type Entry<'a> = MemGraphEntry<'a>;
 
-    fn new(path: Option<PathBuf>) -> Self {
+    fn new(_path: Option<&Path>) -> Self {
         Self {
             head: Arc::new(RwLock::new(MemGraphSegment::new())),
             est_size: AtomicUsize::new(0),
