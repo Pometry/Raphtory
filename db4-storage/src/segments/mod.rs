@@ -313,7 +313,6 @@ impl<T: HasRow> SegmentContainer<T> {
         self.data
             .iter_all()
             .chain(iter::repeat(None))
-            // .take(self.max_page_len as usize)
             .take(max_local_pos + 1)
             .enumerate()
             .map(|(i, v)| {

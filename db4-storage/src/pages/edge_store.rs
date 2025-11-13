@@ -442,7 +442,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
     ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
         // optimistic first try to get a free page 3 times
         let num_edges = self.num_edges();
-        let slot_idx = num_edges as usize % N;
+        let slot_idx = num_edges % N;
         let maybe_free_page = self.free_pages[slot_idx..]
             .iter()
             .cycle()

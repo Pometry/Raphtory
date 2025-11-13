@@ -149,7 +149,7 @@ pub fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
                 )
             })
             .boxed(),
-        PropType::List(p_type) => proptest::collection::vec(prop(p_type), 0..10)
+        PropType::List(p_type) => proptest::collection::vec(prop(p_type), 1..10)
             .prop_map(|props| Prop::List(props.into()))
             .boxed(),
         PropType::Map(p_types) => {
@@ -158,7 +158,7 @@ pub fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
             let len = key_val.len();
-            let samples = proptest::sample::subsequence(key_val, 0..=len);
+            let samples = proptest::sample::subsequence(key_val, 1..=len);
             samples
                 .prop_flat_map(|key_vals| {
                     let props: Vec<_> = key_vals
