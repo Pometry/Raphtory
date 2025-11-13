@@ -182,7 +182,7 @@ impl<
             ext.clone(),
         ));
         let graph_storage = Arc::new(GraphStorageInner::new_with_meta(
-            graph_path,
+            graph_path.as_deref(),
             graph_meta,
             ext.clone(),
         ));
