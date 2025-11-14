@@ -9,12 +9,15 @@ use crate::segments::{
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
+pub const DEFAULT_MAX_MEMORY_BYTES: usize = 32 * 1024 * 1024;
 
 pub trait Config:
     Default + std::fmt::Debug + Clone + Send + Sync + 'static + for<'a> Deserialize<'a> + Serialize
 {
     fn max_node_page_len(&self) -> u32;
     fn max_edge_page_len(&self) -> u32;
+
+    fn max_memory_bytes(&self) -> usize;
     fn is_parallel(&self) -> bool;
     fn node_types(&self) -> &[String];
     fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>);
@@ -68,6 +71,10 @@ impl Config for NoOpStrategy {
 
     fn max_edge_page_len(&self) -> u32 {
         self.max_edge_page_len
+    }
+
+    fn max_memory_bytes(&self) -> usize {
+        usize::MAX
     }
 
     fn is_parallel(&self) -> bool {
