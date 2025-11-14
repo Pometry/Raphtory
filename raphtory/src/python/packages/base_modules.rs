@@ -68,7 +68,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     );
 
     #[cfg(feature = "search")]
-    add_classes!(PyIndexSpecBuilder, PyIndexSpec);
+    add_classes!(m, PyIndexSpecBuilder, PyIndexSpec);
 
     #[pyfunction]
     /// Return Raphtory version.

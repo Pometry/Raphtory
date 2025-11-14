@@ -1,10 +1,6 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use once_cell::sync::Lazy;
-use rand::{
-    rng,
-    seq::{IteratorRandom, SliceRandom},
-    Rng,
-};
+use rand::{prelude::IndexedRandom, rng, seq::IteratorRandom, Rng};
 use raphtory::{
     db::{
         api::{
@@ -37,7 +33,7 @@ use std::{iter, sync::Arc, time::Instant};
 static GRAPH: Lazy<Arc<Graph>> = Lazy::new(|| {
     let data_dir = "/tmp/graphs/raph_social/rf0.1"; // TODO Fix this
                                                     // let data_dir = "/tmp/graphs/raph_social/rf1.0";
-    let graph = Graph::decode(data_dir).unwrap();
+    let graph = Graph::decode(data_dir, None).unwrap();
 
     println!("Nodes count = {}", graph.count_nodes());
     println!("Edges count = {}", graph.count_edges());
