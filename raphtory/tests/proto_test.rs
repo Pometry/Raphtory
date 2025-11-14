@@ -29,7 +29,6 @@ mod proto_test {
     use std::{collections::HashMap, io::Cursor, iter, path::PathBuf, sync::Arc};
     use tempfile::TempDir;
 
-    #[cfg(feature = "arrow")]
     use arrow::array::types::{Int32Type, UInt8Type};
     use raphtory::test_utils::{build_edge_list, build_graph_from_edge_list};
 

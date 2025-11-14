@@ -9,7 +9,6 @@ use pyo3::{
 };
 use std::{ops::Deref, str::FromStr, sync::Arc};
 
-#[cfg(feature = "arrow")]
 mod array_ext {
     use pyo3::{intern, prelude::*, types::PyTuple};
     use pyo3_arrow::PyArray;
@@ -28,8 +27,9 @@ mod array_ext {
     }
 }
 
-#[cfg(feature = "arrow")]
-use {crate::core::entities::properties::prop::PropArray, array_ext::*, pyo3_arrow::PyArray};
+use crate::core::entities::properties::prop::PropArray;
+use array_ext::*;
+use pyo3_arrow::PyArray;
 
 static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 

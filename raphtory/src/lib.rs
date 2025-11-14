@@ -149,7 +149,7 @@ pub mod prelude {
         },
     };
 
-    #[cfg(all(feature = "io", feature = "arrow"))]
+    #[cfg(feature = "io")]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
         StableDecode, StableEncode,

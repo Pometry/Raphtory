@@ -13,8 +13,8 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature = "arrow")]
-use {arrow::array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
+use arrow::array::ArrayRef;
+use raphtory_api::core::entities::properties::prop::PropArrayUnwrap;
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: InternalPropertiesOps> {
@@ -298,7 +298,6 @@ impl<P: InternalPropertiesOps> PropUnwrap for TemporalPropertyView<P> {
     }
 }
 
-#[cfg(feature = "arrow")]
 impl<P: InternalPropertiesOps> PropArrayUnwrap for TemporalPropertyView<P> {
     fn into_array(self) -> Option<ArrayRef> {
         self.latest().into_array()

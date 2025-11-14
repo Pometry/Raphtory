@@ -26,8 +26,8 @@ itertools = { workspace = true }
 thiserror = { workspace = true }
 bigdecimal = { workspace = true, optional = true }
 num-traits = { workspace = true, optional = true }
-arrow-array = { workspace = true, optional = true }
-arrow-schema = { workspace = true, optional = true }
+arrow-array = { workspace = true }
+arrow-schema = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

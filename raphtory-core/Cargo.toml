@@ -13,7 +13,7 @@ rust-version.workspace = true
 edition.workspace = true
 
 [dependencies]
-raphtory-api = { workspace = true, features = ["arrow"] }
+raphtory-api = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"] }
 hashbrown = { workspace = true }
 either = { workspace = true }
@@ -29,7 +29,7 @@ parking_lot = { workspace = true }
 itertools = { workspace = true }
 once_cell = { workspace = true }
 ouroboros = { workspace = true }
-arrow-array = { workspace = true}
+arrow-array = { workspace = true }
 regex = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 
@@ -37,5 +37,4 @@ pyo3 = { workspace = true, optional = true }
 proptest = { workspace = true }
 
 [features]
-arrow = ["raphtory-api/arrow"]
 python = ["dep:pyo3", "raphtory-api/python"]

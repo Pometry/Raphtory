@@ -35,10 +35,10 @@ twox-hash.workspace = true
 tracing-subscriber = { workspace = true }
 tracing = { workspace = true }
 sorted_vector_map = { workspace = true }
-arrow-array = { workspace = true, optional = true }
-arrow-ipc = { workspace = true, optional = true }
-arrow-schema = { workspace = true, optional = true }
-serde_arrow = { workspace = true, optional = true }
+arrow-array = { workspace = true }
+arrow-ipc = { workspace = true }
+arrow-schema = { workspace = true }
+serde_arrow = { workspace = true }
 itertools = { workspace = true }
 iter-enum = { workspace = true }
 minijinja = { workspace = true, optional = true }
@@ -48,7 +48,6 @@ display-error-chain = { workspace = true, optional = true }
 proptest.workspace = true
 
 [features]
-default = ["arrow"]
 # Enables generating the pyo3 python bindings
 python = [
     "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain"
@@ -57,6 +56,5 @@ python = [
 proto = []
 vectors = []
 template = ["dep:minijinja"]
-arrow = ["dep:arrow-array", "dep:arrow-ipc", "dep:arrow-schema", "dep:serde_arrow"]
 search = []
 io = ["dep:serde_json"]

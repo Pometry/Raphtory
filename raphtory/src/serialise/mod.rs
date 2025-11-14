@@ -1,6 +1,6 @@
 mod graph_folder;
 pub mod metadata;
-#[cfg(feature = "arrow")]
+
 pub(crate) mod parquet;
 
 #[cfg(feature = "proto")]

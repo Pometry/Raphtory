@@ -6,11 +6,10 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use either::Either;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
-#[cfg(feature = "arrow")]
-use raphtory_api::core::entities::properties::prop::PropArray;
+
 use raphtory_api::core::{
     entities::properties::{
-        prop::{Prop, PropType},
+        prop::{Prop, PropArray, PropType},
         tprop::TPropOps,
     },
     storage::arc_str::ArcStr,

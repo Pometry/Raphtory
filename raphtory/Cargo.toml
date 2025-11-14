@@ -51,6 +51,9 @@ roaring = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
 uuid = { workspace = true }
+parquet = { workspace = true }
+arrow-json = { workspace = true }
+arrow = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -67,10 +70,7 @@ memmap2 = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
-# arrow otional dependencies
-parquet = { workspace = true, optional = true }
-arrow-json = { workspace = true, optional = true }
-arrow = { workspace = true, optional = true, features = ["chrono-tz"] }
+
 
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
@@ -124,7 +124,6 @@ io = [
     "dep:tempfile",
     "dep:zip",
     "kdam",
-    "arrow",
 ]
 
 # search
@@ -147,7 +146,6 @@ vectors = [
 # Enables generating the pyo3 python bindings
 python = [
     "io",
-    "arrow",
     "vectors",
     "dep:pyo3",
     "dep:numpy",
@@ -158,20 +156,13 @@ python = [
     "raphtory-core/python",
     "kdam/notebook",
 ]
-arrow = [
-    "raphtory-api/arrow",
-    "raphtory-core/arrow",
-    "dep:parquet",
-    "dep:arrow-json",
-    "dep:arrow",
-]
+
 
 proto = [
     "dep:prost",
     "dep:prost-types",
     "dep:prost-build",
     "dep:memmap2",
-    "arrow",
     "io",
 ]
 

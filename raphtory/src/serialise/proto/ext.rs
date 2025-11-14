@@ -27,7 +27,6 @@ use raphtory_api::core::{
 };
 use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
-#[cfg(feature = "arrow")]
 use raphtory_api::core::entities::properties::prop::PropArray;
 
 fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {

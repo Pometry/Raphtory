@@ -1,17 +1,15 @@
+use crate::core::{
+    entities::properties::prop::{Prop, SerdeList, SerdeMap},
+    storage::arc_str::ArcStr,
+};
+use bigdecimal::BigDecimal;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use num_traits::ToPrimitive;
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 use std::{borrow::Cow, sync::Arc};
 
-use bigdecimal::BigDecimal;
-use chrono::{DateTime, NaiveDateTime, Utc};
-use rustc_hash::FxHashMap;
-
-#[cfg(feature = "arrow")]
-use crate::core::entities::properties::prop::PropArray;
-use crate::core::{
-    entities::properties::prop::{ArrowRow, Prop, SerdeList, SerdeMap},
-    storage::arc_str::ArcStr,
-};
+use crate::core::entities::properties::prop::{ArrowRow, PropArray};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PropRef<'a> {

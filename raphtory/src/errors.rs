@@ -24,12 +24,9 @@ use std::{
 };
 use tracing::error;
 
-#[cfg(feature = "arrow")]
-use {
-    arrow::{datatypes::DataType, error::ArrowError},
-    parquet::errors::ParquetError,
-    raphtory_api::core::entities::{GidType, VID},
-};
+use arrow::{datatypes::DataType, error::ArrowError};
+use parquet::errors::ParquetError;
+use raphtory_api::core::entities::{GidType, VID};
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
@@ -68,7 +65,6 @@ pub enum InvalidPathReason {
     },
 }
 
-#[cfg(feature = "arrow")]
 #[derive(thiserror::Error, Debug)]
 pub enum LoadError {
     #[error("Only str columns are supported for layers, got {0:?}")]
@@ -133,11 +129,9 @@ pub enum GraphError {
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
 
-    #[cfg(feature = "arrow")]
     #[error("Arrow-rs error: {0}")]
     ArrowRs(#[from] ArrowError),
 
-    #[cfg(feature = "arrow")]
     #[error("Arrow-rs parquet error: {0}")]
     ParquetError(#[from] ParquetError),
 
@@ -147,7 +141,6 @@ pub enum GraphError {
         source: InvalidPathReason,
     },
 
-    #[cfg(feature = "arrow")]
     #[error("{source}")]
     LoadError {
         #[from]
@@ -262,11 +255,9 @@ pub enum GraphError {
         source: zip::result::ZipError,
     },
 
-    #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
 
-    #[cfg(feature = "arrow")]
     #[error(
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]

@@ -5,9 +5,6 @@ use crate::core::{
     },
     storage::arc_str::ArcStr,
 };
-use arrow_array::{cast::AsArray, ArrayRef, LargeListArray, StructArray};
-#[cfg(feature = "arrow")]
-use arrow_schema::{DataType, Field, FieldRef};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -26,8 +23,9 @@ use std::{
 };
 use thiserror::Error;
 
-#[cfg(feature = "arrow")]
 use crate::core::entities::properties::prop::prop_array::*;
+use arrow_array::{cast::AsArray, ArrayRef, LargeListArray, StructArray};
+use arrow_schema::{DataType, Field, FieldRef};
 
 pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
 
@@ -332,7 +330,6 @@ impl Prop {
     }
 }
 
-#[cfg(feature = "arrow")]
 pub fn list_array_from_props<P: Serialize + std::fmt::Debug + Clone>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
@@ -358,7 +355,6 @@ pub fn list_array_from_props<P: Serialize + std::fmt::Debug + Clone>(
     arrays.first().unwrap().as_list::<i64>().clone()
 }
 
-#[cfg(feature = "arrow")]
 pub fn struct_array_from_props<P: Serialize>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
@@ -476,7 +472,6 @@ impl From<&Prop> for Prop {
     }
 }
 
-#[cfg(feature = "arrow")]
 impl From<ArrayRef> for Prop {
     fn from(value: ArrayRef) -> Self {
         Prop::List(PropArray::from(value))

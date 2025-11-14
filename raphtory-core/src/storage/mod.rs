@@ -23,7 +23,6 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
-#[cfg(feature = "arrow")]
 use raphtory_api::core::entities::properties::prop::PropArray;
 
 pub mod lazy_vec;
@@ -280,7 +279,7 @@ impl PropColumn {
             ),
             // PropColumn::List(v) => v.append(col, mask),
             // PropColumn::Map(v) => v.append(col, mask),
-            // #[cfg(feature = "arrow")]
+            //
             // PropColumn::Array(v) => v.append(col, mask),
             // PropColumn::Empty(_) => {}
             _ => { /* ignore unsupported types for now */ }
