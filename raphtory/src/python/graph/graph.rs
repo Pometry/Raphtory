@@ -33,6 +33,7 @@ use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
 };
+use crate::python::graph::io::arrow_loaders::load_edges_from_arrow;
 
 /// A temporal graph with event semantics.
 ///
@@ -779,16 +780,54 @@ impl PyGraph {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
 
-        // Convert Polars DataFrame -> pandas.DataFrame
-        let pandas_df = df.call_method0("to_pandas").map_err(|e| {
+        // Convert Polars DataFrame to pandas.DataFrame
+        let kwargs = PyDict::new(df.py());
+        kwargs
+            .set_item("use_pyarrow_extension_array", true)
+            .map_err(|e| {
+                GraphError::LoadFailure(format!("Failed setting kwargs for to_pandas(): {e}"))
+            })?;
+
+        let pandas_df = df.call_method("to_pandas", (), Some(&kwargs)).map_err(|e| {
             GraphError::LoadFailure(format!(
-                "Failed converting Polars DataFrame to pandas via to_pandas(): {e}"
+                "Failed converting Polars DataFrame to pandas via to_pandas(use_pyarrow_extension_array=True): {e}"
             ))
         })?;
 
         load_edges_from_pandas(
             &self.graph,
             &pandas_df,
+            time,
+            src,
+            dst,
+            &properties,
+            &metadata,
+            shared_metadata.as_ref(),
+            layer,
+            layer_col,
+        )
+    }
+
+    #[pyo3(
+        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+    )]
+    fn load_edges_from_arrow(
+        &self,
+        df: &Bound<PyAny>,
+        time: &str,
+        src: &str,
+        dst: &str,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        load_edges_from_arrow(
+            &self.graph,
+            df,
             time,
             src,
             dst,
