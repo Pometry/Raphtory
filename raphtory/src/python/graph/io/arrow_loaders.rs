@@ -1,15 +1,24 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::GraphError,
-    io::arrow::dataframe::{DFChunk, DFView},
+    io::arrow::{
+        dataframe::{DFChunk, DFView},
+        df_loaders::load_edges_from_df,
+    },
     prelude::{AdditionOps, PropertyAdditionOps},
     python::graph::io::pandas_loaders::{array_to_rust, is_jupyter},
     serialise::incremental::InternalCache,
 };
-use pyo3::{prelude::*, types::PyDict};
+use arrow::array::{
+    ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream},
+    RecordBatchReader,
+};
+use pyo3::{
+    prelude::*,
+    types::{PyCapsule, PyDict},
+};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
-use crate::io::arrow::df_loaders::load_edges_from_df;
 
 pub(crate) fn load_edges_from_arrow<
     'py,
@@ -35,7 +44,115 @@ pub(crate) fn load_edges_from_arrow<
 
     let df_view = process_arrow_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edges_from_df(df_view, time, src, dst, properties, metadata, shared_metadata, layer, layer_col, graph)
+    load_edges_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        properties,
+        metadata,
+        shared_metadata,
+        layer,
+        layer_col,
+        graph,
+    )
+}
+
+pub(crate) fn load_edges_from_arrow_streaming<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+>(
+    graph: &G,
+    df: &Bound<'py, PyAny>,
+    time: &str,
+    src: &str,
+    dst: &str,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst, time];
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(metadata);
+    if let Some(layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
+
+    let df_view = process_arrow_py_df_streaming(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edges_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        properties,
+        metadata,
+        shared_metadata,
+        layer,
+        layer_col,
+        graph,
+    )
+}
+
+pub(crate) fn process_arrow_py_df_streaming<'a>(
+    df: &Bound<'a, PyAny>,
+    col_names: Vec<&str>,
+) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
+    let py = df.py();
+    is_jupyter(py);
+
+    // Expect an object that can use the Arrow C Stream interface
+    if !df.hasattr("__arrow_c_stream__")? {
+        return Err(GraphError::LoadFailure(
+            "arrow object must implement __arrow_c_stream__",
+        ));
+    }
+
+    let stream_capsule_any = df.call_method0("__arrow_c_stream__")?;
+    let stream_capsule = stream_capsule_any.downcast::<PyCapsule>()?;
+
+    // We need to use the pointer to build an ArrowArrayStreamReader
+    if !stream_capsule.is_valid() {
+        return Err(GraphError::LoadFailure("Stream capsule is not valid"));
+    }
+    let stream_ptr = stream_capsule.pointer() as *mut FFI_ArrowArrayStream;
+    let reader = unsafe { ArrowArrayStreamReader::from_raw(stream_ptr) }.map_err(|e| {
+        GraphError::LoadFailure(format!(
+            "Arrow stream error while creating the reader: {}",
+            e.to_string()
+        ))
+    })?;
+
+    // Get column names and indices once only
+    let schema = reader.schema();
+    let mut names: Vec<String> = Vec::with_capacity(col_names.len());
+    let mut indices: Vec<usize> = Vec::with_capacity(col_names.len());
+
+    for (idx, field) in schema.fields().iter().enumerate() {
+        if col_names.contains(&field.name().as_str()) {
+            names.push(field.name().clone());
+            indices.push(idx);
+        }
+    }
+
+    let chunks = reader.into_iter().map(move |batch_res| {
+        let batch = batch_res.map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Arrow stream error while reading a batch: {}",
+                e.to_string()
+            ))
+        })?;
+        let chunk_arrays = indices
+            .iter()
+            .map(|&idx| batch.column(idx).clone())
+            .collect::<Vec<_>>();
+        Ok(DFChunk::new(chunk_arrays))
+    });
+
+    let num_rows: usize = df.call_method0("__len__")?.extract()?;
+    Ok(DFView::new(names, chunks, num_rows))
 }
 
 pub(crate) fn process_arrow_py_df<'a>(

@@ -14,8 +14,15 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyPersistentGraph, index::PyIndexSpec,
-            io::pandas_loaders::*, node::PyNode, views::graph_view::PyGraphView,
+            edge::PyEdge,
+            graph_with_deletions::PyPersistentGraph,
+            index::PyIndexSpec,
+            io::{
+                arrow_loaders::{load_edges_from_arrow, load_edges_from_arrow_streaming},
+                pandas_loaders::*,
+            },
+            node::PyNode,
+            views::graph_view::PyGraphView,
         },
         types::iterable::FromIterable,
         utils::{PyNodeRef, PyTime},
@@ -33,7 +40,6 @@ use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
 };
-use crate::python::graph::io::arrow_loaders::load_edges_from_arrow;
 
 /// A temporal graph with event semantics.
 ///
@@ -826,6 +832,37 @@ impl PyGraph {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_edges_from_arrow(
+            &self.graph,
+            df,
+            time,
+            src,
+            dst,
+            &properties,
+            &metadata,
+            shared_metadata.as_ref(),
+            layer,
+            layer_col,
+        )
+    }
+
+    #[pyo3(
+        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+    )]
+    fn load_edges_from_arrow_streaming(
+        &self,
+        df: &Bound<PyAny>,
+        time: &str,
+        src: &str,
+        dst: &str,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        load_edges_from_arrow_streaming(
             &self.graph,
             df,
             time,
