@@ -17,11 +17,11 @@ use raphtory::{
 };
 use std::{
     collections::HashMap,
+    ffi::OsStr,
     io::{Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
 };
-use std::ffi::OsStr;
 use tokio::fs;
 use tracing::warn;
 use walkdir::WalkDir;
@@ -283,12 +283,16 @@ impl Data {
     /// Serializes a graph to disk, overwriting any existing data in its folder.
     fn encode_graph_to_disk(graph: GraphWithVectors) -> Result<(), GraphError> {
         let folder_path = graph.folder.get_base_path();
-        let bak_name = "_".to_string() +  folder_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let bak_name = "_".to_string()
+            + folder_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("");
         let bak_path = folder_path.with_file_name(bak_name);
 
         // Write to backup path first
         graph.graph.encode(&bak_path)?;
-        
+
         if folder_path.exists() {
             // delete old data
             std::fs::remove_dir_all(folder_path)?;

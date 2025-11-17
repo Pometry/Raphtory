@@ -128,8 +128,12 @@ pub(crate) fn valid_path(
                 if full_path.join(META_PATH).exists() {
                     if namespace {
                         return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
-                    } else if component.to_str().ok_or(InvalidPathReason::NonUTFCharacters)?.starts_with("_") {
-                        return Err(InvalidPathReason::GraphNamePrefix)
+                    } else if component
+                        .to_str()
+                        .ok_or(InvalidPathReason::NonUTFCharacters)?
+                        .starts_with("_")
+                    {
+                        return Err(InvalidPathReason::GraphNamePrefix);
                     }
                 }
                 //check for symlinks
