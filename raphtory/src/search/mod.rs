@@ -364,7 +364,7 @@ mod test_index {
                 .unwrap();
             let result = graph.encode(folder);
             match result {
-                Err(GraphError::IOError { source }) => {
+                Err(GraphError::IOError { source, .. }) => {
                     assert!(
                         format!("{source}").to_lowercase().contains("file exists"),
                         "{}",
