@@ -54,6 +54,8 @@ pub enum InvalidPathReason {
     PathNotParsable(PathBuf),
     #[error("The path to the graph contains a subpath to an existing graph: {0}")]
     ParentIsGraph(PathBuf),
+    #[error("Graph name cannot start with _")]
+    GraphNamePrefix,
     #[error("The path provided does not exists as a namespace: {0}")]
     NamespaceDoesNotExist(String),
     #[error("The path provided contains non-UTF8 characters.")]

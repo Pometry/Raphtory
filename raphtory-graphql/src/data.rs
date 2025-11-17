@@ -21,6 +21,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use std::ffi::OsStr;
 use tokio::fs;
 use tracing::warn;
 use walkdir::WalkDir;
@@ -282,28 +283,17 @@ impl Data {
     /// Serializes a graph to disk, overwriting any existing data in its folder.
     fn encode_graph_to_disk(graph: GraphWithVectors) -> Result<(), GraphError> {
         let folder_path = graph.folder.get_base_path();
+        let bak_name = "_".to_string() +  folder_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let bak_path = folder_path.with_file_name(bak_name);
 
-        // Create a backup of the existing folder
+        // Write to backup path first
+        graph.graph.encode(&bak_path)?;
+        
         if folder_path.exists() {
-            let bak_path = folder_path.with_extension("bak");
-
-            // Remove any old backups
-            if bak_path.exists() {
-                std::fs::remove_dir_all(&bak_path)?;
-            }
-
-            std::fs::rename(&folder_path, &bak_path)?;
+            // delete old data
+            std::fs::remove_dir_all(folder_path)?;
         }
-
-        // Serialize the graph to the original folder path
-        graph.graph.encode(&folder_path)?;
-
-        // Delete the backup on success
-        let bak_path = folder_path.with_extension("bak");
-
-        if bak_path.exists() {
-            std::fs::remove_dir_all(&bak_path)?;
-        }
+        std::fs::rename(&bak_path, folder_path)?;
 
         Ok(())
     }
