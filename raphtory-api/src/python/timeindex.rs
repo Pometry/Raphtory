@@ -287,6 +287,103 @@ impl From<PyEventTime> for EventTime {
     }
 }
 
+#[pyclass(name = "OptionalEventTime", module = "raphtory", frozen)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
+pub struct PyOptionalEventTime {
+    inner: Option<EventTime>,
+}
+
+#[pymethods]
+impl PyOptionalEventTime {
+    /// Creates a new OptionalEventTime, which may or may not contain an EventTime.
+    /// If no EventTime is contained, then functions called on this object will return None.
+    ///
+    /// Arguments:
+    ///     event_time (EventTime | None): A time input convertible to an EventTime, such as an int, float, datetime, str, or list/tuple of size 2.
+    ///
+    /// Returns:
+    ///     OptionalEventTime:
+    #[new]
+    pub fn new(event_time: Option<EventTime>) -> Self {
+        Self { inner: event_time }
+    }
+
+    /// Returns the timestamp in milliseconds since the Unix epoch if an EventTime is contained, or else None.
+    ///
+    /// Returns:
+    ///     int | None: Milliseconds since the Unix epoch.
+    #[getter]
+    pub fn t(&self) -> Option<i64> {
+        self.inner.map(|t| t.t())
+    }
+
+    /// Returns the UTC datetime representation of this EventTime's timestamp if an EventTime is contained, or else None.
+    ///
+    /// Returns:
+    ///     datetime | None: The UTC datetime.
+    ///
+    /// Raises:
+    ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+    #[getter]
+    pub fn dt(&self) -> PyResult<Option<DateTime<Utc>>> {
+        self.inner.map(|t| t.dt().map_err(PyErr::from)).transpose()
+    }
+
+    /// Returns the event id used to order events within the same timestamp if an EventTime is contained, or else None.
+    ///
+    /// Returns:
+    ///     int | None: The event id.
+    #[getter]
+    pub fn event_id(&self) -> Option<usize> {
+        self.inner.map(|t| t.i())
+    }
+
+    /// Returns true if the OptionalEventTime doesn't contain an EventTime.
+    ///
+    /// Returns:
+    ///     bool:
+    pub fn is_none(&self) -> bool {
+        self.inner.is_none()
+    }
+
+    /// Returns true if the OptionalEventTime contains an EventTime.
+    ///
+    /// Returns:
+    ///     bool:
+    pub fn is_some(&self) -> bool {
+        self.inner.is_some()
+    }
+
+    /// Returns the contained EventTime if it exists, or else None.
+    ///
+    /// Returns:
+    ///     EventTime | None:
+    pub fn get_event_time(&self) -> Option<EventTime> {
+        self.inner
+    }
+
+    /// Return this entry as a tuple of (timestamp, event_id), where the timestamp is in milliseconds if an EventTime is contained, or else None.
+    ///
+    /// Returns:
+    ///     tuple[int,int] | None: (timestamp, event_id).
+    #[getter]
+    pub fn as_tuple(&self) -> Option<(i64, usize)> {
+        self.inner.map(|t| t.as_tuple())
+    }
+}
+
+impl From<Option<EventTime>> for PyOptionalEventTime {
+    fn from(value: Option<EventTime>) -> Self {
+        Self { inner: value }
+    }
+}
+
+impl From<PyOptionalEventTime> for Option<EventTime> {
+    fn from(value: PyOptionalEventTime) -> Self {
+        value.inner
+    }
+}
+
 impl<'source> FromPyObject<'source> for InputTime {
     fn extract_bound(input: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(py_time) = input.downcast::<PyEventTime>() {
