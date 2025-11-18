@@ -9,16 +9,14 @@ use crate::{
     python::graph::io::pandas_loaders::{array_to_rust, is_jupyter},
     serialise::incremental::InternalCache,
 };
-use arrow::array::{
-    ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream},
-    RecordBatchReader,
-};
+use arrow::array::{ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream}, RecordBatch, RecordBatchReader};
 use pyo3::{
     prelude::*,
     types::{PyCapsule, PyDict},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
+use arrow::datatypes::SchemaRef;
 
 pub(crate) fn load_edges_from_arrow<
     'py,
@@ -105,20 +103,20 @@ pub(crate) fn process_arrow_py_df_streaming<'a>(
 
     // Expect an object that can use the Arrow C Stream interface
     if !df.hasattr("__arrow_c_stream__")? {
-        return Err(GraphError::LoadFailure(
-            "arrow object must implement __arrow_c_stream__",
-        ));
+        return Err(PyErr::from(GraphError::LoadFailure(
+            "arrow object must implement __arrow_c_stream__".to_string(),
+        )));
     }
 
-    let stream_capsule_any = df.call_method0("__arrow_c_stream__")?;
-    let stream_capsule = stream_capsule_any.downcast::<PyCapsule>()?;
+    let stream_capsule_any: Bound<'a, PyAny> = df.call_method0("__arrow_c_stream__")?;
+    let stream_capsule: &Bound<'a, PyCapsule> = stream_capsule_any.downcast::<PyCapsule>()?;
 
     // We need to use the pointer to build an ArrowArrayStreamReader
     if !stream_capsule.is_valid() {
-        return Err(GraphError::LoadFailure("Stream capsule is not valid"));
+        return Err(PyErr::from(GraphError::LoadFailure("Stream capsule is not valid".to_string())));
     }
     let stream_ptr = stream_capsule.pointer() as *mut FFI_ArrowArrayStream;
-    let reader = unsafe { ArrowArrayStreamReader::from_raw(stream_ptr) }.map_err(|e| {
+    let reader: ArrowArrayStreamReader = unsafe { ArrowArrayStreamReader::from_raw(stream_ptr) }.map_err(|e| {
         GraphError::LoadFailure(format!(
             "Arrow stream error while creating the reader: {}",
             e.to_string()
@@ -126,7 +124,7 @@ pub(crate) fn process_arrow_py_df_streaming<'a>(
     })?;
 
     // Get column names and indices once only
-    let schema = reader.schema();
+    let schema: SchemaRef = reader.schema();
     let mut names: Vec<String> = Vec::with_capacity(col_names.len());
     let mut indices: Vec<usize> = Vec::with_capacity(col_names.len());
 
@@ -137,7 +135,7 @@ pub(crate) fn process_arrow_py_df_streaming<'a>(
         }
     }
 
-    let chunks = reader.into_iter().map(move |batch_res| {
+    let chunks = reader.into_iter().map(move |batch_res: Result<RecordBatch, _>| {
         let batch = batch_res.map_err(|e| {
             GraphError::LoadFailure(format!(
                 "Arrow stream error while reading a batch: {}",
