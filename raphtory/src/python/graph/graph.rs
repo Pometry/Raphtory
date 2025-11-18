@@ -771,6 +771,43 @@ impl PyGraph {
     }
 
     #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
+    fn load_edges_from_fireducks(
+        &self,
+        df: &Bound<PyAny>,
+        time: &str,
+        src: &str,
+        dst: &str,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+
+        // Convert Fireducks DataFrame to pandas.DataFrame
+        let pandas_df = df.call_method0("to_pandas").map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Failed converting Fireducks DataFrame to pandas via to_pandas: {e}"
+            ))
+        })?;
+
+        load_edges_from_pandas(
+            &self.graph,
+            &pandas_df,
+            time,
+            src,
+            dst,
+            &properties,
+            &metadata,
+            shared_metadata.as_ref(),
+            layer,
+            layer_col,
+        )
+    }
+
+    #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
     fn load_edges_from_polars(
         &self,
         df: &Bound<PyAny>,
@@ -896,7 +933,9 @@ impl PyGraph {
 
         // Call fetch_arrow_table() so we can use arrow ingestion pathway
         let arrow_df = df.call_method0("fetch_arrow_table").map_err(|e| {
-            GraphError::LoadFailure("Failed calling fetch_arrow_table() on the DuckDB instance".to_string())
+            GraphError::LoadFailure(
+                "Failed calling fetch_arrow_table() on the DuckDB instance".to_string(),
+            )
         })?;
 
         load_edges_from_arrow(

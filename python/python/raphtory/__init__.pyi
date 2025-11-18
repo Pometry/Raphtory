@@ -1141,6 +1141,9 @@ class Graph(GraphView):
     def load_edges_from_duckdb_streaming(self, df, time, src, dst, properties=None, metadata=None, shared_metadata=None, layer=None, layer_col=None):
         ...
 
+    def load_edges_from_fireducks(self, df, time, src, dst, properties=None, metadata=None, shared_metadata=None, layer=None, layer_col=None):
+        ...
+
     def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.

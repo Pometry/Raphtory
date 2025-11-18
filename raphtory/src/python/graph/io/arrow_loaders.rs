@@ -9,14 +9,19 @@ use crate::{
     python::graph::io::pandas_loaders::{array_to_rust, is_jupyter},
     serialise::incremental::InternalCache,
 };
-use arrow::array::{ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream}, RecordBatch, RecordBatchReader};
+use arrow::{
+    array::{
+        ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream},
+        RecordBatch, RecordBatchReader,
+    },
+    datatypes::SchemaRef,
+};
 use pyo3::{
     prelude::*,
     types::{PyCapsule, PyDict},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
-use arrow::datatypes::SchemaRef;
 
 pub(crate) fn load_edges_from_arrow<
     'py,
@@ -113,15 +118,18 @@ pub(crate) fn process_arrow_py_df_streaming<'a>(
 
     // We need to use the pointer to build an ArrowArrayStreamReader
     if !stream_capsule.is_valid() {
-        return Err(PyErr::from(GraphError::LoadFailure("Stream capsule is not valid".to_string())));
+        return Err(PyErr::from(GraphError::LoadFailure(
+            "Stream capsule is not valid".to_string(),
+        )));
     }
     let stream_ptr = stream_capsule.pointer() as *mut FFI_ArrowArrayStream;
-    let reader: ArrowArrayStreamReader = unsafe { ArrowArrayStreamReader::from_raw(stream_ptr) }.map_err(|e| {
-        GraphError::LoadFailure(format!(
-            "Arrow stream error while creating the reader: {}",
-            e.to_string()
-        ))
-    })?;
+    let reader: ArrowArrayStreamReader = unsafe { ArrowArrayStreamReader::from_raw(stream_ptr) }
+        .map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Arrow stream error while creating the reader: {}",
+                e.to_string()
+            ))
+        })?;
 
     // Get column names and indices once only
     let schema: SchemaRef = reader.schema();
@@ -135,19 +143,21 @@ pub(crate) fn process_arrow_py_df_streaming<'a>(
         }
     }
 
-    let chunks = reader.into_iter().map(move |batch_res: Result<RecordBatch, _>| {
-        let batch = batch_res.map_err(|e| {
-            GraphError::LoadFailure(format!(
-                "Arrow stream error while reading a batch: {}",
-                e.to_string()
-            ))
-        })?;
-        let chunk_arrays = indices
-            .iter()
-            .map(|&idx| batch.column(idx).clone())
-            .collect::<Vec<_>>();
-        Ok(DFChunk::new(chunk_arrays))
-    });
+    let chunks = reader
+        .into_iter()
+        .map(move |batch_res: Result<RecordBatch, _>| {
+            let batch = batch_res.map_err(|e| {
+                GraphError::LoadFailure(format!(
+                    "Arrow stream error while reading a batch: {}",
+                    e.to_string()
+                ))
+            })?;
+            let chunk_arrays = indices
+                .iter()
+                .map(|&idx| batch.column(idx).clone())
+                .collect::<Vec<_>>();
+            Ok(DFChunk::new(chunk_arrays))
+        });
 
     let num_rows: usize = df.call_method0("__len__")?.extract()?;
     Ok(DFView::new(names, chunks, num_rows))
