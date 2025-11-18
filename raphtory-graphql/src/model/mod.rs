@@ -19,10 +19,7 @@ use dynamic_graphql::{
     Result, Upload,
 };
 use raphtory::{
-    db::{
-        api::view::{ MaterializedGraph},
-        graph::views::deletion_graph::PersistentGraph,
-    },
+    db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
     prelude::*,
     serialise::*,
@@ -30,8 +27,7 @@ use raphtory::{
 };
 use std::{
     error::Error,
-    fmt::{Display, Formatter}
-    ,
+    fmt::{Display, Formatter},
     sync::Arc,
 };
 
