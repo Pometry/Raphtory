@@ -18,7 +18,7 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, StableDecode},
+    prelude::{EdgeViewOps, Graph, NodeViewOps, StableDecode},
     serialise::GraphFolder,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
@@ -27,6 +27,9 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
 use tracing::info;
+
+#[cfg(feature = "search")]
+use raphtory::prelude::IndexMutationOps;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
@@ -118,6 +121,7 @@ impl GraphWithVectors {
 
         info!("Graph loaded = {}", folder.get_original_path_str());
 
+        #[cfg(feature = "search")]
         if create_index {
             graph.create_index()?;
         }

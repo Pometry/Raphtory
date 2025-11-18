@@ -38,7 +38,7 @@ fn build_filtered_graph(
                 *src,
                 *dst,
                 [
-                    ("str_prop", str_prop.into()),
+                    ("str_prop", str_prop.as_str().into()),
                     ("int_prop", Prop::I64(*int_prop)),
                 ],
                 None,

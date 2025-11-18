@@ -1,5 +1,4 @@
 use arrow_array::BooleanArray;
-use raphtory_api::iter::BoxedLIter;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter};
 
@@ -275,24 +274,6 @@ where
         LazyVec::LazyVec1(A::default(), TupleCol::from(inner))
     }
 
-    pub(crate) fn filled_ids(&self) -> BoxedLIter<'_, usize> {
-        match self {
-            LazyVec::Empty => Box::new(iter::empty()),
-            LazyVec::LazyVec1(_, tuples) => Box::new(
-                tuples
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(id, value)| value.map(|_| id)),
-            ),
-            LazyVec::LazyVecN(_, vector) => Box::new(
-                vector
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(id, value)| value.map(|_| id)),
-            ),
-        }
-    }
-
     #[cfg(test)]
     fn iter(&self) -> Box<dyn Iterator<Item = &A> + Send + '_> {
         match self {
@@ -465,8 +446,6 @@ mod lazy_vec_tests {
         })
         .unwrap();
         assert_eq!(vec.get(9), Some(&1));
-
-        assert_eq!(vec.filled_ids().collect_vec(), vec![1, 5, 6, 8, 9]);
     }
 
     #[test]

@@ -191,18 +191,17 @@ pub fn prop_type() -> impl Strategy<Value = PropType> {
         PropType::Bool,
         PropType::DTime,
         PropType::NDTime,
-        // PropType::Decimal { scale },
+        PropType::Decimal { scale: 7 },
     ]);
 
-    // leaf.prop_recursive(3, 10, 10, |inner| {
-    //     let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-    //         .prop_map(PropType::map);
-    //     let list = inner
-    //         .clone()
-    //         .prop_map(|p_type| PropType::List(Box::new(p_type)));
-    //     prop_oneof![inner, list, dict]
-    // })
-    leaf
+    leaf.prop_recursive(3, 10, 10, |inner| {
+        let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 0..10)
+            .prop_map(PropType::map);
+        let list = inner
+            .clone()
+            .prop_map(|p_type| PropType::List(Box::new(p_type)));
+        prop_oneof![inner, list, dict]
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -561,7 +560,7 @@ pub fn build_graph_from_edge_list<'a>(
             src,
             dst,
             [
-                ("str_prop", str_prop.into_prop()),
+                ("str_prop", str_prop.as_str().into_prop()),
                 ("int_prop", int_prop.into_prop()),
             ],
             None,
@@ -672,7 +671,7 @@ pub fn add_node_props<'a>(
 ) {
     for (node, str_prop, int_prop) in nodes {
         let props = [
-            str_prop.as_ref().map(|v| ("str_prop", v.into_prop())),
+            str_prop.as_deref().map(|v| ("str_prop", v.into_prop())),
             int_prop.as_ref().map(|v| ("int_prop", (*v).into())),
         ]
         .into_iter()

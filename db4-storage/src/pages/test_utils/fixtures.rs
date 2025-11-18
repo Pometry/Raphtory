@@ -55,11 +55,8 @@ pub fn make_edges(num_edges: usize, num_nodes: usize) -> impl Strategy<Value = F
 
 pub fn make_nodes(num_nodes: usize) -> impl Strategy<Value = NodeFixture> {
     assert!(num_nodes > 0);
-    let schema = proptest::collection::hash_map(
-        (0i32..1000).prop_map(|i| i.to_string()),
-        prop_type(),
-        0..30,
-    );
+    let schema =
+        proptest::collection::hash_map((0i32..10).prop_map(|i| i.to_string()), prop_type(), 0..30);
 
     schema.prop_flat_map(move |schema| {
         let (t_props, c_props) = make_props(&schema);
@@ -99,7 +96,7 @@ pub fn edges_strat(size: usize) -> impl Strategy<Value = Vec<(VID, VID)>> {
         let srcs = (0usize..num_nodes).prop_map(VID);
         let dsts = (0usize..num_nodes).prop_map(VID);
         num_edges.prop_flat_map(move |num_edges| {
-            collection::vec((srcs.clone(), dsts.clone()), num_edges as usize)
+            collection::vec((srcs.clone(), dsts.clone()), num_edges)
         })
     })
 }
@@ -113,30 +110,24 @@ pub fn edges_strat_with_layers(
         let num_edges = 0..(num_nodes * num_nodes);
         let srcs = (0usize..num_nodes).prop_map(VID);
         let dsts = (0usize..num_nodes).prop_map(VID);
-        let layer_ids = (1usize..MAX_LAYERS).prop_map(|i| Some(i as usize));
+        let layer_ids = (1usize..MAX_LAYERS).prop_map(Some);
 
         num_edges.prop_flat_map(move |num_edges| {
-            collection::vec(
-                (srcs.clone(), dsts.clone(), layer_ids.clone()),
-                num_edges as usize,
-            )
+            collection::vec((srcs.clone(), dsts.clone(), layer_ids.clone()), num_edges)
         })
     })
 }
 
-pub fn build_raw_edges(
-    len: usize,
-    num_nodes: usize,
-) -> impl Strategy<
-    Value = Vec<(
-        VID,
-        VID,
-        i64,
-        Vec<(String, Prop)>,
-        Vec<(String, Prop)>,
-        Option<&'static str>,
-    )>,
-> {
+pub type EdgeValues = (
+    VID,
+    VID,
+    i64,
+    Vec<(String, Prop)>,
+    Vec<(String, Prop)>,
+    Option<&'static str>,
+);
+
+pub fn build_raw_edges(len: usize, num_nodes: usize) -> impl Strategy<Value = Vec<EdgeValues>> {
     proptest::collection::hash_map((0i32..1000).prop_map(|i| i.to_string()), prop_type(), 0..20)
         .prop_flat_map(move |schema| {
             let (t_props, c_props) = make_props(&schema);

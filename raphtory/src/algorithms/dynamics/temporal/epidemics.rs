@@ -29,7 +29,7 @@ pub struct Probability(f64);
 
 impl Probability {
     pub fn sample<R: Rng + ?Sized>(self, rng: &mut R) -> bool {
-        rng.gen_bool(self.0)
+        rng.random_bool(self.0)
     }
 }
 

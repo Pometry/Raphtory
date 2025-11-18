@@ -13,7 +13,7 @@ edition = "2024"
 [dependencies]
 raphtory-api.workspace = true
 raphtory-api-macros.workspace = true
-raphtory-core = { workspace = true, features = ["arrow"] }
+raphtory-core = { workspace = true }
 # db4-common = {path = "../db4-common"}
 
 bitvec = { workspace = true, features = ["serde"] }
@@ -28,6 +28,7 @@ arrow.workspace = true
 arrow-array.workspace = true
 arrow-csv.workspace = true
 arrow-schema.workspace = true
+serde_arrow.workspace = true
 parquet.workspace = true
 bytemuck.workspace = true
 rayon.workspace = true

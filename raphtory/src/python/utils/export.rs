@@ -83,7 +83,7 @@ pub(crate) fn extract_properties<P>(
                 let mut prop_vec = vec![];
                 prop_view.iter().for_each(|(time, prop)| {
                     let prop_time = Prop::DTime(time.dt().unwrap());
-                    prop_vec.push(Prop::List(Arc::from(vec![prop_time, prop])))
+                    prop_vec.push(Prop::List(vec![prop_time, prop].into()))
                 });
                 let wrapped = Prop::from(prop_vec);
                 let _ = properties_map.insert(column_name, wrapped);
@@ -92,7 +92,7 @@ pub(crate) fn extract_properties<P>(
                     .iter()
                     .map(|(k, v)| Prop::from(vec![Prop::from(k), v]))
                     .collect_vec();
-                let wrapped = Prop::List(Arc::from(vec_props));
+                let wrapped = Prop::List(vec_props.into());
                 let _ = properties_map.insert(column_name, wrapped);
             }
         });

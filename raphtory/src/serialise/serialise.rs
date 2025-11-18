@@ -1,7 +1,3 @@
-use std::path::Path;
-
-#[cfg(feature = "search")]
-use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::{mutation::AdditionOps, view::StaticGraphViewOps},
     errors::GraphError,
@@ -10,8 +6,11 @@ use crate::{
         GraphFolder,
     },
 };
-use std::{fs, fs::File};
+use std::{fs, fs::File, path::Path};
 use tempfile;
+
+#[cfg(feature = "search")]
+use crate::prelude::IndexMutationOps;
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     /// Encode the graph into bytes.
@@ -36,7 +35,7 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         let folder: GraphFolder = path.into();
 
         if folder.write_as_zip_format {
-            let file = File::create(&folder.get_base_path())?;
+            let file = File::create_new(&folder.get_base_path())?;
             self.encode_parquet_to_zip(file)?;
 
             #[cfg(feature = "search")]

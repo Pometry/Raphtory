@@ -10,56 +10,14 @@ use crate::{
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
-    entities::GidType,
+    entities::{properties::prop::SerdeProp, GidType},
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{
-    ser::{Error, SerializeMap, SerializeSeq},
+    ser::{Error, SerializeMap},
     Serialize,
 };
-
-pub(crate) struct ParquetProp<'a>(pub &'a Prop);
-
-impl<'a> Serialize for ParquetProp<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self.0 {
-            Prop::I32(i) => serializer.serialize_i32(*i),
-            Prop::I64(i) => serializer.serialize_i64(*i),
-            Prop::F32(f) => serializer.serialize_f32(*f),
-            Prop::F64(f) => serializer.serialize_f64(*f),
-            Prop::U8(u) => serializer.serialize_u8(*u),
-            Prop::U16(u) => serializer.serialize_u16(*u),
-            Prop::U32(u) => serializer.serialize_u32(*u),
-            Prop::U64(u) => serializer.serialize_u64(*u),
-            Prop::Str(s) => serializer.serialize_str(s),
-            Prop::Bool(b) => serializer.serialize_bool(*b),
-            Prop::DTime(dt) => serializer.serialize_i64(dt.timestamp_millis()),
-            Prop::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
-            Prop::List(l) => {
-                let mut state = serializer.serialize_seq(Some(l.len()))?;
-                for prop in l.iter() {
-                    state.serialize_element(&ParquetProp(prop))?;
-                }
-                state.end()
-            }
-            Prop::Map(m) => {
-                let mut state = serializer.serialize_map(Some(m.len()))?;
-                for (k, v) in m.iter() {
-                    state.serialize_entry(k, &ParquetProp(v))?;
-                }
-                state.end()
-            }
-            Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
-            _ => {
-                todo!("Serializer not implemented")
-            }
-        }
-    }
-}
 
 #[derive(Debug)]
 struct ParquetGID(GID);
@@ -101,7 +59,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetTEdge<'a, G> {
         state.serialize_entry(LAYER_COL, &layer)?;
 
         for (name, prop) in edge.properties().temporal().iter_latest() {
-            state.serialize_entry(&name, &ParquetProp(&prop))?;
+            state.serialize_entry(&name, &SerdeProp(&prop))?;
         }
 
         state.end()
@@ -127,7 +85,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetCEdge<'a, G> {
         state.serialize_entry(LAYER_COL, &layer)?;
 
         for (name, prop) in edge.metadata().iter_filtered() {
-            state.serialize_entry(&name, &ParquetProp(&prop))?;
+            state.serialize_entry(&name, &SerdeProp(&prop))?;
         }
 
         state.end()
@@ -178,7 +136,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.props.iter() {
-            state.serialize_entry(&self.cols[*name], &ParquetProp(prop))?;
+            state.serialize_entry(&self.cols[*name], &SerdeProp(prop))?;
         }
 
         state.end()
@@ -200,7 +158,7 @@ impl<'a> Serialize for ParquetCNode<'a> {
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.node.metadata().iter_filtered() {
-            state.serialize_entry(&name, &ParquetProp(&prop))?;
+            state.serialize_entry(&name, &SerdeProp(&prop))?;
         }
 
         state.end()

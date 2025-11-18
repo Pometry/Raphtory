@@ -14,7 +14,7 @@ impl TryFrom<Value> for Prop {
                 .map(|num| num.into())
                 .or_else(|| value.as_f64().map(|num| num.into()))
                 .ok_or(format!("Number conversion error for: {}", value)),
-            Value::String(value) => Ok(value.into()),
+            Value::String(value) => Ok(value.as_str().into()),
             Value::Array(value) => value
                 .into_iter()
                 .map(|item| item.try_into())
@@ -49,7 +49,7 @@ impl From<Prop> for Value {
                 .map(Value::Number)
                 .unwrap_or(Value::Null),
             Prop::Bool(value) => Value::Bool(value),
-            Prop::List(values) => Value::Array(values.iter().cloned().map(Value::from).collect()),
+            Prop::List(values) => Value::Array(values.iter().map(Value::from).collect()),
             Prop::Map(map) => {
                 let json_map: serde_json::Map<String, Value> = map
                     .iter()

@@ -637,7 +637,7 @@ fn build_property_filter(
 
     let prop_value = match (&prop, operator) {
         (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
-            PropertyFilterValue::Set(Arc::new(list.iter().cloned().collect()))
+            PropertyFilterValue::Set(Arc::new(list.iter().collect()))
         }
         (Some(p), _) => PropertyFilterValue::Single(p.clone()),
         (None, _) => PropertyFilterValue::None,

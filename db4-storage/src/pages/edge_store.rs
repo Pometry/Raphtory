@@ -20,7 +20,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
 use raphtory_core::{
     entities::{ELID, LayerIds},
-    storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
 
@@ -119,14 +119,34 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
 
     pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
         let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
-        Self {
+        let empty = Self {
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
             free_pages: free_pages.try_into().unwrap(),
             edges_path,
             prop_meta: edge_meta,
             ext,
+        };
+        let layer_mapper = empty.edge_meta().layer_meta();
+        let prop_mapper = empty.edge_meta().temporal_prop_mapper();
+        let metadata_mapper = empty.edge_meta().metadata_mapper();
+        if layer_mapper.num_fields() > 0
+            || prop_mapper.num_fields() > 0
+            || metadata_mapper.num_fields() > 0
+        {
+            let segment = empty.get_or_create_segment(0);
+            let mut head = segment.head_mut();
+            for layer in layer_mapper.ids() {
+                head.get_or_create_layer(layer);
+            }
+            if prop_mapper.num_fields() > 0 {
+                head.get_or_create_layer(0)
+                    .properties_mut()
+                    .set_has_properties()
+            }
+            segment.mark_dirty();
         }
+        empty
     }
 
     pub fn new(edges_path: Option<PathBuf>, ext: EXT) -> Self {
@@ -422,7 +442,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
     ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
         // optimistic first try to get a free page 3 times
         let num_edges = self.num_edges();
-        let slot_idx = num_edges as usize % N;
+        let slot_idx = num_edges % N;
         let maybe_free_page = self.free_pages[slot_idx..]
             .iter()
             .cycle()

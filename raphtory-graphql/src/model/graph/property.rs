@@ -165,7 +165,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
             .map(|number| GqlValue::Number(number))
             .unwrap_or(GqlValue::Null),
         Prop::Bool(b) => GqlValue::Boolean(*b),
-        Prop::List(l) => GqlValue::List(l.iter().map(|pp| prop_to_gql(pp)).collect()),
+        Prop::List(l) => GqlValue::List(l.iter().map(|pp| prop_to_gql(&pp)).collect()),
         Prop::Map(m) => GqlValue::Object(
             m.iter()
                 .map(|(k, v)| (Name::new(k.to_string()), prop_to_gql(v)))
@@ -173,7 +173,6 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         ),
         Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
         Prop::NDTime(t) => GqlValue::Number(t.and_utc().timestamp_millis().into()),
-        Prop::Array(a) => GqlValue::List(a.iter_prop().map(|p| prop_to_gql(&p)).collect()),
         Prop::Decimal(d) => GqlValue::String(d.to_string()),
     }
 }

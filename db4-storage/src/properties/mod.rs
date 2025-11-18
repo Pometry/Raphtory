@@ -7,7 +7,10 @@ use arrow_schema::DECIMAL128_MAX_PRECISION;
 use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
-    prop::{Prop, PropType},
+    prop::{
+        Prop, PropType, SerdeList, SerdeMap, arrow_dtype_from_prop_type, list_array_from_props,
+        struct_array_from_props,
+    },
 };
 use raphtory_core::{
     entities::{
@@ -31,8 +34,8 @@ pub struct Properties {
     t_properties: TColumns,
     earliest: Option<TimeIndexEntry>,
     latest: Option<TimeIndexEntry>,
-    has_node_additions: bool,
-    has_node_properties: bool,
+    has_additions: bool,
+    has_properties: bool,
     has_deletions: bool,
     pub additions_count: usize,
 }
@@ -107,12 +110,16 @@ impl Properties {
         self.times_from_props.get(row)
     }
 
-    pub fn has_node_properties(&self) -> bool {
-        self.has_node_properties
+    pub fn has_properties(&self) -> bool {
+        self.has_properties
     }
 
-    pub fn has_node_additions(&self) -> bool {
-        self.has_node_additions
+    pub fn set_has_properties(&mut self) {
+        self.has_properties = true
+    }
+
+    pub fn has_additions(&self) -> bool {
+        self.has_additions
     }
 
     pub fn has_deletions(&self) -> bool {
@@ -191,10 +198,35 @@ impl Properties {
                     .unwrap(),
                 ))
             }
-            // PropColumn::Array(lazy_vec) => todo!(),
-            // PropColumn::List(lazy_vec) => todo!(),
-            // PropColumn::Map(lazy_vec) => todo!(),
-            _ => None, //todo!("Unsupported column type"),
+            PropColumn::Map(lazy_vec) => {
+                let dt = meta
+                    .get_dtype(col_id)
+                    .as_ref()
+                    .map(arrow_dtype_from_prop_type)
+                    .unwrap();
+                let array_iter = indices
+                    .map(|i| lazy_vec.get_opt(i))
+                    .map(|e| e.map(|m| SerdeMap(m)));
+
+                let struct_array = struct_array_from_props(&dt, array_iter);
+
+                Some(Arc::new(struct_array))
+            }
+            PropColumn::List(lazy_vec) => {
+                let dt = meta
+                    .get_dtype(col_id)
+                    .as_ref()
+                    .map(arrow_dtype_from_prop_type)
+                    .unwrap();
+
+                let array_iter = indices
+                    .map(|i| lazy_vec.get_opt(i))
+                    .map(|opt_list| opt_list.map(SerdeList));
+
+                let list_array = list_array_from_props(&dt, array_iter);
+
+                Some(Arc::new(list_array))
+            }
         }
     }
 
@@ -230,7 +262,7 @@ impl Properties {
         }
     }
 
-    pub(crate) fn t_len(&self) -> usize {
+    pub fn t_len(&self) -> usize {
         self.t_properties.len()
     }
 
@@ -263,7 +295,7 @@ impl<'a> PropMutEntry<'a> {
         self.ensure_times_from_props();
         self.set_time(t, t_prop_row);
 
-        self.properties.has_node_properties = true;
+        self.properties.has_properties = true;
         self.properties.update_earliest_latest(t);
     }
 
@@ -287,7 +319,7 @@ impl<'a> PropMutEntry<'a> {
                 .resize_with(self.row + 1, Default::default);
         }
 
-        self.properties.has_node_additions = true;
+        self.properties.has_additions = true;
         let prop_timestamps = &mut self.properties.additions[self.row];
         prop_timestamps.set(t, edge_id);
 

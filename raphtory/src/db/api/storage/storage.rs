@@ -37,7 +37,6 @@ use std::{
 };
 use storage::{Extension, WalImpl};
 
-use crate::prelude::Graph;
 #[cfg(feature = "search")]
 use {
     crate::{

@@ -89,6 +89,8 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         head_lock: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
 
+    fn mark_dirty(&self);
+
     fn check_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
 
     fn get_out_edge(
@@ -115,6 +117,11 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn est_size(&self) -> usize;
     fn increment_est_size(&self, size: usize) -> usize;
+
+    fn vacuum(
+        &self,
+        locked_head: impl DerefMut<Target = MemNodeSegment>,
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {
@@ -339,7 +346,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                 self.c_prop(0, NODE_ID_IDX)
                     .and_then(|prop| prop.into_u64().map(GidRef::U64))
             })
-            .expect("Node GID should be present")
+            .unwrap_or_else(|| panic!("GID should be present, for node {:?}", self.vid()))
     }
 
     fn node_type_id(&self) -> usize {

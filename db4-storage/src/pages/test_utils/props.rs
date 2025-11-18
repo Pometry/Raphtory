@@ -2,7 +2,7 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use proptest::prelude::*;
-use raphtory_api::core::entities::properties::prop::{DECIMAL_MAX, Prop, PropType};
+use raphtory_api::core::entities::properties::prop::{DECIMAL_MAX, Prop, PropArray, PropType};
 use std::collections::HashMap;
 
 pub fn prop_type() -> impl Strategy<Value = PropType> {
@@ -19,15 +19,15 @@ pub fn prop_type() -> impl Strategy<Value = PropType> {
         PropType::Decimal { scale: 7 }, // decimal breaks the tests because of polars-parquet
     ]);
 
-    // leaf.prop_recursive(3, 10, 10, |inner| {
-    //     let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-    //         .prop_map(|map| PropType::map(map));
-    //     let list = inner
-    //         .clone()
-    //         .prop_map(|p_type| PropType::List(Box::new(p_type)));
-    //     prop_oneof![inner, list, dict]
-    // })
-    leaf
+    leaf.prop_recursive(3, 10, 10, |inner| {
+        let keys = (0..1_000_000).prop_map(|i| format!("k_{i}"));
+        let dict =
+            proptest::collection::hash_map(keys, inner.clone(), 1..10).prop_map(PropType::map);
+        let list = inner
+            .clone()
+            .prop_map(|p_type| PropType::List(Box::new(p_type)));
+        prop_oneof![inner, list, dict]
+    })
 }
 
 pub fn make_props(
@@ -99,8 +99,9 @@ pub(crate) fn prop(p_type: &PropType) -> impl Strategy<Value = Prop> + use<> {
                 )
             })
             .boxed(),
-        PropType::List(p_type) => proptest::collection::vec(prop(p_type), 0..10)
-            .prop_map(|props| Prop::List(props.into()))
+        // TODO: empty lists are a type nightmare
+        PropType::List(p_type) => proptest::collection::vec(prop(p_type), 1..10)
+            .prop_map(|props| Prop::List(PropArray::Vec(props.into())))
             .boxed(),
         PropType::Map(p_types) => {
             let prop_types: Vec<BoxedStrategy<(String, Prop)>> = p_types
@@ -109,17 +110,16 @@ pub(crate) fn prop(p_type: &PropType) -> impl Strategy<Value = Prop> + use<> {
                 .collect::<Vec<_>>()
                 .into_iter()
                 .map(|(name, p_type)| {
-                    let pt_strat = prop(&p_type)
+                    prop(&p_type)
                         .prop_map(move |prop| (name.clone(), prop.clone()))
-                        .boxed();
-                    pt_strat
+                        .boxed()
                 })
                 .collect_vec();
 
             let props = proptest::sample::select(prop_types).prop_flat_map(|prop| prop);
 
             proptest::collection::vec(props, 1..10)
-                .prop_map(|props| Prop::map(props))
+                .prop_map(Prop::map)
                 .boxed()
         }
         PropType::Decimal { scale } => {

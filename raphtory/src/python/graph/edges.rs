@@ -354,8 +354,8 @@ impl PyEdges {
                 );
 
                 let row_header: Vec<Prop> = vec![
-                    Prop::from(item.src().name()),
-                    Prop::from(item.dst().name()),
+                    Prop::Str(item.src().name().into()),
+                    Prop::Str(item.dst().name().into()),
                     Prop::from(item.layer_name().unwrap_or(ArcStr::from(""))),
                 ];
 

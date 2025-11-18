@@ -2,7 +2,7 @@
 use crate::{
     add_classes, add_functions,
     python::{
-        algorithm::max_weight_matching::PyMatching,
+        algorithm::{epidemics::PyInfected, max_weight_matching::PyMatching},
         graph::{
             edge::{PyEdge, PyMutableEdge},
             edges::{PyEdges, PyNestedEdges},
@@ -10,7 +10,8 @@ use crate::{
             graph_with_deletions::PyPersistentGraph,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
-                PyMetadata, PyPropValueList, PyProperties, PyTemporalProp, PyTemporalProperties,
+                PropertiesView, PyMetadata, PyPropValueList, PyProperties, PyTemporalProp,
+                PyTemporalProperties,
             },
             views::graph_view::PyGraphView,
         },
@@ -21,7 +22,7 @@ use crate::{
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
         types::wrappers::{
-            document::PyDocument,
+            document::{PyDocument, PyEmbedding},
             iterables::{
                 ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, GIDIterable,
                 NestedArcStringVecIterable, NestedBoolIterable, NestedGIDGIDIterable,
@@ -36,6 +37,9 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
+
+#[cfg(feature = "search")]
+use crate::python::graph::index::{PyIndexSpec, PyIndexSpecBuilder};
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -61,9 +65,10 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PropertiesView,
         PyTemporalProp,
         PyWindowSet,
-        PyIndexSpecBuilder,
-        PyIndexSpec
     );
+
+    #[cfg(feature = "search")]
+    add_classes!(m, PyIndexSpecBuilder, PyIndexSpec);
 
     #[pyfunction]
     /// Return Raphtory version.
@@ -196,11 +201,3 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
-use crate::python::{
-    algorithm::epidemics::PyInfected,
-    graph::{
-        index::{PyIndexSpec, PyIndexSpecBuilder},
-        properties::PropertiesView,
-    },
-    types::wrappers::document::PyEmbedding,
-};

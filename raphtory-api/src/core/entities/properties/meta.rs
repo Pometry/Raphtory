@@ -45,8 +45,11 @@ impl Meta {
     pub fn set_metadata_mapper(&mut self, meta: PropMapper) {
         self.metadata_mapper = meta;
     }
-    pub fn set_temporal_prop_meta(&mut self, meta: PropMapper) {
+    pub fn set_temporal_prop_mapper(&mut self, meta: PropMapper) {
         self.temporal_prop_mapper = meta;
+    }
+    pub fn set_layer_mapper(&mut self, meta: DictMapper) {
+        self.layer_mapper = meta;
     }
     pub fn metadata_mapper(&self) -> &PropMapper {
         &self.metadata_mapper

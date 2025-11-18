@@ -101,8 +101,7 @@ impl MemNodeSegment {
     }
 
     pub fn swap_out_layers(&mut self) -> Vec<SegmentContainer<AdjEntry>> {
-        let layers = self
-            .layers
+        self.layers
             .iter_mut()
             .map(|head_guard| {
                 let mut old_head = SegmentContainer::new(
@@ -113,8 +112,7 @@ impl MemNodeSegment {
                 std::mem::swap(&mut *head_guard, &mut old_head);
                 old_head
             })
-            .collect::<Vec<_>>();
-        layers
+            .collect::<Vec<_>>()
     }
 
     pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<AdjEntry> {
@@ -481,6 +479,8 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         Ok(())
     }
 
+    fn mark_dirty(&self) {}
+
     fn check_node(&self, _pos: LocalPOS, _layer_id: usize) -> bool {
         false
     }
@@ -534,6 +534,13 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
     fn increment_est_size(&self, size: usize) -> usize {
         self.est_size.fetch_add(size, Ordering::Relaxed)
+    }
+
+    fn vacuum(
+        &self,
+        _locked_head: impl DerefMut<Target = MemNodeSegment>,
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 }
 

@@ -9,7 +9,7 @@ use crate::{
     segments::edge_entry::MemEdgeRef,
     utils::Iter4,
 };
-use arrow_array::{Array, ArrayRef, BooleanArray};
+use arrow_array::{ArrayRef, BooleanArray};
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::entities::{
     VID,
@@ -559,6 +559,13 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         }
     }
 
+    fn vacuum(
+        &self,
+        _locked_head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
     fn num_layers(&self) -> usize {
         self.head().layers.len()
     }
@@ -568,12 +575,14 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())
     }
+
+    fn mark_dirty(&self) {}
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use arrow_array::{BooleanArray, StringArray};
+    use arrow_array::{Array, BooleanArray, StringArray};
     use raphtory_api::core::entities::properties::{prop::PropType, tprop::TPropOps};
     use raphtory_core::storage::timeindex::TimeIndexEntry;
 

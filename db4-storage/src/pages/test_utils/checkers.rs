@@ -23,25 +23,18 @@ use crate::{
 
 use super::fixtures::{AddEdge, Fixture, NodeFixture};
 
-pub fn check_edges_support<
+pub fn make_graph_from_edges<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     EXT: PersistentStrategy,
 >(
-    edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
+    edges: &[(VID, VID, Option<usize>)], // src, dst, optional layer_id
+    graph_dir: &Path,
     par_load: bool,
-    check_load: bool,
     make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
-) {
-    let mut edges = edges
-        .into_iter()
-        .map(|(src, dst, layer_id)| (src.into(), dst.into(), layer_id))
-        .collect::<Vec<_>>();
-
-    let graph_dir = tempfile::tempdir().unwrap();
-    let graph = make_graph(graph_dir.path());
-    let mut nodes = HashSet::new();
-    for (_, _, layer) in &edges {
+) -> GraphStore<NS, ES, EXT> {
+    let graph = make_graph(graph_dir);
+    for (_, _, layer) in edges {
         if let Some(layer) = layer {
             for layer in 0..=*layer {
                 let name = layer.to_string();
@@ -54,12 +47,6 @@ pub fn check_edges_support<
             }
         }
     }
-
-    for (src, dst, _) in &edges {
-        nodes.insert(*src);
-        nodes.insert(*dst);
-    }
-
     if par_load {
         edges
             .par_iter()
@@ -93,6 +80,33 @@ pub fn check_edges_support<
                 Ok::<_, StorageError>(())
             })
             .expect("Failed to add edge");
+    }
+    graph
+}
+
+pub fn check_edges_support<
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    EXT: PersistentStrategy,
+>(
+    edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
+    par_load: bool,
+    check_load: bool,
+    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
+) {
+    let mut edges = edges
+        .into_iter()
+        .map(|(src, dst, layer_id)| (src.into(), dst.into(), layer_id))
+        .collect::<Vec<_>>();
+
+    let graph_dir = tempfile::tempdir().unwrap();
+    let graph = make_graph_from_edges(&edges, graph_dir.path(), par_load, make_graph);
+
+    let mut nodes = HashSet::new();
+
+    for (src, dst, _) in &edges {
+        nodes.insert(*src);
+        nodes.insert(*dst);
     }
 
     let actual_num_nodes = graph.nodes().num_nodes() as usize;
@@ -283,7 +297,7 @@ pub fn check_graph_with_nodes_support<
                 let actual_prop = actual_props
                     .unwrap_or_else(|| panic!("Failed to get prop {name} for {node:?}"));
                 assert!(
-                    const_props.contains(&actual_prop),
+                    const_props.iter().any(|c_prop| c_prop == &actual_prop),
                     "failed to get const prop {name} for {node:?}, expected {const_props:?}, got {actual_prop:?}"
                 );
             }
@@ -322,7 +336,7 @@ pub fn check_graph_with_nodes_support<
 
             assert_eq!(
                 actual_props, props,
-                "Expected properties for node ({node:?}) to be {props:?}, but got {actual_props:?}"
+                "Expected temporal properties for node ({node:?}) to be {props:?}, but got {actual_props:?}"
             );
         }
     };

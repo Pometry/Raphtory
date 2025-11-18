@@ -771,14 +771,14 @@ pub(crate) fn load_edge_deletions_from_df<
         };
 
         src_col
-            .par_iter()
-            .zip(dst_col.par_iter())
-            .zip(time_col.par_iter())
-            .zip(secondary_index_col.par_iter())
-            .zip(layer.par_iter())
+            .iter()
+            .zip(dst_col.iter())
+            .zip(time_col.iter())
+            .zip(secondary_index_col.iter())
+            .zip(layer.iter())
             .try_for_each(|((((src, dst), time), secondary_index), layer)| {
-                let src = src.ok_or(LoadError::MissingSrcError)?;
-                let dst = dst.ok_or(LoadError::MissingDstError)?;
+                // let src = src.ok_or(LoadError::MissingSrcError)?;
+                // let dst = dst.ok_or(LoadError::MissingDstError)?;
                 graph.delete_edge((time, secondary_index), src, dst, layer)?;
                 Ok::<(), GraphError>(())
             })?;

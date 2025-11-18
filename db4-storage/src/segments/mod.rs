@@ -76,10 +76,6 @@ impl PageIndex {
     fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<usize>> {
         self.0.par_iter().map(|i| i.index())
     }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
 }
 
 #[derive(Default)]
@@ -317,7 +313,6 @@ impl<T: HasRow> SegmentContainer<T> {
         self.data
             .iter_all()
             .chain(iter::repeat(None))
-            // .take(self.max_page_len as usize)
             .take(max_local_pos + 1)
             .enumerate()
             .map(|(i, v)| {

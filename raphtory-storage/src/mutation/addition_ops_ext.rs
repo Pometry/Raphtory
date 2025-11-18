@@ -1,3 +1,7 @@
+use crate::mutation::{
+    addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+    MutationError,
+};
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
@@ -20,11 +24,6 @@ use storage::{
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     Extension, WalImpl, ES, NS,
-};
-
-use crate::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-    MutationError,
 };
 
 pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> {

@@ -6,11 +6,10 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use either::Either;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
-#[cfg(feature = "arrow")]
-use raphtory_api::core::entities::properties::prop::PropArray;
+
 use raphtory_api::core::{
     entities::properties::{
-        prop::{Prop, PropType},
+        prop::{Prop, PropArray, PropType},
         tprop::TPropOps,
     },
     storage::arc_str::ArcStr,
@@ -35,10 +34,8 @@ pub enum TProp {
     F64(TCell<f64>),
     Bool(TCell<bool>),
     DTime(TCell<DateTime<Utc>>),
-    #[cfg(feature = "arrow")]
-    Array(TCell<PropArray>),
+    List(TCell<PropArray>),
     NDTime(TCell<NaiveDateTime>),
-    List(TCell<Arc<Vec<Prop>>>),
     Map(TCell<Arc<FxHashMap<ArcStr, Prop>>>),
     Decimal(TCell<BigDecimal>),
 }
@@ -64,7 +61,6 @@ pub enum TPropVariants<
     F64,
     Bool,
     DTime,
-    #[cfg(feature = "arrow")] Array,
     NDTime,
     List,
     Map,
@@ -82,8 +78,6 @@ pub enum TPropVariants<
     F64(F64),
     Bool(Bool),
     DTime(DTime),
-    #[cfg(feature = "arrow")]
-    Array(Array),
     NDTime(NDTime),
     List(List),
     Map(Map),
@@ -177,8 +171,6 @@ impl TProp {
             Prop::Bool(value) => TProp::Bool(TCell::new(t, value)),
             Prop::DTime(value) => TProp::DTime(TCell::new(t, value)),
             Prop::NDTime(value) => TProp::NDTime(TCell::new(t, value)),
-            #[cfg(feature = "arrow")]
-            Prop::Array(value) => TProp::Array(TCell::new(t, value)),
             Prop::List(value) => TProp::List(TCell::new(t, value)),
             Prop::Map(value) => TProp::Map(TCell::new(t, value)),
             Prop::Decimal(value) => TProp::Decimal(TCell::new(t, value)),
@@ -199,8 +191,6 @@ impl TProp {
             TProp::F64(_) => PropType::F64,
             TProp::Bool(_) => PropType::Bool,
             TProp::DTime(_) => PropType::DTime,
-            #[cfg(feature = "arrow")]
-            TProp::Array(_) => PropType::Array(Box::new(PropType::Empty)),
             TProp::NDTime(_) => PropType::NDTime,
             TProp::List(_) => PropType::List(Box::new(PropType::Empty)),
             TProp::Map(_) => PropType::Map(HashMap::new().into()),
@@ -249,10 +239,6 @@ impl TProp {
                     cell.set(t, a);
                 }
                 (TProp::NDTime(cell), Prop::NDTime(a)) => {
-                    cell.set(t, a);
-                }
-                #[cfg(feature = "arrow")]
-                (TProp::Array(cell), Prop::Array(a)) => {
                     cell.set(t, a);
                 }
                 (TProp::List(cell), Prop::List(a)) => {
@@ -328,11 +314,6 @@ impl TProp {
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::NDTime(*value))),
             ),
-            #[cfg(feature = "arrow")]
-            TProp::Array(cell) => TPropVariants::Array(
-                cell.iter_window(r)
-                    .map(|(t, value)| (*t, Prop::Array(value.clone()))),
-            ),
             TProp::List(cell) => TPropVariants::List(
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::List(value.clone()))),
@@ -389,11 +370,6 @@ impl TProp {
             TProp::NDTime(cell) => {
                 TPropVariants::NDTime(cell.iter().map(|(t, value)| (*t, Prop::NDTime(*value))))
             }
-            #[cfg(feature = "arrow")]
-            TProp::Array(cell) => TPropVariants::Array(
-                cell.iter()
-                    .map(|(t, value)| (*t, Prop::Array(value.clone()))),
-            ),
             TProp::List(cell) => TPropVariants::List(
                 cell.iter()
                     .map(|(t, value)| (*t, Prop::List(value.clone()))),
@@ -425,10 +401,6 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::Bool(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Bool(*v))),
             TProp::DTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::DTime(*v))),
             TProp::NDTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::NDTime(*v))),
-            #[cfg(feature = "arrow")]
-            TProp::Array(cell) => cell
-                .last_before(t)
-                .map(|(t, v)| (t, Prop::Array(v.clone()))),
             TProp::List(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::List(v.clone()))),
             TProp::Map(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Map(v.clone()))),
             TProp::Decimal(cell) => cell
@@ -452,8 +424,6 @@ impl<'a> TPropOps<'a> for &'a TProp {
             TProp::Bool(cell) => cell.at(ti).map(|v| Prop::Bool(*v)),
             TProp::DTime(cell) => cell.at(ti).map(|v| Prop::DTime(*v)),
             TProp::NDTime(cell) => cell.at(ti).map(|v| Prop::NDTime(*v)),
-            #[cfg(feature = "arrow")]
-            TProp::Array(cell) => cell.at(ti).map(|v| Prop::Array(v.clone())),
             TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
             TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
             TProp::Decimal(cell) => cell.at(ti).map(|v| Prop::Decimal(v.clone())),

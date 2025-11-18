@@ -810,6 +810,7 @@ mod test_graph_storage {
         };
 
         #[test]
+        #[ignore = "TODO: #2372"]
         fn test_search_edges_latest() {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);

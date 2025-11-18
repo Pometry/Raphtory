@@ -152,6 +152,7 @@ impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for SearchEdges<F> 
     }
 }
 
+#[track_caller]
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -169,6 +170,7 @@ pub fn assert_filter_nodes_results(
     )
 }
 
+#[track_caller]
 pub fn assert_filter_neighbours_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -188,6 +190,7 @@ pub fn assert_filter_neighbours_results(
     )
 }
 
+#[track_caller]
 pub fn assert_search_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -208,6 +211,7 @@ pub fn assert_search_nodes_results(
     }
 }
 
+#[track_caller]
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -225,6 +229,7 @@ pub fn assert_filter_edges_results(
     )
 }
 
+#[track_caller]
 pub fn assert_search_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -245,6 +250,7 @@ pub fn assert_search_edges_results(
     }
 }
 
+#[track_caller]
 fn assert_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     pre_transform: impl Fn(&Graph) -> (),

@@ -9,7 +9,6 @@ edition = "2021"
 criterion = { workspace = true }
 raphtory = { workspace = true, features = [
     "io",
-    "proto",
     "vectors",
 ] }
 raphtory-api = { workspace = true }
@@ -61,10 +60,12 @@ harness = false
 [[bench]]
 name = "proto_encode"
 harness = false
+required-features = ["proto"]
 
 [[bench]]
 name = "proto_decode"
 harness = false
+required-features = ["proto"]
 
 [[bench]]
 name = "search_bench"
@@ -82,3 +83,4 @@ required-features = ["search"]
 
 [features]
 search = ["raphtory/search"]
+proto = ["raphtory/proto"]
