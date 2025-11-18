@@ -25,7 +25,7 @@ pub struct BatchFailures {
 }
 
 fn split_failures<S>(
-    results: impl IntoIterator<Item=Result<S, GraphError>>,
+    results: impl IntoIterator<Item = Result<S, GraphError>>,
     write_result: Result<(), GraphError>,
 ) -> (Vec<S>, Option<BatchFailures>) {
     let mut succeeded = Vec::new();
@@ -131,7 +131,7 @@ impl GqlMutableGraph {
 
 fn as_properties(
     properties: Vec<GqlPropertyInput>,
-) -> Result<impl ExactSizeIterator<Item=(String, Prop)>, GraphError> {
+) -> Result<impl ExactSizeIterator<Item = (String, Prop)>, GraphError> {
     let props: Result<Vec<(String, Prop)>, GraphError> = properties
         .into_iter()
         .map(|p| {
@@ -174,7 +174,7 @@ impl GqlMutableGraph {
 
             Ok::<_, GraphError>(node)
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = node.update_embeddings().await;
@@ -203,7 +203,7 @@ impl GqlMutableGraph {
 
             Ok::<_, GraphError>(node)
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = node.update_embeddings().await;
@@ -246,7 +246,7 @@ impl GqlMutableGraph {
 
             split_failures(nodes, Ok(()))
         })
-            .await;
+        .await;
 
         self.post_mutation_ops().await;
 
@@ -284,7 +284,7 @@ impl GqlMutableGraph {
 
             Ok::<_, GraphError>(edge)
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = edge.update_embeddings().await;
@@ -326,7 +326,7 @@ impl GqlMutableGraph {
 
             split_failures(edge_res, Ok(()))
         })
-            .await;
+        .await;
 
         self.post_mutation_ops().await;
         let _ = self.graph.update_edge_embeddings(edge_pairs).await;
@@ -353,7 +353,7 @@ impl GqlMutableGraph {
 
             Ok::<_, GraphError>(edge)
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = edge.update_embeddings().await;
@@ -378,7 +378,7 @@ impl GqlMutableGraph {
                 .add_properties(t, as_properties(properties)?)?;
             Ok(true)
         })
-            .await;
+        .await;
 
         self.post_mutation_ops().await;
 
@@ -392,7 +392,7 @@ impl GqlMutableGraph {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
             Ok(true)
         })
-            .await;
+        .await;
 
         self.post_mutation_ops().await;
 
@@ -408,7 +408,7 @@ impl GqlMutableGraph {
                 .update_metadata(as_properties(properties)?)?;
             Ok(true)
         })
-            .await;
+        .await;
 
         self.post_mutation_ops().await;
 
@@ -486,7 +486,7 @@ impl GqlMutableNode {
             self_clone.node.add_metadata(as_properties(properties)?)?;
             Ok::<_, GraphError>(())
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
 
@@ -500,7 +500,7 @@ impl GqlMutableNode {
             self_clone.node.set_node_type(&new_type)?;
             Ok::<_, GraphError>(())
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
 
@@ -517,7 +517,7 @@ impl GqlMutableNode {
 
             Ok::<_, GraphError>(())
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
 
@@ -537,7 +537,7 @@ impl GqlMutableNode {
                 .add_updates(time, as_properties(properties.unwrap_or(vec![]))?)?;
             Ok::<_, GraphError>(())
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = self.node.update_embeddings().await;
@@ -603,7 +603,7 @@ impl GqlMutableEdge {
             self_clone.edge.delete(time, layer.as_str())?;
             Ok::<_, GraphError>(())
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = self.edge.update_embeddings().await;
@@ -628,7 +628,7 @@ impl GqlMutableEdge {
 
             Ok::<_, GraphError>(())
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = self.edge.update_embeddings().await;
@@ -653,7 +653,7 @@ impl GqlMutableEdge {
 
             Ok::<_, GraphError>(())
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = self.edge.update_embeddings().await;
@@ -681,7 +681,7 @@ impl GqlMutableEdge {
 
             Ok::<_, GraphError>(())
         })
-            .await?;
+        .await?;
 
         self.post_mutation_ops().await;
         let _ = self.edge.update_embeddings().await;
