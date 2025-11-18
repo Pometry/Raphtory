@@ -41,7 +41,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::EventTime};
+use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -207,8 +207,8 @@ impl PyGraphView {
     /// Returns:
     ///     Optional[EventTime]: the time entry of the earliest activity in the graph
     #[getter]
-    pub fn earliest_time(&self) -> Option<EventTime> {
-        self.graph.earliest_time()
+    pub fn earliest_time(&self) -> PyOptionalEventTime {
+        self.graph.earliest_time().into()
     }
 
     /// Time entry of the latest activity in the graph
@@ -216,8 +216,8 @@ impl PyGraphView {
     /// Returns:
     ///     Optional[EventTime]: the time entry of the latest activity in the graph
     #[getter]
-    pub fn latest_time(&self) -> Option<EventTime> {
-        self.graph.latest_time()
+    pub fn latest_time(&self) -> PyOptionalEventTime {
+        self.graph.latest_time().into()
     }
 
     /// Number of edges in the graph

@@ -15,7 +15,7 @@ use pyo3::prelude::*;
 use raphtory_api::{
     core::storage::timeindex::{AsTime, EventTime, TimeError},
     iter::{BoxedIter, BoxedLIter, IntoDynBoxed},
-    python::timeindex::EventTimeComponent,
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use std::sync::Arc;
@@ -143,16 +143,16 @@ impl PyHistory {
     ///
     /// Returns:
     ///     Optional[EventTime]: Earliest time entry, or None if empty.
-    pub fn earliest_time(&self) -> Option<EventTime> {
-        self.history.earliest_time()
+    pub fn earliest_time(&self) -> PyOptionalEventTime {
+        self.history.earliest_time().into()
     }
 
     /// Get the latest time entry.
     ///
     /// Returns:
     ///     Optional[EventTime]: Latest time entry, or None if empty.
-    pub fn latest_time(&self) -> Option<EventTime> {
-        self.history.latest_time()
+    pub fn latest_time(&self) -> PyOptionalEventTime {
+        self.history.latest_time().into()
     }
 
     /// Collect all time entries in chronological order.

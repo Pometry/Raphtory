@@ -26,7 +26,7 @@ use raphtory_api::{
         entities::GID,
         storage::{arc_str::ArcStr, timeindex::EventTime},
     },
-    python::timeindex::EventTimeComponent,
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
@@ -279,8 +279,8 @@ impl PyEdge {
     /// Returns:
     ///     EventTime: The earliest time of an edge
     #[getter]
-    pub fn earliest_time(&self) -> Option<EventTime> {
-        self.edge.earliest_time()
+    pub fn earliest_time(&self) -> PyOptionalEventTime {
+        self.edge.earliest_time().into()
     }
 
     /// Gets the latest time of an edge.
@@ -288,8 +288,8 @@ impl PyEdge {
     /// Returns:
     ///     EventTime: The latest time of an edge
     #[getter]
-    pub fn latest_time(&self) -> Option<EventTime> {
-        self.edge.latest_time()
+    pub fn latest_time(&self) -> PyOptionalEventTime {
+        self.edge.latest_time().into()
     }
 
     /// Gets the time of an exploded edge.

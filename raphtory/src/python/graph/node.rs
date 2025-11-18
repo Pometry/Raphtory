@@ -58,7 +58,7 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::AsTime},
         utils::hashing::calculate_hash,
     },
-    python::timeindex::EventTimeComponent,
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
@@ -174,8 +174,8 @@ impl PyNode {
     /// Returns:
     ///     EventTime: The earliest time that the node exists.
     #[getter]
-    pub fn earliest_time(&self) -> Option<EventTime> {
-        self.node.earliest_time()
+    pub fn earliest_time(&self) -> PyOptionalEventTime {
+        self.node.earliest_time().into()
     }
 
     /// Returns the latest time that the node exists.
@@ -183,8 +183,8 @@ impl PyNode {
     /// Returns:
     ///    EventTime: The latest time that the node exists.
     #[getter]
-    pub fn latest_time(&self) -> Option<EventTime> {
-        self.node.latest_time()
+    pub fn latest_time(&self) -> PyOptionalEventTime {
+        self.node.latest_time().into()
     }
 
     /// The properties of the node

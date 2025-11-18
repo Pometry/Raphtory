@@ -15,7 +15,7 @@ macro_rules! impl_timeops {
             /// Returns:
             #[doc = concat!(r"    Optional[EventTime]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn start(&self) -> Option<EventTime> {
+            pub fn start(&self) -> $crate::api::python::timeindex::PyOptionalEventTime {
                 self.$field.start().into()
             }
 
@@ -24,7 +24,7 @@ macro_rules! impl_timeops {
             /// Returns:
             #[doc = concat!("   Optional[EventTime]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn end(&self) -> Option<EventTime> {
+            pub fn end(&self) -> $crate::api::python::timeindex::PyOptionalEventTime {
                 self.$field.end().into()
             }
 
