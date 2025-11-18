@@ -20,7 +20,7 @@ use dynamic_graphql::{
 };
 use raphtory::{
     db::{
-        api::view::{internal::InternalStorageOps, MaterializedGraph},
+        api::view::{ MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::{GraphError, InvalidPathReason},
@@ -30,8 +30,8 @@ use raphtory::{
 };
 use std::{
     error::Error,
-    fmt::{Display, Formatter},
-    path::PathBuf,
+    fmt::{Display, Formatter}
+    ,
     sync::Arc,
 };
 
@@ -113,7 +113,7 @@ impl QueryRoot {
         let graph = data
             .get_graph(path.as_ref())
             .await
-            .map(|(g, folder)| GqlMutableGraph::new(folder, g, data.clone()))?;
+            .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
 
         Ok(graph)
     }

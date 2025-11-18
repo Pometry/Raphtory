@@ -17,7 +17,6 @@ use raphtory::{
 };
 use std::{
     collections::HashMap,
-    ffi::OsStr,
     io::{Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
@@ -54,7 +53,6 @@ pub(crate) fn get_relative_path(
     Ok(path_str)
 }
 
-#[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,

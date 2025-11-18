@@ -1,30 +1,27 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-
 use crate::paths::ExistingGraphFolder;
-use once_cell::sync::OnceCell;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::view::{
             internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
-                InternalStorageOps, Static,
+                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
             },
             Base, InheritViewOps, MaterializedGraph,
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, Graph, NodeViewOps, StableDecode},
+    prelude::{EdgeViewOps, Graph, StableDecode},
     serialise::GraphFolder,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
 use raphtory_api::GraphType;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
+};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 use tracing::info;
 
