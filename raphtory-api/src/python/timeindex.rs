@@ -293,21 +293,18 @@ pub struct PyOptionalEventTime {
     inner: Option<EventTime>,
 }
 
+impl PyOptionalEventTime {
+    // Repr trait is in raphtory crate so it can't be implemented here
+    pub fn repr(&self) -> String {
+        match self.inner {
+            Some(v) => v.to_string(), // couldn't use .repr() because it's in the raphtory crate
+            None => "None".to_string(),
+        }
+    }
+}
+
 #[pymethods]
 impl PyOptionalEventTime {
-    /// Creates a new OptionalEventTime, which may or may not contain an EventTime.
-    /// If no EventTime is contained, then functions called on this object will return None.
-    ///
-    /// Arguments:
-    ///     event_time (EventTime | None): A time input convertible to an EventTime, such as an int, float, datetime, str, or list/tuple of size 2.
-    ///
-    /// Returns:
-    ///     OptionalEventTime:
-    #[new]
-    pub fn new(event_time: Option<EventTime>) -> Self {
-        Self { inner: event_time }
-    }
-
     /// Returns the timestamp in milliseconds since the Unix epoch if an EventTime is contained, or else None.
     ///
     /// Returns:
@@ -369,6 +366,10 @@ impl PyOptionalEventTime {
     #[getter]
     pub fn as_tuple(&self) -> Option<(i64, usize)> {
         self.inner.map(|t| t.as_tuple())
+    }
+
+    pub fn __bool__(&self) -> bool {
+        self.inner.is_some()
     }
 }
 

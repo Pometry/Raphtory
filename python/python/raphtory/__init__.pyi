@@ -28,7 +28,7 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'NodeFilterBuilder', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'Metadata', 'MetadataView', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'EventTime', 'History', 'HistoryTimestamp', 'HistoryDateTime', 'HistoryEventId', 'Intervals', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'NodeFilterBuilder', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'Metadata', 'MetadataView', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'EventTime', 'OptionalEventTime', 'History', 'HistoryTimestamp', 'HistoryDateTime', 'HistoryEventId', 'Intervals', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -6379,6 +6379,74 @@ class EventTime(object):
 
         Returns:
             int: Milliseconds since the Unix epoch.
+        """
+
+class OptionalEventTime(object): 
+
+    def __bool__(self):
+        """True if self else False"""
+
+    @property
+    def as_tuple(self):
+        """
+        Return this entry as a tuple of (timestamp, event_id), where the timestamp is in milliseconds if an EventTime is contained, or else None.
+
+        Returns:
+            tuple[int,int] | None: (timestamp, event_id).
+        """
+
+    @property
+    def dt(self):
+        """
+        Returns the UTC datetime representation of this EventTime's timestamp if an EventTime is contained, or else None.
+
+        Returns:
+            datetime | None: The UTC datetime.
+
+        Raises:
+            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+        """
+
+    @property
+    def event_id(self):
+        """
+        Returns the event id used to order events within the same timestamp if an EventTime is contained, or else None.
+
+        Returns:
+            int | None: The event id.
+        """
+
+    def get_event_time(self):
+        """
+        Returns the contained EventTime if it exists, or else None.
+
+        Returns:
+            EventTime | None:
+        """
+
+    def is_none(self) -> bool:
+        """
+        Returns true if the OptionalEventTime doesn't contain an EventTime.
+
+        Returns:
+            bool:
+        """
+
+    def is_some(self) -> bool:
+        """
+        Returns true if the OptionalEventTime contains an EventTime.
+
+        Returns:
+            bool:
+        """
+
+    @property
+    def t(self):
+        """
+        Returns the timestamp in milliseconds since the Unix epoch if an EventTime is contained, or else None.
+
+        Returns:
+            int | None: Milliseconds since the Unix epoch.
         """
 
 class History(object): 

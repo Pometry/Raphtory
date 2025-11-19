@@ -41,7 +41,10 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
+use raphtory_api::{
+    core::storage::{arc_str::ArcStr, timeindex::EventTime},
+    python::timeindex::PyOptionalEventTime,
+};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -471,8 +474,8 @@ impl Repr for PyGraphView {
                     "number_of_temporal_edges",
                     self.graph.count_temporal_edges(),
                 )
-                .add_field("earliest_time", self.earliest_time())
-                .add_field("latest_time", self.latest_time())
+                .add_field("earliest_time", self.earliest_time().repr())
+                .add_field("latest_time", self.latest_time().repr())
                 .finish()
         } else {
             StructReprBuilder::new("Graph")
@@ -482,8 +485,8 @@ impl Repr for PyGraphView {
                     "number_of_temporal_edges",
                     self.graph.count_temporal_edges(),
                 )
-                .add_field("earliest_time", self.earliest_time())
-                .add_field("latest_time", self.latest_time())
+                .add_field("earliest_time", self.earliest_time().repr())
+                .add_field("latest_time", self.latest_time().repr())
                 .add_field("properties", self.properties())
                 .finish()
         }

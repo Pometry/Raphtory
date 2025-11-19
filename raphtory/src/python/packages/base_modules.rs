@@ -59,7 +59,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use raphtory_api::python::timeindex::PyEventTime;
+use raphtory_api::python::timeindex::{PyEventTime, PyOptionalEventTime};
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -87,6 +87,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PropertiesView,
         PyTemporalProp,
         PyEventTime,
+        PyOptionalEventTime,
         PyHistory,
         PyHistoryTimestamp,
         PyHistoryDateTime,
