@@ -1,42 +1,32 @@
-use crate::api::graph::GraphSegmentOps;
+use raphtory_api::core::entities::properties::meta::Meta;
+
+use crate::api::graph::GraphPropOps;
 use crate::error::StorageError;
 use crate::pages::graph_page::writer::GraphWriter;
 use crate::persist::strategy::Config;
-use raphtory_core::entities::properties::graph_meta::GraphMeta;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Backing store for graph temporal properties and graph metadata.
 #[derive(Debug)]
-pub struct GraphStorageInner<GS, EXT> {
+pub struct GraphPropsInner<GS, EXT> {
     /// The graph segment that contains all graph properties and graph metadata.
     /// Unlike node and edge segments, which are split into multiple segments,
     /// there is always only one graph segment.
     page: Arc<GS>,
 
     /// Stores graph prop metadata (prop name -> prop id mappings, etc).
-    graph_meta: Arc<GraphMeta>,
+    graph_meta: Arc<Meta>,
 
     path: Option<PathBuf>,
 
     ext: EXT,
 }
 
-impl<GS: GraphSegmentOps, EXT: Config> GraphStorageInner<GS, EXT> {
-    pub fn new(path: Option<&Path>, ext: EXT) -> Self {
-        let page = Arc::new(GS::new(path));
-        let graph_meta = Arc::new(GraphMeta::new());
-
-        Self {
-            page,
-            path: path.map(|p| p.to_path_buf()),
-            graph_meta,
-            ext,
-        }
-    }
-
-    pub fn new_with_meta(path: Option<&Path>, graph_meta: Arc<GraphMeta>, ext: EXT) -> Self {
-        let page = Arc::new(GS::new(path));
+impl<GS: GraphPropOps<Extension = EXT>, EXT: Config> GraphPropsInner<GS, EXT> {
+    pub fn new_with_meta(path: Option<&Path>, graph_meta: Arc<Meta>, ext: EXT) -> Self {
+        let page = Arc::new(GS::new(graph_meta.clone(), path, ext.clone()));
 
         Self {
             page,
@@ -47,17 +37,16 @@ impl<GS: GraphSegmentOps, EXT: Config> GraphStorageInner<GS, EXT> {
     }
 
     pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
-        let graph_meta = Arc::new(GraphMeta::new());
-
+        let graph_meta = Arc::new(Meta::new_for_graph());
         Ok(Self {
-            page: Arc::new(GS::load(path.as_ref())?),
+            page: Arc::new(GS::load(graph_meta.clone(), path.as_ref(), ext.clone())?),
             path: Some(path.as_ref().to_path_buf()),
             graph_meta,
             ext,
         })
     }
 
-    pub fn graph_meta(&self) -> &Arc<GraphMeta> {
+    pub fn graph_meta(&self) -> &Arc<Meta> {
         &self.graph_meta
     }
 

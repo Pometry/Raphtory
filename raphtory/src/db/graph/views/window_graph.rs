@@ -344,7 +344,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for Window
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .graph_meta()
-            .temporal_mapper()
+            .temporal_prop_mapper()
             .get_dtype(id)
             .unwrap()
     }

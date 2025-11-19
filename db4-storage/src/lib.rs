@@ -17,11 +17,15 @@ use crate::{
     persist::strategy::NoOpStrategy,
     resolver::mapping_resolver::MappingResolver,
     segments::{
-        edge::entry::{MemEdgeEntry, MemEdgeRef},
-        edge::segment::EdgeSegmentView,
+        edge::{
+            entry::{MemEdgeEntry, MemEdgeRef},
+            segment::EdgeSegmentView,
+        },
         graph::entry::MemGraphEntry,
-        node::entry::{MemNodeEntry, MemNodeRef},
-        node::segment::NodeSegmentView,
+        node::{
+            entry::{MemNodeEntry, MemNodeRef},
+            segment::NodeSegmentView,
+        },
     },
     wal::no_wal::NoWal,
 };

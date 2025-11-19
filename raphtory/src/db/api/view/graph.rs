@@ -62,7 +62,6 @@ use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
 };
-use storage::Extension;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -250,14 +249,14 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         // preserve all property mappings
         let mut node_meta = Meta::new_for_nodes();
         let mut edge_meta = Meta::new_for_edges();
+        let mut graph_meta = Meta::new_for_graph();
 
         node_meta.set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
         node_meta.set_temporal_prop_meta(self.node_meta().temporal_prop_mapper().deep_clone());
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
-
-        // Copy all graph property mappings
-        let graph_meta = self.graph_meta().deep_clone();
+        graph_meta.set_metadata_mapper(self.graph_meta().metadata_mapper().deep_clone());
+        graph_meta.set_temporal_prop_meta(self.graph_meta().temporal_prop_mapper().deep_clone());
 
         let temporal_graph = TemporalGraph::new_with_meta(
             path.map(|p| p.into()),

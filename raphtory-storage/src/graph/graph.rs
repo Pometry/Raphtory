@@ -214,8 +214,8 @@ impl GraphStorage {
     #[inline(always)]
     pub fn graph_entry(&self) -> GraphEntry<'_> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_entry(),
-            GraphStorage::Unlocked(storage) => storage.graph_entry(),
+            GraphStorage::Mem(storage) => storage.graph.storage().graph_props().graph_entry(),
+            GraphStorage::Unlocked(storage) => storage.storage().graph_props().graph_entry(),
         }
     }
 
@@ -246,7 +246,7 @@ impl GraphStorage {
         }
     }
 
-    pub fn graph_meta(&self) -> &GraphMeta {
+    pub fn graph_meta(&self) -> &Meta {
         match self {
             GraphStorage::Mem(storage) => storage.graph.graph_meta(),
             GraphStorage::Unlocked(storage) => storage.graph_meta(),

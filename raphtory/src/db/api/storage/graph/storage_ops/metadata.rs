@@ -1,23 +1,23 @@
-use raphtory_api::core::storage::arc_str::ArcStr;
-use storage::api::graph::GraphEntryOps;
 use crate::{
     db::api::{properties::internal::InternalMetadataOps, view::BoxedLIter},
     prelude::Prop,
 };
+use raphtory_api::{core::storage::arc_str::ArcStr, iter::IntoDynBoxed};
+use storage::api::graph::GraphEntryOps;
 
 use super::GraphStorage;
 
 impl InternalMetadataOps for GraphStorage {
     fn get_metadata_id(&self, name: &str) -> Option<usize> {
-        self.graph_meta().get_metadata_id(name)
+        self.graph_meta().metadata_mapper().get_id(name)
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph_meta().get_metadata_name(id)
+        self.graph_meta().metadata_mapper().get_name(id).clone()
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        Box::new(self.graph_meta().metadata_ids())
+        self.graph_meta().metadata_mapper().ids().into_dyn_boxed()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
@@ -28,6 +28,10 @@ impl InternalMetadataOps for GraphStorage {
     }
 
     fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {
-        Box::new(self.graph_meta().metadata_names().into_iter())
+        self.graph_meta()
+            .metadata_mapper()
+            .keys()
+            .into_iter()
+            .into_dyn_boxed()
     }
 }

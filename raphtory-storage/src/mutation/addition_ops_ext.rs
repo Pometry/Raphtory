@@ -15,7 +15,11 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    pages::{node_page::writer::node_info_as_props, session::WriteSession}, persist::strategy::PersistentStrategy, properties::props_meta_writer::PropsMetaWriter, resolver::GIDResolverOps, Extension, WalImpl, ES, GS, NS
+    pages::{node_page::writer::node_info_as_props, session::WriteSession},
+    persist::strategy::PersistentStrategy,
+    properties::props_meta_writer::PropsMetaWriter,
+    resolver::GIDResolverOps,
+    Extension, WalImpl, ES, GS, NS,
 };
 
 use crate::mutation::{
@@ -23,8 +27,8 @@ use crate::mutation::{
     MutationError,
 };
 
-pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS>> {
-    static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS, EXT>,
+pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
+    static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -32,7 +36,9 @@ pub struct UnlockedSession<'a> {
     graph: &'a TemporalGraph<Extension>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS>> EdgeWriteLock for WriteS<'a, EXT> {
+impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> EdgeWriteLock
+    for WriteS<'a, EXT>
+{
     fn internal_add_static_edge(
         &mut self,
         src: impl Into<VID>,
@@ -138,7 +144,7 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
         Ok(self
             .graph
             .graph_meta()
-            .resolve_property(prop, dtype, is_static)?)
+            .resolve_prop_id(prop, dtype, is_static)?)
     }
 
     fn resolve_node_property(

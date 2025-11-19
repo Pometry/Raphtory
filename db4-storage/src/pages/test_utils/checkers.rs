@@ -14,8 +14,8 @@ use std::{
 use crate::{
     api::{
         edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps},
+        graph::GraphPropOps,
         nodes::{NodeEntryOps, NodeRefOps, NodeSegmentOps},
-        graph::GraphSegmentOps,
     },
     error::StorageError,
     pages::GraphStore,
@@ -27,7 +27,7 @@ use super::fixtures::{AddEdge, Fixture, NodeFixture};
 pub fn check_edges_support<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphSegmentOps,
+    GS: GraphPropOps<Extension = EXT>,
     EXT: PersistentStrategy,
 >(
     edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
@@ -105,7 +105,7 @@ pub fn check_edges_support<
     fn check<
         NS: NodeSegmentOps<Extension = EXT>,
         ES: EdgeSegmentOps<Extension = EXT>,
-        GS: GraphSegmentOps,
+        GS: GraphPropOps<Extension = EXT>,
         EXT: PersistentStrategy,
     >(
         stage: &str,
@@ -209,7 +209,7 @@ pub fn check_graph_with_nodes_support<
     EXT: PersistentStrategy,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphSegmentOps,
+    GS: GraphPropOps<Extension = EXT>,
 >(
     fixture: &NodeFixture,
     check_load: bool,
@@ -344,7 +344,7 @@ pub fn check_graph_with_props_support<
     EXT: PersistentStrategy,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphSegmentOps,
+    GS: GraphPropOps<Extension = EXT>,
 >(
     fixture: &Fixture,
     check_load: bool,

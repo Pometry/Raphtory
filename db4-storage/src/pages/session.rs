@@ -2,7 +2,10 @@ use super::{
     GraphStore, edge_page::writer::EdgeWriter, node_page::writer::WriterPair, resolve_pos,
 };
 use crate::{
-    api::{edges::EdgeSegmentOps, graph::GraphSegmentOps, nodes::NodeSegmentOps}, persist::strategy::{Config, PersistentStrategy}, segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment}, LocalPOS
+    LocalPOS,
+    api::{edges::EdgeSegmentOps, graph::GraphPropOps, nodes::NodeSegmentOps},
+    persist::strategy::{Config, PersistentStrategy},
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
@@ -11,7 +14,7 @@ use raphtory_core::{
     storage::timeindex::AsTime,
 };
 
-pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, GS: GraphSegmentOps, EXT: Config> {
+pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, GS: GraphPropOps, EXT: Config> {
     node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
     graph: &'a GraphStore<NS, ES, GS, EXT>,
@@ -21,7 +24,7 @@ impl<
     'a,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphSegmentOps,
+    GS: GraphPropOps<Extension = EXT>,
     EXT: PersistentStrategy,
 > WriteSession<'a, NS, ES, GS, EXT>
 {
