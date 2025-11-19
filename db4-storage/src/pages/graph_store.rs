@@ -1,10 +1,10 @@
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use crate::api::graph::GraphSegmentOps;
 use crate::error::StorageError;
 use crate::pages::graph_page::writer::GraphWriter;
 use crate::persist::strategy::Config;
 use raphtory_core::entities::properties::graph_meta::GraphMeta;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Backing store for graph temporal properties and graph metadata.
 #[derive(Debug)]
@@ -65,9 +65,9 @@ impl<GS: GraphSegmentOps, EXT: Config> GraphStorageInner<GS, EXT> {
         self.page.entry()
     }
 
-    pub fn writer(&self) -> GraphWriter<'_> {
+    pub fn writer(&self) -> GraphWriter<'_, GS> {
         let head = self.page.head_mut();
-
-        GraphWriter::new(head)
+        let graph_props = &self.page;
+        GraphWriter::new(graph_props, head)
     }
 }

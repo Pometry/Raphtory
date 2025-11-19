@@ -1,31 +1,40 @@
-use std::sync::Arc;
 use crate::segments::{HasRow, SegmentContainer};
 use raphtory_api::core::entities::properties::meta::Meta;
-use raphtory_core::{entities::properties::tprop::TPropCell, storage::timeindex::TimeIndexEntry};
 use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_core::{
+    entities::properties::tprop::TPropCell,
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
+use std::sync::Arc;
 
 /// In-memory segment that contains graph temporal properties and graph metadata.
 #[derive(Debug)]
 pub struct MemGraphSegment {
     /// Layers containing graph properties and metadata.
-    layers: Vec<SegmentContainer<GraphSegmentEntry>>
+    layers: Vec<SegmentContainer<GraphSegmentEntry>>,
+}
+
+impl AsMut<Vec<SegmentContainer<GraphSegmentEntry>>> for MemGraphSegment {
+    fn as_mut(&mut self) -> &mut Vec<SegmentContainer<GraphSegmentEntry>> {
+        &mut self.layers
+    }
 }
 
 /// A unit-like struct for use with `SegmentContainer`.
 /// Graph properties and metadata are already stored in `SegmentContainer`,
 /// hence this struct is empty.
 #[derive(Debug, Default)]
-pub struct GraphSegmentEntry;
+pub struct GraphSegmentEntry(usize);
 
 // GraphSegmentEntry does not store data, but HasRow has to be implemented
 // for SegmentContainer to work.
 impl HasRow for GraphSegmentEntry {
     fn row(&self) -> usize {
-        panic!("GraphSegmentEntry does not support row access");
+        self.0
     }
 
     fn row_mut(&mut self) -> &mut usize {
-        panic!("GraphSegmentEntry does not support row access");
+        &mut self.0
     }
 }
 
@@ -47,8 +56,19 @@ impl MemGraphSegment {
         }
     }
 
-    pub fn layers(&self) -> &[SegmentContainer<GraphSegmentEntry>] {
-        &self.layers
+    pub fn get_or_create_layer(
+        &mut self,
+        layer_id: usize,
+    ) -> &mut SegmentContainer<GraphSegmentEntry> {
+        if layer_id >= self.layers.len() {
+            let max_page_len = self.layers[0].max_page_len();
+            let segment_id = self.layers[0].segment_id();
+            let meta = self.layers[0].meta().clone();
+            self.layers.resize_with(layer_id + 1, || {
+                SegmentContainer::new(segment_id, max_page_len, meta.clone())
+            });
+        }
+        &mut self.layers[layer_id]
     }
 
     /// Replaces this segment with an empty instance, returning the old segment
@@ -63,22 +83,40 @@ impl MemGraphSegment {
         }
     }
 
-    pub fn add_properties(&mut self, t: TimeIndexEntry, props: impl IntoIterator<Item = (usize, Prop)>) {
-        let layer = &mut self.layers[Self::LAYER];
-
-        layer.properties_mut().get_mut_entry(Self::ROW).append_t_props(t, props);
+    pub fn add_properties<T: AsTime>(
+        &mut self,
+        t: T,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> usize {
+        let layer = self.get_or_create_layer(Self::LAYER);
+        let est_size = layer.est_size();
+        let row = layer.reserve_local_row(Self::ROW.into());
+        let row = row.inner().row();
+        let mut prop_mut_entry = layer.properties_mut().get_mut_entry(row);
+        let ts = TimeIndexEntry::new(t.t(), t.i());
+        prop_mut_entry.append_t_props(ts, props);
+        let layer_est_size = layer.est_size();
+        layer_est_size - est_size
     }
 
     pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
-        let layer = &mut self.layers[Self::LAYER];
-
-        layer.properties_mut().get_mut_entry(Self::ROW).append_const_props(props);
+        self.update_metadata(props);
     }
 
-    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
-        let layer = &mut self.layers[Self::LAYER];
+    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) -> usize {
+        let segment_container = self.get_or_create_layer(Self::LAYER);
+        let est_size = segment_container.est_size();
 
-        layer.properties_mut().get_mut_entry(Self::ROW).append_const_props(props);
+        let row = segment_container
+            .reserve_local_row(Self::ROW.into())
+            .map(|a| a.row());
+        let row = row.inner();
+        let mut prop_mut_entry = segment_container.properties_mut().get_mut_entry(row);
+        prop_mut_entry.append_const_props(props);
+
+        let layer_est_size = segment_container.est_size();
+        let added_size = (layer_est_size - est_size) + 8; // random estimate for constant properties
+        added_size
     }
 
     pub fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {

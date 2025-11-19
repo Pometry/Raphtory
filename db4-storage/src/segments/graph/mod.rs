@@ -1,15 +1,15 @@
 pub mod entry;
 pub mod segment;
 
-use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
-use parking_lot::RwLock;
-use std::path::Path;
 use crate::api::graph::GraphSegmentOps;
 use crate::error::StorageError;
-use crate::segments::graph::segment::MemGraphSegment;
 use crate::segments::graph::entry::MemGraphEntry;
+use crate::segments::graph::segment::MemGraphSegment;
+use parking_lot::RwLock;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
 /// `GraphSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
@@ -49,5 +49,14 @@ impl GraphSegmentOps for GraphSegmentView {
         let head = self.head.read();
 
         MemGraphEntry::new(head)
+    }
+
+    fn increment_est_size(&self, size: usize) {
+        self.est_size
+            .fetch_add(size, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn est_size(&self) -> usize {
+        self.est_size.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
