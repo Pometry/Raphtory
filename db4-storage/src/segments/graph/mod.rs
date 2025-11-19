@@ -1,12 +1,14 @@
 pub mod entry;
 pub mod segment;
 
-use crate::api::graph::GraphSegmentOps;
+use crate::api::graph::GraphPropOps;
 use crate::error::StorageError;
+use crate::persist::strategy::NoOpStrategy;
 use crate::segments::graph::entry::MemGraphEntry;
-use crate::segments::graph::segment::MemGraphSegment;
-use parking_lot::RwLock;
+use crate::segments::graph::segment::MemGraphProps;
+use parking_lot::{ArcRwLockReadGuard, RwLock};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use raphtory_api::core::entities::properties::meta::Meta;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
@@ -17,31 +19,37 @@ use std::sync::atomic::AtomicUsize;
 pub struct GraphSegmentView {
     /// In-memory segment that contains the latest graph properties
     /// and graph metadata writes.
-    head: Arc<RwLock<MemGraphSegment>>,
+    head: Arc<RwLock<MemGraphProps>>,
 
     /// Estimated size of the segment in bytes.
     est_size: AtomicUsize,
 }
 
-impl GraphSegmentOps for GraphSegmentView {
+impl GraphPropOps for GraphSegmentView {
+    type Extension = NoOpStrategy;
+
     type Entry<'a> = MemGraphEntry<'a>;
 
-    fn new(_path: Option<&Path>) -> Self {
+    fn new(meta: Arc<Meta>, _path: Option<&Path>, _ext: Self::Extension) -> Self {
         Self {
-            head: Arc::new(RwLock::new(MemGraphSegment::new())),
+            head: Arc::new(RwLock::new(MemGraphProps::new())),
             est_size: AtomicUsize::new(0),
         }
     }
 
-    fn load(_path: impl AsRef<Path>) -> Result<Self, StorageError> {
+    fn load(
+        meta: Arc<Meta>,
+        _path: impl AsRef<Path>,
+        _ext: Self::Extension,
+    ) -> Result<Self, StorageError> {
         todo!()
     }
 
-    fn head(&self) -> RwLockReadGuard<'_, MemGraphSegment> {
+    fn head(&self) -> RwLockReadGuard<'_, MemGraphProps> {
         self.head.read()
     }
 
-    fn head_mut(&self) -> RwLockWriteGuard<'_, MemGraphSegment> {
+    fn head_mut(&self) -> RwLockWriteGuard<'_, MemGraphProps> {
         self.head.write()
     }
 

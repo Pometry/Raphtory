@@ -23,6 +23,7 @@ use raphtory_storage::{
 };
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
+use storage::api::graph::GraphEntryOps;
 use storage::gen_ts::ALL_LAYERS;
 
 impl GraphTimeSemanticsOps for GraphStorage {
@@ -95,24 +96,25 @@ impl GraphTimeSemanticsOps for GraphStorage {
     }
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        self.graph_meta().temporal_mapper().has_id(prop_id)
+        self.graph_meta().temporal_prop_mapper().has_id(prop_id)
     }
 
     fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(prop_id)
-            .into_iter()
-            .flat_map(move |prop| {
-                GenLockedIter::from(prop, |prop| prop.deref().iter().into_dyn_boxed())
-            })
-            .into_dyn_boxed()
+        let prop_entry = self.graph_entry();
+        GenLockedIter::from(prop_entry, |prop_entry| {
+            let t_prop = prop_entry.get_temporal_prop(prop_id);
+            t_prop
+                .into_iter()
+                .flat_map(|t_prop| t_prop.iter())
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph_meta()
-            .get_temporal_prop(prop_id)
-            .filter(|p| p.deref().iter_window_t(w).next().is_some())
-            .is_some()
+        let prop_entry = self.graph_entry();
+        let t_prop = prop_entry.get_temporal_prop(prop_id);
+        t_prop.is_some_and(|t_prop| t_prop.iter_window_t(w).next().is_some())
     }
 
     fn temporal_prop_iter_window(
@@ -121,17 +123,15 @@ impl GraphTimeSemanticsOps for GraphStorage {
         start: i64,
         end: i64,
     ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(prop_id)
-            .into_iter()
-            .flat_map(move |prop| {
-                GenLockedIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_boxed()
-                })
-            })
-            .into_dyn_boxed()
+        let prop_entry = self.graph_entry();
+        GenLockedIter::from(prop_entry, move |prop_entry| {
+            let t_prop = prop_entry.get_temporal_prop(prop_id);
+            t_prop
+                .into_iter()
+                .flat_map(move |t_prop| t_prop.iter_window(TimeIndexEntry::range(start..end)))
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_prop_iter_window_rev(
@@ -140,17 +140,15 @@ impl GraphTimeSemanticsOps for GraphStorage {
         start: i64,
         end: i64,
     ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(prop_id)
-            .into_iter()
-            .flat_map(move |prop| {
-                GenLockedIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window_rev(TimeIndexEntry::range(start..end))
-                        .into_dyn_boxed()
-                })
-            })
-            .into_dyn_boxed()
+        let prop_entry = self.graph_entry();
+        GenLockedIter::from(prop_entry, move |prop_entry| {
+            let t_prop = prop_entry.get_temporal_prop(prop_id);
+            t_prop
+                .into_iter()
+                .flat_map(move |t_prop| t_prop.iter_window_rev(TimeIndexEntry::range(start..end)))
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_prop_last_at(
@@ -158,9 +156,9 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id: usize,
         t: TimeIndexEntry,
     ) -> Option<(TimeIndexEntry, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(prop_id)
-            .and_then(|p| p.deref().last_before(t.next()))
+        let prop_entry = self.graph_entry();
+        let t_prop = prop_entry.get_temporal_prop(prop_id)?;
+        t_prop.last_before(t.next())
     }
 
     fn temporal_prop_last_at_window(
@@ -171,11 +169,9 @@ impl GraphTimeSemanticsOps for GraphStorage {
     ) -> Option<(TimeIndexEntry, Prop)> {
         let w = TimeIndexEntry::range(w);
         if w.contains(&t) {
-            self.graph_meta().get_temporal_prop(prop_id).and_then(|p| {
-                p.deref()
-                    .last_before(t.next())
-                    .filter(|(t, _)| w.contains(t))
-            })
+            let prop_entry = self.graph_entry();
+            let t_prop = prop_entry.get_temporal_prop(prop_id)?;
+            t_prop.last_before(t.next()).filter(|(t, _)| w.contains(t))
         } else {
             None
         }

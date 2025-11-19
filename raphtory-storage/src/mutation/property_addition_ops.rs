@@ -60,21 +60,21 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        let mut writer = self.storage().graph().writer();
+        let mut writer = self.storage().graph_props().writer();
         writer.add_properties(t, props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 
     // FIXME: this can't fail
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        let mut writer = self.storage().graph().writer();
+        let mut writer = self.storage().graph_props().writer();
         writer.add_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 
     // FIXME: this can't fail
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        let mut writer = self.storage().graph().writer();
+        let mut writer = self.storage().graph_props().writer();
         writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }

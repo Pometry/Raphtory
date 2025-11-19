@@ -9,12 +9,12 @@ use std::sync::Arc;
 
 /// In-memory segment that contains graph temporal properties and graph metadata.
 #[derive(Debug)]
-pub struct MemGraphSegment {
+pub struct MemGraphProps {
     /// Layers containing graph properties and metadata.
     layers: Vec<SegmentContainer<GraphSegmentEntry>>,
 }
 
-impl AsMut<Vec<SegmentContainer<GraphSegmentEntry>>> for MemGraphSegment {
+impl AsMut<Vec<SegmentContainer<GraphSegmentEntry>>> for MemGraphProps {
     fn as_mut(&mut self) -> &mut Vec<SegmentContainer<GraphSegmentEntry>> {
         &mut self.layers
     }
@@ -38,7 +38,7 @@ impl HasRow for GraphSegmentEntry {
     }
 }
 
-impl MemGraphSegment {
+impl MemGraphProps {
     /// Graph segments only have a single row.
     pub const ROW: usize = 0;
 
@@ -54,6 +54,10 @@ impl MemGraphSegment {
         Self {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
         }
+    }
+
+    pub fn lsn(&self) -> u64 {
+        self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
     }
 
     pub fn get_or_create_layer(
@@ -78,9 +82,7 @@ impl MemGraphSegment {
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
 
-        Self {
-            layers,
-        }
+        Self { layers }
     }
 
     pub fn add_properties<T: AsTime>(
@@ -115,8 +117,8 @@ impl MemGraphSegment {
         prop_mut_entry.append_const_props(props);
 
         let layer_est_size = segment_container.est_size();
-        let added_size = (layer_est_size - est_size) + 8; // random estimate for constant properties
-        added_size
+        // random estimate for constant properties
+        (layer_est_size - est_size) + 8
     }
 
     pub fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {
@@ -129,5 +131,9 @@ impl MemGraphSegment {
         let layer = &self.layers[Self::LAYER];
 
         layer.c_prop(Self::ROW, prop_id)
+    }
+
+    pub fn layers(&self) -> &Vec<SegmentContainer<GraphSegmentEntry>> {
+        &self.layers
     }
 }

@@ -1,16 +1,16 @@
-use crate::segments::graph::segment::MemGraphSegment;
 use crate::api::graph::GraphEntryOps;
-use raphtory_core::entities::properties::tprop::TPropCell;
-use raphtory_api::core::entities::properties::prop::Prop;
+use crate::segments::graph::segment::MemGraphProps;
 use parking_lot::RwLockReadGuard;
+use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_core::entities::properties::tprop::TPropCell;
 
 /// A borrowed view enabling read operations on an in-memory graph segment.
 pub struct MemGraphEntry<'a> {
-    mem: RwLockReadGuard<'a, MemGraphSegment>,
+    mem: RwLockReadGuard<'a, MemGraphProps>,
 }
 
 impl<'a> MemGraphEntry<'a> {
-    pub fn new(mem: RwLockReadGuard<'a, MemGraphSegment>) -> Self {
+    pub fn new(mem: RwLockReadGuard<'a, MemGraphProps>) -> Self {
         Self { mem }
     }
 }

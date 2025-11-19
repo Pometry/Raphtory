@@ -19,12 +19,16 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    api::graph::GraphSegmentOps, error::StorageError, pages::{
+    api::graph::GraphPropOps,
+    error::StorageError,
+    pages::{
         layer_counter::GraphStats,
         locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
-    }, persist::strategy::{Config, PersistentStrategy},
-    resolver::GIDResolverOps, wal::{GraphWal, TransactionID, Wal},
-    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, GS, NS
+    },
+    persist::strategy::{Config, PersistentStrategy},
+    resolver::GIDResolverOps,
+    wal::{GraphWal, TransactionID, Wal},
+    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, GS, NS,
 };
 use tempfile::TempDir;
 
@@ -127,7 +131,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        let graph_meta = GraphMeta::new();
+        let graph_meta = Meta::new_for_graph();
 
         Self::new_with_meta(None, node_meta, edge_meta, graph_meta, ext)
     }
@@ -135,9 +139,15 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new_with_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        let graph_meta = GraphMeta::new();
+        let graph_meta = Meta::new_for_graph();
 
-        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta, graph_meta, ext)
+        Self::new_with_meta(
+            Some(path.as_ref().into()),
+            node_meta,
+            edge_meta,
+            graph_meta,
+            ext,
+        )
     }
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
@@ -164,7 +174,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         graph_dir: Option<GraphDir>,
         node_meta: Meta,
         edge_meta: Meta,
-        graph_meta: GraphMeta,
+        graph_meta: Meta,
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let mut graph_dir = graph_dir;
@@ -238,10 +248,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         }
     }
 
-    pub fn graph_entry(&self) -> <GS as GraphSegmentOps>::Entry<'_> {
-        self.storage().graph().graph_entry()
-    }
-
     #[inline]
     pub fn internal_num_nodes(&self) -> usize {
         self.logical_to_physical.len()
@@ -264,7 +270,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         self.storage().node_meta()
     }
 
-    pub fn graph_meta(&self) -> &GraphMeta {
+    pub fn graph_meta(&self) -> &Meta {
         self.storage.graph_meta()
     }
 

@@ -249,50 +249,14 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         // preserve all property mappings
         let mut node_meta = Meta::new_for_nodes();
         let mut edge_meta = Meta::new_for_edges();
+        let mut graph_meta = Meta::new_for_graph();
 
         node_meta.set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
         node_meta.set_temporal_prop_mapper(self.node_meta().temporal_prop_mapper().deep_clone());
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
-        edge_meta.set_temporal_prop_mapper(self.edge_meta().temporal_prop_mapper().deep_clone());
-        let layer_meta = edge_meta.layer_meta();
-
-        let layer_map: Vec<_> = match self.layer_ids() {
-            LayerIds::None => {
-                // no layers to map
-                vec![]
-            }
-            LayerIds::All => {
-                let layers = storage.edge_meta().layer_meta().keys();
-                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-                for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
-                    let new_id = layer_meta.get_or_create_id(name).inner();
-                    layer_map[id] = new_id;
-                }
-                layer_map
-            }
-            LayerIds::One(l_id) => {
-                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-                let new_id = layer_meta
-                    .get_or_create_id(&storage.edge_meta().get_layer_name_by_id(*l_id))
-                    .inner();
-                layer_map[*l_id] = new_id;
-                layer_map
-            }
-            LayerIds::Multiple(ids) => {
-                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-                let layers = storage.edge_meta().layer_meta().all_keys();
-                for id in ids {
-                    let new_id = layer_meta.get_or_create_id(&layers[id]).inner();
-                    layer_map[id] = new_id;
-                }
-                layer_map
-            }
-        };
-
-        node_meta.set_layer_mapper(layer_meta.clone());
-
-        // Copy all graph property mappings
-        let graph_meta = self.graph_meta().deep_clone();
+        edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
+        graph_meta.set_metadata_mapper(self.graph_meta().metadata_mapper().deep_clone());
+        graph_meta.set_temporal_prop_meta(self.graph_meta().temporal_prop_mapper().deep_clone());
 
         let temporal_graph = TemporalGraph::new_with_meta(
             path.map(|p| p.into()),
