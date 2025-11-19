@@ -1,0 +1,9 @@
+apiVersion: 1
+
+datasources:
+  - name: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    isDefault: true
+    # editable: false

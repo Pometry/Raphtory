@@ -1,4 +1,4 @@
-name: Retag Docker Image
+name: 🐳 Retag Docker Image
 
 permissions:
   contents: read

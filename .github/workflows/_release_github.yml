@@ -1,13 +1,16 @@
-name: _Release 4 - Publish to Github
+name: 🚀🐙 Publish release to Github
 on:
-  workflow_call:
-    inputs:
+  workflow_dispatch:
+    inputs: &inputs
       base:
-        type: 'string'
-        required: true
+        description: Branch/tag/commit to publish from
+        type: string
+        default: master
+  workflow_call:
+    inputs: *inputs
 
 permissions:
-  contents: write
+  contents: write # I think only this is really needed
   pull-requests: write
   deployments: write
   packages: write
@@ -15,28 +18,21 @@ permissions:
 jobs:
   publish-github:
     name: publish to Github
-    runs-on: '${{ matrix.os }}'
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
     steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
-        with:
-          permission: "write"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v3
       - run: |
           git config --global user.email "ben.steer@pometry.com"
           git config --global user.name "Pometry-Team"
       - name: "Set version number to env var using bash script"
         run: |
-          echo CRATE_VERSION=$(cat Cargo.toml | grep version | head -n1 | cut -d '"' -f2) >> $GITHUB_ENV
+          echo CRATE_VERSION=$(make print-version) >> $GITHUB_ENV
           echo "Crate version is $CRATE_VERSION"
       - name: "Releasing to Github"
-        if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v1
         with:
           draft: false

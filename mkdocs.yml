@@ -91,7 +91,8 @@ nav:
         - user-guide/getting-started/1_intro.md
         - user-guide/getting-started/2_UI_overview.md
         - user-guide/getting-started/3_cli.md
-      - Graph data:
+        - user-guide/getting-started/4_key_concepts.md
+      - Ingestion:
           - user-guide/ingestion/0_dummy_index.md
           - user-guide/ingestion/1_intro.md
           - user-guide/ingestion/2_direct-updates.md

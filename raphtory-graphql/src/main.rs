@@ -56,6 +56,9 @@ struct Args {
     #[arg(long, default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS)]
     auth_enabled_for_reads: bool,
 
+    #[arg(long, default_value = None)]
+    public_dir: Option<PathBuf>,
+
     #[cfg(feature = "search")]
     #[arg(long, default_value_t = DEFAULT_CREATE_INDEX)]
     create_index: bool,
@@ -88,6 +91,7 @@ async fn main() -> IoResult<()> {
             .with_otlp_tracing_service_name(args.otlp_tracing_service_name)
             .with_auth_public_key(args.auth_public_key)
             .expect(PUBLIC_KEY_DECODING_ERR_MSG)
+            .with_public_dir(args.public_dir)
             .with_auth_enabled_for_reads(args.auth_enabled_for_reads);
 
         #[cfg(feature = "search")]

@@ -1,4 +1,4 @@
-# Ingesting from dataframes
+# Ingesting from an external source
 
 If you prefer to initially manipulate your data in a `dataframe` before converting into a graph, Raphtory can directly ingest dataframes and convert these into node and edge updates.
 
@@ -134,6 +134,50 @@ assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal
     Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)
     Node(name=ServerA, earliest_time=1693555200000, latest_time=1693556400000, properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120, datasource: docs/data/network_traffic_edges.csv, server_name: Alpha, hardware_type: Blade Server}))
     Edge(source=ServerA, target=ServerB, earliest_time=1693555200000, latest_time=1693555200000, properties={data_size_MB: 5.6, datasource: {Critical System Request: docs/data/network_traffic_edges.csv}, is_encrypted: {Critical System Request: true}}, layer(s)=[Critical System Request])
+    ```
+
+## Creating a graph from a Parquet file
+
+Similarly for Parquet you can use `from_parquet()`, or `load_edges_from_parquet()` and `load_nodes_from_parquet()` to load data from files in the common [Apache Parquet](https://parquet.apache.org/) format.
+
+/// tab | :fontawesome-brands-python: Python
+
+```python
+from raphtory import Graph
+
+h=Graph()
+
+h.load_edges_from_parquet(
+    time="timestamp",
+    src="source",
+    dst="destination",
+    properties=["data_size_MB"],
+    layer_col="transaction_type",
+    metadata=["is_encrypted"],
+    parquet_path="../data/net_edges_parquet"
+)
+
+h.load_nodes_from_parquet(
+    time="timestamp",
+    id="server_id",
+    properties=["OS_version", "primary_function", "uptime_days"],
+    metadata=["server_name", "hardware_type"],
+    parquet_path="../data/net_nodes_parquet"
+)
+
+print(h)
+```
+
+///
+
+```{.python continuation hide}
+assert str(h) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+```
+
+!!! Output
+
+    ```output
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)
     ```
 
 ## Adding metadata via dataframes
