@@ -2094,7 +2094,7 @@ dependencies = [
 
 [[package]]
 name = "db4-graph"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "boxcar",
  "db4-storage",
@@ -2107,7 +2107,7 @@ dependencies = [
 
 [[package]]
 name = "db4-storage"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -2288,6 +2288,27 @@ dependencies = [
  "block-buffer",
  "crypto-common",
  "subtle",
+]
+
+[[package]]
+name = "dirs"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3478,6 +3499,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
+name = "libredox"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "416f7e718bdb06000964960ffa43b4335ad4012ae8b99060261aa4a8088d5ccb"
+dependencies = [
+ "bitflags",
+ "libc",
+]
+
+[[package]]
 name = "libz-rs-sys"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4128,6 +4159,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
 name = "ordered-float"
 version = "2.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4523,11 +4560,14 @@ dependencies = [
  "bytes",
  "futures-util",
  "headers",
+ "hex",
  "http",
  "http-body-util",
+ "httpdate",
  "hyper",
  "hyper-util",
  "mime",
+ "mime_guess",
  "nix",
  "parking_lot",
  "percent-encoding",
@@ -4535,6 +4575,7 @@ dependencies = [
  "poem-derive",
  "regex",
  "rfc7239",
+ "rust-embed",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -5016,7 +5057,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "ahash",
  "arrow",
@@ -5096,7 +5137,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arrow-array",
  "arrow-ipc",
@@ -5131,7 +5172,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api-macros"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5140,7 +5181,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "chrono",
  "criterion",
@@ -5161,7 +5202,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-core"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arrow-array",
  "bigdecimal",
@@ -5187,7 +5228,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -5216,7 +5257,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -5247,6 +5288,7 @@ dependencies = [
  "raphtory-storage",
  "rayon",
  "reqwest",
+ "rust-embed",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -5264,7 +5306,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5274,7 +5316,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "arrow-array",
  "arrow-schema",
@@ -5309,7 +5351,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5370,6 +5412,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed2bf2547551a7053d6fdfafda3f938979645c44812fbfcda098faae3f1a362d"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "redox_users"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
+dependencies = [
+ "getrandom 0.2.16",
+ "libredox",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -5513,8 +5566,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "rust-embed"
+version = "8.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "947d7f3fad52b283d261c4c99a084937e2fe492248cb9a68a8435a861b8798ca"
+dependencies = [
+ "rust-embed-impl",
+ "rust-embed-utils",
+ "walkdir",
+]
+
+[[package]]
+name = "rust-embed-impl"
+version = "8.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fa2c8c9e8711e10f9c4fd2d64317ef13feaab820a4c51541f1a8c8e2e851ab2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rust-embed-utils",
+ "shellexpand",
+ "syn 2.0.106",
+ "walkdir",
+]
+
+[[package]]
+name = "rust-embed-utils"
+version = "8.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60b161f275cb337fe0a44d924a5f4df0ed69c2c39519858f931ce61c779d3475"
+dependencies = [
+ "sha2",
+ "walkdir",
+]
+
+[[package]]
 name = "rust-examples"
-version = "0.16.2"
+version = "0.16.3"
 dependencies = [
  "chrono",
  "itertools 0.13.0",
@@ -5880,6 +5968,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "shellexpand"
+version = "3.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b1fdf65dd6331831494dd616b30351c38e96e45921a27745cf98490458b90bb"
+dependencies = [
+ "dirs",
 ]
 
 [[package]]
