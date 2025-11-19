@@ -127,15 +127,14 @@ pub(crate) fn get_reader(index: &Arc<Index>) -> Result<IndexReader, GraphError> 
 
 pub(crate) fn fallback_filter_nodes<G: StaticGraphViewOps>(
     graph: &G,
-    filter: &(impl CreateFilter + Clone),
+    filter: &(impl CreateFilter + Clone + 'static),
     limit: usize,
     offset: usize,
 ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
     let filtered_nodes = graph
-        .filter(filter.clone())?
         .nodes()
-        .iter()
-        .map(|n| NodeView::new_internal(graph.clone(), n.node))
+        .select(filter.clone())?
+        .into_iter()
         .skip(offset)
         .take(limit)
         .collect();

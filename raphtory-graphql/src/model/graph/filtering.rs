@@ -873,11 +873,12 @@ fn build_windowed_property_filter_from_condition<M: Clone + Send + Sync + 'stati
     cond: &PropCondition,
     start: i64,
     end: i64,
+    marker: M,
 ) -> Result<PropertyFilter<Windowed<M>>, GraphError> {
     build_property_filter_from_condition_with_entity::<Windowed<M>>(
         prop_ref,
         cond,
-        Windowed::from_times(start, end),
+        Windowed::from_times(start, end, marker),
     )
 }
 
@@ -949,11 +950,12 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::TemporalProperty(prop) => {
                 let prop_ref = PropertyRef::TemporalProperty(prop.name);
                 if let Some(w) = prop.window {
-                    let pf = build_windowed_property_filter_from_condition::<NodeFilter>(
+                    let pf = build_windowed_property_filter_from_condition(
                         prop_ref,
                         &prop.where_,
                         w.start,
                         w.end,
+                        NodeFilter,
                     )?;
                     return Ok(CompositeNodeFilter::PropertyWindowed(pf));
                 }
@@ -1060,8 +1062,8 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             GqlEdgeFilter::TemporalProperty(p) => {
                 let prop_ref = PropertyRef::TemporalProperty(p.name);
                 if let Some(w) = p.window {
-                    let pf = build_windowed_property_filter_from_condition::<EdgeFilter>(
-                        prop_ref, &p.where_, w.start, w.end,
+                    let pf = build_windowed_property_filter_from_condition(
+                        prop_ref, &p.where_, w.start, w.end, EdgeFilter,
                     )?;
                     return Ok(CompositeEdgeFilter::PropertyWindowed(pf));
                 }

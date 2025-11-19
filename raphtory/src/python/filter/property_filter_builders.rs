@@ -2,10 +2,9 @@ use crate::{
     db::graph::views::filter::{
         internal::CreateFilter,
         model::{
-            edge_filter::EndpointWrapper,
             property_filter::{
-                ElemQualifierOps, InternalPropertyFilterOps, ListAggOps, MetadataFilterBuilder,
-                PropertyFilterBuilder, PropertyFilterOps,
+                ElemQualifierOps, ListAggOps, MetadataFilterBuilder, PropertyFilterBuilder,
+                PropertyFilterOps,
             },
             TryAsCompositeFilter,
         },
@@ -13,7 +12,7 @@ use crate::{
     prelude::PropertyFilter,
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python};
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
@@ -53,23 +52,23 @@ pub trait DynFilterOps: Send + Sync {
         prefix_match: bool,
     ) -> PyFilterExpr;
 
-    fn any(&self) -> PyResult<PyFilterOps>;
+    fn any(&self) -> PyFilterOps;
 
-    fn all(&self) -> PyResult<PyFilterOps>;
+    fn all(&self) -> PyFilterOps;
 
-    fn len(&self) -> PyResult<PyFilterOps>;
+    fn len(&self) -> PyFilterOps;
 
-    fn sum(&self) -> PyResult<PyFilterOps>;
+    fn sum(&self) -> PyFilterOps;
 
-    fn avg(&self) -> PyResult<PyFilterOps>;
+    fn avg(&self) -> PyFilterOps;
 
-    fn min(&self) -> PyResult<PyFilterOps>;
+    fn min(&self) -> PyFilterOps;
 
-    fn max(&self) -> PyResult<PyFilterOps>;
+    fn max(&self) -> PyFilterOps;
 
-    fn first(&self) -> PyResult<PyFilterOps>;
+    fn first(&self) -> PyFilterOps;
 
-    fn last(&self) -> PyResult<PyFilterOps>;
+    fn last(&self) -> PyFilterOps;
 }
 
 impl<T> DynFilterOps for T
@@ -147,40 +146,40 @@ where
         )))
     }
 
-    fn any(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ElemQualifierOps::any(self)))
+    fn any(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ElemQualifierOps::any(self))
     }
 
-    fn all(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ElemQualifierOps::all(self)))
+    fn all(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ElemQualifierOps::all(self))
     }
 
-    fn len(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ListAggOps::len(self)))
+    fn len(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ListAggOps::len(self))
     }
 
-    fn sum(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ListAggOps::sum(self)))
+    fn sum(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ListAggOps::sum(self))
     }
 
-    fn avg(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ListAggOps::avg(self)))
+    fn avg(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ListAggOps::avg(self))
     }
 
-    fn min(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ListAggOps::min(self)))
+    fn min(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ListAggOps::min(self))
     }
 
-    fn max(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ListAggOps::max(self)))
+    fn max(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ListAggOps::max(self))
     }
 
-    fn first(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ListAggOps::first(self)))
+    fn first(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ListAggOps::first(self))
     }
 
-    fn last(&self) -> PyResult<PyFilterOps> {
-        Ok(PyFilterOps::wrap(ListAggOps::last(self)))
+    fn last(&self) -> PyFilterOps {
+        PyFilterOps::wrap(ListAggOps::last(self))
     }
 }
 
@@ -268,39 +267,39 @@ impl PyFilterOps {
             .fuzzy_search(prop_value, levenshtein_distance, prefix_match)
     }
 
-    pub fn first(&self) -> PyResult<PyFilterOps> {
+    pub fn first(&self) -> PyFilterOps {
         self.ops.first()
     }
 
-    pub fn last(&self) -> PyResult<PyFilterOps> {
+    pub fn last(&self) -> PyFilterOps {
         self.ops.last()
     }
 
-    pub fn any(&self) -> PyResult<PyFilterOps> {
+    pub fn any(&self) -> PyFilterOps {
         self.ops.any()
     }
 
-    pub fn all(&self) -> PyResult<PyFilterOps> {
+    pub fn all(&self) -> PyFilterOps {
         self.ops.all()
     }
 
-    fn len(&self) -> PyResult<PyFilterOps> {
+    fn len(&self) -> PyFilterOps {
         self.ops.len()
     }
 
-    fn sum(&self) -> PyResult<PyFilterOps> {
+    fn sum(&self) -> PyFilterOps {
         self.ops.sum()
     }
 
-    fn avg(&self) -> PyResult<PyFilterOps> {
+    fn avg(&self) -> PyFilterOps {
         self.ops.avg()
     }
 
-    fn min(&self) -> PyResult<PyFilterOps> {
+    fn min(&self) -> PyFilterOps {
         self.ops.min()
     }
 
-    fn max(&self) -> PyResult<PyFilterOps> {
+    fn max(&self) -> PyFilterOps {
         self.ops.max()
     }
 }
@@ -372,3 +371,40 @@ where
         Bound::new(py, obj)
     }
 }
+
+// impl<'py, T: Clone> IntoPyObject<'py> for PropertyFilter<T>
+// where
+//     PropertyFilter<T>: CreateFilter + TryAsCompositeFilter,
+// {
+//     type Target = PyFilterExpr;
+//     type Output = Bound<'py, Self::Target>;
+//     type Error = PyErr;
+//
+//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+//         PyFilterExpr(Arc::new(self)).into_pyobject(py)
+//     }
+// }
+
+impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
+    type Target = PyPropertyFilterBuilder;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let parent = PyFilterOps::from_arc(self.ops.clone());
+        Bound::new(py, (self, parent))
+    }
+}
+
+// impl<'py, M> IntoPyObject<'py> for OpChainBuilder<M>
+// where
+//     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+// {
+//     type Target = PyPropertyFilterBuilder;
+//     type Output = Bound<'py, Self::Target>;
+//     type Error = PyErr;
+//
+//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+//         PyPropertyFilterBuilder::from_arc(Arc::new(self)).into_pyobject(py)
+//     }
+// }

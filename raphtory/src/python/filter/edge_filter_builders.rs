@@ -282,7 +282,7 @@ impl PyEdgeFilter {
 
     #[staticmethod]
     fn window(start: PyTime, end: PyTime) -> PyResult<PyEdgeWindow> {
-        Ok(PyEdgeWindow(Windowed::<EdgeFilter>::from_times(start, end)))
+        Ok(PyEdgeWindow(Windowed::from_times(start, end, EdgeFilter)))
     }
 }
 

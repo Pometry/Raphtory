@@ -5,7 +5,6 @@ use crate::db::api::{
 use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct EarliestTime<G> {

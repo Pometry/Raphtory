@@ -10,15 +10,13 @@ use crate::{
         property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
     },
     errors::GraphError,
-    prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::{
     entities::{GidRef, GID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_core::utils::time::IntoTime;
-use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
-use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Deref, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 
 pub mod and_filter;
 pub mod edge_filter;
@@ -33,24 +31,20 @@ pub mod property_filter;
 pub struct Windowed<M> {
     pub start: TimeIndexEntry,
     pub end: TimeIndexEntry,
-    pub _marker: PhantomData<M>,
+    pub marker: M,
 }
 
 impl<M> Windowed<M> {
     #[inline]
-    pub fn new(start: TimeIndexEntry, end: TimeIndexEntry) -> Self {
-        Self {
-            start,
-            end,
-            _marker: PhantomData,
-        }
+    pub fn new(start: TimeIndexEntry, end: TimeIndexEntry, marker: M) -> Self {
+        Self { start, end, marker }
     }
 
     #[inline]
-    pub fn from_times<S: IntoTime, E: IntoTime>(start: S, end: E) -> Self {
+    pub fn from_times<S: IntoTime, E: IntoTime>(start: S, end: E, marker: M) -> Self {
         let s = TimeIndexEntry::start(start.into_time());
         let e = TimeIndexEntry::end(end.into_time());
-        Self::new(s, e)
+        Self::new(s, e, marker)
     }
 }
 

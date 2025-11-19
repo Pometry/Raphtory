@@ -3,16 +3,13 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                FilterOps, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+                Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::model::{
-            edge_filter::Endpoint, node_filter::CompositeNodeFilter,
-            property_filter::PropertyFilterOps,
-        },
+        graph::views::filter::model::edge_filter::Endpoint,
     },
     prelude::GraphViewOps,
 };

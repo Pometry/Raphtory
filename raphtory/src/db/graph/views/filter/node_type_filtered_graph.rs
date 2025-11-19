@@ -1,17 +1,13 @@
 use crate::{
     core::entities::LayerIds,
-    db::{
-        api::{
-            properties::internal::InheritPropertiesOps,
-            view::internal::{
-                Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritTimeSemantics, InternalNodeFilterOps, Static,
-            },
+    db::api::{
+        properties::internal::InheritPropertiesOps,
+        view::internal::{
+            Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalNodeFilterOps, Static,
         },
-        graph::views::filter::{internal::CreateFilter, NodeTypeFilter},
     },
-    errors::GraphError,
     prelude::GraphViewOps,
 };
 use raphtory_api::inherit::Base;
@@ -43,24 +39,6 @@ impl<'graph, G: GraphViewOps<'graph>> NodeTypeFilteredGraph<G> {
             graph,
             node_types_filter,
         }
-    }
-}
-
-impl CreateFilter for NodeTypeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeTypeFilteredGraph<G>;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let node_types_filter = graph
-            .node_meta()
-            .node_type_meta()
-            .get_keys()
-            .iter()
-            .map(|k| self.0.matches(Some(k))) // TODO: _default check
-            .collect::<Vec<_>>();
-        Ok(NodeTypeFilteredGraph::new(graph, node_types_filter.into()))
     }
 }
 

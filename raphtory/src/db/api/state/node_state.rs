@@ -303,6 +303,7 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
     for NodeState<'graph, V, G>
 {
     type BaseGraph = G;
+    type Graph = G;
     type Select = Const<bool>;
     type Value<'a>
         = &'a V
@@ -310,7 +311,7 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
         'graph: 'a;
     type OwnedValue = V;
 
-    fn graph(&self) -> &Self::BaseGraph {
+    fn graph(&self) -> &Self::Graph {
         &self.base_graph
     }
 
@@ -340,7 +341,7 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
 
     fn iter<'a>(
         &'a self,
-    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::BaseGraph>, Self::Value<'a>)> + 'a
+    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value<'a>)> + 'a
     where
         'graph: 'a,
     {
@@ -359,15 +360,20 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
         }
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Select> {
-        Nodes::new_filtered(self.base_graph.clone(), Const(true), self.keys.clone())
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph, Self::Select> {
+        Nodes::new_filtered(
+            self.base_graph.clone(),
+            self.base_graph.clone(),
+            Const(true),
+            self.keys.clone(),
+        )
     }
 
     fn par_iter<'a>(
         &'a self,
     ) -> impl ParallelIterator<
         Item = (
-            NodeView<'a, &'a <Self as NodeStateOps<'graph>>::BaseGraph>,
+            NodeView<'a, &'a <Self as NodeStateOps<'graph>>::Graph>,
             <Self as NodeStateOps<'graph>>::Value<'a>,
         ),
     >
@@ -390,7 +396,7 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
         }
     }
 
-    fn get_by_index(&self, index: usize) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)> {
+    fn get_by_index(&self, index: usize) -> Option<(NodeView<&Self::Graph>, Self::Value<'_>)> {
         match &self.keys {
             Some(node_index) => node_index.key(index).map(|n| {
                 (

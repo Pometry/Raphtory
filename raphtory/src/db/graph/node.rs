@@ -16,7 +16,7 @@ use crate::{
             },
             state::NodeOp,
             view::{
-                internal::{BaseFilter, GraphTimeSemanticsOps, NodeTimeSemanticsOps, Static},
+                internal::{Filter, GraphTimeSemanticsOps, NodeTimeSemanticsOps, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -172,14 +172,14 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
     }
 }
 
-impl<'graph, Current> BaseFilter<'graph> for NodeView<'graph, Current>
+impl<'graph, Current> Filter<'graph> for NodeView<'graph, Current>
 where
     Current: GraphViewOps<'graph>,
 {
-    type BaseGraph = Current;
+    type Graph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = NodeView<'graph, Next>;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn base_graph(&self) -> &Self::Graph {
         &self.graph
     }
 

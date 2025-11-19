@@ -2,13 +2,18 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::NodeFilterOp,
             view::internal::{
-                EdgeList, Immutable, InheritMaterialize, InheritStorageOps, InheritTimeSemantics,
-                InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
-                InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, Static,
+                EdgeList, GraphView, Immutable, InheritMaterialize, InheritStorageOps,
+                InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
+                InternalExplodedEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps, ListOps,
+                NodeList, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::AndFilter},
+        graph::views::filter::{
+            internal::CreateFilter,
+            model::{and_filter::AndOp, AndFilter},
+        },
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -39,6 +44,11 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
     where
         Self: 'graph;
 
+    type NodeFilter<'graph, G: GraphView + 'graph>
+        = AndOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
+    where
+        Self: 'graph;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -52,6 +62,15 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
             right,
             layer_ids,
         })
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let left = self.left.create_node_filter(graph.clone())?;
+        let right = self.right.create_node_filter(graph.clone())?;
+        Ok(left.and(right))
     }
 }
 

@@ -284,9 +284,11 @@ impl PyExplodedEdgeFilter {
 
     #[staticmethod]
     fn window(start: PyTime, end: PyTime) -> PyResult<PyExplodedEdgeWindow> {
-        Ok(PyExplodedEdgeWindow(
-            Windowed::<ExplodedEdgeFilter>::from_times(start, end),
-        ))
+        Ok(PyExplodedEdgeWindow(Windowed::from_times(
+            start,
+            end,
+            ExplodedEdgeFilter,
+        )))
     }
 }
 

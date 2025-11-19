@@ -8,13 +8,12 @@ use crate::{
                 model::{
                     edge_filter::{CompositeEdgeFilter, EdgeFilter},
                     property_filter::PropertyRef,
-                    Filter,
                 },
             },
         },
     },
     errors::GraphError,
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
+    prelude::{GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
     search::{
         collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
         fallback_filter_edges, fields, get_reader, graph_index::Index,

@@ -1,14 +1,14 @@
 use crate::prelude::GraphViewOps;
 
-pub trait BaseFilter<'graph> {
-    type BaseGraph: GraphViewOps<'graph> + 'graph;
+pub trait Filter<'graph> {
+    type Graph: GraphViewOps<'graph> + 'graph;
 
-    type Filtered<FilteredGraph: GraphViewOps<'graph> + 'graph>: BaseFilter<
+    type Filtered<FilteredGraph: GraphViewOps<'graph> + 'graph>: Filter<
         'graph,
-        BaseGraph = FilteredGraph,
+        Graph = FilteredGraph,
     >;
 
-    fn base_graph(&self) -> &Self::BaseGraph;
+    fn base_graph(&self) -> &Self::Graph;
 
     fn apply_filter<FilteredGraph: GraphViewOps<'graph> + 'graph>(
         &self,

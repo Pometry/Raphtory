@@ -2,6 +2,7 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::NodeFilterOp,
             view::internal::{
                 FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
                 InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
@@ -9,7 +10,10 @@ use crate::{
                 InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::not_filter::NotFilter},
+        graph::views::filter::{
+            internal::CreateFilter,
+            model::not_filter::{NotFilter, NotOp},
+        },
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -38,12 +42,24 @@ impl<T: CreateFilter> CreateFilter for NotFilter<T> {
     where
         Self: 'graph;
 
+    type NodeFilter<'graph, G: GraphView + 'graph>
+        = NotOp<T::NodeFilter<'graph, G>>
+    where
+        Self: 'graph;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         let filter = self.0.create_filter(graph.clone())?;
         Ok(NotFilteredGraph { graph, filter })
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(self.0.create_node_filter(graph)?.not())
     }
 }
 

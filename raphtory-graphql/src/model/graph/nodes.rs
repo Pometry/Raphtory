@@ -16,10 +16,13 @@ use itertools::Itertools;
 use raphtory::{
     db::{
         api::{
-            state::Index,
+            state::{ops::DynNodeFilter, Index},
             view::{BaseFilterOps, DynamicGraph, IterFilterOps},
         },
-        graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
+        graph::{
+            nodes::{IntoDynNodes, Nodes},
+            views::filter::model::node_filter::CompositeNodeFilter,
+        },
     },
     errors::GraphError,
     prelude::*,
@@ -30,18 +33,20 @@ use std::cmp::Ordering;
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Nodes")]
 pub(crate) struct GqlNodes {
-    pub(crate) nn: Nodes<'static, DynamicGraph>,
+    pub(crate) nn: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }
 
 impl GqlNodes {
-    fn update<N: Into<Nodes<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
+    fn update<N: IntoDynNodes>(&self, nodes: N) -> Self {
         GqlNodes::new(nodes)
     }
 }
 
 impl GqlNodes {
-    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(nodes: N) -> Self {
-        Self { nn: nodes.into() }
+    pub(crate) fn new<N: IntoDynNodes>(nodes: N) -> Self {
+        Self {
+            nn: nodes.into_dyn(),
+        }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {

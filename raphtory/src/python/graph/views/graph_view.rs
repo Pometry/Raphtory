@@ -5,7 +5,7 @@ use crate::{
             properties::{Metadata, Properties},
             view::{
                 filter_ops::BaseFilterOps,
-                internal::{BaseFilter, DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph},
+                internal::{DynamicGraph, Filter, IntoDynHop, IntoDynamic, MaterializedGraph},
                 LayerOps, StaticGraphViewOps,
             },
         },

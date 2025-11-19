@@ -3,8 +3,9 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::NotANodeFilter,
             view::internal::{
-                Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+                GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
@@ -45,6 +46,8 @@ impl CreateFilter for PropertyFilter<Windowed<EdgeFilter>> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         EdgePropertyFilteredGraph<WindowedGraph<G>>;
 
+    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -63,10 +66,19 @@ impl CreateFilter for PropertyFilter<Windowed<EdgeFilter>> {
             filter,
         ))
     }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
+    }
 }
 
 impl CreateFilter for PropertyFilter<EdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
+
+    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -74,6 +86,13 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
         Ok(EdgePropertyFilteredGraph::new(graph, prop_id, self))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
     }
 }
 

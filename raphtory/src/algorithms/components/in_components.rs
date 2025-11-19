@@ -75,6 +75,7 @@ where
             NodeState::new_from_eval_mapped(g.clone(), local, |v| {
                 Nodes::new_filtered(
                     g.clone(),
+                    g.clone(),
                     Const(true),
                     Some(Index::from_iter(v.in_components)),
                 )

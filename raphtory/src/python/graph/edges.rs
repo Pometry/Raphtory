@@ -406,7 +406,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NestedEdges
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let edges = NestedEdges {
             nodes: self.nodes,
-            base_graph: self.base_graph.into_dynamic(),
+            graph: self.graph.into_dynamic(),
             edges: self.edges,
         };
         PyNestedEdges { edges }.into_pyobject(py)
@@ -421,7 +421,7 @@ impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G> {
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNestedEdges {
     fn from(value: NestedEdges<'static, G>) -> Self {
-        let base_graph = value.base_graph.into_dynamic();
+        let base_graph = value.graph.into_dynamic();
         Self {
             edges: NestedEdges::new(base_graph, value.nodes, value.edges),
         }

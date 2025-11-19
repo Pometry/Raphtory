@@ -272,8 +272,13 @@ impl<R: Repr> Repr for &R {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + 'graph, Op: NodeOp + 'graph> Repr
-    for LazyNodeState<'graph, Op, G, GH>
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        F: NodeFilterOp + 'graph,
+        Op: NodeOp + 'graph,
+    > Repr for LazyNodeState<'graph, Op, G, GH, F>
 where
     Op::Output: Repr + Send + Sync + 'graph,
 {

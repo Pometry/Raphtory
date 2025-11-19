@@ -2,21 +2,27 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::NodeOp,
             view::internal::{
-                Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritTimeSemantics, InternalNodeFilterOps, Static,
+                GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter,
+                InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::Filter, NodeNameFilter},
+        graph::views::filter::model::Filter,
     },
-    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_api::{
+    core::entities::{LayerIds, VID},
+    inherit::Base,
+};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    graph::{
+        graph::GraphStorage,
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -31,14 +37,14 @@ impl<G> NodeNameFilteredGraph<G> {
     }
 }
 
-impl CreateFilter for NodeNameFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeNameFilteredGraph<G>;
+impl<G: GraphView> NodeOp for NodeNameFilteredGraph<G> {
+    type Output = bool;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(NodeNameFilteredGraph::new(graph, self.0))
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let layer_ids = self.graph.layer_ids();
+        let nodes = storage.nodes();
+        let node_ref = nodes.node(node);
+        self.internal_filter_node(node_ref, layer_ids)
     }
 }
 

@@ -4,7 +4,7 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::{BaseFilter, FilterOps, IterFilter, Static},
+                internal::{Filter, FilterOps, IterFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -162,7 +162,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromGraph<
                 .into_dyn_boxed()
         });
         NestedEdges {
-            base_graph: self.base_graph.clone(),
+            graph: self.base_graph.clone(),
             nodes: self.nodes.clone(),
             edges,
         }
@@ -203,14 +203,14 @@ impl<'graph, G: GraphViewOps<'graph>> IntoIterator for PathFromGraph<'graph, G> 
     }
 }
 
-impl<'graph, Current> BaseFilter<'graph> for PathFromGraph<'graph, Current>
+impl<'graph, Current> Filter<'graph> for PathFromGraph<'graph, Current>
 where
     Current: GraphViewOps<'graph>,
 {
-    type BaseGraph = Current;
+    type Graph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = PathFromGraph<'graph, Next>;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn base_graph(&self) -> &Self::Graph {
         &self.base_graph
     }
 
@@ -423,14 +423,14 @@ impl<'graph, G: GraphViewOps<'graph>> IntoIterator for PathFromNode<'graph, G> {
     }
 }
 
-impl<'graph, Current> BaseFilter<'graph> for PathFromNode<'graph, Current>
+impl<'graph, Current> Filter<'graph> for PathFromNode<'graph, Current>
 where
     Current: GraphViewOps<'graph>,
 {
-    type BaseGraph = Current;
+    type Graph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = PathFromNode<'graph, Next>;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn base_graph(&self) -> &Self::Graph {
         &self.base_graph
     }
 

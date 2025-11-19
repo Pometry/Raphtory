@@ -15,7 +15,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{internal::BaseFilter, DynamicGraph, IterFilterOps},
+        api::view::{internal::Filter, DynamicGraph, IterFilterOps},
         graph::{edges::Edges, views::filter::model::edge_filter::CompositeEdgeFilter},
     },
     errors::GraphError,

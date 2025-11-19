@@ -232,12 +232,14 @@ pub fn assert_node_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOp
 pub fn assert_nodes_equal<
     'graph,
     G1: GraphViewOps<'graph>,
-    GH1: NodeFilterOp + 'graph,
+    GH1: GraphViewOps<'graph>,
+    F1: NodeFilterOp + 'graph,
     G2: GraphViewOps<'graph>,
-    GH2: NodeFilterOp + 'graph,
+    GH2: GraphViewOps<'graph>,
+    F2: NodeFilterOp + 'graph,
 >(
-    nodes1: &Nodes<'graph, G1, GH1>,
-    nodes2: &Nodes<'graph, G2, GH2>,
+    nodes1: &Nodes<'graph, G1, GH1, F1>,
+    nodes2: &Nodes<'graph, G2, GH2, F2>,
 ) {
     assert_nodes_equal_layer(nodes1, nodes2, "", false);
 }
@@ -245,12 +247,14 @@ pub fn assert_nodes_equal<
 pub fn assert_nodes_equal_layer<
     'graph,
     G1: GraphViewOps<'graph>,
-    GH1: NodeFilterOp + 'graph,
+    GH1: GraphViewOps<'graph>,
+    F1: NodeFilterOp + 'graph,
     G2: GraphViewOps<'graph>,
-    GH2: NodeFilterOp + 'graph,
+    GH2: GraphViewOps<'graph>,
+    F2: NodeFilterOp + 'graph,
 >(
-    nodes1: &Nodes<'graph, G1, GH1>,
-    nodes2: &Nodes<'graph, G2, GH2>,
+    nodes1: &Nodes<'graph, G1, GH1, F1>,
+    nodes2: &Nodes<'graph, G2, GH2, F2>,
     layer_tag: &str,
     persistent: bool,
 ) {

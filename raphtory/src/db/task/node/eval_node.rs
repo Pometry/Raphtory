@@ -12,7 +12,7 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::{BaseFilter, GraphView},
+                internal::{Filter, GraphView},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
             },
         },
@@ -358,17 +358,17 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
     }
 }
 
-impl<'graph, 'a, S, CS, Current> BaseFilter<'graph> for EvalPathFromNode<'graph, 'a, Current, CS, S>
+impl<'graph, 'a, S, CS, Current> Filter<'graph> for EvalPathFromNode<'graph, 'a, Current, CS, S>
 where
     'a: 'graph,
     Current: GraphViewOps<'graph>,
     CS: ComputeState + 'a,
     S: 'static,
 {
-    type BaseGraph = Current;
+    type Graph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = EvalPathFromNode<'graph, 'a, Next, CS, S>;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn base_graph(&self) -> &Self::Graph {
         &self.eval_graph.base_graph
     }
 
@@ -383,17 +383,17 @@ where
     }
 }
 
-impl<'graph, 'a, Current, S, CS> BaseFilter<'graph> for EvalNodeView<'graph, 'a, Current, S, CS>
+impl<'graph, 'a, Current, S, CS> Filter<'graph> for EvalNodeView<'graph, 'a, Current, S, CS>
 where
     'a: 'graph,
     Current: GraphViewOps<'graph>,
     CS: ComputeState + 'a,
     S: 'static,
 {
-    type BaseGraph = Current;
+    type Graph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = EvalNodeView<'graph, 'a, Next, S, CS>;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn base_graph(&self) -> &Self::Graph {
         &self.eval_graph.base_graph
     }
 

@@ -8,6 +8,12 @@ use crate::{
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OrOp<L, R> {
+    pub(crate) left: L,
+    pub(crate) right: R,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrFilter<L, R> {
     pub(crate) left: L,
     pub(crate) right: R,

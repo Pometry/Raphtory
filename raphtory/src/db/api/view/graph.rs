@@ -922,14 +922,14 @@ pub trait StaticGraphViewOps: GraphView + 'static {}
 
 impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
-impl<'graph, G> BaseFilter<'graph> for G
+impl<'graph, G> Filter<'graph> for G
 where
     G: GraphViewOps<'graph> + 'graph,
 {
-    type BaseGraph = G;
+    type Graph = G;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn base_graph(&self) -> &Self::Graph {
         self
     }
 

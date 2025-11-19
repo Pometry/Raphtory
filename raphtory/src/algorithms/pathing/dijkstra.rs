@@ -189,7 +189,8 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = paths
         .into_iter()
         .map(|(id, (cost, path))| {
-            let nodes = Nodes::new_filtered(g.clone(), NO_FILTER, Some(Index::new(path)));
+            let nodes =
+                Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::new(path)));
             (id, (cost, nodes))
         })
         .unzip();

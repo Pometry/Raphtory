@@ -10,7 +10,7 @@ use crate::{
                 ops,
                 ops::{
                     filter::NO_FILTER, Degree, DynNodeFilter, IntoDynNodeOp, NodeFilterOp,
-                    NodeTypeFilter,
+                    NodeTypeFilterOp,
                 },
                 LazyNodeState, NodeStateOps,
             },
@@ -26,7 +26,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::filter::model::AndFilter,
+            views::filter::model::and_filter::AndOp,
         },
     },
     errors::GraphError,
@@ -34,7 +34,7 @@ use crate::{
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{
-            node::internal::BaseFilter,
+            node::internal::Filter,
             properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
@@ -452,10 +452,10 @@ impl PyMutableNode {
 #[derive(Clone)]
 #[pyclass(name = "Nodes", module = "raphtory", frozen)]
 pub struct PyNodes {
-    pub(crate) nodes: Nodes<'static, DynamicGraph, DynNodeFilter>,
+    pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }
 
-impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph, DynNodeFilter> {
+impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         Ok(ob.downcast::<PyNodes>()?.get().nodes.clone())
     }
@@ -464,11 +464,12 @@ impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph, DynNodeFilter> {
 impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph> {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let nodes = &ob.downcast::<PyNodes>()?.get().nodes;
-        if nodes.node_select.is_filtered() {
+        if nodes.selector.is_filtered() {
             Err(PyTypeError::new_err("Expected unfiltered nodes"))
         } else {
             Ok(Nodes::new_filtered(
-                nodes.base_graph().clone(),
+                nodes.base_graph.clone(),
+                nodes.graph.clone(),
                 NO_FILTER,
                 nodes.nodes.clone(),
             ))
@@ -479,7 +480,7 @@ impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph> {
 impl_nodeviewops!(
     PyNodes,
     nodes,
-    Nodes<'static, DynamicGraph, DynNodeFilter>,
+    Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
     "Nodes",
     "NestedEdges",
     "PathFromGraph"
@@ -513,20 +514,28 @@ impl PyNodes {
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: IntoDynNodeOp<Output = bool>>
-    From<Nodes<'static, G, GH>> for PyNodes
+impl<
+        G: StaticGraphViewOps + IntoDynamic,
+        GH: StaticGraphViewOps + IntoDynamic,
+        F: IntoDynNodeOp<Output = bool>,
+    > From<Nodes<'static, G, GH, F>> for PyNodes
 {
-    fn from(value: Nodes<'static, G, GH>) -> Self {
-        let select = value.node_select.into_dynamic();
-        let base_graph = value.graph.into_dynamic();
+    fn from(value: Nodes<'static, G, GH, F>) -> Self {
+        let base_graph = value.base_graph.into_dynamic();
+        let graph = value.graph.into_dynamic();
+        let select = value.selector.into_dynamic();
         Self {
-            nodes: Nodes::new_filtered(base_graph, select, value.nodes),
+            nodes: Nodes::new_filtered(base_graph, graph, select, value.nodes),
         }
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: IntoDynNodeOp<Output = bool>> IntoPyObject<'py>
-    for Nodes<'static, G, GH>
+impl<
+        'py,
+        G: StaticGraphViewOps + IntoDynamic,
+        GH: StaticGraphViewOps + IntoDynamic,
+        F: IntoDynNodeOp<Output = bool>,
+    > IntoPyObject<'py> for Nodes<'static, G, GH, F>
 {
     type Target = PyNodes;
     type Output = Bound<'py, Self::Target>;
@@ -577,7 +586,7 @@ impl PyNodes {
     /// Returns:
     ///     IdView: a view of the node ids
     #[getter]
-    fn id(&self) -> LazyNodeState<'static, ops::Id, DynamicGraph, DynNodeFilter> {
+    fn id(&self) -> LazyNodeState<'static, ops::Id, DynamicGraph, DynamicGraph, DynNodeFilter> {
         self.nodes.id()
     }
 
@@ -586,7 +595,7 @@ impl PyNodes {
     /// Returns:
     ///     NameView: a view of the node names
     #[getter]
-    fn name(&self) -> LazyNodeState<'static, ops::Name, DynamicGraph, DynNodeFilter> {
+    fn name(&self) -> LazyNodeState<'static, ops::Name, DynamicGraph, DynamicGraph, DynNodeFilter> {
         self.nodes.name()
     }
 
@@ -597,7 +606,13 @@ impl PyNodes {
     #[getter]
     fn earliest_time(
         &self,
-    ) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynNodeFilter> {
+    ) -> LazyNodeState<
+        'static,
+        ops::EarliestTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         self.nodes.earliest_time()
     }
 
@@ -612,6 +627,7 @@ impl PyNodes {
         'static,
         ops::Map<ops::EarliestTime<DynamicGraph>, Option<DateTime<Utc>>>,
         DynamicGraph,
+        DynamicGraph,
         DynNodeFilter,
     > {
         self.nodes.earliest_date_time()
@@ -624,7 +640,13 @@ impl PyNodes {
     #[getter]
     fn latest_time(
         &self,
-    ) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph, DynNodeFilter> {
+    ) -> LazyNodeState<
+        'static,
+        ops::LatestTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         self.nodes.latest_time()
     }
 
@@ -639,6 +661,7 @@ impl PyNodes {
         'static,
         ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>,
         DynamicGraph,
+        DynamicGraph,
         DynNodeFilter,
     > {
         self.nodes.latest_date_time()
@@ -651,7 +674,8 @@ impl PyNodes {
     ///
     fn history(
         &self,
-    ) -> LazyNodeState<'static, ops::History<DynamicGraph>, DynamicGraph, DynNodeFilter> {
+    ) -> LazyNodeState<'static, ops::History<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         self.nodes.history()
     }
 
@@ -661,8 +685,13 @@ impl PyNodes {
     ///     EdgeHistoryCountView: a view of the edge history counts
     fn edge_history_count(
         &self,
-    ) -> LazyNodeState<'static, ops::EdgeHistoryCount<DynamicGraph>, DynamicGraph, DynNodeFilter>
-    {
+    ) -> LazyNodeState<
+        'static,
+        ops::EdgeHistoryCount<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         self.nodes.edge_history_count()
     }
 
@@ -671,7 +700,9 @@ impl PyNodes {
     /// Returns:
     ///     NodeTypeView: a view of the node types
     #[getter]
-    fn node_type(&self) -> LazyNodeState<'static, ops::Type, DynamicGraph, DynNodeFilter> {
+    fn node_type(
+        &self,
+    ) -> LazyNodeState<'static, ops::Type, DynamicGraph, DynamicGraph, DynNodeFilter> {
         self.nodes.node_type()
     }
 
@@ -685,6 +716,7 @@ impl PyNodes {
     ) -> LazyNodeState<
         'static,
         ops::Map<ops::History<DynamicGraph>, Option<Vec<DateTime<Utc>>>>,
+        DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
@@ -717,7 +749,8 @@ impl PyNodes {
     ///     DegreeView: a view of the undirected node degrees
     fn degree(
         &self,
-    ) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph, DynNodeFilter> {
+    ) -> LazyNodeState<'static, Degree<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         self.nodes.degree()
     }
 
@@ -727,7 +760,8 @@ impl PyNodes {
     ///     DegreeView: a view of the in-degrees of the nodes
     fn in_degree(
         &self,
-    ) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph, DynNodeFilter> {
+    ) -> LazyNodeState<'static, Degree<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         self.nodes.in_degree()
     }
 
@@ -737,7 +771,8 @@ impl PyNodes {
     ///     DegreeView: a view of the out-degrees of the nodes
     fn out_degree(
         &self,
-    ) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph, DynNodeFilter> {
+    ) -> LazyNodeState<'static, Degree<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         self.nodes.out_degree()
     }
 
@@ -824,12 +859,14 @@ impl PyNodes {
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,
-    ) -> Nodes<'static, DynamicGraph, AndFilter<DynNodeFilter, NodeTypeFilter>> {
+    ) -> Nodes<'static, DynamicGraph, DynamicGraph, AndOp<DynNodeFilter, NodeTypeFilterOp>> {
         self.nodes.type_filter(&node_types)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: NodeFilterOp + 'graph> Repr for Nodes<'static, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, F: NodeFilterOp + 'graph> Repr
+    for Nodes<'static, G, GH, F>
+{
     fn repr(&self) -> String {
         format!("Nodes({})", iterator_repr(self.iter()))
     }

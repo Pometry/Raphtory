@@ -185,8 +185,8 @@ impl PyNodeFilter {
 
     #[staticmethod]
     fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyNodeWindow> {
-        Ok(PyNodeWindow(Windowed::<NodeFilter>::from_times(
-            py_start, py_end,
+        Ok(PyNodeWindow(Windowed::from_times(
+            py_start, py_end, NodeFilter,
         )))
     }
 }

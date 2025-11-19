@@ -32,10 +32,7 @@ use raphtory_api::core::{
         },
         EID,
     },
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
-    },
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},

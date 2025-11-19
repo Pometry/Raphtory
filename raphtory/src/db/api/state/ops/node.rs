@@ -1,18 +1,15 @@
-use crate::{
-    db::{
-        api::{
-            state::ops::filter::{Mask, MaskOp},
-            view::internal::{
-                time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
-                GraphView,
-            },
-        },
-        graph::{
-            create_node_type_filter,
-            views::filter::model::{not_filter::NotFilter, or_filter::OrFilter, AndFilter},
+use crate::db::{
+    api::{
+        state::ops::filter::{Mask, MaskOp},
+        view::internal::{
+            time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
+            GraphView,
         },
     },
-    prelude::GraphViewOps,
+    graph::{
+        create_node_type_filter,
+        views::filter::model::{and_filter::AndOp, not_filter::NotOp, or_filter::OrOp},
+    },
 };
 use raphtory_api::core::{
     entities::{GID, VID},
@@ -28,11 +25,22 @@ use std::{ops::Deref, sync::Arc};
 pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn is_filtered(&self) -> bool;
 
-    fn and<T>(self, other: T) -> AndFilter<Self, T>;
+    fn and<T>(self, other: T) -> AndOp<Self, T>;
 
-    fn or<T>(self, other: T) -> OrFilter<Self, T>;
+    fn or<T>(self, other: T) -> OrOp<Self, T>;
 
-    fn not(self) -> NotFilter<Self>;
+    fn not(self) -> NotOp<Self>;
+}
+
+#[derive(Clone)]
+pub struct NotANodeFilter;
+
+impl NodeOp for NotANodeFilter {
+    type Output = bool;
+
+    fn apply(&self, _storage: &GraphStorage, _node: VID) -> Self::Output {
+        panic!("Not a node filter")
+    }
 }
 
 impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
@@ -41,22 +49,22 @@ impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
         self.const_value().is_none_or(|v| !v)
     }
 
-    fn and<T>(self, other: T) -> AndFilter<Self, T> {
-        AndFilter {
+    fn and<T>(self, other: T) -> AndOp<Self, T> {
+        AndOp {
             left: self,
             right: other,
         }
     }
 
-    fn or<T>(self, other: T) -> OrFilter<Self, T> {
-        OrFilter {
+    fn or<T>(self, other: T) -> OrOp<Self, T> {
+        OrOp {
             left: self,
             right: other,
         }
     }
 
-    fn not(self) -> NotFilter<Self> {
-        NotFilter { 0: self }
+    fn not(self) -> NotOp<Self> {
+        NotOp { 0: self }
     }
 }
 
@@ -107,7 +115,7 @@ where
 
 impl<Left, Right> IntoDynNodeOp for Eq<Left, Right> where Eq<Left, Right>: NodeOp + 'static {}
 
-impl<L, R> NodeOp for AndFilter<L, R>
+impl<L, R> NodeOp for AndOp<L, R>
 where
     L: NodeOp<Output = bool>,
     R: NodeOp<Output = bool>,
@@ -119,9 +127,9 @@ where
     }
 }
 
-impl<L, R> IntoDynNodeOp for AndFilter<L, R> where Self: NodeOp + 'static {}
+impl<L, R> IntoDynNodeOp for AndOp<L, R> where Self: NodeOp + 'static {}
 
-impl<L, R> NodeOp for OrFilter<L, R>
+impl<L, R> NodeOp for OrOp<L, R>
 where
     L: NodeOp<Output = bool>,
     R: NodeOp<Output = bool>,
@@ -133,9 +141,9 @@ where
     }
 }
 
-impl<L, R> IntoDynNodeOp for OrFilter<L, R> where Self: NodeOp + 'static {}
+impl<L, R> IntoDynNodeOp for OrOp<L, R> where Self: NodeOp + 'static {}
 
-impl<T> NodeOp for NotFilter<T>
+impl<T> NodeOp for NotOp<T>
 where
     T: NodeOp<Output = bool>,
 {
@@ -146,7 +154,7 @@ where
     }
 }
 
-impl<T> IntoDynNodeOp for NotFilter<T> where Self: NodeOp + 'static {}
+impl<T> IntoDynNodeOp for NotOp<T> where Self: NodeOp + 'static {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Const<V>(pub V);
@@ -240,7 +248,7 @@ impl<G: GraphView> NodeOp for Degree<G> {
 
 impl<G: GraphView + 'static> IntoDynNodeOp for Degree<G> {}
 
-impl<V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V>> {
+impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
     type Output = V;
     fn apply(&self, storage: &GraphStorage, node: VID) -> V {
         self.deref().apply(storage, node)
@@ -269,10 +277,10 @@ impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
 
 impl<Op: NodeOp + 'static, V: Clone + Send + Sync + 'static> IntoDynNodeOp for Map<Op, V> {}
 
-pub type NodeTypeFilter = Mask<TypeId>;
+pub type NodeTypeFilterOp = Mask<TypeId>;
 
-impl NodeTypeFilter {
-    pub fn new<I: IntoIterator<Item = V>, V: AsRef<str>>(
+impl NodeTypeFilterOp {
+    pub fn new_from_values<I: IntoIterator<Item = V>, V: AsRef<str>>(
         node_types: I,
         view: impl GraphView,
     ) -> Self {

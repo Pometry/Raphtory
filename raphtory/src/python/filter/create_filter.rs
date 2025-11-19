@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::view::BoxableGraphView,
+        api::{
+            state::NodeOp,
+            view::{internal::GraphView, BoxableGraphView},
+        },
         graph::views::filter::{internal::CreateFilter, model::TryAsCompositeFilter},
     },
     errors::GraphError,
@@ -13,6 +16,11 @@ pub trait DynInternalFilterOps: Send + Sync + TryAsCompositeFilter {
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
     ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+
+    fn create_dyn_node_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
 }
 
 impl<T> DynInternalFilterOps for T
@@ -25,6 +33,13 @@ where
     ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
         Ok(Arc::new(self.clone().create_filter(graph)?))
     }
+
+    fn create_dyn_node_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
+        Ok(Arc::new(self.clone().create_node_filter(graph)?))
+    }
 }
 
 impl<T: DynInternalFilterOps + ?Sized + 'static> CreateFilter for Arc<T> {
@@ -33,10 +48,19 @@ impl<T: DynInternalFilterOps + ?Sized + 'static> CreateFilter for Arc<T> {
     where
         Self: 'graph;
 
+    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         self.deref().create_dyn_filter(Arc::new(graph))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        self.deref().create_dyn_node_filter(Arc::new(graph))
     }
 }

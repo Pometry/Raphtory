@@ -1,8 +1,7 @@
 use crate::{
     db::{
-        api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
+        api::view::StaticGraphViewOps,
         graph::{
-            edge::EdgeView,
             node::NodeView,
             views::filter::{
                 internal::CreateFilter,
@@ -26,10 +25,8 @@ use itertools::Itertools;
 use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{
-    collector::{Collector, Count, TopDocs},
-    query::Query,
-    schema::Value,
-    DocAddress, Document, IndexReader, Score, Searcher, TantivyDocument,
+    collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
+    Searcher, TantivyDocument,
 };
 
 #[derive(Clone, Copy)]
@@ -346,15 +343,14 @@ impl<'a> NodeFilterExecutor<'a> {
         graph: &G,
         node_ids: HashSet<u64>,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        println!("filter {:?}", filter);
-        let filtered_graph = graph.filter(filter)?;
+        let nodes = graph.nodes().select(filter)?;
         let nodes = node_ids
             .into_iter()
             .filter_map(|id| {
-                let n_ref = graph.core_node(VID(id as usize));
-                filtered_graph
-                    .filter_node(n_ref.as_ref())
-                    .then(|| NodeView::new_internal(graph.clone(), VID(id as usize)))
+                let vid = VID(id as usize);
+                nodes
+                    .contains(vid)
+                    .then(|| NodeView::new_internal(graph.clone(), vid))
             })
             .collect_vec();
         Ok(nodes)

@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::view::BoxableGraphView,
+        api::{
+            state::ops::NotANodeFilter,
+            view::{internal::GraphView, BoxableGraphView},
+        },
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             internal::CreateFilter,
@@ -60,6 +63,11 @@ impl Display for CompositeExplodedEdgeFilter {
 
 impl CreateFilter for CompositeExplodedEdgeFilter {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+    type NodeFilter<'graph, G>
+        = NotANodeFilter
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -101,6 +109,13 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
                 Ok(Arc::new(NotFilter(base).create_filter(graph)?))
             }
         }
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
     }
 }
 
@@ -247,6 +262,11 @@ where
         = Arc<dyn BoxableGraphView + 'graph>
     where
         T: 'graph;
+    type NodeFilter<'graph, G>
+        = NotANodeFilter
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -257,6 +277,13 @@ where
     {
         self.try_as_composite_exploded_edge_filter()?
             .create_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
     }
 }
 
@@ -712,7 +739,7 @@ impl ExplodedEdgeFilter {
 
     #[inline]
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
-        Windowed::from_times(start, end)
+        Windowed::from_times(start, end, ExplodedEdgeFilter)
     }
 }
 
@@ -745,6 +772,11 @@ impl TryAsCompositeFilter for PropertyFilter<ExplodedEndpointWrapper<NodeFilter>
 
 impl CreateFilter for PropertyFilter<ExplodedEndpointWrapper<NodeFilter>> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+    type NodeFilter<'graph, G>
+        = NotANodeFilter
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -752,6 +784,13 @@ impl CreateFilter for PropertyFilter<ExplodedEndpointWrapper<NodeFilter>> {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         self.try_as_composite_exploded_edge_filter()?
             .create_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
     }
 }
 
@@ -784,6 +823,11 @@ impl TryAsCompositeFilter for PropertyFilter<ExplodedEndpointWrapper<Windowed<No
 
 impl CreateFilter for PropertyFilter<ExplodedEndpointWrapper<Windowed<NodeFilter>>> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+    type NodeFilter<'graph, G>
+        = NotANodeFilter
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -791,6 +835,13 @@ impl CreateFilter for PropertyFilter<ExplodedEndpointWrapper<Windowed<NodeFilter
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         self.try_as_composite_exploded_edge_filter()?
             .create_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
     }
 }
 
