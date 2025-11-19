@@ -4,7 +4,8 @@ use crate::{
     errors::GraphError,
     serialise::parquet::{
         model::{ParquetCNode, ParquetTNode},
-        run_encode, NODES_C_PATH, NODES_T_PATH, NODE_ID, TIME_COL, TYPE_COL,
+        run_encode, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, SECONDARY_INDEX_COL, TIME_COL,
+        TYPE_COL,
     },
 };
 use arrow::datatypes::{DataType, Field};
@@ -25,20 +26,16 @@ pub(crate) fn encode_nodes_tprop(
         NODES_T_PATH,
         |id_type| {
             vec![
-                Field::new(NODE_ID, id_type.clone(), false),
+                Field::new(NODE_ID_COL, id_type.clone(), false),
                 Field::new(TIME_COL, DataType::Int64, false),
+                Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
                 Field::new(TYPE_COL, DataType::Utf8, true),
             ]
         },
         |nodes, g, decoder, writer| {
             let row_group_size = 100_000;
 
-            let cols = g
-                .node_meta()
-                .temporal_prop_mapper()
-                .get_keys()
-                .into_iter()
-                .collect_vec();
+            let cols = g.node_meta().temporal_prop_mapper().all_keys();
             let cols = &cols;
             for node_rows in nodes
                 .into_iter()
@@ -83,7 +80,7 @@ pub(crate) fn encode_nodes_cprop(
         NODES_C_PATH,
         |id_type| {
             vec![
-                Field::new(NODE_ID, id_type.clone(), false),
+                Field::new(NODE_ID_COL, id_type.clone(), false),
                 Field::new(TYPE_COL, DataType::Utf8, true),
             ]
         },
@@ -98,13 +95,16 @@ pub(crate) fn encode_nodes_cprop(
                 .chunks(row_group_size)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
+            // scope for the decoder
             {
                 decoder.serialize(&node_rows)?;
+
                 if let Some(rb) = decoder.flush()? {
                     writer.write(&rb)?;
                     writer.flush()?;
                 }
             }
+
             Ok(())
         },
     )

@@ -37,17 +37,17 @@ fn lpa_test() {
 
         let expected = vec![
             HashSet::from([
-                graph.node("R1").unwrap(),
                 graph.node("R2").unwrap(),
+                graph.node("B1").unwrap(),
                 graph.node("R3").unwrap(),
+                graph.node("R1").unwrap(),
+                graph.node("G").unwrap(),
             ]),
             HashSet::from([
-                graph.node("G").unwrap(),
-                graph.node("B1").unwrap(),
-                graph.node("B2").unwrap(),
-                graph.node("B3").unwrap(),
-                graph.node("B4").unwrap(),
                 graph.node("B5").unwrap(),
+                graph.node("B3").unwrap(),
+                graph.node("B2").unwrap(),
+                graph.node("B4").unwrap(),
             ]),
         ];
         for hashset in expected {

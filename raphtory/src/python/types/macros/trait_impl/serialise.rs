@@ -9,44 +9,7 @@ macro_rules! impl_serialise {
     ($obj:ty, $field:ident: $base_type:ty, $name:literal) => {
         #[pyo3::pymethods]
         impl $obj {
-            #[doc = concat!(" Write ", $name, " to cache file and initialise the cache.")]
-            ///
-            /// Future updates are tracked. Use `write_updates` to persist them to the
-            /// cache file. If the file already exists its contents are overwritten.
-            ///
-            /// Arguments:
-            ///     path (str): The path to the cache file
-            ///
-            /// Returns:
-            ///     None:
-            fn cache(&self, path: std::path::PathBuf) -> Result<(), GraphError> {
-                $crate::serialise::CacheOps::cache(&self.$field, path)
-            }
-
-            /// Persist the new updates by appending them to the cache file.
-            ///
-            /// Returns:
-            ///     None:
-            fn write_updates(&self) -> Result<(), GraphError> {
-                $crate::serialise::CacheOps::write_updates(&self.$field)
-            }
-
-            #[doc = concat!(" Load ", $name, " from a file and initialise it as a cache file.")]
-            ///
-            /// Future updates are tracked. Use `write_updates` to persist them to the
-            /// cache file.
-            ///
-            /// Arguments:
-            ///   path (str): The path to the cache file
-            ///
-            /// Returns:
-            #[doc = concat!("   ", $name,": the loaded graph with initialised cache")]
-            #[staticmethod]
-            fn load_cached(path: PathBuf) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::CacheOps>::load_cached(path)
-            }
-
-            #[doc = concat!(" Load ", $name, " from a file.")]
+            #[doc = concat!(" Load ", $name, " from a parquet file.")]
             ///
             /// Arguments:
             ///   path (str): The path to the file.
@@ -55,10 +18,15 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn load_from_file(path: PathBuf) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::StableDecode>::decode(path)
+                let path_for_decoded_graph = None;
+
+                <$base_type as $crate::serialise::StableDecode>::decode(
+                    path,
+                    path_for_decoded_graph,
+                )
             }
 
-            #[doc = concat!(" Saves the ", $name, " to the given path.")]
+            #[doc = concat!(" Saves the ", $name, " to the given path in parquet format.")]
             ///
             /// Arguments:
             ///     path (str): The path to the file.
@@ -89,7 +57,12 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn deserialise(bytes: &[u8]) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::InternalStableDecode>::decode_from_bytes(bytes)
+                let path_for_decoded_graph = None;
+
+                <$base_type as $crate::serialise::StableDecode>::decode_from_bytes(
+                    bytes,
+                    path_for_decoded_graph,
+                )
             }
 
             #[doc = concat!(" Serialise ", $name, " to bytes.")]
@@ -97,7 +70,7 @@ macro_rules! impl_serialise {
             /// Returns:
             ///   bytes:
             fn serialise<'py>(&self, py: Python<'py>) -> Bound<'py, pyo3::types::PyBytes> {
-                let bytes = $crate::serialise::StableEncode::encode_to_vec(&self.$field);
+                let bytes = $crate::serialise::StableEncode::encode_to_bytes(&self.$field);
                 pyo3::types::PyBytes::new(py, &bytes)
             }
         }

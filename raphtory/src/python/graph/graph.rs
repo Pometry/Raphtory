@@ -14,15 +14,15 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyPersistentGraph, index::PyIndexSpec,
-            io::pandas_loaders::*, node::PyNode, views::graph_view::PyGraphView,
+            edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
+            node::PyNode, views::graph_view::PyGraphView,
         },
         types::iterable::FromIterable,
         utils::{PyNodeRef, PyTime},
     },
     serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
-        InternalStableDecode, StableEncode,
+        StableDecode, StableEncode,
     },
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
@@ -33,6 +33,9 @@ use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
 };
+
+#[cfg(feature = "search")]
+use crate::python::graph::index::PyIndexSpec;
 
 /// A temporal graph with event semantics.
 ///
@@ -136,7 +139,9 @@ impl PyGraphEncoder {
     }
 
     fn __call__(&self, bytes: Vec<u8>) -> Result<MaterializedGraph, GraphError> {
-        MaterializedGraph::decode_from_bytes(&bytes)
+        let path_for_decoded_graph: Option<&std::path::Path> = None;
+
+        MaterializedGraph::decode_from_bytes(&bytes, path_for_decoded_graph)
     }
     fn __setstate__(&self) {}
     fn __getstate__(&self) {}
@@ -146,11 +151,11 @@ impl PyGraphEncoder {
 #[pymethods]
 impl PyGraph {
     #[new]
-    #[pyo3(signature = (num_shards = None))]
-    pub fn py_new(num_shards: Option<usize>) -> (Self, PyGraphView) {
-        let graph = match num_shards {
+    #[pyo3(signature = (path = None))]
+    pub fn py_new(path: Option<PathBuf>) -> (Self, PyGraphView) {
+        let graph = match path {
             None => Graph::new(),
-            Some(num_shards) => Graph::new_with_shards(num_shards),
+            Some(path) => Graph::new_at_path(path),
         };
         (
             Self {
@@ -160,24 +165,17 @@ impl PyGraph {
         )
     }
 
+    #[staticmethod]
+    pub fn load(path: PathBuf) -> Graph {
+        Graph::load_from_path(path)
+    }
+
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
-        let state = self.graph.encode_to_vec();
+        let state = self.graph.encode_to_bytes();
         (PyGraphEncoder, (state,))
     }
 
-    /// Persist graph on disk
-    ///
-    /// Arguments:
-    ///     graph_dir (str | PathLike): the folder where the graph will be persisted
-    ///
-    /// Returns:
-    ///     Graph: a view of the persisted graph
-    #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        self.graph.persist_as_disk_graph(graph_dir)
-    }
-
-    /// Persist graph to parquet files.
+    /// Persist graph to parquet files
     ///
     /// Arguments:
     ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
@@ -198,7 +196,9 @@ impl PyGraph {
     ///
     #[staticmethod]
     pub fn from_parquet(graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        Graph::decode_parquet(graph_dir)
+        let path_for_decoded_graph = None;
+
+        Graph::decode_parquet(&graph_dir, path_for_decoded_graph)
     }
 
     /// Adds a new node with the given id and properties to the graph.
@@ -627,6 +627,7 @@ impl PyGraph {
     ///     df (DataFrame): The Pandas DataFrame containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
+    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
     ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
@@ -639,13 +640,14 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (df, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None)
+        signature = (df, time, id, secondary_index = None, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None)
     )]
     fn load_nodes_from_pandas<'py>(
         &self,
         df: &Bound<'py, PyAny>,
         time: &str,
         id: &str,
+        secondary_index: Option<&str>,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
@@ -658,6 +660,7 @@ impl PyGraph {
             &self.graph,
             df,
             time,
+            secondary_index,
             id,
             node_type,
             node_type_col,
@@ -673,6 +676,7 @@ impl PyGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
+    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
     ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
@@ -685,13 +689,14 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (parquet_path, time, id, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None)
+        signature = (parquet_path, time, id, secondary_index = None, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None)
     )]
     fn load_nodes_from_parquet(
         &self,
         parquet_path: PathBuf,
         time: &str,
         id: &str,
+        secondary_index: Option<&str>,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
@@ -704,6 +709,7 @@ impl PyGraph {
             &self.graph,
             parquet_path.as_path(),
             time,
+            secondary_index,
             id,
             node_type,
             node_type_col,
@@ -721,6 +727,7 @@ impl PyGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
+    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
     ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
@@ -733,7 +740,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+        signature = (df, time, src, dst, secondary_index = None, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
     )]
     fn load_edges_from_pandas(
         &self,
@@ -741,6 +748,7 @@ impl PyGraph {
         time: &str,
         src: &str,
         dst: &str,
+        secondary_index: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
@@ -753,6 +761,7 @@ impl PyGraph {
             &self.graph,
             df,
             time,
+            secondary_index,
             src,
             dst,
             &properties,
@@ -770,6 +779,7 @@ impl PyGraph {
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
+    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
     ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
@@ -782,7 +792,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (parquet_path, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+        signature = (parquet_path, time, src, dst, secondary_index = None, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
     )]
     fn load_edges_from_parquet(
         &self,
@@ -790,6 +800,7 @@ impl PyGraph {
         time: &str,
         src: &str,
         dst: &str,
+        secondary_index: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
@@ -802,6 +813,7 @@ impl PyGraph {
             &self.graph,
             parquet_path.as_path(),
             time,
+            secondary_index,
             src,
             dst,
             &properties,
@@ -981,6 +993,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
     }
@@ -992,6 +1005,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph.create_index_with_spec(py_spec.spec.clone())
     }
@@ -1003,6 +1017,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
@@ -1020,6 +1035,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())

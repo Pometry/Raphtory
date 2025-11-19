@@ -24,7 +24,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 
 #[derive(Debug, Clone)]
 pub struct EdgeNotFilteredGraph<G, T> {
@@ -95,7 +95,7 @@ impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalEdgeLayerFilterOps
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         self.graph.filter_edge_layer(edge, layer) && !self.filter.filter_edge_layer(edge, layer)
     }
 }
@@ -135,7 +135,7 @@ impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalEdgeFilterOps
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, _layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge) && !self.filter.filter_edge(edge)
     }
 }

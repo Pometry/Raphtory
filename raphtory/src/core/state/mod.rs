@@ -63,11 +63,11 @@ mod state_test {
         let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new(3);
 
         // create random vec of numbers
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut vec = vec![];
         let mut actual_min = i32::MAX;
         for _ in 0..100 {
-            let i = rng.gen_range(0..100);
+            let i = rng.random_range(0..100);
             actual_min = actual_min.min(i);
             vec.push(i);
         }
@@ -95,11 +95,11 @@ mod state_test {
         let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new(3);
 
         // create random vec of numbers
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut vec = vec![];
         let mut sum = 0;
         for _ in 0..100 {
-            let i = rng.gen_range(0..100);
+            let i = rng.random_range(0..100);
             sum += i;
             vec.push(i);
         }
@@ -157,11 +157,11 @@ mod state_test {
         let mut state: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new(3);
 
         // create random vec of numbers
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut vec = vec![];
         let mut actual_sum = 0;
         for _ in 0..100 {
-            let i = rng.gen_range(0..100);
+            let i = rng.random_range(0..100);
             actual_sum += i;
             vec.push(i);
         }
@@ -190,19 +190,19 @@ mod state_test {
             ShuffleComputeState::new(3, 2, 2);
 
         // create random vec of numbers
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut vec1 = vec![];
         let mut vec2 = vec![];
         let mut actual_sum_1 = 0;
         let mut actual_sum_2 = 0;
         for _ in 0..3 {
             // data for first partition
-            let i = rng.gen_range(0..100);
+            let i = rng.random_range(0..100);
             actual_sum_1 += i;
             vec1.push(i);
 
             // data for second partition
-            let i = rng.gen_range(0..100);
+            let i = rng.random_range(0..100);
             actual_sum_2 += i;
             vec2.push(i);
         }
@@ -255,7 +255,7 @@ mod state_test {
             ShuffleComputeState::new(3, 2, 2);
 
         // create random vec of numbers
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut vec1 = vec![];
         let mut vec2 = vec![];
         let mut actual_sum_1 = 0;
@@ -264,13 +264,13 @@ mod state_test {
         let mut actual_min_2 = 100;
         for _ in 0..100 {
             // data for first partition
-            let i = rng.gen_range(0..100);
+            let i = rng.random_range(0..100);
             actual_sum_1 += i;
             actual_min_1 = actual_min_1.min(i);
             vec1.push(i);
 
             // data for second partition
-            let i = rng.gen_range(0..100);
+            let i = rng.random_range(0..100);
             actual_sum_2 += i;
             actual_min_2 = actual_min_2.min(i);
             vec2.push(i);

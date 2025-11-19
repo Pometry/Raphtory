@@ -66,9 +66,13 @@ impl<'a> Searcher<'a> {
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::{db::graph::views::filter::model::NodeFilter, prelude::*};
+    use crate::{
+        db::graph::views::filter::model::{NodeFilter, NodeFilterBuilderOps},
+        prelude::*,
+    };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
+    use tempfile::tempdir;
     use tracing::info;
 
     #[cfg(test)]
@@ -259,9 +263,9 @@ mod search_tests {
     #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        use crate::db::graph::views::filter::model::NodeFilterBuilderOps;
         global_info_logger();
-        let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
+
+        let graph = Graph::decode("/tmp/graphs/jira", None).expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
         let now = SystemTime::now();

@@ -83,7 +83,7 @@ pub(crate) fn extract_properties<P>(
                 let mut prop_vec = vec![];
                 prop_view.iter().for_each(|(time, prop)| {
                     let prop_time = Prop::DTime(time.dt().unwrap());
-                    prop_vec.push(Prop::List(Arc::from(vec![prop_time, prop])))
+                    prop_vec.push(Prop::List(vec![prop_time, prop].into()))
                 });
                 let wrapped = Prop::from(prop_vec);
                 let _ = properties_map.insert(column_name, wrapped);
@@ -92,7 +92,7 @@ pub(crate) fn extract_properties<P>(
                     .iter()
                     .map(|(k, v)| Prop::from(vec![Prop::from(k), v]))
                     .collect_vec();
-                let wrapped = Prop::List(Arc::from(vec_props));
+                let wrapped = Prop::List(vec_props.into());
                 let _ = properties_map.insert(column_name, wrapped);
             }
         });
@@ -115,16 +115,11 @@ pub(crate) fn get_column_names_from_props(
     let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
     let temporal_properties: HashSet<ArcStr> = edge_meta
         .temporal_prop_mapper()
-        .get_keys()
+        .keys()
         .iter()
         .cloned()
         .collect();
-    let metadata: HashSet<ArcStr> = edge_meta
-        .metadata_mapper()
-        .get_keys()
-        .iter()
-        .cloned()
-        .collect();
+    let metadata: HashSet<ArcStr> = edge_meta.metadata_mapper().keys().iter().cloned().collect();
     metadata
         .intersection(&temporal_properties)
         .for_each(|name| {

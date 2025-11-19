@@ -7,7 +7,10 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
 use pyo3::{prelude::PyAnyMethods, Bound, PyAny, PyObject, Python};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::{properties::prop::PropArray, GID},
+    storage::arc_str::ArcStr,
+};
 use std::{collections::HashMap, error::Error, ops::Deref, sync::Arc};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {
@@ -235,6 +238,13 @@ impl<T: Repr> Repr for &[T] {
 impl<T: Repr> Repr for Vec<T> {
     fn repr(&self) -> String {
         self.deref().repr()
+    }
+}
+
+impl Repr for PropArray {
+    fn repr(&self) -> String {
+        let repr = self.iter().map(|v| v.repr()).join(", ");
+        format!("[{}]", repr)
     }
 }
 

@@ -14,11 +14,6 @@ use crate::{
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use raphtory_api::core::Direction;
-#[cfg(feature = "storage")]
-use {
-    crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
-    raphtory_storage::disk::DiskGraphStorage, tempfile::TempDir,
-};
 
 #[cfg(feature = "search")]
 pub use crate::db::api::view::SearchableGraphOps;
@@ -157,6 +152,7 @@ impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for SearchEdges<F> 
     }
 }
 
+#[track_caller]
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -174,6 +170,7 @@ pub fn assert_filter_nodes_results(
     )
 }
 
+#[track_caller]
 pub fn assert_filter_neighbours_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -193,6 +190,7 @@ pub fn assert_filter_neighbours_results(
     )
 }
 
+#[track_caller]
 pub fn assert_search_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -213,6 +211,7 @@ pub fn assert_search_nodes_results(
     }
 }
 
+#[track_caller]
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -230,6 +229,7 @@ pub fn assert_filter_edges_results(
     )
 }
 
+#[track_caller]
 pub fn assert_search_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -250,6 +250,7 @@ pub fn assert_search_edges_results(
     }
 }
 
+#[track_caller]
 fn assert_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     pre_transform: impl Fn(&Graph) -> (),
@@ -274,30 +275,8 @@ fn assert_results(
                 let result = apply.apply(graph);
                 assert_eq!(expected, result);
             }
-            TestGraphVariants::EventDiskGraph => {
-                #[cfg(feature = "storage")]
-                {
-                    let tmp = TempDir::new().unwrap();
-                    let graph = graph.persist_as_disk_graph(tmp.path()).unwrap();
-                    pre_transform(&graph);
-                    let graph = transform.apply(graph);
-                    let result = apply.apply(graph);
-                    assert_eq!(expected, result);
-                }
-            }
-            TestGraphVariants::PersistentDiskGraph => {
-                #[cfg(feature = "storage")]
-                {
-                    let tmp = TempDir::new().unwrap();
-                    let graph = DiskGraphStorage::from_graph(&graph, &tmp).unwrap();
-                    let graph = graph.into_graph();
-                    pre_transform(&graph);
-                    let graph = graph.persistent_graph();
-                    let graph = transform.apply(graph);
-                    let result = apply.apply(graph);
-                    assert_eq!(expected, result);
-                }
-            }
+            TestGraphVariants::EventDiskGraph => {}
+            TestGraphVariants::PersistentDiskGraph => {}
         }
     }
 }

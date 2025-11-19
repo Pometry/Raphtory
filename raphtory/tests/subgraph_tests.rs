@@ -132,7 +132,7 @@ pub mod test_filters_node_subgraph {
         db::{
             api::view::StaticGraphViewOps,
             graph::{
-                assertions::{GraphTransformer, TestGraphVariants},
+                assertions::GraphTransformer,
                 views::{node_subgraph::NodeSubgraph, window_graph::WindowedGraph},
             },
         },
@@ -512,7 +512,7 @@ fn nodes_without_updates_are_filtered() {
 
 #[test]
 fn materialize_proptest() {
-    proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+    proptest!(|(graph in build_graph_strat(10, 10, 10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
         let graph = Graph::from(build_graph(&graph));
         let subgraph = graph.subgraph(nodes);
         assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());
@@ -521,7 +521,7 @@ fn materialize_proptest() {
 
 #[test]
 fn materialize_persistent_proptest() {
-    proptest!(|(graph in build_graph_strat(10, 10, true), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+    proptest!(|(graph in build_graph_strat(10, 10, 10, 10, true), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
         let graph = PersistentGraph::from(build_graph(&graph));
         let subgraph = graph.subgraph(nodes);
         assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());

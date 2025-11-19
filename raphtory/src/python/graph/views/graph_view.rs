@@ -39,12 +39,13 @@ use crate::{
         types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },
+    serialise::GraphFolder,
 };
 use chrono::prelude::*;
 use pyo3::prelude::*;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;
@@ -462,12 +463,27 @@ impl PyGraphView {
         self.graph.exclude_nodes(nodes)
     }
 
-    /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
+    /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a
+    /// copy of the data seen within the view instead of just a mask over the original graph.
+    /// If a path is provided, the new graph will be stored at that path
+    /// (assuming the storage feature is enabled).
     ///
     /// Returns:
     ///    GraphView: Returns a graph clone
-    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        self.graph.materialize()
+    #[pyo3(signature = (path = None))]
+    fn materialize(&self, path: Option<PathBuf>) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize_at(path.as_deref())
+    }
+
+    /// Materializes the graph view into a graphql compatible folder.
+    fn materialize_to_graph_folder(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
+        let folder: GraphFolder = path.into();
+        folder.reserve()?;
+
+        let graph = self.graph.materialize_at(Some(&folder.get_graph_path()))?;
+        folder.write_metadata(&graph)?;
+
+        Ok(graph)
     }
 
     /// Displays the graph

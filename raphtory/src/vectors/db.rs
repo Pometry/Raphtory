@@ -186,8 +186,8 @@ impl VectorDb {
             writer.add_item(&mut wtxn, id as u32, embedding.as_ref())?;
         }
 
-        let mut rng = StdRng::from_entropy();
-        writer.builder(&mut rng).build(&mut wtxn)?;
+        // let mut rng = StdRng::from_os_rng();
+        // FIXME: writer.builder(&mut rng).build(&mut wtxn)?;
 
         wtxn.commit()?;
         Ok(())
@@ -254,8 +254,8 @@ impl VectorDb {
             }
 
             // TODO: review this -> You can specify the number of trees to use or specify None.
-            let mut rng = StdRng::seed_from_u64(42);
-            writer.builder(&mut rng).build(&mut wtxn)?;
+            // let mut rng = StdRng::seed_from_u64(42);
+            // writer.builder(&mut rng).build(&mut wtxn)?;
             dimensions.into()
         } else {
             OnceLock::new()

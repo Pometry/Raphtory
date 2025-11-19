@@ -25,7 +25,7 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     tol: Option<f64>,
 ) -> NodeState<'graph, usize, G> {
     let tol = tol.unwrap_or(1e-8);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut modularity_state = M::new(
         g,
         weight_prop,

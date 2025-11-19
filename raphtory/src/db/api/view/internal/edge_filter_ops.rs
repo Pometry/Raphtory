@@ -3,7 +3,7 @@ use raphtory_api::{
     core::{entities::ELID, storage::timeindex::TimeIndexEntry},
     inherit::Base,
 };
-use raphtory_storage::graph::edges::edge_ref::EdgeStorageRef;
+use storage::EdgeEntryRef;
 
 pub trait InternalEdgeLayerFilterOps {
     /// Set to true when filtering, used for optimisations
@@ -13,7 +13,7 @@ pub trait InternalEdgeLayerFilterOps {
     fn internal_layer_filter_edge_list_trusted(&self) -> bool;
 
     /// Filter a layer for an edge
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool;
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool;
 
     fn node_filter_includes_edge_layer_filter(&self) -> bool {
         false
@@ -62,7 +62,7 @@ pub trait InternalEdgeFilterOps {
     /// If true, all edges returned by `self.edge_list()` exist, otherwise it needs further filtering
     fn internal_edge_list_trusted(&self) -> bool;
 
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool;
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool;
 
     fn node_filter_includes_edge_filter(&self) -> bool {
         false
@@ -94,7 +94,7 @@ impl<G: InheritEdgeFilterOps<Base: InternalEdgeFilterOps>> InternalEdgeFilterOps
         self.base().internal_edge_list_trusted()
     }
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         self.base().internal_filter_edge(edge, layer_ids)
     }
 
@@ -122,7 +122,7 @@ impl<G: InheritEdgeLayerFilterOps<Base: InternalEdgeLayerFilterOps>> InternalEdg
     }
 
     #[inline]
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         self.base().internal_filter_edge_layer(edge, layer)
     }
 

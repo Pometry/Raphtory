@@ -49,9 +49,9 @@ jobs:
         with:
           cache-all-crates: true
       - name: Install nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest@0.9.99
+        uses: taiki-e/install-action@nextest
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -60,7 +60,12 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --all --no-default-features --cargo-profile build-fast
+          cargo nextest run --workspace --no-default-features --cargo-profile build-fast
+      - name: Check all features
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"

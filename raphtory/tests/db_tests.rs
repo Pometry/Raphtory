@@ -709,7 +709,7 @@ fn graph_save_to_load_from_file() {
     g.encode(&graph_path).unwrap();
 
     // Load from files
-    let g2 = Graph::decode(&graph_path).unwrap();
+    let g2 = Graph::decode(&graph_path, None).unwrap();
 
     assert_eq!(g, g2);
 }
@@ -758,6 +758,7 @@ fn graph_edge() {
             .unwrap()
             .edge(1, 3)
             .unwrap();
+
         assert_eq!(e.src().id().into_u64(), Some(1u64));
         assert_eq!(e.dst().id().into_u64(), Some(3u64));
     });
@@ -1169,12 +1170,12 @@ fn temporal_node_rows_nodes() {
                 .nodes()
                 .node(VID(id))
                 .temp_prop_rows()
-                .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
+                .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>();
 
             let expected = vec![(
                 TimeIndexEntry::new(id as i64, id),
-                vec![Some(Prop::U64((id as u64) + 1))],
+                vec![Prop::U64((id as u64) + 1)],
             )];
             assert_eq!(actual, expected);
         }
@@ -1200,21 +1201,21 @@ fn temporal_node_rows_window() {
                 .core_graph()
                 .nodes()
                 .node(vid)
-                .temp_prop_rows_window(range)
-                .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
+                .temp_prop_rows_range(Some(range))
+                .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         };
         let actual = get_rows(VID(0), TimeIndexEntry::new(2, 0)..TimeIndexEntry::new(3, 0));
 
-        let expected = vec![(TimeIndexEntry::new(2, 2), vec![Some(Prop::U64(3))])];
+        let expected = vec![(TimeIndexEntry::new(2, 2), vec![Prop::U64(3)])];
 
         assert_eq!(actual, expected);
 
         let actual = get_rows(VID(0), TimeIndexEntry::new(0, 0)..TimeIndexEntry::new(3, 0));
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Some(Prop::U64(1))]),
-            (TimeIndexEntry::new(1, 1), vec![Some(Prop::U64(2))]),
-            (TimeIndexEntry::new(2, 2), vec![Some(Prop::U64(3))]),
+            (TimeIndexEntry::new(0, 0), vec![Prop::U64(1)]),
+            (TimeIndexEntry::new(1, 1), vec![Prop::U64(2)]),
+            (TimeIndexEntry::new(2, 2), vec![Prop::U64(3)]),
         ];
 
         assert_eq!(actual, expected);
@@ -1673,7 +1674,7 @@ fn test_edge_earliest_latest() {
 
 #[test]
 fn node_properties() -> Result<(), GraphError> {
-    let g = Graph::new_with_shards(2);
+    let g = Graph::new();
 
     g.add_node(
         0,
@@ -1877,65 +1878,7 @@ fn check_node_edge_history_count() {
     });
 }
 
-#[cfg(feature = "storage")]
-use raphtory::test_utils::test_disk_graph;
-#[cfg(feature = "storage")]
-use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
-#[cfg(feature = "storage")]
-#[test]
-fn edges_at_from_node_history() {
-    let graph = Graph::new();
-
-    graph.add_edge(1, 0, 1, [("bla", 10i32)], None).unwrap();
-    graph.add_edge(2, 0, 2, [("bla", 20)], None).unwrap();
-    graph.add_edge(1, 0, 1, [("bla", 30)], None).unwrap();
-    graph.add_edge(4, 0, 3, [("bla", 40)], None).unwrap();
-    test_disk_graph(&graph, |g| {
-        let node = g.node(0).unwrap();
-        let node = &node;
-        let mut actual = g
-            .edges()
-            .explode()
-            .into_iter()
-            .flat_map(|e| {
-                e.properties()
-                    .temporal()
-                    .get_by_id(0)
-                    .into_iter()
-                    .flat_map(|p| p.into_iter())
-            })
-            .collect::<Vec<_>>();
-        actual.sort_by_key(|(t, _)| *t);
-
-        let exploded_edges = node
-            .edge_history()
-            .map(|(timestamp, edge_layer_id)| {
-                let eref = g
-                    .core_edge(edge_layer_id.edge)
-                    .out_ref()
-                    .at(timestamp)
-                    .at_layer(edge_layer_id.layer());
-                eref
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(exploded_edges.len(), 4);
-
-        let mut edge_props = exploded_edges
-            .into_iter()
-            .map(|e| EdgeView::new(&g, e))
-            .flat_map(|e| {
-                e.properties()
-                    .temporal()
-                    .get_by_id(0)
-                    .into_iter()
-                    .flat_map(|p| p.into_iter())
-            })
-            .collect::<Vec<_>>();
-        edge_props.sort_by_key(|(t, _)| *t);
-        assert_eq!(edge_props, actual);
-    });
-}
+use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 
 #[test]
 fn check_edge_history_on_multiple_shards() {
@@ -2064,10 +2007,8 @@ fn test_graph_metadata() {
 fn test_graph_metadata2() {
     let g = Graph::new();
 
-    let as_props: Vec<(&str, Prop)> = vec![(
-        "mylist",
-        Prop::List(Arc::from(vec![Prop::I64(1), Prop::I64(2)])),
-    )];
+    let as_props: Vec<(&str, Prop)> =
+        vec![("mylist", Prop::list(vec![Prop::I64(1), Prop::I64(2)]))];
 
     g.add_metadata(as_props.clone()).unwrap();
 
@@ -2132,7 +2073,7 @@ fn test_graph_temporal_props() {
             .enumerate()
             .map(|(i, props)| {
                 let (name, value) = props;
-                let value = Prop::from(value);
+                let value = Prop::from(value.as_str());
                 (name.as_str().into(), value, i % 2)
             })
             .partition(|(_, _, i)| *i == 0);
@@ -2189,7 +2130,7 @@ fn test_graph_temporal_props() {
 }
 
 #[test]
-fn test_temporral_edge_props_window() {
+fn test_temporal_edge_props_window() {
     let graph = Graph::new();
     graph
         .add_edge(1, 1, 2, vec![("weight".to_string(), Prop::I64(1))], None)
@@ -2394,7 +2335,7 @@ fn test_layer_explode() {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2)]);
+        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2), (1, 2, 3)]);
     });
 }
 
@@ -2895,7 +2836,7 @@ fn save_load_serial() {
     let dir = tempfile::tempdir().unwrap();
     let file_path = dir.path().join("abcd11");
     g.encode(&file_path).unwrap();
-    let gg = Graph::decode(file_path).unwrap();
+    let gg = Graph::decode(file_path, None).unwrap();
     assert_graph_equal(&g, &gg);
 }
 
@@ -3575,7 +3516,7 @@ fn test_id_filter() {
 
 #[test]
 fn test_indexed() {
-    proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+    proptest!(|(graph in build_graph_strat(10, 10, 10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
         let graph = Graph::from(build_graph(&graph));
         let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
         let nodes = graph.nodes().id_filter(nodes);
@@ -3585,12 +3526,125 @@ fn test_indexed() {
 
 #[test]
 fn materialize_window_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>())| {
         let g = Graph::from(build_graph(&graph_f));
         let gw = g.window(w.start, w.end);
         let gmw = gw.materialize().unwrap();
         assert_graph_equal(&gw, &gmw);
     })
+}
+
+#[test]
+fn materialize_temporal_properties_one_edge() {
+    let g = Graph::new();
+    g.add_edge(
+        0,
+        0,
+        0,
+        [("3", Prop::I64(1)), ("0", Prop::str("baa"))],
+        Some("a"),
+    )
+    .unwrap();
+
+    let gw = g.window(-9, 3);
+    let gmw = gw.materialize().unwrap();
+
+    assert_graph_equal(&gw, &gmw);
+}
+
+#[test]
+fn materialize_one_node() {
+    let g = Graph::new();
+    g.add_node(0, 0, NO_PROPS, None).unwrap();
+
+    let n = g.node(0).unwrap();
+    let hist = n.history();
+    assert!(!hist.is_empty());
+    let rows = n.rows().collect::<Vec<_>>();
+    assert!(!rows.is_empty());
+
+    let gw = g.window(0, 1);
+    let gmw = gw.materialize().unwrap();
+
+    assert_graph_equal(&gw, &gmw);
+}
+
+#[test]
+fn materialize_some_edges() -> Result<(), GraphError> {
+    let edges1_props = EdgeUpdatesFixture {
+        props: PropUpdatesFixture {
+            t_props: vec![
+                (2433054617899119663, vec![]),
+                (
+                    5623371002478468619,
+                    vec![("0".to_owned(), Prop::I64(-180204069376666762))],
+                ),
+            ],
+            c_props: vec![],
+        },
+        deletions: vec![-3684372592923241629, 3668280323305195349],
+    };
+
+    let edges2_props = EdgeUpdatesFixture {
+        props: PropUpdatesFixture {
+            t_props: vec![
+                (
+                    -7888823724540213280,
+                    vec![("0".to_owned(), Prop::I64(1339447446033500001))],
+                ),
+                (-3792330935693192039, vec![]),
+                (
+                    4049942931077033460,
+                    vec![("0".to_owned(), Prop::I64(-544773539725842277))],
+                ),
+                (5085404190610173488, vec![]),
+                (1445770503123270290, vec![]),
+                (-5628624083683143619, vec![]),
+                (-394401628579820652, vec![]),
+                (-2398199704888544233, vec![]),
+            ],
+            c_props: vec![("0".to_owned(), Prop::I64(-1877019573933389749))],
+        },
+        deletions: vec![
+            3969804007878301015,
+            7040207277685112004,
+            7380699292468575143,
+            3332576590029503186,
+            -1107894292705275349,
+            6647229517972286485,
+            6359226207899406831,
+        ],
+    };
+
+    let edges: EdgeFixture = [
+        ((2, 7, Some("b")), edges1_props),
+        ((7, 2, Some("a")), edges2_props),
+    ]
+    .into_iter()
+    .collect();
+
+    let w = -3619743214445905380..90323088878877991;
+    let graph_f = GraphFixture {
+        nodes: NodeFixture::default(),
+        edges,
+    };
+
+    let g = Graph::from(build_graph(&graph_f));
+    let gw = g.window(w.start, w.end);
+    let gmw = gw.materialize()?;
+    assert_graph_equal(&gw, &gmw);
+
+    Ok(())
+}
+
+#[test]
+fn materialize_window_delete_test() {
+    let g = Graph::new();
+    g.delete_edge(0, 0, 0, Some("a")).unwrap();
+    let w = 0..1;
+    let gw = g.window(w.start, w.end);
+    let gmw = gw.materialize().unwrap();
+    assert_graph_equal(&gw, &gmw);
 }
 
 #[test]

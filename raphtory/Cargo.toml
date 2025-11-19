@@ -15,10 +15,11 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory-api.workspace = true
-raphtory-core.workspace = true
-raphtory-storage.workspace = true
-pometry-storage.workspace = true
+raphtory-api.workspace = true                                #{ path = "../raphtory-api", version = "0.15.1" }
+raphtory-core.workspace = true                               # = { path = "../raphtory-core", version = "0.15.1" }
+raphtory-storage.workspace = true                            # = { path = "../raphtory-storage", version = "0.15.1" }
+db4-graph.workspace = true
+storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
@@ -50,6 +51,9 @@ roaring = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
 uuid = { workspace = true }
+parquet = { workspace = true }
+arrow-json = { workspace = true }
+arrow = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -66,14 +70,7 @@ memmap2 = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
-# arrow otional dependencies
-parquet = { workspace = true, optional = true }
-arrow-json = { workspace = true, optional = true }
-#arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
-#arrow-buffer = { workspace = true, optional = true }
-#arrow-cast = { workspace = true, optional = true }
-#arrow-schema = { workspace = true, optional = true }
-arrow = { workspace = true, optional = true, features = ["chrono-tz"] }
+
 
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
@@ -87,7 +84,7 @@ minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
 arroy = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
-moka = { workspace = true, optional = true }
+moka = { workspace = true, optional = true, features = ["future"] }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -96,7 +93,6 @@ num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
-
 
 # test utils
 proptest = { workspace = true, optional = true }
@@ -110,7 +106,7 @@ tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
-raphtory = { path = ".", features = ["test-utils"] } # enable test-utils for integration tests (version is not set to make cargo publish work)
+raphtory = { workspace = true, features = ["test-utils"] } # enable test-utils for integration tests
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
@@ -125,8 +121,9 @@ io = [
     "dep:csv",
     "dep:reqwest",
     "dep:tokio",
-    "dep:parquet",
-    "proto",
+    "dep:tempfile",
+    "dep:zip",
+    "kdam",
 ]
 
 # search
@@ -149,10 +146,7 @@ vectors = [
 # Enables generating the pyo3 python bindings
 python = [
     "io",
-    "arrow",
-    "search",
     "vectors",
-    "proto",
     "dep:pyo3",
     "dep:numpy",
     "dep:num",
@@ -162,32 +156,17 @@ python = [
     "raphtory-core/python",
     "kdam/notebook",
 ]
-# storage
-storage = [
-    "arrow",
-    "raphtory-api/storage",
-    "raphtory-storage/storage",
-    "dep:memmap2",
-    "dep:tempfile",
-]
-arrow = [
-    "raphtory-api/arrow",
-    "raphtory-core/arrow",
-    "dep:parquet",
-    "dep:arrow-json",
-    "dep:arrow",
-]
+
 
 proto = [
     "dep:prost",
     "dep:prost-types",
-    "dep:zip",
     "dep:prost-build",
     "dep:memmap2",
-    "arrow",
     "io",
 ]
 
 test-utils = [
-    "dep:proptest", "dep:proptest-derive"
+    "dep:proptest",
+    "dep:proptest-derive"
 ]

@@ -2,10 +2,12 @@ use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
+use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
+use parquet::errors::ParquetError;
 use raphtory_api::core::entities::{
     properties::prop::{PropError, PropType},
-    GID,
+    GidType, GID, VID,
 };
 use raphtory_core::{
     entities::{
@@ -16,21 +18,15 @@ use raphtory_core::{
 };
 use raphtory_storage::mutation::MutationError;
 use std::{
+    backtrace::Backtrace,
     fmt::Debug,
-    io,
+    io, panic,
+    panic::Location,
     path::{PathBuf, StripPrefixError},
+    sync::Arc,
     time::SystemTimeError,
 };
 use tracing::error;
-
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
-#[cfg(feature = "arrow")]
-use {
-    arrow::{datatypes::DataType, error::ArrowError},
-    parquet::errors::ParquetError,
-    raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
-};
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
@@ -69,7 +65,6 @@ pub enum InvalidPathReason {
     },
 }
 
-#[cfg(feature = "arrow")]
 #[derive(thiserror::Error, Debug)]
 pub enum LoadError {
     #[error("Only str columns are supported for layers, got {0:?}")]
@@ -90,6 +85,8 @@ pub enum LoadError {
     MissingNodeError,
     #[error("Missing value for timestamp")]
     MissingTimeError,
+    #[error("Missing value for secondary index")]
+    MissingSecondaryIndexError,
     #[error("Missing value for edge id {0:?} -> {1:?}")]
     MissingEdgeError(VID, VID),
     #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
@@ -121,6 +118,9 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error(transparent)]
+    ExternalError(#[from] Arc<dyn std::error::Error + Send + Sync>),
+
+    #[error(transparent)]
     MutationError(#[from] MutationError),
 
     #[error(transparent)]
@@ -129,11 +129,9 @@ pub enum GraphError {
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
 
-    #[cfg(feature = "arrow")]
     #[error("Arrow-rs error: {0}")]
     ArrowRs(#[from] ArrowError),
 
-    #[cfg(feature = "arrow")]
     #[error("Arrow-rs parquet error: {0}")]
     ParquetError(#[from] ParquetError),
 
@@ -143,12 +141,12 @@ pub enum GraphError {
         source: InvalidPathReason,
     },
 
-    #[cfg(feature = "arrow")]
     #[error("{source}")]
     LoadError {
         #[from]
         source: LoadError,
     },
+
     #[error("Storage feature not enabled")]
     DiskGraphNotFound,
 
@@ -211,6 +209,7 @@ pub enum GraphError {
 
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
+
     // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
@@ -224,13 +223,14 @@ pub enum GraphError {
         src: String,
         dst: String,
     },
+
     #[error("The loaded graph is of the wrong type. Did you mean Graph / PersistentGraph?")]
     GraphLoadError,
 
-    #[error("IO operation failed")]
+    #[error("{source} at {location}")]
     IOError {
-        #[from]
         source: io::Error,
+        location: &'static Location<'static>,
     },
 
     #[error("IO operation failed: {0}")]
@@ -248,26 +248,20 @@ pub enum GraphError {
     #[error("The path {0} does not contain a vector DB")]
     VectorDbDoesntExist(String),
 
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
         #[from]
         source: zip::result::ZipError,
     },
 
-    #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
 
-    #[cfg(feature = "arrow")]
     #[error(
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
-
-    #[cfg(feature = "storage")]
-    #[error("Raphtory Arrow Error: {0}")]
-    DiskGraphError(#[from] RAError),
 
     #[cfg(feature = "search")]
     #[error("Index operation failed: {source}")]
@@ -324,13 +318,9 @@ pub enum GraphError {
     #[error("Protobuf decode error{0}")]
     EncodeError(#[from] prost::EncodeError),
 
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "io")]
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
-
-    #[cfg(feature = "arrow")]
-    #[error(transparent)]
-    DeserialisationError(#[from] DeserialisationError),
 
     #[cfg(feature = "proto")]
     #[error("Cache is not initialised")]
@@ -471,5 +461,30 @@ impl<A: Debug> From<IllegalSet<A>> for GraphError {
 impl From<GraphError> for io::Error {
     fn from(error: GraphError) -> Self {
         io::Error::other(error)
+    }
+}
+
+impl From<io::Error> for GraphError {
+    #[track_caller]
+    fn from(source: io::Error) -> Self {
+        let location = Location::caller();
+        GraphError::IOError { source, location }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::errors::GraphError;
+    use std::io;
+
+    #[test]
+    fn test_location_capture() {
+        fn inner() -> Result<(), GraphError> {
+            Err(io::Error::other(GraphError::IllegalSet("hi".to_string())))?;
+            Ok(())
+        }
+
+        let res = inner().err().unwrap();
+        println!("{}", res);
     }
 }

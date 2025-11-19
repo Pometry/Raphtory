@@ -28,8 +28,10 @@ fn bench_graph_index_load(c: &mut Criterion) {
     let mut group = c.benchmark_group("graph_index_load");
     group.sample_size(100);
 
+    let path_for_decoded_graph = None;
+
     group.bench_function(BenchmarkId::from_parameter("load_once"), |b| {
-        b.iter(|| Graph::decode(black_box(&path)).unwrap());
+        b.iter(|| Graph::decode(black_box(&path), path_for_decoded_graph.clone()).unwrap());
     });
 
     group.finish();

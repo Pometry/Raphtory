@@ -2,7 +2,6 @@ use crate::{
     core::{
         entities::LayerIds,
         storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
-        utils::iter::GenLockedDIter,
     },
     db::{
         api::{
@@ -16,9 +15,10 @@ use crate::{
 use raphtory_api::{
     core::entities::{properties::tprop::TPropOps, EID, VID},
     inherit::Base,
-    iter::{BoxedLDIter, IntoDynDBoxed},
+    iter::{BoxedLIter, IntoDynBoxed},
     GraphType,
 };
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
     graph::{
         edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
@@ -26,11 +26,11 @@ use raphtory_storage::{
     },
     mutation::InheritMutationOps,
 };
-use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
     iter,
     ops::{Deref, Range},
+    path::Path,
     sync::Arc,
 };
 
@@ -42,7 +42,7 @@ use std::{
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
 ///
 ///
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
 impl Static for PersistentGraph {}
@@ -96,6 +96,35 @@ fn persisted_prop_value_at<'a>(
 impl PersistentGraph {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Create a new persistent graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```
+    /// use raphtory::prelude::PersistentGraph;
+    /// let g = Graph::new_at_path("/path/to/storage");
+    /// ```
+    pub fn new_at_path(path: impl AsRef<Path>) -> Self {
+        Self(Arc::new(Storage::new_at_path(path)))
+    }
+
+    /// Load a graph from a specific path
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load_from_path("/path/to/storage");
+    ///
+    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
+        Self(Arc::new(Storage::load_from(path)))
     }
 
     pub fn from_storage(storage: Arc<Storage>) -> Self {
@@ -195,7 +224,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.has_temporal_prop(prop_id)
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         self.0.temporal_prop_iter(prop_id)
     }
 
@@ -211,20 +240,41 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
             let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
                 .map(|v| (TimeIndexEntry::start(start), v));
             first
                 .into_iter()
-                .chain(GenLockedDIter::from(prop, |prop| {
+                .chain(GenLockedIter::from(prop, |prop| {
                     prop.deref()
                         .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_dboxed()
+                        .into_dyn_boxed()
                 }))
-                .into_dyn_dboxed()
+                .into_dyn_boxed()
         } else {
-            iter::empty().into_dyn_dboxed()
+            iter::empty().into_dyn_boxed()
+        }
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+        if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
+            let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
+                .map(|v| (TimeIndexEntry::start(start), v));
+            let iter = GenLockedIter::from(prop, |prop| {
+                prop.deref()
+                    .iter_window_rev(TimeIndexEntry::range(start..end))
+                    .into_dyn_boxed()
+            });
+
+            iter.into_iter().chain(first).into_dyn_boxed()
+        } else {
+            iter::empty().into_dyn_boxed()
         }
     }
 

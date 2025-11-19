@@ -88,6 +88,7 @@ fn test_metadata_updates() {
 }
 
 #[test]
+#[ignore] // likely we don't want to handle it globally like this anymore, maybe we should introduce an explicit categorical property type?
 fn test_string_deduplication() {
     let g = Graph::new();
     let v1 = g

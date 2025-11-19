@@ -235,11 +235,7 @@ fn inner_collection(value: &Prop) -> String {
         Prop::F64(value) => format!("{{ f64: {} }}", value),
         Prop::Bool(value) => format!("{{ bool: {} }}", value),
         Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(inner_collection).collect();
-            format!("{{ list: [{}] }}", vec.join(", "))
-        }
-        Prop::Array(value) => {
-            let vec: Vec<String> = value.iter_prop().map(|v| inner_collection(&v)).collect();
+            let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
             format!("{{ list: [{}] }}", vec.join(", "))
         }
         Prop::Map(value) => {
@@ -268,15 +264,7 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         Prop::F64(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
         Prop::Bool(value) => format!("{{ key: \"{}\", value: {{ bool: {} }} }}", key, value),
         Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(inner_collection).collect();
-            format!(
-                "{{ key: \"{}\", value: {{ list: [{}] }} }}",
-                key,
-                vec.join(", ")
-            )
-        }
-        Prop::Array(value) => {
-            let vec: Vec<String> = value.iter_prop().map(|v| inner_collection(&v)).collect();
+            let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
             format!(
                 "{{ key: \"{}\", value: {{ list: [{}] }} }}",
                 key,

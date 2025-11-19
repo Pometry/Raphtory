@@ -9,11 +9,14 @@ use crate::{
         load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
     },
     prelude::*,
-    serialise::parquet::{
-        edges::encode_edge_deletions,
-        graph::{encode_graph_cprop, encode_graph_tprop},
-        model::get_id_type,
-        nodes::{encode_nodes_cprop, encode_nodes_tprop},
+    serialise::{
+        graph_folder::GRAPH_PATH,
+        parquet::{
+            edges::encode_edge_deletions,
+            graph::{encode_graph_cprop, encode_graph_tprop},
+            model::get_id_type,
+            nodes::{encode_nodes_cprop, encode_nodes_tprop},
+        },
     },
 };
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
@@ -37,10 +40,13 @@ use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use rayon::prelude::*;
 use std::{
     fs::File,
+    io::{Read, Seek, Write},
     ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
 };
+use walkdir::WalkDir;
+use zip::{write::FileOptions, ZipWriter};
 
 mod edges;
 mod model;
@@ -49,18 +55,135 @@ mod nodes;
 mod graph;
 
 pub trait ParquetEncoder {
+    fn encode_parquet_to_bytes(&self) -> Result<Vec<u8>, GraphError> {
+        // Write directly to an in-memory cursor
+        let mut zip_buffer = Vec::new();
+        let cursor = std::io::Cursor::new(&mut zip_buffer);
+
+        self.encode_parquet_to_zip(cursor)?;
+
+        Ok(zip_buffer)
+    }
+
+    fn encode_parquet_to_zip<W: Write + Seek>(&self, writer: W) -> Result<(), GraphError> {
+        // Encode to a tmp dir using parquet, then zip it to the writer
+        let temp_dir = tempfile::tempdir()?;
+        self.encode_parquet(&temp_dir)?;
+
+        let mut zip_writer = ZipWriter::new(writer);
+
+        // Walk through the directory and add files and directories to the zip.
+        // Files and directories are stored in the archive under the GRAPH_PATH directory.
+        for entry in WalkDir::new(temp_dir.path())
+            .into_iter()
+            .filter_map(Result::ok)
+        {
+            let path = entry.path();
+
+            let relative_path = path.strip_prefix(temp_dir.path()).map_err(|e| {
+                GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
+            })?;
+
+            // Attach GRAPH_PATH as a prefix to the relative path
+            let zip_entry_name = PathBuf::from(GRAPH_PATH)
+                .join(relative_path)
+                .to_string_lossy()
+                .into_owned();
+
+            if path.is_file() {
+                zip_writer.start_file::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
+
+                let mut file = std::fs::File::open(path)?;
+                std::io::copy(&mut file, &mut zip_writer)?;
+            } else if path.is_dir() {
+                // Add empty directories to the zip
+                zip_writer.add_directory::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
+            }
+        }
+
+        zip_writer.finish()?;
+        Ok(())
+    }
+
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
 }
 
-pub trait ParquetDecoder {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized;
+pub trait ParquetDecoder: Sized {
+    fn decode_parquet_from_bytes(
+        bytes: &[u8],
+        path_for_decoded_graph: Option<&Path>,
+    ) -> Result<Self, GraphError> {
+        // Read directly from an in-memory cursor
+        let reader = std::io::Cursor::new(bytes);
+
+        Self::decode_parquet_from_zip(reader, path_for_decoded_graph)
+    }
+
+    fn decode_parquet_from_zip<R: Read + Seek>(
+        reader: R,
+        path_for_decoded_graph: Option<&Path>,
+    ) -> Result<Self, GraphError> {
+        // Unzip to a temp dir and decode parquet from there
+        let mut zip = zip::ZipArchive::new(reader)?;
+        let temp_dir = tempfile::tempdir()?;
+
+        for i in 0..zip.len() {
+            let mut file = zip.by_index(i)?;
+            let zip_entry_name = match file.enclosed_name() {
+                Some(name) => name,
+                None => continue,
+            };
+
+            if zip_entry_name.starts_with(GRAPH_PATH) {
+                // Since we attach the GRAPH_PATH prefix to the zip entry name
+                // when encoding, we strip it away while decoding.
+                let relative_path = zip_entry_name
+                    .strip_prefix(GRAPH_PATH)
+                    .map_err(|e| {
+                        GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
+                    })?
+                    .to_path_buf();
+
+                let out_path = temp_dir.path().join(relative_path);
+
+                if file.is_dir() {
+                    std::fs::create_dir_all(&out_path)?;
+                } else {
+                    // Create any parent directories
+                    if let Some(parent) = out_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+
+                    let mut out_file = std::fs::File::create(&out_path)?;
+                    std::io::copy(&mut file, &mut out_file)?;
+                }
+            }
+        }
+
+        Self::decode_parquet(temp_dir.path(), path_for_decoded_graph)
+    }
+
+    fn is_parquet_decodable(path: impl AsRef<Path>) -> bool {
+        // Considered to be decodable if there is at least one .parquet
+        WalkDir::new(path)
+            .into_iter()
+            .filter_map(Result::ok)
+            .any(|entry| {
+                entry.path().is_file()
+                    && entry.path().extension().is_some_and(|ext| ext == "parquet")
+            })
+    }
+
+    fn decode_parquet(
+        path: impl AsRef<Path>,
+        path_for_decoded_graph: Option<&Path>,
+    ) -> Result<Self, GraphError>;
 }
 
-const NODE_ID: &str = "rap_node_id";
+const NODE_ID_COL: &str = "rap_node_id";
 const TYPE_COL: &str = "rap_node_type";
 const TIME_COL: &str = "rap_time";
+const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
 const SRC_COL: &str = "rap_src";
 const DST_COL: &str = "rap_dst";
 const LAYER_COL: &str = "rap_layer";
@@ -69,14 +192,10 @@ const EDGES_D_PATH: &str = "edges_d"; // deletions
 const EDGES_C_PATH: &str = "edges_c";
 const NODES_T_PATH: &str = "nodes_t";
 const NODES_C_PATH: &str = "nodes_c";
-
 const GRAPH_T_PATH: &str = "graph_t";
 const GRAPH_C_PATH: &str = "graph_c";
-
 const GRAPH_TYPE: &str = "graph_type";
-
 const EVENT_GRAPH_TYPE: &str = "rap_event_graph";
-
 const PERSISTENT_GRAPH_TYPE: &str = "rap_persistent_graph";
 
 impl ParquetEncoder for Graph {
@@ -90,6 +209,17 @@ impl ParquetEncoder for PersistentGraph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let gs = self.core_graph().clone();
         encode_graph_storage(&gs, path, GraphType::PersistentGraph)
+    }
+}
+
+impl ParquetEncoder for MaterializedGraph {
+    fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(graph) => graph.encode_parquet(path),
+            MaterializedGraph::PersistentGraph(persistent_graph) => {
+                persistent_graph.encode_parquet(path)
+            }
+        }
     }
 }
 
@@ -153,6 +283,41 @@ pub(crate) fn run_encode(
     Ok(())
 }
 
+pub(crate) fn run_encode_indexed<Index, II: Iterator<Item = Index>>(
+    g: &GraphStorage,
+    meta: &PropMapper,
+    items: impl ParallelIterator<Item = (usize, II)>,
+    path: impl AsRef<Path>,
+    suffix: &str,
+    default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
+    encode_fn: impl Fn(II, &GraphStorage, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError>
+        + Sync,
+) -> Result<(), GraphError> {
+    let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
+    let root_dir = path.as_ref().join(suffix);
+    std::fs::create_dir_all(&root_dir)?;
+
+    let num_digits = 8;
+
+    items.try_for_each(|(chunk, items)| {
+        let props = WriterProperties::builder()
+            .set_compression(Compression::SNAPPY)
+            .build();
+
+        let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
+        let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
+
+        let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
+
+        encode_fn(items, g, &mut decoder, &mut writer)?;
+
+        writer.close()?;
+        Ok::<_, GraphError>(())
+    })?;
+
+    Ok(())
+}
+
 pub(crate) fn derive_schema(
     prop_meta: &PropMapper,
     id_type: Option<GidType>,
@@ -178,14 +343,15 @@ pub(crate) fn derive_schema(
     } else {
         make_schema(DataType::UInt64, fields)
     };
+
     Ok(schema)
 }
 
 fn arrow_fields(meta: &PropMapper) -> Vec<Field> {
-    meta.get_keys()
-        .into_iter()
-        .filter_map(|name| {
-            let prop_id = meta.get_id(&name)?;
+    meta.keys()
+        .iter()
+        .zip(meta.ids())
+        .filter_map(|(name, prop_id)| {
             meta.get_dtype(prop_id)
                 .map(move |prop_type| (name, prop_type))
         })
@@ -233,57 +399,89 @@ fn collect_prop_columns(
                 });
             Ok((cols, graph_type))
         };
+
     let mut prop_columns = vec![];
     let mut g_type: Option<GraphType> = None;
-    for path in ls_parquet_files(path)? {
+
+    // Collect columns from just the first file
+    if let Some(path) = ls_parquet_files(path)?.next() {
         let (columns, tpe) = prop_columns_fn(&path, exclude)?;
+
         if g_type.is_none() {
             g_type = tpe;
         }
+
         prop_columns.extend_from_slice(&columns);
     }
-    prop_columns.sort();
-    prop_columns.dedup();
+
     Ok((prop_columns, g_type))
+}
+
+fn decode_graph_type(path: impl AsRef<Path>) -> Result<GraphType, GraphError> {
+    let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
+
+    // Assume event graph as default
+    if !std::fs::exists(&c_graph_path)? {
+        return Ok(GraphType::EventGraph);
+    }
+
+    let exclude = vec![TIME_COL];
+    let (_, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
+
+    g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))
 }
 
 fn decode_graph_storage(
     path: impl AsRef<Path>,
-    expected_gt: GraphType,
     batch_size: Option<usize>,
+    path_for_decoded_graph: Option<&Path>,
 ) -> Result<Arc<Storage>, GraphError> {
-    let g = Arc::new(Storage::default());
+    let graph = if let Some(storage_path) = path_for_decoded_graph {
+        Arc::new(Storage::new_at_path(storage_path))
+    } else {
+        Arc::new(Storage::default())
+    };
 
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 
-    let g_type = {
+    {
         let exclude = vec![TIME_COL];
-        let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
+        let (c_props, _) = collect_prop_columns(&c_graph_path, &exclude)?;
         let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, &[], &c_props, batch_size)?;
 
-        g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))?
-    };
-
-    if g_type != expected_gt {
-        return Err(GraphError::LoadFailure(format!(
-            "Expected graph type {:?}, got {:?}",
-            expected_gt, g_type
-        )));
+        load_graph_props_from_parquet(
+            &graph,
+            &c_graph_path,
+            TIME_COL,
+            None,
+            &[],
+            &c_props,
+            batch_size,
+        )?;
     }
 
     let t_graph_path = path.as_ref().join(GRAPH_T_PATH);
 
     if std::fs::exists(&t_graph_path)? {
-        let exclude = vec![TIME_COL];
+        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL];
         let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
         let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, &t_props, &[], batch_size)?;
+
+        load_graph_props_from_parquet(
+            &graph,
+            &t_graph_path,
+            TIME_COL,
+            Some(SECONDARY_INDEX_COL),
+            &t_props,
+            &[],
+            batch_size,
+        )?;
     }
 
     let t_node_path = path.as_ref().join(NODES_T_PATH);
+
     if std::fs::exists(&t_node_path)? {
-        let exclude = vec![NODE_ID, TIME_COL, TYPE_COL];
+        let exclude = vec![NODE_ID_COL, TIME_COL, SECONDARY_INDEX_COL, TYPE_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
         let t_prop_columns = t_prop_columns
             .iter()
@@ -291,10 +489,11 @@ fn decode_graph_storage(
             .collect::<Vec<_>>();
 
         load_nodes_from_parquet(
-            &g,
+            &graph,
             &t_node_path,
             TIME_COL,
-            NODE_ID,
+            Some(SECONDARY_INDEX_COL),
+            NODE_ID_COL,
             None,
             Some(TYPE_COL),
             &t_prop_columns,
@@ -305,8 +504,9 @@ fn decode_graph_storage(
     }
 
     let c_node_path = path.as_ref().join(NODES_C_PATH);
+
     if std::fs::exists(&c_node_path)? {
-        let exclude = vec![NODE_ID, TYPE_COL];
+        let exclude = vec![NODE_ID_COL, TYPE_COL];
         let (c_prop_columns, _) = collect_prop_columns(&c_node_path, &exclude)?;
         let c_prop_columns = c_prop_columns
             .iter()
@@ -314,9 +514,9 @@ fn decode_graph_storage(
             .collect::<Vec<_>>();
 
         load_node_props_from_parquet(
-            &g,
+            &graph,
             &c_node_path,
-            NODE_ID,
+            NODE_ID_COL,
             None,
             Some(TYPE_COL),
             &c_prop_columns,
@@ -325,9 +525,10 @@ fn decode_graph_storage(
         )?;
     }
 
-    let exclude = vec![TIME_COL, SRC_COL, DST_COL, LAYER_COL];
     let t_edge_path = path.as_ref().join(EDGES_T_PATH);
+
     if std::fs::exists(&t_edge_path)? {
+        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL, SRC_COL, DST_COL, LAYER_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;
         let t_prop_columns = t_prop_columns
             .iter()
@@ -335,9 +536,10 @@ fn decode_graph_storage(
             .collect::<Vec<_>>();
 
         load_edges_from_parquet(
-            &g,
+            &graph,
             &t_edge_path,
             TIME_COL,
+            Some(SECONDARY_INDEX_COL),
             SRC_COL,
             DST_COL,
             &t_prop_columns,
@@ -350,11 +552,13 @@ fn decode_graph_storage(
     }
 
     let d_edge_path = path.as_ref().join(EDGES_D_PATH);
+
     if std::fs::exists(&d_edge_path)? {
         load_edge_deletions_from_parquet(
-            g.core_graph(),
+            graph.core_graph(),
             &d_edge_path,
             TIME_COL,
+            Some(SECONDARY_INDEX_COL),
             SRC_COL,
             DST_COL,
             None,
@@ -364,7 +568,9 @@ fn decode_graph_storage(
     }
 
     let c_edge_path = path.as_ref().join(EDGES_C_PATH);
+
     if std::fs::exists(&c_edge_path)? {
+        let exclude = vec![SRC_COL, DST_COL, LAYER_COL];
         let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
         let metadata = c_prop_columns
             .iter()
@@ -372,7 +578,7 @@ fn decode_graph_storage(
             .collect::<Vec<_>>();
 
         load_edge_props_from_parquet(
-            &g,
+            &graph,
             &c_edge_path,
             SRC_COL,
             DST_COL,
@@ -384,40 +590,46 @@ fn decode_graph_storage(
         )?;
     }
 
-    Ok(g)
+    Ok(graph)
 }
+
 impl ParquetDecoder for Graph {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized,
-    {
-        let gs = decode_graph_storage(path, GraphType::EventGraph, None)?;
-        Ok(Graph::from_storage(gs))
+    fn decode_parquet(
+        path: impl AsRef<Path>,
+        path_for_decoded_graph: Option<&Path>,
+    ) -> Result<Self, GraphError> {
+        let batch_size = None;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph)?;
+        Ok(Graph::from_storage(storage))
     }
 }
 
 impl ParquetDecoder for PersistentGraph {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized,
-    {
-        let gs = decode_graph_storage(path, GraphType::PersistentGraph, None)?;
-        Ok(PersistentGraph(gs))
+    fn decode_parquet(
+        path: impl AsRef<Path>,
+        path_for_decoded_graph: Option<&Path>,
+    ) -> Result<Self, GraphError> {
+        let batch_size = None;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph)?;
+        Ok(PersistentGraph(storage))
     }
 }
 
 impl ParquetDecoder for MaterializedGraph {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized,
-    {
-        // Try to decode as EventGraph first
-        match decode_graph_storage(path.as_ref(), GraphType::EventGraph, None) {
-            Ok(gs) => Ok(MaterializedGraph::EventGraph(Graph::from_storage(gs))),
-            Err(_) => {
-                // If that fails, try PersistentGraph
-                let gs = decode_graph_storage(path.as_ref(), GraphType::PersistentGraph, None)?;
-                Ok(MaterializedGraph::PersistentGraph(PersistentGraph(gs)))
+    fn decode_parquet(
+        path: impl AsRef<Path>,
+        path_for_decoded_graph: Option<&Path>,
+    ) -> Result<Self, GraphError> {
+        let batch_size = None;
+        let graph_type = decode_graph_type(&path)?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph)?;
+
+        match graph_type {
+            GraphType::EventGraph => {
+                Ok(MaterializedGraph::EventGraph(Graph::from_storage(storage)))
+            }
+            GraphType::PersistentGraph => {
+                Ok(MaterializedGraph::PersistentGraph(PersistentGraph(storage)))
             }
         }
     }

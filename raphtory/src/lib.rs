@@ -106,7 +106,7 @@ pub mod io;
 pub mod api;
 pub mod core;
 pub mod errors;
-#[cfg(feature = "proto")]
+#[cfg(feature = "io")]
 pub mod serialise;
 pub mod storage;
 
@@ -149,16 +149,10 @@ pub mod prelude {
         },
     };
 
-    #[cfg(feature = "storage")]
-    pub use {
-        crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
-        raphtory_storage::disk::{DiskGraphStorage, ParquetLayerCols},
-    };
-
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "io")]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
-        CacheOps, StableDecode, StableEncode,
+        StableDecode, StableEncode,
     };
 
     #[cfg(feature = "search")]

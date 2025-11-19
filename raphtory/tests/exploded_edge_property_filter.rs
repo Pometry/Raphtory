@@ -23,7 +23,7 @@ use raphtory::{
     },
 };
 use raphtory_api::core::entities::properties::prop::PropType;
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use std::collections::HashMap;
 
 fn build_filtered_graph(
@@ -38,7 +38,7 @@ fn build_filtered_graph(
                 *src,
                 *dst,
                 [
-                    ("str_prop", str_prop.into()),
+                    ("str_prop", str_prop.as_str().into()),
                     ("int_prop", Prop::I64(*int_prop)),
                 ],
                 None,
@@ -96,10 +96,11 @@ fn build_filtered_persistent_graph(
                     } else {
                         g_filtered.delete_edge(t, src, dst, None).unwrap();
                         // properties still exist after filtering
-                        g_filtered
+                        let session = g_filtered.write_session().unwrap();
+                        session
                             .resolve_edge_property("str_prop", PropType::Str, false)
                             .unwrap();
-                        g_filtered
+                        session
                             .resolve_edge_property("int_prop", PropType::I64, false)
                             .unwrap();
                     }
@@ -190,6 +191,8 @@ fn test_filter_persistent_single_filtered_edge() {
     expected.delete_edge(0, 0, 0, None).unwrap();
     //the property still exists!
     expected
+        .write_session()
+        .unwrap()
         .resolve_edge_property("test", PropType::I64, false)
         .unwrap();
 
