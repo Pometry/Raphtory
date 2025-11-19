@@ -17,10 +17,7 @@ use crate::{
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
             index::PyIndexSpec,
-            io::{
-                arrow_loaders::{load_edges_from_arrow, load_edges_from_arrow_streaming},
-                pandas_loaders::*,
-            },
+            io::{arrow_loaders::load_edges_from_arrow, pandas_loaders::*},
             node::PyNode,
             views::graph_view::PyGraphView,
         },
@@ -770,7 +767,7 @@ impl PyGraph {
         )
     }
 
-    #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
+    #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, stream_data = false))]
     fn load_edges_from_fireducks(
         &self,
         df: &Bound<PyAny>,
@@ -782,32 +779,49 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
+        stream_data: bool,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
 
-        // Convert Fireducks DataFrame to pandas.DataFrame
-        let pandas_df = df.call_method0("to_pandas").map_err(|e| {
-            GraphError::LoadFailure(format!(
-                "Failed converting Fireducks DataFrame to pandas via to_pandas: {e}"
-            ))
-        })?;
+        if stream_data {
+            load_edges_from_arrow(
+                &self.graph,
+                &df,
+                time,
+                src,
+                dst,
+                &properties,
+                &metadata,
+                shared_metadata.as_ref(),
+                layer,
+                layer_col,
+                true,
+            )
+        } else {
+            // Convert Fireducks DataFrame to pandas.DataFrame
+            let pandas_df = df.call_method0("to_pandas").map_err(|e| {
+                GraphError::LoadFailure(format!(
+                    "Failed converting Fireducks DataFrame to pandas via to_pandas: {e}"
+                ))
+            })?;
 
-        load_edges_from_pandas(
-            &self.graph,
-            &pandas_df,
-            time,
-            src,
-            dst,
-            &properties,
-            &metadata,
-            shared_metadata.as_ref(),
-            layer,
-            layer_col,
-        )
+            load_edges_from_pandas(
+                &self.graph,
+                &pandas_df,
+                time,
+                src,
+                dst,
+                &properties,
+                &metadata,
+                shared_metadata.as_ref(),
+                layer,
+                layer_col,
+            )
+        }
     }
 
-    #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
+    #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, stream_data = false))]
     fn load_edges_from_polars(
         &self,
         df: &Bound<PyAny>,
@@ -819,40 +833,57 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
+        stream_data: bool,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
 
-        // Convert Polars DataFrame to pandas.DataFrame
-        let kwargs = PyDict::new(df.py());
-        kwargs
-            .set_item("use_pyarrow_extension_array", true)
-            .map_err(|e| {
-                GraphError::LoadFailure(format!("Failed setting kwargs for to_pandas(): {e}"))
+        if stream_data {
+            load_edges_from_arrow(
+                &self.graph,
+                &df,
+                time,
+                src,
+                dst,
+                &properties,
+                &metadata,
+                shared_metadata.as_ref(),
+                layer,
+                layer_col,
+                true,
+            )
+        } else {
+            // Convert Polars DataFrame to pandas.DataFrame
+            let kwargs = PyDict::new(df.py());
+            kwargs
+                .set_item("use_pyarrow_extension_array", true)
+                .map_err(|e| {
+                    GraphError::LoadFailure(format!("Failed setting kwargs for to_pandas(): {e}"))
+                })?;
+
+            let pandas_df = df.call_method("to_pandas", (), Some(&kwargs)).map_err(|e| {
+                GraphError::LoadFailure(format!(
+                    "Failed converting Polars DataFrame to pandas via to_pandas(use_pyarrow_extension_array=True): {e}"
+                ))
             })?;
 
-        let pandas_df = df.call_method("to_pandas", (), Some(&kwargs)).map_err(|e| {
-            GraphError::LoadFailure(format!(
-                "Failed converting Polars DataFrame to pandas via to_pandas(use_pyarrow_extension_array=True): {e}"
-            ))
-        })?;
-
-        load_edges_from_pandas(
-            &self.graph,
-            &pandas_df,
-            time,
-            src,
-            dst,
-            &properties,
-            &metadata,
-            shared_metadata.as_ref(),
-            layer,
-            layer_col,
-        )
+            load_edges_from_pandas(
+                &self.graph,
+                &pandas_df,
+                time,
+                src,
+                dst,
+                &properties,
+                &metadata,
+                shared_metadata.as_ref(),
+                layer,
+                layer_col,
+            )
+        }
     }
 
     #[pyo3(
-        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, stream_data = false)
     )]
     fn load_edges_from_arrow(
         &self,
@@ -865,6 +896,7 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
+        stream_data: bool,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -879,42 +911,12 @@ impl PyGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            stream_data,
         )
     }
 
     #[pyo3(
-        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
-    )]
-    fn load_edges_from_arrow_streaming(
-        &self,
-        df: &Bound<PyAny>,
-        time: &str,
-        src: &str,
-        dst: &str,
-        properties: Option<Vec<PyBackedStr>>,
-        metadata: Option<Vec<PyBackedStr>>,
-        shared_metadata: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_col: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
-        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edges_from_arrow_streaming(
-            &self.graph,
-            df,
-            time,
-            src,
-            dst,
-            &properties,
-            &metadata,
-            shared_metadata.as_ref(),
-            layer,
-            layer_col,
-        )
-    }
-
-    #[pyo3(
-        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, stream_data = false)
     )]
     fn load_edges_from_duckdb(
         &self,
@@ -927,50 +929,23 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
+        stream_data: bool,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
 
         // Call fetch_arrow_table() so we can use arrow ingestion pathway
-        let arrow_df = df.call_method0("fetch_arrow_table").map_err(|e| {
-            GraphError::LoadFailure(
-                "Failed calling fetch_arrow_table() on the DuckDB instance".to_string(),
-            )
-        })?;
+        let df = if stream_data {
+            df
+        } else {
+            &df.call_method0("fetch_arrow_table").map_err(|e| {
+                GraphError::LoadFailure(
+                    "Failed calling fetch_arrow_table() on the DuckDB instance".to_string(),
+                )
+            })?
+        };
 
         load_edges_from_arrow(
-            &self.graph,
-            &arrow_df,
-            time,
-            src,
-            dst,
-            &properties,
-            &metadata,
-            shared_metadata.as_ref(),
-            layer,
-            layer_col,
-        )
-    }
-
-    #[pyo3(
-        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
-    )]
-    fn load_edges_from_duckdb_streaming(
-        &self,
-        df: &Bound<PyAny>,
-        time: &str,
-        src: &str,
-        dst: &str,
-        properties: Option<Vec<PyBackedStr>>,
-        metadata: Option<Vec<PyBackedStr>>,
-        shared_metadata: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_col: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
-        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-
-        load_edges_from_arrow_streaming(
             &self.graph,
             df,
             time,
@@ -981,6 +956,7 @@ impl PyGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            stream_data,
         )
     }
 

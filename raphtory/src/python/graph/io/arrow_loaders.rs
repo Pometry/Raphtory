@@ -37,6 +37,7 @@ pub(crate) fn load_edges_from_arrow<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
+    stream_data: bool,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend_from_slice(properties);
@@ -45,61 +46,41 @@ pub(crate) fn load_edges_from_arrow<
         cols_to_check.push(layer_col.as_ref());
     }
 
-    let df_view = process_arrow_py_df(df, cols_to_check.clone())?;
-    df_view.check_cols_exist(&cols_to_check)?;
-    load_edges_from_df(
-        df_view,
-        time,
-        src,
-        dst,
-        properties,
-        metadata,
-        shared_metadata,
-        layer,
-        layer_col,
-        graph,
-    )
-}
-
-pub(crate) fn load_edges_from_arrow_streaming<
-    'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
->(
-    graph: &G,
-    df: &Bound<'py, PyAny>,
-    time: &str,
-    src: &str,
-    dst: &str,
-    properties: &[&str],
-    metadata: &[&str],
-    shared_metadata: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    layer_col: Option<&str>,
-) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst, time];
-    cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(metadata);
-    if let Some(layer_col) = layer_col {
-        cols_to_check.push(layer_col.as_ref());
+    if stream_data {
+        let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+        df_view.check_cols_exist(&cols_to_check)?;
+        load_edges_from_df(
+            df_view,
+            time,
+            src,
+            dst,
+            properties,
+            metadata,
+            shared_metadata,
+            layer,
+            layer_col,
+            graph,
+        )
+    } else {
+        let df_view = process_arrow_py_df(df, cols_to_check.clone())?;
+        df_view.check_cols_exist(&cols_to_check)?;
+        load_edges_from_df(
+            df_view,
+            time,
+            src,
+            dst,
+            properties,
+            metadata,
+            shared_metadata,
+            layer,
+            layer_col,
+            graph,
+        )
     }
-
-    let df_view = process_arrow_py_df_streaming(df, cols_to_check.clone())?;
-    df_view.check_cols_exist(&cols_to_check)?;
-    load_edges_from_df(
-        df_view,
-        time,
-        src,
-        dst,
-        properties,
-        metadata,
-        shared_metadata,
-        layer,
-        layer_col,
-        graph,
-    )
 }
 
-pub(crate) fn process_arrow_py_df_streaming<'a>(
+/// Can handle any object that provides the \_\_arrow_c_stream__() interface and \_\_len__() function
+pub(crate) fn process_arrow_c_stream_df<'a>(
     df: &Bound<'a, PyAny>,
     col_names: Vec<&str>,
 ) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {

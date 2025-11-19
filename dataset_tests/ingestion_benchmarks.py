@@ -31,23 +31,16 @@ def bench_fire_ducks_pandas(df: fpd.frame.DataFrame) -> float:
     gc.collect()
     return total
 
-def bench_polars_to_pandas(df: pl.DataFrame, use_pyarrow: bool) -> float:
+def bench_fire_ducks_pandas_streaming(df: fpd.frame.DataFrame) -> float:
+    assert "fireducks.pandas.frame.DataFrame" in str(type(df))
     g = Graph()
     start = time.perf_counter()
-    df_pd_from_pl = df.to_pandas(use_pyarrow_extension_array=use_pyarrow)
-    mid = time.perf_counter()
-    g.load_edges_from_pandas(df=df_pd_from_pl, time="block_timestamp", src="inputs_address", dst="outputs_address")
-    end = time.perf_counter()
-    convert_time = mid - start
-    ingestion_time = end - mid
-    total_time = end - start
-    print(
-        f"[polars->pandas] convert use_pyarrow_extension_array={use_pyarrow} {convert_time:.3f}s, ingest {ingestion_time:.3f}s, "
-        f"total {total_time:.3f}s;"
-    )
-    del g, df_pd_from_pl
+    g.load_edges_from_fireducks(df=df, time="block_timestamp", src="inputs_address", dst="outputs_address")
+    total = time.perf_counter() - start
+    print(f"[fireducks] streaming ingestion took {total:.3f}s for {len(df)} rows, edges: {len(g.edges)}, exploded edges: {len(g.edges.explode())}")
+    del g
     gc.collect()
-    return total_time
+    return total
 
 def bench_polars_native(df: pl.DataFrame) -> float:
     g = Graph()
