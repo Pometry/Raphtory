@@ -17,18 +17,18 @@ use crate::{
     persist::strategy::NoOpStrategy,
     resolver::mapping_resolver::MappingResolver,
     segments::{
-        edge::segment::EdgeSegmentView,
         edge::entry::{MemEdgeEntry, MemEdgeRef},
-        node::segment::NodeSegmentView,
-        node::entry::{MemNodeEntry, MemNodeRef},
+        edge::segment::EdgeSegmentView,
         graph::entry::MemGraphEntry,
+        node::entry::{MemNodeEntry, MemNodeRef},
+        node::segment::NodeSegmentView,
     },
     wal::no_wal::NoWal,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
 use segments::{
-    edge::segment::MemEdgeSegment, graph::GraphSegmentView, node::segment::MemNodeSegment
+    edge::segment::MemEdgeSegment, graph::GraphSegmentView, node::segment::MemNodeSegment,
 };
 
 pub mod api;

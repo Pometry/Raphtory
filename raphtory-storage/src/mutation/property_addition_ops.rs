@@ -54,40 +54,28 @@ pub trait InternalPropertyAdditionOps {
 impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     type Error = MutationError;
 
+    // FIXME: this can't fail
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         let mut writer = self.storage().graph().writer();
-
-        // TODO: props should be passed as a vec instead of cloning
-        let props: Vec<_> = props.iter().map(|(id, prop)| (*id, prop.clone())).collect();
-
-        writer.add_properties(t, props);
-
+        writer.add_properties(t, props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 
+    // FIXME: this can't fail
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         let mut writer = self.storage().graph().writer();
-
-        // TODO: props should be passed as a vec instead of cloning
-        let props: Vec<_> = props.iter().map(|(id, prop)| (*id, prop.clone())).collect();
-
-        writer.add_metadata(props);
-
+        writer.add_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 
+    // FIXME: this can't fail
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         let mut writer = self.storage().graph().writer();
-
-        // TODO: props should be passed as a vec instead of cloning
-        let props: Vec<_> = props.iter().map(|(id, prop)| (*id, prop.clone())).collect();
-
-        writer.update_metadata(props);
-
+        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 

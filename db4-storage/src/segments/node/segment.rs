@@ -312,7 +312,7 @@ impl MemNodeSegment {
         Ok(())
     }
 
-    pub fn update_c_props(
+    pub fn update_metadata(
         &mut self,
         node_pos: LocalPOS,
         layer_id: usize,
@@ -556,11 +556,10 @@ mod test {
     use tempfile::tempdir;
 
     use crate::{
-        LocalPOS,
+        LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::strategy::NoOpStrategy,
-        NodeSegmentView,
     };
 
     #[test]
