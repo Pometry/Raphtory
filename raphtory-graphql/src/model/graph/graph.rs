@@ -28,7 +28,7 @@ use raphtory::{
         api::{
             properties::dyn_props::DynProperties,
             view::{
-                BaseFilterOps, DynamicGraph, IntoDynamic, IterFilterOps, NodeViewOps,
+                Filter, DynamicGraph, IntoDynamic, Select, NodeViewOps,
                 SearchableGraphOps, StaticGraphViewOps, TimeOps,
             },
         },

@@ -4,7 +4,7 @@ use crate::{
         utils::time::{Interval, IntoTime},
     },
     db::api::view::{
-        internal::{Filter, GraphTimeSemanticsOps, InternalMaterialize},
+        internal::{InternalFilter, GraphTimeSemanticsOps, InternalMaterialize},
         time::internal::InternalTimeOps,
     },
 };
@@ -18,7 +18,7 @@ use std::{
 
 pub(crate) mod internal {
     use crate::{
-        db::{api::view::internal::Filter, graph::views::window_graph::WindowedGraph},
+        db::{api::view::internal::InternalFilter, graph::views::window_graph::WindowedGraph},
         prelude::{GraphViewOps, TimeOps},
     };
     use std::cmp::{max, min};
@@ -34,7 +34,7 @@ pub(crate) mod internal {
             end: Option<i64>,
         ) -> Self::InternalWindowedView;
     }
-    impl<'graph, E: Filter<'graph> + 'graph> InternalTimeOps<'graph> for E {
+    impl<'graph, E: InternalFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
         type InternalWindowedView = E::Filtered<WindowedGraph<E::Graph>>;
 
         fn timeline_start(&self) -> Option<i64> {
@@ -157,7 +157,7 @@ pub trait TimeOps<'graph>:
         ParseTimeError: From<<I as TryInto<Interval>>::Error>;
 }
 
-impl<'graph, V: Filter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'graph> for V {
+impl<'graph, V: InternalFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'graph> for V {
     type WindowedViewType = V::InternalWindowedView;
 
     fn start(&self) -> Option<i64> {

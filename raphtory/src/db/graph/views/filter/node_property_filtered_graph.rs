@@ -52,6 +52,7 @@ impl<G> NodePropertyFilteredGraph<G> {
 impl CreateFilter for PropertyFilter<Windowed<NodeFilter>> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         NodePropertyFilteredGraph<WindowedGraph<G>>;
+
     type NodeFilter<'graph, G: GraphView + 'graph> = NodePropertyFilteredGraph<WindowedGraph<G>>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
@@ -151,7 +152,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilt
 mod test_node_property_filtered_graph {
     use crate::{
         db::{
-            api::view::{filter_ops::BaseFilterOps, IterFilterOps},
+            api::view::{filter_ops::Filter, Select},
             graph::{
                 assertions::assert_ok_or_missing_nodes,
                 graph::assert_edges_equal,

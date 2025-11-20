@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::internal::{Filter, InternalLayerOps},
+        api::view::internal::{InternalFilter, InternalLayerOps},
         graph::views::layer_graph::LayeredGraph,
     },
     errors::GraphError,
@@ -39,7 +39,7 @@ pub trait LayerOps<'graph> {
     fn num_layers(&self) -> usize;
 }
 
-impl<'graph, V: Filter<'graph> + 'graph> LayerOps<'graph> for V {
+impl<'graph, V: InternalFilter<'graph> + 'graph> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {

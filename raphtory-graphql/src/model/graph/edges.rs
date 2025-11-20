@@ -15,7 +15,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{internal::Filter, DynamicGraph, IterFilterOps},
+        api::view::{internal::InternalFilter, DynamicGraph, Select},
         graph::{edges::Edges, views::filter::model::edge_filter::CompositeEdgeFilter},
     },
     errors::GraphError,
@@ -25,7 +25,7 @@ use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
 
 use crate::model::graph::filtering::GqlEdgeFilter;
-use raphtory::db::api::view::BaseFilterOps;
+use raphtory::db::api::view::Filter;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]

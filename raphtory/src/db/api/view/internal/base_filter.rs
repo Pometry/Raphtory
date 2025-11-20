@@ -1,9 +1,9 @@
 use crate::prelude::GraphViewOps;
 
-pub trait Filter<'graph> {
+pub trait InternalFilter<'graph> {
     type Graph: GraphViewOps<'graph> + 'graph;
 
-    type Filtered<FilteredGraph: GraphViewOps<'graph> + 'graph>: Filter<
+    type Filtered<FilteredGraph: GraphViewOps<'graph> + 'graph>: InternalFilter<
         'graph,
         Graph = FilteredGraph,
     >;
@@ -16,10 +16,10 @@ pub trait Filter<'graph> {
     ) -> Self::Filtered<FilteredGraph>;
 }
 
-pub trait IterFilter<'graph> {
+pub trait InternalSelect<'graph> {
     type IterGraph: GraphViewOps<'graph> + 'graph;
 
-    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph>: IterFilter<'graph>;
+    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph>: InternalSelect<'graph>;
 
     fn iter_graph(&self) -> &Self::IterGraph;
 

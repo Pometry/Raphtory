@@ -147,7 +147,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgePropertyFilt
 mod test_edge_property_filtered_graph {
     use crate::{
         db::{
-            api::view::filter_ops::BaseFilterOps,
+            api::view::filter_ops::Filter,
             graph::{
                 assertions::assert_ok_or_missing_edges,
                 graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
@@ -169,6 +169,7 @@ mod test_edge_property_filtered_graph {
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::entities::properties::prop::PropType;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use crate::db::graph::views::filter::model::node_filter::NodeFilterBuilderOps;
 
     #[test]
     fn test_edge_filter2() {

@@ -34,7 +34,7 @@ use crate::{
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{
-            node::internal::Filter,
+            node::internal::InternalFilter,
             properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},

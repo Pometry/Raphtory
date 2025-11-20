@@ -83,7 +83,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeTypeFiltered
 mod tests_node_type_filtered_subgraph {
     use crate::{
         db::{
-            api::view::filter_ops::BaseFilterOps,
+            api::view::filter_ops::Filter,
             graph::{
                 graph::assert_graph_equal,
                 views::filter::model::{
@@ -447,7 +447,7 @@ mod tests_node_type_filtered_subgraph {
         mod test_edges_filters_node_type_filtered_subgraph {
             use crate::{
                 db::{
-                    api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
+                    api::view::{internal::FilterOps, Filter, StaticGraphViewOps},
                     graph::views::filter::model::property_filter::PropertyFilterOps,
                 },
                 prelude::{AdditionOps, NO_PROPS},

@@ -4,7 +4,7 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::{Filter, FilterOps, IterFilter, Static},
+                internal::{InternalFilter, FilterOps, InternalSelect, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -203,7 +203,7 @@ impl<'graph, G: GraphViewOps<'graph>> IntoIterator for PathFromGraph<'graph, G> 
     }
 }
 
-impl<'graph, Current> Filter<'graph> for PathFromGraph<'graph, Current>
+impl<'graph, Current> InternalFilter<'graph> for PathFromGraph<'graph, Current>
 where
     Current: GraphViewOps<'graph>,
 {
@@ -226,7 +226,7 @@ where
     }
 }
 
-impl<'graph, G> IterFilter<'graph> for PathFromGraph<'graph, G>
+impl<'graph, G> InternalSelect<'graph> for PathFromGraph<'graph, G>
 where
     G: GraphViewOps<'graph>,
 {
@@ -423,7 +423,7 @@ impl<'graph, G: GraphViewOps<'graph>> IntoIterator for PathFromNode<'graph, G> {
     }
 }
 
-impl<'graph, Current> Filter<'graph> for PathFromNode<'graph, Current>
+impl<'graph, Current> InternalFilter<'graph> for PathFromNode<'graph, Current>
 where
     Current: GraphViewOps<'graph>,
 {
@@ -445,7 +445,7 @@ where
     }
 }
 
-impl<'graph, G> IterFilter<'graph> for PathFromNode<'graph, G>
+impl<'graph, G> InternalSelect<'graph> for PathFromNode<'graph, G>
 where
     G: GraphViewOps<'graph>,
 {

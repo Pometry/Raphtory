@@ -1161,7 +1161,7 @@ mod views_test {
 
             use crate::{
                 db::{
-                    api::view::filter_ops::BaseFilterOps,
+                    api::view::filter_ops::Filter,
                     graph::{
                         assertions::WindowGraphTransformer,
                         views::filter::model::{
@@ -3292,7 +3292,7 @@ mod views_test {
         mod test_edges_filters_window_graph {
             use crate::{
                 db::{
-                    api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
+                    api::view::{filter_ops::Filter, StaticGraphViewOps},
                     graph::{
                         assertions::{
                             assert_filter_edges_results, assert_search_edges_results,
@@ -3311,6 +3311,7 @@ mod views_test {
             };
             use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
             use std::sync::Arc;
+            use crate::db::graph::views::filter::model::node_filter::NodeFilterBuilderOps;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,

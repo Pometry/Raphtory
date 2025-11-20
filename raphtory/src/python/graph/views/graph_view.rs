@@ -4,8 +4,8 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             view::{
-                filter_ops::BaseFilterOps,
-                internal::{DynamicGraph, Filter, IntoDynHop, IntoDynamic, MaterializedGraph},
+                filter_ops::Filter,
+                internal::{DynamicGraph, InternalFilter, IntoDynHop, IntoDynamic, MaterializedGraph},
                 LayerOps, StaticGraphViewOps,
             },
         },

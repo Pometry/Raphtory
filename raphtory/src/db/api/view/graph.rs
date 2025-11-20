@@ -922,7 +922,7 @@ pub trait StaticGraphViewOps: GraphView + 'static {}
 
 impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
-impl<'graph, G> Filter<'graph> for G
+impl<'graph, G> InternalFilter<'graph> for G
 where
     G: GraphViewOps<'graph> + 'graph,
 {

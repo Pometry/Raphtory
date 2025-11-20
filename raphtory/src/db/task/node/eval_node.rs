@@ -12,7 +12,7 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::{Filter, GraphView},
+                internal::{InternalFilter, GraphView},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
             },
         },
@@ -358,7 +358,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
     }
 }
 
-impl<'graph, 'a, S, CS, Current> Filter<'graph> for EvalPathFromNode<'graph, 'a, Current, CS, S>
+impl<'graph, 'a, S, CS, Current> InternalFilter<'graph> for EvalPathFromNode<'graph, 'a, Current, CS, S>
 where
     'a: 'graph,
     Current: GraphViewOps<'graph>,
@@ -383,7 +383,7 @@ where
     }
 }
 
-impl<'graph, 'a, Current, S, CS> Filter<'graph> for EvalNodeView<'graph, 'a, Current, S, CS>
+impl<'graph, 'a, Current, S, CS> InternalFilter<'graph> for EvalNodeView<'graph, 'a, Current, S, CS>
 where
     'a: 'graph,
     Current: GraphViewOps<'graph>,

@@ -7,7 +7,7 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{Filter, FilterOps, NodeList, Static},
+                internal::{InternalFilter, FilterOps, NodeList, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -389,7 +389,7 @@ where
     }
 }
 
-impl<'graph, G, Current, F> Filter<'graph> for Nodes<'graph, G, Current, F>
+impl<'graph, G, Current, F> InternalFilter<'graph> for Nodes<'graph, G, Current, F>
 where
     G: GraphViewOps<'graph> + 'graph,
     Current: GraphViewOps<'graph> + 'graph,

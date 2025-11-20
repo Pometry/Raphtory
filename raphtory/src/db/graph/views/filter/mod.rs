@@ -136,7 +136,7 @@ pub(crate) mod test_filters {
         mod test_node_property_filter_semantics {
             use crate::{
                 db::{
-                    api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
+                    api::view::{filter_ops::Filter, StaticGraphViewOps},
                     graph::{
                         assertions::{
                             assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
@@ -480,7 +480,7 @@ pub(crate) mod test_filters {
         mod test_edge_property_filter_semantics {
             use crate::{
                 db::{
-                    api::view::{filter_ops::BaseFilterOps, EdgeViewOps, StaticGraphViewOps},
+                    api::view::{filter_ops::Filter, EdgeViewOps, StaticGraphViewOps},
                     graph::{
                         assertions::{
                             assert_filter_edges_results, assert_search_edges_results,
@@ -2330,6 +2330,8 @@ pub(crate) mod test_filters {
         };
         use raphtory_api::core::entities::properties::prop::Prop;
         use std::vec;
+        use crate::db::graph::views::filter::model::property_filter::ElemQualifierOps;
+        use crate::db::graph::views::filter::model::TemporalPropertyFilterFactory;
 
         #[test]
         fn test_exact_match() {
@@ -7705,6 +7707,10 @@ pub(crate) mod test_filters {
                 },
             },
         };
+        use crate::db::graph::views::filter::model::node_filter::NodeFilterBuilderOps;
+        use crate::db::graph::views::filter::model::node_filter::NodeIdFilterBuilderOps;
+        use crate::db::graph::views::filter::model::{PropertyFilterFactory, TemporalPropertyFilterFactory};
+        use crate::db::graph::views::filter::model::property_filter::ListAggOps;
 
         #[test]
         fn test_filter_edges_src_property_eq() {
@@ -8860,6 +8866,8 @@ pub(crate) mod test_filters {
             },
         };
         use raphtory_api::core::entities::properties::prop::Prop;
+        use crate::db::graph::views::filter::model::property_filter::ElemQualifierOps;
+        use crate::db::graph::views::filter::model::TemporalPropertyFilterFactory;
 
         #[test]
         fn test_filter_edges_for_property_eq() {
@@ -10228,9 +10236,9 @@ pub(crate) mod test_filters {
                     ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
                 },
                 test_filters::{init_edges_graph, IdentityGraphTransformer},
-                // EdgeFieldFilter,
             },
         };
+        use crate::db::graph::views::filter::model::node_filter::NodeFilterBuilderOps;
 
         // #[test]
         // fn test_filter_edge_for_src_dst() {

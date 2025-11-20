@@ -20,7 +20,7 @@ use crate::{
                 Metadata, Properties,
             },
             view::{
-                internal::{EdgeTimeSemanticsOps, Filter, GraphView, Static},
+                internal::{EdgeTimeSemanticsOps, InternalFilter, GraphView, Static},
                 BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -637,7 +637,7 @@ impl<G> From<EdgeView<G>> for EdgeRef {
     }
 }
 
-impl<'graph, Current> Filter<'graph> for EdgeView<Current>
+impl<'graph, Current> InternalFilter<'graph> for EdgeView<Current>
 where
     Current: GraphViewOps<'graph>,
 {

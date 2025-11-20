@@ -10,7 +10,7 @@ use raphtory::{
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
-            view::{BaseFilterOps, SearchableGraphOps},
+            view::{Filter, SearchableGraphOps},
         },
         graph::{
             edge::EdgeView,
@@ -20,7 +20,7 @@ use raphtory::{
                 filter_operator::{FilterOperator, FilterOperator::*},
                 node_filter::{NodeFilter, NodeFilterBuilderOps},
                 property_filter::{
-                    InternalPropertyFilterOps, PropertyFilterBuilder, PropertyFilterOps,
+                    InternalPropertyFilterBuilderOps, PropertyFilterBuilder, PropertyFilterOps,
                 },
                 ComposableFilter, PropertyFilterFactory,
             },
@@ -200,7 +200,7 @@ fn convert_to_property_filter<M>(
 ) -> Option<PropertyFilter<M>>
 where
     M: PropertyFilterFactory + Default,
-    PropertyFilterBuilder<M>: PropertyFilterOps + InternalPropertyFilterOps<Marker = M>,
+    PropertyFilterBuilder<M>: PropertyFilterOps + InternalPropertyFilterBuilderOps<Marker = M>,
 {
     let mut rng = thread_rng();
 

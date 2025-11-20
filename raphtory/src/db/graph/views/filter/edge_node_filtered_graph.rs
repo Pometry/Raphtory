@@ -1,3 +1,5 @@
+use crate::db::api::state::ops::NodeFilterOp;
+use crate::db::api::view::internal::{GraphView, InternalNodeFilterOps};
 use crate::{
     db::{
         api::{
@@ -23,16 +25,16 @@ use raphtory_storage::{
 pub struct EdgeNodeFilteredGraph<G, F> {
     graph: G,
     endpoint: Endpoint,
-    filtered_graph: F,
+    filter: F,
 }
 
 impl<G, F> EdgeNodeFilteredGraph<G, F> {
     #[inline]
-    pub fn new(graph: G, endpoint: Endpoint, filtered_graph: F) -> Self {
+    pub fn new(graph: G, endpoint: Endpoint, filter: F) -> Self {
         Self {
             graph,
             endpoint,
-            filtered_graph,
+            filter,
         }
     }
 }
@@ -48,58 +50,20 @@ impl<G, F> Base for EdgeNodeFilteredGraph<G, F> {
 impl<G, F> Static for EdgeNodeFilteredGraph<G, F> {}
 impl<G, F> Immutable for EdgeNodeFilteredGraph<G, F> {}
 
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritCoreGraphOps
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritStorageOps
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritLayerOps
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritListOps
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritMaterialize
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritNodeFilterOps
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritPropertiesOps
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritTimeSemantics
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritNodeHistoryFilter
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritEdgeHistoryFilter
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritEdgeLayerFilterOps
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps
-    for EdgeNodeFilteredGraph<G, F>
-{
-}
+impl<G: GraphView, F: NodeFilterOp> InheritCoreGraphOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritStorageOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritLayerOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritListOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritMaterialize for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritNodeFilterOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritPropertiesOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritTimeSemantics for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritNodeHistoryFilter for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritEdgeHistoryFilter for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritEdgeLayerFilterOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritExplodedEdgeFilterOps for EdgeNodeFilteredGraph<G, F> {}
 
-impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InternalEdgeFilterOps
-    for EdgeNodeFilteredGraph<G, F>
-{
+impl<G: GraphView, F: NodeFilterOp> InternalEdgeFilterOps for EdgeNodeFilteredGraph<G, F> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
         true
@@ -116,14 +80,11 @@ impl<'graph, G: GraphViewOps<'graph>, F: GraphViewOps<'graph>> InternalEdgeFilte
             return false;
         }
 
-        let src_binding = self.graph.core_node(edge.src());
-        let dst_binding = self.graph.core_node(edge.dst());
-        let node_ref = match self.endpoint {
-            Endpoint::Src => src_binding.as_ref(),
-            Endpoint::Dst => dst_binding.as_ref(),
+        let vid = match self.endpoint {
+            Endpoint::Src => edge.src(),
+            Endpoint::Dst => edge.dst(),
         };
 
-        self.filtered_graph
-            .internal_filter_node(node_ref, layer_ids)
+        self.filter.apply(self.graph.core_graph(), vid)
     }
 }

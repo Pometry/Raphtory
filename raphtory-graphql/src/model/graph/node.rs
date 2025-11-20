@@ -17,7 +17,7 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
-            view::{BaseFilterOps, *},
+            view::{Filter, *},
         },
         graph::{
             node::NodeView,

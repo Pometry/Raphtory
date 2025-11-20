@@ -190,7 +190,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
 mod test_exploded_edge_property_filtered_graph {
     use crate::{
         db::{
-            api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
+            api::view::{filter_ops::Filter, StaticGraphViewOps},
             graph::{
                 assertions::assert_ok_or_missing_edges,
                 edge::EdgeView,
