@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1762437154085,
+  "lastUpdate": 1763634286599,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2159,6 +2159,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1313,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a44116727e270a84bb6ddf2d065973c24ba1018",
+          "message": "Updating python version (#2388)\n\nupdating python version",
+          "timestamp": "2025-11-20T09:49:43Z",
+          "tree_id": "0d76a403429fb672c939995c6de2e907cddf450f",
+          "url": "https://github.com/Pometry/Raphtory/commit/3a44116727e270a84bb6ddf2d065973c24ba1018"
+        },
+        "date": 1763634283163,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1352,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 144,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 139,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1147,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 747,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1345,
             "unit": "req/s"
           }
         ]
