@@ -85,13 +85,13 @@ repo_name: pometry/raphtory
 nav:
   - Home: index.md
   - User Guide:
-      - user-guide/installation.md
       - Get started:
         - user-guide/getting-started/0_dummy_index.md
-        - user-guide/getting-started/1_intro.md
-        - user-guide/getting-started/2_UI_overview.md
-        - user-guide/getting-started/3_cli.md
-        - user-guide/getting-started/4_key_concepts.md
+        - user-guide/getting-started/10_installation.md
+        - user-guide/getting-started/20_intro.md
+        - user-guide/getting-started/30_UI_overview.md
+        - user-guide/getting-started/40_cli.md
+        - user-guide/getting-started/50_key_concepts.md
       - Ingestion:
           - user-guide/ingestion/0_dummy_index.md
           - user-guide/ingestion/1_intro.md
