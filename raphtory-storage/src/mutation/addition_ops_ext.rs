@@ -26,11 +26,6 @@ use storage::{
     Extension, WalImpl, ES, GS, NS,
 };
 
-use crate::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-    MutationError,
-};
-
 pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
     static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
 }

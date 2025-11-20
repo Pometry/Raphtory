@@ -4,21 +4,19 @@ use std::sync::{
 };
 
 use crate::paths::ExistingGraphFolder;
-use once_cell::sync::OnceCell;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::view::{
             internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
-                InternalStorageOps, Static,
+                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
             },
             Base, InheritViewOps, MaterializedGraph,
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, Graph, GraphViewOps, IndexMutationOps, NodeViewOps, PropertiesOps, StableDecode},
+    prelude::{EdgeViewOps, Graph, StableDecode},
     serialise::GraphFolder,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };

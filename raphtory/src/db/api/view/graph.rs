@@ -254,9 +254,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         node_meta.set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
         node_meta.set_temporal_prop_mapper(self.node_meta().temporal_prop_mapper().deep_clone());
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
-        edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
+        edge_meta.set_temporal_prop_mapper(self.edge_meta().temporal_prop_mapper().deep_clone());
         graph_meta.set_metadata_mapper(self.graph_meta().metadata_mapper().deep_clone());
-        graph_meta.set_temporal_prop_meta(self.graph_meta().temporal_prop_mapper().deep_clone());
+        graph_meta.set_temporal_prop_mapper(self.graph_meta().temporal_prop_mapper().deep_clone());
 
         let temporal_graph = TemporalGraph::new_with_meta(
             path.map(|p| p.into()),
@@ -266,9 +266,6 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             storage.extension().clone(),
         )
         .unwrap();
-
-        // Copy all graph properties
-        temporal_graph.graph_meta = self.graph_meta().deep_clone().into();
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {

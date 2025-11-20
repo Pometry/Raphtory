@@ -33,18 +33,10 @@ pub fn make_graph_from_edges<
     edges: &[(VID, VID, Option<usize>)], // src, dst, optional layer_id
     graph_dir: &Path,
     par_load: bool,
-    check_load: bool,
     make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
-) {
-    let mut edges = edges
-        .into_iter()
-        .map(|(src, dst, layer_id)| (src.into(), dst.into(), layer_id))
-        .collect::<Vec<_>>();
-
-    let graph_dir = tempfile::tempdir().unwrap();
-    let graph = make_graph(graph_dir.path());
-    let mut nodes = HashSet::new();
-    for (_, _, layer) in &edges {
+) -> GraphStore<NS, ES, GS, EXT> {
+    let graph = make_graph(graph_dir);
+    for (_, _, layer) in edges {
         if let Some(layer) = layer {
             for layer in 0..=*layer {
                 let name = layer.to_string();
@@ -97,12 +89,13 @@ pub fn make_graph_from_edges<
 pub fn check_edges_support<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropOps<Extension = EXT>,
     EXT: PersistentStrategy,
 >(
     edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
     par_load: bool,
     check_load: bool,
-    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
+    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
 ) {
     let mut edges = edges
         .into_iter()
