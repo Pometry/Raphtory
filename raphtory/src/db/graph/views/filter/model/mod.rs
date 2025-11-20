@@ -6,7 +6,7 @@ use crate::db::graph::views::filter::model::node_filter::{
     InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
 };
 use crate::db::graph::views::filter::model::property_filter::{
-    CombinedFilter, InternalPropertyFilterBuilderOps, Op, OpChainBuilder, PropertyFilterOps,
+    CombinedFilter, InternalPropertyFilterBuilderOps, OpChainBuilder, PropertyFilterOps,
     PropertyRef,
 };
 use crate::db::graph::views::window_graph::WindowedGraph;

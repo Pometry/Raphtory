@@ -1,3 +1,4 @@
+use crate::db::api::state::ops::filter::NodeNameFilterOp;
 use crate::{
     db::{
         api::{
@@ -19,7 +20,6 @@ use crate::{
                 Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
-            node_type_filtered_graph::NodeTypeFilteredGraph,
         },
     },
     errors::GraphError,
@@ -28,7 +28,6 @@ use crate::{
 use raphtory_api::core::entities::{GidType, GID};
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
-use crate::db::api::state::ops::filter::NodeNameFilterOp;
 
 #[derive(Debug, Clone)]
 pub struct NodeIdFilter(pub Filter);
@@ -82,7 +81,7 @@ impl From<Filter> for NodeNameFilter {
 }
 
 impl CreateFilter for NodeNameFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G,NodeNameFilterOp>;
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeNameFilterOp>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeNameFilterOp;
 
@@ -117,7 +116,7 @@ impl From<Filter> for NodeTypeFilter {
 }
 
 impl CreateFilter for NodeTypeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeTypeFilteredGraph<G>;
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeTypeFilterOp>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeTypeFilterOp;
 
@@ -132,7 +131,10 @@ impl CreateFilter for NodeTypeFilter {
             .iter()
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
-        Ok(NodeTypeFilteredGraph::new(graph, node_types_filter.into()))
+        Ok(NodeFilteredGraph::new(
+            graph,
+            TypeId.mask(node_types_filter.into()),
+        ))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(

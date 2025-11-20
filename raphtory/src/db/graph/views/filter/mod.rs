@@ -5,7 +5,6 @@ pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
 pub mod model;
 pub(crate) mod node_filtered_graph;
-pub mod node_type_filtered_graph;
 pub mod not_filtered_graph;
 pub mod or_filtered_graph;
 
