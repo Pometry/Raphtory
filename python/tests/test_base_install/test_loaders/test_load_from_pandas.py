@@ -1418,7 +1418,9 @@ def test_load_date32_from_pandas():
         datetime.date(1970, 1, 5),
         datetime.date(1970, 1, 6),
     ]
-    ts = pd.to_datetime(["1970-01-04", "1970-01-05", "1970-01-06"]).astype(arrow_date32_dtype)
+    ts = pd.to_datetime(["1970-01-04", "1970-01-05", "1970-01-06"]).astype(
+        arrow_date32_dtype
+    )
     df = pd.DataFrame(
         {
             "time": ts,
@@ -1470,7 +1472,9 @@ def test_load_date32_from_pandas():
         datetime.date(1970, 1, 11),
         datetime.date(1970, 1, 12),
     ]
-    ts = pd.to_datetime(["1970-01-10", "1970-01-11", "1970-01-12"]).astype(arrow_date32_dtype)
+    ts = pd.to_datetime(["1970-01-10", "1970-01-11", "1970-01-12"]).astype(
+        arrow_date32_dtype
+    )
     df = pd.DataFrame(
         {
             "id": [10_000, 20_000, 30_000],
@@ -1489,13 +1493,19 @@ def test_load_date32_from_pandas():
     )
     df = pd.DataFrame({"id": [100_000, 200_000, 300_000], "time": ts})
     g.load_nodes_from_pandas(df=df, time="time", id="id")
-    expected_node_datetimes[100_000] = datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc)
-    expected_node_datetimes[200_000] = datetime.datetime(2021, 1, 2, 12, 0, tzinfo=datetime.timezone.utc)
-    expected_node_datetimes[300_000] = datetime.datetime(2021, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc)
+    expected_node_datetimes[100_000] = datetime.datetime(
+        2021, 1, 1, tzinfo=datetime.timezone.utc
+    )
+    expected_node_datetimes[200_000] = datetime.datetime(
+        2021, 1, 2, 12, 0, tzinfo=datetime.timezone.utc
+    )
+    expected_node_datetimes[300_000] = datetime.datetime(
+        2021, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc
+    )
 
     # check equality
     actual_node_datetimes = {v.id: v.history_date_time()[0] for v in g.nodes}
-    for (id, dt) in expected_node_datetimes.items():
+    for id, dt in expected_node_datetimes.items():
         assert actual_node_datetimes[id] == dt
 
     actual_edge_times = sorted([e.time for e in g.edges.explode()])
@@ -1542,7 +1552,12 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
 """
     p = tmp_path / "edges_2.csv"
     p.write_text(csv_2)
-    df = pd.read_csv(p, usecols=["src", "dst", "time_dt", "value"], engine="pyarrow", dtype_backend="pyarrow")
+    df = pd.read_csv(
+        p,
+        usecols=["src", "dst", "time_dt", "value"],
+        engine="pyarrow",
+        dtype_backend="pyarrow",
+    )
     # ensure it’s datetime
     if "datetime" not in str(df["time_dt"].dtype):
         df["time_dt"] = pd.to_datetime(df["time_dt"], utc=True)
@@ -1555,7 +1570,10 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
         datetime.datetime(2020, 1, 6, tzinfo=datetime.timezone.utc),
     ]
     # check time_dt separately because it's a datetime, not str
-    assert sorted(e.properties["time_dt"] for e in g.edges if "time_dt" in e.properties) == expected_time_dt
+    assert (
+        sorted(e.properties["time_dt"] for e in g.edges if "time_dt" in e.properties)
+        == expected_time_dt
+    )
     expected_edge_times.extend(expected_time_dt)
     expected_edge_values.extend([100, 200, 300])
 
@@ -1598,23 +1616,31 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
     cols = ["src", "dst", "time", "value"]
     df = pd.read_csv(p, usecols=cols, engine="c")
     assert "string" in str(df["time"].dtype) or df["time"].dtype == object
-    g.load_edges_from_pandas(df=df, time="time", src="src", dst="dst", properties=["value", "time"])
-    expected_edge_times.extend([
-        datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
-        datetime.datetime(2021, 1, 2, 13, 0, 0, tzinfo=datetime.timezone.utc),
-        datetime.datetime(2021, 1, 3, tzinfo=datetime.timezone.utc),
-        datetime.datetime(2021, 1, 4, 12, 34, 56, 789000, tzinfo=datetime.timezone.utc),
-        datetime.datetime(2021, 1, 5, 23, 59, 59, tzinfo=datetime.timezone.utc),
-        datetime.datetime(2021, 1, 6, tzinfo=datetime.timezone.utc),
-    ])
-    expected_edge_time_props.extend([
-        "2021-01-01T00:00:00Z",
-        "2021-01-03",
-        "2021-01-04T12:34:56.789",
-        "2021-01-05 23:59:59.000",
-        "2021-01-06T00:00:00",
-        'Sat, 02 Jan 2021 13:00:00 GMT',
-    ])
+    g.load_edges_from_pandas(
+        df=df, time="time", src="src", dst="dst", properties=["value", "time"]
+    )
+    expected_edge_times.extend(
+        [
+            datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2021, 1, 2, 13, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2021, 1, 3, tzinfo=datetime.timezone.utc),
+            datetime.datetime(
+                2021, 1, 4, 12, 34, 56, 789000, tzinfo=datetime.timezone.utc
+            ),
+            datetime.datetime(2021, 1, 5, 23, 59, 59, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2021, 1, 6, tzinfo=datetime.timezone.utc),
+        ]
+    )
+    expected_edge_time_props.extend(
+        [
+            "2021-01-01T00:00:00Z",
+            "2021-01-03",
+            "2021-01-04T12:34:56.789",
+            "2021-01-05 23:59:59.000",
+            "2021-01-06T00:00:00",
+            "Sat, 02 Jan 2021 13:00:00 GMT",
+        ]
+    )
     expected_edge_values.extend([1000, 2000, 3000, 4000, 5000, 6000])
 
     # Load nodes with various time formats
@@ -1632,12 +1658,24 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
     df = pd.read_csv(p, usecols=cols, engine="c")
     assert "string" in str(df["time"].dtype) or df["time"].dtype == object
     g.load_nodes_from_pandas(df=df, time="time", id="id", properties=["time"])
-    expected_node_times[10_000] = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
-    expected_node_times[20_000] = datetime.datetime(2022, 1, 2, 13, 0, 0, tzinfo=datetime.timezone.utc)
-    expected_node_times[30_000] = datetime.datetime(2022, 1, 3, tzinfo=datetime.timezone.utc)
-    expected_node_times[40_000] = datetime.datetime(2022, 1, 4, 12, 34, 56, 789000, tzinfo=datetime.timezone.utc)
-    expected_node_times[50_000] = datetime.datetime(2022, 1, 5, 23, 59, 59, tzinfo=datetime.timezone.utc)
-    expected_node_times[60_000] = datetime.datetime(2022, 1, 6, tzinfo=datetime.timezone.utc)
+    expected_node_times[10_000] = datetime.datetime(
+        2022, 1, 1, tzinfo=datetime.timezone.utc
+    )
+    expected_node_times[20_000] = datetime.datetime(
+        2022, 1, 2, 13, 0, 0, tzinfo=datetime.timezone.utc
+    )
+    expected_node_times[30_000] = datetime.datetime(
+        2022, 1, 3, tzinfo=datetime.timezone.utc
+    )
+    expected_node_times[40_000] = datetime.datetime(
+        2022, 1, 4, 12, 34, 56, 789000, tzinfo=datetime.timezone.utc
+    )
+    expected_node_times[50_000] = datetime.datetime(
+        2022, 1, 5, 23, 59, 59, tzinfo=datetime.timezone.utc
+    )
+    expected_node_times[60_000] = datetime.datetime(
+        2022, 1, 6, tzinfo=datetime.timezone.utc
+    )
     expected_node_time_props[10_000] = "2022-01-01T00:00:00Z"
     expected_node_time_props[20_000] = "Sun, 02 Jan 2022 13:00:00 GMT"
     expected_node_time_props[30_000] = "2022-01-03"
@@ -1647,11 +1685,16 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
 
     # check edges
     assert sorted(e.history_date_time()[0] for e in g.edges) == expected_edge_times
-    assert sorted(e.properties["time"] for e in g.edges if "time" in e.properties) == expected_edge_time_props
+    assert (
+        sorted(e.properties["time"] for e in g.edges if "time" in e.properties)
+        == expected_edge_time_props
+    )
     assert sorted(e.properties["value"] for e in g.edges) == expected_edge_values
 
     # check nodes
     actual_node_times = {v.id: v.history_date_time()[0] for v in g.nodes}
-    for (id, dt) in expected_node_times.items():
+    for id, dt in expected_node_times.items():
         assert actual_node_times[id] == dt
-    assert {v.id: v.properties["time"] for v in g.nodes if "time" in v.properties} == expected_node_time_props
+    assert {
+        v.id: v.properties["time"] for v in g.nodes if "time" in v.properties
+    } == expected_node_time_props
