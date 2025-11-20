@@ -34,7 +34,7 @@ macro_rules! py_nested_iterable_base {
 // Internal macro to create basic methods for a nested iterable
 macro_rules! _py_nested_iterable_methods {
     ($name:ident, $pyitem:ty) => {
-        _py_iterable_base_methods!($name, $crate::python::utils::PyNestedGenericIterator);
+        py_iterable_base_methods!($name, $crate::python::utils::PyNestedGenericIterator);
 
         #[pymethods]
         impl $name {

@@ -9,7 +9,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{properties::tprop::TPropOps, EID, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::EventTime,
     },
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
@@ -29,11 +29,11 @@ impl GraphTimeSemanticsOps for GraphStorage {
         TimeSemantics::event()
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<EventTime> {
         None
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<EventTime> {
         None
     }
 
@@ -57,17 +57,17 @@ impl GraphTimeSemanticsOps for GraphStorage {
         }
     }
 
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).first_t())
+            .flat_map(|node| node.additions().range(start..end).first_t())
             .min()
     }
 
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).last_t())
+            .flat_map(|node| node.additions().range(start..end).last_t())
             .max()
     }
 
@@ -75,7 +75,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id < self.graph_meta().temporal_mapper().len()
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
@@ -85,37 +85,31 @@ impl GraphTimeSemanticsOps for GraphStorage {
             .into_dyn_dboxed()
     }
 
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
         self.graph_meta()
             .get_temporal_prop(prop_id)
-            .filter(|p| p.deref().iter_window_t(w).next().is_some())
+            .filter(|p| p.deref().iter_window(w).next().is_some())
             .is_some()
     }
 
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+        start: EventTime,
+        end: EventTime,
+    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
             .flat_map(move |prop| {
                 GenLockedDIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_dboxed()
+                    prop.deref().iter_window(start..end).into_dyn_dboxed()
                 })
             })
             .into_dyn_dboxed()
     }
 
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: TimeIndexEntry,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .and_then(|p| p.deref().last_before(t.next()))
@@ -124,10 +118,9 @@ impl GraphTimeSemanticsOps for GraphStorage {
     fn temporal_prop_last_at_window(
         &self,
         prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> Option<(TimeIndexEntry, Prop)> {
-        let w = TimeIndexEntry::range(w);
+        t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
             self.graph_meta().get_temporal_prop(prop_id).and_then(|p| {
                 p.deref()
@@ -145,7 +138,7 @@ impl NodeHistoryFilter for GraphStorage {
         &self,
         _prop_id: usize,
         _node_id: VID,
-        _time: TimeIndexEntry,
+        _time: EventTime,
     ) -> bool {
         // let nse = self.core_node_entry(node_id);
         // nse.tprop(prop_id).at(&time).is_some()
@@ -156,20 +149,15 @@ impl NodeHistoryFilter for GraphStorage {
         &self,
         _prop_id: usize,
         _node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
-        w.contains(&time.t())
+        w.contains(&time)
     }
 
-    fn is_node_prop_update_latest(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: TimeIndexEntry,
-    ) -> bool {
+    fn is_node_prop_update_latest(&self, prop_id: usize, node_id: VID, time: EventTime) -> bool {
         let nse = self.core_node(node_id);
-        let x = nse.tprop(prop_id).active(time.next()..TimeIndexEntry::MAX);
+        let x = nse.tprop(prop_id).active(time.next()..EventTime::MAX);
         !x
     }
 
@@ -177,14 +165,12 @@ impl NodeHistoryFilter for GraphStorage {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
-        w.contains(&time.t()) && {
+        w.contains(&time) && {
             let nse = self.core_node(node_id);
-            let x = nse
-                .tprop(prop_id)
-                .active(time.next()..TimeIndexEntry::start(w.end));
+            let x = nse.tprop(prop_id).active(time.next()..w.end);
             !x
         }
     }
@@ -196,7 +182,7 @@ impl EdgeHistoryFilter for GraphStorage {
         _layer_id: usize,
         _prop_id: usize,
         _edge_id: EID,
-        _time: TimeIndexEntry,
+        _time: EventTime,
     ) -> bool {
         // let nse = self.core_node_entry(node_id);
         // nse.tprop(prop_id).at(&time).is_some()
@@ -208,10 +194,10 @@ impl EdgeHistoryFilter for GraphStorage {
         _layer_id: usize,
         _prop_id: usize,
         _edge_id: EID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
-        w.contains(&time.t())
+        w.contains(&time)
     }
 
     /// Latest Edge Property Update Semantics:
@@ -225,7 +211,7 @@ impl EdgeHistoryFilter for GraphStorage {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         let time = time.next();
         let ese = self.core_edge(edge_id);
@@ -234,7 +220,7 @@ impl EdgeHistoryFilter for GraphStorage {
             // Check if any layer has an active update beyond `time`
             let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                 ese.temporal_prop_layer(layer_id, prop_id)
-                    .active(time..TimeIndexEntry::MAX)
+                    .active(time..EventTime::MAX)
             });
 
             // If no layer has a future update, return true
@@ -250,10 +236,10 @@ impl EdgeHistoryFilter for GraphStorage {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
-        w: Range<i64>,
+        time: EventTime,
+        w: Range<EventTime>,
     ) -> bool {
-        w.contains(&time.t()) && {
+        w.contains(&time) && {
             let time = time.next();
             let ese = self.core_edge(edge_id);
 
@@ -261,7 +247,7 @@ impl EdgeHistoryFilter for GraphStorage {
                 // Check if any layer has an active update beyond `time`
                 let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
-                        .active(time..TimeIndexEntry::start(w.end))
+                        .active(time..w.end)
                 });
 
                 // If no layer has a future update, return true
@@ -319,7 +305,7 @@ mod test_graph_storage {
             (5, "N7", "N8", vec![("p1", Prop::U64(1u64))], Some("layer2")),
             (3, "N8", "N1", vec![("p1", Prop::U64(1u64))], Some("layer1")),
             (4, "N8", "N1", vec![("p1", Prop::U64(2u64))], Some("layer2")),
-            // Tests secondary indexes
+            // Tests event ids
             (3, "N9", "N2", vec![("p1", Prop::U64(1u64))], Some("layer1")),
             (3, "N9", "N2", vec![("p1", Prop::U64(2u64))], Some("layer2")),
         ];
@@ -340,7 +326,7 @@ mod test_graph_storage {
             },
             prelude::{Graph, GraphViewOps},
         };
-        use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+        use raphtory_api::core::storage::timeindex::EventTime;
         use raphtory_storage::core_ops::CoreGraphOps;
 
         #[test]
@@ -351,41 +337,41 @@ mod test_graph_storage {
             let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
 
             let node_id = g.node("N1").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(7));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(7));
             assert!(bool);
 
             let node_id = g.node("N2").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(6));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(6));
             assert!(!bool);
 
             let node_id = g.node("N3").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(8));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(8));
             assert!(bool);
 
             let node_id = g.node("N4").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(9));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(9));
             assert!(bool);
 
             let node_id = g.node("N5").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(5));
             assert!(!bool);
 
             let node_id = g.node("N6").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(5));
             assert!(!bool);
             let node_id = g.node("N6").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(6));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(6));
             assert!(bool);
 
             let node_id = g.node("N7").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(3));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(3));
             assert!(!bool);
             let node_id = g.node("N7").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(5));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(5));
             assert!(bool);
 
             let node_id = g.node("N8").unwrap().node;
-            let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(3));
+            let bool = g.is_node_prop_update_latest(prop_id, node_id, EventTime::end(3));
             assert!(!bool);
         }
 
@@ -395,94 +381,54 @@ mod test_graph_storage {
             let g = init_graph_for_nodes_tests(g);
 
             let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
-            let w = 6..9;
+            let w = EventTime::start(6)..EventTime::start(9);
 
             let node_id = g.node("N1").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(7),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(7), w.clone());
             assert!(bool);
 
             let node_id = g.node("N2").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(6),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(6), w.clone());
             assert!(!bool);
 
             let node_id = g.node("N3").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(8),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(8), w.clone());
             assert!(bool);
 
             let node_id = g.node("N4").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(9),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(9), w.clone());
             assert!(!bool);
 
             let node_id = g.node("N5").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(5),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(5), w.clone());
             assert!(!bool);
 
             let node_id = g.node("N6").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(5),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(5), w.clone());
             assert!(!bool);
             let node_id = g.node("N6").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(6),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(6), w.clone());
             assert!(bool);
 
             let node_id = g.node("N7").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(3),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(3), w.clone());
             assert!(!bool);
             let node_id = g.node("N7").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(5),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(5), w.clone());
             assert!(!bool);
 
             let node_id = g.node("N8").unwrap().node;
-            let bool = g.is_node_prop_update_latest_window(
-                prop_id,
-                node_id,
-                TimeIndexEntry::end(3),
-                w.clone(),
-            );
+            let bool =
+                g.is_node_prop_update_latest_window(prop_id, node_id, EventTime::end(3), w.clone());
             assert!(!bool);
         }
     }
@@ -496,7 +442,7 @@ mod test_graph_storage {
             },
             prelude::{Graph, GraphViewOps},
         };
-        use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+        use raphtory_api::core::storage::timeindex::EventTime;
         use raphtory_storage::core_ops::CoreGraphOps;
 
         #[test]
@@ -512,7 +458,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(7),
+                EventTime::end(7),
             );
             assert!(bool);
 
@@ -522,7 +468,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(6),
+                EventTime::end(6),
             );
             assert!(!bool);
 
@@ -532,7 +478,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(8),
+                EventTime::end(8),
             );
             assert!(bool);
 
@@ -542,7 +488,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(9),
+                EventTime::end(9),
             );
             assert!(bool);
 
@@ -552,7 +498,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(5),
+                EventTime::end(5),
             );
             assert!(!bool);
 
@@ -562,7 +508,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(5),
+                EventTime::end(5),
             );
             assert!(!bool);
             let edge_id = g.edge("N6", "N7").unwrap().edge.pid();
@@ -571,7 +517,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(6),
+                EventTime::end(6),
             );
             assert!(bool);
 
@@ -581,7 +527,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(3),
+                EventTime::end(3),
             );
             assert!(!bool);
             let edge_id = g.edge("N7", "N8").unwrap().edge.pid();
@@ -590,7 +536,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(5),
+                EventTime::end(5),
             );
             assert!(bool);
 
@@ -600,13 +546,13 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(3),
+                EventTime::end(3),
             );
             assert!(!bool);
 
-            // TODO: Revisit this test after supporting secondary indexes
+            // TODO: Revisit this test after supporting event ids
             // let edge_id = g.edge("N9", "N2").unwrap().edge.pid();
-            // let bool = g.is_edge_prop_update_latest(prop_id, edge_id, TimeIndexEntry::end(3));
+            // let bool = g.is_edge_prop_update_latest(prop_id, edge_id, EventTime::end(3));
             // assert!(!bool);
         }
 
@@ -616,7 +562,7 @@ mod test_graph_storage {
             let g = init_graph_for_edges_tests(g);
 
             let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
-            let w = 6..9;
+            let w = EventTime::start(6)..EventTime::start(9);
 
             let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(
@@ -624,7 +570,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(7),
+                EventTime::end(7),
                 w.clone(),
             );
             assert!(bool);
@@ -635,7 +581,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(6),
+                EventTime::end(6),
                 w.clone(),
             );
             assert!(!bool);
@@ -646,7 +592,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(8),
+                EventTime::end(8),
                 w.clone(),
             );
             assert!(bool);
@@ -657,7 +603,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(9),
+                EventTime::end(9),
                 w.clone(),
             );
             assert!(!bool);
@@ -668,7 +614,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(5),
+                EventTime::end(5),
                 w.clone(),
             );
             assert!(!bool);
@@ -679,7 +625,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(5),
+                EventTime::end(5),
                 w.clone(),
             );
             assert!(!bool);
@@ -689,7 +635,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(6),
+                EventTime::end(6),
                 w.clone(),
             );
             assert!(bool);
@@ -700,7 +646,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(3),
+                EventTime::end(3),
                 w.clone(),
             );
             assert!(!bool);
@@ -710,7 +656,7 @@ mod test_graph_storage {
                 g.get_layer_id("layer2").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(5),
+                EventTime::end(5),
                 w.clone(),
             );
             assert!(!bool);
@@ -721,14 +667,14 @@ mod test_graph_storage {
                 g.get_layer_id("layer1").unwrap(),
                 prop_id,
                 edge_id,
-                TimeIndexEntry::end(3),
+                EventTime::end(3),
                 w.clone(),
             );
             assert!(!bool);
 
-            // TODO: Revisit this test after supporting secondary indexes
+            // TODO: Revisit this test after supporting event ids
             // let edge_id = g.edge("N9", "N2").unwrap().edge.pid();
-            // let bool = g.is_edge_prop_update_latest_window(prop_id, edge_id, TimeIndexEntry::end(3), w.clone());
+            // let bool = g.is_edge_prop_update_latest_window(prop_id, edge_id, EventTime::end(3), w.clone());
             // assert!(!bool);
         }
     }

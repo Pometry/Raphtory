@@ -7,7 +7,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds, LayerVariants, EID, VID,
     },
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_core::{
     entities::{edges::edge_store::MemEdge, properties::tprop::TProp},
@@ -18,10 +18,10 @@ use std::ops::Range;
 
 #[derive(Clone)]
 pub enum TimeIndexRef<'a> {
-    Ref(&'a TimeIndex<TimeIndexEntry>),
-    Range(TimeIndexWindow<'a, TimeIndexEntry, TimeIndex<TimeIndexEntry>>),
+    Ref(&'a TimeIndex<EventTime>),
+    Range(TimeIndexWindow<'a, EventTime, TimeIndex<EventTime>>),
     #[cfg(feature = "storage")]
-    External(TimeStamps<'a, TimeIndexEntry>),
+    External(TimeStamps<'a, EventTime>),
 }
 
 #[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator, Debug, Clone)]
@@ -33,11 +33,11 @@ pub enum TimeIndexRefVariants<Ref, Range, #[cfg(feature = "storage")] External> 
 }
 
 impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     #[inline(always)]
-    fn active(&self, w: Range<TimeIndexEntry>) -> bool {
+    fn active(&self, w: Range<EventTime>) -> bool {
         match self {
             TimeIndexRef::Ref(t) => t.active(w),
             TimeIndexRef::Range(ref t) => t.active(w),
@@ -46,7 +46,7 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         }
     }
 
-    fn range(&self, w: Range<TimeIndexEntry>) -> Self {
+    fn range(&self, w: Range<EventTime>) -> Self {
         match self {
             TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range(w)),
             TimeIndexRef::Range(ref t) => TimeIndexRef::Range(t.range(w)),

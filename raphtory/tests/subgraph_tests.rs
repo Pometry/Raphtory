@@ -132,7 +132,7 @@ pub mod test_filters_node_subgraph {
         db::{
             api::view::StaticGraphViewOps,
             graph::{
-                assertions::{GraphTransformer, TestGraphVariants},
+                assertions::GraphTransformer,
                 views::{node_subgraph::NodeSubgraph, window_graph::WindowedGraph},
             },
         },

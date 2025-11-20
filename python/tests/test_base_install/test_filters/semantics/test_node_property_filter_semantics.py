@@ -9,7 +9,7 @@ from filters_setup import (
 from utils import with_disk_variants
 
 
-def init_graph_for_secondary_indexes(graph):
+def init_graph_for_event_ids(graph):
     graph.add_node(1, "N16", {"p1": 2})
     graph.add_node(1, "N16", {"p1": 1})
 
@@ -42,9 +42,9 @@ def test_temporal_any_semantics():
 
 
 @with_disk_variants(
-    init_fn=combined([init_nodes_graph, init_graph_for_secondary_indexes]),
+    init_fn=combined([init_nodes_graph, init_graph_for_event_ids]),
 )
-def test_temporal_any_semantics_for_secondary_indexes():
+def test_temporal_any_semantics_for_event_ids():
     def check(graph):
         filter_expr = filter.Property("p1").temporal().any() == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
@@ -68,9 +68,9 @@ def test_temporal_latest_semantics():
 
 
 @with_disk_variants(
-    init_fn=combined([init_nodes_graph, init_graph_for_secondary_indexes]),
+    init_fn=combined([init_nodes_graph, init_graph_for_event_ids]),
 )
-def test_temporal_latest_semantics_for_secondary_indexes():
+def test_temporal_latest_semantics_for_event_ids():
     def check(graph):
         filter_expr = filter.Property("p1").temporal().latest() == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
@@ -93,9 +93,9 @@ def test_property_semantics():
 
 
 @with_disk_variants(
-    init_fn=combined([init_nodes_graph, init_graph_for_secondary_indexes]),
+    init_fn=combined([init_nodes_graph, init_graph_for_event_ids]),
 )
-def test_property_semantics_for_secondary_indexes():
+def test_property_semantics_for_event_ids():
     def check(graph):
         filter_expr = filter.Property("p1") == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)

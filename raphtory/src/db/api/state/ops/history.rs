@@ -1,12 +1,16 @@
+use std::marker::PhantomData;
+
 use crate::{
-    db::api::{
-        state::{ops::NodeOpFilter, NodeOp},
-        view::internal::NodeTimeSemanticsOps,
+    db::{
+        api::{
+            state::{ops::NodeOpFilter, NodeOp},
+            view::{history::History, internal::NodeTimeSemanticsOps},
+        },
+        graph::node::NodeView,
     },
     prelude::GraphViewOps,
 };
-use itertools::Itertools;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, storage::timeindex::EventTime};
 use raphtory_storage::graph::graph::GraphStorage;
 
 #[derive(Debug, Clone)]
@@ -15,7 +19,7 @@ pub struct EarliestTime<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
-    type Output = Option<i64>;
+    type Output = Option<EventTime>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();
@@ -48,7 +52,7 @@ pub struct LatestTime<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTime<G> {
-    type Output = Option<i64>;
+    type Output = Option<EventTime>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();
@@ -76,40 +80,22 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTime<G> {
 }
 
 #[derive(Debug, Clone)]
-pub struct History<G> {
+pub struct HistoryOp<'graph, G> {
     pub(crate) graph: G,
+    pub(crate) _phantom: PhantomData<&'graph G>,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
-    type Output = Vec<i64>;
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for HistoryOp<'graph, G> {
+    type Output = History<'graph, NodeView<'graph, G>>;
 
+    #[allow(unused_variables)]
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        let semantics = self.graph.node_time_semantics();
-        let node = storage.core_node(node);
-        semantics
-            .node_history(node.as_ref(), &self.graph)
-            .dedup()
-            .collect()
+        History::new(NodeView::new_internal(self.graph.clone(), node))
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
-    type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = History<GH>;
-
-    fn graph(&self) -> &Self::Graph {
-        &self.graph
-    }
-
-    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
-        &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH> {
-        History {
-            graph: filtered_graph,
-        }
-    }
-}
+// Couldn't implement NodeOpFilter for HistoryOp because the output type changes from History<NodeView<G>> to History<NodeView<GH>>.
+// Instead, implemented OneHopFilter for LazyNodeState<HistoryOp> directly since the NodeOp<Output = Self::Output> bound isn't there.
 
 #[derive(Debug, Copy, Clone)]
 pub struct EdgeHistoryCount<G> {

@@ -1,6 +1,6 @@
 use crate::{
     entities::properties::tcell::TCell,
-    storage::{timeindex::TimeIndexEntry, TPropColumn},
+    storage::{timeindex::EventTime, TPropColumn},
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -105,7 +105,7 @@ impl<'a> TPropCell<'a> {
 }
 
 impl<'a> TPropOps<'a> for TPropCell<'a> {
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         let log = self.log;
         self.t_cell.into_iter().flat_map(move |t_cell| {
             t_cell
@@ -116,8 +116,8 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
 
     fn iter_window(
         self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        r: Range<EventTime>,
+    ) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         self.t_cell.into_iter().flat_map(move |t_cell| {
             t_cell
                 .iter_window(r.clone())
@@ -125,13 +125,13 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
         })
     }
 
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &EventTime) -> Option<Prop> {
         self.t_cell?.at(ti).and_then(|&id| self.log?.get(id?))
     }
 }
 
 impl TProp {
-    pub(crate) fn from(t: TimeIndexEntry, prop: Prop) -> Self {
+    pub(crate) fn from(t: EventTime, prop: Prop) -> Self {
         match prop {
             Prop::Str(value) => TProp::Str(TCell::new(t, value)),
             Prop::I32(value) => TProp::I32(TCell::new(t, value)),
@@ -176,7 +176,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn set(&mut self, t: TimeIndexEntry, prop: Prop) -> Result<(), IllegalPropType> {
+    pub(crate) fn set(&mut self, t: EventTime, prop: Prop) -> Result<(), IllegalPropType> {
         if matches!(self, TProp::Empty) {
             *self = TProp::from(t, prop);
         } else {
@@ -245,7 +245,7 @@ impl TProp {
 }
 
 impl<'a> TPropOps<'a> for &'a TProp {
-    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
         match self {
             TProp::Empty => None,
             TProp::Str(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Str(v.clone()))),
@@ -272,7 +272,7 @@ impl<'a> TPropOps<'a> for &'a TProp {
         }
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         match self {
             TProp::Empty => TPropVariants::Empty(iter::empty()),
             TProp::Str(cell) => {
@@ -332,8 +332,8 @@ impl<'a> TPropOps<'a> for &'a TProp {
 
     fn iter_window(
         self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        r: Range<EventTime>,
+    ) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         match self {
             TProp::Empty => TPropVariants::Empty(iter::empty()),
             TProp::Str(cell) => TPropVariants::Str(
@@ -403,7 +403,7 @@ impl<'a> TPropOps<'a> for &'a TProp {
         }
     }
 
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &EventTime) -> Option<Prop> {
         match self {
             TProp::Empty => None,
             TProp::Str(cell) => cell.at(ti).map(|v| Prop::Str(v.clone())),
@@ -438,11 +438,11 @@ mod tprop_tests {
         let col = TPropColumn::Bool(LazyVec::from(0, true));
         assert_eq!(col.get(0), Some(Prop::Bool(true)));
 
-        let t_prop = TPropCell::new(&TCell::TCell1(TimeIndexEntry(0, 0), Some(0)), Some(&col));
+        let t_prop = TPropCell::new(&TCell::TCell1(EventTime(0, 0), Some(0)), Some(&col));
 
         let actual = t_prop.iter().collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(TimeIndexEntry(0, 0), Prop::Bool(true))]);
+        assert_eq!(actual, vec![(EventTime(0, 0), Prop::Bool(true))]);
     }
 
     #[test]
