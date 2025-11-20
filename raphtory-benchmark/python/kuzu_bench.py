@@ -9,7 +9,7 @@ except ImportError:
 
 class KuzuBench(BenchmarkBase):
     def start_docker(self):
-        image_name = "python:3.10-bullseye"
+        image_name = "python:3.11-bullseye"
         container_folder = "/app/data"
         exec_commands = [
             "pip install requests tqdm docker kuzu pandas numpy scipy",
