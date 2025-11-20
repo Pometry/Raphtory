@@ -8,12 +8,6 @@ use crate::{
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AndOp<L, R> {
-    pub(crate) left: L,
-    pub(crate) right: R,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndFilter<L, R> {
     pub(crate) left: L,
     pub(crate) right: R,

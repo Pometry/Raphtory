@@ -50,7 +50,7 @@ use raphtory_storage::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::sync::{atomic::Ordering, Arc};
-use crate::db::api::state::ops::NodeTypeFilterOp;
+use crate::db::api::state::ops::filter::NodeTypeFilterOp;
 use crate::db::graph::views::filter::node_filtered_graph::NodeFilteredGraph;
 
 /// This trait GraphViewOps defines operations for accessing

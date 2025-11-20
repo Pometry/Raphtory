@@ -1,6 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
-        exploded_edge_filter::{ExplodedEdgeEndpoint, ExplodedEdgeFilter, ExplodedEndpointWrapper},
+        exploded_edge_filter::{ExplodedEdgeFilter, ExplodedEndpointWrapper},
         node_filter::{
             NodeFilter, NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
         },

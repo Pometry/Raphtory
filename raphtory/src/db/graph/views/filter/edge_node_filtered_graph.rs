@@ -1,5 +1,5 @@
 use crate::db::api::state::ops::NodeFilterOp;
-use crate::db::api::view::internal::{GraphView, InternalNodeFilterOps};
+use crate::db::api::view::internal::{GraphView};
 use crate::{
     db::{
         api::{

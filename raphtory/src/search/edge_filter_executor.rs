@@ -233,7 +233,6 @@ impl<'a> EdgeFilterExecutor<'a> {
             CompositeEdgeFilter::Dst(node_filter) => {
                 let nfe = NodeFilterExecutor::new(self.index);
                 let nodes = nfe.filter_nodes(graph, node_filter, usize::MAX, 0)?;
-                println!("nodes {:?}", nodes);
                 let mut edges: Vec<EdgeView<G>> = nodes
                     .into_iter()
                     .flat_map(|n| n.in_edges().into_iter())
@@ -246,20 +245,11 @@ impl<'a> EdgeFilterExecutor<'a> {
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }
-            CompositeEdgeFilter::PropertyWindowed(filter) => {
-                let start = filter.entity.start.t();
-                let end = filter.entity.end.t();
-
-                let filter = PropertyFilter {
-                    prop_ref: filter.prop_ref.clone(),
-                    prop_value: filter.prop_value.clone(),
-                    operator: filter.operator,
-                    ops: filter.ops.clone(),
-                    entity: EdgeFilter,
-                };
-
+            CompositeEdgeFilter::Windowed(filter) => {
+                let start = filter.start.t();
+                let end = filter.end.t();
                 let res =
-                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+                    self.filter_edges(&graph.window(start, end), &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()
                     .map(|x| EdgeView::new(graph.clone(), x.edge))

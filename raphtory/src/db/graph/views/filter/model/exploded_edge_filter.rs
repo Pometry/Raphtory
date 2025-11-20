@@ -1,9 +1,6 @@
 use crate::{
     db::{
-        api::{
-            state::ops::NotANodeFilter,
-            view::{internal::GraphView, BoxableGraphView},
-        },
+        api::view::{internal::GraphView, BoxableGraphView},
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             internal::CreateFilter,
@@ -25,6 +22,7 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
+use crate::db::api::state::ops::NotANodeFilter;
 use crate::db::graph::views::filter::model::node_filter::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps};
 use crate::db::graph::views::filter::model::Wrap;
 

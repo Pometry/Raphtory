@@ -367,8 +367,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let obj = PyFilterOps::wrap(self);
-        Bound::new(py, obj)
+        PyFilterOps::wrap(self).into_pyobject(py)
     }
 }
 

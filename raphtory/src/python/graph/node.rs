@@ -9,8 +9,7 @@ use crate::{
             state::{
                 ops,
                 ops::{
-                    filter::NO_FILTER, Degree, DynNodeFilter, IntoDynNodeOp, NodeFilterOp,
-                    NodeTypeFilterOp,
+                    filter::NO_FILTER, DynNodeFilter, IntoDynNodeOp, NodeFilterOp,
                 },
                 LazyNodeState, NodeStateOps,
             },
@@ -26,7 +25,6 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::filter::model::and_filter::AndOp,
         },
     },
     errors::GraphError,
@@ -67,6 +65,8 @@ use raphtory_api::core::{
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
+use crate::db::api::state::ops::Degree;
+use crate::db::api::state::ops::filter::{AndOp, NodeTypeFilterOp};
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass, module = "raphtory", frozen)]

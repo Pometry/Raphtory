@@ -1,11 +1,11 @@
-use crate::db::api::state::ops::filter::NodeNameFilterOp;
+use crate::db::api::state::ops::filter::{AndOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp, OrOp};
 use crate::{
     db::{
         api::{
             state::{
                 ops::{
                     filter::{MaskOp, NodeIdFilterOp},
-                    NodeTypeFilterOp, TypeId,
+                    TypeId,
                 },
                 NodeOp,
             },
@@ -14,9 +14,9 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                and_filter::AndOp, edge_filter::CompositeEdgeFilter,
+                edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter, filter_operator::FilterOperator,
-                not_filter::NotOp, or_filter::OrOp, property_filter::PropertyFilter, AndFilter,
+                property_filter::PropertyFilter, AndFilter,
                 Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,

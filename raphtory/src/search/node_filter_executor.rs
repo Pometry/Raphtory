@@ -45,7 +45,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn execute_filter_query<G: StaticGraphViewOps>(
         &self,
-        filter: impl CreateFilter + std::fmt::Display + std::fmt::Debug,
+        filter: impl CreateFilter,
         graph: &G,
         query: Box<dyn Query>,
         reader: &IndexReader,
@@ -55,9 +55,7 @@ impl<'a> NodeFilterExecutor<'a> {
         let searcher = reader.searcher();
         let collector = UniqueEntityFilterCollector::new(fields::NODE_ID.to_string());
         let node_ids = searcher.search(&query, &collector)?;
-        println!("node_ids: {:?}", node_ids);
         let nodes = self.resolve_nodes_from_node_ids(filter, graph, node_ids)?;
-        println!("resolved_nodes: {:?}", nodes);
 
         if offset == 0 && limit >= nodes.len() {
             Ok(nodes)
@@ -68,7 +66,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn execute_filter_property_query<G, C>(
         &self,
-        filter: impl CreateFilter + std::fmt::Display + std::fmt::Debug,
+        filter: impl CreateFilter,
         graph: &G,
         query: Box<dyn Query>,
         reader: &IndexReader,
@@ -219,7 +217,6 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
-        println!("query {:?}, filter {}", query, filter);
         let reader = get_reader(&node_index.entity_index.index)?;
         let results = match query {
             Some(query) => self.execute_filter_query(
@@ -252,20 +249,11 @@ impl<'a> NodeFilterExecutor<'a> {
             CompositeNodeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }
-            CompositeNodeFilter::PropertyWindowed(filter) => {
-                let start = filter.entity.start.t();
-                let end = filter.entity.end.t();
-
-                let filter = PropertyFilter {
-                    prop_ref: filter.prop_ref.clone(),
-                    prop_value: filter.prop_value.clone(),
-                    operator: filter.operator,
-                    ops: filter.ops.clone(),
-                    entity: NodeFilter,
-                };
-
+            CompositeNodeFilter::Windowed(filter) => {
+                let start = filter.start.t();
+                let end = filter.end.t();
                 let res =
-                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+                    self.filter_nodes(&graph.window(start, end), &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()
                     .map(|x| NodeView::new_internal(graph.clone(), x.node))
@@ -339,7 +327,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
     fn resolve_nodes_from_node_ids<G: StaticGraphViewOps>(
         &self,
-        filter: impl CreateFilter + std::fmt::Display + std::fmt::Debug,
+        filter: impl CreateFilter,
         graph: &G,
         node_ids: HashSet<u64>,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {

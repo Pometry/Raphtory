@@ -3,7 +3,6 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            state::ops::NotANodeFilter,
             view::internal::{
                 GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
@@ -24,6 +23,7 @@ use crate::{
 };
 use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use crate::db::api::state::ops::NotANodeFilter;
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
@@ -196,20 +196,20 @@ mod test_edge_property_filtered_graph {
             vec!["John->David"]
         );
 
-        // let g_expected = Graph::new();
-        // g_expected
-        //     .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
-        //     .unwrap();
-        //
-        // assert_eq!(
-        //     filtered_edges
-        //         .edges()
-        //         .iter()
-        //         .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-        //         .collect::<Vec<_>>(),
-        //     vec!["John->David"]
-        // );
-        // assert_graph_equal(&filtered_edges, &g_expected);
+        let g_expected = Graph::new();
+        g_expected
+            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .unwrap();
+
+        assert_eq!(
+            filtered_edges
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>(),
+            vec!["John->David"]
+        );
+        assert_graph_equal(&filtered_edges, &g_expected);
     }
 
     #[test]

@@ -8,9 +8,6 @@ use crate::{
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NotOp<T>(pub(crate) T);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotFilter<T>(pub(crate) T);
 
 impl<T: Display> Display for NotFilter<T> {

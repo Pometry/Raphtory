@@ -1419,16 +1419,6 @@ pub(crate) mod test_filters {
             graph.add_edge(time, src, dst, props, edge_type).unwrap();
         }
 
-        // graph.add_node(1, "1", vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())], Some("fire_nation")).unwrap();
-        // graph.add_node(1, "2", vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())], Some("fire_nation")).unwrap();
-
-        // graph.add_node(1, "1", NO_PROPS, None).unwrap();
-        // graph.add_node(1, "2", NO_PROPS, None).unwrap();
-        // graph.add_node(1, "3", NO_PROPS, None).unwrap();
-        // graph.add_node(1, "David Gilmour", NO_PROPS, None).unwrap();
-        // graph.add_node(1, "John Mayer", NO_PROPS, None).unwrap();
-        // graph.add_node(1, "Jimmy Page", NO_PROPS, None).unwrap();
-
         graph
     }
 
@@ -1513,10 +1503,6 @@ pub(crate) mod test_filters {
             graph.add_edge(time, src, dst, props, edge_type).unwrap();
         }
 
-        // graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        // graph.add_node(1, 2, NO_PROPS, None).unwrap();
-        // graph.add_node(1, 3, NO_PROPS, None).unwrap();
-
         graph
     }
 
@@ -1543,15 +1529,6 @@ pub(crate) mod test_filters {
         for (time, src, dst, edge_type) in edges {
             graph.add_edge(time, src, dst, NO_PROPS, edge_type).unwrap();
         }
-
-        // graph.add_node(1, "London", NO_PROPS, None).unwrap();
-        // graph.add_node(2, "Paris", NO_PROPS, None).unwrap();
-        // graph.add_node(2, "One", NO_PROPS, None).unwrap();
-        // graph.add_node(2, "Two", NO_PROPS, None).unwrap();
-        // graph.add_node(2, "Three", NO_PROPS, None).unwrap();
-        // graph.add_node(2, "David Gilmour", NO_PROPS, None).unwrap();
-        // graph.add_node(2, "John Mayer", NO_PROPS, None).unwrap();
-        // graph.add_node(2, "Jimmy Page", NO_PROPS, None).unwrap();
 
         graph
     }
@@ -7717,13 +7694,13 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_edges_results(
-            //     g,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
+            assert_search_edges_results(
+                g,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -7742,13 +7719,13 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_edges_results(
-            //     g,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
+            assert_search_edges_results(
+                g,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -7763,13 +7740,13 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_edges_results(
-            //     g,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
+            assert_search_edges_results(
+                g,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -8290,13 +8267,13 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_edges_results(
-            //     init_edges_graph_with_num_ids,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
+            assert_search_edges_results(
+                init_edges_graph_with_num_ids,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -10433,21 +10410,21 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            // let filter = filter.try_as_composite_edge_filter().unwrap();
-            // assert_filter_edges_results(
-            //     init_edges_graph,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     vec![TestGraphVariants::Graph],
-            // );
-            // assert_search_edges_results(
-            //     init_edges_graph,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::NonDiskOnly,
-            // );
+            let filter = filter.try_as_composite_edge_filter().unwrap();
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                vec![TestGraphVariants::Graph],
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::NonDiskOnly,
+            );
 
             let filter = EdgeFilter
                 .property("p2")
@@ -10503,21 +10480,21 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            // let filter = filter.try_as_composite_edge_filter().unwrap();
-            // assert_filter_edges_results(
-            //     init_edges_graph,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     vec![TestGraphVariants::Graph],
-            // );
-            // assert_search_edges_results(
-            //     init_edges_graph,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::NonDiskOnly,
-            // );
+            let filter = filter.try_as_composite_edge_filter().unwrap();
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                vec![TestGraphVariants::Graph],
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::NonDiskOnly,
+            );
 
             let filter = EdgeFilter::dst()
                 .name()
@@ -10538,21 +10515,21 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // let filter = filter.try_as_composite_edge_filter().unwrap();
-            // assert_filter_edges_results(
-            //     init_edges_graph,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::EventOnly,
-            // );
-            // assert_search_edges_results(
-            //     init_edges_graph,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
+            let filter = filter.try_as_composite_edge_filter().unwrap();
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
 
             let filter = EdgeFilter::src()
                 .name()

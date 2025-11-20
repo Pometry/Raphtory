@@ -1,26 +1,15 @@
-use crate::db::{
-    api::{
-        state::ops::filter::{Mask, MaskOp},
-        view::internal::{
-            time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
-            GraphView,
-        },
-    },
-    graph::{
-        create_node_type_filter,
-        views::filter::model::{and_filter::AndOp, not_filter::NotOp, or_filter::OrOp},
-    },
-};
 use raphtory_api::core::{
     entities::{GID, VID},
-    storage::arc_str::ArcStr,
-    Direction,
+    storage::arc_str::ArcStr
+    ,
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
+    graph::graph::GraphStorage,
 };
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
+use crate::db::api::state::ops::filter::{AndOp, NotOp, OrOp};
+use crate::db::api::state::ops::Map;
 
 pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn is_filtered(&self) -> bool;
@@ -30,17 +19,6 @@ pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn or<T>(self, other: T) -> OrOp<Self, T>;
 
     fn not(self) -> NotOp<Self>;
-}
-
-#[derive(Clone)]
-pub struct NotANodeFilter;
-
-impl NodeOp for NotANodeFilter {
-    type Output = bool;
-
-    fn apply(&self, _storage: &GraphStorage, _node: VID) -> Self::Output {
-        panic!("Not a node filter")
-    }
 }
 
 impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
@@ -115,47 +93,6 @@ where
 
 impl<Left, Right> IntoDynNodeOp for Eq<Left, Right> where Eq<Left, Right>: NodeOp + 'static {}
 
-impl<L, R> NodeOp for AndOp<L, R>
-where
-    L: NodeOp<Output = bool>,
-    R: NodeOp<Output = bool>,
-{
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        self.left.apply(storage, node) && self.right.apply(storage, node)
-    }
-}
-
-impl<L, R> IntoDynNodeOp for AndOp<L, R> where Self: NodeOp + 'static {}
-
-impl<L, R> NodeOp for OrOp<L, R>
-where
-    L: NodeOp<Output = bool>,
-    R: NodeOp<Output = bool>,
-{
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        self.left.apply(storage, node) || self.right.apply(storage, node)
-    }
-}
-
-impl<L, R> IntoDynNodeOp for OrOp<L, R> where Self: NodeOp + 'static {}
-
-impl<T> NodeOp for NotOp<T>
-where
-    T: NodeOp<Output = bool>,
-{
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        !self.0.apply(storage, node)
-    }
-}
-
-impl<T> IntoDynNodeOp for NotOp<T> where Self: NodeOp + 'static {}
-
 #[derive(Clone, Copy, Debug)]
 pub struct Const<V>(pub V);
 
@@ -204,6 +141,7 @@ impl IntoDynNodeOp for Id {}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Type;
+
 impl NodeOp for Type {
     type Output = Option<ArcStr>;
 
@@ -225,77 +163,3 @@ impl NodeOp for TypeId {
 }
 
 impl IntoDynNodeOp for TypeId {}
-
-#[derive(Debug, Clone)]
-pub struct Degree<G> {
-    pub(crate) dir: Direction,
-    pub(crate) view: G,
-}
-
-impl<G: GraphView> NodeOp for Degree<G> {
-    type Output = usize;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
-        let node = storage.core_node(node);
-        if matches!(self.view.filter_state(), FilterState::Neither) {
-            node.degree(self.view.layer_ids(), self.dir)
-        } else {
-            node.filtered_neighbours_iter(&self.view, self.view.layer_ids(), self.dir)
-                .count()
-        }
-    }
-}
-
-impl<G: GraphView + 'static> IntoDynNodeOp for Degree<G> {}
-
-impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
-    type Output = V;
-    fn apply(&self, storage: &GraphStorage, node: VID) -> V {
-        self.deref().apply(storage, node)
-    }
-}
-
-impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Arc<dyn NodeOp<Output = V>> {
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> {
-        self.clone()
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Map<Op: NodeOp, V> {
-    op: Op,
-    map: fn(Op::Output) -> V,
-}
-
-impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
-    type Output = V;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        (self.map)(self.op.apply(storage, node))
-    }
-}
-
-impl<Op: NodeOp + 'static, V: Clone + Send + Sync + 'static> IntoDynNodeOp for Map<Op, V> {}
-
-pub type NodeTypeFilterOp = Mask<TypeId>;
-
-impl NodeTypeFilterOp {
-    pub fn new_from_values<I: IntoIterator<Item = V>, V: AsRef<str>>(
-        node_types: I,
-        view: impl GraphView,
-    ) -> Self {
-        let mask = create_node_type_filter(view.node_meta().node_type_meta(), node_types);
-        TypeId.mask(mask)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::db::api::state::ops::{Const, NodeFilterOp};
-
-    #[test]
-    fn test_const() {
-        let c = Const(true);
-        assert!(!c.is_filtered());
-    }
-}

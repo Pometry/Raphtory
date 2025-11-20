@@ -12,7 +12,7 @@ use crate::{
         },
         graph::views::filter::{
             internal::CreateFilter,
-            model::{and_filter::AndOp, AndFilter},
+            model::AndFilter,
         },
     },
     errors::GraphError,
@@ -29,6 +29,7 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
 };
+use crate::db::api::state::ops::filter::AndOp;
 
 #[derive(Debug, Clone)]
 pub struct AndFilteredGraph<G, L, R> {

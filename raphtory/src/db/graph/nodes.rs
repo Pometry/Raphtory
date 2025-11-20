@@ -3,11 +3,11 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::{Const, IntoDynNodeOp, NodeFilterOp, NodeOp, NodeTypeFilterOp},
+                ops::{Const, IntoDynNodeOp, NodeFilterOp, NodeOp},
                 Index, LazyNodeState,
             },
             view::{
-                internal::{InternalFilter, FilterOps, NodeList, Static},
+                internal::{FilterOps, InternalFilter, NodeList, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -15,7 +15,7 @@ use crate::{
             edges::NestedEdges,
             node::NodeView,
             path::PathFromGraph,
-            views::filter::{internal::CreateFilter, model::and_filter::AndOp},
+            views::filter::internal::CreateFilter,
         },
     },
     errors::GraphError,
@@ -30,6 +30,7 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
+use crate::db::api::state::ops::filter::{AndOp, NodeTypeFilterOp};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {
