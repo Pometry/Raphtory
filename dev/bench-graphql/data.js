@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763634286599,
+  "lastUpdate": 1763657711481,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2213,6 +2213,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1345,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "79378897+arienandalibi@users.noreply.github.com",
+            "name": "arienandalibi",
+            "username": "arienandalibi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1fddba4669e4375ee8083a6ffac4af78173760ed",
+          "message": "Add support for date32, utf8, and different Timestamp(TimeUnit) types when loading from pandas or parquet (#2382)\n\n* Added support for utf8 datetime format for date when loading from pandas. Fixed date32 dtype not being supported when loading from external source like pandas or parquet. Added tests.\n\n* Added support for Date64 and Timstamps of any TimeUnit (Second, Microsecond, Nanosecond).\n\n* Allowed string parsing errors to propagate when loading from pandas/parquet.\nAdded tests for Timstamps of any TimeUnit (Second, Microsecond, Nanosecond).\n\n* chore: apply tidy-public auto-fixes\n\n* Combined the loading tests into one big test\n\n* Combined read_csv tests into one big test\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2025-11-20T16:21:55Z",
+          "tree_id": "c95b88606ff59d69c397ed6e96f2dfbd74261b76",
+          "url": "https://github.com/Pometry/Raphtory/commit/1fddba4669e4375ee8083a6ffac4af78173760ed"
+        },
+        "date": 1763657708570,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1210,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 165,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 171,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1057,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 856,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1238,
             "unit": "req/s"
           }
         ]
