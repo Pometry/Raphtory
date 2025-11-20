@@ -582,7 +582,6 @@ impl GqlGraph {
             let self_clone = self.clone();
             blocking_compute(move || {
                 let f: CompositeNodeFilter = filter.try_into()?;
-                println!("filter {}", f);
                 let nodes = self_clone.graph.search_nodes(f, limit, offset)?;
                 let result = nodes.into_iter().map(|vv| vv.into()).collect();
                 Ok(result)

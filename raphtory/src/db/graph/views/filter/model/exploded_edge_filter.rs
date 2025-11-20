@@ -10,8 +10,7 @@ use crate::{
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
                 node_filter::{
-                    CompositeNodeFilter, NodeFilter, NodeIdFilterBuilder, NodeNameFilterBuilder,
-                    NodeTypeFilterBuilder,
+                    CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::{
                     InternalPropertyFilterBuilderOps, MetadataFilterBuilder, Op, PropertyFilter,
@@ -26,6 +25,7 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
+use crate::db::graph::views::filter::model::node_filter::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps};
 use crate::db::graph::views::filter::model::Wrap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -131,67 +131,6 @@ impl TryAsCompositeFilter for CompositeExplodedEdgeFilter {
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Ok(self.clone())
-    }
-}
-
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
-pub struct ExplodedEdgeEndpoint(Endpoint);
-
-impl ExplodedEdgeEndpoint {
-    #[inline]
-    pub fn src() -> Self {
-        Self(Endpoint::Src)
-    }
-
-    #[inline]
-    pub fn dst() -> Self {
-        Self(Endpoint::Dst)
-    }
-
-    #[inline]
-    pub fn id(&self) -> ExplodedEndpointWrapper<NodeIdFilterBuilder> {
-        ExplodedEndpointWrapper::new(NodeFilter::id(), self.0)
-    }
-
-    #[inline]
-    pub fn name(&self) -> ExplodedEndpointWrapper<NodeNameFilterBuilder> {
-        ExplodedEndpointWrapper::new(NodeFilter::name(), self.0)
-    }
-
-    #[inline]
-    pub fn node_type(&self) -> ExplodedEndpointWrapper<NodeTypeFilterBuilder> {
-        ExplodedEndpointWrapper::new(NodeFilter::node_type(), self.0)
-    }
-
-    #[inline]
-    pub fn property(
-        &self,
-        name: impl Into<String>,
-    ) -> PropertyFilterBuilder<ExplodedEndpointWrapper<NodeFilter>> {
-        PropertyFilterBuilder::new(
-            name.into(),
-            ExplodedEndpointWrapper::new(NodeFilter, self.0),
-        )
-    }
-
-    #[inline]
-    pub fn metadata(
-        &self,
-        name: impl Into<String>,
-    ) -> MetadataFilterBuilder<ExplodedEndpointWrapper<NodeFilter>> {
-        MetadataFilterBuilder::new(
-            name.into(),
-            ExplodedEndpointWrapper::new(NodeFilter, self.0),
-        )
-    }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(
-        &self,
-        start: S,
-        end: E,
-    ) -> ExplodedEndpointWrapper<Windowed<NodeFilter>> {
-        ExplodedEndpointWrapper::new(NodeFilter::window(start, end), self.0)
     }
 }
 
@@ -328,18 +267,30 @@ pub struct ExplodedEdgeFilter;
 
 impl ExplodedEdgeFilter {
     #[inline]
-    pub fn src() -> ExplodedEdgeEndpoint {
-        ExplodedEdgeEndpoint::src()
+    pub fn src() -> ExplodedEndpointWrapper<NodeFilter> {
+        ExplodedEndpointWrapper::new(NodeFilter, Endpoint::Src)
     }
 
     #[inline]
-    pub fn dst() -> ExplodedEdgeEndpoint {
-        ExplodedEdgeEndpoint::dst()
+    pub fn dst() -> ExplodedEndpointWrapper<NodeFilter> {
+        ExplodedEndpointWrapper::new(NodeFilter, Endpoint::Dst)
     }
 
     #[inline]
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
         Windowed::from_times(start, end, ExplodedEdgeFilter)
+    }
+}
+
+impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for ExplodedEndpointWrapper<T> {
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
+
+impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for ExplodedEndpointWrapper<T> {
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
     }
 }
 
