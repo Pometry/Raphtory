@@ -53,7 +53,9 @@ You can select from the following layout algorithms:
 - Hierarchical TD
 - Hierarchical LR
 
-For each layout the following parameters can be set:
+For each layout, specific **Advanced Options** can be set to tune the algorithm.
+
+#### Default Layout
 
 | Parameter             | Description                                                                                                                                                     |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -67,13 +69,7 @@ For each layout the following parameters can be set:
 | Radial Force Strength |                                                                                                                                                                 |
 | Radial Force Radius   |                                                                                                                                                                 |
 
-Optionally, you can set a pre-layout algorithm:
-
-- Concentric
-- Dagre LR
-- Dagre TB
-
-For each pre-layout algorithm the following parameters can be set:
+#### Concentric Layout
 
 | Parameter                  | Description |
 |----------------------------|-------------|
@@ -84,6 +80,35 @@ For each pre-layout algorithm the following parameters can be set:
 | Prevent Overlap            |             |
 | Start Angle                |             |
 | Sweep                      |             |
+
+#### Force Based Layout
+
+| Parameter | Description |
+|-----------|-------------|
+| Gravity   |             |
+| Speed     |             |
+
+#### Hierarchical TB Layout
+
+| Parameter                  | Description |
+|----------------------------|-------------|
+| Invert                     |             |
+| Direction                  |             |
+| Node Seperation            |             |
+| Rank Seperation            |             |
+| Network algorithm          |             |
+| Node Size                  |             |
+| Retain Edge Control Points |             |
+
+#### Pre-layout algorithms
+
+Optionally, you can set a pre-layout algorithm:
+
+- Concentric - arranged around the center.
+- Dagre LR - arranged using the hierarchical Dagre algorithm from left to right.
+- Dagre TB - arranged using the hierarchical Dagre algorithm from top to bottom.
+
+For Concentric and Dagre TB algorithms you can also specify **Advanced Options** when used in the pre-layout phase.
 
 
 ## GraphQL playground
