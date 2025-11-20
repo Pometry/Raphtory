@@ -1,8 +1,9 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{EdgeEndpoint, EdgeFilter, EndpointWrapper},
+        edge_filter::{EdgeFilter, EndpointWrapper},
         node_filter::{
-            NodeFilter, NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
+            NodeFilter, NodeIdFilterBuilder, NodeIdFilterBuilderOps, NodeNameFilterBuilder,
+            NodeTypeFilterBuilder,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory, Windowed,

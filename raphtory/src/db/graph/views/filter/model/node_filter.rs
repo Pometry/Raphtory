@@ -1,9 +1,11 @@
-use crate::db::graph::views::filter::model::Wrap;
 use crate::{
     db::{
         api::{
             state::{
-                ops::{filter::MaskOp, NodeTypeFilterOp, TypeId},
+                ops::{
+                    filter::{MaskOp, NodeIdFilterOp},
+                    NodeTypeFilterOp, TypeId,
+                },
                 NodeOp,
             },
             view::{internal::GraphView, BoxableGraphView},
@@ -14,10 +16,10 @@ use crate::{
                 and_filter::AndOp, edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter, filter_operator::FilterOperator,
                 not_filter::NotOp, or_filter::OrOp, property_filter::PropertyFilter, AndFilter,
-                Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter, Windowed,
+                Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },
-            node_id_filtered_graph::NodeIdFilteredGraph,
-            node_name_filtered_graph::NodeNameFilteredGraph,
+            node_filtered_graph::NodeFilteredGraph,
+            node_name_filtered_graph::NodeNameFilterOp,
             node_type_filtered_graph::NodeTypeFilteredGraph,
         },
     },
@@ -44,23 +46,23 @@ impl From<Filter> for NodeIdFilter {
 }
 
 impl CreateFilter for NodeIdFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeIdFilteredGraph<G>;
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeIdFilterOp>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NodeIdFilteredGraph<G>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = NodeIdFilterOp;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         NodeFilter::validate(graph.id_type(), &self.0)?;
-        Ok(NodeIdFilteredGraph::new(graph, self.0))
+        Ok(NodeFilteredGraph::new(graph, NodeIdFilterOp::new(self.0)))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
-        graph: G,
+        _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        self.create_filter(graph)
+        Ok(NodeIdFilterOp::new(self.0))
     }
 }
 
@@ -80,22 +82,22 @@ impl From<Filter> for NodeNameFilter {
 }
 
 impl CreateFilter for NodeNameFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeNameFilteredGraph<G>;
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G,NodeNameFilterOp>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NodeNameFilteredGraph<G>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = NodeNameFilterOp;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(NodeNameFilteredGraph::new(graph, self.0))
+        Ok(NodeFilteredGraph::new(graph, NodeNameFilterOp::new(self.0)))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        self.create_filter(graph)
+        Ok(NodeNameFilterOp::new(self.0))
     }
 }
 
