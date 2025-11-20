@@ -20,7 +20,6 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    node_property_filtered_graph::NodePropertyFilteredGraph,
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
@@ -44,6 +43,7 @@ use pyo3::prelude::*;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 use std::collections::HashMap;
+use crate::db::api::state::ops::filter::NodePropertyFilterOp;
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;
@@ -155,7 +155,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for EdgePropert
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodePropertyFilteredGraph<G> {
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodePropertyFilterOp<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;

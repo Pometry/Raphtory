@@ -19,7 +19,6 @@ use crate::{
                 Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
-            node_name_filtered_graph::NodeNameFilterOp,
             node_type_filtered_graph::NodeTypeFilteredGraph,
         },
     },
@@ -29,6 +28,7 @@ use crate::{
 use raphtory_api::core::entities::{GidType, GID};
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
+use crate::db::api::state::ops::filter::NodeNameFilterOp;
 
 #[derive(Debug, Clone)]
 pub struct NodeIdFilter(pub Filter);
@@ -95,7 +95,7 @@ impl CreateFilter for NodeNameFilter {
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
-        graph: G,
+        _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeNameFilterOp::new(self.0))
     }
