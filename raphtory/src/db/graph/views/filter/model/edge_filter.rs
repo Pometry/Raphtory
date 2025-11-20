@@ -1,5 +1,7 @@
-use crate::db::graph::views::filter::model::node_filter::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps};
-use crate::db::graph::views::filter::model::{Filter, PropertyFilterFactory, Wrap};
+use crate::db::graph::views::filter::model::node_filter::{
+    InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
+};
+use crate::db::graph::views::filter::model::Wrap;
 use crate::{
     db::{
         api::{
@@ -16,8 +18,7 @@ use crate::{
                     NodeTypeFilterBuilder,
                 },
                 property_filter::{
-                    InternalPropertyFilterBuilderOps, MetadataFilterBuilder, Op, PropertyFilter,
-                    PropertyFilterBuilder, PropertyRef,
+                    InternalPropertyFilterBuilderOps, Op, PropertyFilter, PropertyRef,
                 },
                 AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed,
             },
@@ -227,7 +228,7 @@ impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for EndpointW
     }
 }
 
-impl<T: InternalNodeFilterBuilderOps> InternalNodeIdFilterBuilderOps for EndpointWrapper<T> {
+impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for EndpointWrapper<T> {
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }

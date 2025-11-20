@@ -8868,6 +8868,7 @@ pub(crate) mod test_filters {
         use raphtory_api::core::entities::properties::prop::Prop;
         use crate::db::graph::views::filter::model::property_filter::ElemQualifierOps;
         use crate::db::graph::views::filter::model::TemporalPropertyFilterFactory;
+        use crate::db::graph::views::filter::model::property_filter::ListAggOps;
 
         #[test]
         fn test_filter_edges_for_property_eq() {
