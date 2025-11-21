@@ -19,8 +19,7 @@ macro_rules! impl_filter_ops {
             fn filter(
                 &self,
                 filter: PyFilterExpr,
-            ) -> Result<<$base_type as BaseFilter<'static>>::Filtered<DynamicGraph>, GraphError>
-            {
+            ) -> Result<<$base_type as Filter<'static>>::Filtered<DynamicGraph>, GraphError> {
                 Ok(self.$field.clone().filter(filter)?.into_dyn_hop())
             }
         }

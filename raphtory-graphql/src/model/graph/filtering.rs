@@ -12,20 +12,16 @@ use raphtory::{
         filter_operator::FilterOperator,
         node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-        Filter, FilterValue,
+        Filter, FilterValue, Windowed,
     },
     errors::GraphError,
 };
-use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
-    storage::timeindex::TimeIndexEntry,
-};
+use raphtory_api::core::entities::{properties::prop::Prop, GID};
 use std::{
     borrow::Cow,
     collections::HashSet,
     fmt,
     fmt::{Display, Formatter},
-    marker::PhantomData,
     ops::Deref,
     sync::Arc,
 };
@@ -437,9 +433,9 @@ pub enum GqlNodeFilter {
 #[graphql(name = "EdgeFilter")]
 pub enum GqlEdgeFilter {
     /// Source node filter.
-    Src(NodeFieldFilterNew),
+    Src(GqlNodeFilter),
     /// Destination node filter.
-    Dst(NodeFieldFilterNew),
+    Dst(GqlNodeFilter),
     /// Property filter.
     Property(PropertyFilterNew),
     /// Metadata filter.
@@ -877,13 +873,12 @@ fn build_windowed_property_filter_from_condition<M: Clone + Send + Sync + 'stati
     cond: &PropCondition,
     start: i64,
     end: i64,
-) -> Result<PropertyFilter<raphtory::db::graph::views::filter::model::Windowed<M>>, GraphError> {
-    build_property_filter_from_condition_with_entity::<
-        raphtory::db::graph::views::filter::model::Windowed<M>,
-    >(
+    marker: M,
+) -> Result<PropertyFilter<Windowed<M>>, GraphError> {
+    build_property_filter_from_condition_with_entity::<Windowed<M>>(
         prop_ref,
         cond,
-        raphtory::db::graph::views::filter::model::Windowed::from_times(start, end),
+        Windowed::from_times(start, end, marker),
     )
 }
 
@@ -955,11 +950,12 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::TemporalProperty(prop) => {
                 let prop_ref = PropertyRef::TemporalProperty(prop.name);
                 if let Some(w) = prop.window {
-                    let pf = build_windowed_property_filter_from_condition::<NodeFilter>(
+                    let pf = build_windowed_property_filter_from_condition(
                         prop_ref,
                         &prop.where_,
                         w.start,
                         w.end,
+                        NodeFilter,
                     )?;
                     return Ok(CompositeNodeFilter::PropertyWindowed(pf));
                 }
@@ -1047,33 +1043,13 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
     type Error = GraphError;
     fn try_from(filter: GqlEdgeFilter) -> Result<Self, Self::Error> {
         match filter {
-            GqlEdgeFilter::Src(src) => {
-                if matches!(src.field, NodeField::NodeType) {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "Src filter does not support NODE_TYPE".into(),
-                    ));
-                }
-                let (_, field_value, operator) =
-                    translate_node_field_where(src.field, &src.where_)?;
-                Ok(CompositeEdgeFilter::Edge(Filter {
-                    field_name: "src".to_string(),
-                    field_value,
-                    operator,
-                }))
+            GqlEdgeFilter::Src(nf) => {
+                let nf: CompositeNodeFilter = nf.try_into()?;
+                Ok(CompositeEdgeFilter::Src(nf))
             }
-            GqlEdgeFilter::Dst(dst) => {
-                if matches!(dst.field, NodeField::NodeType) {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "Dst filter does not support NODE_TYPE".into(),
-                    ));
-                }
-                let (_, field_value, operator) =
-                    translate_node_field_where(dst.field, &dst.where_)?;
-                Ok(CompositeEdgeFilter::Edge(Filter {
-                    field_name: "dst".to_string(),
-                    field_value,
-                    operator,
-                }))
+            GqlEdgeFilter::Dst(nf) => {
+                let nf: CompositeNodeFilter = nf.try_into()?;
+                Ok(CompositeEdgeFilter::Dst(nf))
             }
             GqlEdgeFilter::Property(p) => {
                 let prop_ref = PropertyRef::Property(p.name);
@@ -1086,8 +1062,8 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             GqlEdgeFilter::TemporalProperty(p) => {
                 let prop_ref = PropertyRef::TemporalProperty(p.name);
                 if let Some(w) = p.window {
-                    let pf = build_windowed_property_filter_from_condition::<EdgeFilter>(
-                        prop_ref, &p.where_, w.start, w.end,
+                    let pf = build_windowed_property_filter_from_condition(
+                        prop_ref, &p.where_, w.start, w.end, EdgeFilter,
                     )?;
                     return Ok(CompositeEdgeFilter::PropertyWindowed(pf));
                 }

@@ -8,7 +8,10 @@ use crate::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
-    api::view::{DynamicGraph, WindowSet},
+    api::{
+        state::ops::DynNodeFilter,
+        view::{DynamicGraph, WindowSet},
+    },
     graph::{edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode},
 };
 
@@ -122,11 +125,13 @@ impl GqlNodeWindowSet {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NodesWindowSet")]
 pub(crate) struct GqlNodesWindowSet {
-    pub(crate) ws: WindowSet<'static, Nodes<'static, DynamicGraph, DynamicGraph>>,
+    pub(crate) ws: WindowSet<'static, Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>>,
 }
 
 impl GqlNodesWindowSet {
-    pub(crate) fn new(ws: WindowSet<'static, Nodes<DynamicGraph, DynamicGraph>>) -> Self {
+    pub(crate) fn new(
+        ws: WindowSet<'static, Nodes<DynamicGraph, DynamicGraph, DynNodeFilter>>,
+    ) -> Self {
         Self { ws }
     }
 }

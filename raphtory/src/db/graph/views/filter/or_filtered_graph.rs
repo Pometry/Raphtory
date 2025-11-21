@@ -2,13 +2,18 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::NodeFilterOp,
             view::internal::{
-                Immutable, InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
-                InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
-                InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
+                GraphView, Immutable, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
+                InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
+                Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::or_filter::OrFilter},
+        graph::views::filter::{
+            internal::CreateFilter,
+            model::or_filter::OrFilter,
+        },
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -24,6 +29,7 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
 };
+use crate::db::api::state::ops::filter::OrOp;
 
 #[derive(Debug, Clone)]
 pub struct OrFilteredGraph<G, L, R> {
@@ -38,6 +44,11 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
     where
         Self: 'graph;
 
+    type NodeFilter<'graph, G: GraphView + 'graph>
+        = OrOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
+    where
+        Self: 'graph;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -45,6 +56,15 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
         let left = self.left.create_filter(graph.clone())?;
         let right = self.right.create_filter(graph.clone())?;
         Ok(OrFilteredGraph { graph, left, right })
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let left = self.left.create_node_filter(graph.clone())?;
+        let right = self.right.create_node_filter(graph.clone())?;
+        Ok(left.or(right))
     }
 }
 

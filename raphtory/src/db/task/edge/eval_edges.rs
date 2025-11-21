@@ -6,7 +6,7 @@ use crate::{
     db::{
         api::{
             properties::{Metadata, Properties},
-            view::{internal::BaseFilter, BaseEdgeViewOps, BoxedLIter},
+            view::{internal::InternalFilter, BaseEdgeViewOps, BoxedLIter},
         },
         graph::edges::Edges,
         task::{
@@ -43,16 +43,16 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: Clone, S> Clone
     }
 }
 
-impl<'graph, 'a, Current, CS, S> BaseFilter<'graph> for EvalEdges<'graph, 'a, Current, CS, S>
+impl<'graph, 'a, Current, CS, S> InternalFilter<'graph> for EvalEdges<'graph, 'a, Current, CS, S>
 where
     'a: 'graph,
     Current: GraphViewOps<'graph>,
     CS: Clone,
 {
-    type BaseGraph = Current;
+    type Graph = Current;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = EvalEdges<'graph, 'a, Next, CS, S>;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn base_graph(&self) -> &Self::Graph {
         &self.edges.base_graph
     }
 

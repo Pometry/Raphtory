@@ -318,11 +318,11 @@ input EdgeFilter @oneOf {
 	"""
 	Source node filter.
 	"""
-	src: NodeFieldFilterNew
+	src: NodeFilter
 	"""
 	Destination node filter.
 	"""
-	dst: NodeFieldFilterNew
+	dst: NodeFilter
 	"""
 	Property filter.
 	"""

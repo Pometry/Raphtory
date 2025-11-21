@@ -4,7 +4,7 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+                GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
@@ -23,6 +23,7 @@ use crate::{
 };
 use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use crate::db::api::state::ops::NotANodeFilter;
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
@@ -45,6 +46,8 @@ impl CreateFilter for PropertyFilter<Windowed<EdgeFilter>> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         EdgePropertyFilteredGraph<WindowedGraph<G>>;
 
+    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -63,10 +66,19 @@ impl CreateFilter for PropertyFilter<Windowed<EdgeFilter>> {
             filter,
         ))
     }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
+    }
 }
 
 impl CreateFilter for PropertyFilter<EdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
+
+    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -74,6 +86,13 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
         Ok(EdgePropertyFilteredGraph::new(graph, prop_id, self))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
     }
 }
 
@@ -128,21 +147,19 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgePropertyFilt
 mod test_edge_property_filtered_graph {
     use crate::{
         db::{
-            api::view::filter_ops::BaseFilterOps,
+            api::view::filter_ops::Filter,
             graph::{
                 assertions::assert_ok_or_missing_edges,
                 graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
                 views::{
                     deletion_graph::PersistentGraph,
                     filter::model::{
-                        edge_filter::{EdgeFilter, EdgeFilterOps},
-                        property_filter::PropertyFilterOps,
+                        edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
                         ComposableFilter, PropertyFilterFactory,
                     },
                 },
             },
         },
-        errors::GraphError,
         prelude::*,
         test_utils::{
             build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window,
@@ -152,9 +169,10 @@ mod test_edge_property_filtered_graph {
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::entities::properties::prop::PropType;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use crate::db::graph::views::filter::model::node_filter::NodeFilterBuilderOps;
 
     #[test]
-    fn test_edge_filter() {
+    fn test_edge_filter2() {
         let g = Graph::new();
         g.add_edge(0, "Jimi", "John", [("band", "JH Experience")], None)
             .unwrap();

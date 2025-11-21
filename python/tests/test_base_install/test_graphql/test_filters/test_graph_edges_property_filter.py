@@ -652,8 +652,10 @@ def test_edges_chained_selection_edges_filter_paired(graph):
           select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
             filter(expr: {
               dst: {
-                field: NODE_ID
-                where: { eq: { u64: 2 } }
+                node: {
+                  field: NODE_ID
+                  where: { eq: { u64: 2 } }
+                }
               }
             }) {
               list { src { name } dst { name } }
@@ -685,8 +687,10 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
             select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
               filter(expr: {
                 dst: {
-                  field: NODE_ID
-                  where: { eq: { u64: 2 } }
+                  node: {
+                    field: NODE_ID
+                    where: { eq: { u64: 2 } }
+                  }
                 }
               }) {
                 list { src { name } dst { name } }

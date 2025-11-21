@@ -28,7 +28,7 @@ use raphtory::{
         api::{
             properties::dyn_props::DynProperties,
             view::{
-                BaseFilterOps, DynamicGraph, IntoDynamic, IterFilterOps, NodeViewOps,
+                Filter, DynamicGraph, IntoDynamic, Select, NodeViewOps,
                 SearchableGraphOps, StaticGraphViewOps, TimeOps,
             },
         },
@@ -384,7 +384,7 @@ impl GqlGraph {
                 move || nn_clone.select(nf)
             })
             .await?;
-            return Ok(GqlNodes::new(narrowed.into_dyn()));
+            return Ok(GqlNodes::new(narrowed));
         }
 
         Ok(GqlNodes::new(nn))

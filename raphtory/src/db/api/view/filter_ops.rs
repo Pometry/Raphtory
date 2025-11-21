@@ -1,21 +1,21 @@
 use crate::{
     db::{
-        api::view::internal::{BaseFilter, IterFilter},
+        api::view::internal::{InternalFilter, InternalSelect},
         graph::views::filter::internal::CreateFilter,
     },
     errors::GraphError,
 };
 
-pub trait BaseFilterOps<'graph>: BaseFilter<'graph> {
+pub trait Filter<'graph>: InternalFilter<'graph> {
     fn filter<F: CreateFilter>(
         &self,
         filter: F,
-    ) -> Result<Self::Filtered<F::EntityFiltered<'graph, Self::BaseGraph>>, GraphError> {
+    ) -> Result<Self::Filtered<F::EntityFiltered<'graph, Self::Graph>>, GraphError> {
         Ok(self.apply_filter(filter.create_filter(self.base_graph().clone())?))
     }
 }
 
-pub trait IterFilterOps<'graph>: IterFilter<'graph> {
+pub trait Select<'graph>: InternalSelect<'graph> {
     fn select<F: CreateFilter>(
         &self,
         filter: F,
@@ -24,5 +24,5 @@ pub trait IterFilterOps<'graph>: IterFilter<'graph> {
     }
 }
 
-impl<'graph, T: BaseFilter<'graph>> BaseFilterOps<'graph> for T {}
-impl<'graph, T: IterFilter<'graph>> IterFilterOps<'graph> for T {}
+impl<'graph, T: InternalFilter<'graph>> Filter<'graph> for T {}
+impl<'graph, T: InternalSelect<'graph>> Select<'graph> for T {}

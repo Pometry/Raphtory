@@ -2,6 +2,7 @@ use crate::{
     db::graph::views::filter::model::{
         node_filter::{
             InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder,
+            NodeIdFilterBuilderOps,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory, Windowed,
@@ -184,8 +185,8 @@ impl PyNodeFilter {
 
     #[staticmethod]
     fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyNodeWindow> {
-        Ok(PyNodeWindow(Windowed::<NodeFilter>::from_times(
-            py_start, py_end,
+        Ok(PyNodeWindow(Windowed::from_times(
+            py_start, py_end, NodeFilter,
         )))
     }
 }

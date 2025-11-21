@@ -1,6 +1,7 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{EdgeFilter, ExplodedEdgeFilter},
+        edge_filter::EdgeFilter,
+        exploded_edge_filter::ExplodedEdgeFilter,
         node_filter::NodeFilter,
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         Windowed,

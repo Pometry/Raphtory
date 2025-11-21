@@ -5,7 +5,7 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
-        api::state::{Index, NodeState},
+        api::state::{ops::filter::NO_FILTER, Index, NodeState},
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
@@ -58,7 +58,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
         }
     }
     NodeState::new_from_map(g.clone(), paths, |v| {
-        Nodes::new_filtered(g.clone(), g.clone(), Some(Index::from_iter(v)), None)
+        Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::from_iter(v)))
     })
 }
 
