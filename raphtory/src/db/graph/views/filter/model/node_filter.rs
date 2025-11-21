@@ -176,7 +176,8 @@ impl Display for CompositeNodeFilter {
 }
 
 impl CreateFilter for CompositeNodeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+        NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
 
@@ -184,36 +185,8 @@ impl CreateFilter for CompositeNodeFilter {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        match self {
-            CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
-                "node_id" => Ok(Arc::new(NodeIdFilter(i).create_filter(graph)?)),
-                "node_name" => Ok(Arc::new(NodeNameFilter(i).create_filter(graph)?)),
-                "node_type" => Ok(Arc::new(NodeTypeFilter(i).create_filter(graph)?)),
-                _ => {
-                    unreachable!()
-                }
-            },
-            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeNodeFilter::Windowed(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeNodeFilter::And(l, r) => Ok(Arc::new(
-                AndFilter {
-                    left: l.deref().clone(),
-                    right: r.deref().clone(),
-                }
-                .create_filter(graph)?,
-            )),
-            CompositeNodeFilter::Or(l, r) => Ok(Arc::new(
-                OrFilter {
-                    left: l.deref().clone(),
-                    right: r.deref().clone(),
-                }
-                .create_filter(graph)?,
-            )),
-            CompositeNodeFilter::Not(filter) => {
-                let base = filter.deref().clone();
-                Ok(Arc::new(NotFilter(base).create_filter(graph)?))
-            }
-        }
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
@@ -230,7 +203,10 @@ impl CreateFilter for CompositeNodeFilter {
                 }
             },
             CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
-            CompositeNodeFilter::Windowed(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
+            CompositeNodeFilter::Windowed(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
             CompositeNodeFilter::And(l, r) => Ok(Arc::new(AndOp {
                 left: l.clone().create_node_filter(graph.clone())?,
                 right: r.clone().create_node_filter(graph.clone())?,

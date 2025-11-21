@@ -1,19 +1,23 @@
 use crate::{
     db::{
-        api::view::{internal::GraphView, BoxableGraphView},
+        api::{
+            state::ops::NotANodeFilter,
+            view::{internal::GraphView, BoxableGraphView},
+        },
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             internal::CreateFilter,
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
                 node_filter::{
-                    CompositeNodeFilter, NodeFilter,
+                    CompositeNodeFilter, InternalNodeFilterBuilderOps,
+                    InternalNodeIdFilterBuilderOps, NodeFilter,
                 },
                 property_filter::{
                     InternalPropertyFilterBuilderOps, MetadataFilterBuilder, Op, PropertyFilter,
                     PropertyFilterBuilder, PropertyRef,
                 },
-                AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed,
+                AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },
         },
     },
@@ -22,9 +26,6 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
-use crate::db::api::state::ops::NotANodeFilter;
-use crate::db::graph::views::filter::model::node_filter::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps};
-use crate::db::graph::views::filter::model::Wrap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeExplodedEdgeFilter {
@@ -88,7 +89,10 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
                 )))
             }
             Self::Property(p) => Ok(Arc::new(p.create_filter(graph)?)),
-            Self::Windowed(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
+            Self::Windowed(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
             Self::And(l, r) => {
                 let (l, r) = (*l, *r); // move out, no clone
                 Ok(Arc::new(
@@ -242,7 +246,9 @@ where
     }
 }
 
-impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for ExplodedEndpointWrapper<T> {
+impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps
+    for ExplodedEndpointWrapper<T>
+{
     type Marker = T::Marker;
     #[inline]
     fn property_ref(&self) -> PropertyRef {
@@ -286,7 +292,9 @@ impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for ExplodedE
     }
 }
 
-impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for ExplodedEndpointWrapper<T> {
+impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps
+    for ExplodedEndpointWrapper<T>
+{
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }

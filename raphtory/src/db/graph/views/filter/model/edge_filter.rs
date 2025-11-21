@@ -1,7 +1,3 @@
-use crate::db::graph::views::filter::model::node_filter::{
-    InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
-};
-use crate::db::graph::views::filter::model::Wrap;
 use crate::{
     db::{
         api::view::{internal::GraphView, BoxableGraphView},
@@ -11,13 +7,14 @@ use crate::{
             model::{
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 node_filter::{
-                    CompositeNodeFilter, NodeFilter, NodeIdFilterBuilder, NodeNameFilterBuilder,
-                    NodeTypeFilterBuilder,
+                    CompositeNodeFilter, InternalNodeFilterBuilderOps,
+                    InternalNodeIdFilterBuilderOps, NodeFilter, NodeIdFilterBuilder,
+                    NodeNameFilterBuilder, NodeTypeFilterBuilder,
                 },
                 property_filter::{
                     InternalPropertyFilterBuilderOps, Op, PropertyFilter, PropertyRef,
                 },
-                AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed,
+                AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },
         },
     },
@@ -89,7 +86,10 @@ impl CreateFilter for CompositeEdgeFilter {
                 )))
             }
             CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeEdgeFilter::Windowed(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::Windowed(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_filter(dyn_graph)
+            }
             CompositeEdgeFilter::And(l, r) => {
                 let (l, r) = (*l, *r);
                 Ok(Arc::new(
