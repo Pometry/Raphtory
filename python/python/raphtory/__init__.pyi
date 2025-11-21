@@ -1089,6 +1089,32 @@ class Graph(GraphView):
            Graph: the loaded graph with initialised cache
         """
 
+    def load_edge_props(self, data_source: Any, src: str, dst: str, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+        """
+        Load edge properties into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+        This includes, but is not limited to:
+        * Pandas dataframes
+        * FireDucks(.pandas) dataframes
+        * Polars dataframes
+        * Arrow tables
+        * DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+
+        Arguments:
+            data_source (Any): The data source containing edge information.
+            src (str): The column name for the source node.
+            dst (str): The column name for the destination node.
+            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
+            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
+            layer (str, optional): The edge layer name. Defaults to None.
+            layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
     def load_edge_props_from_pandas(self, df: DataFrame, src: str, dst: str, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edge properties from a Pandas DataFrame.
@@ -1121,6 +1147,34 @@ class Graph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): The edge layer name. Defaults to None.
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def load_edges(self, data_source: Any, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+        """
+        Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+        This includes, but is not limited to:
+        * Pandas dataframes
+        * FireDucks(.pandas) dataframes
+        * Polars dataframes
+        * Arrow tables
+        * DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+
+        Arguments:
+            data_source (Any): The data source containing the edges.
+            time (str): The column name for the update timestamps.
+            src (str): The column name for the source node ids.
+            dst (str): The column name for the destination node ids.
+            properties (List[str], optional): List of edge property column names. Defaults to None.
+            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
+            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
+            layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+            layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1197,6 +1251,31 @@ class Graph(GraphView):
            Graph:
         """
 
+    def load_node_props(self, data_source: Any, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
+        """
+        Load node properties into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+        This includes, but is not limited to:
+        * Pandas dataframes
+        * FireDucks(.pandas) dataframes
+        * Polars dataframes
+        * Arrow tables
+        * DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+
+        Arguments:
+            data_source (Any): The data source containing node information.
+            id(str): The column name for the node IDs.
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+            metadata (List[str], optional): List of node metadata column names. Defaults to None.
+            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
     def load_node_props_from_pandas(self, df: DataFrame, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load node properties from a Pandas DataFrame.
@@ -1225,6 +1304,33 @@ class Graph(GraphView):
             id(str): The column name for the node IDs.
             node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+            metadata (List[str], optional): List of node metadata column names. Defaults to None.
+            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def load_nodes(self, data_source: Any, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
+        """
+        Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+        This includes, but is not limited to:
+        * Pandas dataframes
+        * FireDucks(.pandas) dataframes
+        * Polars dataframes
+        * Arrow tables
+        * DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+
+        Arguments:
+            data_source (Any): The data source containing the nodes.
+            time (str): The column name for the timestamps.
+            id (str): The column name for the node IDs.
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+            properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
 

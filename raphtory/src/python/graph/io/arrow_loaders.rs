@@ -3,7 +3,10 @@ use crate::{
     errors::GraphError,
     io::arrow::{
         dataframe::{DFChunk, DFView},
-        df_loaders::load_edges_from_df,
+        df_loaders::{
+            load_edges_from_df, load_edges_props_from_df, load_node_props_from_df,
+            load_nodes_from_df,
+        },
     },
     prelude::{AdditionOps, PropertyAdditionOps},
     python::graph::io::pandas_loaders::{array_to_rust, is_jupyter},
@@ -16,12 +19,49 @@ use arrow::{
     },
     datatypes::SchemaRef,
 };
+use itertools::Either;
 use pyo3::{
     prelude::*,
     types::{PyCapsule, PyDict},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
+
+pub(crate) fn load_nodes_from_arrow_c_stream<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+>(
+    graph: &G,
+    df: &Bound<'py, PyAny>,
+    time: &str,
+    id: &str,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![id, time];
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(metadata);
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
+    }
+
+    let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_nodes_from_df(
+        df_view,
+        time,
+        id,
+        properties,
+        metadata,
+        shared_metadata,
+        node_type,
+        node_type_col,
+        graph,
+    )
+}
 
 pub(crate) fn load_edges_from_arrow<
     'py,
@@ -79,6 +119,68 @@ pub(crate) fn load_edges_from_arrow<
     }
 }
 
+pub(crate) fn load_node_props_from_arrow_c_stream<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+>(
+    graph: &G,
+    df: &Bound<'py, PyAny>,
+    id: &str,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![id];
+    cols_to_check.extend_from_slice(metadata);
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
+    }
+    let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_node_props_from_df(
+        df_view,
+        id,
+        node_type,
+        node_type_col,
+        metadata,
+        shared_metadata,
+        graph,
+    )
+}
+
+pub(crate) fn load_edge_props_from_arrow_c_stream<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+>(
+    graph: &G,
+    df: &Bound<'py, PyAny>,
+    src: &str,
+    dst: &str,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst];
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
+    cols_to_check.extend_from_slice(metadata);
+    let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edges_props_from_df(
+        df_view,
+        src,
+        dst,
+        metadata,
+        shared_metadata,
+        layer,
+        layer_col,
+        graph,
+    )
+}
+
 /// Can handle any object that provides the \_\_arrow_c_stream__() interface and \_\_len__() function
 pub(crate) fn process_arrow_c_stream_df<'a>(
     df: &Bound<'a, PyAny>,
@@ -123,25 +225,52 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
             indices.push(idx);
         }
     }
+    let len_from_python: Option<usize> = if df.hasattr("__len__")? {
+        Some(df.call_method0("__len__")?.extract()?)
+    } else {
+        None
+    };
 
-    let chunks = reader
-        .into_iter()
-        .map(move |batch_res: Result<RecordBatch, _>| {
+    if let Some(num_rows) = len_from_python {
+        let chunks = reader
+            .into_iter()
+            .map(move |batch_res: Result<RecordBatch, _>| {
+                let batch = batch_res.map_err(|e| {
+                    GraphError::LoadFailure(format!(
+                        "Arrow stream error while reading a batch: {}",
+                        e.to_string()
+                    ))
+                })?;
+                let chunk_arrays = indices
+                    .iter()
+                    .map(|&idx| batch.column(idx).clone())
+                    .collect::<Vec<_>>();
+                Ok(DFChunk::new(chunk_arrays))
+            });
+        Ok(DFView::new(names, Either::Left(chunks), num_rows))
+    } else {
+        // if the python data source has no __len__ method, collect the iterator so we can calculate the num_rows() of each batch
+        let mut num_rows = 0usize;
+        let mut df_chunks = Vec::new();
+
+        for batch_res in reader {
             let batch = batch_res.map_err(|e| {
                 GraphError::LoadFailure(format!(
                     "Arrow stream error while reading a batch: {}",
                     e.to_string()
                 ))
             })?;
+            num_rows += batch.num_rows();
             let chunk_arrays = indices
                 .iter()
                 .map(|&idx| batch.column(idx).clone())
                 .collect::<Vec<_>>();
-            Ok(DFChunk::new(chunk_arrays))
-        });
+            df_chunks.push(Ok(DFChunk::new(chunk_arrays)));
+        }
 
-    let num_rows: usize = df.call_method0("__len__")?.extract()?;
-    Ok(DFView::new(names, chunks, num_rows))
+        let chunks = Either::Right(df_chunks.into_iter());
+        Ok(DFView::new(names, chunks, num_rows))
+    }
 }
 
 pub(crate) fn process_arrow_py_df<'a>(
