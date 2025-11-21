@@ -61,55 +61,54 @@ For each layout, specific **Advanced Options** can be set to tune the algorithm.
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Collision Radius      | The collision force treats nodes as circles with a given radius, rather than points, and prevents nodes from overlapping. You can specify the effective radius. |
 | Collision Strength    | Sets the strength of the collision force.                                                                                                                       |
-| Link Distance         |                                                                                                                                                                 |
-| Link Strength         |                                                                                                                                                                 |
-| Many-Body Force       |                                                                                                                                                                 |
-| Many-Body Range       |                                                                                                                                                                 |
-| Center Force          |                                                                                                                                                                 |
-| Radial Force Strength |                                                                                                                                                                 |
-| Radial Force Radius   |                                                                                                                                                                 |
+| Link Distance         | Specify an ideal edge length.                                                                                                                                   |
+| Link Strength         | Higher link strength results in distances closer to the ideal.                                                                                                  |
+| Many-Body Force       | The mutual force between nodes, a positive value is attractive and a negative value is repulsive.                                                               |
+| Many-Body Range       | Set a maximum and minimum distance between nodes that where many-body forces are applied.                                                                       |
+| Center Force          | Applies a uniform force on all nodes towards the center.                                                                                                        |
+| Radial Force Strength | Applies a uniform force on all nodes within a specified radius towards the center.                                                                              |
+| Radial Force Radius   | Specify a radius for the radial force.                                                                                                                          |
 
 #### Concentric Layout
 
-| Parameter                  | Description |
-|----------------------------|-------------|
-| Use Clockwise              |             |
-| Maintain Equidistant Rings |             |
-| Node Size                  |             |
-| Node Spacing               |             |
-| Prevent Overlap            |             |
-| Start Angle                |             |
-| Sweep                      |             |
+| Parameter                  | Description                                                              |
+|----------------------------|--------------------------------------------------------------------------|
+| Use Clockwise              | Enable to add nodes in a clockwise order.                                |
+| Maintain Equidistant Rings | Enable to require equidistant rings.                                     |
+| Node Size                  | Effective node diameter. This effects ring spacing to avoid collision.   |
+| Node Spacing               | Minimum spacing between rings.                                           |
+| Prevent Overlap            | Enable to prevent overlap between nodes. Only works if Node Size is set. |
+| Start Angle                | Start angle where the first node is added. Specified in radians.         |
+| Sweep                      | Angle between the first and last nodes in the same ring.                 |
 
 #### Force Based Layout
 
-| Parameter | Description |
-|-----------|-------------|
-| Gravity   |             |
-| Speed     |             |
+| Parameter | Description                                                                                     |
+|-----------|-------------------------------------------------------------------------------------------------|
+| Gravity   | Applies a force on all nodes towards the center proportional to their distance from the center. |
+| Speed     | Movement speed per iteration of the algorithm.                                                  |
 
 #### Hierarchical TB Layout
 
-| Parameter                  | Description |
-|----------------------------|-------------|
-| Invert                     |             |
-| Direction                  |             |
-| Node Seperation            |             |
-| Rank Seperation            |             |
-| Network algorithm          |             |
-| Node Size                  |             |
-| Retain Edge Control Points |             |
+| Parameter                  | Description                                          |
+|----------------------------|------------------------------------------------------|
+| Invert                     | Enable to invert the direction.                      |
+| Direction                  | Specify how the node hierarchy should be aligned.    |
+| Node Seperation            | Separation of nodes in the same rank.                |
+| Rank Seperation            | Separation between ranks.                            |
+| Rank algorithm             | Specify the algorithm used to assign nodes to ranks. |
+| Node Size                  | Node size used for collision.                        |
+| Retain Edge Control Points | Enable to use control points.                        |
 
 #### Pre-layout algorithms
 
-Optionally, you can set a pre-layout algorithm:
+Optionally, you can set a pre-layout algorithm that runs before the primary layout algorithm:
 
 - Concentric - arranged around the center.
 - Dagre LR - arranged using the hierarchical Dagre algorithm from left to right.
 - Dagre TB - arranged using the hierarchical Dagre algorithm from top to bottom.
 
 For Concentric and Dagre TB algorithms you can also specify **Advanced Options** when used in the pre-layout phase.
-
 
 ## GraphQL playground
 
