@@ -9,6 +9,8 @@ use rust_embed::Embed;
 use serde::Serialize;
 use std::path::PathBuf;
 
+use crate::rayon::{blocking_compute, blocking_write};
+
 #[derive(Serialize)]
 struct Health {
     healthy: bool,
@@ -21,8 +23,10 @@ struct Version {
 
 #[handler]
 pub(crate) async fn health() -> impl IntoResponse {
-    let health = Health { healthy: true };
-    (StatusCode::OK, Json(health))
+    // using blocking_compute and blocking_write to identify deadlocks on any of the two rayon pools
+    blocking_compute(|| {}).await;
+    blocking_write(|| {}).await;
+    (StatusCode::OK, Json(Health { healthy: true }));
 }
 
 #[handler]
