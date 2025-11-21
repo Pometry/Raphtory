@@ -94,8 +94,8 @@ For each layout, specific **Advanced Options** can be set to tune the algorithm.
 |----------------------------|------------------------------------------------------|
 | Invert                     | Enable to invert the direction.                      |
 | Direction                  | Specify how the node hierarchy should be aligned.    |
-| Node Seperation            | Separation of nodes in the same rank.                |
-| Rank Seperation            | Separation between ranks.                            |
+| Node Separation            | Separation of nodes in the same rank.                |
+| Rank Separation            | Separation between ranks.                            |
 | Rank algorithm             | Specify the algorithm used to assign nodes to ranks. |
 | Node Size                  | Node size used for collision.                        |
 | Retain Edge Control Points | Enable to use control points.                        |
