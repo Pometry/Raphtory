@@ -45,11 +45,10 @@ impl MemGraphProps {
     /// Graph segments are currently only written to a single layer.
     pub const LAYER: usize = 0;
 
-    pub fn new() -> Self {
+    pub fn new_with_metadata(meta: Arc<Meta>) -> Self {
         // Technically, these aren't used since there is always only one graph segment.
         let segment_id = 0;
         let max_page_len = 1;
-        let meta = Arc::new(Meta::new_for_graph());
 
         Self {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],

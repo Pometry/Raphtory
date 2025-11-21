@@ -33,6 +33,11 @@ where
     fn increment_est_size(&self, size: usize);
 
     fn est_size(&self) -> usize;
+
+    fn notify_write(
+        &self,
+        mem_segment: &mut RwLockWriteGuard<'_, MemGraphProps>,
+    ) -> Result<(), StorageError>;
 }
 
 /// Methods for reading graph properties and metadata from storage.

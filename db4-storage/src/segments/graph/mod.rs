@@ -6,7 +6,7 @@ use crate::error::StorageError;
 use crate::persist::strategy::NoOpStrategy;
 use crate::segments::graph::entry::MemGraphEntry;
 use crate::segments::graph::segment::MemGraphProps;
-use parking_lot::{ArcRwLockReadGuard, RwLock};
+use parking_lot::RwLock;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::meta::Meta;
 use std::path::Path;
@@ -32,7 +32,7 @@ impl GraphPropOps for GraphSegmentView {
 
     fn new(meta: Arc<Meta>, _path: Option<&Path>, _ext: Self::Extension) -> Self {
         Self {
-            head: Arc::new(RwLock::new(MemGraphProps::new())),
+            head: Arc::new(RwLock::new(MemGraphProps::new_with_metadata(meta))),
             est_size: AtomicUsize::new(0),
         }
     }
@@ -66,5 +66,12 @@ impl GraphPropOps for GraphSegmentView {
 
     fn est_size(&self) -> usize {
         self.est_size.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn notify_write(
+        &self,
+        _mem_segment: &mut RwLockWriteGuard<'_, MemGraphProps>,
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 }

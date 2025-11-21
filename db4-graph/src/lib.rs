@@ -127,7 +127,7 @@ impl Default for TemporalGraph<Extension> {
     }
 }
 
-impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
+impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> TemporalGraph<EXT> {
     pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
@@ -381,7 +381,9 @@ pub struct WriteLockedGraph<'a, EXT: Config> {
     pub graph: &'a TemporalGraph<EXT>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'a, EXT> {
+impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
+    WriteLockedGraph<'a, EXT>
+{
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),

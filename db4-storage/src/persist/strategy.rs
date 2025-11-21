@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::segments::{
     edge::segment::{EdgeSegmentView, MemEdgeSegment},
-    graph::GraphSegmentView,
+    graph::{GraphSegmentView, segment::MemGraphProps},
     node::segment::{MemNodeSegment, NodeSegmentView},
 };
 
@@ -39,6 +39,13 @@ pub trait PersistentStrategy: Config {
     fn persist_edge_page<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         edge_page: &Self::ES,
+        writer: MP,
+    ) where
+        Self: Sized;
+
+    fn persist_graph_props<MP: DerefMut<Target = MemGraphProps>>(
+        &self,
+        graph_segment: &Self::GS,
         writer: MP,
     ) where
         Self: Sized;
@@ -110,6 +117,14 @@ impl PersistentStrategy for NoOpStrategy {
     fn persist_edge_page<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         _edge_page: &Self::ES,
+        _writer: MP,
+    ) {
+        // No operation
+    }
+
+    fn persist_graph_props<MP: DerefMut<Target = MemGraphProps>>(
+        &self,
+        _graph_segment: &Self::GS,
         _writer: MP,
     ) {
         // No operation

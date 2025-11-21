@@ -39,3 +39,11 @@ impl<'a, GS: GraphPropOps> GraphWriter<'a, GS> {
         self.graph_props.increment_est_size(add);
     }
 }
+
+impl<GS: GraphPropOps> Drop for GraphWriter<'_, GS> {
+    fn drop(&mut self) {
+        self.graph_props
+            .notify_write(&mut self.mem_segment)
+            .expect("Failed to persist node page");
+    }
+}
