@@ -69,7 +69,7 @@ mod vector_tests {
         tokio::time::sleep(Duration::from_secs(1)).await;
         VectorCache::in_memory()
             .openai(OpenAIEmbeddings {
-                api_base: Some("http://localhost:3070/v1".to_owned()), // FIXME: the fact that I need to write /v1 is not ideal?
+                api_base: Some("http://localhost:3070".to_owned()), // FIXME: the fact that I need to write /v1 is not ideal?
                 ..Default::default()
             })
             .await

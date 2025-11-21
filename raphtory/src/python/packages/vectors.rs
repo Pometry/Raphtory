@@ -150,6 +150,20 @@ impl PyEmbeddingServer {
             panic!("nothing to stop")
         }
     }
+
+    // fn __enter__(slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+    //     PyEmbeddingServer::start(&slf);
+    //     slf
+    // }
+
+    // fn __exit__(
+    //     mut slf: PyRefMut<'_, Self>,
+    //     _exc_type: Option<PyObject>,
+    //     _exc_value: Option<PyObject>,
+    //     _traceback: Option<PyObject>,
+    // ) {
+    //     PyEmbeddingServer::stop(slf);
+    // }
 }
 
 fn build_runtime() -> Runtime {

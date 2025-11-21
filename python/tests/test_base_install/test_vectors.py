@@ -51,8 +51,7 @@ def create_graph() -> VectorisedGraph:
     g.add_edge(3, "node1", "node3", {"name": "edge2"})
     g.add_edge(4, "node3", "node4", {"name": "edge3"})
 
-# FIXME: I should not need to write /v1?, change that in rust, so the route is /embeddings, not v1/embeddings
-    embeddings = OpenAIEmbeddings(api_base="http://localhost:7340/v1")
+    embeddings = OpenAIEmbeddings(api_base="http://localhost:7340")
     vg = g.vectorise(embeddings, nodes="{{ name }}", edges="{{ properties.name }}")
 
     return vg
@@ -224,7 +223,7 @@ def test_default_template():
 
     constant_embedding.start()
 
-    vg = g.vectorise(OpenAIEmbeddings(api_base="http://localhost:7341/v1"))
+    vg = g.vectorise(OpenAIEmbeddings(api_base="http://localhost:7341"))
 
     node_docs = vg.nodes_by_similarity(query="whatever", limit=10).get_documents()
     assert len(node_docs) == 1

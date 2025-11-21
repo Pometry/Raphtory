@@ -33,7 +33,6 @@ async fn embeddings(
     let data = req
         .input
         .iter()
-        // .map(|text| function(text))
         .enumerate()
         .map(|(i, t)| Embedding {
             index: i as u32,
@@ -75,7 +74,7 @@ pub async fn serve_custom_embedding(
 ) -> EmbeddingServer {
     let state = Arc::new(function);
     let app = Router::new()
-        .route("/v1/embeddings", post(embeddings))
+        .route("/embeddings", post(embeddings)) // TODO: this should be /v1/embeddings if we were to support multiple versions
         .with_state(state);
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
     let (sender, mut receiver) = mpsc::channel(1);
