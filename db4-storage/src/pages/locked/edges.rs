@@ -5,7 +5,7 @@ use crate::{
     api::edges::EdgeSegmentOps,
     error::StorageError,
     pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats, resolve_pos},
-    segments::edge::MemEdgeSegment,
+    segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_core::entities::{EID, ELID};

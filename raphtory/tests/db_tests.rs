@@ -1984,7 +1984,7 @@ fn test_prop_display_str() {
 }
 
 #[test]
-fn test_graph_metadata() {
+fn test_graph_metadata_proptest() {
     proptest!(|(u64_props: HashMap<String, u64>)| {
         let g = Graph::new();
 
@@ -1993,7 +1993,7 @@ fn test_graph_metadata() {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-    g.add_metadata(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
@@ -2004,7 +2004,7 @@ fn test_graph_metadata() {
 }
 
 #[test]
-fn test_graph_metadata2() {
+fn test_graph_metadata() {
     let g = Graph::new();
 
     let as_props: Vec<(&str, Prop)> =
@@ -2049,7 +2049,7 @@ fn test_graph_metadata_names() {
             .map(|(name, value)| (name.into(), Prop::U64(value)))
             .collect::<Vec<_>>();
 
-    g.add_metadata(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()

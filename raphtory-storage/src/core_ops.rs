@@ -123,7 +123,7 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     #[inline]
-    fn graph_meta(&self) -> &GraphMeta {
+    fn graph_meta(&self) -> &Meta {
         self.core_graph().graph_meta()
     }
 

@@ -33,6 +33,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use storage::api::graph::GraphEntryOps;
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -241,20 +242,21 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         start: i64,
         end: i64,
     ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
-            let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
-                .map(|v| (TimeIndexEntry::start(start), v));
-            first
+        let graph_props = self.core_graph().graph_entry();
+        GenLockedIter::from(graph_props, move |graph_props| {
+            graph_props
+                .get_temporal_prop(prop_id)
                 .into_iter()
-                .chain(GenLockedIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_boxed()
-                }))
+                .flat_map(move |prop| {
+                    let first = persisted_prop_value_at(start, prop, &TimeIndex::Empty)
+                        .map(|v| (TimeIndexEntry::start(start), v));
+                    first
+                        .into_iter()
+                        .chain(prop.iter_window(TimeIndexEntry::range(start..end)))
+                })
                 .into_dyn_boxed()
-        } else {
-            iter::empty().into_dyn_boxed()
-        }
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_prop_iter_window_rev(
@@ -263,19 +265,20 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         start: i64,
         end: i64,
     ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
-            let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
-                .map(|v| (TimeIndexEntry::start(start), v));
-            let iter = GenLockedIter::from(prop, |prop| {
-                prop.deref()
-                    .iter_window_rev(TimeIndexEntry::range(start..end))
-                    .into_dyn_boxed()
-            });
-
-            iter.into_iter().chain(first).into_dyn_boxed()
-        } else {
-            iter::empty().into_dyn_boxed()
-        }
+        let graph_props = self.core_graph().graph_entry();
+        GenLockedIter::from(graph_props, move |graph_props| {
+            graph_props
+                .get_temporal_prop(prop_id)
+                .into_iter()
+                .flat_map(move |prop| {
+                    let first = persisted_prop_value_at(start, prop, &TimeIndex::Empty)
+                        .map(|v| (TimeIndexEntry::start(start), v));
+                    prop.iter_window_rev(TimeIndexEntry::range(start..end))
+                        .chain(first)
+                })
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_prop_last_at(

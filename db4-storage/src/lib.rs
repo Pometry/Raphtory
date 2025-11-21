@@ -17,16 +17,23 @@ use crate::{
     persist::strategy::NoOpStrategy,
     resolver::mapping_resolver::MappingResolver,
     segments::{
-        edge::EdgeSegmentView,
-        edge_entry::{MemEdgeEntry, MemEdgeRef},
-        node::NodeSegmentView,
-        node_entry::{MemNodeEntry, MemNodeRef},
+        edge::{
+            entry::{MemEdgeEntry, MemEdgeRef},
+            segment::EdgeSegmentView,
+        },
+        graph::entry::MemGraphEntry,
+        node::{
+            entry::{MemNodeEntry, MemNodeRef},
+            segment::NodeSegmentView,
+        },
     },
     wal::no_wal::NoWal,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
-use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
+use segments::{
+    edge::segment::MemEdgeSegment, graph::GraphSegmentView, node::segment::MemNodeSegment,
+};
 
 pub mod api;
 pub mod gen_t_props;
@@ -42,12 +49,13 @@ pub mod wal;
 pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
-pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
+pub type GS = GraphSegmentView;
+pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS, P>;
 
 pub type WalImpl = NoWal;
 pub type GIDResolver = MappingResolver;
 
-pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, P>;
+pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS, P>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NS<P>, P>;
 pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<ES<P>, P>;
 
@@ -55,12 +63,14 @@ pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNo
 pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
+pub type GraphEntry<'a> = MemGraphEntry<'a>;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
 
 pub type EdgeAdditions<'a> = GenericTimeOps<'a, AdditionCellsRef<'a, MemEdgeRef<'a>>>;
 pub type EdgeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemEdgeRef<'a>>>;
+
 pub type NodeTProps<'a> = GenTProps<'a, MemNodeRef<'a>>;
 pub type EdgeTProps<'a> = GenTProps<'a, MemEdgeRef<'a>>;
 

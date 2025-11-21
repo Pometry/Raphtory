@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use super::GraphStorage;
 use crate::{
     core::utils::iter::GenLockedIter,
@@ -16,44 +14,62 @@ use raphtory_api::{
     },
     iter::IntoDynBoxed,
 };
+use storage::api::graph::GraphEntryOps;
 
 impl InternalTemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
-        self.graph_meta().get_temporal_dtype(id).unwrap()
+        self.graph_meta()
+            .temporal_prop_mapper()
+            .get_dtype(id)
+            .unwrap()
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(id)
-            .into_iter()
-            .flat_map(|prop| GenLockedIter::from(prop, |prop| prop.deref().iter().into_dyn_boxed()))
-            .into_dyn_boxed()
+        let graph_entry = self.graph_entry();
+
+        // Return a boxed iterator of temporal props over the locked graph entry.
+        let iter = GenLockedIter::from(graph_entry, |entry| {
+            entry
+                .get_temporal_prop(id)
+                .into_iter()
+                .flat_map(|prop| prop.iter())
+                .into_dyn_boxed()
+        });
+
+        iter.into_dyn_boxed()
     }
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(id)
-            .into_iter()
-            .flat_map(|prop| {
-                GenLockedIter::from(prop, |prop| {
-                    prop.deref().iter_inner_rev(None).into_dyn_boxed()
-                })
-            })
-            .into_dyn_boxed()
+        let graph_entry = self.graph_entry();
+
+        // Return a boxed iterator of temporal props in reverse order over
+        // the locked graph entry.
+        let iter = GenLockedIter::from(graph_entry, |entry| {
+            entry
+                .get_temporal_prop(id)
+                .into_iter()
+                .flat_map(|prop| prop.iter_inner_rev(None))
+                .into_dyn_boxed()
+        });
+
+        iter.into_dyn_boxed()
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
-        self.graph_meta().get_temporal_prop(id).and_then(|prop| {
-            prop.deref()
-                .last_before(TimeIndexEntry::MAX)
-                .map(|(_, v)| v)
-        })
+        let graph_entry = self.graph_entry();
+
+        // Return the latest temporal prop value.
+        graph_entry
+            .get_temporal_prop(id)
+            .and_then(|prop| prop.last_before(TimeIndexEntry::MAX).map(|(_, v)| v))
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
-        self.graph_meta().get_temporal_prop(id).and_then(|prop| {
-            prop.deref()
-                .last_before(TimeIndexEntry::start(t.saturating_add(1)))
+        let graph_entry = self.graph_entry();
+
+        // Return the temporal prop value at the given time.
+        graph_entry.get_temporal_prop(id).and_then(|prop| {
+            prop.last_before(TimeIndexEntry::start(t.saturating_add(1)))
                 .map(|(_, v)| v)
         })
     }
@@ -61,18 +77,25 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
 
 impl InternalTemporalPropertiesOps for GraphStorage {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph_meta().get_temporal_id(name)
+        self.graph_meta().temporal_prop_mapper().get_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph_meta().get_temporal_name(id)
+        self.graph_meta().temporal_prop_mapper().get_name(id)
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        Box::new(self.graph_meta().temporal_ids())
+        self.graph_meta()
+            .temporal_prop_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 
     fn temporal_prop_keys(&self) -> BoxedLIter<'_, ArcStr> {
-        Box::new(self.graph_meta().temporal_names().into_iter())
+        self.graph_meta()
+            .temporal_prop_mapper()
+            .keys()
+            .into_iter()
+            .into_dyn_boxed()
     }
 }

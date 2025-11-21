@@ -427,8 +427,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 let start_id = session
                     .reserve_event_ids(df.len())
                     .map_err(into_graph_err)?;
-                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
-                col
+                SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
             }
         };
 
@@ -652,7 +651,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             });
         });
 
-        #[cfg(feature = "python")]
+        // #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
 

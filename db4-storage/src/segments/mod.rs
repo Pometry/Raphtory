@@ -19,11 +19,10 @@ use std::{
 };
 
 pub mod edge;
+pub mod graph;
 pub mod node;
 
 pub mod additions;
-pub mod edge_entry;
-pub mod node_entry;
 
 pub type PageIndexT = u32;
 
@@ -163,12 +162,14 @@ pub struct SegmentContainer<T> {
 
 pub trait HasRow: Default + Send + Sync + Sized {
     fn row(&self) -> usize;
+
     fn row_mut(&mut self) -> &mut usize;
 }
 
 impl<T: HasRow> SegmentContainer<T> {
     pub fn new(segment_id: usize, max_page_len: u32, meta: Arc<Meta>) -> Self {
         assert!(max_page_len > 0, "max_page_len must be greater than 0");
+
         Self {
             segment_id,
             data: Default::default(),
@@ -179,9 +180,18 @@ impl<T: HasRow> SegmentContainer<T> {
         }
     }
 
+    /// Replaces this container with an empty instance, returning the
+    /// old container with its data.
+    pub fn take(&mut self) -> Self {
+        std::mem::replace(
+            self,
+            Self::new(self.segment_id, self.max_page_len, self.meta.clone()),
+        )
+    }
+
     #[inline]
     pub fn est_size(&self) -> usize {
-        //TODO: this is a rough estimate and should be improved
+        // TODO: this is a rough estimate and should be improved
         let data_size =
             (self.data.num_filled() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
         let timestamp_size = std::mem::size_of::<TimeIndexEntry>();

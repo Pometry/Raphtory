@@ -14,7 +14,7 @@ use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
 use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
 use std::{fmt::Debug, iter, sync::Arc};
-use storage::Extension;
+use storage::{Extension, GraphEntry};
 use thiserror::Error;
 
 #[derive(Clone, Debug)]
@@ -210,6 +210,15 @@ impl GraphStorage {
         }
     }
 
+    /// Acquired a locked, read-only view of graph properties / metadata.
+    #[inline(always)]
+    pub fn graph_entry(&self) -> GraphEntry<'_> {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().graph_props().graph_entry(),
+            GraphStorage::Unlocked(storage) => storage.storage().graph_props().graph_entry(),
+        }
+    }
+
     pub fn layer_ids_iter(&self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> {
         match layer_ids {
             LayerIds::None => LayerVariants::None(iter::empty()),
@@ -237,7 +246,7 @@ impl GraphStorage {
         }
     }
 
-    pub fn graph_meta(&self) -> &GraphMeta {
+    pub fn graph_meta(&self) -> &Meta {
         match self {
             GraphStorage::Mem(storage) => storage.graph.graph_meta(),
             GraphStorage::Unlocked(storage) => storage.graph_meta(),
