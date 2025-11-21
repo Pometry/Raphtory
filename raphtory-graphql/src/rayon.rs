@@ -30,13 +30,44 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 #[cfg(test)]
 mod deadlock_tests {
-    use std::{path::PathBuf, time::Duration};
+    use std::{
+        path::PathBuf,
+        sync::{Arc, Mutex},
+        time::Duration,
+    };
 
     use reqwest::Client;
 
-    use crate::{rayon::WRITE_POOL, server::RunningGraphServer, GraphServer};
+    use crate::{rayon::WRITE_POOL, GraphServer};
 
-    async fn assert_healthcheck_timeout(port: u16) {
+    #[tokio::test]
+    async fn test_deadlock_in_read_pool() {
+        test_pool_lock(43871, |lock| {
+            rayon::spawn_broadcast(move |_| {
+                let _guard = lock.lock().unwrap();
+            });
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_deadlock_in_write_pool() {
+        test_pool_lock(43872, |lock| {
+            WRITE_POOL.spawn_broadcast(move |_| {
+                let _guard = lock.lock().unwrap();
+            });
+        })
+        .await;
+    }
+
+    async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
+        let server = GraphServer::new(PathBuf::from("/tmp/health-check-test"), None, None).unwrap();
+        let _running = server.start_with_port(port).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await; // this is to wait for the server to be up
+        let lock = Arc::new(Mutex::new(()));
+        let _guard = lock.lock();
+        let lock_clone = lock.clone();
+        pool_lock(lock_clone);
         let client = Client::new();
         let result = client
             .get(format!("http://localhost:{port}/health"))
@@ -47,36 +78,5 @@ mod deadlock_tests {
             result.expect_err("The request should timeout since the thread pool should be locked");
         dbg!(&error);
         assert!(error.is_timeout());
-    }
-
-    async fn start_server(port: u16) -> RunningGraphServer {
-        let server = GraphServer::new(PathBuf::from("/tmp/health-check-test"), None, None).unwrap();
-        let running = server.start_with_port(port).await.unwrap();
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        running
-    }
-
-    #[tokio::test]
-    async fn test_deadlock_in_read_pool() {
-        let port = 43871;
-        let _running = start_server(port).await;
-        for _ in 0..rayon::current_num_threads() {
-            rayon::spawn(move || loop {
-                std::hint::spin_loop();
-            });
-        }
-        assert_healthcheck_timeout(port).await;
-    }
-
-    #[tokio::test]
-    async fn test_deadlock_in_write_pool() {
-        let port = 43872;
-        let _running = start_server(port).await;
-        for _ in 0..WRITE_POOL.current_num_threads() {
-            WRITE_POOL.spawn(move || loop {
-                std::hint::spin_loop();
-            });
-        }
-        assert_healthcheck_timeout(port).await;
     }
 }
