@@ -57,9 +57,7 @@ def bench_polars(df: pl.DataFrame) -> float:
     start = time.perf_counter()
     g.load_edges_from_polars(df=df, time="block_timestamp", src="inputs_address", dst="outputs_address")
     total = time.perf_counter() - start
-    print(
-        f"[polars]                  ingestion took {total:.3f}s"
-    )
+    print(f"[polars]                ingestion took {total:.3f}s")
     del g
     gc.collect()
     return total
@@ -69,9 +67,7 @@ def bench_polars_streaming(df: pl.DataFrame) -> float:
     start = time.perf_counter()
     g.load_edges(data_source=df, time="block_timestamp", src="inputs_address", dst="outputs_address")
     total = time.perf_counter() - start
-    print(
-        f"[polars streaming]        ingestion took {total:.3f}s"
-    )
+    print(f"[polars streaming]      ingestion took {total:.3f}s")
     del g
     gc.collect()
     return total
@@ -82,9 +78,7 @@ def bench_arrow(df: pl.DataFrame) -> float:
     start = time.perf_counter()
     g.load_edges_from_arrow(df=df_arrow_from_pl, time="block_timestamp", src="inputs_address", dst="outputs_address")
     total = time.perf_counter() - start
-    print(
-        f"[arrow]                   ingestion took {total:.3f}s"
-    )
+    print(f"[arrow]                 ingestion took {total:.3f}s")
     del g, df_arrow_from_pl
     gc.collect()
     return total
@@ -95,9 +89,7 @@ def bench_arrow_streaming(df: pl.DataFrame) -> float:
     start = time.perf_counter()
     g.load_edges(data_source=df_arrow_from_pl, time="block_timestamp", src="inputs_address", dst="outputs_address")
     total = time.perf_counter() - start
-    print(
-        f"[arrow streaming]         ingestion took {total:.3f}s"
-    )
+    print(f"[arrow streaming]       ingestion took {total:.3f}s")
     del g, df_arrow_from_pl
     gc.collect()
     return total
@@ -110,9 +102,7 @@ def bench_duckdb(df: pl.DataFrame) -> float:
     # internally calls fetch_arrow_table() on duckdb_df
     g.load_edges_from_duckdb(df=duckdb_df, time="block_timestamp", src="inputs_address", dst="outputs_address")
     total = time.perf_counter() - start
-    print(
-        f"[duckdb]                  ingestion took {total:.3f}s"
-    )
+    print(f"[duckdb]                ingestion took {total:.3f}s")
     del g, df_arrow_from_pl, duckdb_df
     gc.collect()
     return total
@@ -125,9 +115,7 @@ def bench_duckdb_streaming(df: pl.DataFrame) -> float:
     # uses the __arrow_c_stream__() interface internally
     g.load_edges(data_source=duckdb_df, time="block_timestamp", src="inputs_address", dst="outputs_address")
     total = time.perf_counter() - start
-    print(
-        f"[duckdb streaming]        ingestion took {total:.3f}s"
-    )
+    print(f"[duckdb streaming]      ingestion took {total:.3f}s")
     del g, df_arrow_from_pl, duckdb_df
     gc.collect()
     return total
