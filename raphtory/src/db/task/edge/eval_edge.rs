@@ -137,7 +137,8 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Clon
     }
 }
 
-impl<'graph, 'a: 'graph, Current, S, CS> InternalFilter<'graph> for EvalEdgeView<'graph, 'a, Current, CS, S>
+impl<'graph, 'a: 'graph, Current, S, CS> InternalFilter<'graph>
+    for EvalEdgeView<'graph, 'a, Current, CS, S>
 where
     'a: 'graph,
     Current: GraphViewOps<'graph>,

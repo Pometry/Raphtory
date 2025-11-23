@@ -9,7 +9,8 @@ use crate::{
             state::{
                 ops,
                 ops::{
-                    filter::NO_FILTER, DynNodeFilter, IntoDynNodeOp, NodeFilterOp,
+                    filter::{AndOp, NodeTypeFilterOp, NO_FILTER},
+                    Degree, DynNodeFilter, IntoDynNodeOp, NodeFilterOp,
                 },
                 LazyNodeState, NodeStateOps,
             },
@@ -65,8 +66,6 @@ use raphtory_api::core::{
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
-use crate::db::api::state::ops::Degree;
-use crate::db::api::state::ops::filter::{AndOp, NodeTypeFilterOp};
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass, module = "raphtory", frozen)]

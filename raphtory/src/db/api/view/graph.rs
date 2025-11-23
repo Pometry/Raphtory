@@ -8,6 +8,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::InternalMetadataOps, Metadata, Properties},
+            state::ops::filter::NodeTypeFilterOp,
             view::{internal::*, *},
         },
         graph::{
@@ -18,9 +19,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView,
-                filter::{
-                    model::TryAsCompositeFilter,
-                },
+                filter::{model::TryAsCompositeFilter, node_filtered_graph::NodeFilteredGraph},
                 node_subgraph::NodeSubgraph,
                 valid_graph::ValidGraph,
             },
@@ -50,8 +49,6 @@ use raphtory_storage::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::sync::{atomic::Ordering, Arc};
-use crate::db::api::state::ops::filter::NodeTypeFilterOp;
-use crate::db::graph::views::filter::node_filtered_graph::NodeFilteredGraph;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -446,7 +443,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         &self,
         node_types: I,
     ) -> NodeFilteredGraph<Self, NodeTypeFilterOp> {
-        NodeFilteredGraph::new(self.clone(), NodeTypeFilterOp::new_from_values(node_types, self))
+        NodeFilteredGraph::new(
+            self.clone(),
+            NodeTypeFilterOp::new_from_values(node_types, self),
+        )
     }
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {

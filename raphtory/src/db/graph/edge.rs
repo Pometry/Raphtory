@@ -20,7 +20,7 @@ use crate::{
                 Metadata, Properties,
             },
             view::{
-                internal::{EdgeTimeSemanticsOps, InternalFilter, GraphView, Static},
+                internal::{EdgeTimeSemanticsOps, GraphView, InternalFilter, Static},
                 BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },

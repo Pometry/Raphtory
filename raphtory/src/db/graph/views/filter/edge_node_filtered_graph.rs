@@ -1,11 +1,10 @@
-use crate::db::api::state::ops::NodeFilterOp;
-use crate::db::api::view::internal::{GraphView};
 use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::NodeFilterOp,
             view::internal::{
-                Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+                GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,

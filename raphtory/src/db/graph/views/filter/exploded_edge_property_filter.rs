@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::NotANodeFilter,
             view::internal::{
                 GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                 InheritEdgeLayerFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
@@ -32,7 +33,6 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_storage::core_ops::InheritCoreGraphOps;
-use crate::db::api::state::ops::NotANodeFilter;
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {

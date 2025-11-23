@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::{internal::FilterOps, Filter, StaticGraphViewOps},
+        api::view::{internal::FilterOps, BoxableGraphView, Filter, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             views::filter::{
@@ -248,8 +248,9 @@ impl<'a> EdgeFilterExecutor<'a> {
             CompositeEdgeFilter::Windowed(filter) => {
                 let start = filter.start.t();
                 let end = filter.end.t();
-                let res =
-                    self.filter_edges(&graph.window(start, end), &filter.inner, limit, offset)?;
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.window(start, end);
+                let res = self.filter_edges(&dyn_graph, &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()
                     .map(|x| EdgeView::new(graph.clone(), x.edge))

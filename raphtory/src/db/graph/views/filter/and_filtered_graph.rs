@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            state::ops::NodeFilterOp,
+            state::ops::{filter::AndOp, NodeFilterOp},
             view::internal::{
                 EdgeList, GraphView, Immutable, InheritMaterialize, InheritStorageOps,
                 InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
@@ -10,10 +10,7 @@ use crate::{
                 NodeList, Static,
             },
         },
-        graph::views::filter::{
-            internal::CreateFilter,
-            model::AndFilter,
-        },
+        graph::views::filter::{internal::CreateFilter, model::AndFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -29,7 +26,6 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
 };
-use crate::db::api::state::ops::filter::AndOp;
 
 #[derive(Debug, Clone)]
 pub struct AndFilteredGraph<G, L, R> {

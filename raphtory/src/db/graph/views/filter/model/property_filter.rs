@@ -1,5 +1,3 @@
-use crate::db::graph::views::filter::internal::CreateFilter;
-use crate::db::graph::views::filter::model::Wrap;
 use crate::{
     db::{
         api::{
@@ -13,12 +11,15 @@ use crate::{
         graph::{
             edge::EdgeView,
             node::NodeView,
-            views::filter::model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFilter},
-                exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
-                filter_operator::FilterOperator,
-                node_filter::{CompositeNodeFilter, NodeFilter},
-                TryAsCompositeFilter,
+            views::filter::{
+                internal::CreateFilter,
+                model::{
+                    edge_filter::{CompositeEdgeFilter, EdgeFilter},
+                    exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
+                    filter_operator::FilterOperator,
+                    node_filter::{CompositeNodeFilter, NodeFilter},
+                    TryAsCompositeFilter, Wrap,
+                },
             },
         },
     },
@@ -1354,9 +1355,7 @@ pub trait InternalPropertyFilterBuilderOps: Send + Sync + Wrap {
 
     fn property_ref(&self) -> PropertyRef;
 
-    fn ops(&self) -> &[Op] {
-        &[]
-    }
+    fn ops(&self) -> &[Op];
 
     fn entity(&self) -> Self::Marker;
 }
@@ -1615,6 +1614,10 @@ where
         PropertyRef::Property(self.0.clone())
     }
 
+    fn ops(&self) -> &[Op] {
+        &[]
+    }
+
     fn entity(&self) -> Self::Marker {
         self.1.clone()
     }
@@ -1646,6 +1649,10 @@ where
 
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Metadata(self.0.clone())
+    }
+
+    fn ops(&self) -> &[Op] {
+        &[]
     }
 
     fn entity(&self) -> Self::Marker {
@@ -1736,26 +1743,28 @@ where
 }
 
 pub trait ElemQualifierOps: InternalPropertyFilterBuilderOps {
-    fn any(&self) -> OpChainBuilder<Self::Marker>
+    fn any(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>>
     where
         Self: Sized,
     {
-        OpChainBuilder {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Any]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 
-    fn all(&self) -> OpChainBuilder<Self::Marker>
+    fn all(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>>
     where
         Self: Sized,
     {
-        OpChainBuilder {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::All]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 }
 
@@ -1772,60 +1781,67 @@ impl<M> PropertyFilterBuilder<M> {
 }
 
 pub trait ListAggOps: InternalPropertyFilterBuilderOps + Sized {
-    fn len(&self) -> OpChainBuilder<Self::Marker> {
-        OpChainBuilder {
+    fn len(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Len]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 
-    fn sum(&self) -> OpChainBuilder<Self::Marker> {
-        OpChainBuilder {
+    fn sum(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Sum]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 
-    fn avg(&self) -> OpChainBuilder<Self::Marker> {
-        OpChainBuilder {
+    fn avg(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Avg]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 
-    fn min(&self) -> OpChainBuilder<Self::Marker> {
-        OpChainBuilder {
+    fn min(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Min]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 
-    fn max(&self) -> OpChainBuilder<Self::Marker> {
-        OpChainBuilder {
+    fn max(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Max]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 
-    fn first(&self) -> OpChainBuilder<Self::Marker> {
-        OpChainBuilder {
+    fn first(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::First]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 
-    fn last(&self) -> OpChainBuilder<Self::Marker> {
-        OpChainBuilder {
+    fn last(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+        let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Last]).collect(),
             entity: self.entity(),
-        }
+        };
+        self.wrap(builder)
     }
 }
 

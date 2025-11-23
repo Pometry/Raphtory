@@ -28,8 +28,8 @@ use raphtory::{
         api::{
             properties::dyn_props::DynProperties,
             view::{
-                Filter, DynamicGraph, IntoDynamic, Select, NodeViewOps,
-                SearchableGraphOps, StaticGraphViewOps, TimeOps,
+                DynamicGraph, Filter, IntoDynamic, NodeViewOps, SearchableGraphOps, Select,
+                StaticGraphViewOps, TimeOps,
             },
         },
         graph::{

@@ -3,7 +3,10 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::{Const, IntoDynNodeOp, NodeFilterOp, NodeOp},
+                ops::{
+                    filter::{AndOp, NodeTypeFilterOp},
+                    Const, IntoDynNodeOp, NodeFilterOp, NodeOp,
+                },
                 Index, LazyNodeState,
             },
             view::{
@@ -12,9 +15,7 @@ use crate::{
             },
         },
         graph::{
-            edges::NestedEdges,
-            node::NodeView,
-            path::PathFromGraph,
+            edges::NestedEdges, node::NodeView, path::PathFromGraph,
             views::filter::internal::CreateFilter,
         },
     },
@@ -30,7 +31,6 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
-use crate::db::api::state::ops::filter::{AndOp, NodeTypeFilterOp};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {
@@ -117,17 +117,6 @@ impl<G: IntoDynamic, GH: IntoDynamic, F: NodeFilterOp + IntoDynNodeOp + 'static>
             nodes: self.nodes,
             _marker: Default::default(),
         }
-    }
-}
-
-impl<G: IntoDynamic, GH: IntoDynamic + Static, F: NodeFilterOp + IntoDynNodeOp + 'static>
-    From<Nodes<'static, G, GH, F>>
-    for Nodes<'static, DynamicGraph, DynamicGraph, Arc<dyn NodeOp<Output = bool>>>
-{
-    fn from(
-        value: Nodes<'static, G, GH, F>,
-    ) -> Nodes<'static, DynamicGraph, DynamicGraph, Arc<dyn NodeOp<Output = bool>>> {
-        value.into_dyn()
     }
 }
 

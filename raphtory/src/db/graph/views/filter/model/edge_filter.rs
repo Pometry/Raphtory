@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::view::{internal::GraphView, BoxableGraphView},
+        api::{
+            state::ops::NotANodeFilter,
+            view::{internal::GraphView, BoxableGraphView},
+        },
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             internal::CreateFilter,
@@ -23,7 +26,6 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
-use crate::db::api::state::ops::NotANodeFilter;
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum Endpoint {
@@ -221,6 +223,7 @@ impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for E
 }
 
 impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for EndpointWrapper<T> {
+    type FilterType = T::FilterType;
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }

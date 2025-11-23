@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            state::ops::NodeFilterOp,
+            state::ops::{filter::NotOp, NodeFilterOp},
             view::internal::{
                 FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
                 InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
@@ -10,10 +10,7 @@ use crate::{
                 InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{
-            internal::CreateFilter,
-            model::not_filter::NotFilter,
-        },
+        graph::views::filter::{internal::CreateFilter, model::not_filter::NotFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -29,7 +26,6 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
 };
-use crate::db::api::state::ops::filter::NotOp;
 
 #[derive(Debug, Clone)]
 pub struct NotFilteredGraph<G, T> {

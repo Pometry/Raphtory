@@ -1,23 +1,30 @@
-use crate::db::{
-    api::state::{
-        ops::{Const, IntoDynNodeOp},
-        NodeOp,
+use crate::{
+    db::{
+        api::{
+            state::{
+                ops::{Const, IntoDynNodeOp, TypeId},
+                NodeOp,
+            },
+            view::internal::GraphView,
+        },
+        graph::{
+            create_node_type_filter,
+            views::filter::{
+                internal::CreateFilter,
+                model::{node_filter::NodeFilter, Filter},
+                node_filtered_graph::NodeFilteredGraph,
+            },
+        },
     },
-    graph::views::filter::model::Filter,
+    errors::GraphError,
+    prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::entities::VID;
-use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
+use raphtory_api::core::{entities::VID, storage::arc_str::OptionAsStr};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
+};
 use std::sync::Arc;
-use raphtory_api::core::storage::arc_str::OptionAsStr;
-use raphtory_storage::core_ops::CoreGraphOps;
-use crate::db::api::state::ops::TypeId;
-use crate::db::api::view::internal::GraphView;
-use crate::db::graph::create_node_type_filter;
-use crate::db::graph::views::filter::internal::CreateFilter;
-use crate::db::graph::views::filter::model::node_filter::NodeFilter;
-use crate::db::graph::views::filter::node_filtered_graph::NodeFilteredGraph;
-use crate::errors::GraphError;
-use crate::prelude::{GraphViewOps, PropertyFilter};
 
 #[derive(Clone, Debug)]
 pub struct Mask<Op> {
@@ -159,7 +166,6 @@ where
 }
 
 impl<L, R> IntoDynNodeOp for OrOp<L, R> where Self: NodeOp + 'static {}
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndOp<L, R> {

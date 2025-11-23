@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::StaticGraphViewOps,
+        api::view::{BoxableGraphView, StaticGraphViewOps},
         graph::{
             node::NodeView,
             views::filter::{
@@ -252,8 +252,9 @@ impl<'a> NodeFilterExecutor<'a> {
             CompositeNodeFilter::Windowed(filter) => {
                 let start = filter.start.t();
                 let end = filter.end.t();
-                let res =
-                    self.filter_nodes(&graph.window(start, end), &filter.inner, limit, offset)?;
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.window(start, end);
+                let res = self.filter_nodes(&dyn_graph, &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()
                     .map(|x| NodeView::new_internal(graph.clone(), x.node))

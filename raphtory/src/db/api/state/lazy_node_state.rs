@@ -305,7 +305,7 @@ mod test {
         db::api::{
             state::{
                 lazy_node_state::LazyNodeState,
-                ops::node::NodeOp,
+                ops::{node::NodeOp, Degree},
             },
             view::IntoDynamic,
         },
@@ -314,7 +314,6 @@ mod test {
     use raphtory_api::core::{entities::VID, Direction};
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::sync::Arc;
-    use crate::db::api::state::ops::Degree;
 
     struct TestWrapper<Op: NodeOp>(Op);
     #[test]

@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::NotANodeFilter,
             view::internal::{
                 GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
@@ -23,7 +24,6 @@ use crate::{
 };
 use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
-use crate::db::api::state::ops::NotANodeFilter;
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
@@ -154,8 +154,9 @@ mod test_edge_property_filtered_graph {
                 views::{
                     deletion_graph::PersistentGraph,
                     filter::model::{
-                        edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
-                        ComposableFilter, PropertyFilterFactory,
+                        edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
+                        property_filter::PropertyFilterOps, ComposableFilter,
+                        PropertyFilterFactory,
                     },
                 },
             },
@@ -169,7 +170,6 @@ mod test_edge_property_filtered_graph {
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::entities::properties::prop::PropType;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-    use crate::db::graph::views::filter::model::node_filter::NodeFilterBuilderOps;
 
     #[test]
     fn test_edge_filter2() {

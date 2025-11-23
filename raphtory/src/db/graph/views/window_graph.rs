@@ -3299,8 +3299,9 @@ mod views_test {
                             TestGraphVariants, TestVariants, WindowGraphTransformer,
                         },
                         views::filter::model::{
-                            edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
-                            ComposableFilter, PropertyFilterFactory,
+                            edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
+                            property_filter::PropertyFilterOps, ComposableFilter,
+                            PropertyFilterFactory,
                         },
                     },
                 },
@@ -3311,7 +3312,6 @@ mod views_test {
             };
             use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
             use std::sync::Arc;
-            use crate::db::graph::views::filter::model::node_filter::NodeFilterBuilderOps;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,

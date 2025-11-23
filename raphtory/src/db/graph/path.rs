@@ -4,7 +4,7 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::{InternalFilter, FilterOps, InternalSelect, Static},
+                internal::{FilterOps, InternalFilter, InternalSelect, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },

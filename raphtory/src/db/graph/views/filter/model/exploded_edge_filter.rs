@@ -6,6 +6,7 @@ use crate::{
         },
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
+            exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
             internal::CreateFilter,
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
@@ -186,14 +187,13 @@ where
     }
 }
 
-impl<T> CreateFilter for ExplodedEndpointWrapper<T>
-where
-    T: TryAsCompositeFilter + Clone + 'static,
-{
+impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEndpointWrapper<T> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = ExplodedEdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G>>
     where
-        T: 'graph;
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     type NodeFilter<'graph, G>
         = NotANodeFilter
     where
@@ -207,8 +207,12 @@ where
     where
         T: 'graph,
     {
-        self.try_as_composite_exploded_edge_filter()?
-            .create_filter(graph)
+        let filter = self.inner.create_node_filter(graph.clone())?;
+        Ok(ExplodedEdgeNodeFilteredGraph::new(
+            graph,
+            self.endpoint,
+            filter,
+        ))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
@@ -287,6 +291,8 @@ impl ExplodedEdgeFilter {
 }
 
 impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for ExplodedEndpointWrapper<T> {
+    type FilterType = T::FilterType;
+
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }

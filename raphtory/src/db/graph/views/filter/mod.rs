@@ -1,6 +1,7 @@
 pub mod and_filtered_graph;
 pub mod edge_node_filtered_graph;
 pub mod edge_property_filtered_graph;
+pub mod exploded_edge_node_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
 pub mod model;
@@ -2289,16 +2290,21 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_property_filter {
-        use crate::db::graph::{
-            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
-            views::filter::{
-                model::{
-                    node_filter::NodeFilter,
-                    not_filter::NotFilter,
-                    property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+        use crate::db::{
+            api::state::ops::NodeFilterOp,
+            graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                 },
-                test_filters::{init_nodes_graph, IdentityGraphTransformer},
+                views::filter::{
+                    model::{
+                        node_filter::NodeFilter,
+                        not_filter::NotFilter,
+                        property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+                        ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+                    },
+                    test_filters::{init_nodes_graph, IdentityGraphTransformer},
+                },
             },
         };
         use raphtory_api::core::entities::properties::prop::Prop;
@@ -8822,18 +8828,21 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_edge_property_filter {
-        use crate::db::graph::{
-            assertions::{
-                assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
-                TestVariants,
-            },
-            views::filter::{
-                model::{
-                    edge_filter::EdgeFilter,
-                    property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+        use crate::db::{
+            api::state::ops::NodeFilterOp,
+            graph::{
+                assertions::{
+                    assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
+                    TestVariants,
                 },
-                test_filters::{init_edges_graph, IdentityGraphTransformer},
+                views::filter::{
+                    model::{
+                        edge_filter::EdgeFilter,
+                        property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+                        ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+                    },
+                    test_filters::{init_edges_graph, IdentityGraphTransformer},
+                },
             },
         };
         use raphtory_api::core::entities::properties::prop::Prop;

@@ -1,15 +1,13 @@
+use crate::db::api::state::ops::{
+    filter::{AndOp, NotOp, OrOp},
+    Map,
+};
 use raphtory_api::core::{
     entities::{GID, VID},
-    storage::arc_str::ArcStr
-    ,
+    storage::arc_str::ArcStr,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::graph::GraphStorage,
-};
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::sync::Arc;
-use crate::db::api::state::ops::filter::{AndOp, NotOp, OrOp};
-use crate::db::api::state::ops::Map;
 
 pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn is_filtered(&self) -> bool;

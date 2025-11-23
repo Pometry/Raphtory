@@ -182,8 +182,9 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
-                    PropertyFilterFactory, TryAsCompositeFilter,
+                    edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
+                    property_filter::PropertyFilterOps, PropertyFilterFactory,
+                    TryAsCompositeFilter,
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, NO_PROPS},

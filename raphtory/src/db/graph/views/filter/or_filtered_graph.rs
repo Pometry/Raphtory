@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            state::ops::NodeFilterOp,
+            state::ops::{filter::OrOp, NodeFilterOp},
             view::internal::{
                 GraphView, Immutable, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
@@ -10,10 +10,7 @@ use crate::{
                 Static,
             },
         },
-        graph::views::filter::{
-            internal::CreateFilter,
-            model::or_filter::OrFilter,
-        },
+        graph::views::filter::{internal::CreateFilter, model::or_filter::OrFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -29,7 +26,6 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
 };
-use crate::db::api::state::ops::filter::OrOp;
 
 #[derive(Debug, Clone)]
 pub struct OrFilteredGraph<G, L, R> {

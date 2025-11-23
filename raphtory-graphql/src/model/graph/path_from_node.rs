@@ -10,7 +10,7 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
-        api::view::{Filter, DynamicGraph, Select},
+        api::view::{DynamicGraph, Filter, Select},
         graph::{path::PathFromNode, views::filter::model::node_filter::CompositeNodeFilter},
     },
     errors::GraphError,

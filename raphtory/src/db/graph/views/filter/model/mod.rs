@@ -1,32 +1,38 @@
-use crate::db::api::view::internal::GraphView;
-use crate::db::graph::views::filter::internal::CreateFilter;
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
-use crate::db::graph::views::filter::model::exploded_edge_filter::ExplodedEndpointWrapper;
-use crate::db::graph::views::filter::model::node_filter::{
-    InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
-};
-use crate::db::graph::views::filter::model::property_filter::{
-    CombinedFilter, InternalPropertyFilterBuilderOps, OpChainBuilder, PropertyFilterOps,
-    PropertyRef,
-};
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::prelude::{GraphViewOps, TimeOps};
 use crate::{
-    db::graph::views::filter::model::{
-        edge_filter::{CompositeEdgeFilter, EdgeFilter, EndpointWrapper},
-        exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
-        filter_operator::FilterOperator,
-        node_filter::{CompositeNodeFilter, NodeFilter, NodeNameFilter, NodeTypeFilter},
-        not_filter::NotFilter,
-        or_filter::OrFilter,
-        property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
+    db::{
+        api::view::internal::GraphView,
+        graph::views::{
+            filter::{
+                internal::CreateFilter,
+                model::{
+                    edge_filter::{CompositeEdgeFilter, EdgeFilter, EndpointWrapper},
+                    exploded_edge_filter::{
+                        CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
+                    },
+                    filter_operator::FilterOperator,
+                    node_filter::{
+                        CompositeNodeFilter, InternalNodeFilterBuilderOps,
+                        InternalNodeIdFilterBuilderOps, NodeFilter, NodeNameFilter, NodeTypeFilter,
+                    },
+                    not_filter::NotFilter,
+                    or_filter::OrFilter,
+                    property_filter::{
+                        CombinedFilter, InternalPropertyFilterBuilderOps, MetadataFilterBuilder,
+                        Op, OpChainBuilder, PropertyFilter, PropertyFilterBuilder,
+                        PropertyFilterOps, PropertyRef,
+                    },
+                },
+            },
+            window_graph::WindowedGraph,
+        },
     },
     errors::GraphError,
+    prelude::{GraphViewOps, TimeOps},
 };
-use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_api::core::{
     entities::{GidRef, GID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
@@ -300,6 +306,8 @@ impl Filter {
 }
 
 impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Windowed<T> {
+    type FilterType = T::FilterType;
+
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
@@ -316,6 +324,10 @@ impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for W
 
     fn property_ref(&self) -> PropertyRef {
         self.inner.property_ref()
+    }
+
+    fn ops(&self) -> &[Op] {
+        self.inner.ops()
     }
 
     fn entity(&self) -> Self::Marker {
@@ -433,6 +445,7 @@ impl<T> ComposableFilter for EndpointWrapper<T> where T: TryAsCompositeFilter + 
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 impl<T> ComposableFilter for NotFilter<T> {}
+impl<T: ComposableFilter> ComposableFilter for Windowed<T> {}
 
 trait EntityMarker: Clone + Send + Sync {}
 

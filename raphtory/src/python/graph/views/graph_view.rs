@@ -3,9 +3,12 @@ use crate::{
     db::{
         api::{
             properties::{Metadata, Properties},
+            state::ops::filter::NodePropertyFilterOp,
             view::{
                 filter_ops::Filter,
-                internal::{DynamicGraph, InternalFilter, IntoDynHop, IntoDynamic, MaterializedGraph},
+                internal::{
+                    DynamicGraph, InternalFilter, IntoDynHop, IntoDynamic, MaterializedGraph,
+                },
                 LayerOps, StaticGraphViewOps,
             },
         },
@@ -43,7 +46,6 @@ use pyo3::prelude::*;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use crate::db::api::state::ops::filter::NodePropertyFilterOp;
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;

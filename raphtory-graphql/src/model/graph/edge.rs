@@ -13,7 +13,7 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
-        api::view::{Filter, DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
+        api::view::{DynamicGraph, EdgeViewOps, Filter, IntoDynamic, StaticGraphViewOps},
         graph::{edge::EdgeView, views::filter::model::edge_filter::CompositeEdgeFilter},
     },
     errors::GraphError,

@@ -3,18 +3,18 @@ pub mod history;
 pub mod node;
 mod properties;
 
+use crate::db::api::view::internal::{
+    filtered_node::FilteredNodeStorageOps, FilterOps, FilterState, GraphView,
+};
 pub use history::*;
 pub use node::*;
 pub use properties::*;
-use raphtory_api::core::Direction;
-use raphtory_api::core::entities::VID;
-use raphtory_storage::graph::graph::GraphStorage;
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
-use raphtory_storage::layer_ops::InternalLayerOps;
-use std::sync::Arc;
-use std::ops::Deref;
-use crate::db::api::view::internal::filtered_node::FilteredNodeStorageOps;
-use crate::db::api::view::internal::{FilterOps, FilterState, GraphView};
+use raphtory_api::core::{entities::VID, Direction};
+use raphtory_storage::{
+    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
+    layer_ops::InternalLayerOps,
+};
+use std::{ops::Deref, sync::Arc};
 
 #[derive(Clone)]
 pub struct NotANodeFilter;
