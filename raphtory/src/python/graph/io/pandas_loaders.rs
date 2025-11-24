@@ -239,12 +239,10 @@ pub(crate) fn process_pandas_py_df<'a>(
 
         Ok(DFChunk { chunk })
     });
-    let num_rows: usize = dropped_df.call_method0("__len__")?.extract()?;
 
     Ok(DFView {
         names,
         chunks,
-        num_rows,
     })
 }
 

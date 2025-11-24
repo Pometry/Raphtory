@@ -85,16 +85,14 @@ pub fn load_edges_from_parquet<
     let all_files = get_parquet_file_paths(parquet_path)?
         .into_iter()
         .map(|file| {
-            let (names, _, num_rows) =
+            let (names, _, _) =
                 read_parquet_file(file, (!cols_to_check.is_empty()).then_some(&cols_to_check))?;
-            Ok::<_, GraphError>((names, num_rows))
+            Ok::<_, GraphError>(names)
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let mut count_rows = 0;
     let mut all_names = Vec::new();
-    for (names, num_rows) in all_files {
-        count_rows += num_rows;
+    for names in all_files {
         if all_names.is_empty() {
             all_names = names;
         } else if all_names != names {
@@ -116,7 +114,6 @@ pub fn load_edges_from_parquet<
     let df_view = DFView {
         names: all_names,
         chunks: all_df_view,
-        num_rows: count_rows,
     };
 
     load_edges_from_df(
@@ -266,7 +263,7 @@ pub(crate) fn process_parquet_file_to_df(
     col_names: Option<&[&str]>,
     batch_size: Option<usize>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>, GraphError> {
-    let (names, chunks, num_rows) = read_parquet_file(parquet_file_path, col_names)?;
+    let (names, chunks, _) = read_parquet_file(parquet_file_path, col_names)?;
 
     let names: Vec<String> = names
         .into_iter()
@@ -289,7 +286,6 @@ pub(crate) fn process_parquet_file_to_df(
     Ok(DFView {
         names,
         chunks,
-        num_rows,
     })
 }
 

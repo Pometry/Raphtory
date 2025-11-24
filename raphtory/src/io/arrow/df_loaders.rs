@@ -25,11 +25,10 @@ use rayon::prelude::*;
 use std::{collections::HashMap, sync::atomic::Ordering};
 
 #[cfg(feature = "python")]
-fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
+fn build_progress_bar(des: String) -> Result<Bar, GraphError> {
     BarBuilder::default()
         .desc(des)
         .animation(kdam::Animation::FillUp)
-        .total(num_rows)
         .unit_scale(true)
         .build()
         .map_err(|_| GraphError::TqdmError)
@@ -61,9 +60,6 @@ pub(crate) fn load_nodes_from_df<
     node_type_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -87,7 +83,7 @@ pub(crate) fn load_nodes_from_df<
     })?;
 
     #[cfg(feature = "python")]
-    let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
+    let mut pb = build_progress_bar("Loading nodes".to_string())?;
 
     let mut node_col_resolved = vec![];
     let mut node_type_col_resolved = vec![];
@@ -100,11 +96,11 @@ pub(crate) fn load_nodes_from_df<
             .collect::<Vec<_>>()
     });
 
-    let mut start_id = graph
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
     for chunk in df_view.chunks {
         let df = chunk?;
+        let start_id = graph
+            .reserve_event_ids(df.len())
+            .map_err(into_graph_err)?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
@@ -209,7 +205,6 @@ pub(crate) fn load_nodes_from_df<
 
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-        start_id += df.len();
     }
     Ok(())
 }
@@ -228,9 +223,6 @@ pub fn load_edges_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -255,12 +247,9 @@ pub fn load_edges_from_df<
     })?;
 
     #[cfg(feature = "python")]
-    let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
+    let mut pb = build_progress_bar("Loading edges".to_string())?;
     #[cfg(feature = "python")]
     let _ = pb.update(0);
-    let mut start_idx = graph
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
 
     let mut src_col_resolved = vec![];
     let mut dst_col_resolved = vec![];
@@ -276,6 +265,9 @@ pub fn load_edges_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
+        let start_idx = graph
+            .reserve_event_ids(df.len())
+            .map_err(into_graph_err)?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
@@ -474,7 +466,6 @@ pub fn load_edges_from_df<
             }
         }
 
-        start_idx += df.len();
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
@@ -492,22 +483,19 @@ pub(crate) fn load_edge_deletions_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
     let layer_index = layer_col.map(|layer_col| df_view.get_index(layer_col.as_ref()));
     let layer_index = layer_index.transpose()?;
     #[cfg(feature = "python")]
-    let mut pb = build_progress_bar("Loading edge deletions".to_string(), df_view.num_rows)?;
-    let mut start_idx = graph
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
+    let mut pb = build_progress_bar("Loading edge deletions".to_string())?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
+        let start_idx = graph
+            .reserve_event_ids(df.len())
+            .map_err(into_graph_err)?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let src_col = df.node_col(src_index)?;
         let dst_col = df.node_col(dst_index)?;
@@ -526,7 +514,6 @@ pub(crate) fn load_edge_deletions_from_df<
             })?;
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-        start_idx += df.len();
     }
 
     Ok(())
@@ -544,9 +531,6 @@ pub(crate) fn load_node_props_from_df<
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -565,7 +549,7 @@ pub(crate) fn load_node_props_from_df<
     })?;
 
     #[cfg(feature = "python")]
-    let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
+    let mut pb = build_progress_bar("Loading node properties".to_string())?;
 
     let mut node_col_resolved = vec![];
     let mut node_type_col_resolved = vec![];
@@ -667,9 +651,6 @@ pub(crate) fn load_edges_props_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -689,7 +670,7 @@ pub(crate) fn load_edges_props_from_df<
     })?;
 
     #[cfg(feature = "python")]
-    let mut pb = build_progress_bar("Loading edge properties".to_string(), df_view.num_rows)?;
+    let mut pb = build_progress_bar("Loading edge properties".to_string())?;
     #[cfg(feature = "python")]
     let _ = pb.update(0);
 
@@ -831,9 +812,6 @@ pub(crate) fn load_graph_props_from_df<
     metadata: Option<&[&str]>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
     let properties = properties.unwrap_or(&[]);
     let metadata = metadata.unwrap_or(&[]);
 
@@ -849,14 +827,13 @@ pub(crate) fn load_graph_props_from_df<
     let time_index = df_view.get_index(time)?;
 
     #[cfg(feature = "python")]
-    let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
-
-    let mut start_id = graph
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
+    let mut pb = build_progress_bar("Loading graph properties".to_string())?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
+        let start_id = graph
+            .reserve_event_ids(df.len())
+            .map_err(into_graph_err)?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
@@ -896,7 +873,6 @@ pub(crate) fn load_graph_props_from_df<
             })?;
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
-        start_id += df.len();
     }
     Ok(())
 }

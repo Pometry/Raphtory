@@ -5,7 +5,7 @@ use crate::{
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
+    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType},
 };
 use itertools::Itertools;
 use raphtory_core::utils::time::TryIntoTime;
@@ -15,14 +15,12 @@ use std::fmt::{Debug, Formatter};
 pub struct DFView<I> {
     pub names: Vec<String>,
     pub chunks: I,
-    pub num_rows: usize,
 }
 
 impl<I> Debug for DFView<I> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DFView")
             .field("names", &self.names)
-            .field("num_rows", &self.num_rows)
             .finish()
     }
 }
@@ -50,15 +48,10 @@ where
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.num_rows == 0
-    }
-
-    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+    pub fn new(names: Vec<String>, chunks: I) -> Self {
         Self {
             names,
             chunks,
-            num_rows,
         }
     }
 }
