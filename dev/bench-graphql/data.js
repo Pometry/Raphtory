@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763657711481,
+  "lastUpdate": 1763999745042,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2267,6 +2267,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1238,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "395275b6a227bf2eb2bee78674259250cd4c9e68",
+          "message": "call blocking_compute in health check (#2392)\n\n* call blocking_compute in health check\n\n* add a test\n\n* address Lucas comments\n\n* set timeout server side",
+          "timestamp": "2025-11-24T15:20:26Z",
+          "tree_id": "e85e1318866bf9f4e7a5565f365bc38f4e296643",
+          "url": "https://github.com/Pometry/Raphtory/commit/395275b6a227bf2eb2bee78674259250cd4c9e68"
+        },
+        "date": 1763999739960,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1312,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 163,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 160,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 967,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 923,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1298,
             "unit": "req/s"
           }
         ]
