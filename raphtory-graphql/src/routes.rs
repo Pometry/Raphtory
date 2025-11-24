@@ -1,19 +1,20 @@
+use futures_util::future::join;
 use poem::{
     endpoint::{EmbeddedFileEndpoint, EmbeddedFilesEndpoint, StaticFilesEndpoint},
     handler,
     http::{Method, StatusCode},
-    web::Json,
+    web::{Json, Query},
     Endpoint, IntoResponse, Request, Response,
 };
 use rust_embed::Embed;
-use serde::Serialize;
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
+use std::{path::PathBuf, time::Duration};
 
 use crate::rayon::{blocking_compute, blocking_write};
 
-#[derive(Serialize)]
-struct Health {
-    healthy: bool,
+#[derive(Serialize, Deserialize)]
+pub(super) struct Health {
+    pub(super) healthy: bool,
 }
 
 #[derive(Serialize)]
@@ -21,12 +22,26 @@ struct Version {
     version: String,
 }
 
+#[derive(Deserialize)]
+struct HealthQuery {
+    timeout: Option<u64>, // seconds
+}
+
 #[handler]
-pub(crate) async fn health() -> impl IntoResponse {
+pub(crate) async fn health(Query(params): Query<HealthQuery>) -> impl IntoResponse {
     // using blocking_compute and blocking_write to identify deadlocks on any of the two rayon pools
-    blocking_compute(|| {}).await;
-    blocking_write(|| {}).await;
-    (StatusCode::OK, Json(Health { healthy: true }));
+    let result = tokio::time::timeout(
+        Duration::from_secs(params.timeout.unwrap_or(10)),
+        join(blocking_compute(|| {}), blocking_write(|| {})),
+    )
+    .await;
+    match result {
+        Ok(_) => (StatusCode::OK, Json(Health { healthy: true })),
+        Err(_) => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(Health { healthy: false }),
+        ),
+    }
 }
 
 #[handler]

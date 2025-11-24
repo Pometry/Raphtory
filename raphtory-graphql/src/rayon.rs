@@ -31,14 +31,14 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 #[cfg(test)]
 mod deadlock_tests {
     use std::{
-        path::PathBuf,
         sync::{Arc, Mutex},
         time::Duration,
     };
 
-    use reqwest::Client;
+    use reqwest::{Client, StatusCode};
+    use tempfile::TempDir;
 
-    use crate::{rayon::WRITE_POOL, GraphServer};
+    use crate::{rayon::WRITE_POOL, routes::Health, GraphServer};
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
@@ -61,7 +61,8 @@ mod deadlock_tests {
     }
 
     async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
-        let server = GraphServer::new(PathBuf::from("/tmp/health-check-test"), None, None).unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None).unwrap();
         let _running = server.start_with_port(port).await.unwrap();
         tokio::time::sleep(Duration::from_secs(1)).await; // this is to wait for the server to be up
         let lock = Arc::new(Mutex::new(()));
@@ -69,14 +70,23 @@ mod deadlock_tests {
         let lock_clone = lock.clone();
         pool_lock(lock_clone);
         let client = Client::new();
-        let result = client
-            .get(format!("http://localhost:{port}/health"))
-            .timeout(Duration::from_secs(10))
-            .send()
-            .await;
-        let error =
-            result.expect_err("The request should timeout since the thread pool should be locked");
-        dbg!(&error);
-        assert!(error.is_timeout());
+
+        let req = client.get(format!("http://localhost:{port}/health"));
+        let response = req.send().await.unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let health: Health = response.json().await.unwrap();
+        assert_eq!(health.healthy, false);
+
+        // with default timeout (10s) a 8s timeout causes the http client to finish first
+        let req = client.get(format!("http://localhost:{port}/health"));
+        let result = req.timeout(Duration::from_secs(8)).send().await.err();
+        assert!(result.unwrap().is_timeout());
+
+        // However, with a custom timeout of 5s, now the health check finishes first
+        let req = client.get(format!("http://localhost:{port}/health?timeout=5"));
+        let response = req.timeout(Duration::from_secs(8)).send().await.unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let health: Health = response.json().await.unwrap();
+        assert_eq!(health.healthy, false);
     }
 }
