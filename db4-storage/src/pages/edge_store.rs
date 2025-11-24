@@ -13,7 +13,7 @@ use crate::{
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     },
-    persist::strategy::Config,
+    persist::strategy::{Config, DEFAULT_MAX_PAGE_LEN_EDGES},
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};

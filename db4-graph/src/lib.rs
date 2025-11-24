@@ -15,6 +15,7 @@ use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
+use rayon::prelude::*;
 use storage::{
     error::StorageError,
     pages::{
