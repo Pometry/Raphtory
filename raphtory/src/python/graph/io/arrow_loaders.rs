@@ -19,10 +19,7 @@ use arrow::{
     },
     datatypes::SchemaRef,
 };
-use pyo3::{
-    prelude::*,
-    types::{PyCapsule, PyDict},
-};
+use pyo3::{prelude::*, types::PyCapsule};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
 
@@ -46,7 +43,6 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
-
     let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_nodes_from_df(
@@ -62,7 +58,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     )
 }
 
-pub(crate) fn load_edges_from_arrow<
+pub(crate) fn load_edges_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
@@ -84,41 +80,23 @@ pub(crate) fn load_edges_from_arrow<
     if let Some(layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
-
-    if stream_data {
-        let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
-        df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_from_df(
-            df_view,
-            time,
-            src,
-            dst,
-            properties,
-            metadata,
-            shared_metadata,
-            layer,
-            layer_col,
-            graph,
-        )
-    } else {
-        let df_view = process_arrow_py_df(df, cols_to_check.clone())?;
-        df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_from_df(
-            df_view,
-            time,
-            src,
-            dst,
-            properties,
-            metadata,
-            shared_metadata,
-            layer,
-            layer_col,
-            graph,
-        )
-    }
+    let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edges_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        properties,
+        metadata,
+        shared_metadata,
+        layer,
+        layer_col,
+        graph,
+    )
 }
 
-pub(crate) fn load_node_props_from_arrow_c_stream<
+pub(crate) fn load_node_metadata_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
@@ -148,7 +126,7 @@ pub(crate) fn load_node_props_from_arrow_c_stream<
     )
 }
 
-pub(crate) fn load_edge_props_from_arrow_c_stream<
+pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
@@ -240,54 +218,4 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
             Ok(DFChunk::new(chunk_arrays))
         });
     Ok(DFView::new(names, chunks))
-}
-
-pub(crate) fn process_arrow_py_df<'a>(
-    df: &Bound<'a, PyAny>,
-    col_names: Vec<&str>,
-) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
-    let py = df.py();
-    is_jupyter(py);
-
-    // We assume df is an Arrow object (e.g. pyarrow Table or RecordBatchReader)
-    // that implements a to_batches(max_chunksize=...) method
-    let kwargs = PyDict::new(py);
-    kwargs.set_item("max_chunksize", 1_000_000)?;
-
-    // Get a list of RecordBatch-like Python objects
-    let rb = df
-        .call_method("to_batches", (), Some(&kwargs))?
-        .extract::<Vec<Bound<PyAny>>>()?;
-
-    // Derive the column names from the first batch's schema, then filter
-    let names: Vec<String> = if let Some(batch0) = rb.first() {
-        let schema = batch0.getattr("schema")?;
-        schema.getattr("names")?.extract::<Vec<String>>()?
-    } else {
-        vec![]
-    }
-    .into_iter()
-    .filter(|x| col_names.contains(&x.as_str()))
-    .collect();
-
-    let names_len = names.len();
-
-    let chunks = rb.into_iter().map(move |rb| {
-        let columns = rb.getattr("columns")?.extract::<Vec<Bound<PyAny>>>()?;
-        let chunk = (0..names_len)
-            .map(|i| {
-                // rb.column(i) -> pyarrow.Array
-                let array = &columns[i];
-                let arr = array_to_rust(array).map_err(GraphError::from)?;
-                Ok::<_, GraphError>(arr)
-            })
-            .collect::<Result<Vec<_>, GraphError>>()?;
-
-        Ok(DFChunk { chunk })
-    });
-
-    Ok(DFView {
-        names,
-        chunks,
-    })
 }

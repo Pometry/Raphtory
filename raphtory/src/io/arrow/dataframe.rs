@@ -49,10 +49,7 @@ where
     }
 
     pub fn new(names: Vec<String>, chunks: I) -> Self {
-        Self {
-            names,
-            chunks,
-        }
+        Self { names, chunks }
     }
 }
 

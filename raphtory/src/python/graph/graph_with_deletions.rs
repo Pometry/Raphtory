@@ -914,7 +914,7 @@ impl PyPersistentGraph {
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edge_props_from_pandas(
+        load_edge_metadata_from_pandas(
             &self.graph,
             df,
             src,
@@ -954,7 +954,7 @@ impl PyPersistentGraph {
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edge_props_from_parquet(
+        load_edge_metadata_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             src,

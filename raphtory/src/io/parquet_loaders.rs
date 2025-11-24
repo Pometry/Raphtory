@@ -171,7 +171,7 @@ pub fn load_node_props_from_parquet<
     Ok(())
 }
 
-pub fn load_edge_props_from_parquet<
+pub fn load_edge_metadata_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
@@ -283,10 +283,7 @@ pub(crate) fn process_parquet_file_to_df(
             .map_err(|e| GraphError::LoadFailure(format!("Failed to process Parquet file: {e:?}")))
     });
 
-    Ok(DFView {
-        names,
-        chunks,
-    })
+    Ok(DFView { names, chunks })
 }
 
 pub fn read_parquet_file(

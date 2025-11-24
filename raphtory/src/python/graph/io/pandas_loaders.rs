@@ -125,7 +125,7 @@ pub(crate) fn load_node_props_from_pandas<
     )
 }
 
-pub(crate) fn load_edge_props_from_pandas<
+pub(crate) fn load_edge_metadata_from_pandas<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
@@ -240,10 +240,7 @@ pub(crate) fn process_pandas_py_df<'a>(
         Ok(DFChunk { chunk })
     });
 
-    Ok(DFView {
-        names,
-        chunks,
-    })
+    Ok(DFView { names, chunks })
 }
 
 pub fn array_to_rust(obj: &Bound<PyAny>) -> PyResult<ArrayRef> {

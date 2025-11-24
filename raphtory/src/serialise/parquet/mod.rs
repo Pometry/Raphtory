@@ -5,7 +5,7 @@ use crate::{
     },
     errors::GraphError,
     io::parquet_loaders::{
-        load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
+        load_edge_deletions_from_parquet, load_edge_metadata_from_parquet, load_edges_from_parquet,
         load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
     },
     prelude::*,
@@ -371,7 +371,7 @@ fn decode_graph_storage(
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
 
-        load_edge_props_from_parquet(
+        load_edge_metadata_from_parquet(
             &g,
             &c_edge_path,
             SRC_COL,

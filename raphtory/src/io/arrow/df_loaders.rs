@@ -98,9 +98,7 @@ pub(crate) fn load_nodes_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let start_id = graph
-            .reserve_event_ids(df.len())
-            .map_err(into_graph_err)?;
+        let start_id = graph.reserve_event_ids(df.len()).map_err(into_graph_err)?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
@@ -265,9 +263,7 @@ pub fn load_edges_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let start_idx = graph
-            .reserve_event_ids(df.len())
-            .map_err(into_graph_err)?;
+        let start_idx = graph.reserve_event_ids(df.len()).map_err(into_graph_err)?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
@@ -493,9 +489,7 @@ pub(crate) fn load_edge_deletions_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let start_idx = graph
-            .reserve_event_ids(df.len())
-            .map_err(into_graph_err)?;
+        let start_idx = graph.reserve_event_ids(df.len()).map_err(into_graph_err)?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let src_col = df.node_col(src_index)?;
         let dst_col = df.node_col(dst_index)?;
@@ -831,9 +825,7 @@ pub(crate) fn load_graph_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let start_id = graph
-            .reserve_event_ids(df.len())
-            .map_err(into_graph_err)?;
+        let start_id = graph.reserve_event_ids(df.len()).map_err(into_graph_err)?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
