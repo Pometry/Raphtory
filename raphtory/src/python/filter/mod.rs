@@ -4,7 +4,6 @@ use crate::python::filter::{
     filter_expr::PyFilterExpr,
     node_filter_builders::PyNodeFilter,
     property_filter_builders::{PyFilterOps, PyPropertyFilterBuilder},
-    window_filter::{PyEdgeWindow, PyExplodedEdgeWindow, PyNodeWindow},
 };
 use pyo3::{
     prelude::{PyModule, PyModuleMethods},
@@ -27,16 +26,13 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
 
     filter_module.add_class::<PyNodeFilter>()?;
-    filter_module.add_class::<PyNodeWindow>()?;
 
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyEdgeEndpoint>()?;
     filter_module.add_class::<PyEdgeFilterOp>()?;
     filter_module.add_class::<PyEdgeIdFilterOp>()?;
-    filter_module.add_class::<PyEdgeWindow>()?;
 
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
-    filter_module.add_class::<PyExplodedEdgeWindow>()?;
 
     Ok(filter_module)
 }

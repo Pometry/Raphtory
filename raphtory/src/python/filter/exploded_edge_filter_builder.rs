@@ -5,9 +5,8 @@ use crate::{
         PropertyFilterFactory, Windowed,
     },
     python::{
-        filter::{
-            property_filter_builders::{PyFilterOps, PyPropertyFilterBuilder},
-            window_filter::PyExplodedEdgeWindow,
+        filter::property_filter_builders::{
+            PyFilterOps, PyPropertyFilterBuilder, PyPropertyFilterFactory,
         },
         utils::PyTime,
     },
@@ -38,11 +37,7 @@ impl PyExplodedEdgeFilter {
     }
 
     #[staticmethod]
-    fn window(start: PyTime, end: PyTime) -> PyResult<PyExplodedEdgeWindow> {
-        Ok(PyExplodedEdgeWindow(Windowed::from_times(
-            start,
-            end,
-            ExplodedEdgeFilter,
-        )))
+    fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::window(start, end))
     }
 }

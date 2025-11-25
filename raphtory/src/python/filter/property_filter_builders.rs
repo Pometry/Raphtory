@@ -6,7 +6,7 @@ use crate::{
                 ElemQualifierOps, InternalPropertyFilterBuilderOps, ListAggOps,
                 MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder, PropertyFilterOps,
             },
-            TryAsCompositeFilter,
+            PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
         },
     },
     prelude::PropertyFilter,
@@ -19,7 +19,7 @@ use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
-pub trait DynFilterOps: Send + Sync {
+pub trait DynPropertyFilterOps: Send + Sync {
     fn __eq__(&self, value: Prop) -> PyFilterExpr;
 
     fn __ne__(&self, value: Prop) -> PyFilterExpr;
@@ -54,7 +54,9 @@ pub trait DynFilterOps: Send + Sync {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr;
+}
 
+pub trait DynListFilterOps: Send + Sync {
     fn any(&self) -> PyFilterOps;
 
     fn all(&self) -> PyFilterOps;
@@ -74,12 +76,7 @@ pub trait DynFilterOps: Send + Sync {
     fn last(&self) -> PyFilterOps;
 }
 
-impl<T> DynFilterOps for T
-where
-    T: PropertyFilterOps + ElemQualifierOps + ListAggOps + Clone + Send + Sync + 'static,
-    T::Wrapped<PropertyFilter<T::Marker>>: CreateFilter + TryAsCompositeFilter + Clone,
-    T::Wrapped<OpChainBuilder<T::Marker>>: InternalPropertyFilterBuilderOps + Clone,
-{
+impl<T: PropertyFilterOps> DynPropertyFilterOps for T {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
     }
@@ -150,7 +147,12 @@ where
             prefix_match,
         )))
     }
+}
 
+impl<T> DynListFilterOps for T
+where
+    T: InternalPropertyFilterBuilderOps + 'static,
+{
     fn any(&self) -> PyFilterOps {
         let filter = ElemQualifierOps::any(self);
         PyFilterOps::wrap(filter)
@@ -188,6 +190,10 @@ where
         PyFilterOps::wrap(ListAggOps::last(self))
     }
 }
+
+pub trait DynFilterOps: DynListFilterOps + DynPropertyFilterOps {}
+
+impl<T: DynListFilterOps + DynPropertyFilterOps + ?Sized> DynFilterOps for T {}
 
 #[pyclass(frozen, name = "FilterOps", module = "raphtory.filter", subclass)]
 #[derive(Clone)]
@@ -331,13 +337,12 @@ pub trait DynPropertyFilterBuilderOps: DynFilterOps {
     fn temporal(&self) -> PyFilterOps;
 }
 
-impl<T> DynPropertyFilterBuilderOps for PropertyFilterBuilder<T>
+impl<T: DynFilterOps + TemporalPropertyFilterFactory> DynPropertyFilterBuilderOps for T
 where
-    PropertyFilter<T>: CreateFilter + TryAsCompositeFilter,
-    T: Clone + Send + Sync + 'static,
+    T::Chained: 'static,
 {
     fn temporal(&self) -> PyFilterOps {
-        PyFilterOps::wrap(self.clone().temporal())
+        PyFilterOps::wrap(self.temporal())
     }
 }
 
@@ -351,6 +356,7 @@ impl PyPropertyFilterBuilder {
 impl<'py, M: Clone + Send + Sync + 'static> IntoPyObject<'py> for PropertyFilterBuilder<M>
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+    OpChainBuilder<M>: InternalPropertyFilterBuilderOps<Marker = M>,
 {
     type Target = PyPropertyFilterBuilder;
     type Output = Bound<'py, Self::Target>;
@@ -367,6 +373,7 @@ where
 impl<'py, M: Send + Sync + Clone + 'static> IntoPyObject<'py> for MetadataFilterBuilder<M>
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+    OpChainBuilder<M>: InternalPropertyFilterBuilderOps<Marker = M>,
 {
     type Target = PyFilterOps;
     type Output = Bound<'py, Self::Target>;
@@ -413,3 +420,44 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
 //         PyPropertyFilterBuilder::from_arc(Arc::new(self)).into_pyobject(py)
 //     }
 // }
+
+pub trait DynPropertyFilterFactory: Send + Sync + 'static {
+    fn property(&self, name: String) -> PyPropertyFilterBuilder;
+
+    fn metadata(&self, name: String) -> PyFilterOps;
+}
+
+impl<T: PropertyFilterFactory + Send + Sync + 'static> DynPropertyFilterFactory for T {
+    fn property(&self, name: String) -> PyPropertyFilterBuilder {
+        PyPropertyFilterBuilder::from_arc(Arc::new(self.property(name)))
+    }
+
+    fn metadata(&self, name: String) -> PyFilterOps {
+        PyFilterOps::wrap(self.metadata(name))
+    }
+}
+
+#[pyclass(
+    name = "PropertyFilterFactory",
+    module = "raphtory.filter",
+    subclass,
+    frozen
+)]
+pub struct PyPropertyFilterFactory(Arc<dyn DynPropertyFilterFactory>);
+
+impl PyPropertyFilterFactory {
+    pub fn wrap<T: DynPropertyFilterFactory>(value: T) -> Self {
+        Self(Arc::new(value))
+    }
+}
+
+#[pymethods]
+impl PyPropertyFilterFactory {
+    fn property(&self, name: String) -> PyPropertyFilterBuilder {
+        self.0.property(name)
+    }
+
+    fn metadata(&self, name: String) -> PyFilterOps {
+        self.0.metadata(name)
+    }
+}

@@ -12,8 +12,9 @@ use crate::{
     python::{
         filter::{
             filter_expr::PyFilterExpr,
-            property_filter_builders::{PyFilterOps, PyPropertyFilterBuilder},
-            window_filter::PyEdgeWindow,
+            property_filter_builders::{
+                PyFilterOps, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+            },
         },
         types::iterable::FromIterable,
         utils::PyTime,
@@ -265,7 +266,7 @@ impl PyEdgeFilter {
     }
 
     #[staticmethod]
-    fn window(start: PyTime, end: PyTime) -> PyResult<PyEdgeWindow> {
-        Ok(PyEdgeWindow(Windowed::from_times(start, end, EdgeFilter)))
+    fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(EdgeFilter::window(start, end))
     }
 }

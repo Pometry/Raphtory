@@ -10,8 +10,9 @@ use crate::{
     python::{
         filter::{
             filter_expr::PyFilterExpr,
-            property_filter_builders::{PyFilterOps, PyPropertyFilterBuilder},
-            window_filter::PyNodeWindow,
+            property_filter_builders::{
+                PyFilterOps, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+            },
         },
         types::iterable::FromIterable,
         utils::PyTime,
@@ -271,7 +272,7 @@ impl PyNodeFilter {
     }
 
     #[staticmethod]
-    fn window(start: PyTime, end: PyTime) -> PyResult<PyNodeWindow> {
-        Ok(PyNodeWindow(Windowed::from_times(start, end, NodeFilter)))
+    fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(NodeFilter::window(start, end))
     }
 }

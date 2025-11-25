@@ -320,6 +320,8 @@ impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for Windo
 }
 
 impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Windowed<T> {
+    type Filter = Windowed<T::Filter>;
+    type Chained = Windowed<T::Chained>;
     type Marker = T::Marker;
 
     fn property_ref(&self) -> PropertyRef {
@@ -332,6 +334,14 @@ impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for W
 
     fn entity(&self) -> Self::Marker {
         self.inner.entity()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        self.wrap(self.inner.filter(filter))
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        self.wrap(self.inner.chained(builder))
     }
 }
 
@@ -478,104 +488,196 @@ impl<S: Wrap> Wrap for Arc<S> {
     }
 }
 
-pub trait InternalPropertyFilterFactory: Wrap {
+pub trait InternalPropertyFilterFactory {
     type Entity: Clone + Send + Sync + 'static;
+    type PropertyBuilder: InternalPropertyFilterBuilderOps + TemporalPropertyFilterFactory;
+    type MetadataBuilder: InternalPropertyFilterBuilderOps;
 
     fn entity(&self) -> Self::Entity;
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder;
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder;
 }
 
 pub trait PropertyFilterFactory: InternalPropertyFilterFactory {
-    fn property(
-        &self,
-        name: impl Into<String>,
-    ) -> Self::Wrapped<PropertyFilterBuilder<Self::Entity>> {
+    fn property(&self, name: impl Into<String>) -> Self::PropertyBuilder {
         let builder = PropertyFilterBuilder::new(name, self.entity());
-        self.wrap(builder)
+        self.property_builder(builder)
     }
 
-    fn metadata(
-        &self,
-        name: impl Into<String>,
-    ) -> Self::Wrapped<MetadataFilterBuilder<Self::Entity>> {
+    fn metadata(&self, name: impl Into<String>) -> Self::MetadataBuilder {
         let builder = MetadataFilterBuilder::new(name, self.entity());
-        self.wrap(builder)
+        self.metadata_builder(builder)
     }
 }
 
-impl<T: PropertyFilterFactory> PropertyFilterFactory for ExplodedEndpointWrapper<T> {}
+impl<T: InternalPropertyFilterFactory> PropertyFilterFactory for T {}
 
 pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilderOps {
-    fn temporal(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+    fn temporal(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: PropertyRef::TemporalProperty(self.property_ref().name().to_string()),
             ops: vec![],
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 }
 
 impl InternalPropertyFilterFactory for NodeFilter {
     type Entity = NodeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<NodeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<NodeFilter>;
 
     fn entity(&self) -> Self::Entity {
         NodeFilter
     }
-}
 
-impl PropertyFilterFactory for NodeFilter {}
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
+}
 
 impl InternalPropertyFilterFactory for EdgeFilter {
     type Entity = EdgeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<EdgeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<EdgeFilter>;
 
     fn entity(&self) -> Self::Entity {
         EdgeFilter
     }
-}
 
-impl PropertyFilterFactory for EdgeFilter {}
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
+}
 
 impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
     type Entity = ExplodedEdgeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<ExplodedEdgeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<ExplodedEdgeFilter>;
 
     fn entity(&self) -> Self::Entity {
         ExplodedEdgeFilter
     }
-}
 
-impl PropertyFilterFactory for ExplodedEdgeFilter {}
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
+}
 
 impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Windowed<T> {
     type Entity = T::Entity;
+    type PropertyBuilder = Windowed<T::PropertyBuilder>;
+    type MetadataBuilder = Windowed<T::MetadataBuilder>;
 
     fn entity(&self) -> Self::Entity {
         self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
     }
 }
 
 impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Windowed<T> {}
 
-impl<T: PropertyFilterFactory> PropertyFilterFactory for Windowed<T> {}
-
 impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EndpointWrapper<T> {
     type Entity = T::Entity;
+    type PropertyBuilder = EndpointWrapper<T::PropertyBuilder>;
+    type MetadataBuilder = EndpointWrapper<T::MetadataBuilder>;
 
     fn entity(&self) -> Self::Entity {
         self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
     }
 }
 
 impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EndpointWrapper<T> {}
 
-impl<T: PropertyFilterFactory> PropertyFilterFactory for EndpointWrapper<T> {}
-
 impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory
     for ExplodedEndpointWrapper<T>
 {
     type Entity = T::Entity;
+    type PropertyBuilder = ExplodedEndpointWrapper<T::PropertyBuilder>;
+    type MetadataBuilder = ExplodedEndpointWrapper<T::MetadataBuilder>;
 
     fn entity(&self) -> Self::Entity {
         self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
     }
 }
 

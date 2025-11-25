@@ -15,8 +15,8 @@ use crate::{
                     InternalNodeIdFilterBuilderOps, NodeFilter,
                 },
                 property_filter::{
-                    InternalPropertyFilterBuilderOps, MetadataFilterBuilder, Op, PropertyFilter,
-                    PropertyFilterBuilder, PropertyRef,
+                    InternalPropertyFilterBuilderOps, MetadataFilterBuilder, Op, OpChainBuilder,
+                    PropertyFilter, PropertyFilterBuilder, PropertyRef,
                 },
                 AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },
@@ -253,6 +253,9 @@ where
 impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps
     for ExplodedEndpointWrapper<T>
 {
+    type Filter = ExplodedEndpointWrapper<T::Filter>;
+    type Chained = ExplodedEndpointWrapper<T::Chained>;
+
     type Marker = T::Marker;
     #[inline]
     fn property_ref(&self) -> PropertyRef {
@@ -267,6 +270,14 @@ impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps
     #[inline]
     fn entity(&self) -> Self::Marker {
         self.inner.entity()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        self.wrap(self.inner.filter(filter))
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        self.wrap(self.inner.chained(builder))
     }
 }
 

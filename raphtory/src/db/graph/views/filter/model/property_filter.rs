@@ -1350,17 +1350,27 @@ pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static 
 
 impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
 
-pub trait InternalPropertyFilterBuilderOps: Send + Sync + Wrap {
-    type Marker: Clone + Send + Sync + 'static;
+pub trait InternalPropertyFilterBuilderOps: Send + Sync {
+    type Filter: CombinedFilter;
+
+    type Chained: InternalPropertyFilterBuilderOps;
+
+    type Marker: Send + Sync + Clone + 'static;
 
     fn property_ref(&self) -> PropertyRef;
 
     fn ops(&self) -> &[Op];
 
     fn entity(&self) -> Self::Marker;
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter;
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained;
 }
 
 impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Arc<T> {
+    type Filter = T::Filter;
+    type Chained = T::Chained;
     type Marker = T::Marker;
 
     fn property_ref(&self) -> PropertyRef {
@@ -1374,39 +1384,41 @@ impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for A
     fn entity(&self) -> Self::Marker {
         self.deref().entity()
     }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        self.deref().filter(filter)
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        self.deref().chained(builder)
+    }
 }
 
 pub trait PropertyFilterOps: InternalPropertyFilterBuilderOps {
-    fn eq(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn ne(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn le(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn ge(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn lt(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn gt(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn is_in(
-        &self,
-        values: impl IntoIterator<Item = Prop>,
-    ) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn is_not_in(
-        &self,
-        values: impl IntoIterator<Item = Prop>,
-    ) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn is_none(&self) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn is_some(&self) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn starts_with(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn ends_with(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn contains(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
-    fn not_contains(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
+    fn eq(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn ne(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn le(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn ge(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn lt(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn gt(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> Self::Filter;
+    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> Self::Filter;
+    fn is_none(&self) -> Self::Filter;
+    fn is_some(&self) -> Self::Filter;
+    fn starts_with(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn ends_with(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn contains(&self, value: impl Into<Prop>) -> Self::Filter;
+    fn not_contains(&self, value: impl Into<Prop>) -> Self::Filter;
     fn fuzzy_search(
         &self,
         prop_value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> Self::Wrapped<PropertyFilter<Self::Marker>>;
+    ) -> Self::Filter;
 }
 
 impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
-    fn eq(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn eq(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1414,10 +1426,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn ne(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn ne(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1425,10 +1437,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn le(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn le(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1436,10 +1448,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn ge(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn ge(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1447,10 +1459,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn lt(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn lt(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1458,10 +1470,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn gt(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn gt(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1469,13 +1481,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn is_in(
-        &self,
-        values: impl IntoIterator<Item = Prop>,
-    ) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Set(Arc::new(values.into_iter().collect())),
@@ -1483,13 +1492,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn is_not_in(
-        &self,
-        values: impl IntoIterator<Item = Prop>,
-    ) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Set(Arc::new(values.into_iter().collect())),
@@ -1497,10 +1503,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn is_none(&self) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn is_none(&self) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::None,
@@ -1508,10 +1514,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn is_some(&self) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn is_some(&self) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::None,
@@ -1519,10 +1525,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn starts_with(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn starts_with(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1530,10 +1536,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn ends_with(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn ends_with(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1541,10 +1547,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn contains(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn contains(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1552,10 +1558,10 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
-    fn not_contains(&self, value: impl Into<Prop>) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    fn not_contains(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(value.into()),
@@ -1563,7 +1569,7 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 
     fn fuzzy_search(
@@ -1571,7 +1577,7 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
         prop_value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> Self::Wrapped<PropertyFilter<Self::Marker>> {
+    ) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
             prop_value: PropertyFilterValue::Single(Prop::Str(ArcStr::from(prop_value.into()))),
@@ -1582,7 +1588,7 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
             ops: self.ops().to_vec(),
             entity: self.entity(),
         };
-        self.wrap(filter)
+        self.filter(filter)
     }
 }
 
@@ -1607,7 +1613,10 @@ impl<M> InternalPropertyFilterBuilderOps for PropertyFilterBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
+    OpChainBuilder<M>: InternalPropertyFilterBuilderOps,
 {
+    type Filter = PropertyFilter<M>;
+    type Chained = OpChainBuilder<M>;
     type Marker = M;
 
     fn property_ref(&self) -> PropertyRef {
@@ -1620,6 +1629,14 @@ where
 
     fn entity(&self) -> Self::Marker {
         self.1.clone()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        filter
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        builder
     }
 }
 
@@ -1644,7 +1661,10 @@ impl<M> InternalPropertyFilterBuilderOps for MetadataFilterBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
+    OpChainBuilder<M>: InternalPropertyFilterBuilderOps,
 {
+    type Filter = PropertyFilter<M>;
+    type Chained = OpChainBuilder<M>;
     type Marker = M;
 
     fn property_ref(&self) -> PropertyRef {
@@ -1657,6 +1677,14 @@ where
 
     fn entity(&self) -> Self::Marker {
         self.1.clone()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        filter
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        builder
     }
 }
 
@@ -1728,6 +1756,8 @@ where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
 {
+    type Filter = PropertyFilter<M>;
+    type Chained = OpChainBuilder<M>;
     type Marker = M;
 
     fn property_ref(&self) -> PropertyRef {
@@ -1741,10 +1771,18 @@ where
     fn entity(&self) -> Self::Marker {
         self.entity.clone()
     }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        filter
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        builder
+    }
 }
 
 pub trait ElemQualifierOps: InternalPropertyFilterBuilderOps {
-    fn any(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>>
+    fn any(&self) -> Self::Chained
     where
         Self: Sized,
     {
@@ -1753,10 +1791,10 @@ pub trait ElemQualifierOps: InternalPropertyFilterBuilderOps {
             ops: self.ops().iter().copied().chain([Op::Any]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 
-    fn all(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>>
+    fn all(&self) -> Self::Chained
     where
         Self: Sized,
     {
@@ -1765,7 +1803,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterBuilderOps {
             ops: self.ops().iter().copied().chain([Op::All]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 }
 
@@ -1781,69 +1819,69 @@ impl<M> PropertyFilterBuilder<M> {
     }
 }
 
-pub trait ListAggOps: InternalPropertyFilterBuilderOps + Sized {
-    fn len(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+pub trait ListAggOps: InternalPropertyFilterBuilderOps {
+    fn len(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Len]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 
-    fn sum(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+    fn sum(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Sum]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 
-    fn avg(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+    fn avg(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Avg]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 
-    fn min(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+    fn min(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Min]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 
-    fn max(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+    fn max(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Max]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 
-    fn first(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+    fn first(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::First]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 
-    fn last(&self) -> Self::Wrapped<OpChainBuilder<Self::Marker>> {
+    fn last(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Last]).collect(),
             entity: self.entity(),
         };
-        self.wrap(builder)
+        self.chained(builder)
     }
 }
 
-impl<T: InternalPropertyFilterBuilderOps + Sized> ListAggOps for T {}
+impl<T: InternalPropertyFilterBuilderOps> ListAggOps for T {}
