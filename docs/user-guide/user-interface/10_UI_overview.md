@@ -24,7 +24,7 @@ The **Graphs page** consists of the following elements:
 
 ## Graph view
 
-![UI Search page](../../assets/images/raphtory_ui_graph_view.png)
+![UI Search page](../../assets/images/raphtory_ui_graph_view_v0_16_4.png)
 
 The **Graph view** displays the graph or sub-graph you have selected and provides information on that selection. You can also refine your selection further or save it as a new graph.
 

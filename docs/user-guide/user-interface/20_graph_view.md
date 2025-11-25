@@ -16,7 +16,7 @@ The **Graph view** consists of the following elements:
 
 ## Modifying the graph Layout
 
-![UI Search page](../../assets/images/raphtory_ui_graph_view_layout.png)
+![Layout tab of the context menu](../../assets/images/raphtory_ui_graph_view_layout.png)
 
 The Raphtory UI gives you detailed control over how your graphs are displayed. You can use this to match your preferences, build custom visualisations for reports or better fit the shape of your data.
 
@@ -89,7 +89,7 @@ For Concentric and Dagre TB algorithms you can also specify **Advanced Options**
 
 ## Modify styles
 
-![UI Search page](../../assets/images/raphtory_ui_graph_view_settings.png)
+![Graph settings tab of the Context menu](../../assets/images/raphtory_ui_graph_view_settings.png)
 
 You can modify the styles applied to nodes and edges from the **Graph settings** tab of the **Context menu**.
 
@@ -123,4 +123,3 @@ You can perform both global and local changes which are saved as properties in t
 
 !!! Note
     Styles set on an individual node override styles set on a node type. Additionally, styles can only be applied to individual nodes, if you have multiple nodes selected the last node you selected will be updated.
-
