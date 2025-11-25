@@ -125,4 +125,4 @@ You can use the **Query Builder** to select the graph you created and identify w
 
 ![UI Search page](../../assets/images/raphtory_ui_search_baboon_attacks.png)
 
-For more information see the full [User Interface overview](2_UI_overview.md)
+For more information see the full [User Interface overview](../user-interface/10_UI_overview.md)
