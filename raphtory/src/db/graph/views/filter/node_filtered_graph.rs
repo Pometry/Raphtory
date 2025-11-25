@@ -39,16 +39,40 @@ impl<G, F> Base for NodeFilteredGraph<G, F> {
 impl<G, F> Static for NodeFilteredGraph<G, F> {}
 impl<G, F> Immutable for NodeFilteredGraph<G, F> {}
 
-impl<'graph, G: GraphViewOps<'graph>, F> InheritCoreGraphOps for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritStorageOps for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritLayerOps for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritListOps for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritMaterialize for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritAllEdgeFilterOps for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritPropertiesOps for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritTimeSemantics for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritNodeHistoryFilter for NodeFilteredGraph<G, F> {}
-impl<'graph, G: GraphViewOps<'graph>, F> InheritEdgeHistoryFilter for NodeFilteredGraph<G, F> {}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritCoreGraphOps
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritStorageOps
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritLayerOps for NodeFilteredGraph<G, F> {}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritListOps for NodeFilteredGraph<G, F> {}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritMaterialize
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritAllEdgeFilterOps
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritPropertiesOps
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritTimeSemantics
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritNodeHistoryFilter
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritEdgeHistoryFilter
+    for NodeFilteredGraph<G, F>
+{
+}
 
 impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InternalNodeFilterOps
     for NodeFilteredGraph<G, F>

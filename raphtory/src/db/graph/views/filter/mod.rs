@@ -140,7 +140,8 @@ pub(crate) mod test_filters {
                         },
                         views::filter::{
                             model::{
-                                node_filter::NodeFilter, property_filter::PropertyFilterOps,
+                                node_filter::NodeFilter,
+                                property_filter::{ListAggOps, PropertyFilterOps},
                                 PropertyFilterFactory,
                             },
                             test_filters::IdentityGraphTransformer,

@@ -3,14 +3,17 @@ use crate::{
         internal::CreateFilter,
         model::{
             property_filter::{
-                ElemQualifierOps, ListAggOps, MetadataFilterBuilder, PropertyFilterBuilder,
-                PropertyFilterOps,
+                ElemQualifierOps, InternalPropertyFilterBuilderOps, ListAggOps,
+                MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder, PropertyFilterOps,
             },
             TryAsCompositeFilter,
         },
     },
     prelude::PropertyFilter,
-    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
+    python::{
+        filter::{create_filter::DynInternalFilterOps, filter_expr::PyFilterExpr},
+        types::iterable::FromIterable,
+    },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -74,7 +77,8 @@ pub trait DynFilterOps: Send + Sync {
 impl<T> DynFilterOps for T
 where
     T: PropertyFilterOps + ElemQualifierOps + ListAggOps + Clone + Send + Sync + 'static,
-    PropertyFilter<T::Marker>: CreateFilter + TryAsCompositeFilter,
+    T::Wrapped<PropertyFilter<T::Marker>>: CreateFilter + TryAsCompositeFilter + Clone,
+    T::Wrapped<OpChainBuilder<T::Marker>>: InternalPropertyFilterBuilderOps + Clone,
 {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
@@ -97,7 +101,8 @@ where
     }
 
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ge(self, value)))
+        let filter = Arc::new(PropertyFilterOps::ge(self, value));
+        PyFilterExpr(filter)
     }
 
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
@@ -147,7 +152,8 @@ where
     }
 
     fn any(&self) -> PyFilterOps {
-        PyFilterOps::wrap(ElemQualifierOps::any(self))
+        let filter = ElemQualifierOps::any(self);
+        PyFilterOps::wrap(filter)
     }
 
     fn all(&self) -> PyFilterOps {
@@ -190,7 +196,7 @@ pub struct PyFilterOps {
 }
 
 impl PyFilterOps {
-    fn wrap<T: DynFilterOps + 'static>(t: T) -> Self {
+    pub fn wrap<T: DynFilterOps + 'static>(t: T) -> Self {
         Self { ops: Arc::new(t) }
     }
 

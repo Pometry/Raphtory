@@ -1,14 +1,19 @@
 use crate::{
-    db::graph::views::filter::model::{
-        edge_filter::EdgeFilter,
-        exploded_edge_filter::ExplodedEdgeFilter,
-        node_filter::NodeFilter,
-        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
-        Windowed,
+    db::graph::views::filter::{
+        internal::CreateFilter,
+        model::{
+            edge_filter::EdgeFilter,
+            exploded_edge_filter::ExplodedEdgeFilter,
+            node_filter::NodeFilter,
+            property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
+            PropertyFilterFactory, TryAsCompositeFilter, Windowed,
+        },
     },
+    prelude::PropertyFilter,
     python::filter::property_filter_builders::{PyFilterOps, PyPropertyFilterBuilder},
 };
 use pyo3::prelude::*;
+use std::sync::Arc;
 
 #[pyclass(frozen, name = "NodeWindow", module = "raphtory.filter")]
 #[derive(Clone)]
@@ -21,14 +26,12 @@ impl PyNodeWindow {
         py: Python<'py>,
         name: String,
     ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<Windowed<NodeFilter>> =
-            PropertyFilterBuilder::new(name, self.0.clone());
+        let b = self.0.property(name);
         b.into_pyobject(py)
     }
 
     fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
-        let b: MetadataFilterBuilder<Windowed<NodeFilter>> =
-            MetadataFilterBuilder::new(name, self.0.clone());
+        let b = self.0.metadata(name);
         b.into_pyobject(py)
     }
 }
@@ -44,14 +47,12 @@ impl PyEdgeWindow {
         py: Python<'py>,
         name: String,
     ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<Windowed<EdgeFilter>> =
-            PropertyFilterBuilder::new(name, self.0.clone());
+        let b = self.0.property(name);
         b.into_pyobject(py)
     }
 
     fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
-        let b: MetadataFilterBuilder<Windowed<EdgeFilter>> =
-            MetadataFilterBuilder::new(name, self.0.clone());
+        let b = self.0.metadata(name);
         b.into_pyobject(py)
     }
 }
@@ -67,14 +68,12 @@ impl PyExplodedEdgeWindow {
         py: Python<'py>,
         name: String,
     ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<Windowed<ExplodedEdgeFilter>> =
-            PropertyFilterBuilder::new(name, self.0.clone());
+        let b = self.0.property(name);
         b.into_pyobject(py)
     }
 
     fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
-        let b: MetadataFilterBuilder<Windowed<ExplodedEdgeFilter>> =
-            MetadataFilterBuilder::new(name, self.0.clone());
+        let b = self.0.metadata(name);
         b.into_pyobject(py)
     }
 }

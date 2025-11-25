@@ -1669,6 +1669,7 @@ pub struct OpChainBuilder<M> {
 
 impl<M> Wrap for OpChainBuilder<M> {
     type Wrapped<T> = T;
+
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
         value
     }

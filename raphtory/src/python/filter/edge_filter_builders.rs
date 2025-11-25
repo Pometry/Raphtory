@@ -2,12 +2,13 @@ use crate::{
     db::graph::views::filter::model::{
         edge_filter::{EdgeFilter, EndpointWrapper},
         node_filter::{
-            NodeFilter, NodeIdFilterBuilder, NodeIdFilterBuilderOps, NodeNameFilterBuilder,
-            NodeTypeFilterBuilder,
+            NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder, NodeIdFilterBuilderOps,
+            NodeNameFilterBuilder, NodeTypeFilterBuilder,
         },
-        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
+        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps},
         PropertyFilterFactory, Windowed,
     },
+    prelude::TimeOps,
     python::{
         filter::{
             filter_expr::PyFilterExpr,
@@ -213,7 +214,7 @@ impl PyEdgeFilterOp {
 
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpoint(pub EdgeEndpoint);
+pub struct PyEdgeEndpoint(pub EndpointWrapper<NodeFilter>);
 
 #[pymethods]
 impl PyEdgeEndpoint {
@@ -227,24 +228,6 @@ impl PyEdgeEndpoint {
 
     fn node_type(&self) -> PyEdgeFilterOp {
         PyEdgeFilterOp::from(self.0.node_type())
-    }
-
-    fn property<'py>(
-        &self,
-        py: Python<'py>,
-        name: String,
-    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<EndpointWrapper<NodeFilter>> = self.0.property(name);
-        b.into_pyobject(py)
-    }
-
-    fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
-        let b: MetadataFilterBuilder<EndpointWrapper<NodeFilter>> = self.0.metadata(name);
-        b.into_pyobject(py)
-    }
-
-    fn window(&self, py_start: PyTime, py_end: PyTime) -> PyResult<PyEdgeEndpointWindow> {
-        Ok(PyEdgeEndpointWindow(self.0.window(py_start, py_end)))
     }
 }
 
@@ -284,26 +267,5 @@ impl PyEdgeFilter {
     #[staticmethod]
     fn window(start: PyTime, end: PyTime) -> PyResult<PyEdgeWindow> {
         Ok(PyEdgeWindow(Windowed::from_times(start, end, EdgeFilter)))
-    }
-}
-
-#[pyclass(frozen, name = "EdgeEndpointWindow", module = "raphtory.filter")]
-#[derive(Clone)]
-pub struct PyEdgeEndpointWindow(pub EndpointWrapper<Windowed<NodeFilter>>);
-
-#[pymethods]
-impl PyEdgeEndpointWindow {
-    fn property<'py>(
-        &self,
-        py: Python<'py>,
-        name: String,
-    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
-        let b: PropertyFilterBuilder<_> = self.0.property(name);
-        b.into_pyobject(py)
-    }
-
-    fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
-        let b: MetadataFilterBuilder<_> = self.0.metadata(name);
-        b.into_pyobject(py)
     }
 }

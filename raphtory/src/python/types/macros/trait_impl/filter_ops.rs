@@ -1,3 +1,6 @@
+use crate::db::api::view::internal::InternalFilter;
+use pyo3::prelude::PyResult;
+
 /// Macro for implementing all the FilterOps methods on a python wrapper
 ///
 /// # Arguments
@@ -5,6 +8,7 @@
 /// * field: The name of the struct field holding the rust struct implementing `FilterOps`
 /// * base_type: The rust type of `field`
 /// * name: The name of the object that appears in the docstring
+
 macro_rules! impl_filter_ops {
     ($obj:ident<$base_type:ty>, $field:ident, $name:literal) => {
         #[pyo3::pymethods]
@@ -19,7 +23,7 @@ macro_rules! impl_filter_ops {
             fn filter(
                 &self,
                 filter: PyFilterExpr,
-            ) -> Result<<$base_type as Filter<'static>>::Filtered<DynamicGraph>, GraphError> {
+            ) -> PyResult<<$base_type as InternalFilter<'static>>::Filtered<DynamicGraph>> {
                 Ok(self.$field.clone().filter(filter)?.into_dyn_hop())
             }
         }

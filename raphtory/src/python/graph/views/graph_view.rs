@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::{Metadata, Properties},
-            state::ops::filter::NodePropertyFilterOp,
+            state::ops::filter::NodeTypeFilterOp,
             view::{
                 filter_ops::Filter,
                 internal::{
@@ -23,7 +23,7 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
+                    node_filtered_graph::NodeFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
                 node_subgraph::NodeSubgraph,
@@ -137,27 +137,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for CachedView<
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodeTypeFilteredGraph<G> {
-    type Target = PyGraphView;
-    type Output = <Self::Target as IntoPyObject<'py>>::Output;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphView::from(self).into_pyobject(py)
-    }
-}
-
 impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for EdgePropertyFilteredGraph<G> {
-    type Target = PyGraphView;
-    type Output = <Self::Target as IntoPyObject<'py>>::Output;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphView::from(self).into_pyobject(py)
-    }
-}
-
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodePropertyFilterOp<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -443,8 +423,10 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView: Returns the subgraph
-    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> NodeTypeFilteredGraph<DynamicGraph> {
-        self.graph.subgraph_node_types(node_types)
+    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> PyGraphView {
+        let subgraph = self.graph.subgraph_node_types(node_types);
+        let dyn_graph = subgraph.into_dyn_hop();
+        PyGraphView::from(dyn_graph)
     }
 
     /// Returns a subgraph given a set of nodes that are excluded from the subgraph
