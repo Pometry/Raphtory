@@ -149,9 +149,7 @@ impl<'a> WithTProps<'a> for MemEdgeRef<'a> {
 
 impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type Additions = EdgeAdditions<'a>;
-
     type Deletions = EdgeDeletions<'a>;
-
     type TProps = EdgeTProps<'a>;
 
     fn edge(self, layer_id: usize) -> Option<(VID, VID)> {

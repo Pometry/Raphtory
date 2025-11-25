@@ -43,8 +43,6 @@ impl TColumns {
         let id = self.num_rows;
         let mut has_props = false;
 
-        println!("self.num_rows: {}", self.num_rows);
-
         for (prop_id, prop) in props {
             match self.t_props_log.get_mut(prop_id) {
                 Some(col) => col.push(prop)?,
