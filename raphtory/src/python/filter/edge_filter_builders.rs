@@ -1,28 +1,32 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{
-            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, EdgeIdFilterBuilder, ExplodedEdgeFilter,
-            InternalEdgeFilterBuilderOps,
+        edge_filter::{EdgeFilter, EndpointWrapper},
+        node_filter::{
+            NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder, NodeIdFilterBuilderOps,
+            NodeNameFilterBuilder, NodeTypeFilterBuilder,
         },
-        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
+        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps},
         PropertyFilterFactory, Windowed,
     },
+    prelude::TimeOps,
     python::{
         filter::{
             filter_expr::PyFilterExpr,
-            window_filter::{PyEdgeWindow, PyExplodedEdgeWindow},
+            property_filter_builders::{
+                PyFilterOps, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+            },
         },
         types::iterable::FromIterable,
         utils::PyTime,
     },
 };
-use pyo3::{pyclass, pymethods, PyResult};
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "EdgeIdFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeIdFilterOp(pub EdgeIdFilterBuilder);
+pub struct PyEdgeIdFilterOp(pub EndpointWrapper<NodeIdFilterBuilder>);
 
 #[pymethods]
 impl PyEdgeIdFilterOp {
@@ -90,54 +94,98 @@ impl PyEdgeIdFilterOp {
 
 #[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeFilterOp(Arc<dyn InternalEdgeFilterBuilderOps>);
+pub struct PyEdgeFilterOp(EdgeTextBuilder);
 
-impl<T: InternalEdgeFilterBuilderOps + 'static> From<T> for PyEdgeFilterOp {
-    fn from(value: T) -> Self {
-        PyEdgeFilterOp(Arc::new(value))
+#[derive(Clone)]
+enum EdgeTextBuilder {
+    Name(EndpointWrapper<NodeNameFilterBuilder>),
+    Type(EndpointWrapper<NodeTypeFilterBuilder>),
+}
+
+impl From<EndpointWrapper<NodeNameFilterBuilder>> for PyEdgeFilterOp {
+    fn from(v: EndpointWrapper<NodeNameFilterBuilder>) -> Self {
+        PyEdgeFilterOp(EdgeTextBuilder::Name(v))
+    }
+}
+
+impl From<EndpointWrapper<NodeTypeFilterBuilder>> for PyEdgeFilterOp {
+    fn from(v: EndpointWrapper<NodeTypeFilterBuilder>) -> Self {
+        PyEdgeFilterOp(EdgeTextBuilder::Type(v))
+    }
+}
+
+impl PyEdgeFilterOp {
+    #[inline]
+    fn map<T>(
+        &self,
+        f_name: impl FnOnce(&EndpointWrapper<NodeNameFilterBuilder>) -> T,
+        f_type: impl FnOnce(&EndpointWrapper<NodeTypeFilterBuilder>) -> T,
+    ) -> T {
+        match &self.0 {
+            EdgeTextBuilder::Name(n) => f_name(n),
+            EdgeTextBuilder::Type(t) => f_type(t),
+        }
     }
 }
 
 #[pymethods]
 impl PyEdgeFilterOp {
     fn __eq__(&self, value: String) -> PyFilterExpr {
-        let field = self.0.eq(value);
-        PyFilterExpr(Arc::new(field))
+        self.map(
+            |n| PyFilterExpr(Arc::new(n.eq(value.clone()))),
+            |t| PyFilterExpr(Arc::new(t.eq(value.clone()))),
+        )
     }
 
     fn __ne__(&self, value: String) -> PyFilterExpr {
-        let field = self.0.ne(value);
-        PyFilterExpr(Arc::new(field))
+        self.map(
+            |n| PyFilterExpr(Arc::new(n.ne(value.clone()))),
+            |t| PyFilterExpr(Arc::new(t.ne(value.clone()))),
+        )
     }
 
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.is_in(values);
-        PyFilterExpr(Arc::new(field))
+        let vals: Vec<String> = values.into_iter().collect();
+        self.map(
+            |n| PyFilterExpr(Arc::new(n.is_in(vals.clone()))),
+            |t| PyFilterExpr(Arc::new(t.is_in(vals.clone()))),
+        )
     }
 
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.is_not_in(values);
-        PyFilterExpr(Arc::new(field))
+        let vals: Vec<String> = values.into_iter().collect();
+        self.map(
+            |n| PyFilterExpr(Arc::new(n.is_not_in(vals.clone()))),
+            |t| PyFilterExpr(Arc::new(t.is_not_in(vals.clone()))),
+        )
     }
 
     fn starts_with(&self, value: String) -> PyFilterExpr {
-        let field = self.0.starts_with(value);
-        PyFilterExpr(Arc::new(field))
+        self.map(
+            |n| PyFilterExpr(Arc::new(n.starts_with(value.clone()))),
+            |t| PyFilterExpr(Arc::new(t.starts_with(value.clone()))),
+        )
     }
 
     fn ends_with(&self, value: String) -> PyFilterExpr {
-        let field = self.0.ends_with(value);
-        PyFilterExpr(Arc::new(field))
+        self.map(
+            |n| PyFilterExpr(Arc::new(n.ends_with(value.clone()))),
+            |t| PyFilterExpr(Arc::new(t.ends_with(value.clone()))),
+        )
     }
 
     fn contains(&self, value: String) -> PyFilterExpr {
-        let field = self.0.contains(value);
-        PyFilterExpr(Arc::new(field))
+        self.map(
+            |n| PyFilterExpr(Arc::new(n.contains(value.clone()))),
+            |t| PyFilterExpr(Arc::new(t.contains(value.clone()))),
+        )
     }
 
     fn not_contains(&self, value: String) -> PyFilterExpr {
-        let field = self.0.not_contains(value);
-        PyFilterExpr(Arc::new(field))
+        self.map(
+            |n| PyFilterExpr(Arc::new(n.not_contains(value.clone()))),
+            |t| PyFilterExpr(Arc::new(t.not_contains(value.clone()))),
+        )
     }
 
     fn fuzzy_search(
@@ -146,16 +194,28 @@ impl PyEdgeFilterOp {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        let field = self
-            .0
-            .fuzzy_search(value, levenshtein_distance, prefix_match);
-        PyFilterExpr(Arc::new(field))
+        self.map(
+            |n| {
+                PyFilterExpr(Arc::new(n.fuzzy_search(
+                    value.clone(),
+                    levenshtein_distance,
+                    prefix_match,
+                )))
+            },
+            |t| {
+                PyFilterExpr(Arc::new(t.fuzzy_search(
+                    value.clone(),
+                    levenshtein_distance,
+                    prefix_match,
+                )))
+            },
+        )
     }
 }
 
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpoint(pub EdgeEndpointFilter);
+pub struct PyEdgeEndpoint(pub EndpointWrapper<NodeFilter>);
 
 #[pymethods]
 impl PyEdgeEndpoint {
@@ -164,7 +224,25 @@ impl PyEdgeEndpoint {
     }
 
     fn name(&self) -> PyEdgeFilterOp {
-        PyEdgeFilterOp(self.0.name())
+        PyEdgeFilterOp::from(self.0.name())
+    }
+
+    fn node_type(&self) -> PyEdgeFilterOp {
+        PyEdgeFilterOp::from(self.0.node_type())
+    }
+
+    fn property<'py>(
+        &self,
+        py: Python<'py>,
+        name: String,
+    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
+        let b = PropertyFilterFactory::property(&self.0, name);
+        b.into_pyobject(py)
+    }
+
+    fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
+        let b = PropertyFilterFactory::metadata(&self.0, name);
+        b.into_pyobject(py)
     }
 }
 
@@ -185,43 +263,24 @@ impl PyEdgeFilter {
     }
 
     #[staticmethod]
-    fn property(name: String) -> PropertyFilterBuilder<EdgeFilter> {
-        EdgeFilter.property(name)
+    fn property<'py>(
+        py: Python<'py>,
+        name: String,
+    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
+        let b: PropertyFilterBuilder<EdgeFilter> =
+            PropertyFilterFactory::property(&EdgeFilter, name);
+        b.into_pyobject(py)
     }
 
     #[staticmethod]
-    fn metadata(name: String) -> MetadataFilterBuilder<EdgeFilter> {
-        EdgeFilter.metadata(name)
+    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
+        let b: MetadataFilterBuilder<EdgeFilter> =
+            PropertyFilterFactory::metadata(&EdgeFilter, name);
+        b.into_pyobject(py)
     }
 
     #[staticmethod]
-    fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyEdgeWindow> {
-        Ok(PyEdgeWindow(Windowed::<EdgeFilter>::from_times(
-            py_start, py_end,
-        )))
-    }
-}
-
-#[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
-#[derive(Clone)]
-pub struct PyExplodedEdgeFilter;
-
-#[pymethods]
-impl PyExplodedEdgeFilter {
-    #[staticmethod]
-    fn property(name: String) -> PropertyFilterBuilder<ExplodedEdgeFilter> {
-        ExplodedEdgeFilter.property(name)
-    }
-
-    #[staticmethod]
-    fn metadata(name: String) -> MetadataFilterBuilder<ExplodedEdgeFilter> {
-        ExplodedEdgeFilter.metadata(name)
-    }
-
-    #[staticmethod]
-    fn window(py_start: PyTime, py_end: PyTime) -> PyResult<PyExplodedEdgeWindow> {
-        Ok(PyExplodedEdgeWindow(
-            Windowed::<ExplodedEdgeFilter>::from_times(py_start, py_end),
-        ))
+    fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(EdgeFilter::window(start, end))
     }
 }

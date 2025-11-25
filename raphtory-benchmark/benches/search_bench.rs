@@ -10,19 +10,19 @@ use raphtory::{
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
-            view::{BaseFilterOps, SearchableGraphOps},
+            view::{Filter, SearchableGraphOps},
         },
         graph::{
             edge::EdgeView,
             node::NodeView,
             views::filter::model::{
-                edge_filter::{EdgeFilter, EdgeFilterOps},
+                edge_filter::EdgeFilter,
                 filter_operator::{FilterOperator, FilterOperator::*},
                 node_filter::{NodeFilter, NodeFilterBuilderOps},
                 property_filter::{
-                    InternalPropertyFilterOps, PropertyFilterBuilder, PropertyFilterOps,
+                    InternalPropertyFilterBuilderOps, PropertyFilterBuilder, PropertyFilterOps,
                 },
-                ComposableFilter, PropertyFilterFactory,
+                ComposableFilter, InternalPropertyFilterFactory, PropertyFilterFactory,
             },
         },
     },
@@ -199,18 +199,17 @@ fn convert_to_property_filter<M>(
     sampled_values: Option<Vec<Prop>>,
 ) -> Option<PropertyFilter<M>>
 where
-    M: PropertyFilterFactory + Default,
-    PropertyFilterBuilder<M>: PropertyFilterOps + InternalPropertyFilterOps<Marker = M>,
+    M: PropertyFilterFactory + Default + InternalPropertyFilterFactory,
+    <M as InternalPropertyFilterFactory>::PropertyBuilder: PropertyFilterOps
+        + InternalPropertyFilterBuilderOps<Marker = M, Filter = PropertyFilter<M>>,
 {
     let mut rng = thread_rng();
 
     match prop_value.dtype() {
-        // String properties support tokenized matches for eq and ne
         PropType::Str => {
             if let Some(full_str) = prop_value.into_str() {
                 let tokens: Vec<&str> = full_str.split_whitespace().collect();
                 if tokens.len() > 1 && rng.gen_bool(0.3) {
-                    // 30% chance to use a random substring
                     let start = rng.gen_range(0..tokens.len());
                     let end = rng.gen_range(start..tokens.len());
                     let sub_str = tokens[start..=end].join(" ");
@@ -223,7 +222,7 @@ where
                         }
                         IsNotIn => sampled_values
                             .map(|vals| M::default().property(prop_name).is_not_in(vals)),
-                        _ => None, // No numeric comparison for strings
+                        _ => None,
                     }
                 } else {
                     match filter_op {
@@ -234,7 +233,7 @@ where
                         }
                         IsNotIn => sampled_values
                             .map(|vals| M::default().property(prop_name).is_not_in(vals)),
-                        _ => None, // No numeric comparison for strings
+                        _ => None,
                     }
                 }
             } else {
@@ -242,7 +241,6 @@ where
             }
         }
 
-        // Numeric properties support all comparison operators
         PropType::U64 => prop_value.into_u64().and_then(|v| match filter_op {
             Eq => Some(M::default().property(prop_name).eq(v)),
             Ne => Some(M::default().property(prop_name).ne(v)),
@@ -252,8 +250,9 @@ where
             Ge => Some(M::default().property(prop_name).ge(v)),
             IsIn => sampled_values.map(|vals| M::default().property(prop_name).is_in(vals)),
             IsNotIn => sampled_values.map(|vals| M::default().property(prop_name).is_not_in(vals)),
-            _ => return None,
+            _ => None,
         }),
+
         PropType::I64 => prop_value.into_i64().and_then(|v| match filter_op {
             Eq => Some(M::default().property(prop_name).eq(v)),
             Ne => Some(M::default().property(prop_name).ne(v)),
@@ -263,8 +262,9 @@ where
             Ge => Some(M::default().property(prop_name).ge(v)),
             IsIn => sampled_values.map(|vals| M::default().property(prop_name).is_in(vals)),
             IsNotIn => sampled_values.map(|vals| M::default().property(prop_name).is_not_in(vals)),
-            _ => return None,
+            _ => None,
         }),
+
         PropType::F64 => prop_value.into_f64().and_then(|v| match filter_op {
             Eq => Some(M::default().property(prop_name).eq(v)),
             Ne => Some(M::default().property(prop_name).ne(v)),
@@ -274,17 +274,18 @@ where
             Ge => Some(M::default().property(prop_name).ge(v)),
             IsIn => sampled_values.map(|vals| M::default().property(prop_name).is_in(vals)),
             IsNotIn => sampled_values.map(|vals| M::default().property(prop_name).is_not_in(vals)),
-            _ => return None,
+            _ => None,
         }),
+
         PropType::Bool => prop_value.into_bool().and_then(|v| match filter_op {
             Eq => Some(M::default().property(prop_name).eq(v)),
             Ne => Some(M::default().property(prop_name).ne(v)),
             IsIn => sampled_values.map(|vals| M::default().property(prop_name).is_in(vals)),
             IsNotIn => sampled_values.map(|vals| M::default().property(prop_name).is_not_in(vals)),
-            _ => return None,
+            _ => None,
         }),
 
-        _ => None, // Skip unsupported types
+        _ => None,
     }
 }
 

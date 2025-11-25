@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::view::BoxableGraphView,
+        api::{
+            state::NodeOp,
+            view::{internal::GraphView, BoxableGraphView},
+        },
         graph::views::filter::{
             internal::CreateFilter,
             model::{
@@ -16,7 +19,7 @@ use crate::{
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-#[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter")]
+#[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter", subclass)]
 #[derive(Clone)]
 pub struct PyFilterExpr(pub Arc<dyn DynInternalFilterOps>);
 
@@ -50,8 +53,10 @@ impl PyFilterExpr {
 }
 
 impl CreateFilter for PyFilterExpr {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = Arc<dyn BoxableGraphView + 'graph>
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+
+    type NodeFilter<'graph, G: GraphView + 'graph>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
     where
         Self: 'graph;
 
@@ -60,5 +65,12 @@ impl CreateFilter for PyFilterExpr {
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         self.0.create_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        self.0.create_node_filter(graph)
     }
 }

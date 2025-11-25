@@ -182,12 +182,12 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    edge_filter::{EdgeFilter, EdgeFilterOps},
-                    property_filter::PropertyFilterOps,
-                    PropertyFilterFactory, TryAsCompositeFilter,
+                    edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
+                    property_filter::PropertyFilterOps, PropertyFilterFactory,
+                    TryAsCompositeFilter,
                 },
             },
-            prelude::{AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps},
+            prelude::{AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, NO_PROPS},
         };
         use raphtory_api::core::entities::properties::prop::IntoProp;
 
@@ -220,6 +220,10 @@ mod search_tests {
                     Some("fire_nation"),
                 )
                 .unwrap();
+
+            graph.add_node(1, "shivam", NO_PROPS, None).unwrap();
+            graph.add_node(1, "raphtory", NO_PROPS, None).unwrap();
+            graph.add_node(1, "pometry", NO_PROPS, None).unwrap();
 
             graph.create_index_in_ram().unwrap();
 

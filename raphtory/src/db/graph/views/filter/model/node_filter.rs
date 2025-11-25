@@ -1,15 +1,27 @@
 use crate::{
     db::{
-        api::view::BoxableGraphView,
+        api::{
+            state::{
+                ops::{
+                    filter::{
+                        AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
+                        OrOp,
+                    },
+                    TypeId,
+                },
+                NodeOp,
+            },
+            view::{internal::GraphView, BoxableGraphView},
+        },
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
-                filter_operator::FilterOperator,
-                property_filter::PropertyFilter,
-                AndFilter, Filter, FilterValue, NotFilter, OrFilter, TryAsCompositeFilter,
-                Windowed,
+                edge_filter::CompositeEdgeFilter,
+                exploded_edge_filter::CompositeExplodedEdgeFilter, filter_operator::FilterOperator,
+                property_filter::PropertyFilter, AndFilter, Filter, FilterValue, NotFilter,
+                OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },
+            node_filtered_graph::NodeFilteredGraph,
         },
     },
     errors::GraphError,
@@ -34,6 +46,28 @@ impl From<Filter> for NodeIdFilter {
     }
 }
 
+impl CreateFilter for NodeIdFilter {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeIdFilterOp>;
+
+    type NodeFilter<'graph, G: GraphView + 'graph> = NodeIdFilterOp;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        NodeFilter::validate(graph.id_type(), &self.0)?;
+        Ok(NodeFilteredGraph::new(graph, NodeIdFilterOp::new(self.0)))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        NodeFilter::validate(graph.id_type(), &self.0)?;
+        Ok(NodeIdFilterOp::new(self.0))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NodeNameFilter(pub Filter);
 
@@ -46,6 +80,26 @@ impl Display for NodeNameFilter {
 impl From<Filter> for NodeNameFilter {
     fn from(filter: Filter) -> Self {
         NodeNameFilter(filter)
+    }
+}
+
+impl CreateFilter for NodeNameFilter {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeNameFilterOp>;
+
+    type NodeFilter<'graph, G: GraphView + 'graph> = NodeNameFilterOp;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        Ok(NodeFilteredGraph::new(graph, NodeNameFilterOp::new(self.0)))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(NodeNameFilterOp::new(self.0))
     }
 }
 
@@ -64,11 +118,48 @@ impl From<Filter> for NodeTypeFilter {
     }
 }
 
+impl CreateFilter for NodeTypeFilter {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeTypeFilterOp>;
+
+    type NodeFilter<'graph, G: GraphView + 'graph> = NodeTypeFilterOp;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let node_types_filter = graph
+            .node_meta()
+            .node_type_meta()
+            .get_keys()
+            .iter()
+            .map(|k| self.0.matches(Some(k))) // TODO: _default check
+            .collect::<Vec<_>>();
+        Ok(NodeFilteredGraph::new(
+            graph,
+            TypeId.mask(node_types_filter.into()),
+        ))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let node_types_filter = graph
+            .node_meta()
+            .node_type_meta()
+            .get_keys()
+            .iter()
+            .map(|k| self.0.matches(Some(k))) // TODO: _default check
+            .collect::<Vec<_>>();
+        Ok(TypeId.mask(node_types_filter.into()))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter<NodeFilter>),
-    PropertyWindowed(PropertyFilter<Windowed<NodeFilter>>),
+    Windowed(Box<Windowed<CompositeNodeFilter>>),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Not(Box<CompositeNodeFilter>),
@@ -78,7 +169,7 @@ impl Display for CompositeNodeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::PropertyWindowed(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -88,40 +179,47 @@ impl Display for CompositeNodeFilter {
 }
 
 impl CreateFilter for CompositeNodeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+        NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
+
+    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         match self {
             CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
-                "node_id" => Ok(Arc::new(NodeIdFilter(i).create_filter(graph)?)),
-                "node_name" => Ok(Arc::new(NodeNameFilter(i).create_filter(graph)?)),
-                "node_type" => Ok(Arc::new(NodeTypeFilter(i).create_filter(graph)?)),
+                "node_id" => Ok(Arc::new(NodeIdFilter(i).create_node_filter(graph)?)),
+                "node_name" => Ok(Arc::new(NodeNameFilter(i).create_node_filter(graph)?)),
+                "node_type" => Ok(Arc::new(NodeTypeFilter(i).create_node_filter(graph)?)),
                 _ => {
                     unreachable!()
                 }
             },
-            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeNodeFilter::PropertyWindowed(i) => Ok(Arc::new(i.create_filter(graph)?)),
-            CompositeNodeFilter::And(l, r) => Ok(Arc::new(
-                AndFilter {
-                    left: l.deref().clone(),
-                    right: r.deref().clone(),
-                }
-                .create_filter(graph)?,
-            )),
-            CompositeNodeFilter::Or(l, r) => Ok(Arc::new(
-                OrFilter {
-                    left: l.deref().clone(),
-                    right: r.deref().clone(),
-                }
-                .create_filter(graph)?,
-            )),
+            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
+            CompositeNodeFilter::Windowed(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::And(l, r) => Ok(Arc::new(AndOp {
+                left: l.clone().create_node_filter(graph.clone())?,
+                right: r.clone().create_node_filter(graph.clone())?,
+            })),
+            CompositeNodeFilter::Or(l, r) => Ok(Arc::new(OrOp {
+                left: l.clone().create_node_filter(graph.clone())?,
+                right: r.clone().create_node_filter(graph.clone())?,
+            })),
             CompositeNodeFilter::Not(filter) => {
-                let base = filter.deref().clone();
-                Ok(Arc::new(NotFilter(base).create_filter(graph)?))
+                Ok(Arc::new(NotOp(filter.clone().create_node_filter(graph)?)))
             }
         }
     }
@@ -143,51 +241,60 @@ impl TryAsCompositeFilter for CompositeNodeFilter {
     }
 }
 
-pub trait InternalNodeFilterBuilderOps: Send + Sync {
-    type NodeFilterType: From<Filter> + CreateFilter + TryAsCompositeFilter + Clone + 'static;
-
+pub trait InternalNodeFilterBuilderOps: Send + Sync + Wrap {
+    type FilterType: From<Filter>;
     fn field_name(&self) -> &'static str;
 }
 
 impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Arc<T> {
-    type NodeFilterType = T::NodeFilterType;
-
+    type FilterType = T::FilterType;
     fn field_name(&self) -> &'static str {
         self.deref().field_name()
     }
 }
 
 pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
-    fn eq(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::eq(self.field_name(), value).into()
+    fn eq(&self, value: impl Into<String>) -> Self::Wrapped<Self::FilterType> {
+        let filter = Filter::eq(self.field_name(), value);
+        self.wrap(filter.into())
     }
 
-    fn ne(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::ne(self.field_name(), value).into()
+    fn ne(&self, value: impl Into<String>) -> Self::Wrapped<Self::FilterType> {
+        let filter = Filter::ne(self.field_name(), value);
+        self.wrap(filter.into())
     }
 
-    fn is_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
-        Filter::is_in(self.field_name(), values).into()
+    fn is_in(&self, values: impl IntoIterator<Item = String>) -> Self::Wrapped<Self::FilterType> {
+        let filter = Filter::is_in(self.field_name(), values);
+        self.wrap(filter.into())
     }
 
-    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
-        Filter::is_not_in(self.field_name(), values).into()
+    fn is_not_in(
+        &self,
+        values: impl IntoIterator<Item = String>,
+    ) -> Self::Wrapped<Self::FilterType> {
+        let filter = Filter::is_not_in(self.field_name(), values);
+        self.wrap(filter.into())
     }
 
-    fn starts_with(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::starts_with(self.field_name(), value).into()
+    fn starts_with(&self, value: impl Into<String>) -> Self::Wrapped<Self::FilterType> {
+        let filter = Filter::starts_with(self.field_name(), value);
+        self.wrap(filter.into())
     }
 
-    fn ends_with(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::ends_with(self.field_name(), value).into()
+    fn ends_with(&self, value: impl Into<String>) -> Self::Wrapped<Self::FilterType> {
+        let filter = Filter::ends_with(self.field_name(), value);
+        self.wrap(filter.into())
     }
 
-    fn contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::contains(self.field_name(), value).into()
+    fn contains(&self, value: impl Into<String>) -> Self::Wrapped<Self::FilterType> {
+        let filter = Filter::contains(self.field_name(), value);
+        self.wrap(filter.into())
     }
 
-    fn not_contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::not_contains(self.field_name(), value.into()).into()
+    fn not_contains(&self, value: impl Into<String>) -> Self::Wrapped<Self::FilterType> {
+        let filter = Filter::not_contains(self.field_name(), value.into());
+        self.wrap(filter.into())
     }
 
     fn fuzzy_search(
@@ -195,104 +302,160 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
         value: impl Into<String>,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> Self::NodeFilterType {
-        Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match).into()
+    ) -> Self::Wrapped<Self::FilterType> {
+        let filter =
+            Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match);
+        self.wrap(filter.into())
     }
 }
 
 impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
 
-pub struct NodeIdFilterBuilder;
+pub trait InternalNodeIdFilterBuilderOps: Send + Sync + Wrap {
+    fn field_name(&self) -> &'static str;
+}
 
-impl NodeIdFilterBuilder {
-    #[inline]
+impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for Arc<T> {
     fn field_name(&self) -> &'static str {
-        "node_id"
+        self.deref().field_name()
+    }
+}
+
+pub trait NodeIdFilterBuilderOps: InternalNodeIdFilterBuilderOps {
+    fn eq<T: Into<GID>>(&self, value: T) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::eq_id(self.field_name(), value);
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn eq<T: Into<GID>>(&self, value: T) -> NodeIdFilter {
-        Filter::eq_id(self.field_name(), value).into()
+    fn ne<T: Into<GID>>(&self, value: T) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::ne_id(self.field_name(), value).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn ne<T: Into<GID>>(&self, value: T) -> NodeIdFilter {
-        Filter::ne_id(self.field_name(), value).into()
-    }
-
-    pub fn is_in<I, T>(&self, values: I) -> NodeIdFilter
+    fn is_in<I, T>(&self, values: I) -> Self::Wrapped<NodeIdFilter>
     where
         I: IntoIterator<Item = T>,
         T: Into<GID>,
     {
-        Filter::is_in_id(self.field_name(), values).into()
+        let filter = Filter::is_in_id(self.field_name(), values).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn is_not_in<I, T>(&self, values: I) -> NodeIdFilter
+    fn is_not_in<I, T>(&self, values: I) -> Self::Wrapped<NodeIdFilter>
     where
         I: IntoIterator<Item = T>,
         T: Into<GID>,
     {
-        Filter::is_not_in_id(self.field_name(), values).into()
+        let filter = Filter::is_not_in_id(self.field_name(), values).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn lt<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
-        Filter::lt(self.field_name(), value).into()
+    fn lt<V: Into<GID>>(&self, value: V) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::lt(self.field_name(), value).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn le<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
-        Filter::le(self.field_name(), value).into()
+    fn le<V: Into<GID>>(&self, value: V) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::le(self.field_name(), value).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn gt<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
-        Filter::gt(self.field_name(), value).into()
+    fn gt<V: Into<GID>>(&self, value: V) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::gt(self.field_name(), value).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn ge<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
-        Filter::ge(self.field_name(), value).into()
+    fn ge<V: Into<GID>>(&self, value: V) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::ge(self.field_name(), value).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn starts_with<S: Into<String>>(&self, s: S) -> NodeIdFilter {
-        Filter::starts_with(self.field_name(), s.into()).into()
+    fn starts_with<S: Into<String>>(&self, s: S) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::starts_with(self.field_name(), s.into()).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn ends_with<S: Into<String>>(&self, s: S) -> NodeIdFilter {
-        Filter::ends_with(self.field_name(), s.into()).into()
+    fn ends_with<S: Into<String>>(&self, s: S) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::ends_with(self.field_name(), s.into()).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn contains<S: Into<String>>(&self, s: S) -> NodeIdFilter {
-        Filter::contains(self.field_name(), s.into()).into()
+    fn contains<S: Into<String>>(&self, s: S) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::contains(self.field_name(), s.into()).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn not_contains<S: Into<String>>(&self, s: S) -> NodeIdFilter {
-        Filter::not_contains(self.field_name(), s.into()).into()
+    fn not_contains<S: Into<String>>(&self, s: S) -> Self::Wrapped<NodeIdFilter> {
+        let filter = Filter::not_contains(self.field_name(), s.into()).into();
+        self.wrap(NodeIdFilter(filter))
     }
 
-    pub fn fuzzy_search<S: Into<String>>(
+    fn fuzzy_search<S: Into<String>>(
         &self,
         s: S,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> NodeIdFilter {
-        Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match).into()
+    ) -> Self::Wrapped<NodeIdFilter> {
+        let filter =
+            Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match).into();
+        self.wrap(NodeIdFilter(filter))
     }
 }
 
+impl<T: InternalNodeIdFilterBuilderOps + ?Sized> NodeIdFilterBuilderOps for T {}
+
+#[derive(Clone, Debug)]
+pub struct NodeIdFilterBuilder;
+
+impl Wrap for NodeIdFilterBuilder {
+    type Wrapped<T> = T;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        value
+    }
+}
+
+impl InternalNodeIdFilterBuilderOps for NodeIdFilterBuilder {
+    #[inline]
+    fn field_name(&self) -> &'static str {
+        "node_id"
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct NodeNameFilterBuilder;
 
 impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
-    type NodeFilterType = NodeNameFilter;
+    type FilterType = NodeNameFilter;
 
     fn field_name(&self) -> &'static str {
         "node_name"
     }
 }
 
+impl Wrap for NodeNameFilterBuilder {
+    type Wrapped<T> = T;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        value
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct NodeTypeFilterBuilder;
 
 impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
-    type NodeFilterType = NodeTypeFilter;
-
+    type FilterType = NodeTypeFilter;
     fn field_name(&self) -> &'static str {
         "node_type"
+    }
+}
+
+impl Wrap for NodeTypeFilterBuilder {
+    type Wrapped<T> = T;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        value
     }
 }
 
@@ -313,7 +476,7 @@ impl NodeFilter {
     }
 
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<NodeFilter> {
-        Windowed::from_times(start, end)
+        Windowed::from_times(start, end, NodeFilter)
     }
 
     pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphError> {
@@ -476,5 +639,13 @@ impl TryAsCompositeFilter for NodeTypeFilter {
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Err(GraphError::NotSupported)
+    }
+}
+
+impl Wrap for NodeFilter {
+    type Wrapped<T> = T;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        value
     }
 }

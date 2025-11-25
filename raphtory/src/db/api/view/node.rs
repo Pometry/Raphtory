@@ -204,7 +204,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>> {
         let op = ops::EarliestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         };
         self.map(op)
     }
@@ -214,7 +214,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         &self,
     ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>> {
         let op = ops::EarliestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .map(|t| t.and_then(|t| t.dt()));
         self.map(op)
@@ -223,7 +223,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>> {
         let op = ops::LatestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         };
         self.map(op)
     }
@@ -233,7 +233,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         &self,
     ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>> {
         let op = ops::LatestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .map(|t| t.and_then(|t| t.dt()));
         self.map(op)
@@ -242,7 +242,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn history(&self) -> Self::ValueType<ops::History<Self::Graph>> {
         let op = ops::History {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         };
         self.map(op)
     }
@@ -250,7 +250,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>> {
         let op = ops::EdgeHistoryCount {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         };
         self.map(op)
     }
@@ -260,7 +260,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         &self,
     ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>> {
         let op = ops::History {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .map(|h| h.into_iter().map(|t| t.dt()).collect());
         self.map(op)
@@ -268,7 +268,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
 
     fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>> {
         let op = ops::History {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .map(|h| !h.is_empty());
         self.map(op)
@@ -289,7 +289,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
             dir: Direction::BOTH,
         };
         self.map(op)
@@ -298,8 +298,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn in_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
-            graph: self.graph().clone(),
             dir: Direction::IN,
+            view: self.graph().clone(),
         };
         self.map(op)
     }
@@ -307,7 +307,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn out_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
             dir: Direction::OUT,
         };
         self.map(op)

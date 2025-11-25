@@ -1,29 +1,45 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
 use crate::{
-    db::graph::views::filter::model::{
-        edge_filter::{
-            CompositeEdgeFilter, CompositeExplodedEdgeFilter, EdgeFieldFilter, EdgeFilter,
-            ExplodedEdgeFilter,
+    db::{
+        api::view::internal::GraphView,
+        graph::views::{
+            filter::{
+                internal::CreateFilter,
+                model::{
+                    edge_filter::{CompositeEdgeFilter, EdgeFilter, EndpointWrapper},
+                    exploded_edge_filter::{
+                        CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
+                    },
+                    filter_operator::FilterOperator,
+                    node_filter::{
+                        CompositeNodeFilter, InternalNodeFilterBuilderOps,
+                        InternalNodeIdFilterBuilderOps, NodeFilter, NodeNameFilter, NodeTypeFilter,
+                    },
+                    not_filter::NotFilter,
+                    or_filter::OrFilter,
+                    property_filter::{
+                        CombinedFilter, InternalPropertyFilterBuilderOps, MetadataFilterBuilder,
+                        Op, OpChainBuilder, PropertyFilter, PropertyFilterBuilder,
+                        PropertyFilterOps, PropertyRef,
+                    },
+                },
+            },
+            window_graph::WindowedGraph,
         },
-        filter_operator::FilterOperator,
-        node_filter::{CompositeNodeFilter, NodeFilter, NodeNameFilter, NodeTypeFilter},
-        not_filter::NotFilter,
-        or_filter::OrFilter,
-        property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
     },
     errors::GraphError,
-    prelude::{GraphViewOps, NodeViewOps},
+    prelude::{GraphViewOps, TimeOps},
 };
 use raphtory_api::core::{
     entities::{GidRef, GID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use raphtory_core::utils::time::IntoTime;
-use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
-use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Deref, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 
 pub mod and_filter;
 pub mod edge_filter;
+pub mod exploded_edge_filter;
 pub mod filter_operator;
 pub mod node_filter;
 pub mod not_filter;
@@ -34,24 +50,36 @@ pub mod property_filter;
 pub struct Windowed<M> {
     pub start: TimeIndexEntry,
     pub end: TimeIndexEntry,
-    pub _marker: PhantomData<M>,
+    pub inner: M,
+}
+
+impl<M: Display> Display for Windowed<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "WINDOW[{}..{}]({})",
+            self.start.t(),
+            self.end.t(),
+            self.inner
+        )
+    }
 }
 
 impl<M> Windowed<M> {
     #[inline]
-    pub fn new(start: TimeIndexEntry, end: TimeIndexEntry) -> Self {
+    pub fn new(start: TimeIndexEntry, end: TimeIndexEntry, entity: M) -> Self {
         Self {
             start,
             end,
-            _marker: PhantomData,
+            inner: entity,
         }
     }
 
     #[inline]
-    pub fn from_times<S: IntoTime, E: IntoTime>(start: S, end: E) -> Self {
+    pub fn from_times<S: IntoTime, E: IntoTime>(start: S, end: E, entity: M) -> Self {
         let s = TimeIndexEntry::start(start.into_time());
         let e = TimeIndexEntry::end(end.into_time());
-        Self::new(s, e)
+        Self::new(s, e, entity)
     }
 }
 
@@ -275,35 +303,101 @@ impl Filter {
     pub fn id_matches(&self, node_value: GidRef<'_>) -> bool {
         self.operator.apply_id(&self.field_value, node_value)
     }
+}
 
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
+impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Windowed<T> {
+    type FilterType = T::FilterType;
+
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
+
+impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for Windowed<T> {
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
+
+impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Windowed<T> {
+    type Filter = Windowed<T::Filter>;
+    type Chained = Windowed<T::Chained>;
+    type Marker = T::Marker;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.inner.property_ref()
+    }
+
+    fn ops(&self) -> &[Op] {
+        self.inner.ops()
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        self.wrap(self.inner.filter(filter))
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        self.wrap(self.inner.chained(builder))
+    }
+}
+
+impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Windowed<T> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_node_filter()?;
+        let filter = CompositeNodeFilter::Windowed(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_edge_filter()?;
+        let filter = CompositeEdgeFilter::Windowed(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
         &self,
-        graph: &G,
-        edge: EdgeStorageRef,
-    ) -> bool {
-        let node_opt = match self.field_name.as_str() {
-            "src" => graph.node(edge.src()),
-            "dst" => graph.node(edge.dst()),
-            _ => return false,
-        };
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_exploded_edge_filter()?;
+        let filter = CompositeExplodedEdgeFilter::Windowed(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+}
 
-        match &self.field_value {
-            FilterValue::ID(_) | FilterValue::IDSet(_) => {
-                if let Some(node) = node_opt {
-                    self.id_matches(node.id().as_ref())
-                } else {
-                    // No endpoint node -> no value present.
-                    match self.operator {
-                        FilterOperator::Ne | FilterOperator::IsNotIn => true,
-                        _ => false,
-                    }
-                }
-            }
-            _ => {
-                let name_opt = node_opt.map(|n| n.name());
-                self.matches(name_opt.as_deref())
-            }
-        }
+impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<T> {
+    type EntityFiltered<'graph, G>
+        = T::EntityFiltered<'graph, WindowedGraph<G>>
+    where
+        G: GraphViewOps<'graph>;
+
+    type NodeFilter<'graph, G>
+        = T::NodeFilter<'graph, WindowedGraph<G>>
+    where
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        self.inner
+            .create_filter(graph.window(self.start.t(), self.end.t()))
+    }
+
+    fn create_node_filter<'graph, G>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+    where
+        G: GraphView + 'graph,
+    {
+        self.inner
+            .create_node_filter(graph.window(self.start.t(), self.end.t()))
     }
 }
 
@@ -357,10 +451,11 @@ pub trait ComposableFilter: Sized {
 impl<M> ComposableFilter for PropertyFilter<M> {}
 impl ComposableFilter for NodeNameFilter {}
 impl ComposableFilter for NodeTypeFilter {}
-impl ComposableFilter for EdgeFieldFilter {}
+impl<T> ComposableFilter for EndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 impl<T> ComposableFilter for NotFilter<T> {}
+impl<T: ComposableFilter> ComposableFilter for Windowed<T> {}
 
 trait EntityMarker: Clone + Send + Sync {}
 
@@ -372,17 +467,228 @@ impl EntityMarker for ExplodedEdgeFilter {}
 
 impl<M: EntityMarker + Clone + Send + Sync + 'static> EntityMarker for Windowed<M> {}
 
-pub trait PropertyFilterFactory: Sized {
-    fn property(&self, name: impl Into<String>) -> PropertyFilterBuilder<Self>;
+impl<M> Wrap for Windowed<M> {
+    type Wrapped<T> = Windowed<T>;
 
-    fn metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<Self>;
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        Windowed::new(self.start, self.end, value)
+    }
 }
 
-impl<M: EntityMarker> PropertyFilterFactory for M {
-    fn property(&self, name: impl Into<String>) -> PropertyFilterBuilder<Self> {
-        PropertyFilterBuilder::new(name, self.clone())
+pub trait Wrap {
+    type Wrapped<T>;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T>;
+}
+
+impl<S: Wrap> Wrap for Arc<S> {
+    type Wrapped<T> = S::Wrapped<T>;
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        self.deref().wrap(value)
     }
-    fn metadata(&self, name: impl Into<String>) -> MetadataFilterBuilder<Self> {
-        MetadataFilterBuilder::new(name, self.clone())
+}
+
+pub trait InternalPropertyFilterFactory {
+    type Entity: Clone + Send + Sync + 'static;
+    type PropertyBuilder: InternalPropertyFilterBuilderOps + TemporalPropertyFilterFactory;
+    type MetadataBuilder: InternalPropertyFilterBuilderOps;
+
+    fn entity(&self) -> Self::Entity;
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder;
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder;
+}
+
+pub trait PropertyFilterFactory: InternalPropertyFilterFactory {
+    fn property(&self, name: impl Into<String>) -> Self::PropertyBuilder {
+        let builder = PropertyFilterBuilder::new(name, self.entity());
+        self.property_builder(builder)
     }
+
+    fn metadata(&self, name: impl Into<String>) -> Self::MetadataBuilder {
+        let builder = MetadataFilterBuilder::new(name, self.entity());
+        self.metadata_builder(builder)
+    }
+}
+
+impl<T: InternalPropertyFilterFactory> PropertyFilterFactory for T {}
+
+pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilderOps {
+    fn temporal(&self) -> Self::Chained {
+        let builder = OpChainBuilder {
+            prop_ref: PropertyRef::TemporalProperty(self.property_ref().name().to_string()),
+            ops: vec![],
+            entity: self.entity(),
+        };
+        self.chained(builder)
+    }
+}
+
+impl InternalPropertyFilterFactory for NodeFilter {
+    type Entity = NodeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<NodeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<NodeFilter>;
+
+    fn entity(&self) -> Self::Entity {
+        NodeFilter
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
+}
+
+impl InternalPropertyFilterFactory for EdgeFilter {
+    type Entity = EdgeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<EdgeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<EdgeFilter>;
+
+    fn entity(&self) -> Self::Entity {
+        EdgeFilter
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
+}
+
+impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
+    type Entity = ExplodedEdgeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<ExplodedEdgeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<ExplodedEdgeFilter>;
+
+    fn entity(&self) -> Self::Entity {
+        ExplodedEdgeFilter
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
+}
+
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Windowed<T> {
+    type Entity = T::Entity;
+    type PropertyBuilder = Windowed<T::PropertyBuilder>;
+    type MetadataBuilder = Windowed<T::MetadataBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
+    }
+}
+
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Windowed<T> {}
+
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EndpointWrapper<T> {
+    type Entity = T::Entity;
+    type PropertyBuilder = EndpointWrapper<T::PropertyBuilder>;
+    type MetadataBuilder = EndpointWrapper<T::MetadataBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
+    }
+}
+
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EndpointWrapper<T> {}
+
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory
+    for ExplodedEndpointWrapper<T>
+{
+    type Entity = T::Entity;
+    type PropertyBuilder = ExplodedEndpointWrapper<T::PropertyBuilder>;
+    type MetadataBuilder = ExplodedEndpointWrapper<T::MetadataBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
+    }
+}
+
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
+    for ExplodedEndpointWrapper<T>
+{
+}
+
+impl<T> TemporalPropertyFilterFactory for PropertyFilterBuilder<T>
+where
+    T: Send + Sync + Clone + 'static,
+    PropertyFilter<T>: CombinedFilter,
+{
 }

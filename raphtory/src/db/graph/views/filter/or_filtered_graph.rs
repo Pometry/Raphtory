@@ -2,10 +2,12 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::{filter::OrOp, NodeFilterOp},
             view::internal::{
-                Immutable, InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
-                InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
-                InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
+                GraphView, Immutable, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
+                InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
+                Static,
             },
         },
         graph::views::filter::{internal::CreateFilter, model::or_filter::OrFilter},
@@ -38,6 +40,11 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
     where
         Self: 'graph;
 
+    type NodeFilter<'graph, G: GraphView + 'graph>
+        = OrOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
+    where
+        Self: 'graph;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -45,6 +52,15 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
         let left = self.left.create_filter(graph.clone())?;
         let right = self.right.create_filter(graph.clone())?;
         Ok(OrFilteredGraph { graph, left, right })
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let left = self.left.create_node_filter(graph.clone())?;
+        let right = self.right.create_node_filter(graph.clone())?;
+        Ok(left.or(right))
     }
 }
 

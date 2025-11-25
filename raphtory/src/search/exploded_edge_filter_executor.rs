@@ -1,12 +1,12 @@
 use crate::{
     db::{
-        api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
+        api::view::{internal::FilterOps, BoxableGraphView, Filter, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             views::filter::{
                 internal::CreateFilter,
                 model::{
-                    edge_filter::{CompositeExplodedEdgeFilter, EdgeFilter, ExplodedEdgeFilter},
+                    exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                     property_filter::PropertyRef,
                 },
             },
@@ -222,23 +222,20 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match filter {
+            CompositeExplodedEdgeFilter::Src(_) | CompositeExplodedEdgeFilter::Dst(_) => {
+                // TODO: Can we use an index here to speed up search?
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
+            }
             CompositeExplodedEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }
-            CompositeExplodedEdgeFilter::PropertyWindowed(filter) => {
-                let start = filter.entity.start.t();
-                let end = filter.entity.end.t();
+            CompositeExplodedEdgeFilter::Windowed(filter) => {
+                let start = filter.start.t();
+                let end = filter.end.t();
 
-                let filter = PropertyFilter {
-                    prop_ref: filter.prop_ref.clone(),
-                    prop_value: filter.prop_value.clone(),
-                    operator: filter.operator,
-                    ops: filter.ops.clone(),
-                    entity: ExplodedEdgeFilter,
-                };
-
-                let res =
-                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.window(start, end);
+                let res = self.filter_exploded_edges(&dyn_graph, &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()
                     .map(|x| EdgeView::new(graph.clone(), x.edge))

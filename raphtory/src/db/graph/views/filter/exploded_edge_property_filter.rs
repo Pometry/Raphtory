@@ -3,8 +3,9 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
+            state::ops::NotANodeFilter,
             view::internal::{
-                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+                GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                 InheritEdgeLayerFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalExplodedEdgeFilterOps, Static,
@@ -14,7 +15,8 @@ use crate::{
             filter::{
                 internal::CreateFilter,
                 model::{
-                    edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilter, Windowed,
+                    exploded_edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilter,
+                    Windowed,
                 },
             },
             window_graph::WindowedGraph,
@@ -64,6 +66,7 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
 impl CreateFilter for PropertyFilter<Windowed<ExplodedEdgeFilter>> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         ExplodedEdgePropertyFilteredGraph<WindowedGraph<G>>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -83,10 +86,18 @@ impl CreateFilter for PropertyFilter<Windowed<ExplodedEdgeFilter>> {
             filter,
         ))
     }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
+    }
 }
 
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -94,6 +105,13 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
         Ok(ExplodedEdgePropertyFilteredGraph::new(graph, prop_id, self))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
     }
 }
 
@@ -172,7 +190,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
 mod test_exploded_edge_property_filtered_graph {
     use crate::{
         db::{
-            api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
+            api::view::{filter_ops::Filter, StaticGraphViewOps},
             graph::{
                 assertions::assert_ok_or_missing_edges,
                 edge::EdgeView,
@@ -183,8 +201,9 @@ mod test_exploded_edge_property_filtered_graph {
                 views::{
                     deletion_graph::PersistentGraph,
                     filter::model::{
-                        edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilterOps,
-                        PropertyFilterFactory, TryAsCompositeFilter,
+                        exploded_edge_filter::ExplodedEdgeFilter,
+                        property_filter::PropertyFilterOps, PropertyFilterFactory,
+                        TryAsCompositeFilter,
                     },
                 },
             },

@@ -15,8 +15,8 @@ use std::{
     sync::Arc,
 };
 
-mod base_filter;
 mod edge_filter_ops;
+mod filter;
 mod filter_ops;
 mod into_dynamic;
 mod list_ops;
@@ -25,8 +25,8 @@ mod node_filter_ops;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
-pub use base_filter::*;
 pub use edge_filter_ops::*;
+pub use filter::*;
 pub use filter_ops::*;
 pub use into_dynamic::{IntoDynHop, IntoDynamic};
 pub use list_ops::*;

@@ -1,24 +1,24 @@
 use crate::{
     db::{
-        api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
+        api::view::{internal::FilterOps, BoxableGraphView, Filter, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             views::filter::{
                 internal::CreateFilter,
                 model::{
-                    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter, EdgeFilter},
+                    edge_filter::{CompositeEdgeFilter, EdgeFilter},
                     property_filter::PropertyRef,
-                    Filter,
                 },
             },
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter, TimeOps},
+    prelude::{GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
     search::{
         collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
         fallback_filter_edges, fields, get_reader, graph_index::Index,
-        property_index::PropertyIndex, query_builder::QueryBuilder,
+        node_filter_executor::NodeFilterExecutor, property_index::PropertyIndex,
+        query_builder::QueryBuilder,
     },
 };
 use itertools::Itertools;
@@ -210,30 +210,6 @@ impl<'a> EdgeFilterExecutor<'a> {
         }
     }
 
-    fn filter_edge_index<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        filter: &Filter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
-        let reader = get_reader(&edge_index.entity_index.index)?;
-        let results = match query {
-            Some(query) => self.execute_filter_query(
-                EdgeFieldFilter(filter.clone()),
-                graph,
-                query,
-                &reader,
-                limit,
-                offset,
-            )?,
-            None => fallback_filter_edges(graph, &EdgeFieldFilter(filter.clone()), limit, offset)?,
-        };
-
-        Ok(results)
-    }
-
     pub fn filter_edges_internal<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -242,30 +218,43 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match filter {
+            CompositeEdgeFilter::Src(node_filter) => {
+                let nfe = NodeFilterExecutor::new(self.index);
+                let nodes = nfe.filter_nodes(graph, node_filter, usize::MAX, 0)?;
+                let mut edges: Vec<EdgeView<G>> = nodes
+                    .into_iter()
+                    .flat_map(|n| n.out_edges().into_iter())
+                    .collect();
+                if offset != 0 || limit < edges.len() {
+                    edges = edges.into_iter().skip(offset).take(limit).collect();
+                }
+                Ok(edges)
+            }
+            CompositeEdgeFilter::Dst(node_filter) => {
+                let nfe = NodeFilterExecutor::new(self.index);
+                let nodes = nfe.filter_nodes(graph, node_filter, usize::MAX, 0)?;
+                let mut edges: Vec<EdgeView<G>> = nodes
+                    .into_iter()
+                    .flat_map(|n| n.in_edges().into_iter())
+                    .collect();
+                if offset != 0 || limit < edges.len() {
+                    edges = edges.into_iter().skip(offset).take(limit).collect();
+                }
+                Ok(edges)
+            }
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }
-            CompositeEdgeFilter::PropertyWindowed(filter) => {
-                let start = filter.entity.start.t();
-                let end = filter.entity.end.t();
-
-                let filter = PropertyFilter {
-                    prop_ref: filter.prop_ref.clone(),
-                    prop_value: filter.prop_value.clone(),
-                    operator: filter.operator,
-                    ops: filter.ops.clone(),
-                    entity: EdgeFilter,
-                };
-
-                let res =
-                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+            CompositeEdgeFilter::Windowed(filter) => {
+                let start = filter.start.t();
+                let end = filter.end.t();
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.window(start, end);
+                let res = self.filter_edges(&dyn_graph, &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()
                     .map(|x| EdgeView::new(graph.clone(), x.edge))
                     .collect())
-            }
-            CompositeEdgeFilter::Edge(filter) => {
-                self.filter_edge_index(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::And(left, right) => {
                 let left_result = self.filter_edges(graph, left, limit, offset)?;

@@ -1161,7 +1161,7 @@ mod views_test {
 
             use crate::{
                 db::{
-                    api::view::filter_ops::BaseFilterOps,
+                    api::view::filter_ops::Filter,
                     graph::{
                         assertions::WindowGraphTransformer,
                         views::filter::model::{
@@ -3292,21 +3292,23 @@ mod views_test {
         mod test_edges_filters_window_graph {
             use crate::{
                 db::{
-                    api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
+                    api::view::{filter_ops::Filter, StaticGraphViewOps},
                     graph::{
                         assertions::{
                             assert_filter_edges_results, assert_search_edges_results,
                             TestGraphVariants, TestVariants, WindowGraphTransformer,
                         },
                         views::filter::model::{
-                            edge_filter::{EdgeFilter, EdgeFilterOps},
-                            property_filter::PropertyFilterOps,
-                            ComposableFilter, PropertyFilterFactory,
+                            edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
+                            property_filter::PropertyFilterOps, ComposableFilter,
+                            PropertyFilterFactory,
                         },
                     },
                 },
                 errors::GraphError,
-                prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps, TimeOps},
+                prelude::{
+                    AdditionOps, Graph, GraphViewOps, PropertyAdditionOps, TimeOps, NO_PROPS,
+                },
             };
             use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
             use std::sync::Arc;
@@ -3524,6 +3526,10 @@ mod views_test {
                         .add_metadata(props, layer)
                         .unwrap();
                 }
+
+                graph.add_node(1, "N1", NO_PROPS, None).unwrap();
+                graph.add_node(2, "N2", NO_PROPS, None).unwrap();
+                graph.add_node(3, "N3", NO_PROPS, None).unwrap();
 
                 graph
             }

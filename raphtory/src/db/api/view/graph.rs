@@ -8,6 +8,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::InternalMetadataOps, Metadata, Properties},
+            state::ops::filter::NodeTypeFilterOp,
             view::{internal::*, *},
         },
         graph::{
@@ -18,9 +19,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView,
-                filter::{
-                    model::TryAsCompositeFilter, node_type_filtered_graph::NodeTypeFilteredGraph,
-                },
+                filter::{model::TryAsCompositeFilter, node_filtered_graph::NodeFilteredGraph},
                 node_subgraph::NodeSubgraph,
                 valid_graph::ValidGraph,
             },
@@ -61,7 +60,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn edges(&self) -> Edges<'graph, Self>;
 
     /// Return a View of the nodes in the Graph
-    fn nodes(&self) -> Nodes<'graph, Self, Self>;
+    fn nodes(&self) -> Nodes<'graph, Self>;
 
     /// Get a graph clone
     ///
@@ -80,7 +79,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         nodes_types: I,
-    ) -> NodeTypeFilteredGraph<Self>;
+    ) -> NodeFilteredGraph<Self, NodeTypeFilterOp>;
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(
         &self,
@@ -210,7 +209,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         }
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self, Self> {
+    fn nodes(&self) -> Nodes<'graph, Self> {
         let graph = self.clone();
         Nodes::new(graph)
     }
@@ -443,10 +442,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         node_types: I,
-    ) -> NodeTypeFilteredGraph<Self> {
-        let node_types_filter =
-            create_node_type_filter(self.node_meta().node_type_meta(), node_types);
-        NodeTypeFilteredGraph::new(self.clone(), node_types_filter)
+    ) -> NodeFilteredGraph<Self, NodeTypeFilterOp> {
+        NodeFilteredGraph::new(
+            self.clone(),
+            NodeTypeFilterOp::new_from_values(node_types, self),
+        )
     }
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
@@ -922,14 +922,14 @@ pub trait StaticGraphViewOps: GraphView + 'static {}
 
 impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
-impl<'graph, G> BaseFilter<'graph> for G
+impl<'graph, G> InternalFilter<'graph> for G
 where
     G: GraphViewOps<'graph> + 'graph,
 {
-    type BaseGraph = G;
+    type Graph = G;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
 
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn base_graph(&self) -> &Self::Graph {
         self
     }
 

@@ -1,8 +1,7 @@
 use crate::{
     db::{
-        api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
+        api::view::{BoxableGraphView, StaticGraphViewOps},
         graph::{
-            edge::EdgeView,
             node::NodeView,
             views::filter::{
                 internal::CreateFilter,
@@ -250,20 +249,12 @@ impl<'a> NodeFilterExecutor<'a> {
             CompositeNodeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }
-            CompositeNodeFilter::PropertyWindowed(filter) => {
-                let start = filter.entity.start.t();
-                let end = filter.entity.end.t();
-
-                let filter = PropertyFilter {
-                    prop_ref: filter.prop_ref.clone(),
-                    prop_value: filter.prop_value.clone(),
-                    operator: filter.operator,
-                    ops: filter.ops.clone(),
-                    entity: NodeFilter,
-                };
-
-                let res =
-                    self.filter_property_index(&graph.window(start, end), &filter, limit, offset)?;
+            CompositeNodeFilter::Windowed(filter) => {
+                let start = filter.start.t();
+                let end = filter.end.t();
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.window(start, end);
+                let res = self.filter_nodes(&dyn_graph, &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()
                     .map(|x| NodeView::new_internal(graph.clone(), x.node))
@@ -341,14 +332,14 @@ impl<'a> NodeFilterExecutor<'a> {
         graph: &G,
         node_ids: HashSet<u64>,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        let filtered_graph = graph.filter(filter)?;
+        let nodes = graph.nodes().select(filter)?;
         let nodes = node_ids
             .into_iter()
             .filter_map(|id| {
-                let n_ref = graph.core_node(VID(id as usize));
-                filtered_graph
-                    .filter_node(n_ref.as_ref())
-                    .then(|| NodeView::new_internal(graph.clone(), VID(id as usize)))
+                let vid = VID(id as usize);
+                nodes
+                    .contains(vid)
+                    .then(|| NodeView::new_internal(graph.clone(), vid))
             })
             .collect_vec();
         Ok(nodes)
