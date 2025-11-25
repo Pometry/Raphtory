@@ -38,29 +38,34 @@ pub struct TColumns {
 impl TColumns {
     pub fn push(
         &mut self,
-        row: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> Result<Option<usize>, TPropError> {
         let id = self.num_rows;
         let mut has_props = false;
 
-        for (prop_id, prop) in row {
+        println!("self.num_rows: {}", self.num_rows);
+
+        for (prop_id, prop) in props {
             match self.t_props_log.get_mut(prop_id) {
                 Some(col) => col.push(prop)?,
                 None => {
-                    let col: PropColumn = PropColumn::new(self.num_rows, prop);
-                    self.t_props_log
-                        .resize_with(prop_id + 1, || PropColumn::Empty(id));
+                    let col = PropColumn::new(self.num_rows, prop);
+
+                    self.t_props_log.resize_with(prop_id + 1, || PropColumn::Empty(id));
                     self.t_props_log[prop_id] = col;
                 }
             }
+
             has_props = true;
         }
 
         if has_props {
             self.num_rows += 1;
+
             for col in self.t_props_log.iter_mut() {
                 col.grow(self.num_rows);
             }
+
             Ok(Some(id))
         } else {
             Ok(None)

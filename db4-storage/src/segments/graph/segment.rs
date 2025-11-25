@@ -14,12 +14,6 @@ pub struct MemGraphProps {
     layers: Vec<SegmentContainer<GraphSegmentEntry>>,
 }
 
-impl AsMut<Vec<SegmentContainer<GraphSegmentEntry>>> for MemGraphProps {
-    fn as_mut(&mut self) -> &mut Vec<SegmentContainer<GraphSegmentEntry>> {
-        &mut self.layers
-    }
-}
-
 /// A unit-like struct for use with `SegmentContainer`.
 /// Graph properties and metadata are already stored in `SegmentContainer`,
 /// hence this struct is empty.
@@ -40,12 +34,12 @@ impl HasRow for GraphSegmentEntry {
 
 impl MemGraphProps {
     /// Graph segments only have a single row.
-    pub const ROW: usize = 0;
+    pub const DEFAULT_ROW: usize = 0;
 
     /// Graph segments are currently only written to a single layer.
-    pub const LAYER: usize = 0;
+    pub const DEFAULT_LAYER: usize = 0;
 
-    pub fn new_with_metadata(meta: Arc<Meta>) -> Self {
+    pub fn new_with_meta(meta: Arc<Meta>) -> Self {
         // Technically, these aren't used since there is always only one graph segment.
         let segment_id = 0;
         let max_page_len = 1;
@@ -74,6 +68,18 @@ impl MemGraphProps {
         &mut self.layers[layer_id]
     }
 
+    pub fn layers(&self) -> &Vec<SegmentContainer<GraphSegmentEntry>> {
+        &self.layers
+    }
+
+    pub fn layers_mut(&mut self) -> &mut Vec<SegmentContainer<GraphSegmentEntry>> {
+        &mut self.layers
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.layers.iter().all(|layer| layer.est_size() == 0)
+    }
+
     /// Replaces this segment with an empty instance, returning the old segment
     /// with its data.
     ///
@@ -89,13 +95,14 @@ impl MemGraphProps {
         t: T,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> usize {
-        let layer = self.get_or_create_layer(Self::LAYER);
+        let layer = self.get_or_create_layer(Self::DEFAULT_LAYER);
         let est_size = layer.est_size();
-        let row = layer.reserve_local_row(Self::ROW.into());
-        let row = row.inner().row();
-        let mut prop_mut_entry = layer.properties_mut().get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
+
+        layer.reserve_local_row(Self::DEFAULT_ROW.into());
+        let mut prop_mut_entry = layer.properties_mut().get_mut_entry(Self::DEFAULT_ROW);
         prop_mut_entry.append_t_props(ts, props);
+
         let layer_est_size = layer.est_size();
         layer_est_size - est_size
     }
@@ -105,11 +112,11 @@ impl MemGraphProps {
     }
 
     pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) -> usize {
-        let segment_container = self.get_or_create_layer(Self::LAYER);
+        let segment_container = self.get_or_create_layer(Self::DEFAULT_LAYER);
         let est_size = segment_container.est_size();
 
         let row = segment_container
-            .reserve_local_row(Self::ROW.into())
+            .reserve_local_row(Self::DEFAULT_ROW.into())
             .map(|a| a.row());
         let row = row.inner();
         let mut prop_mut_entry = segment_container.properties_mut().get_mut_entry(row);
@@ -121,18 +128,14 @@ impl MemGraphProps {
     }
 
     pub fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {
-        let layer = &self.layers[Self::LAYER];
+        let layer = &self.layers[Self::DEFAULT_LAYER];
 
-        layer.t_prop(Self::ROW, prop_id)
+        layer.t_prop(Self::DEFAULT_ROW, prop_id)
     }
 
     pub fn get_metadata(&self, prop_id: usize) -> Option<Prop> {
-        let layer = &self.layers[Self::LAYER];
+        let layer = &self.layers[Self::DEFAULT_LAYER];
 
-        layer.c_prop(Self::ROW, prop_id)
-    }
-
-    pub fn layers(&self) -> &Vec<SegmentContainer<GraphSegmentEntry>> {
-        &self.layers
+        layer.c_prop(Self::DEFAULT_ROW, prop_id)
     }
 }

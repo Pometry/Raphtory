@@ -1,7 +1,7 @@
 use crate::{api::graph::GraphPropOps, segments::graph::segment::MemGraphProps};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_core::storage::timeindex::TimeIndexEntry;
+use raphtory_core::storage::timeindex::AsTime;
 
 /// Provides mutable access to a graph segment. Holds an exclusive write lock
 /// on the in-memory segment for the duration of its lifetime.
@@ -18,15 +18,17 @@ impl<'a, GS: GraphPropOps> GraphWriter<'a, GS> {
         }
     }
 
-    pub fn add_properties(
+    pub fn add_properties<T: AsTime>(
         &mut self,
-        t: TimeIndexEntry,
+        t: T,
         props: impl IntoIterator<Item = (usize, Prop)>,
         lsn: u64,
     ) {
         let add = self.mem_segment.add_properties(t, props);
-        self.mem_segment.as_mut()[MemGraphProps::LAYER].set_lsn(lsn);
+        self.mem_segment.layers_mut()[MemGraphProps::DEFAULT_LAYER].set_lsn(lsn);
+
         self.graph_props.increment_est_size(add);
+        self.graph_props.mark_dirty();
     }
 
     pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
@@ -35,8 +37,10 @@ impl<'a, GS: GraphPropOps> GraphWriter<'a, GS> {
 
     pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
         let add = self.mem_segment.update_metadata(props);
-        self.mem_segment.as_mut()[MemGraphProps::LAYER].set_lsn(lsn);
+        self.mem_segment.layers_mut()[MemGraphProps::DEFAULT_LAYER].set_lsn(lsn);
+
         self.graph_props.increment_est_size(add);
+        self.graph_props.mark_dirty();
     }
 }
 

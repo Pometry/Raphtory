@@ -11,7 +11,7 @@ use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::meta::Meta;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 /// `GraphSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
@@ -23,6 +23,8 @@ pub struct GraphSegmentView {
 
     /// Estimated size of the segment in bytes.
     est_size: AtomicUsize,
+
+    is_dirty: AtomicBool,
 }
 
 impl GraphPropOps for GraphSegmentView {
@@ -32,8 +34,9 @@ impl GraphPropOps for GraphSegmentView {
 
     fn new(meta: Arc<Meta>, _path: Option<&Path>, _ext: Self::Extension) -> Self {
         Self {
-            head: Arc::new(RwLock::new(MemGraphProps::new_with_metadata(meta))),
+            head: Arc::new(RwLock::new(MemGraphProps::new_with_meta(meta))),
             est_size: AtomicUsize::new(0),
+            is_dirty: AtomicBool::new(false),
         }
     }
 
@@ -61,11 +64,15 @@ impl GraphPropOps for GraphSegmentView {
 
     fn increment_est_size(&self, size: usize) {
         self.est_size
-            .fetch_add(size, std::sync::atomic::Ordering::Relaxed);
+            .fetch_add(size, Ordering::Relaxed);
     }
 
     fn est_size(&self) -> usize {
-        self.est_size.load(std::sync::atomic::Ordering::Relaxed)
+        self.est_size.load(Ordering::Relaxed)
+    }
+
+    fn mark_dirty(&self) {
+        self.is_dirty.store(true, Ordering::Relaxed);
     }
 
     fn notify_write(

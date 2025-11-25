@@ -34,6 +34,8 @@ where
 
     fn est_size(&self) -> usize;
 
+    fn mark_dirty(&self);
+
     fn notify_write(
         &self,
         mem_segment: &mut RwLockWriteGuard<'_, MemGraphProps>,

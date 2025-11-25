@@ -37,6 +37,7 @@ pub trait TPropOps<'a>: Clone + Send + Sync + Sized + 'a {
     fn iter_rev(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
         self.iter_inner_rev(None)
     }
+
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
