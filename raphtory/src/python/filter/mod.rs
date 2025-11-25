@@ -16,7 +16,6 @@ mod exploded_edge_filter_builder;
 pub mod filter_expr;
 pub mod node_filter_builders;
 pub mod property_filter_builders;
-pub mod window_filter;
 
 pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     let filter_module = PyModule::new(py, "filter")?;

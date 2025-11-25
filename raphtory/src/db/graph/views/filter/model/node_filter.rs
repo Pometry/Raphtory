@@ -61,8 +61,9 @@ impl CreateFilter for NodeIdFilter {
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
-        _graph: G,
+        graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        NodeFilter::validate(graph.id_type(), &self.0)?;
         Ok(NodeIdFilterOp::new(self.0))
     }
 }

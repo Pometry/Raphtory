@@ -73,20 +73,14 @@ impl CreateFilter for CompositeEdgeFilter {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         match self {
             CompositeEdgeFilter::Src(filter) => {
-                let filter = filter.create_node_filter(graph.clone())?;
-                Ok(Arc::new(EdgeNodeFilteredGraph::new(
-                    graph,
-                    Endpoint::Src,
-                    filter,
-                )))
+                let wrapped = EndpointWrapper::new(filter, Endpoint::Src);
+                let filtered_graph = wrapped.create_filter(graph)?;
+                Ok(Arc::new(filtered_graph))
             }
             CompositeEdgeFilter::Dst(filter) => {
-                let filter = filter.create_node_filter(graph.clone())?;
-                Ok(Arc::new(EdgeNodeFilteredGraph::new(
-                    graph,
-                    Endpoint::Dst,
-                    filter,
-                )))
+                let wrapped = EndpointWrapper::new(filter, Endpoint::Dst);
+                let filtered_graph = wrapped.create_filter(graph)?;
+                Ok(Arc::new(filtered_graph))
             }
             CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeEdgeFilter::Windowed(i) => {

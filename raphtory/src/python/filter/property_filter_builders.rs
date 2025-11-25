@@ -2,6 +2,7 @@ use crate::{
     db::graph::views::filter::{
         internal::CreateFilter,
         model::{
+            edge_filter::EndpointWrapper,
             property_filter::{
                 ElemQualifierOps, InternalPropertyFilterBuilderOps, ListAggOps,
                 MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder, PropertyFilterOps,
@@ -10,10 +11,7 @@ use crate::{
         },
     },
     prelude::PropertyFilter,
-    python::{
-        filter::{create_filter::DynInternalFilterOps, filter_expr::PyFilterExpr},
-        types::iterable::FromIterable,
-    },
+    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -384,18 +382,39 @@ where
     }
 }
 
-// impl<'py, T: Clone> IntoPyObject<'py> for PropertyFilter<T>
-// where
-//     PropertyFilter<T>: CreateFilter + TryAsCompositeFilter,
-// {
-//     type Target = PyFilterExpr;
-//     type Output = Bound<'py, Self::Target>;
-//     type Error = PyErr;
-//
-//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-//         PyFilterExpr(Arc::new(self)).into_pyobject(py)
-//     }
-// }
+impl<'py, M> IntoPyObject<'py> for EndpointWrapper<PropertyFilterBuilder<M>>
+where
+    M: Clone + Send + Sync + 'static,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+    OpChainBuilder<M>: InternalPropertyFilterBuilderOps<Marker = M>,
+{
+    type Target = PyPropertyFilterBuilder;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let inner: Arc<EndpointWrapper<PropertyFilterBuilder<M>>> = Arc::new(self);
+        let child = PyPropertyFilterBuilder::from_arc(inner.clone());
+        let parent = PyFilterOps::from_arc(inner);
+        Bound::new(py, (child, parent))
+    }
+}
+
+impl<'py, M> IntoPyObject<'py> for EndpointWrapper<MetadataFilterBuilder<M>>
+where
+    M: Clone + Send + Sync + 'static,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+    OpChainBuilder<M>: InternalPropertyFilterBuilderOps<Marker = M>,
+{
+    type Target = PyFilterOps;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let inner: Arc<EndpointWrapper<MetadataFilterBuilder<M>>> = Arc::new(self);
+        PyFilterOps::from_arc(inner).into_pyobject(py)
+    }
+}
 
 impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
     type Target = PyPropertyFilterBuilder;
@@ -407,19 +426,6 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
         Bound::new(py, (self, parent))
     }
 }
-
-// impl<'py, M> IntoPyObject<'py> for OpChainBuilder<M>
-// where
-//     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-// {
-//     type Target = PyPropertyFilterBuilder;
-//     type Output = Bound<'py, Self::Target>;
-//     type Error = PyErr;
-//
-//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-//         PyPropertyFilterBuilder::from_arc(Arc::new(self)).into_pyobject(py)
-//     }
-// }
 
 pub trait DynPropertyFilterFactory: Send + Sync + 'static {
     fn property(&self, name: String) -> PyPropertyFilterBuilder;

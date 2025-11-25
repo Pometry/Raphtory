@@ -5,7 +5,7 @@ pub mod exploded_edge_node_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
 pub mod model;
-pub(crate) mod node_filtered_graph;
+pub mod node_filtered_graph;
 pub mod not_filtered_graph;
 pub mod or_filtered_graph;
 
@@ -1537,19 +1537,37 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_filter {
-        use crate::db::graph::{
-            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
-            views::filter::{
-                model::{
-                    node_filter::{NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilderOps},
-                    ComposableFilter,
+        use crate::{
+            db::graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                 },
-                test_filters::{
-                    init_nodes_graph, init_nodes_graph_with_num_ids, init_nodes_graph_with_str_ids,
-                    IdentityGraphTransformer,
+                views::filter::{
+                    model::{
+                        node_filter::{NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilderOps},
+                        ComposableFilter,
+                    },
+                    test_filters::{
+                        init_nodes_graph, init_nodes_graph_with_num_ids,
+                        init_nodes_graph_with_str_ids, IdentityGraphTransformer,
+                    },
                 },
             },
+            prelude::{Graph, GraphViewOps, NodeViewOps, TimeOps},
         };
+
+        #[test]
+        fn test_node_list_is_preserved() {
+            let graph = init_nodes_graph(Graph::new());
+            let nodes = graph
+                .nodes()
+                .after(5)
+                .select(NodeFilter::node_type().contains("x"))
+                .unwrap();
+            let degrees = nodes.degree();
+            let degrees_collected = degrees.compute();
+            assert_eq!(degrees, degrees_collected);
+        }
 
         #[test]
         fn test_filter_nodes_for_node_name_eq() {
@@ -10219,29 +10237,29 @@ pub(crate) mod test_filters {
             },
         };
 
-        // #[test]
-        // fn test_filter_edge_for_src_dst() {
-        //     // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-        //     let filter: AndFilter<EdgeFieldFilter, EdgeFieldFilter> = EdgeFilter::src()
-        //         .name()
-        //         .eq("3")
-        //         .and(EdgeFilter::dst().name().eq("1"));
-        //     let expected_results = vec!["3->1"];
-        //     assert_filter_edges_results(
-        //         init_edges_graph,
-        //         IdentityGraphTransformer,
-        //         filter.clone(),
-        //         &expected_results,
-        //         TestVariants::EventOnly,
-        //     );
-        //     assert_search_edges_results(
-        //         init_edges_graph,
-        //         IdentityGraphTransformer,
-        //         filter.clone(),
-        //         &expected_results,
-        //         TestVariants::All,
-        //     );
-        // }
+        #[test]
+        fn test_filter_edge_for_src_dst() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src()
+                .name()
+                .eq("3")
+                .and(EdgeFilter::dst().name().eq("1"));
+            let expected_results = vec!["3->1"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
 
         #[test]
         fn test_unique_results_from_composite_filters() {

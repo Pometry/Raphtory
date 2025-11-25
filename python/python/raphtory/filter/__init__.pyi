@@ -27,17 +27,11 @@ __all__ = [
     "FilterOps",
     "PropertyFilterOps",
     "Node",
-    "NodeWindow",
     "Edge",
     "EdgeEndpoint",
     "EdgeFilterOp",
     "EdgeIdFilterOp",
-    "EdgeWindow",
     "ExplodedEdge",
-    "ExplodedEdgeEndpoint",
-    "ExplodedEdgeFilterOp",
-    "ExplodedEdgeIdFilterOp",
-    "ExplodedEdgeWindow",
 ]
 
 class FilterExpr(object):
@@ -99,42 +93,17 @@ class PropertyFilterOps(FilterOps):
 
 class Node(object):
     @staticmethod
-    def id():
-        """
-        Filter node by id
-
-        Returns:
-            NodeFilterBuilder: A filter builder for filtering by node id
-        """
-
+    def id(): ...
     @staticmethod
     def metadata(name): ...
     @staticmethod
-    def name():
-        """
-        Filter node by name
-
-        Returns:
-            NodeFilterBuilder: A filter builder for filtering by node name
-        """
-
+    def name(): ...
     @staticmethod
-    def node_type():
-        """
-        Filter node by type
-
-        Returns:
-            NodeFilterBuilder: A filter builder for filtering by node type
-        """
-
+    def node_type(): ...
     @staticmethod
     def property(name): ...
     @staticmethod
-    def window(py_start, py_end): ...
-
-class NodeWindow(object):
-    def metadata(self, name): ...
-    def property(self, name): ...
+    def window(start, end): ...
 
 class Edge(object):
     @staticmethod
@@ -154,7 +123,6 @@ class EdgeEndpoint(object):
     def name(self): ...
     def node_type(self): ...
     def property(self, name): ...
-    def window(self, py_start, py_end): ...
 
 class EdgeFilterOp(object):
     def __eq__(self, value):
@@ -210,84 +178,10 @@ class EdgeIdFilterOp(object):
     def not_contains(self, value): ...
     def starts_with(self, value): ...
 
-class EdgeWindow(object):
-    def metadata(self, name): ...
-    def property(self, name): ...
-
 class ExplodedEdge(object):
-    @staticmethod
-    def dst(): ...
     @staticmethod
     def metadata(name): ...
     @staticmethod
     def property(name): ...
     @staticmethod
-    def src(): ...
-    @staticmethod
     def window(start, end): ...
-
-class ExplodedEdgeEndpoint(object):
-    def id(self): ...
-    def metadata(self, name): ...
-    def name(self): ...
-    def node_type(self): ...
-    def property(self, name): ...
-    def window(self, py_start, py_end): ...
-
-class ExplodedEdgeFilterOp(object):
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def contains(self, value): ...
-    def ends_with(self, value): ...
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
-    def is_in(self, values): ...
-    def is_not_in(self, values): ...
-    def not_contains(self, value): ...
-    def starts_with(self, value): ...
-
-class ExplodedEdgeIdFilterOp(object):
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def contains(self, value): ...
-    def ends_with(self, value): ...
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
-    def is_in(self, values): ...
-    def is_not_in(self, values): ...
-    def not_contains(self, value): ...
-    def starts_with(self, value): ...
-
-class ExplodedEdgeWindow(object):
-    def metadata(self, name): ...
-    def property(self, name): ...

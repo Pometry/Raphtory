@@ -230,6 +230,20 @@ impl PyEdgeEndpoint {
     fn node_type(&self) -> PyEdgeFilterOp {
         PyEdgeFilterOp::from(self.0.node_type())
     }
+
+    fn property<'py>(
+        &self,
+        py: Python<'py>,
+        name: String,
+    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
+        let b = PropertyFilterFactory::property(&self.0, name);
+        b.into_pyobject(py)
+    }
+
+    fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
+        let b = PropertyFilterFactory::metadata(&self.0, name);
+        b.into_pyobject(py)
+    }
 }
 
 #[pyclass(frozen, name = "Edge", module = "raphtory.filter")]

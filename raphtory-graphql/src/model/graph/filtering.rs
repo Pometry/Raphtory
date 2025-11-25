@@ -868,20 +868,6 @@ fn build_property_filter_from_condition_with_entity<M: Clone + Send + Sync + 'st
     })
 }
 
-fn build_windowed_property_filter_from_condition<M: Clone + Send + Sync + 'static>(
-    prop_ref: PropertyRef,
-    cond: &PropCondition,
-    start: i64,
-    end: i64,
-    marker: M,
-) -> Result<PropertyFilter<Windowed<M>>, GraphError> {
-    build_property_filter_from_condition_with_entity::<Windowed<M>>(
-        prop_ref,
-        cond,
-        Windowed::from_times(start, end, marker),
-    )
-}
-
 fn build_node_filter_from_prop_condition(
     prop_ref: PropertyRef,
     cond: &PropCondition,
@@ -950,22 +936,12 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::TemporalProperty(prop) => {
                 let prop_ref = PropertyRef::TemporalProperty(prop.name);
                 if let Some(w) = prop.window {
-                    let pf = build_windowed_property_filter_from_condition(
-                        prop_ref,
-                        &prop.where_,
-                        w.start,
-                        w.end,
-                        NodeFilter,
-                    )?;
-                    return Ok(CompositeNodeFilter::PropertyWindowed(pf));
+                    let filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
+                    let filter = Windowed::from_times(w.start, w.end, filter);
+                    let filter = CompositeNodeFilter::Windowed(Box::new(filter));
+                    return Ok(filter);
                 }
-
-                let pf = build_property_filter_from_condition_with_entity::<NodeFilter>(
-                    prop_ref,
-                    &prop.where_,
-                    NodeFilter,
-                )?;
-                Ok(CompositeNodeFilter::Property(pf))
+                build_node_filter_from_prop_condition(prop_ref, &prop.where_)
             }
             GqlNodeFilter::And(and_filters) => {
                 let mut iter = and_filters.into_iter().map(TryInto::try_into);
@@ -1059,19 +1035,15 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                 let prop_ref = PropertyRef::Metadata(p.name);
                 build_edge_filter_from_prop_condition(prop_ref, &p.where_)
             }
-            GqlEdgeFilter::TemporalProperty(p) => {
-                let prop_ref = PropertyRef::TemporalProperty(p.name);
-                if let Some(w) = p.window {
-                    let pf = build_windowed_property_filter_from_condition(
-                        prop_ref, &p.where_, w.start, w.end, EdgeFilter,
-                    )?;
-                    return Ok(CompositeEdgeFilter::PropertyWindowed(pf));
+            GqlEdgeFilter::TemporalProperty(prop) => {
+                let prop_ref = PropertyRef::TemporalProperty(prop.name);
+                if let Some(w) = prop.window {
+                    let filter = build_edge_filter_from_prop_condition(prop_ref, &prop.where_)?;
+                    let filter = Windowed::from_times(w.start, w.end, filter);
+                    let filter = CompositeEdgeFilter::Windowed(Box::new(filter));
+                    return Ok(filter);
                 }
-
-                let pf = build_property_filter_from_condition_with_entity::<EdgeFilter>(
-                    prop_ref, &p.where_, EdgeFilter,
-                )?;
-                Ok(CompositeEdgeFilter::Property(pf))
+                build_edge_filter_from_prop_condition(prop_ref, &prop.where_)
             }
             GqlEdgeFilter::And(and_filters) => {
                 let mut iter = and_filters.into_iter().map(TryInto::try_into);

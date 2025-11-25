@@ -23,7 +23,7 @@ pub struct NodeFilteredGraph<G, F> {
 }
 
 impl<G, F> NodeFilteredGraph<G, F> {
-    pub(crate) fn new(graph: G, filter: F) -> Self {
+    pub fn new(graph: G, filter: F) -> Self {
         Self { graph, filter }
     }
 }
