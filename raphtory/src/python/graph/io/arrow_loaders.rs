@@ -21,7 +21,9 @@ use arrow::{
 };
 use pyo3::{prelude::*, types::PyCapsule};
 use raphtory_api::core::entities::properties::prop::Prop;
-use std::collections::HashMap;
+use std::{cmp::min, collections::HashMap};
+
+const CHUNK_SIZE: usize = 1_000_000; // split large chunks so progress bar updates reasonably
 
 pub(crate) fn load_nodes_from_arrow_c_stream<
     'py,
@@ -209,18 +211,43 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
 
     let chunks = reader
         .into_iter()
-        .map(move |batch_res: Result<RecordBatch, _>| {
-            let batch = batch_res.map_err(|e| {
+        .flat_map(move |batch_res: Result<RecordBatch, _>| {
+            let batch = match batch_res.map_err(|e| {
                 GraphError::LoadFailure(format!(
                     "Arrow stream error while reading a batch: {}",
                     e.to_string()
                 ))
-            })?;
-            let chunk_arrays = indices
-                .iter()
-                .map(|&idx| batch.column(idx).clone())
-                .collect::<Vec<_>>();
-            Ok(DFChunk::new(chunk_arrays))
+            }) {
+                Ok(batch) => batch,
+                Err(e) => return vec![Err(e)],
+            };
+            let num_rows = batch.num_rows();
+
+            // many times, all the data will be passed as a single RecordBatch, meaning the progress bar
+            // will not update properly (only updates at the end of each batch). Splitting into smaller batches
+            // means the progress bar will update reasonably (every CHUNK_SIZE rows)
+            if num_rows > CHUNK_SIZE {
+                let num_chunks = (num_rows + CHUNK_SIZE - 1) / CHUNK_SIZE;
+                let mut result = Vec::with_capacity(num_chunks);
+                for i in 0..num_chunks {
+                    let offset = i * CHUNK_SIZE;
+                    let length = min(CHUNK_SIZE, num_rows - offset);
+                    let sliced_batch = batch.slice(offset, length);
+                    let chunk_arrays = indices
+                        .iter()
+                        .map(|&idx| sliced_batch.column(idx).clone())
+                        .collect::<Vec<_>>();
+                    result.push(Ok(DFChunk::new(chunk_arrays)));
+                }
+                result
+            } else {
+                let chunk_arrays = indices
+                    .iter()
+                    .map(|&idx| batch.column(idx).clone())
+                    .collect::<Vec<_>>();
+                vec![Ok(DFChunk::new(chunk_arrays))]
+            }
         });
+
     Ok(DFView::new(names, chunks, len_from_python))
 }

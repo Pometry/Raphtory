@@ -26,7 +26,7 @@ def bench_pandas_streaming(df: pd.DataFrame) -> float:
     start = time.perf_counter()
     g.load_edges_from_df(data=df, time="block_timestamp", src="inputs_address", dst="outputs_address")
     total = time.perf_counter() - start
-    print(f"[pandas streaming]      ingestion took {total:.3f}s for {len(df)} rows, edges: {len(g.edges)}, exploded edges: {len(g.edges.explode())}")
+    print(f"[pandas streaming]      ingestion took {total:.3f}s")
     del g
     gc.collect()
     return total
@@ -37,7 +37,7 @@ def bench_fire_ducks_pandas_streaming(df: fpd.frame.DataFrame) -> float:
     start = time.perf_counter()
     g.load_edges_from_df(data=df, time="block_timestamp", src="inputs_address", dst="outputs_address")
     total = time.perf_counter() - start
-    print(f"[fireducks streaming]   ingestion took {total:.3f}s for {len(df)} rows, edges: {len(g.edges)}, exploded edges: {len(g.edges.explode())}")
+    print(f"[fireducks streaming]   ingestion took {total:.3f}s")
     del g
     gc.collect()
     return total
