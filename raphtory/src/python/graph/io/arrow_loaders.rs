@@ -9,7 +9,7 @@ use crate::{
         },
     },
     prelude::{AdditionOps, PropertyAdditionOps},
-    python::graph::io::pandas_loaders::{array_to_rust, is_jupyter},
+    python::graph::io::pandas_loaders::is_jupyter,
     serialise::incremental::InternalCache,
 };
 use arrow::{
@@ -28,7 +28,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
-    df: &Bound<'py, PyAny>,
+    data: &Bound<'py, PyAny>,
     time: &str,
     id: &str,
     node_type: Option<&str>,
@@ -43,7 +43,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
-    let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_nodes_from_df(
         df_view,
@@ -63,7 +63,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
-    df: &Bound<'py, PyAny>,
+    data: &Bound<'py, PyAny>,
     time: &str,
     src: &str,
     dst: &str,
@@ -72,7 +72,6 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
-    stream_data: bool,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend_from_slice(properties);
@@ -80,7 +79,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     if let Some(layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
-    let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_from_df(
         df_view,
@@ -101,7 +100,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
-    df: &Bound<'py, PyAny>,
+    data: &Bound<'py, PyAny>,
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
@@ -113,7 +112,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
-    let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_node_props_from_df(
         df_view,
@@ -131,7 +130,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
-    df: &Bound<'py, PyAny>,
+    data: &Bound<'py, PyAny>,
     src: &str,
     dst: &str,
     metadata: &[&str],
@@ -144,7 +143,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
         cols_to_check.push(layer_col.as_ref());
     }
     cols_to_check.extend_from_slice(metadata);
-    let df_view = process_arrow_c_stream_df(df, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_props_from_df(
         df_view,
@@ -160,19 +159,19 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
 
 /// Can handle any object that provides the \_\_arrow_c_stream__() interface
 pub(crate) fn process_arrow_c_stream_df<'a>(
-    df: &Bound<'a, PyAny>,
+    data: &Bound<'a, PyAny>,
     col_names: Vec<&str>,
 ) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
-    let py = df.py();
+    let py = data.py();
     is_jupyter(py);
 
-    if !df.hasattr("__arrow_c_stream__")? {
+    if !data.hasattr("__arrow_c_stream__")? {
         return Err(PyErr::from(GraphError::LoadFailure(
             "Object must implement __arrow_c_stream__".to_string(),
         )));
     }
 
-    let stream_capsule_any: Bound<'a, PyAny> = df.call_method0("__arrow_c_stream__")?;
+    let stream_capsule_any: Bound<'a, PyAny> = data.call_method0("__arrow_c_stream__")?;
     let stream_capsule: &Bound<'a, PyCapsule> = stream_capsule_any.downcast::<PyCapsule>()?;
 
     // We need to use the pointer to build an ArrowArrayStreamReader
@@ -202,6 +201,12 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
         }
     }
 
+    let len_from_python: Option<usize> = if data.hasattr("__len__")? {
+        Some(data.call_method0("__len__")?.extract()?)
+    } else {
+        None
+    };
+
     let chunks = reader
         .into_iter()
         .map(move |batch_res: Result<RecordBatch, _>| {
@@ -217,5 +222,5 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
                 .collect::<Vec<_>>();
             Ok(DFChunk::new(chunk_arrays))
         });
-    Ok(DFView::new(names, chunks))
+    Ok(DFView::new(names, chunks, len_from_python))
 }

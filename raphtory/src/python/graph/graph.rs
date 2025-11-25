@@ -820,7 +820,6 @@ impl PyGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
-            true,
         )
     }
 
