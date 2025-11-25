@@ -1,5 +1,7 @@
 # Graph view
 
+![UI Search page](../../assets/images/raphtory_ui_graph_view_v0_16_4.png)
+
 The **Graph view** consists of the following elements:
 
 - **Global menu** - Switch between any of the main pages.
@@ -12,7 +14,9 @@ The **Graph view** consists of the following elements:
 - **Graph canvas** - Displays the current graph or sub-graph. You can select a node or edge to show it's information in the **Context menu**.
 - **Temporal view** - Displays the edges of the current graph or sub-graph as a timeline of events. On longer timescales edges are shown as a heatmap instead of discrete events.
 
-## Modifying the Layout
+## Modifying the graph Layout
+
+![UI Search page](../../assets/images/raphtory_ui_graph_view_layout.png)
 
 The Raphtory UI gives you detailed control over how your graphs are displayed. You can use this to match your preferences, build custom visualisations for reports or better fit the shape of your data.
 
@@ -82,3 +86,41 @@ Optionally, you can set a pre-layout algorithm that runs before the primary layo
 - Dagre TB - arranged using the hierarchical Dagre algorithm from top to bottom.
 
 For Concentric and Dagre TB algorithms you can also specify **Advanced Options** when used in the pre-layout phase.
+
+## Modify styles
+
+![UI Search page](../../assets/images/raphtory_ui_graph_view_settings.png)
+
+You can modify the styles applied to nodes and edges from the **Graph settings** tab of the **Context menu**.
+
+You can perform both global and local changes which are saved as properties in the graph.
+
+### Set the styles for a specified node type
+
+1. Clear all selections.
+2. Switch to the **Graph settings** tab of the **Context menu**
+3. Click the **Select Node Type** drop down and choose a node type or 'None'.
+4. Specify a colour using the **Node Colour** palette.
+5. Specify a **Node Size** value.
+6. Click **Save**.
+
+### Set the styles for a specified edge layer
+
+1. Select any edge.
+2. Switch to the **Graph settings** tab of the **Context menu**
+3. Click the **Select Edge Layer** dropdown and choose a layer.
+4. Specify a colour using the **Node Colour** palette.
+5. Specify a **Node Size** value.
+6. Click **Save**.
+
+### Set the styles for the currently selected node
+
+1. Select any node.
+2. Switch to the **Graph settings** tab of the **Context menu**
+3. Specify a colour using the **Node Colour** palette.
+4. Specify a **Node Size** value.
+5. Click **Save**.
+
+!!! Note
+    Styles set on an individual node override styles set on a node type. Additionally, styles can only be applied to individual nodes, if you have multiple nodes selected the last node you selected will be updated.
+
