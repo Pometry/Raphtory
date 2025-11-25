@@ -837,7 +837,7 @@ impl PyPersistentGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_node_props_from_pandas(
+        load_node_metadata_from_pandas(
             &self.graph,
             df,
             id,
@@ -874,7 +874,7 @@ impl PyPersistentGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_node_props_from_parquet(
+        load_node_metadata_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             id,
