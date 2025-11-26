@@ -63,7 +63,7 @@ jobs:
           python -m pip install -e examples/netflow
           python -m pip install black
           echo "Installing linting dependencies from cache..."
-          python -m pip install maturin mypy networkx pyvis pandas-stubs
+          python -m pip install maturin mypy networkx pyvis pandas-stubs polars fireducks
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
