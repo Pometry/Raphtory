@@ -6,14 +6,12 @@ use raphtory_core::{
     },
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-
 use crate::{
     EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps},
-    gen_t_props::WithTProps,
+    generic_t_props::WithTProps,
     gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
 };
-
 use crate::segments::{additions::MemAdditions, edge::segment::MemEdgeSegment};
 
 #[derive(Debug)]

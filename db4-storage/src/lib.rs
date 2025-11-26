@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    gen_t_props::GenTProps,
+    generic_t_props::GenericTProps,
     gen_ts::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
         PropAdditionCellsRef,
@@ -36,7 +36,7 @@ use segments::{
 };
 
 pub mod api;
-pub mod gen_t_props;
+pub mod generic_t_props;
 pub mod gen_ts;
 pub mod pages;
 pub mod persist;
@@ -71,8 +71,8 @@ pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, Mem
 pub type EdgeAdditions<'a> = GenericTimeOps<'a, AdditionCellsRef<'a, MemEdgeRef<'a>>>;
 pub type EdgeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemEdgeRef<'a>>>;
 
-pub type NodeTProps<'a> = GenTProps<'a, MemNodeRef<'a>>;
-pub type EdgeTProps<'a> = GenTProps<'a, MemEdgeRef<'a>>;
+pub type NodeTProps<'a> = GenericTProps<'a, MemNodeRef<'a>>;
+pub type EdgeTProps<'a> = GenericTProps<'a, MemEdgeRef<'a>>;
 
 pub mod error {
     use std::{path::PathBuf, sync::Arc};

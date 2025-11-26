@@ -15,6 +15,7 @@ where
     type TProp: TPropOps<'a>;
 
     fn num_layers(&self) -> usize;
+
     fn into_t_props(
         self,
         layer_id: usize,
@@ -45,13 +46,13 @@ where
 }
 
 #[derive(Clone, Copy)]
-pub struct GenTProps<'a, Ref> {
+pub struct GenericTProps<'a, Ref> {
     node: Ref,
     layer_id: Either<&'a LayerIds, usize>,
     prop_id: usize,
 }
 
-impl<'a, Ref> GenTProps<'a, Ref> {
+impl<'a, Ref> GenericTProps<'a, Ref> {
     pub fn new(node: Ref, layer_id: &'a LayerIds, prop_id: usize) -> Self {
         Self {
             node,
@@ -69,7 +70,7 @@ impl<'a, Ref> GenTProps<'a, Ref> {
     }
 }
 
-impl<'a, Ref: WithTProps<'a>> GenTProps<'a, Ref> {
+impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
     #[box_on_debug_lifetime]
     fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
         match self.layer_id {
@@ -81,7 +82,7 @@ impl<'a, Ref: WithTProps<'a>> GenTProps<'a, Ref> {
     }
 }
 
-impl<'a, Ref: WithTProps<'a> + 'a> TPropOps<'a> for GenTProps<'a, Ref> {
+impl<'a, Ref: WithTProps<'a> + 'a> TPropOps<'a> for GenericTProps<'a, Ref> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last_before(t))
