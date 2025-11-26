@@ -11,7 +11,7 @@ except ModuleNotFoundError:
     fpd = None
 from raphtory import Graph
 
-base_dir = Path(__file__).parent.parent.parent
+base_dir = Path(__file__).parent
 EDGES_FILE = os.path.join(base_dir, "data/network_traffic_edges.csv")
 NODES_FILE = os.path.join(base_dir, "data/network_traffic_nodes.csv")
 
@@ -192,12 +192,12 @@ def test_metadata_update_equivalence(dataframes):
         id="server_id",
     )
     # update metadata
-    g_pd.load_node_metadata_from_pandas(
+    g_pd.load_node_props_from_pandas(
         df=dataframes["pandas"]["nodes"],
         id="server_id",
         metadata=["primary_function", "server_name", "hardware_type"]
     )
-    g_pd.load_edge_metadata_from_pandas(
+    g_pd.load_edge_props_from_pandas(
         df=dataframes["pandas"]["edges"],
         src="source",
         dst="destination",
