@@ -48,6 +48,6 @@ def test_load_edges_from_polars_df():
     )
 
     g = Graph()
-    g.load_edges_from_polars(df=df, time="time", src="src", dst="dst", properties=["value"])
+    g.load_edges_from_df(data=df, time="time", src="src", dst="dst", properties=["value"])
     expected = [(1, 1, 2, 10.0), (2, 2, 3, 20.0), (3, 3, 4, 30.0)]
     assert _collect_edges(g) == expected
