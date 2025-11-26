@@ -136,7 +136,7 @@ pub fn load_edges_from_parquet<
     Ok(())
 }
 
-pub fn load_node_metadata_from_parquet<
+pub fn load_node_props_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
@@ -174,7 +174,7 @@ pub fn load_node_metadata_from_parquet<
     Ok(())
 }
 
-pub fn load_edge_metadata_from_parquet<
+pub fn load_edge_props_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,

@@ -981,7 +981,7 @@ impl PyGraph {
     #[pyo3(
         signature = (df, id, node_type = None, node_type_col = None, metadata = None, shared_metadata = None)
     )]
-    fn load_node_metadata_from_pandas(
+    fn load_node_props_from_pandas(
         &self,
         df: &Bound<PyAny>,
         id: &str,
@@ -991,7 +991,7 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_node_metadata_from_pandas(
+        load_node_props_from_pandas(
             &self.graph,
             df,
             id,
@@ -1020,7 +1020,7 @@ impl PyGraph {
     #[pyo3(
         signature = (parquet_path, id, node_type = None, node_type_col = None, metadata = None, shared_metadata= None)
     )]
-    fn load_node_metadata_from_parquet(
+    fn load_node_props_from_parquet(
         &self,
         parquet_path: PathBuf,
         id: &str,
@@ -1030,7 +1030,7 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_node_metadata_from_parquet(
+        load_node_props_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             id,
@@ -1105,7 +1105,7 @@ impl PyGraph {
     #[pyo3(
         signature = (df, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None)
     )]
-    fn load_edge_metadata_from_pandas(
+    fn load_edge_props_from_pandas(
         &self,
         df: &Bound<PyAny>,
         src: &str,
@@ -1116,7 +1116,7 @@ impl PyGraph {
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edge_metadata_from_pandas(
+        load_edge_props_from_pandas(
             &self.graph,
             df,
             src,
@@ -1147,7 +1147,7 @@ impl PyGraph {
     #[pyo3(
         signature = (parquet_path, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None)
     )]
-    fn load_edge_metadata_from_parquet(
+    fn load_edge_props_from_parquet(
         &self,
         parquet_path: PathBuf,
         src: &str,
@@ -1158,7 +1158,7 @@ impl PyGraph {
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edge_metadata_from_parquet(
+        load_edge_props_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             src,

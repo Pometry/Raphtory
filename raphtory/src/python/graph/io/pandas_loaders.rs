@@ -95,7 +95,7 @@ pub(crate) fn load_edges_from_pandas<
     )
 }
 
-pub(crate) fn load_node_metadata_from_pandas<
+pub(crate) fn load_node_props_from_pandas<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
@@ -125,7 +125,7 @@ pub(crate) fn load_node_metadata_from_pandas<
     )
 }
 
-pub(crate) fn load_edge_metadata_from_pandas<
+pub(crate) fn load_edge_props_from_pandas<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
