@@ -371,6 +371,68 @@ impl PyOptionalEventTime {
     pub fn __bool__(&self) -> bool {
         self.inner.is_some()
     }
+
+    // we assume None < Some(_)
+    pub fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp) -> PyResult<bool> {
+        if other.is_none() {
+            match op {
+                CompareOp::Eq => Ok(self.inner.is_none()),
+                CompareOp::Ne => Ok(self.inner.is_some()),
+                CompareOp::Gt => Ok(self.inner.is_some()),
+                CompareOp::Ge => Ok(true), // Some >= None (true) && None >= None (true)
+                CompareOp::Lt => Ok(false),
+                CompareOp::Le => Ok(self.inner.is_none()),
+            }
+        }
+        // extract TimeIndexComponent first. If we're dealing with a single i64 (or something that can be converted to an i64), we only compare timestamps
+        else if let Ok(component) = other.extract::<EventTimeComponent>() {
+            match self.inner {
+                Some(t) => match op {
+                    CompareOp::Eq => Ok(t.t() == component.t()),
+                    CompareOp::Ne => Ok(t.t() != component.t()),
+                    CompareOp::Gt => Ok(t.t() > component.t()),
+                    CompareOp::Lt => Ok(t.t() < component.t()),
+                    CompareOp::Ge => Ok(t.t() >= component.t()),
+                    CompareOp::Le => Ok(t.t() <= component.t()),
+                },
+                None => match op {
+                    CompareOp::Eq => Ok(false),
+                    CompareOp::Ne => Ok(true),
+                    CompareOp::Lt | CompareOp::Le => Ok(true),
+                    CompareOp::Gt | CompareOp::Ge => Ok(false),
+                },
+            }
+        // If an EventTime was passed, we then compare the event id
+        } else if let Ok(time_index) = other.extract::<EventTime>() {
+            match self.inner {
+                Some(t) => match op {
+                    CompareOp::Eq => Ok(t == time_index),
+                    CompareOp::Ne => Ok(t != time_index),
+                    CompareOp::Gt => Ok(t > time_index),
+                    CompareOp::Lt => Ok(t < time_index),
+                    CompareOp::Ge => Ok(t >= time_index),
+                    CompareOp::Le => Ok(t <= time_index),
+                },
+                None => match op {
+                    CompareOp::Eq => Ok(false),
+                    CompareOp::Ne => Ok(true),
+                    CompareOp::Lt | CompareOp::Le => Ok(true),
+                    CompareOp::Gt | CompareOp::Ge => Ok(false),
+                },
+            }
+        } else if let Ok(opt_event_time) = other.extract::<PyOptionalEventTime>() {
+            match op {
+                CompareOp::Eq => Ok(self.inner == opt_event_time.inner),
+                CompareOp::Ne => Ok(self.inner != opt_event_time.inner),
+                CompareOp::Gt => Ok(self.inner > opt_event_time.inner),
+                CompareOp::Lt => Ok(self.inner < opt_event_time.inner),
+                CompareOp::Ge => Ok(self.inner >= opt_event_time.inner),
+                CompareOp::Le => Ok(self.inner <= opt_event_time.inner),
+            }
+        } else {
+            Err(PyTypeError::new_err("Unsupported comparison: EventTime can only be compared with a str, datetime, float, integer, a tuple/list of two of those types, or another EventTime."))
+        }
+    }
 }
 
 impl From<Option<EventTime>> for PyOptionalEventTime {

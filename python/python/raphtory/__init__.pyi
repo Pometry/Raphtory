@@ -6386,6 +6386,24 @@ class OptionalEventTime(object):
     def __bool__(self):
         """True if self else False"""
 
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
     @property
     def as_tuple(self):
         """
