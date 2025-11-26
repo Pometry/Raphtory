@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764154021011,
+  "lastUpdate": 1764167850505,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2375,6 +2375,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1262,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73458309f4648ac41819700ae2ff7829795db28c",
+          "message": "Docs/graph styles (#2397)\n\n* initial draft\n\n* full tables\n\n* full tables\n\n* full tables\n\n* reorg pages\n\n* add screenshots\n\n* add screenshots\n\n* typo fix\n\n* fix merge errors",
+          "timestamp": "2025-11-26T14:01:59Z",
+          "tree_id": "0cf57a577acb9c423dd45df6bc3087f3304f04c2",
+          "url": "https://github.com/Pometry/Raphtory/commit/73458309f4648ac41819700ae2ff7829795db28c"
+        },
+        "date": 1764167846729,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1225,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 169,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 128,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1054,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 909,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1302,
             "unit": "req/s"
           }
         ]
