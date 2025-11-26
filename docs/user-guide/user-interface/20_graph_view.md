@@ -93,7 +93,18 @@ For Concentric and Dagre TB algorithms you can also specify **Advanced Options**
 
 You can modify the styles applied to nodes and edges from the **Graph settings** tab of the **Context menu**.
 
-You can perform both global and local changes which are saved as properties in the graph.
+You can perform both global and local changes which are saved as metadata in the graph. Style metadata for node types is stored on the graph, for edge layers is stored on each edge, and for individual nodes is stored on the matching node.
+
+The format for styles is as follows:
+
+```python
+# Graph styles
+{'nodeStylePerson': {'nodeType': 'Person', 'fill': '#1cb917', 'size': 24}, 'nodeStyleNone': {}}
+# Node styles
+{'style': {'fill': '#417505', 'size': 12}}
+# Edge styles
+{'style': [None, {'meets': {'startArrowSize': 4, 'stroke': '#f8e61b', 'lineWidth': 1, 'endArrowSize': 4}}, None, None]}
+```
 
 ### Set the styles for a specified node type
 
