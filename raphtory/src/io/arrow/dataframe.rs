@@ -1,14 +1,15 @@
 use crate::{
+    api::core::utils::time::TryIntoTime,
     errors::{into_load_err, GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
+    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType},
 };
 use itertools::Itertools;
-use raphtory_core::utils::time::TryIntoTime;
+use raphtory_api::core::storage::timeindex::AsTime;
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};
 
@@ -84,7 +85,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))
@@ -95,7 +96,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))
@@ -106,7 +107,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))

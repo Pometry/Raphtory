@@ -37,7 +37,7 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
-use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
+use raphtory_core::entities::ELID;
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     fmt,

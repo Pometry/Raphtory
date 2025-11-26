@@ -41,10 +41,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use raphtory_api::{
-    core::storage::{arc_str::ArcStr, timeindex::EventTime},
-    python::timeindex::PyOptionalEventTime,
-};
+use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use rayon::prelude::*;
 use std::collections::HashMap;
 

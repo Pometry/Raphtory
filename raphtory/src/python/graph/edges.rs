@@ -1,5 +1,5 @@
 use crate::{
-    api::core::storage::timeindex::{AsTime, EventTime},
+    api::core::storage::timeindex::AsTime,
     db::{
         api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
