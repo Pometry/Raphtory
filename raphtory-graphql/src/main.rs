@@ -81,7 +81,7 @@ async fn main() -> IoResult<()> {
         let schema = App::create_schema().finish().unwrap();
         println!("{}", schema.sdl());
     } else {
-        let mut builder = AppConfigBuilder::new()
+        let builder = AppConfigBuilder::new()
             .with_cache_capacity(args.cache_capacity)
             .with_cache_tti_seconds(args.cache_tti_seconds)
             .with_log_level(args.log_level)
@@ -101,7 +101,8 @@ async fn main() -> IoResult<()> {
 
         let app_config = Some(builder.build());
 
-        GraphServer::new(args.working_dir, app_config, None)?
+        GraphServer::new(args.working_dir, app_config, None)
+            .await?
             .run_with_port(args.port)
             .await?;
     }

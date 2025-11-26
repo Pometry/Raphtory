@@ -460,7 +460,7 @@ impl<'py> IntoPyObject<'py> for NumpyArray {
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-pub fn execute_async_task<T, F, O>(task: T) -> O
+pub(crate) fn execute_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,
@@ -468,7 +468,8 @@ where
 {
     Python::with_gil(|py| {
         py.allow_threads(move || {
-            // we call `allow_threads` because the task might need to grab the GIL
+            // we call `allow_threads` because the task might need to grab the GIL // FIXME: this might not be the case anymore, also remember removing the imlpementation of EmbeddingFunction for a python function
+            // FIXME: why do we need a thread here??? DO I need it as well in the implementation for the VectorisedGraph functions
             thread::spawn(move || {
                 tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
@@ -480,4 +481,12 @@ where
             .expect("error when waiting for async task to complete")
         })
     })
+}
+
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_multi_thread() // TODO: double-check this is fine, with no thread??
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(future)
 }
