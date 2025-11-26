@@ -82,6 +82,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn edge_ref(self, dir: Dir) -> EdgeRef {
         EdgeRef::new(self.eid(), self.src(), self.dst(), dir)
     }
+
     fn out_ref(self) -> EdgeRef {
         self.edge_ref(Dir::Out)
     }

@@ -8,6 +8,10 @@ use raphtory_core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
 
 use crate::utils::Iter4;
 
+/// `WithTProps` defines behavior for types that store multiple temporal
+/// properties either in memory or on disk.
+///
+/// Used by `GenericTProps` to implement `TPropOps` for such types.
 pub trait WithTProps<'a>: Clone + Copy + Send + Sync
 where
     Self: 'a,
@@ -45,14 +49,20 @@ where
     }
 }
 
+/// Generic `TPropOps` implementation that aggregates temporal properties
+/// across storage.
+///
+/// Wraps types implementing `WithTProps` (eg, `MemNodeRef`, `DiskNodeRef`)
+/// to provide unified access to temporal properties. Also handles k-merging
+/// temporal properties when queried.
 #[derive(Clone, Copy)]
-pub struct GenericTProps<'a, Ref> {
+pub struct GenericTProps<'a, Ref: WithTProps<'a>> {
     node: Ref,
     layer_id: Either<&'a LayerIds, usize>,
     prop_id: usize,
 }
 
-impl<'a, Ref> GenericTProps<'a, Ref> {
+impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
     pub fn new(node: Ref, layer_id: &'a LayerIds, prop_id: usize) -> Self {
         Self {
             node,
@@ -82,7 +92,7 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
     }
 }
 
-impl<'a, Ref: WithTProps<'a> + 'a> TPropOps<'a> for GenericTProps<'a, Ref> {
+impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last_before(t))
