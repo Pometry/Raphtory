@@ -5,7 +5,10 @@ import pandas as pd
 import polars as pl
 import pyarrow as pa
 import duckdb
-import fireducks.pandas as fpd
+try:
+    import fireducks.pandas as fpd
+except ModuleNotFoundError:
+    fpd = None
 from raphtory import Graph
 
 base_dir = Path(__file__).parent.parent.parent
@@ -26,8 +29,9 @@ def dataframes():
             "edges": duckdb.from_df(df_edges_pd),
             "nodes": duckdb.from_df(df_nodes_pd)
         },
-        "fireducks": {"edges": fpd.read_csv(EDGES_FILE), "nodes": fpd.read_csv(NODES_FILE)}
     }
+    if fpd:
+        data["fireducks"] = {"edges": fpd.read_csv(EDGES_FILE), "nodes": fpd.read_csv(NODES_FILE)}
 
     return data
 
@@ -91,17 +95,18 @@ def test_edge_ingestion_equivalence(dataframes):
     )
     assert g_pd == g_duckdb, "DuckDB edge ingestion failed equivalence check"
 
-    # FireDucks
-    g_fd = Graph()
-    g_fd.load_edges_from_df(
-        data=dataframes["fireducks"]["edges"],
-        time="timestamp",
-        src="source",
-        dst="destination",
-        properties=["data_size_MB", "transaction_type"],
-        metadata=["is_encrypted"]
-    )
-    assert g_pd == g_fd, "FireDucks edge ingestion failed equivalence check"
+    if fpd:
+        # FireDucks
+        g_fd = Graph()
+        g_fd.load_edges_from_df(
+            data=dataframes["fireducks"]["edges"],
+            time="timestamp",
+            src="source",
+            dst="destination",
+            properties=["data_size_MB", "transaction_type"],
+            metadata=["is_encrypted"]
+        )
+        assert g_pd == g_fd, "FireDucks edge ingestion failed equivalence check"
 
 
 def test_node_ingestion_equivalence(dataframes):
@@ -159,16 +164,18 @@ def test_node_ingestion_equivalence(dataframes):
     )
     assert g_pd == g_duckdb, "DuckDB node ingestion failed equivalence check"
 
-    # FireDucks
-    g_fd = Graph()
-    g_fd.load_nodes_from_df(
+    if fpd:
+        # FireDucks
+        print("Testing fireducks...")
+        g_fd = Graph()
+        g_fd.load_nodes_from_df(
         data=dataframes["fireducks"]["nodes"],
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
         metadata=["primary_function", "server_name", "hardware_type"]
-    )
-    assert g_pd == g_fd, "FireDucks node ingestion failed equivalence check"
+        )
+        assert g_pd == g_fd, "FireDucks node ingestion failed equivalence check"
 
 def test_metadata_update_equivalence(dataframes):
     # reference graph
@@ -305,29 +312,30 @@ def test_metadata_update_equivalence(dataframes):
     )
     assert g_pd == g_duckdb, "DuckDB metadata ingestion failed equivalence check"
 
-    # FireDucks
-    g_fd = Graph()
-    g_fd.load_edges_from_df(
-        data=dataframes["fireducks"]["edges"],
-        time="timestamp",
-        src="source",
-        dst="destination",
-    )
-    g_fd.load_nodes_from_df(
-        data=dataframes["fireducks"]["nodes"],
-        time="timestamp",
-        id="server_id",
-    )
-    # update metadata
-    g_fd.load_node_metadata_from_df(
-        data=dataframes["fireducks"]["nodes"],
-        id="server_id",
-        metadata=["primary_function", "server_name", "hardware_type"]
-    )
-    g_fd.load_edge_metadata_from_df(
-        data=dataframes["fireducks"]["edges"],
-        src="source",
-        dst="destination",
-        metadata=["is_encrypted"]
-    )
-    assert g_pd == g_fd, "FireDucks metadata ingestion failed equivalence check"
+    if fpd:
+        # FireDucks
+        g_fd = Graph()
+        g_fd.load_edges_from_df(
+            data=dataframes["fireducks"]["edges"],
+            time="timestamp",
+            src="source",
+            dst="destination",
+        )
+        g_fd.load_nodes_from_df(
+            data=dataframes["fireducks"]["nodes"],
+            time="timestamp",
+            id="server_id",
+        )
+        # update metadata
+        g_fd.load_node_metadata_from_df(
+            data=dataframes["fireducks"]["nodes"],
+            id="server_id",
+            metadata=["primary_function", "server_name", "hardware_type"]
+        )
+        g_fd.load_edge_metadata_from_df(
+            data=dataframes["fireducks"]["edges"],
+            src="source",
+            dst="destination",
+            metadata=["is_encrypted"]
+        )
+        assert g_pd == g_fd, "FireDucks metadata ingestion failed equivalence check"
