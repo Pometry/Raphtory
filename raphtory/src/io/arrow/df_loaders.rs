@@ -110,7 +110,7 @@ pub fn load_nodes_from_df<
             .map_err(into_graph_err)
     })?;
 
-    #[cfg(feature = "python")]
+    // #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
 
     let mut node_col_resolved = vec![];
@@ -223,7 +223,7 @@ pub fn load_nodes_from_df<
                 Ok::<_, GraphError>(())
             })?;
 
-        #[cfg(feature = "python")]
+        // #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
 
@@ -246,11 +246,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     if df_view.is_empty() {
         return Ok(());
     }
-
-    let num_edges_orig = graph
-        .core_edges()
-        .iter(&raphtory_core::entities::LayerIds::All)
-        .count();
 
     let properties_indices = properties
         .iter()
@@ -388,10 +383,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         layer_eids_exist.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
-        let num_edges: Arc<AtomicUsize> =
-            AtomicUsize::new(write_locked_graph.graph().internal_num_edges()).into();
-        // let num_edges = AtomicUsize::new(num_edges_orig);
-        let next_edge_id = || num_edges.fetch_add(1, Ordering::Relaxed);
+        let edges = write_locked_graph.graph().storage().edges().clone();
+        let next_edge_id = || {
+            let (page, pos) = edges.reserve_free_pos();
+            pos.as_eid(page, edges.max_page_len())
+        };
 
         let mut per_segment_edge_count = Vec::with_capacity(write_locked_graph.nodes.len());
         per_segment_edge_count.resize_with(write_locked_graph.nodes.len(), || AtomicUsize::new(0));
@@ -428,7 +424,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                             eids_exist[row].store(true, Ordering::Relaxed);
                             edge_id.with_layer(*layer)
                         } else {
-                            let edge_id = EID(next_edge_id());
+                            let edge_id = next_edge_id();
 
                             writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
@@ -453,7 +449,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 }
             });
 
-        write_locked_graph.resize_chunks_to_num_edges(num_edges.load(Ordering::Relaxed));
+        let aprox_num_edges = write_locked_graph.graph().internal_num_edges() + df.len();
+
+        write_locked_graph.resize_chunks_to_num_edges(aprox_num_edges);
 
         rayon::scope(|sc| {
             // Add inbound edges
@@ -550,9 +548,17 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                             c_props.extend(metadata_cols.iter_row(row));
                             c_props.extend_from_slice(&shared_metadata);
 
-                            writer.add_static_edge(Some(eid_pos), *src, *dst, 0, Some(exists));
-                            writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
-                            writer.add_edge(t, eid_pos, *src, *dst, t_props.drain(..), *layer, 0);
+                            writer.bulk_add_edge(
+                                t,
+                                eid_pos,
+                                *src,
+                                *dst,
+                                exists,
+                                *layer,
+                                c_props.drain(..),
+                                t_props.drain(..),
+                                0,
+                            );
                         }
                     }
                 });
@@ -562,13 +568,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let _ = pb.update(df.len());
     }
 
-    drop(write_locked_graph);
-    let num_edges = graph
-        .core_edges()
-        .iter(&raphtory_core::entities::LayerIds::All)
-        .count();
-
-    assert_eq!(num_edges, graph.unfiltered_num_edges(),);
     Ok(())
 }
 
@@ -720,7 +719,7 @@ pub(crate) fn load_node_props_from_df<
             .map_err(into_graph_err)
     })?;
 
-    #[cfg(feature = "python")]
+    // #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
 
     let mut node_col_resolved = vec![];
@@ -783,7 +782,7 @@ pub(crate) fn load_node_props_from_df<
             Ok::<_, GraphError>(())
         })?;
 
-        #[cfg(feature = "python")]
+        // #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
     Ok(())

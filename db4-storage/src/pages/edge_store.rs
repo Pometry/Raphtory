@@ -369,6 +369,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         }
     }
 
+    #[inline(always)]
     pub fn max_page_len(&self) -> u32 {
         self.ext.max_edge_page_len()
     }
@@ -481,6 +482,54 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                 }
             }
         }
+    }
+
+    pub fn reserve_free_pos(&self) -> (usize, LocalPOS) {
+        // optimistic first try to get a free page 3 times
+        let num_edges = self.num_edges();
+        let slot_idx = num_edges % N;
+        let maybe_free_page = self.free_pages[slot_idx..]
+            .iter()
+            .cycle()
+            .take(3)
+            .filter_map(|lock| lock.try_read())
+            .filter_map(|page_id| {
+                let page = self.segments.get(*page_id)?;
+                self.reserve_page_row(page)
+                    .map(|pos| (page.segment_id(), LocalPOS(pos)))
+            })
+            .next();
+
+        if let Some(reserved_pos) = maybe_free_page {
+            reserved_pos
+        } else {
+            // not lucky, go wait on your slot
+            loop {
+                let mut slot = self.free_pages[slot_idx].write();
+                if let Some(page) = self.segments.get(*slot)
+                    && let Some(pos) = self.reserve_page_row(page)
+                {
+                    return (page.segment_id(), LocalPOS(pos));
+                }
+                *slot = self.push_new_page();
+            }
+        }
+    }
+
+    fn reserve_page_row(&self, page: &Arc<ES>) -> Option<u32> {
+        page.edges_counter()
+            .fetch_update(
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+                |current| {
+                    if current < self.max_page_len() {
+                        Some(current + 1)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .ok()
     }
 
     pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {

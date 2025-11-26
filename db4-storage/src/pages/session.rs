@@ -200,12 +200,12 @@ impl<
             let edge_writer = self.edge_writer.as_mut().unwrap();
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 
-            edge_writer.add_static_edge(Some(edge_pos), src, dst, lsn, Some(true));
+            edge_writer.add_static_edge(Some(edge_pos), src, dst, lsn, true);
 
             MaybeNew::Existing(e_id)
         } else {
             let mut edge_writer = self.graph.get_free_writer();
-            let edge_id = edge_writer.add_static_edge(None, src, dst, lsn, Some(false));
+            let edge_id = edge_writer.add_static_edge(None, src, dst, lsn, false);
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
 
