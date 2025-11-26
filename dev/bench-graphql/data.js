@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763999745042,
+  "lastUpdate": 1764154021011,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2321,6 +2321,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1298,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c8157199165e66b2c86f1601a8e23169abe5f334",
+          "message": "add-install-to-get-started (#2389)\n\nMoves installation section under 'getting started' for greater visibility. Adds skeleton of a compatibilities page.",
+          "timestamp": "2025-11-26T10:11:15Z",
+          "tree_id": "0dd1a598c929f7c9adb69abc407d30b7a5f127d1",
+          "url": "https://github.com/Pometry/Raphtory/commit/c8157199165e66b2c86f1601a8e23169abe5f334"
+        },
+        "date": 1764154016990,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1300,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 184,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 174,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 976,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 679,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1262,
             "unit": "req/s"
           }
         ]
