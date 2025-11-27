@@ -130,6 +130,15 @@ impl PyEmbeddingServer {
     }
 }
 
+impl PyEmbeddingServer {
+    // TODO: instead of having to have this, we could try just using PyEmbedding::start() directly
+    fn inner_start(&mut self) {
+        let running = self.create_running_server();
+        println!("starting embedding server");
+        self.running = Some(running)
+    }
+}
+
 #[pymethods]
 impl PyEmbeddingServer {
     fn run(&self) {
@@ -138,32 +147,32 @@ impl PyEmbeddingServer {
     }
 
     fn start(mut slf: PyRefMut<'_, Self>) {
-        let running = slf.create_running_server();
-        slf.running = Some(running)
+        slf.inner_start();
     }
 
     fn stop(mut slf: PyRefMut<'_, Self>) {
         if let Some(RunningServer { runtime, server }) = &mut slf.running {
             runtime.block_on(server.stop());
+            println!("stopping embedding server");
             slf.running = None
         } else {
             panic!("nothing to stop")
         }
     }
 
-    // fn __enter__(slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-    //     PyEmbeddingServer::start(&slf);
-    //     slf
-    // }
+    fn __enter__(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.inner_start();
+        slf
+    }
 
-    // fn __exit__(
-    //     mut slf: PyRefMut<'_, Self>,
-    //     _exc_type: Option<PyObject>,
-    //     _exc_value: Option<PyObject>,
-    //     _traceback: Option<PyObject>,
-    // ) {
-    //     PyEmbeddingServer::stop(slf);
-    // }
+    fn __exit__(
+        slf: PyRefMut<'_, Self>,
+        _exc_type: Option<PyObject>,
+        _exc_value: Option<PyObject>,
+        _traceback: Option<PyObject>,
+    ) {
+        PyEmbeddingServer::stop(slf);
+    }
 }
 
 fn build_runtime() -> Runtime {

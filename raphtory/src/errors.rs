@@ -240,10 +240,6 @@ pub enum GraphError {
     IOErrorMsg(String),
 
     #[cfg(feature = "vectors")]
-    #[error("Arroy error: {0}")]
-    ArroyError(#[from] arroy::Error),
-
-    #[cfg(feature = "vectors")]
     #[error("Heed error: {0}")]
     HeedError(#[from] heed::Error),
 

@@ -1,6 +1,5 @@
 use std::{collections::HashSet, ops::Deref, path::Path};
 
-use arroy::Reader;
 use futures_util::StreamExt;
 
 use super::{

@@ -1,5 +1,6 @@
 from time import sleep
 import pytest
+import requests
 from raphtory import Graph
 from raphtory.vectors import VectorisedGraph, OpenAIEmbeddings, embedding_server
 
@@ -20,10 +21,8 @@ def test_server():
     def custom_embeddings(text: str):
         return embedding_map[text]
 
-    custom_embeddings.start()
-    sleep(1)
-    yield
-    custom_embeddings.stop()
+    with custom_embeddings:
+        yield
 
 
 def floats_are_equals(float1: float, float2: float) -> bool:
@@ -55,6 +54,23 @@ def create_graph() -> VectorisedGraph:
     vg = g.vectorise(embeddings, nodes="{{ name }}", edges="{{ properties.name }}")
 
     return vg
+
+def test_embedding_sever_context_manager():
+    @embedding_server(address="0.0.0.0:7341")
+    def constant(text: str):
+        return [1.0]
+
+    with constant as embeddings:
+        headers = { "Content-Type": "application/json" }
+        data = {
+            # "model": "whatever",
+            "input": ["The text to vectorise"]
+        }
+        response = requests.post("http://localhost:7341/embeddings", headers=headers, json=data)
+        response.raise_for_status()
+        result = response.json()
+        vector = result['data'][0]['embedding']
+        assert vector == [1.0]
 
 
 def test_selection():

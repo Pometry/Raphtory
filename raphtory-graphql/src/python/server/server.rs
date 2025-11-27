@@ -121,23 +121,6 @@ impl PyGraphServer {
         slf.0.turn_off_index()
     }
 
-    // TODO: remove
-    // /// Setup the server to vectorise graphs with a default template.
-    // ///
-    // /// Arguments:
-    // /// embedding (Callable, optional): the embedding function to translate documents to embeddings.
-    // fn enable_embeddings(
-    //     mut slf: PyRefMut<Self>,
-    //     cache: String,
-    //     embedding: PyOpenAIEmbeddings,
-    //     // nodes: TemplateConfig,
-    //     // edges: TemplateConfig,
-    // ) -> PyResult<()> {
-    //     let cache = PathBuf::from(cache);
-    //     let rt = tokio::runtime::Runtime::new().unwrap();
-    //     Ok(rt.block_on(slf.0.enable_embeddings(embedding, &cache))?)
-    // }
-
     /// Vectorise the graph name in the server working directory.
     ///
     /// Arguments:

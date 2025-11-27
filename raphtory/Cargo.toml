@@ -85,7 +85,6 @@ async-openai = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
-arroy = { workspace = true, optional = true } # TODO: remove
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true }
 lancedb = {workspace = true, optional = true }
@@ -143,7 +142,6 @@ vectors = [
     "dep:minijinja",
     "dep:minijinja-contrib",
     "raphtory-api/template",
-    "dep:arroy",
     "dep:heed",
     "dep:moka",
     "dep:lancedb",

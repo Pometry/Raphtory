@@ -6,25 +6,12 @@ use axum::{
 };
 use serde::Deserialize;
 use std::sync::Arc;
-use tokio::{sync::mpsc, task::JoinHandle};
+use tokio::{signal, sync::mpsc, task::JoinHandle};
 
 #[derive(Deserialize, Debug)]
 struct EmbeddingRequest {
     input: Vec<String>,
 }
-
-// #[derive(Serialize)]
-// struct EmbeddingResponse {
-//     object: String,
-//     data: Vec<EmbeddingData>,
-// }
-
-// #[derive(Serialize)]
-// struct EmbeddingData {
-//     object: String,
-//     embedding: Vec<f32>,
-//     index: usize,
-// }
 
 async fn embeddings(
     State(function): State<Arc<dyn EmbeddingFunction + Send + Sync>>,
@@ -72,19 +59,42 @@ pub async fn serve_custom_embedding(
     address: &str,
     function: impl EmbeddingFunction,
 ) -> EmbeddingServer {
+    dbg!();
     let state = Arc::new(function);
     let app = Router::new()
         .route("/embeddings", post(embeddings)) // TODO: this should be /v1/embeddings if we were to support multiple versions
         .with_state(state);
+    // since the listener is created at this point, when this function returns the server is already available,
+    // might just take some time to answer for the first time, but no requests should be rejected
+    dbg!();
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+    dbg!();
     let (sender, mut receiver) = mpsc::channel(1);
     let execution = tokio::spawn(async {
+        dbg!();
         axum::serve(listener, app)
             .with_graceful_shutdown(async move {
-                receiver.recv().await; // TODO: add CTRL + C
+                dbg!();
+                #[cfg(unix)]
+                let terminate = async {
+                    signal::unix::signal(signal::unix::SignalKind::terminate())
+                        .expect("failed to install signal handler")
+                        .recv()
+                        .await;
+                };
+                #[cfg(not(unix))]
+                let terminate = std::future::pending::<()>();
+
+                dbg!();
+                tokio::select! {
+                    _ = terminate => {},
+                    _ = signal::ctrl_c() => {},
+                    _ = receiver.recv() => {},
+                }
             })
             .await
             .unwrap();
+        dbg!();
     });
     EmbeddingServer {
         execution,

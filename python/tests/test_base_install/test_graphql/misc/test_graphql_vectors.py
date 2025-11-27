@@ -1,15 +1,19 @@
 import tempfile
 from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory import Graph
+from raphtory.vectors import OpenAIEmbeddings, embedding_server
+
+print(">>>>>>>>>>>>>")
 
 
-def embedding(texts):
-    return [[text.count("a"), text.count("b")] for text in texts]
+@embedding_server(address="0.0.0.0:7340")
+def embeddings(text: str):
+    return [text.count("a"), text.count("b")]
 
 
-def test_embedding():
-    result = embedding(texts=["aaa", "b", "ab", "ba"])
-    assert result == [[3, 0], [0, 1], [1, 1], [1, 1]]
+# def test_embedding():
+#     result = embedding(texts=["aaa", "b", "ab", "ba"])
+#     assert result == [[3, 0], [0, 1], [1, 1], [1, 1]]
 
 
 def setup_graph(g):
@@ -60,12 +64,12 @@ def assert_correct_documents(client):
 
 def setup_server(work_dir):
     server = GraphServer(work_dir)
-    server = server.set_embeddings(
-        cache="/tmp/graph-cache",
-        embedding=embedding,
-        nodes="{{ name }}",
-        edges=False,
-    )
+    # server = server.set_embeddings(
+    #     cache="/tmp/graph-cache",
+    #     embedding=embedding,
+    #     nodes="{{ name }}",
+    #     edges=False,
+    # )
     return server
 
 
@@ -95,14 +99,29 @@ def test_upload_graph():
         client.upload_graph(path="abb", file_path=g_path, overwrite=True)
         assert_correct_documents(client)
 
+GRAPH_NAME = "/abb"
 
 def test_include_graph():
+    print("-1")
     work_dir = tempfile.mkdtemp()
-    g_path = work_dir + "/abb"
+    g_path = work_dir + "/" + GRAPH_NAME
     g = Graph()
     setup_graph(g)
     g.save_to_file(g_path)
+    print("0")
     server = setup_server(work_dir)
-    with server.start():
-        client = RaphtoryClient("http://localhost:1736")
-        assert_correct_documents(client)
+    print("1")
+    with embeddings:
+        print("2")
+        embedding_client = OpenAIEmbeddings(api_base="http://localhost:7340")
+        print("3")
+        server.vectorise_graph(
+            name=GRAPH_NAME,
+            embeddings=embedding_client,
+            nodes="{{ name }}",
+            edges=False
+        )
+        print("4")
+        with server.start():
+            client = RaphtoryClient("http://localhost:1736")
+            assert_correct_documents(client)
