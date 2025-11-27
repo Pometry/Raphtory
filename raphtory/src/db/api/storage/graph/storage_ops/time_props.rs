@@ -32,8 +32,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
             entry
                 .as_ref()
                 .get_temporal_prop(id)
-                .into_iter()
-                .flat_map(|prop| prop.iter())
+                .iter()
                 .into_dyn_boxed()
         });
 
@@ -49,8 +48,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
             entry
                 .as_ref()
                 .get_temporal_prop(id)
-                .into_iter()
-                .flat_map(|prop| prop.iter_inner_rev(None))
+                .iter_inner_rev(None)
                 .into_dyn_boxed()
         });
 
@@ -60,21 +58,20 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         let graph_entry = self.graph_entry();
 
-        // Return the latest temporal prop value.
         graph_entry
             .as_ref()
             .get_temporal_prop(id)
-            .and_then(|prop| prop.last_before(TimeIndexEntry::MAX).map(|(_, v)| v))
+            .last_before(TimeIndexEntry::MAX)
+            .map(|(_, prop)| prop)
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
         let graph_entry = self.graph_entry();
 
-        // Return the temporal prop value at the given time.
-        graph_entry.as_ref().get_temporal_prop(id).and_then(|prop| {
-            prop.last_before(TimeIndexEntry::start(t.saturating_add(1)))
-                .map(|(_, v)| v)
-        })
+        graph_entry
+            .as_ref()
+            .get_temporal_prop(id)
+            .at(&TimeIndexEntry::start(t))
     }
 }
 

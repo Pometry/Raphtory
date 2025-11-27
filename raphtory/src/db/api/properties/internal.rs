@@ -11,11 +11,11 @@ use raphtory_api::{
 
 pub trait InternalTemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
-    fn temporal_value(&self, id: usize) -> Option<Prop>;
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)>;
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)>;
+
     fn temporal_history_iter(&self, id: usize) -> BoxedLIter<'_, i64> {
         self.temporal_iter(id).map(|(t, _)| t.t()).into_dyn_boxed()
     }
@@ -32,6 +32,9 @@ pub trait InternalTemporalPropertyViewOps {
             .collect::<Option<Vec<_>>>()
     }
 
+    /// Return the latest temporal prop value.
+    fn temporal_value(&self, id: usize) -> Option<Prop>;
+
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<'_, Prop> {
         self.temporal_iter(id).map(|(_, v)| v).into_dyn_boxed()
     }
@@ -40,6 +43,7 @@ pub trait InternalTemporalPropertyViewOps {
         self.temporal_iter_rev(id).map(|(_, v)| v).into_dyn_boxed()
     }
 
+    /// Return the temporal prop value at the given time.
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop>;
 }
 

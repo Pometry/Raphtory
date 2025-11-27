@@ -122,6 +122,6 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
     fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         self.tprops(self.prop_id)
             .flat_map(|t_props| t_props.at(ti))
-            .next() //TODO: need to figure out how to handle this
+            .next() // TODO: need to figure out how to handle this
     }
 }

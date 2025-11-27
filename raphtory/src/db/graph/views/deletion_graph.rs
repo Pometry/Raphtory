@@ -237,25 +237,30 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             .is_some()
     }
 
+    /// Iterates over temporal property values within a time window `[start, end)`.
+    ///
+    /// # Returns
+    /// A boxed iterator yielding `(TimeIndexEntry, Prop)` tuples.
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
         start: i64,
         end: i64,
     ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        let graph_props = self.core_graph().graph_entry();
-        GenLockedIter::from(graph_props, move |graph_props| {
-            graph_props
-                .as_ref()
-                .get_temporal_prop(prop_id)
+        let graph_entry = self.core_graph().graph_entry();
+
+        GenLockedIter::from(graph_entry, move |entry| {
+            let tprop = entry.as_ref().get_temporal_prop(prop_id);
+
+            // Get the property value that was active at the start of the window.
+            let first = persisted_prop_value_at(start, tprop, &TimeIndex::Empty)
+                .map(|prop_value| (TimeIndexEntry::start(start), prop_value));
+
+            // Chain the initial prop with the rest of the props that occur
+            // within the window.
+            first
                 .into_iter()
-                .flat_map(move |prop| {
-                    let first = persisted_prop_value_at(start, prop, &TimeIndex::Empty)
-                        .map(|v| (TimeIndexEntry::start(start), v));
-                    first
-                        .into_iter()
-                        .chain(prop.iter_window(TimeIndexEntry::range(start..end)))
-                })
+                .chain(tprop.iter_window(TimeIndexEntry::range(start..end)))
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -267,18 +272,20 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         start: i64,
         end: i64,
     ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        let graph_props = self.core_graph().graph_entry();
-        GenLockedIter::from(graph_props, move |graph_props| {
-            graph_props
-                .as_ref()
-                .get_temporal_prop(prop_id)
-                .into_iter()
-                .flat_map(move |prop| {
-                    let first = persisted_prop_value_at(start, prop, &TimeIndex::Empty)
-                        .map(|v| (TimeIndexEntry::start(start), v));
-                    prop.iter_window_rev(TimeIndexEntry::range(start..end))
-                        .chain(first)
-                })
+        let graph_entry = self.core_graph().graph_entry();
+
+        GenLockedIter::from(graph_entry, move |entry| {
+            let tprop = entry.as_ref().get_temporal_prop(prop_id);
+
+            // Get the property value that was active at the start of the window.
+            let first = persisted_prop_value_at(start, tprop, &TimeIndex::Empty)
+                .map(|prop_value| (TimeIndexEntry::start(start), prop_value));
+
+            // Chain the initial prop with the rest of the props that occur
+            // within the window, in reverse order.
+            tprop
+                .iter_window_rev(TimeIndexEntry::range(start..end))
+                .chain(first)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
