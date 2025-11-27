@@ -384,8 +384,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
         let edges = write_locked_graph.graph().storage().edges().clone();
-        let next_edge_id = || {
-            let (page, pos) = edges.reserve_free_pos();
+        let next_edge_id = |row: usize| {
+            let (page, pos) = edges.reserve_free_pos(row);
             pos.as_eid(page, edges.max_page_len())
         };
 
@@ -424,7 +424,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                             eids_exist[row].store(true, Ordering::Relaxed);
                             edge_id.with_layer(*layer)
                         } else {
-                            let edge_id = next_edge_id();
+                            let edge_id = next_edge_id(row);
 
                             writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
