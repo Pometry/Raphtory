@@ -56,9 +56,9 @@ pub trait GraphEntryOps<'a>: Send + Sync + 'a {
 
 /// Lightweight reference for reading graph properties and metadata.
 pub trait GraphRefOps<'a>: Copy + Clone + Send + Sync + 'a {
-    type TProp: TPropOps<'a>;
+    type TProps: TPropOps<'a>;
 
-    fn get_temporal_prop(self, prop_id: usize) -> Option<Self::TProp>;
+    fn get_temporal_prop(self, prop_id: usize) -> Self::TProps;
 
     fn get_metadata(self, prop_id: usize) -> Option<Prop>;
 }

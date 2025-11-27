@@ -153,7 +153,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     fn edge(self, layer_id: usize) -> Option<(VID, VID)> {
         self.es
             .as_ref()
-            .get(layer_id)? //.get(layer_id)?
+            .get(layer_id)?
             .get(self.pos)
             .map(|entry| (entry.src, entry.dst))
     }

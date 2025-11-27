@@ -1,5 +1,7 @@
 use crate::api::graph::{GraphEntryOps, GraphRefOps};
+use crate::generic_t_props::WithTProps;
 use crate::segments::graph::segment::MemGraphProps;
+use crate::GraphTProps;
 use parking_lot::RwLockReadGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::properties::tprop::TPropCell;
@@ -43,11 +45,29 @@ impl<'a> MemGraphRef<'a> {
     }
 }
 
-impl<'a> GraphRefOps<'a> for MemGraphRef<'a> {
+impl<'a> WithTProps<'a> for MemGraphRef<'a> {
     type TProp = TPropCell<'a>;
 
-    fn get_temporal_prop(self, prop_id: usize) -> Option<Self::TProp> {
-        self.mem.get_temporal_prop(prop_id)
+    fn num_layers(&self) -> usize {
+        // TODO: Support multiple layers for graph props.
+        1
+    }
+
+    fn into_t_props(
+        self,
+        _layer_id: usize,
+        prop_id: usize,
+    ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a {
+        // Graph properties are stored in DEFAULT_LAYER
+        self.mem.get_temporal_prop(prop_id).into_iter()
+    }
+}
+
+impl<'a> GraphRefOps<'a> for MemGraphRef<'a> {
+    type TProps = GraphTProps<'a>;
+
+    fn get_temporal_prop(self, prop_id: usize) -> Self::TProps {
+        GraphTProps::new_with_layer(self, 0, prop_id)
     }
 
     fn get_metadata(self, prop_id: usize) -> Option<Prop> {

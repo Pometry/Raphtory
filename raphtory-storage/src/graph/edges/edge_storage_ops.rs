@@ -97,8 +97,11 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
+
     fn src(self) -> VID;
+
     fn dst(self) -> VID;
+
     fn eid(self) -> EID;
 
     fn layer_ids_iter(

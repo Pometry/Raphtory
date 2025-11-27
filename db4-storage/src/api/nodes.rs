@@ -164,9 +164,7 @@ pub trait NodeEntryOps<'a>: Send + Sync + 'a {
 
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type Additions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
-
     type EdgeAdditions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
-
     type TProps: TPropOps<'a>;
 
     fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;

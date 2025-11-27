@@ -74,6 +74,7 @@ pub type EdgeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemEdgeRef<
 
 pub type NodeTProps<'a> = GenericTProps<'a, MemNodeRef<'a>>;
 pub type EdgeTProps<'a> = GenericTProps<'a, MemEdgeRef<'a>>;
+pub type GraphTProps<'a> = GenericTProps<'a, MemGraphRef<'a>>;
 
 pub mod error {
     use std::{path::PathBuf, sync::Arc};

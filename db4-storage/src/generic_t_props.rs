@@ -49,7 +49,7 @@ where
     }
 }
 
-/// Generic `TPropOps` implementation that aggregates temporal properties
+/// A generic implementation of `TPropOps` that aggregates temporal properties
 /// across storage.
 ///
 /// Wraps types implementing `WithTProps` (eg, `MemNodeRef`, `DiskNodeRef`)
