@@ -6,12 +6,6 @@ use crate::{
 use pyo3::{prelude::*, IntoPyObjectExt};
 
 /// A document corresponding to a graph entity. Used to generate embeddings.
-///
-/// Args:
-///     content (str): The document content.
-///     life (int | Tuple[int, int], optional): The optional lifespan of the document. A single value
-///                                             corresponds to an event, a tuple corresponds to a
-///                                             window.
 #[pyclass(name = "Document", module = "raphtory.vectors", frozen)]
 #[derive(Clone)]
 pub struct PyDocument(pub(crate) Document<DynamicGraph>);

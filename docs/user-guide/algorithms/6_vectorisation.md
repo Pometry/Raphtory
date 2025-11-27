@@ -24,7 +24,7 @@ When you call [Vectorise()][raphtory.GraphView.vectorise] Raphtory automatically
 
 The templates for entity documents follow a subset of [Jinja](https://jinja.palletsprojects.com/en/stable/templates/) and graph attributes and properties are exposed so that you can use them in template expressions.
 
-Most attributes of graph entities are exposed and can be used in Jinja expressions. The nesting of attributes reflects the Python interface and the final result of any chain such as `properties.prop_name` or `src.name` should be a string.
+Most attributes of graph entities are exposed and can be used in Jinja expressions. The nesting of attributes reflects the Python interface and the final result of any chain such as `properties.prop_name` or `src.name` should be a standard python type. For datetime values, Raphtory converts them into milliseconds since the Unix epoch by default and provides an optional `datetimeformat` function to convert this to a human readable format.
 
 ## Retrieve documents
 
