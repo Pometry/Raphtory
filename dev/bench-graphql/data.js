@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764167850505,
+  "lastUpdate": 1764265828143,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2429,6 +2429,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1302,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ca869cb504ac545e1e348f7671d37240032520ac",
+          "message": "James/vectors (#2363)\n\n* fix some docstring formatting\n\n* add vector user guide\n\n* add vector user guide\n\n* add vector user guide\n\n* add vector user guide\n\n* improved docstrings\n\n* clarify document format\n\n* simplest rag-like example\n\n* simplest rag-like example\n\n* fix misc docs errors\n\n* chore: apply tidy-public auto-fixes\n\n* Address review comments\n\n* Add Mini Jinja link\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-11-27T17:15:03Z",
+          "tree_id": "73475ac5d136600ab17551da773caa5954866475",
+          "url": "https://github.com/Pometry/Raphtory/commit/ca869cb504ac545e1e348f7671d37240032520ac"
+        },
+        "date": 1764265824171,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1282,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 180,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 179,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1096,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 851,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1108,
             "unit": "req/s"
           }
         ]
