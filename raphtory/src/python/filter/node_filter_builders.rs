@@ -128,6 +128,13 @@ impl PyNodeFilterOp {
 
 #[pymethods]
 impl PyNodeFilterOp {
+    /// Returns a filter expression that checks if a given value is equal to a specified string.
+    ///
+    /// Arguments:
+    ///     value (str):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn __eq__(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::eq(n, value.clone()))),
@@ -135,6 +142,13 @@ impl PyNodeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if a given value is not equal to a specified string.
+    ///
+    /// Arguments:
+    ///     value (str):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn __ne__(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::ne(n, value.clone()))),
@@ -142,6 +156,13 @@ impl PyNodeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
+    ///
+    /// Arguments:
+    ///     values (list[str]):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<String> = values.into_iter().collect();
         self.map(
@@ -150,6 +171,13 @@ impl PyNodeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
+    ///
+    /// Arguments:
+    ///     values (list[str]):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<String> = values.into_iter().collect();
         self.map(
@@ -182,6 +210,13 @@ impl PyNodeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if the specified iterable of strings contains a given value.
+    ///
+    /// Arguments:
+    ///     value (str):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn contains(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::contains(n, value.clone()))),
@@ -189,6 +224,14 @@ impl PyNodeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
+    ///
+    ///
+    /// Arguments:
+    ///     value (str):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn not_contains(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| {
@@ -206,6 +249,17 @@ impl PyNodeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Arguments:
+    ///     prop_value (str): Property to match against.
+    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
+    ///     prefix_match (bool): Enable prefix matching.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn fuzzy_search(
         &self,
         value: String,

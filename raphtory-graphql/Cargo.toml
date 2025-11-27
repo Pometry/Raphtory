@@ -13,13 +13,13 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.16.1", features = [
+raphtory = { workspace = true, features = [
     'vectors',
     'search',
     "io",
 ] }
-raphtory-api = { path = "../raphtory-api", version = "0.16.1" }
-raphtory-storage = { path = "../raphtory-storage", version = "0.16.1" }
+raphtory-api = { workspace = true }
+raphtory-storage = { workspace = true }
 base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
 spki = { workspace = true }
@@ -58,6 +58,7 @@ crossbeam-channel = { workspace = true }
 minijinja = { workspace = true }
 zip = { workspace = true }
 clap = { workspace = true }
+rust-embed = { workspace = true }
 
 
 [dev-dependencies]

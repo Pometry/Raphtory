@@ -87,6 +87,14 @@ impl FilterOperator {
         }
     }
 
+    /// Fuzzy search
+    ///
+    /// Arguments:
+    ///     levenshtein_distance (int):
+    ///     prefix_match (bool):
+    ///
+    /// Returns:
+    ///     bool:
     pub fn fuzzy_search(
         &self,
         levenshtein_distance: usize,

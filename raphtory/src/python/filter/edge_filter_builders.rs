@@ -130,6 +130,13 @@ impl PyEdgeFilterOp {
 
 #[pymethods]
 impl PyEdgeFilterOp {
+    /// Returns a filter expression that checks if a specified string is equal to a given value.
+    ///
+    /// Arguments:
+    ///     value (str):
+    ///
+    /// Returns:
+    ///     filter expression
     fn __eq__(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| PyFilterExpr(Arc::new(n.eq(value.clone()))),
@@ -137,6 +144,13 @@ impl PyEdgeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if a specified string is not equal to a given value.
+    ///
+    /// Arguments:
+    ///     value (str):
+    ///
+    /// Returns:
+    ///     filter expression
     fn __ne__(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| PyFilterExpr(Arc::new(n.ne(value.clone()))),
@@ -144,6 +158,13 @@ impl PyEdgeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
+    ///
+    /// Arguments:
+    ///     values (list[str]):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<String> = values.into_iter().collect();
         self.map(
@@ -152,6 +173,13 @@ impl PyEdgeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
+    ///
+    /// Arguments:
+    ///     values (list[str]):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<String> = values.into_iter().collect();
         self.map(
@@ -174,6 +202,13 @@ impl PyEdgeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if a given value contains the specified string.
+    ///
+    /// Arguments:
+    ///     value (str):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn contains(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| PyFilterExpr(Arc::new(n.contains(value.clone()))),
@@ -181,6 +216,13 @@ impl PyEdgeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if a given value does not contain the specified string.
+    ///
+    /// Arguments:
+    ///     value (str):
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn not_contains(&self, value: String) -> PyFilterExpr {
         self.map(
             |n| PyFilterExpr(Arc::new(n.not_contains(value.clone()))),
@@ -188,6 +230,17 @@ impl PyEdgeFilterOp {
         )
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Arguments:
+    ///     prop_value (str): Property to match against.
+    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
+    ///     prefix_match (bool): Enable prefix matching.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn fuzzy_search(
         &self,
         value: String,

@@ -51,7 +51,7 @@ impl<'a> From<DiskNode<'a>> for NodeStorageEntry<'a> {
 
 impl<'a> NodeStorageEntry<'a> {
     #[inline]
-    pub fn as_ref(&self) -> NodeStorageRef {
+    pub fn as_ref(&self) -> NodeStorageRef<'_> {
         match self {
             NodeStorageEntry::Mem(entry) => NodeStorageRef::Mem(*entry),
             NodeStorageEntry::Unlocked(entry) => NodeStorageRef::Mem(entry.as_ref()),

@@ -188,8 +188,29 @@ where
         })
     }
 
+    fn iter_vids(&self, g: GraphStorage) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
+        let g = self.base_graph.core_graph().clone();
+        let view = self.base_graph.clone();
+        let selector = self.selector.clone();
+        self.node_list().into_iter().filter(move |&vid| {
+            let node = g.core_node(vid);
+            view.filter_node(node.as_ref()) && selector.apply(&g, vid)
+        })
+    }
+
+    #[inline]
+    pub(crate) fn iter_refs_unlocked(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
+        let g = self.graph.core_graph().clone();
+        self.iter_vids(g)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = NodeView<&GH>> + use<'_, 'graph, G, GH, F> {
         self.iter_refs()
+            .map(|v| NodeView::new_internal(&self.graph, v))
+    }
+
+    pub fn iter_unlocked(&self) -> impl Iterator<Item = NodeView<&GH>> + use<'_, 'graph, G, GH, F> {
+        self.iter_refs_unlocked()
             .map(|v| NodeView::new_internal(&self.graph, v))
     }
 
@@ -197,6 +218,13 @@ where
         let graph = self.graph.clone();
         self.iter_refs()
             .map(move |v| NodeView::new_internal(graph.clone(), v))
+            .into_dyn_boxed()
+    }
+
+    pub fn iter_owned_unlocked(&self) -> BoxedLIter<'graph, NodeView<'graph, GH>> {
+        let g = self.graph.clone();
+        self.iter_refs_unlocked()
+            .map(move |v| NodeView::new_internal(g.clone(), v))
             .into_dyn_boxed()
     }
 
@@ -270,6 +298,7 @@ where
         self.indexed(index)
     }
 
+    /// Collect nodes into a vec
     pub fn collect(&self) -> Vec<NodeView<'graph, GH>> {
         self.iter_owned().collect()
     }
@@ -417,35 +446,5 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter_owned())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        prelude::*,
-        test_utils::{build_graph, build_graph_strat},
-    };
-    use proptest::{proptest, sample::subsequence};
-
-    #[test]
-    fn test_id_filter() {
-        let graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-
-        assert_eq!(graph.nodes().id(), [0, 1]);
-        assert_eq!(graph.nodes().id_filter([0]).len(), 1);
-        assert_eq!(graph.nodes().id_filter([0]).id(), [0]);
-        assert_eq!(graph.nodes().id_filter([0]).degree(), [1]);
-    }
-
-    #[test]
-    fn test_indexed() {
-        proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
-            let graph = Graph::from(build_graph(&graph));
-            let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
-            let nodes = graph.nodes().id_filter(nodes);
-            assert_eq!(nodes.id(), expected_node_ids);
-        })
     }
 }

@@ -23,14 +23,12 @@ use std::{
 };
 use tracing::error;
 
-#[cfg(feature = "io")]
-use parquet::errors::ParquetError;
-
 #[cfg(feature = "storage")]
 use pometry_storage::RAError;
 #[cfg(feature = "arrow")]
 use {
-    polars_arrow::{datatypes::ArrowDataType, legacy::error},
+    arrow::{datatypes::DataType, error::ArrowError},
+    parquet::errors::ParquetError,
     raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
 };
 
@@ -75,15 +73,20 @@ pub enum InvalidPathReason {
 #[derive(thiserror::Error, Debug)]
 pub enum LoadError {
     #[error("Only str columns are supported for layers, got {0:?}")]
-    InvalidLayerType(ArrowDataType),
+    InvalidLayerType(DataType),
     #[error("Only str columns are supported for node type, got {0:?}")]
-    InvalidNodeType(ArrowDataType),
+    InvalidNodeType(DataType),
     #[error("{0:?} not supported as property type")]
-    InvalidPropertyType(ArrowDataType),
+    InvalidPropertyType(DataType),
     #[error("{0:?} not supported as node id type")]
-    InvalidNodeIdType(ArrowDataType),
+    InvalidNodeIdType(DataType),
     #[error("{0:?} not supported for time column")]
-    InvalidTimestamp(ArrowDataType),
+    InvalidTimestamp(DataType),
+    #[error("Error during parsing of time string: {source}")]
+    ParseTime {
+        #[from]
+        source: ParseTimeError,
+    },
     #[error("Missing value for src id")]
     MissingSrcError,
     #[error("Missing value for dst id")]
@@ -98,6 +101,13 @@ pub enum LoadError {
     NodeIdTypeError { existing: GidType, new: GidType },
     #[error("Fatal load error, graph may be in a dirty state.")]
     FatalError,
+    #[error("Arrow error: {0:?}")]
+    Arrow(#[from] ArrowError),
+}
+
+#[cfg(feature = "arrow")]
+pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
+    err.into()
 }
 
 #[cfg(feature = "proto")]
@@ -130,13 +140,10 @@ pub enum GraphError {
     WrongNumOfArgs(String, String),
 
     #[cfg(feature = "arrow")]
-    #[error("Arrow error: {0}")]
-    Arrow(#[from] error::PolarsError),
-
     #[error("Arrow-rs error: {0}")]
-    ArrowRs(#[from] arrow_schema::ArrowError),
+    ArrowRs(#[from] ArrowError),
 
-    #[cfg(feature = "io")]
+    #[cfg(feature = "arrow")]
     #[error("Arrow-rs parquet error: {0}")]
     ParquetError(#[from] ParquetError),
 

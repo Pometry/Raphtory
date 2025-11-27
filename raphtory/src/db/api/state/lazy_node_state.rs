@@ -267,7 +267,7 @@ impl<
             .map(move |node| (node, self.op.apply(&storage, node.node)))
     }
 
-    fn get_by_index(&self, index: usize) -> Option<(NodeView<&Self::Graph>, Self::Value<'_>)> {
+    fn get_by_index(&self, index: usize) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         if self.nodes().is_list_filtered() {
             self.iter().nth(index)
         } else {

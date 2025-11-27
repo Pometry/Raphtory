@@ -75,9 +75,10 @@ pub trait ImportOps: Sized {
     ///             If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
     ///             If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
-    /// # Returns
+    /// Returns:
+    ///     Ok(()) if the nodes were successfully imported.
+    ///     Err(GraphError) if the operation fails.
     ///
-    /// A `Result` which is `Ok` if the nodes were successfully imported, and `Err` otherwise.
     fn import_nodes<'a, GHH: GraphView>(
         &self,
         nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH>>>,
@@ -86,17 +87,16 @@ pub trait ImportOps: Sized {
 
     /// Imports multiple nodes into the graph.
     ///
-    /// # Arguments
+    /// Arguments:
+    ///     nodes: A list of nodes to be imported.
+    ///     new_ids: A list of node IDs to use for the imported nodes.
+    ///     merge: An optional boolean flag.
+    ///         If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
+    ///         If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
-    /// * `nodes` - A vector of references to the nodes to be imported.
-    /// * `new_ids` - A list of node IDs to use for the imported nodes.
-    /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
-    ///
-    /// # Returns
-    ///
-    /// A `Result` which is `Ok` if the nodes were successfully imported, and `Err` otherwise.
+    /// Returns:
+    ///     Ok(()) if the nodes were successfully imported.
+    ///     Err(GraphError) if the operation fails.
     fn import_nodes_as<'a, GHH: GraphView, V: AsNodeRef + Clone + Debug>(
         &self,
         nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH>>>,
@@ -113,9 +113,9 @@ pub trait ImportOps: Sized {
     ///             If `merge` is `false`, the function will return an error if the imported edge already exists in the graph.
     ///             If `merge` is `true`, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
-    /// # Returns
-    ///
-    /// A `Result` which is `Ok` if the edge was successfully imported, and `Err` otherwise.
+    /// Returns:
+    ///     Ok(()) if the edge were successfully imported.
+    ///     Err(GraphError) if the operation fails.
     fn import_edge<'a, GHH: GraphView>(
         &self,
         edge: &EdgeView<GHH>,
@@ -132,9 +132,9 @@ pub trait ImportOps: Sized {
     ///             If `merge` is `false`, the function will return an error if the imported edge already exists in the graph.
     ///             If `merge` is `true`, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
-    /// # Returns
-    ///
-    /// A `Result` which is `Ok` if the edge was successfully imported, and `Err` otherwise.
+    /// Returns:
+    ///     Ok(()) if the edge were successfully imported.
+    ///     Err(GraphError) if the operation fails.
     fn import_edge_as<'a, GHH: GraphView, V: AsNodeRef + Clone + Debug>(
         &self,
         edge: &EdgeView<GHH>,
@@ -151,9 +151,9 @@ pub trait ImportOps: Sized {
     ///             If `merge` is `false`, the function will return an error if any of the imported edges already exists in the graph.
     ///             If `merge` is `true`, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
-    /// # Returns
-    ///
-    /// A `Result` which is `Ok` if the edges were successfully imported, and `Err` otherwise.
+    /// Returns:
+    ///     Ok(()) if the edges were successfully imported.
+    ///     Err(GraphError) if the operation fails.
     fn import_edges<'a, GHH: GraphView>(
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH>>>,
@@ -170,9 +170,9 @@ pub trait ImportOps: Sized {
     ///             If `merge` is `false`, the function will return an error if any of the imported edges already exists in the graph.
     ///             If `merge` is `true`, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
-    /// # Returns
-    ///
-    /// A `Result` which is `Ok` if the edges were successfully imported, and `Err` otherwise.
+    /// Returns:
+    ///     Ok(()) if the edges were successfully imported.
+    ///     Err(GraphError) if the operation fails.
     fn import_edges_as<'a, GHH: GraphView, V: AsNodeRef + Clone + Debug>(
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH>>>,

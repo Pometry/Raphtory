@@ -123,12 +123,12 @@ impl NodeIndex {
     }
 
     pub(crate) fn resolve_metadata(&self) -> HashSet<usize> {
-        let props = self.entity_index.metadata_indexes.read();
+        let props = self.entity_index.metadata_indexes.read_recursive();
         resolve_props(&props)
     }
 
     pub(crate) fn resolve_properties(&self) -> HashSet<usize> {
-        let props = self.entity_index.temporal_property_indexes.read();
+        let props = self.entity_index.temporal_property_indexes.read_recursive();
         resolve_props(&props)
     }
 
@@ -141,12 +141,13 @@ impl NodeIndex {
             println!("Node doc: {:?}", doc.to_json(searcher.schema()));
         }
 
-        let metadata_indexes = self.entity_index.metadata_indexes.read();
+        let metadata_indexes = self.entity_index.metadata_indexes.read_recursive();
         for property_index in metadata_indexes.iter().flatten() {
             property_index.print()?;
         }
 
-        let temporal_property_indexes = self.entity_index.temporal_property_indexes.read();
+        let temporal_property_indexes =
+            self.entity_index.temporal_property_indexes.read_recursive();
         for property_index in temporal_property_indexes.iter().flatten() {
             property_index.print()?;
         }
@@ -279,7 +280,7 @@ impl NodeIndex {
             })
             .transpose()?;
 
-        let indexes = self.entity_index.temporal_property_indexes.read();
+        let indexes = self.entity_index.temporal_property_indexes.read_recursive();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {
                 let mut writer = index.index.writer(50_000_000)?;
@@ -298,7 +299,7 @@ impl NodeIndex {
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let indexes = self.entity_index.metadata_indexes.read();
+        let indexes = self.entity_index.metadata_indexes.read_recursive();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {
                 let prop_doc =
@@ -316,7 +317,7 @@ impl NodeIndex {
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let indexes = self.entity_index.metadata_indexes.read();
+        let indexes = self.entity_index.metadata_indexes.read_recursive();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {
                 let mut writer = index.index.writer(50_000_000)?;

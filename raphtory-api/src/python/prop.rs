@@ -10,7 +10,26 @@ use pyo3::{
 use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 #[cfg(feature = "arrow")]
-use {crate::core::entities::properties::prop::PropArray, pyo3_arrow::PyArray};
+mod array_ext {
+    use pyo3::{intern, prelude::*, types::PyTuple};
+    use pyo3_arrow::PyArray;
+
+    pub trait ArrayExportExt: Sized {
+        fn into_pyarrow<'py>(self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>>;
+    }
+
+    impl ArrayExportExt for PyArray {
+        fn into_pyarrow<'py>(self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+            let pyarrow_mod = py.import(intern!(py, "pyarrow"))?;
+            pyarrow_mod
+                .getattr(intern!(py, "array"))?
+                .call1(PyTuple::new(py, vec![self.into_pyobject(py)?])?)
+        }
+    }
+}
+
+#[cfg(feature = "arrow")]
+use {crate::core::entities::properties::prop::PropArray, array_ext::*, pyo3_arrow::PyArray};
 
 static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
 
@@ -26,7 +45,7 @@ impl<'py> IntoPyObject<'py> for Prop {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(match self {
             Prop::Str(s) => s.into_pyobject(py)?.into_any(),
-            Prop::Bool(bool) => bool.into_pyobject(py)?.into_bound_py_any(py)?,
+            Prop::Bool(bool) => bool.into_bound_py_any(py)?,
             Prop::U8(u8) => u8.into_pyobject(py)?.into_any(),
             Prop::U16(u16) => u16.into_pyobject(py)?.into_any(),
             Prop::I64(i64) => i64.into_pyobject(py)?.into_any(),
@@ -37,9 +56,7 @@ impl<'py> IntoPyObject<'py> for Prop {
             #[cfg(feature = "arrow")]
             Prop::Array(blob) => {
                 if let Some(arr_ref) = blob.into_array_ref() {
-                    pyo3_arrow::PyArray::from_array_ref(arr_ref)
-                        .to_pyarrow(py)?
-                        .into_bound(py)
+                    PyArray::from_array_ref(arr_ref).into_pyarrow(py)?
                 } else {
                     py.None().into_bound(py)
                 }

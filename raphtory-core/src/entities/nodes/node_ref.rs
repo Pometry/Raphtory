@@ -9,7 +9,7 @@ pub enum NodeRef<'a> {
 }
 
 pub trait AsNodeRef: Send + Sync {
-    fn as_node_ref(&self) -> NodeRef;
+    fn as_node_ref(&self) -> NodeRef<'_>;
 
     fn into_gid(self) -> Either<GID, VID>
     where
@@ -21,7 +21,7 @@ pub trait AsNodeRef: Send + Sync {
         }
     }
 
-    fn as_gid_ref(&self) -> Either<GidRef, VID> {
+    fn as_gid_ref(&self) -> Either<GidRef<'_>, VID> {
         match self.as_node_ref() {
             NodeRef::Internal(vid) => Either::Right(vid),
             NodeRef::External(u) => Either::Left(u),
@@ -30,50 +30,50 @@ pub trait AsNodeRef: Send + Sync {
 }
 
 impl<'a> AsNodeRef for NodeRef<'a> {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         *self
     }
 }
 
 impl AsNodeRef for VID {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         NodeRef::Internal(*self)
     }
 }
 
 impl AsNodeRef for u64 {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         NodeRef::External(GidRef::U64(*self))
     }
 }
 
 impl AsNodeRef for String {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         NodeRef::External(GidRef::Str(self))
     }
 }
 
 impl AsNodeRef for &str {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         NodeRef::External(GidRef::Str(self))
     }
 }
 
 impl<V: AsNodeRef> AsNodeRef for &V {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         V::as_node_ref(self)
     }
 }
 
 impl AsNodeRef for GID {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         let gid_ref: GidRef = self.into();
         NodeRef::External(gid_ref)
     }
 }
 
 impl<'a> AsNodeRef for GidRef<'a> {
-    fn as_node_ref(&self) -> NodeRef {
+    fn as_node_ref(&self) -> NodeRef<'_> {
         NodeRef::External(*self)
     }
 }

@@ -688,6 +688,12 @@ Creates a WindowSet with the given window duration and optional step using a rol
 
 A rolling window is a window that moves forward by step size at each iteration.
 
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
+
 </td>
 </tr>
 <tr>
@@ -701,6 +707,11 @@ A rolling window is a window that moves forward by step size at each iteration.
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="edge.expanding">expanding</strong></td>
 <td valign="top"><a href="#edgewindowset">EdgeWindowSet</a>!</td>
 <td>
@@ -709,11 +720,20 @@ Creates a WindowSet with the given step size using an expanding window.
 
 An expanding window is a window that grows by step size at each iteration.
 
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+e.g. "1 month and 1 day" will align at the start of the day.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
 <td></td>
 </tr>
 <tr>
@@ -938,6 +958,9 @@ Returns the end time of the window. Returns none if no window is applied.
 
 Returns the source node of the edge.
 
+Returns:
+Node:
+
 </td>
 </tr>
 <tr>
@@ -946,6 +969,9 @@ Returns the source node of the edge.
 <td>
 
 Returns the destination node of the edge.
+
+Returns:
+Node:
 
 </td>
 </tr>
@@ -956,6 +982,9 @@ Returns the destination node of the edge.
 
 Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
 
+Returns:
+Node:
+
 </td>
 </tr>
 <tr>
@@ -964,6 +993,9 @@ Returns the node at the other end of the edge (same as dst() for out-edges and s
 <td>
 
 Returns the id of the edge.
+
+Returns:
+list[str]:
 
 </td>
 </tr>
@@ -1030,6 +1062,9 @@ Each new edge object contains only updates from the respective layers.
 
 Returns a list of timestamps of when an edge is added or change to an edge is made.
 
+Returns:
+List[int]:
+
 </td>
 </tr>
 <tr>
@@ -1038,6 +1073,9 @@ Returns a list of timestamps of when an edge is added or change to an edge is ma
 <td>
 
 Returns a list of timestamps of when an edge is deleted.
+
+Returns:
+List[int]:
 
 </td>
 </tr>
@@ -1278,6 +1316,12 @@ Creates a WindowSet with the given window duration and optional step using a rol
 
 Returns a collection of collections. This means that item in the window set is a collection of edges.
 
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
+
 </td>
 </tr>
 <tr>
@@ -1291,6 +1335,11 @@ Returns a collection of collections. This means that item in the window set is a
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="edges.expanding">expanding</strong></td>
 <td valign="top"><a href="#edgeswindowset">EdgesWindowSet</a>!</td>
 <td>
@@ -1299,11 +1348,20 @@ Creates a WindowSet with the given step size using an expanding window. An expan
 
 Returns a collection of collections. This means that item in the window set is a collection of edges.
 
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+e.g. "1 month and 1 day" will align at the start of the day.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
 <td></td>
 </tr>
 <tr>
@@ -1514,6 +1572,9 @@ Returns the end time of the window or none if there is no window.
 <td>
 
 Returns the number of edges.
+
+Returns:
+int:
 
 </td>
 </tr>
@@ -1754,6 +1815,14 @@ Returns a subgraph containing all nodes except the specified excluded nodes.
 
 Creates a rolling window with the specified window size and an optional step.
 
+A rolling window is a window that moves forward by step size at each iteration.
+
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
+
 </td>
 </tr>
 <tr>
@@ -1767,17 +1836,33 @@ Creates a rolling window with the specified window size and an optional step.
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="graph.expanding">expanding</strong></td>
 <td valign="top"><a href="#graphwindowset">GraphWindowSet</a>!</td>
 <td>
 
-Creates a expanding window with the specified step size.
+Creates an expanding window with the specified step size.
+
+An expanding window is a window that grows by step size at each iteration.
+
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+e.g. "1 month and 1 day" will align at the start of the day.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
 <td></td>
 </tr>
 <tr>
@@ -2017,6 +2102,9 @@ Returns the earliest time that any edge in this graph is valid.
 <td>
 
 Returns the number of edges in the graph.
+
+Returns:
+int:
 
 </td>
 </tr>
@@ -2329,26 +2417,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -2366,6 +2434,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">direction</td>
 <td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
+<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2609,6 +2697,9 @@ Returns the number of nodes in the graph.
 <td>
 
 Returns the number of edges in the graph.
+
+Returns:
+int:
 
 </td>
 </tr>
@@ -2929,7 +3020,7 @@ Create a new node or fail if it already exists.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of nodes.
+Add a batch of nodes
 
 </td>
 </tr>
@@ -2996,7 +3087,7 @@ Add a new edge or add updates to an existing edge.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of edges.
+Add a batch of edges
 
 </td>
 </tr>
@@ -3342,7 +3433,13 @@ Returns a collection containing nodes belonging to all layers except the exclude
 
 Creates a WindowSet with the specified window size and optional step using a rolling window.
 
-Returns a collection of collections. This means that item in the window set is a collection of nodes.
+A rolling window is a window that moves forward by step size at each iteration.
+
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
 
 </td>
 </tr>
@@ -3357,17 +3454,33 @@ Returns a collection of collections. This means that item in the window set is a
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="node.expanding">expanding</strong></td>
 <td valign="top"><a href="#nodewindowset">NodeWindowSet</a>!</td>
 <td>
 
 Creates a WindowSet with the specified step size using an expanding window.
 
+An expanding window is a window that grows by step size at each iteration.
+
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+e.g. "1 month and 1 day" will align at the start of the day.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
 <td></td>
 </tr>
 <tr>
@@ -3903,6 +4016,14 @@ Return a view of the nodes containing all layers except those specified.
 
 Creates a WindowSet with the specified window size and optional step using a rolling window.
 
+A rolling window is a window that moves forward by step size at each iteration.
+
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
+
 </td>
 </tr>
 <tr>
@@ -3916,17 +4037,33 @@ Creates a WindowSet with the specified window size and optional step using a rol
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="nodes.expanding">expanding</strong></td>
 <td valign="top"><a href="#nodeswindowset">NodesWindowSet</a>!</td>
 <td>
 
 Creates a WindowSet with the specified step size using an expanding window.
 
+An expanding window is a window that grows by step size at each iteration.
+
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+e.g. "1 month and 1 day" will align at the start of the day.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
 <td></td>
 </tr>
 <tr>
@@ -4340,6 +4477,14 @@ Return a view of PathFromNode containing all layers except the specified exclude
 
 Creates a WindowSet with the given window size and optional step using a rolling window.
 
+A rolling window is a window that moves forward by step size at each iteration.
+
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
+e.g. "1 month and 1 day" will align at the start of the day.
+Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
+the start of the first window and/or after the end of the last window (i.e. not included in any window).
+
 </td>
 </tr>
 <tr>
@@ -4353,17 +4498,33 @@ Creates a WindowSet with the given window size and optional step using a rolling
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.expanding">expanding</strong></td>
 <td valign="top"><a href="#pathfromnodewindowset">PathFromNodeWindowSet</a>!</td>
 <td>
 
 Creates a WindowSet with the given step size using an expanding window.
 
+An expanding window is a window that grows by step size at each iteration.
+
+alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
+If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
+e.g. "1 month and 1 day" will align at the start of the day.
+
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
 <td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
 <td></td>
 </tr>
 <tr>
@@ -6924,6 +7085,8 @@ Some properties and metadata.
 
 ### SomePropertySpec
 
+SomePropertySpec object containing lists of metadata and property names.
+
 <table>
 <thead>
 <tr>
@@ -7243,6 +7406,57 @@ Time.
 </table>
 
 ## Enums
+
+### AlignmentUnit
+
+Alignment unit used to align window boundaries.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>UNALIGNED</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>MILLISECOND</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>SECOND</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>MINUTE</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>HOUR</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>DAY</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>WEEK</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>MONTH</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>YEAR</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
 
 ### AllPropertySpec
 

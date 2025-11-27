@@ -33,6 +33,12 @@ jobs:
     with:
       test_python_lower: true
     secrets: inherit
+  call-test-ui:
+    name: Run UI Tests
+    uses: ./.github/workflows/test_ui.yml
+    secrets: inherit
+    permissions:
+      contents: read
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/benchmark.yml
@@ -40,6 +46,10 @@ jobs:
   call-graphql-bench-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/bench-graphql.yml
+    secrets: inherit
+  call-stress-test-workflow-in-local-repo:
+    name: Run benchmarks
+    uses: ./.github/workflows/stress-test.yml
     secrets: inherit
 #  call-code-coverage:
 #    name: Code Coverage

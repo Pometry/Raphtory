@@ -469,7 +469,12 @@ mod test_index {
             graph.encode(&folder).unwrap();
 
             let graph = Graph::decode(folder).unwrap();
-            let immutable = graph.get_storage().unwrap().index.read().is_immutable();
+            let immutable = graph
+                .get_storage()
+                .unwrap()
+                .index
+                .read_recursive()
+                .is_immutable();
             assert! {!immutable};
         }
 
@@ -482,7 +487,12 @@ mod test_index {
             graph.encode(path).unwrap();
 
             let graph = Graph::decode(path).unwrap();
-            let immutable = graph.get_storage().unwrap().index.read().is_immutable();
+            let immutable = graph
+                .get_storage()
+                .unwrap()
+                .index
+                .read_recursive()
+                .is_immutable();
             assert! {immutable};
         }
 

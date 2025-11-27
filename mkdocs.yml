@@ -85,13 +85,14 @@ repo_name: pometry/raphtory
 nav:
   - Home: index.md
   - User Guide:
-      - user-guide/installation.md
       - Get started:
         - user-guide/getting-started/0_dummy_index.md
-        - user-guide/getting-started/1_intro.md
-        - user-guide/getting-started/2_UI_overview.md
-        - user-guide/getting-started/3_cli.md
-      - Graph data:
+        - user-guide/getting-started/10_installation.md
+        - user-guide/getting-started/20_intro.md
+        - user-guide/getting-started/30_UI_overview.md
+        - user-guide/getting-started/40_cli.md
+        - user-guide/getting-started/50_key_concepts.md
+      - Ingestion:
           - user-guide/ingestion/0_dummy_index.md
           - user-guide/ingestion/1_intro.md
           - user-guide/ingestion/2_direct-updates.md
@@ -112,6 +113,7 @@ nav:
           - user-guide/views/3_layer.md
           - user-guide/views/4_subgraph.md
           - user-guide/views/5_materialize.md
+          - user-guide/views/6_filtering.md
       - Running Algorithms:
           - user-guide/algorithms/0_dummy_index.md
           - user-guide/algorithms/1_intro.md
@@ -135,6 +137,7 @@ nav:
           - user-guide/persistent-graph/2_ambiguity.md
           - user-guide/persistent-graph/3_views.md
       - user-guide/troubleshooting.md
+      - user-guide/compatibility.md
   - Python API: reference/python/
   - GraphQL API: reference/graphql/graphql_API.md
   - Rust API: https://docs.rs/raphtory/latest/raphtory/

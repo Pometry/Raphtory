@@ -248,12 +248,12 @@ impl PyPersistentGraph {
     /// Adds a new edge with the given source and destination nodes and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int): The timestamp of the edge.
-    ///    src (str | int): The id of the source node.
-    ///    dst (str | int): The id of the destination node.
-    ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties
-    ///    layer (str, optional): The layer of the edge.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///     timestamp (int): The timestamp of the edge.
+    ///     src (str | int): The id of the source node.
+    ///     dst (str | int): The id of the destination node.
+    ///     properties (PropInput, optional): The properties of the edge, as a dict of string and properties
+    ///     layer (str, optional): The layer of the edge.
+    ///     secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -320,10 +320,10 @@ impl PyPersistentGraph {
     /// Gets the node with the specified id
     ///
     /// Arguments:
-    ///   id (str | int): the node id
+    ///     id (str | int): the node id
     ///
     /// Returns:
-    ///   Optional[MutableNode]: The node with the specified id, or None if the node does not exist
+    ///     Optional[MutableNode]: The node with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<'static, PersistentGraph>> {
         self.graph.node(id)
     }
@@ -643,6 +643,7 @@ impl PyPersistentGraph {
             &properties,
             &metadata,
             shared_metadata.as_ref(),
+            None,
         )
     }
 
@@ -737,6 +738,7 @@ impl PyPersistentGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            None,
         )
     }
 
@@ -801,6 +803,7 @@ impl PyPersistentGraph {
             dst,
             layer,
             layer_col,
+            None,
         )
     }
 
@@ -875,6 +878,7 @@ impl PyPersistentGraph {
             node_type_col,
             &metadata,
             shared_metadata.as_ref(),
+            None,
         )
     }
 
@@ -955,15 +959,24 @@ impl PyPersistentGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            None,
         )
     }
 
     /// Create graph index
+    ///
+    /// Returns:
+    ///     None:
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
     }
 
     /// Create graph index with the provided index spec.
+    /// Arguments:
+    ///     py_spec: - The specification for the in-memory index to be created.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph.create_index_with_spec(py_spec.spec.clone())
     }
@@ -972,6 +985,9 @@ impl PyPersistentGraph {
     ///
     /// This is primarily intended for use in tests and should not be used in production environments,
     /// as the index will not be persisted to disk.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
@@ -980,6 +996,15 @@ impl PyPersistentGraph {
     ///
     /// This is primarily intended for use in tests and should not be used in production environments,
     /// as the index will not be persisted to disk.
+    ///
+    /// Arguments:
+    ///     py_spec: The specification for the in-memory index to be created.
+    ///
+    ///  Arguments:
+    ///     py_spec (IndexSpec): The specification for the in-memory index to be created.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())

@@ -1,0 +1,45 @@
+name: Rust Benchmarks
+
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+
+jobs:
+  stress-test:
+    name: GraphQL Stress Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - name: Install maturin
+        run: pip install maturin==1.8.3
+      - name: Build raphtory
+        run: make install-python
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '1.0.0'
+      - name: Run stress test
+        run: |
+          cd graphql-bench
+          raphtory server &
+          make stress-test
+      - name: Upload k6 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-test-report
+          path: graphql-bench/stress-test-report.html

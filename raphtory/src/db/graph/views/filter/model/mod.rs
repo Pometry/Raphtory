@@ -1,5 +1,5 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
-use crate::{
+pub use crate::{
     db::{
         api::view::internal::GraphView,
         graph::views::{
@@ -159,6 +159,11 @@ impl Filter {
         }
     }
 
+    /// Is not in
+    ///
+    /// Arguments:
+    ///     field_name (str)
+    ///     field_values (list[str]):
     pub fn is_not_in(
         field_name: impl Into<String>,
         field_values: impl IntoIterator<Item = String>,
@@ -202,6 +207,16 @@ impl Filter {
         }
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Arguments:
+    ///     levenshtein_distance (int):
+    ///     prefix_match (bool):
+    ///
+    /// Returns:
+    ///     PropValue (str):
     pub fn fuzzy_search(
         field_name: impl Into<String>,
         field_value: impl Into<String>,

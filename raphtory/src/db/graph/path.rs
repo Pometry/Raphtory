@@ -348,6 +348,10 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromNode<'graph, G> {
         }
     }
 
+    /// Collect all nodes into a list
+    ///
+    /// Returns:
+    ///     list[NodeView]: the list of nodes
     pub fn collect(&self) -> Vec<NodeView<'graph, G>> {
         self.iter().collect()
     }
