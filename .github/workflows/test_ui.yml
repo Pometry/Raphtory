@@ -11,7 +11,7 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          echo "python-versions=[\"3.9\",\"3.13\"]" >> $GITHUB_OUTPUT
+          echo "python-versions=[\"3.11\",\"3.14\"]" >> $GITHUB_OUTPUT
   ui-test:
     name: UI Tests
     needs: select-strategy
