@@ -67,7 +67,7 @@ impl<'a> GraphPropRefOps<'a> for MemGraphPropRef<'a> {
     type TProps = GraphTProps<'a>;
 
     fn get_temporal_prop(self, prop_id: usize) -> Self::TProps {
-        GraphTProps::new_with_layer(self, 0, prop_id)
+        GraphTProps::new_with_layer(self, MemGraphPropSegment::DEFAULT_LAYER, prop_id)
     }
 
     fn get_metadata(self, prop_id: usize) -> Option<Prop> {

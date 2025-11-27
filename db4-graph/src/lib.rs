@@ -31,9 +31,6 @@ use storage::{
 };
 use tempfile::TempDir;
 
-pub mod entries;
-pub mod mutation;
-
 #[derive(Debug)]
 pub struct TemporalGraph<EXT: Config = Extension> {
     // mapping between logical and physical ids
