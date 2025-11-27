@@ -110,7 +110,7 @@ pub fn load_nodes_from_df<
             .map_err(into_graph_err)
     })?;
 
-    // #[cfg(feature = "python")]
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
 
     let mut node_col_resolved = vec![];
@@ -151,8 +151,7 @@ pub fn load_nodes_from_df<
                 let start_id = session
                     .reserve_event_ids(df.len())
                     .map_err(into_graph_err)?;
-                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
-                col
+                SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
             }
         };
 
@@ -223,7 +222,7 @@ pub fn load_nodes_from_df<
                 Ok::<_, GraphError>(())
             })?;
 
-        // #[cfg(feature = "python")]
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
 
@@ -274,6 +273,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .map_err(into_graph_err)
     })?;
 
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
 
     let mut src_col_resolved = vec![];
@@ -537,10 +537,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                             let t = TimeIndexEntry(time, secondary_index);
                             let mut writer = shard.writer();
 
-                            if !exists {
-                                assert!(!writer.contains_edge(eid_pos, 0))
-                            }
-
                             t_props.clear();
                             t_props.extend(prop_cols.iter_row(row));
 
@@ -565,6 +561,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             });
         });
 
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
 
@@ -719,7 +716,7 @@ pub(crate) fn load_node_props_from_df<
             .map_err(into_graph_err)
     })?;
 
-    // #[cfg(feature = "python")]
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
 
     let mut node_col_resolved = vec![];
@@ -782,7 +779,7 @@ pub(crate) fn load_node_props_from_df<
             Ok::<_, GraphError>(())
         })?;
 
-        // #[cfg(feature = "python")]
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
     Ok(())
