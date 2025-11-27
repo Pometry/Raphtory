@@ -89,9 +89,12 @@ nav:
         - user-guide/getting-started/0_dummy_index.md
         - user-guide/getting-started/10_installation.md
         - user-guide/getting-started/20_intro.md
-        - user-guide/getting-started/30_UI_overview.md
-        - user-guide/getting-started/40_cli.md
-        - user-guide/getting-started/50_key_concepts.md
+        - user-guide/getting-started/30_cli.md
+        - user-guide/getting-started/40_key_concepts.md
+      - User interface:
+        - user-guide/user-interface/0_dummy_index.md
+        - user-guide/user-interface/10_UI_overview.md
+        - user-guide/user-interface/20_graph_view.md
       - Ingestion:
           - user-guide/ingestion/0_dummy_index.md
           - user-guide/ingestion/1_intro.md
