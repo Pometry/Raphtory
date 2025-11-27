@@ -14,7 +14,7 @@ use raphtory_api::{
     },
     iter::IntoDynBoxed,
 };
-use storage::api::graph::GraphEntryOps;
+use storage::api::graph::{GraphEntryOps, GraphRefOps};
 
 impl InternalTemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
@@ -30,6 +30,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
         // Return a boxed iterator of temporal props over the locked graph entry.
         let iter = GenLockedIter::from(graph_entry, |entry| {
             entry
+                .as_ref()
                 .get_temporal_prop(id)
                 .into_iter()
                 .flat_map(|prop| prop.iter())
@@ -46,6 +47,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
         // the locked graph entry.
         let iter = GenLockedIter::from(graph_entry, |entry| {
             entry
+                .as_ref()
                 .get_temporal_prop(id)
                 .into_iter()
                 .flat_map(|prop| prop.iter_inner_rev(None))
@@ -60,6 +62,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
 
         // Return the latest temporal prop value.
         graph_entry
+            .as_ref()
             .get_temporal_prop(id)
             .and_then(|prop| prop.last_before(TimeIndexEntry::MAX).map(|(_, v)| v))
     }
@@ -68,7 +71,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
         let graph_entry = self.graph_entry();
 
         // Return the temporal prop value at the given time.
-        graph_entry.get_temporal_prop(id).and_then(|prop| {
+        graph_entry.as_ref().get_temporal_prop(id).and_then(|prop| {
             prop.last_before(TimeIndexEntry::start(t.saturating_add(1)))
                 .map(|(_, v)| v)
         })

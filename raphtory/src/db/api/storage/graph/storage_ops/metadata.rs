@@ -3,7 +3,7 @@ use crate::{
     prelude::Prop,
 };
 use raphtory_api::{core::storage::arc_str::ArcStr, iter::IntoDynBoxed};
-use storage::api::graph::GraphEntryOps;
+use storage::api::graph::{GraphEntryOps, GraphRefOps};
 
 use super::GraphStorage;
 
@@ -24,7 +24,7 @@ impl InternalMetadataOps for GraphStorage {
         let graph_entry = self.graph_entry();
 
         // Return the metadata value for the given property id.
-        graph_entry.get_metadata(id)
+        graph_entry.as_ref().get_metadata(id)
     }
 
     fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {

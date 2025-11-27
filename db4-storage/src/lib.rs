@@ -21,7 +21,7 @@ use crate::{
             entry::{MemEdgeEntry, MemEdgeRef},
             segment::EdgeSegmentView,
         },
-        graph::entry::MemGraphEntry,
+        graph::entry::{MemGraphEntry, MemGraphRef},
         node::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
@@ -64,6 +64,7 @@ pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEd
 pub type GraphEntry<'a> = MemGraphEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
+pub type GraphEntryRef<'a> = MemGraphRef<'a>;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;

@@ -33,7 +33,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::api::graph::GraphEntryOps;
+use storage::api::graph::{GraphEntryOps, GraphRefOps};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -153,6 +153,7 @@ impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
 
 impl Base for PersistentGraph {
     type Base = Storage;
+
     #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.0
@@ -245,6 +246,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         let graph_props = self.core_graph().graph_entry();
         GenLockedIter::from(graph_props, move |graph_props| {
             graph_props
+                .as_ref()
                 .get_temporal_prop(prop_id)
                 .into_iter()
                 .flat_map(move |prop| {
@@ -268,6 +270,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         let graph_props = self.core_graph().graph_entry();
         GenLockedIter::from(graph_props, move |graph_props| {
             graph_props
+                .as_ref()
                 .get_temporal_prop(prop_id)
                 .into_iter()
                 .flat_map(move |prop| {

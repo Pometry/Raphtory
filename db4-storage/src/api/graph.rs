@@ -44,9 +44,21 @@ where
 
 /// Methods for reading graph properties and metadata from storage.
 pub trait GraphEntryOps<'a>: Send + Sync + 'a {
+    type Ref<'b>: GraphRefOps<'b>
+    where
+        'a: 'b,
+        Self: 'b;
+
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
+    where
+        'a: 'b;
+}
+
+/// Lightweight reference for reading graph properties and metadata.
+pub trait GraphRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type TProp: TPropOps<'a>;
 
-    fn get_temporal_prop(&'a self, prop_id: usize) -> Option<Self::TProp>;
+    fn get_temporal_prop(self, prop_id: usize) -> Option<Self::TProp>;
 
-    fn get_metadata(&'a self, prop_id: usize) -> Option<Prop>;
+    fn get_metadata(self, prop_id: usize) -> Option<Prop>;
 }
