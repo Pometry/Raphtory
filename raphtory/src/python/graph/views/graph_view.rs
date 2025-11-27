@@ -205,7 +205,7 @@ impl PyGraphView {
     /// Time entry of the earliest activity in the graph
     ///
     /// Returns:
-    ///     Optional[EventTime]: the time entry of the earliest activity in the graph
+    ///     OptionalEventTime: the time entry of the earliest activity in the graph
     #[getter]
     pub fn earliest_time(&self) -> PyOptionalEventTime {
         self.graph.earliest_time().into()
@@ -214,7 +214,7 @@ impl PyGraphView {
     /// Time entry of the latest activity in the graph
     ///
     /// Returns:
-    ///     Optional[EventTime]: the time entry of the latest activity in the graph
+    ///     OptionalEventTime: the time entry of the latest activity in the graph
     #[getter]
     pub fn latest_time(&self) -> PyOptionalEventTime {
         self.graph.latest_time().into()

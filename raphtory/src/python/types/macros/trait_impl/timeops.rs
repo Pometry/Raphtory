@@ -13,7 +13,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the start time for rolling and expanding windows for this ", $name)]
             ///
             /// Returns:
-            #[doc = concat!(r"    Optional[EventTime]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!(r"    OptionalEventTime: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
             pub fn start(&self) -> $crate::api::python::timeindex::PyOptionalEventTime {
                 self.$field.start().into()
@@ -22,7 +22,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the latest time that this ", $name, r" is valid.")]
             ///
             /// Returns:
-            #[doc = concat!("   Optional[EventTime]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!("   OptionalEventTime: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
             pub fn end(&self) -> $crate::api::python::timeindex::PyOptionalEventTime {
                 self.$field.end().into()

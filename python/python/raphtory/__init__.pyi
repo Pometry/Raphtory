@@ -128,12 +128,12 @@ class GraphView(object):
         """
 
     @property
-    def earliest_time(self) -> Optional[EventTime]:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Time entry of the earliest activity in the graph
 
         Returns:
-            Optional[EventTime]: the time entry of the earliest activity in the graph
+            OptionalEventTime: the time entry of the earliest activity in the graph
         """
 
     def edge(self, src: NodeInput, dst: NodeInput) -> Optional[Edge]:
@@ -158,12 +158,12 @@ class GraphView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this GraphView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this GraphView is valid or None if the GraphView is valid for all times.
+           OptionalEventTime: The latest time that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> GraphView:
@@ -342,12 +342,12 @@ class GraphView(object):
         """
 
     @property
-    def latest_time(self) -> Optional[EventTime]:
+    def latest_time(self) -> OptionalEventTime:
         """
         Time entry of the latest activity in the graph
 
         Returns:
-            Optional[EventTime]: the time entry of the latest activity in the graph
+            OptionalEventTime: the time entry of the latest activity in the graph
         """
 
     def layer(self, name: str) -> GraphView:
@@ -529,12 +529,12 @@ class GraphView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this GraphView
 
         Returns:
-            Optional[EventTime]: The earliest time that this GraphView is valid or None if the GraphView is valid for all times.
+            OptionalEventTime: The earliest time that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     def subgraph(self, nodes: list[NodeInput]) -> GraphView:
@@ -2050,12 +2050,12 @@ class Node(object):
         """
 
     @property
-    def earliest_time(self) -> EventTime:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Returns the earliest time that the node exists.
 
         Returns:
-            EventTime: The earliest time that the node exists.
+            OptionalEventTime: The earliest time that the node exists.
         """
 
     def edge_history_count(self) -> int:
@@ -2076,12 +2076,12 @@ class Node(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this Node is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this Node is valid or None if the Node is valid for all times.
+           OptionalEventTime: The latest time that this Node is valid or None if the Node is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Node:
@@ -2253,12 +2253,12 @@ class Node(object):
         """
 
     @property
-    def latest_time(self) -> EventTime:
+    def latest_time(self) -> OptionalEventTime:
         """
         Returns the latest time that the node exists.
 
         Returns:
-           EventTime: The latest time that the node exists.
+           OptionalEventTime: The latest time that the node exists.
         """
 
     def layer(self, name: str) -> Node:
@@ -2437,12 +2437,12 @@ class Node(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Node
 
         Returns:
-            Optional[EventTime]: The earliest time that this Node is valid or None if the Node is valid for all times.
+            OptionalEventTime: The earliest time that this Node is valid or None if the Node is valid for all times.
         """
 
     def valid_layers(self, names: list[str]) -> Node:
@@ -2682,12 +2682,12 @@ class Nodes(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this Nodes is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this Nodes is valid or None if the Nodes is valid for all times.
+           OptionalEventTime: The latest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Nodes:
@@ -3034,12 +3034,12 @@ class Nodes(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Nodes
 
         Returns:
-            Optional[EventTime]: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
+            OptionalEventTime: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     def to_df(self, include_property_history: bool = False, convert_datetime: bool = False) -> DataFrame:
@@ -3208,12 +3208,12 @@ class PathFromNode(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this PathFromNode is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+           OptionalEventTime: The latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> PathFromNode:
@@ -3551,12 +3551,12 @@ class PathFromNode(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this PathFromNode
 
         Returns:
-            Optional[EventTime]: The earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+            OptionalEventTime: The earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
         """
 
     def type_filter(self, node_types: list[str]) -> PathFromNode:
@@ -3708,12 +3708,12 @@ class PathFromGraph(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this PathFromGraph is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+           OptionalEventTime: The latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> PathFromGraph:
@@ -4060,12 +4060,12 @@ class PathFromGraph(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this PathFromGraph
 
         Returns:
-            Optional[EventTime]: The earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+            OptionalEventTime: The earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
         """
 
     def type_filter(self, node_types: list[str]) -> PathFromGraph:
@@ -4267,21 +4267,21 @@ class Edge(object):
         """
 
     @property
-    def earliest_time(self) -> EventTime:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Gets the earliest time of an edge.
 
         Returns:
-            EventTime: The earliest time of an edge
+            OptionalEventTime: The earliest time of an edge
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this Edge is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this Edge is valid or None if the Edge is valid for all times.
+           OptionalEventTime: The latest time that this Edge is valid or None if the Edge is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Edge:
@@ -4429,12 +4429,12 @@ class Edge(object):
         """
 
     @property
-    def latest_time(self) -> EventTime:
+    def latest_time(self) -> OptionalEventTime:
         """
         Gets the latest time of an edge.
 
         Returns:
-            EventTime: The latest time of an edge
+            OptionalEventTime: The latest time of an edge
         """
 
     def layer(self, name: str) -> Edge:
@@ -4596,12 +4596,12 @@ class Edge(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Edge
 
         Returns:
-            Optional[EventTime]: The earliest time that this Edge is valid or None if the Edge is valid for all times.
+            OptionalEventTime: The earliest time that this Edge is valid or None if the Edge is valid for all times.
         """
 
     @property
@@ -4745,12 +4745,12 @@ class Edges(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this Edges is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this Edges is valid or None if the Edges is valid for all times.
+           OptionalEventTime: The latest time that this Edges is valid or None if the Edges is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Edges:
@@ -5069,12 +5069,12 @@ class Edges(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this Edges
 
         Returns:
-            Optional[EventTime]: The earliest time that this Edges is valid or None if the Edges is valid for all times.
+            OptionalEventTime: The earliest time that this Edges is valid or None if the Edges is valid for all times.
         """
 
     @property
@@ -5229,12 +5229,12 @@ class NestedEdges(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this NestedEdges is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
+           OptionalEventTime: The latest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> NestedEdges:
@@ -5553,12 +5553,12 @@ class NestedEdges(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this NestedEdges
 
         Returns:
-            Optional[EventTime]: The earliest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
+            OptionalEventTime: The earliest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
         """
 
     @property
@@ -6545,12 +6545,12 @@ class History(object):
             HistoryDateTime: Datetime view of this history.
         """
 
-    def earliest_time(self) -> Optional[EventTime]:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Get the earliest time entry.
 
         Returns:
-            Optional[EventTime]: Earliest time entry, or None if empty.
+            OptionalEventTime: Earliest time entry, or None if empty.
         """
 
     @property
@@ -6579,12 +6579,12 @@ class History(object):
             bool: True if empty, otherwise False.
         """
 
-    def latest_time(self) -> Optional[EventTime]:
+    def latest_time(self) -> OptionalEventTime:
         """
         Get the latest time entry.
 
         Returns:
-            Optional[EventTime]: Latest time entry, or None if empty.
+            OptionalEventTime: Latest time entry, or None if empty.
         """
 
     def merge(self, other: History) -> History:

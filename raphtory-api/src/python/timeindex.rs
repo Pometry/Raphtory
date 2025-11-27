@@ -226,6 +226,24 @@ impl PyEventTime {
                 CompareOp::Ge => Ok(self.time >= time_index),
                 CompareOp::Le => Ok(self.time <= time_index),
             }
+        // Support comparison with Option<EventTime> type
+        } else if let Ok(opt_event_time) = other.extract::<PyOptionalEventTime>() {
+            match opt_event_time.inner {
+                Some(other_time) => match op {
+                    CompareOp::Eq => Ok(self.time == other_time),
+                    CompareOp::Ne => Ok(self.time != other_time),
+                    CompareOp::Gt => Ok(self.time > other_time),
+                    CompareOp::Lt => Ok(self.time < other_time),
+                    CompareOp::Ge => Ok(self.time >= other_time),
+                    CompareOp::Le => Ok(self.time <= other_time),
+                },
+                None => match op {
+                    CompareOp::Eq => Ok(false),
+                    CompareOp::Ne => Ok(true),
+                    CompareOp::Gt | CompareOp::Ge => Ok(true),
+                    CompareOp::Lt | CompareOp::Le => Ok(false),
+                },
+            }
         } else {
             Err(PyTypeError::new_err("Unsupported comparison: EventTime can only be compared with a str, datetime, float, integer, a tuple/list of two of those types, or another EventTime."))
         }

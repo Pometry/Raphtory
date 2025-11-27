@@ -105,3 +105,79 @@ def test_time_input_parsing(example_graph):
     assert gw.nodes == [3, 4]
     gw = g.window(88200000, "2000-01-02")
     assert gw.nodes == [3, 4]
+
+def test_optional_event_time_none_comparison():
+    g = Graph()
+    none_time = g.earliest_time
+
+    assert none_time.is_none()
+    assert not none_time
+
+    assert none_time == None
+
+    assert not (none_time > None)
+    assert not (none_time < None)
+    assert none_time >= None
+    assert none_time <= None
+
+    # None < Any EventTime/value
+    assert none_time < 0
+    assert none_time < 1000
+    assert none_time < "1970-01-01"
+    assert none_time < datetime(1970, 1, 1, tzinfo=timezone.utc)
+    assert none_time < EventTime(0)
+
+    # Reverse comparisons
+    assert 0 > none_time
+    assert "1970-01-01" > none_time
+    assert EventTime(0) > none_time
+
+def test_optional_event_time_some_comparison():
+    g = Graph()
+    g.add_node(1000, 1)
+    some_time = g.earliest_time
+
+    assert some_time.is_some()
+    assert some_time
+
+    assert some_time != None
+    assert some_time > None
+
+    assert some_time == 1000
+    assert some_time > 999
+    assert some_time < 1001
+
+    assert some_time == 1.0   # Floats are in seconds
+
+    assert some_time == "1970-01-01 00:00:01"
+    assert some_time > "1970-01-01 00:00:00"
+
+    assert some_time == EventTime(1000, 0)
+    assert some_time > EventTime(999, 0)
+
+    assert some_time == (1000, 0)
+
+def test_optional_vs_optional():
+    g1 = Graph()
+    none_time = g1.earliest_time
+
+    g2 = Graph()
+    g2.add_node(1000, 1)
+    t1000 = g2.earliest_time
+
+    g3 = Graph()
+    g3.add_node(2000, 1)
+    t2000 = g3.earliest_time
+
+    assert none_time < t1000
+    assert t1000 > none_time
+    assert none_time != t1000
+
+    assert t1000 < t2000
+    assert t2000 > t1000
+    assert t1000 != t2000
+
+    g4 = Graph()
+    g4.add_node(1000, 1)
+    t1000_2 = g4.earliest_time
+    assert t1000 == t1000_2

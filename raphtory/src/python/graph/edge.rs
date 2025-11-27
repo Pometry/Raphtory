@@ -277,7 +277,7 @@ impl PyEdge {
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
-    ///     EventTime: The earliest time of an edge
+    ///     OptionalEventTime: The earliest time of an edge
     #[getter]
     pub fn earliest_time(&self) -> PyOptionalEventTime {
         self.edge.earliest_time().into()
@@ -286,7 +286,7 @@ impl PyEdge {
     /// Gets the latest time of an edge.
     ///
     /// Returns:
-    ///     EventTime: The latest time of an edge
+    ///     OptionalEventTime: The latest time of an edge
     #[getter]
     pub fn latest_time(&self) -> PyOptionalEventTime {
         self.edge.latest_time().into()

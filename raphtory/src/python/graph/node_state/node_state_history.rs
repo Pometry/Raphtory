@@ -490,7 +490,7 @@ impl NodeStateHistory {
     /// Get the earliest time entry of all nodes.
     ///
     /// Returns:
-    ///     Optional[EventTime]: The earliest event present in any of the nodes' histories.
+    ///     OptionalEventTime: The earliest event present in any of the nodes' histories.
     fn earliest_time(&self) -> PyOptionalEventTime {
         self.inner.earliest_time().into()
     }
@@ -498,7 +498,7 @@ impl NodeStateHistory {
     /// Get the latest time entry.
     ///
     /// Returns:
-    ///     Optional[EventTime]: The latest event present in any of the nodes' histories.
+    ///     OptionalEventTime: The latest event present in any of the nodes' histories.
     fn latest_time(&self) -> PyOptionalEventTime {
         self.inner.latest_time().into()
     }

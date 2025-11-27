@@ -171,7 +171,7 @@ impl PyNode {
     /// Returns the earliest time that the node exists.
     ///
     /// Returns:
-    ///     EventTime: The earliest time that the node exists.
+    ///     OptionalEventTime: The earliest time that the node exists.
     #[getter]
     pub fn earliest_time(&self) -> PyOptionalEventTime {
         self.node.earliest_time().into()
@@ -180,7 +180,7 @@ impl PyNode {
     /// Returns the latest time that the node exists.
     ///
     /// Returns:
-    ///    EventTime: The latest time that the node exists.
+    ///    OptionalEventTime: The latest time that the node exists.
     #[getter]
     pub fn latest_time(&self) -> PyOptionalEventTime {
         self.node.latest_time().into()

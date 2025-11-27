@@ -142,7 +142,7 @@ impl PyHistory {
     /// Get the earliest time entry.
     ///
     /// Returns:
-    ///     Optional[EventTime]: Earliest time entry, or None if empty.
+    ///     OptionalEventTime: Earliest time entry, or None if empty.
     pub fn earliest_time(&self) -> PyOptionalEventTime {
         self.history.earliest_time().into()
     }
@@ -150,7 +150,7 @@ impl PyHistory {
     /// Get the latest time entry.
     ///
     /// Returns:
-    ///     Optional[EventTime]: Latest time entry, or None if empty.
+    ///     OptionalEventTime: Latest time entry, or None if empty.
     pub fn latest_time(&self) -> PyOptionalEventTime {
         self.history.latest_time().into()
     }

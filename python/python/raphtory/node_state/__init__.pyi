@@ -171,12 +171,12 @@ class DegreeView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this DegreeView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this DegreeView is valid or None if the DegreeView is valid for all times.
+           OptionalEventTime: The latest time that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> DegreeView:
@@ -478,12 +478,12 @@ class DegreeView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this DegreeView
 
         Returns:
-            Optional[EventTime]: The earliest time that this DegreeView is valid or None if the DegreeView is valid for all times.
+            OptionalEventTime: The earliest time that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
 
     def sum(self) -> PropValue:
@@ -2111,12 +2111,12 @@ class EarliestTimeView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this EarliestTimeView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+           OptionalEventTime: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
     @property
@@ -2419,12 +2419,12 @@ class EarliestTimeView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this EarliestTimeView
 
         Returns:
-            Optional[EventTime]: The earliest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+            OptionalEventTime: The earliest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
     @property
@@ -2600,12 +2600,12 @@ class EarliestTimestampView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this EarliestTimestampView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this EarliestTimestampView is valid or None if the EarliestTimestampView is valid for all times.
+           OptionalEventTime: The latest time that this EarliestTimestampView is valid or None if the EarliestTimestampView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> EarliestTimestampView:
@@ -2899,12 +2899,12 @@ class EarliestTimestampView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this EarliestTimestampView
 
         Returns:
-            Optional[EventTime]: The earliest time that this EarliestTimestampView is valid or None if the EarliestTimestampView is valid for all times.
+            OptionalEventTime: The earliest time that this EarliestTimestampView is valid or None if the EarliestTimestampView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -3071,12 +3071,12 @@ class EarliestEventIdView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this EarliestEventIdView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this EarliestEventIdView is valid or None if the EarliestEventIdView is valid for all times.
+           OptionalEventTime: The latest time that this EarliestEventIdView is valid or None if the EarliestEventIdView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> EarliestEventIdView:
@@ -3370,12 +3370,12 @@ class EarliestEventIdView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this EarliestEventIdView
 
         Returns:
-            Optional[EventTime]: The earliest time that this EarliestEventIdView is valid or None if the EarliestEventIdView is valid for all times.
+            OptionalEventTime: The earliest time that this EarliestEventIdView is valid or None if the EarliestEventIdView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -3558,12 +3558,12 @@ class EarliestDateTimeView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this EarliestDateTimeView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
+           OptionalEventTime: The latest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> EarliestDateTimeView:
@@ -3880,12 +3880,12 @@ class EarliestDateTimeView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this EarliestDateTimeView
 
         Returns:
-            Optional[EventTime]: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
+            OptionalEventTime: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -4069,12 +4069,12 @@ class LatestTimeView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this LatestTimeView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
+           OptionalEventTime: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
     @property
@@ -4377,12 +4377,12 @@ class LatestTimeView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this LatestTimeView
 
         Returns:
-            Optional[EventTime]: The earliest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
+            OptionalEventTime: The earliest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
     @property
@@ -4558,12 +4558,12 @@ class LatestTimestampView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this LatestTimestampView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this LatestTimestampView is valid or None if the LatestTimestampView is valid for all times.
+           OptionalEventTime: The latest time that this LatestTimestampView is valid or None if the LatestTimestampView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> LatestTimestampView:
@@ -4857,12 +4857,12 @@ class LatestTimestampView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this LatestTimestampView
 
         Returns:
-            Optional[EventTime]: The earliest time that this LatestTimestampView is valid or None if the LatestTimestampView is valid for all times.
+            OptionalEventTime: The earliest time that this LatestTimestampView is valid or None if the LatestTimestampView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -5029,12 +5029,12 @@ class LatestEventIdView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this LatestEventIdView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this LatestEventIdView is valid or None if the LatestEventIdView is valid for all times.
+           OptionalEventTime: The latest time that this LatestEventIdView is valid or None if the LatestEventIdView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> LatestEventIdView:
@@ -5328,12 +5328,12 @@ class LatestEventIdView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this LatestEventIdView
 
         Returns:
-            Optional[EventTime]: The earliest time that this LatestEventIdView is valid or None if the LatestEventIdView is valid for all times.
+            OptionalEventTime: The earliest time that this LatestEventIdView is valid or None if the LatestEventIdView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -5516,12 +5516,12 @@ class LatestDateTimeView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this LatestDateTimeView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
+           OptionalEventTime: The latest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> LatestDateTimeView:
@@ -5838,12 +5838,12 @@ class LatestDateTimeView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this LatestDateTimeView
 
         Returns:
-            Optional[EventTime]: The earliest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
+            OptionalEventTime: The earliest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -6403,12 +6403,12 @@ class HistoryView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this HistoryView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
+           OptionalEventTime: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
 
     @property
@@ -6667,12 +6667,12 @@ class HistoryView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this HistoryView
 
         Returns:
-            Optional[EventTime]: The earliest time that this HistoryView is valid or None if the HistoryView is valid for all times.
+            OptionalEventTime: The earliest time that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
 
     @property
@@ -7657,12 +7657,12 @@ class EdgeHistoryCountView(object):
         """
 
     @property
-    def end(self) -> Optional[EventTime]:
+    def end(self) -> OptionalEventTime:
         """
          Gets the latest time that this EdgeHistoryCountView is valid.
 
         Returns:
-           Optional[EventTime]: The latest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
+           OptionalEventTime: The latest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> EdgeHistoryCountView:
@@ -7956,12 +7956,12 @@ class EdgeHistoryCountView(object):
         """
 
     @property
-    def start(self) -> Optional[EventTime]:
+    def start(self) -> OptionalEventTime:
         """
          Gets the start time for rolling and expanding windows for this EdgeHistoryCountView
 
         Returns:
-            Optional[EventTime]: The earliest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
+            OptionalEventTime: The earliest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
         """
 
     def sum(self) -> PropValue:
@@ -9711,12 +9711,12 @@ class NodeStateHistory(object):
             NodeStateHistoryDateTime: A NodeState with the computed HistoryDateTime object for each node.
         """
 
-    def earliest_time(self) -> Optional[EventTime]:
+    def earliest_time(self) -> OptionalEventTime:
         """
         Get the earliest time entry of all nodes.
 
         Returns:
-            Optional[EventTime]: The earliest event present in any of the nodes' histories.
+            OptionalEventTime: The earliest event present in any of the nodes' histories.
         """
 
     @property
@@ -9765,12 +9765,12 @@ class NodeStateHistory(object):
             Iterator[Tuple[Node, History]]: Iterator over items.
         """
 
-    def latest_time(self) -> Optional[EventTime]:
+    def latest_time(self) -> OptionalEventTime:
         """
         Get the latest time entry.
 
         Returns:
-            Optional[EventTime]: The latest event present in any of the nodes' histories.
+            OptionalEventTime: The latest event present in any of the nodes' histories.
         """
 
     def nodes(self) -> Nodes:
