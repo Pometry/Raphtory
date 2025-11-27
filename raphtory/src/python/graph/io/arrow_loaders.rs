@@ -4,8 +4,8 @@ use crate::{
     io::arrow::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
-            load_edges_from_df, load_edges_props_from_df, load_node_props_from_df,
-            load_nodes_from_df,
+            load_edge_deletions_from_df, load_edges_from_df, load_edges_props_from_df,
+            load_node_props_from_df, load_nodes_from_df,
         },
     },
     prelude::{AdditionOps, PropertyAdditionOps},
@@ -156,6 +156,36 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
         layer,
         layer_col,
         graph,
+    )
+}
+
+pub fn load_edge_deletions_from_arrow_c_stream<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    graph: &G,
+    data: &Bound<'py, PyAny>,
+    time: &str,
+    src: &str,
+    dst: &str,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst, time];
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
+
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edge_deletions_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        layer,
+        layer_col,
+        graph.core_graph(),
     )
 }
 

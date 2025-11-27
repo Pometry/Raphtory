@@ -922,7 +922,7 @@ impl PyGraph {
         )
     }
 
-    /// Load node properties into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+    /// Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
     /// This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
     /// Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
     ///
@@ -1042,7 +1042,7 @@ impl PyGraph {
         )
     }
 
-    /// Load edge properties into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+    /// Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
     /// This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
     /// Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
     ///

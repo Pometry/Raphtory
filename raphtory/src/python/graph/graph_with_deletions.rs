@@ -18,7 +18,17 @@ use crate::{
     io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps, IndexMutationOps},
     python::{
-        graph::{edge::PyEdge, index::PyIndexSpec, node::PyNode, views::graph_view::PyGraphView},
+        graph::{
+            edge::PyEdge,
+            index::PyIndexSpec,
+            io::arrow_loaders::{
+                load_edge_deletions_from_arrow_c_stream, load_edge_metadata_from_arrow_c_stream,
+                load_edges_from_arrow_c_stream, load_node_metadata_from_arrow_c_stream,
+                load_nodes_from_arrow_c_stream,
+            },
+            node::PyNode,
+            views::graph_view::PyGraphView,
+        },
         utils::{PyNodeRef, PyTime},
     },
     serialise::StableEncode,
@@ -562,6 +572,54 @@ impl PyPersistentGraph {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 
+    /// Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+    /// This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+    ///
+    /// Arguments:
+    ///     data (Any): The data source containing the nodes.
+    ///     time (str): The column name for the timestamps.
+    ///     id (str): The column name for the node IDs.
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. Cannot be used in combination with node_type_col.
+    ///     node_type_col (str, optional): The node type column name in a dataframe. Defaults to None. Cannot be used in combination with node_type.
+    ///     properties (List[str], optional): List of node property column names. Defaults to None.
+    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None)
+    )]
+    fn load_nodes_from_df<'py>(
+        &self,
+        data: &Bound<'py, PyAny>,
+        time: &str,
+        id: &str,
+        node_type: Option<&str>,
+        node_type_col: Option<&str>,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        load_nodes_from_arrow_c_stream(
+            &self.graph,
+            data,
+            time,
+            id,
+            node_type,
+            node_type_col,
+            &properties,
+            &metadata,
+            shared_metadata.as_ref(),
+        )
+    }
+
     /// Load nodes from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
@@ -648,6 +706,57 @@ impl PyPersistentGraph {
             &metadata,
             shared_metadata.as_ref(),
             None,
+        )
+    }
+
+    /// Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+    /// This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+    ///
+    /// Arguments:
+    ///     data (Any): The data source containing the edges.
+    ///     time (str): The column name for the update timestamps.
+    ///     src (str): The column name for the source node ids.
+    ///     dst (str): The column name for the destination node ids.
+    ///     properties (List[str], optional): List of edge property column names. Defaults to None.
+    ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. Cannot be used in combination with layer_col.
+    ///     layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None. Cannot be used in combination with layer.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(
+        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+    )]
+    fn load_edges_from_df(
+        &self,
+        data: &Bound<PyAny>,
+        time: &str,
+        src: &str,
+        dst: &str,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        load_edges_from_arrow_c_stream(
+            &self.graph,
+            data,
+            time,
+            src,
+            dst,
+            &properties,
+            &metadata,
+            shared_metadata.as_ref(),
+            layer,
+            layer_col,
         )
     }
 
@@ -746,6 +855,36 @@ impl PyPersistentGraph {
         )
     }
 
+    /// Load edge deletions into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+    /// This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+    ///
+    /// Arguments:
+    ///     data (Any): The data source containing the edges.
+    ///     time (str): The column name for the update timestamps.
+    ///     src (str): The column name for the source node ids.
+    ///     dst (str): The column name for the destination node ids.
+    ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. Cannot be used in combination with layer_col.
+    ///     layer_col (str, optional): The edge layer col name in the data source. Defaults to None. Cannot be used in combination with layer.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (data, time, src, dst, layer = None, layer_col = None))]
+    fn load_edge_deletions_from_df(
+        &self,
+        data: &Bound<PyAny>,
+        time: &str,
+        src: &str,
+        dst: &str,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
+    ) -> Result<(), GraphError> {
+        load_edge_deletions_from_arrow_c_stream(&self.graph, data, time, src, dst, layer, layer_col)
+    }
+
     /// Load edges deletions from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
@@ -808,6 +947,47 @@ impl PyPersistentGraph {
             layer,
             layer_col,
             None,
+        )
+    }
+
+    /// Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+    /// This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+    ///
+    /// Arguments:
+    ///     data (Any): The data source containing node information.
+    ///     id(str): The column name for the node IDs.
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. Cannot be used in combination with node_type_col.
+    ///     node_type_col (str, optional): The node type column name in a dataframe. Defaults to None. Cannot be used in combination with node_type.
+    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(
+        signature = (data, id, node_type = None, node_type_col = None, metadata = None, shared_metadata = None)
+    )]
+    fn load_node_metadata_from_df(
+        &self,
+        data: &Bound<PyAny>,
+        id: &str,
+        node_type: Option<&str>,
+        node_type_col: Option<&str>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        load_node_metadata_from_arrow_c_stream(
+            &self.graph,
+            data,
+            id,
+            node_type,
+            node_type_col,
+            &metadata,
+            shared_metadata.as_ref(),
         )
     }
 
@@ -883,6 +1063,50 @@ impl PyPersistentGraph {
             &metadata,
             shared_metadata.as_ref(),
             None,
+        )
+    }
+
+    /// Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
+    /// This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+    ///
+    /// Arguments:
+    ///     data (Any): The data source containing edge information.
+    ///     src (str): The column name for the source node.
+    ///     dst (str): The column name for the destination node.
+    ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
+    ///     layer (str, optional): The edge layer name. Defaults to None.
+    ///     layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(
+        signature = (data, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+    )]
+    fn load_edge_metadata_from_df(
+        &self,
+        data: &Bound<PyAny>,
+        src: &str,
+        dst: &str,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        load_edge_metadata_from_arrow_c_stream(
+            &self.graph,
+            data,
+            src,
+            dst,
+            &metadata,
+            shared_metadata.as_ref(),
+            layer,
+            layer_col,
         )
     }
 
