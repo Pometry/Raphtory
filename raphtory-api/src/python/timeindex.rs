@@ -469,6 +469,11 @@ impl<'source> FromPyObject<'source> for InputTime {
     fn extract_bound(input: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(py_time) = input.downcast::<PyEventTime>() {
             return Ok(py_time.get().try_into_input_time()?);
+        } else if let Ok(opt_py_time) = input.extract::<PyOptionalEventTime>() {
+            return match opt_py_time.inner {
+                Some(t) => Ok(t.try_into_input_time()?),
+                None => Err(PyTypeError::new_err("OptionalEventTime is None")),
+            };
         }
         // Handle list/tuple case: [timestamp, event_id]
         if input.downcast::<PyTuple>().is_ok() || input.downcast::<PyList>().is_ok() {
@@ -517,6 +522,6 @@ impl<'source> FromPyObject<'source> for InputTime {
 
 impl From<TimeError> for PyErr {
     fn from(err: TimeError) -> Self {
-        PyException::new_err(err.to_string())
+        PyRuntimeError::new_err(err.to_string())
     }
 }

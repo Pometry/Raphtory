@@ -2319,14 +2319,14 @@ def test_deletions():
         # deleted at window start
         assert deleted_edge.window(10, 20).is_deleted()
         assert not deleted_edge.window(10, 20).is_valid()
-        assert deleted_edge.window(10, 20).earliest_time is None
-        assert deleted_edge.window(10, 20).latest_time is None
+        assert deleted_edge.window(10, 20).earliest_time.is_none()
+        assert deleted_edge.window(10, 20).latest_time.is_none()
 
         # deleted before window start
         assert deleted_edge.window(15, 20).is_deleted()
         assert not deleted_edge.window(15, 20).is_valid()
-        assert deleted_edge.window(15, 20).earliest_time is None
-        assert deleted_edge.window(15, 20).latest_time is None
+        assert deleted_edge.window(15, 20).earliest_time.is_none()
+        assert deleted_edge.window(15, 20).latest_time.is_none()
 
         # deleted in window
         assert deleted_edge.window(5, 20).is_deleted()

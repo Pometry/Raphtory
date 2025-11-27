@@ -11,7 +11,7 @@ use crate::{
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use numpy::{IntoPyArray, Ix1, PyArray};
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyIndexError, prelude::*};
 use raphtory_api::{
     core::storage::timeindex::{AsTime, EventTime, TimeError},
     iter::{BoxedIter, BoxedLIter, IntoDynBoxed},
@@ -214,6 +214,15 @@ impl PyHistory {
         self.history.iter().any(|x| x == item)
     }
 
+    fn __getitem__(&self, index: usize) -> PyResult<EventTime> {
+        self.history
+            .iter()
+            .nth(index)
+            .ok_or(PyIndexError::new_err(format!(
+                "Index {index} out of bounds"
+            )))
+    }
+
     /// Compare equality with another History, list of EventTime, or a list of time inputs.
     ///
     /// Arguments:
@@ -358,6 +367,15 @@ impl PyHistoryTimestamp {
             HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
             |history_t| history_t.iter_rev()
         )
+    }
+
+    fn __getitem__(&self, index: usize) -> PyResult<i64> {
+        self.history_t
+            .iter()
+            .nth(index)
+            .ok_or(PyIndexError::new_err(format!(
+                "Index {index} out of bounds"
+            )))
     }
 
     /// Check if this HistoryTimestamp object contains a timestamp.
@@ -506,6 +524,16 @@ impl PyHistoryDateTime {
             HistoryDateTime<Arc<dyn InternalHistoryOps>>,
             |history_dt| history_dt.iter_rev()
         )
+    }
+
+    fn __getitem__(&self, index: usize) -> PyResult<DateTime<Utc>> {
+        match self.history_dt.iter().nth(index) {
+            Some(Ok(dt)) => Ok(dt),
+            Some(Err(e)) => Err(PyErr::from(e)),
+            None => Err(PyIndexError::new_err(format!(
+                "Index {index} out of bounds"
+            ))),
+        }
     }
 
     /// Check if this HistoryDateTime object contains a datetime.
@@ -690,6 +718,15 @@ impl PyHistoryEventId {
         )
     }
 
+    fn __getitem__(&self, index: usize) -> PyResult<usize> {
+        self.history_s
+            .iter()
+            .nth(index)
+            .ok_or(PyIndexError::new_err(format!(
+                "Index {index} out of bounds"
+            )))
+    }
+
     /// Check if this HistoryEventId object contains an event id.
     ///
     /// Arguments:
@@ -842,6 +879,15 @@ impl PyIntervals {
             Intervals<Arc<dyn InternalHistoryOps>>,
             |intervals| intervals.iter_rev()
         )
+    }
+
+    fn __getitem__(&self, index: usize) -> PyResult<i64> {
+        self.intervals
+            .iter()
+            .nth(index)
+            .ok_or(PyIndexError::new_err(format!(
+                "Index {index} out of bounds"
+            )))
     }
 
     /// Check if the Intervals object contains an interval value.
