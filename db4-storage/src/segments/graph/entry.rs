@@ -58,7 +58,7 @@ impl<'a> WithTProps<'a> for MemGraphRef<'a> {
         _layer_id: usize,
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a {
-        // Graph properties are stored in DEFAULT_LAYER
+        // TODO: Support multiple layers for graph props.
         self.mem.get_temporal_prop(prop_id).into_iter()
     }
 }

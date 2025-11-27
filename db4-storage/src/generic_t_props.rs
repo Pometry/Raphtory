@@ -57,23 +57,23 @@ where
 /// temporal properties when queried.
 #[derive(Clone, Copy)]
 pub struct GenericTProps<'a, Ref: WithTProps<'a>> {
-    node: Ref,
+    reference: Ref,
     layer_id: Either<&'a LayerIds, usize>,
     prop_id: usize,
 }
 
 impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
-    pub fn new(node: Ref, layer_id: &'a LayerIds, prop_id: usize) -> Self {
+    pub fn new(reference: Ref, layer_id: &'a LayerIds, prop_id: usize) -> Self {
         Self {
-            node,
+            reference,
             layer_id: Either::Left(layer_id),
             prop_id,
         }
     }
 
-    pub fn new_with_layer(node: Ref, layer_id: usize, prop_id: usize) -> Self {
+    pub fn new_with_layer(reference: Ref, layer_id: usize, prop_id: usize) -> Self {
         Self {
-            node,
+            reference,
             layer_id: Either::Right(layer_id),
             prop_id,
         }
@@ -85,9 +85,9 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
     fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
         match self.layer_id {
             Either::Left(layer_ids) => {
-                Either::Left(self.node.into_t_props_layers(layer_ids, prop_id))
+                Either::Left(self.reference.into_t_props_layers(layer_ids, prop_id))
             }
-            Either::Right(layer_id) => Either::Right(self.node.into_t_props(layer_id, prop_id)),
+            Either::Right(layer_id) => Either::Right(self.reference.into_t_props(layer_id, prop_id)),
         }
     }
 }
