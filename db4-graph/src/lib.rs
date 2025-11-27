@@ -13,13 +13,12 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta,
+        graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef,
         GidRef, LayerIds, EID, VID,
     },
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    api::graph::GraphPropOps,
     error::StorageError,
     pages::{
         layer_counter::GraphStats,

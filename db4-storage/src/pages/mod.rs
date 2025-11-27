@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS,
-    api::{edges::EdgeSegmentOps, graph::GraphPropOps, nodes::NodeSegmentOps},
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::strategy::{Config, PersistentStrategy},
@@ -9,7 +9,7 @@ use crate::{
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
-use graph_store::GraphPropsInner;
+use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
@@ -32,15 +32,16 @@ use std::{
     },
 };
 
-pub mod edge_page;
-pub mod edge_store;
-pub mod graph_page;
-pub mod graph_store;
-pub mod layer_counter;
-pub mod locked;
 pub mod node_page;
 pub mod node_store;
+pub mod edge_page;
+pub mod edge_store;
+pub mod graph_prop_page;
+pub mod graph_prop_store;
+pub mod layer_counter;
+pub mod locked;
 pub mod session;
+
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
@@ -50,7 +51,7 @@ pub mod test_utils;
 pub struct GraphStore<NS, ES, GS, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
-    graph: Arc<GraphPropsInner<GS, EXT>>,
+    graph: Arc<GraphPropStorageInner<GS, EXT>>,
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -60,7 +61,7 @@ pub struct GraphStore<NS, ES, GS, EXT: Config> {
 pub struct ReadLockedGraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphPropOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: Config,
 > {
     pub nodes: Arc<ReadLockedNodeStorage<NS, EXT>>,
@@ -71,7 +72,7 @@ pub struct ReadLockedGraphStore<
 impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphPropOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistentStrategy,
 > GraphStore<NS, ES, GS, EXT>
 {
@@ -98,7 +99,7 @@ impl<
         &self.edges
     }
 
-    pub fn graph_props(&self) -> &Arc<GraphPropsInner<GS, EXT>> {
+    pub fn graph_props(&self) -> &Arc<GraphPropStorageInner<GS, EXT>> {
         &self.graph
     }
 
@@ -138,7 +139,7 @@ impl<
         let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata
-        let graph_storage = Arc::new(GraphPropsInner::load(graph_path, ext.clone())?);
+        let graph_storage = Arc::new(GraphPropStorageInner::load(graph_path, ext.clone())?);
 
         for node_type in ext.node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
@@ -182,7 +183,7 @@ impl<
             edge_meta,
             ext.clone(),
         ));
-        let graph_storage = Arc::new(GraphPropsInner::new_with_meta(
+        let graph_storage = Arc::new(GraphPropStorageInner::new_with_meta(
             graph_path.as_deref(),
             graph_meta,
             ext.clone(),

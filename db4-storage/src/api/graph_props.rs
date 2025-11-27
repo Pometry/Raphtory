@@ -1,5 +1,5 @@
 use crate::error::StorageError;
-use crate::segments::graph::segment::MemGraphProps;
+use crate::segments::graph_prop::segment::MemGraphPropSegment;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::meta::Meta;
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -8,13 +8,13 @@ use std::fmt::Debug;
 use std::path::Path;
 use std::sync::Arc;
 
-pub trait GraphPropOps: Send + Sync + Debug + 'static
+pub trait GraphPropSegmentOps: Send + Sync + Debug + 'static
 where
     Self: Sized,
 {
     type Extension;
 
-    type Entry<'a>: GraphEntryOps<'a>;
+    type Entry<'a>: GraphPropEntryOps<'a>;
 
     fn new(meta: Arc<Meta>, path: Option<&Path>, ext: Self::Extension) -> Self;
 
@@ -24,9 +24,9 @@ where
         ext: Self::Extension,
     ) -> Result<Self, StorageError>;
 
-    fn head(&self) -> RwLockReadGuard<'_, MemGraphProps>;
+    fn head(&self) -> RwLockReadGuard<'_, MemGraphPropSegment>;
 
-    fn head_mut(&self) -> RwLockWriteGuard<'_, MemGraphProps>;
+    fn head_mut(&self) -> RwLockWriteGuard<'_, MemGraphPropSegment>;
 
     fn entry(&self) -> Self::Entry<'_>;
 
@@ -38,13 +38,13 @@ where
 
     fn notify_write(
         &self,
-        mem_segment: &mut RwLockWriteGuard<'_, MemGraphProps>,
+        mem_segment: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
 }
 
 /// Methods for reading graph properties and metadata from storage.
-pub trait GraphEntryOps<'a>: Send + Sync + 'a {
-    type Ref<'b>: GraphRefOps<'b>
+pub trait GraphPropEntryOps<'a>: Send + Sync + 'a {
+    type Ref<'b>: GraphPropRefOps<'b>
     where
         'a: 'b,
         Self: 'b;
@@ -55,7 +55,7 @@ pub trait GraphEntryOps<'a>: Send + Sync + 'a {
 }
 
 /// Lightweight reference for reading graph properties and metadata.
-pub trait GraphRefOps<'a>: Copy + Clone + Send + Sync + 'a {
+pub trait GraphPropRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type TProps: TPropOps<'a>;
 
     fn get_temporal_prop(self, prop_id: usize) -> Self::TProps;

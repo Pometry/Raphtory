@@ -23,7 +23,7 @@ use raphtory_storage::{
 };
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
-use storage::api::graph::{GraphEntryOps, GraphRefOps};
+use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 use storage::gen_ts::ALL_LAYERS;
 
 impl GraphTimeSemanticsOps for GraphStorage {

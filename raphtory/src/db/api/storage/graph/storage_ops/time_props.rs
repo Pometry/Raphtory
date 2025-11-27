@@ -14,7 +14,7 @@ use raphtory_api::{
     },
     iter::IntoDynBoxed,
 };
-use storage::api::graph::{GraphEntryOps, GraphRefOps};
+use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
 impl InternalTemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {

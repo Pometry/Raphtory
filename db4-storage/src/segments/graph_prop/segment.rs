@@ -9,20 +9,20 @@ use std::sync::Arc;
 
 /// In-memory segment that contains graph temporal properties and graph metadata.
 #[derive(Debug)]
-pub struct MemGraphProps {
+pub struct MemGraphPropSegment {
     /// Layers containing graph properties and metadata.
-    layers: Vec<SegmentContainer<GraphSegmentEntry>>,
+    layers: Vec<SegmentContainer<UnitEntry>>,
 }
 
 /// A unit-like struct for use with `SegmentContainer`.
 /// Graph properties and metadata are already stored in `SegmentContainer`,
 /// hence this struct is empty.
 #[derive(Debug, Default)]
-pub struct GraphSegmentEntry(usize);
+pub struct UnitEntry(usize);
 
-// GraphSegmentEntry does not store data, but HasRow has to be implemented
+// `UnitEntry` does not store data, but HasRow has to be implemented
 // for SegmentContainer to work.
-impl HasRow for GraphSegmentEntry {
+impl HasRow for UnitEntry {
     fn row(&self) -> usize {
         self.0
     }
@@ -32,7 +32,7 @@ impl HasRow for GraphSegmentEntry {
     }
 }
 
-impl MemGraphProps {
+impl MemGraphPropSegment {
     /// Graph segments only have a single row.
     pub const DEFAULT_ROW: usize = 0;
 
@@ -56,7 +56,7 @@ impl MemGraphProps {
     pub fn get_or_create_layer(
         &mut self,
         layer_id: usize,
-    ) -> &mut SegmentContainer<GraphSegmentEntry> {
+    ) -> &mut SegmentContainer<UnitEntry> {
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -68,11 +68,11 @@ impl MemGraphProps {
         &mut self.layers[layer_id]
     }
 
-    pub fn layers(&self) -> &Vec<SegmentContainer<GraphSegmentEntry>> {
+    pub fn layers(&self) -> &Vec<SegmentContainer<UnitEntry>> {
         &self.layers
     }
 
-    pub fn layers_mut(&mut self) -> &mut Vec<SegmentContainer<GraphSegmentEntry>> {
+    pub fn layers_mut(&mut self) -> &mut Vec<SegmentContainer<UnitEntry>> {
         &mut self.layers
     }
 

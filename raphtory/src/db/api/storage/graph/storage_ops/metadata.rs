@@ -3,7 +3,7 @@ use crate::{
     prelude::Prop,
 };
 use raphtory_api::{core::storage::arc_str::ArcStr, iter::IntoDynBoxed};
-use storage::api::graph::{GraphEntryOps, GraphRefOps};
+use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
 use super::GraphStorage;
 

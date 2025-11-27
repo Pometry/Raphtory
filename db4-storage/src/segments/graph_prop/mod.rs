@@ -1,11 +1,11 @@
 pub mod entry;
 pub mod segment;
 
-use crate::api::graph::GraphPropOps;
+use crate::api::graph_props::GraphPropSegmentOps;
 use crate::error::StorageError;
 use crate::persist::strategy::NoOpStrategy;
-use crate::segments::graph::entry::MemGraphEntry;
-use crate::segments::graph::segment::MemGraphProps;
+use crate::segments::graph_prop::entry::MemGraphPropEntry;
+use crate::segments::graph_prop::segment::MemGraphPropSegment;
 use parking_lot::RwLock;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::meta::Meta;
@@ -13,13 +13,13 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-/// `GraphSegmentView` manages graph temporal properties and graph metadata
+/// `GraphPropSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
 #[derive(Debug)]
-pub struct GraphSegmentView {
+pub struct GraphPropSegmentView {
     /// In-memory segment that contains the latest graph properties
     /// and graph metadata writes.
-    head: Arc<RwLock<MemGraphProps>>,
+    head: Arc<RwLock<MemGraphPropSegment>>,
 
     /// Estimated size of the segment in bytes.
     est_size: AtomicUsize,
@@ -27,14 +27,14 @@ pub struct GraphSegmentView {
     is_dirty: AtomicBool,
 }
 
-impl GraphPropOps for GraphSegmentView {
+impl GraphPropSegmentOps for GraphPropSegmentView {
     type Extension = NoOpStrategy;
 
-    type Entry<'a> = MemGraphEntry<'a>;
+    type Entry<'a> = MemGraphPropEntry<'a>;
 
     fn new(meta: Arc<Meta>, _path: Option<&Path>, _ext: Self::Extension) -> Self {
         Self {
-            head: Arc::new(RwLock::new(MemGraphProps::new_with_meta(meta))),
+            head: Arc::new(RwLock::new(MemGraphPropSegment::new_with_meta(meta))),
             est_size: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
         }
@@ -48,18 +48,18 @@ impl GraphPropOps for GraphSegmentView {
         todo!()
     }
 
-    fn head(&self) -> RwLockReadGuard<'_, MemGraphProps> {
+    fn head(&self) -> RwLockReadGuard<'_, MemGraphPropSegment> {
         self.head.read()
     }
 
-    fn head_mut(&self) -> RwLockWriteGuard<'_, MemGraphProps> {
+    fn head_mut(&self) -> RwLockWriteGuard<'_, MemGraphPropSegment> {
         self.head.write()
     }
 
     fn entry(&self) -> Self::Entry<'_> {
         let head = self.head.read();
 
-        MemGraphEntry::new(head)
+        MemGraphPropEntry::new(head)
     }
 
     fn increment_est_size(&self, size: usize) {
@@ -77,7 +77,7 @@ impl GraphPropOps for GraphSegmentView {
 
     fn notify_write(
         &self,
-        _mem_segment: &mut RwLockWriteGuard<'_, MemGraphProps>,
+        _mem_segment: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }

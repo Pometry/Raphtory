@@ -3,7 +3,7 @@ use super::{
 };
 use crate::{
     LocalPOS,
-    api::{edges::EdgeSegmentOps, graph::GraphPropOps, nodes::NodeSegmentOps},
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     persist::strategy::{Config, PersistentStrategy},
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
 };
@@ -14,7 +14,7 @@ use raphtory_core::{
     storage::timeindex::AsTime,
 };
 
-pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, GS: GraphPropOps, EXT: Config> {
+pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, GS: GraphPropSegmentOps, EXT: Config> {
     node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
     graph: &'a GraphStore<NS, ES, GS, EXT>,
@@ -24,7 +24,7 @@ impl<
     'a,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphPropOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistentStrategy,
 > WriteSession<'a, NS, ES, GS, EXT>
 {

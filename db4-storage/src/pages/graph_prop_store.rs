@@ -1,8 +1,8 @@
 use raphtory_api::core::entities::properties::meta::Meta;
 
-use crate::api::graph::GraphPropOps;
+use crate::api::graph_props::GraphPropSegmentOps;
 use crate::error::StorageError;
-use crate::pages::graph_page::writer::GraphWriter;
+use crate::pages::graph_prop_page::writer::GraphPropWriter;
 use crate::persist::strategy::Config;
 
 use std::path::{Path, PathBuf};
@@ -10,13 +10,13 @@ use std::sync::Arc;
 
 /// Backing store for graph temporal properties and graph metadata.
 #[derive(Debug)]
-pub struct GraphPropsInner<GS, EXT> {
-    /// The graph segment that contains all graph properties and graph metadata.
+pub struct GraphPropStorageInner<GS, EXT> {
+    /// The graph props segment that contains all graph properties and graph metadata.
     /// Unlike node and edge segments, which are split into multiple segments,
-    /// there is always only one graph segment.
+    /// there is always only one graph props segment.
     page: Arc<GS>,
 
-    /// Stores graph prop metadata (prop name -> prop id mappings, etc).
+    /// Stores graph prop metadata (prop name -> prop id mappings).
     graph_meta: Arc<Meta>,
 
     path: Option<PathBuf>,
@@ -24,7 +24,7 @@ pub struct GraphPropsInner<GS, EXT> {
     ext: EXT,
 }
 
-impl<GS: GraphPropOps<Extension = EXT>, EXT: Config> GraphPropsInner<GS, EXT> {
+impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: Config> GraphPropStorageInner<GS, EXT> {
     pub fn new_with_meta(path: Option<&Path>, graph_meta: Arc<Meta>, ext: EXT) -> Self {
         let page = Arc::new(GS::new(graph_meta.clone(), path, ext.clone()));
 
@@ -54,9 +54,9 @@ impl<GS: GraphPropOps<Extension = EXT>, EXT: Config> GraphPropsInner<GS, EXT> {
         self.page.entry()
     }
 
-    pub fn writer(&self) -> GraphWriter<'_, GS> {
+    pub fn writer(&self) -> GraphPropWriter<'_, GS> {
         let head = self.page.head_mut();
         let graph_props = &self.page;
-        GraphWriter::new(graph_props, head)
+        GraphPropWriter::new(graph_props, head)
     }
 }

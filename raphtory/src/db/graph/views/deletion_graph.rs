@@ -33,7 +33,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::api::graph::{GraphEntryOps, GraphRefOps};
+use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///

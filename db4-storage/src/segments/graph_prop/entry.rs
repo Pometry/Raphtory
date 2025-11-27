@@ -1,6 +1,6 @@
-use crate::api::graph::{GraphEntryOps, GraphRefOps};
+use crate::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 use crate::generic_t_props::WithTProps;
-use crate::segments::graph::segment::MemGraphProps;
+use crate::segments::graph_prop::segment::MemGraphPropSegment;
 use crate::GraphTProps;
 use parking_lot::RwLockReadGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -8,18 +8,18 @@ use raphtory_core::entities::properties::tprop::TPropCell;
 use std::ops::Deref;
 
 /// A borrowed view enabling read operations on an in-memory graph segment.
-pub struct MemGraphEntry<'a> {
-    mem: RwLockReadGuard<'a, MemGraphProps>,
+pub struct MemGraphPropEntry<'a> {
+    mem: RwLockReadGuard<'a, MemGraphPropSegment>,
 }
 
-impl<'a> MemGraphEntry<'a> {
-    pub fn new(mem: RwLockReadGuard<'a, MemGraphProps>) -> Self {
+impl<'a> MemGraphPropEntry<'a> {
+    pub fn new(mem: RwLockReadGuard<'a, MemGraphPropSegment>) -> Self {
         Self { mem }
     }
 }
 
-impl<'a> GraphEntryOps<'a> for MemGraphEntry<'a> {
-    type Ref<'b> = MemGraphRef<'b>
+impl<'a> GraphPropEntryOps<'a> for MemGraphPropEntry<'a> {
+    type Ref<'b> = MemGraphPropRef<'b>
     where
         'a: 'b;
 
@@ -27,7 +27,7 @@ impl<'a> GraphEntryOps<'a> for MemGraphEntry<'a> {
     where
         'a: 'b,
     {
-        MemGraphRef {
+        MemGraphPropRef {
             mem: self.mem.deref(),
         }
     }
@@ -35,17 +35,17 @@ impl<'a> GraphEntryOps<'a> for MemGraphEntry<'a> {
 
 /// A lightweight, copyable reference to graph properties.
 #[derive(Copy, Clone, Debug)]
-pub struct MemGraphRef<'a> {
-    mem: &'a MemGraphProps,
+pub struct MemGraphPropRef<'a> {
+    mem: &'a MemGraphPropSegment,
 }
 
-impl<'a> MemGraphRef<'a> {
-    pub fn new(mem: &'a MemGraphProps) -> Self {
+impl<'a> MemGraphPropRef<'a> {
+    pub fn new(mem: &'a MemGraphPropSegment) -> Self {
         Self { mem }
     }
 }
 
-impl<'a> WithTProps<'a> for MemGraphRef<'a> {
+impl<'a> WithTProps<'a> for MemGraphPropRef<'a> {
     type TProp = TPropCell<'a>;
 
     fn num_layers(&self) -> usize {
@@ -63,7 +63,7 @@ impl<'a> WithTProps<'a> for MemGraphRef<'a> {
     }
 }
 
-impl<'a> GraphRefOps<'a> for MemGraphRef<'a> {
+impl<'a> GraphPropRefOps<'a> for MemGraphPropRef<'a> {
     type TProps = GraphTProps<'a>;
 
     fn get_temporal_prop(self, prop_id: usize) -> Self::TProps {

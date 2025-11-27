@@ -18,9 +18,9 @@ use std::{
     sync::Arc,
 };
 
-pub mod edge;
-pub mod graph;
 pub mod node;
+pub mod edge;
+pub mod graph_prop;
 
 pub mod additions;
 

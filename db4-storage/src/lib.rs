@@ -11,7 +11,8 @@ use crate::{
         PropAdditionCellsRef,
     },
     pages::{
-        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
+        GraphStore, ReadLockedGraphStore,
+        edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
     persist::strategy::NoOpStrategy,
@@ -21,7 +22,7 @@ use crate::{
             entry::{MemEdgeEntry, MemEdgeRef},
             segment::EdgeSegmentView,
         },
-        graph::entry::{MemGraphEntry, MemGraphRef},
+        graph_prop::entry::{MemGraphPropEntry, MemGraphPropRef},
         node::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
@@ -32,7 +33,7 @@ use crate::{
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
 use segments::{
-    edge::segment::MemEdgeSegment, graph::GraphSegmentView, node::segment::MemNodeSegment,
+    edge::segment::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::segment::MemNodeSegment,
 };
 
 pub mod api;
@@ -49,7 +50,7 @@ pub mod wal;
 pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
-pub type GS = GraphSegmentView;
+pub type GS = GraphPropSegmentView;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS, P>;
 
 pub type WalImpl = NoWal;
@@ -61,10 +62,10 @@ pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<ES<P>, P>;
 
 pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
 pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
-pub type GraphEntry<'a> = MemGraphEntry<'a>;
+pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
-pub type GraphEntryRef<'a> = MemGraphRef<'a>;
+pub type GraphPropEntryRef<'a> = MemGraphPropRef<'a>;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
@@ -74,7 +75,7 @@ pub type EdgeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemEdgeRef<
 
 pub type NodeTProps<'a> = GenericTProps<'a, MemNodeRef<'a>>;
 pub type EdgeTProps<'a> = GenericTProps<'a, MemEdgeRef<'a>>;
-pub type GraphTProps<'a> = GenericTProps<'a, MemGraphRef<'a>>;
+pub type GraphTProps<'a> = GenericTProps<'a, MemGraphPropRef<'a>>;
 
 pub mod error {
     use std::{path::PathBuf, sync::Arc};
