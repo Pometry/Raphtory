@@ -12,7 +12,6 @@ rust-version.workspace = true
 edition.workspace = true
 
 [dependencies]
-rayon.workspace = true
 boxcar.workspace = true
 storage.workspace = true
 raphtory-api.workspace = true

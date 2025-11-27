@@ -146,18 +146,14 @@ impl<
         }
 
         let t_len = edge_storage.t_len();
-        let graph = Self {
+        Ok(Self {
             nodes: node_storage,
             edges: edge_storage,
             graph: graph_storage,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
-        };
-        let count1 = graph.edges().iter(0).count();
-        let count2 = graph.edges().num_edges();
-        assert_eq!(count1, count2);
-        Ok(graph)
+        })
     }
 
     pub fn new_with_meta(
