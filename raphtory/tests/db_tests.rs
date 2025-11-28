@@ -2145,6 +2145,44 @@ fn test_graph_temporal_props() {
 }
 
 #[test]
+fn test_graph_temporal_props_with_maps() {
+    let g = Graph::new();
+
+    let style_with_size = Prop::map(vec![
+        ("fill", Prop::str("red")),
+        ("size", Prop::I64(5))
+    ]);
+
+    let style_with_opacity = Prop::map(vec![
+        ("fill", Prop::str("red")),
+        ("opacity", Prop::F64(0.4))
+    ]);
+
+    // Add temporal properties with nested maps at different timestamps
+    g.add_properties(0, vec![("style", style_with_size.clone())]).unwrap();
+    g.add_properties(1, vec![("style", style_with_opacity.clone())]).unwrap();
+    g.add_properties(2, vec![("style", style_with_size.clone())]).unwrap();
+    g.add_properties(3, vec![("style", style_with_opacity.clone())]).unwrap();
+
+    // Verify properties can be retrieved at their timestamps
+    let actual_t0 = g.properties().temporal().get("style").unwrap().at(0);
+    assert_eq!(actual_t0, Some(style_with_size.clone()));
+
+    let actual_t1 = g.properties().temporal().get("style").unwrap().at(1);
+    assert_eq!(actual_t1, Some(style_with_opacity.clone()));
+
+    let actual_t2 = g.properties().temporal().get("style").unwrap().at(2);
+    assert_eq!(actual_t2, Some(style_with_size.clone()));
+
+    let actual_t3 = g.properties().temporal().get("style").unwrap().at(3);
+    assert_eq!(actual_t3, Some(style_with_opacity.clone()));
+
+    // Verify history returns all timestamps
+    let history: Vec<_> = g.properties().temporal().get("style").unwrap().history().collect();
+    assert_eq!(history, vec![0, 1, 2, 3]);
+}
+
+#[test]
 fn test_temporal_edge_props_window() {
     let graph = Graph::new();
     graph
