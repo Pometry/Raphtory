@@ -9,7 +9,7 @@ try:
     import fireducks.pandas as fpd
 except ModuleNotFoundError:
     fpd = None
-from raphtory import Graph
+from raphtory import Graph, PersistentGraph
 
 base_dir = Path(__file__).parent
 EDGES_FILE = os.path.join(base_dir, "data/network_traffic_edges.csv")
@@ -35,9 +35,10 @@ def dataframes():
 
     return data
 
-def test_edge_ingestion_equivalence(dataframes):
+@pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
+def test_edge_ingestion_equivalence(dataframes, graph_type):
     # reference graph
-    g_pd = Graph()
+    g_pd = graph_type()
     g_pd.load_edges_from_pandas(
         df=dataframes["pandas"]["edges"],
         time="timestamp",
@@ -48,7 +49,7 @@ def test_edge_ingestion_equivalence(dataframes):
     )
 
     # Pandas streaming
-    g_pd_stream = Graph()
+    g_pd_stream = graph_type()
     g_pd_stream.load_edges_from_df(
         data=dataframes["pandas"]["edges"],
         time="timestamp",
@@ -60,7 +61,7 @@ def test_edge_ingestion_equivalence(dataframes):
     assert g_pd == g_pd_stream, "Pandas streaming edge ingestion failed equivalence check"
 
     # Polars
-    g_pl = Graph()
+    g_pl = graph_type()
     g_pl.load_edges_from_df(
         data=dataframes["polars"]["edges"],
         time="timestamp",
@@ -72,7 +73,7 @@ def test_edge_ingestion_equivalence(dataframes):
     assert g_pd == g_pl, "Polars edge ingestion failed equivalence check"
 
     # Arrow
-    g_arrow = Graph()
+    g_arrow = graph_type()
     g_arrow.load_edges_from_df(
         data=dataframes["arrow"]["edges"],
         time="timestamp",
@@ -84,7 +85,7 @@ def test_edge_ingestion_equivalence(dataframes):
     assert g_pd == g_arrow, "Arrow edge ingestion failed equivalence check"
 
     # DuckDB
-    g_duckdb = Graph()
+    g_duckdb = graph_type()
     g_duckdb.load_edges_from_df(
         data=dataframes["duckdb"]["edges"],
         time="timestamp",
@@ -97,7 +98,7 @@ def test_edge_ingestion_equivalence(dataframes):
 
     if fpd:
         # FireDucks
-        g_fd = Graph()
+        g_fd = graph_type()
         g_fd.load_edges_from_df(
             data=dataframes["fireducks"]["edges"],
             time="timestamp",
@@ -109,9 +110,10 @@ def test_edge_ingestion_equivalence(dataframes):
         assert g_pd == g_fd, "FireDucks edge ingestion failed equivalence check"
 
 
-def test_node_ingestion_equivalence(dataframes):
+@pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
+def test_node_ingestion_equivalence(dataframes, graph_type):
     # reference graph
-    g_pd = Graph()
+    g_pd = graph_type()
     g_pd.load_nodes_from_pandas(
         df=dataframes["pandas"]["nodes"],
         time="timestamp",
@@ -121,7 +123,7 @@ def test_node_ingestion_equivalence(dataframes):
     )
 
     # Pandas streaming
-    g_pd_stream = Graph()
+    g_pd_stream = graph_type()
     g_pd_stream.load_nodes_from_df(
         data=dataframes["pandas"]["nodes"],
         time="timestamp",
@@ -132,7 +134,7 @@ def test_node_ingestion_equivalence(dataframes):
     assert g_pd == g_pd_stream, "Pandas streaming node ingestion failed equivalence check"
 
     # Polars
-    g_pl = Graph()
+    g_pl = graph_type()
     g_pl.load_nodes_from_df(
         data=dataframes["polars"]["nodes"],
         time="timestamp",
@@ -143,7 +145,7 @@ def test_node_ingestion_equivalence(dataframes):
     assert g_pd == g_pl, "Polars node ingestion failed equivalence check"
 
     # Arrow
-    g_arrow = Graph()
+    g_arrow = graph_type()
     g_arrow.load_nodes_from_df(
         data=dataframes["arrow"]["nodes"],
         time="timestamp",
@@ -154,7 +156,7 @@ def test_node_ingestion_equivalence(dataframes):
     assert g_pd == g_arrow, "Arrow node ingestion failed equivalence check"
 
     # DuckDB
-    g_duckdb = Graph()
+    g_duckdb = graph_type()
     g_duckdb.load_nodes_from_df(
         data=dataframes["duckdb"]["nodes"],
         time="timestamp",
@@ -167,7 +169,7 @@ def test_node_ingestion_equivalence(dataframes):
     if fpd:
         # FireDucks
         print("Testing fireducks...")
-        g_fd = Graph()
+        g_fd = graph_type()
         g_fd.load_nodes_from_df(
         data=dataframes["fireducks"]["nodes"],
         time="timestamp",
@@ -177,9 +179,10 @@ def test_node_ingestion_equivalence(dataframes):
         )
         assert g_pd == g_fd, "FireDucks node ingestion failed equivalence check"
 
-def test_metadata_update_equivalence(dataframes):
+@pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
+def test_metadata_update_equivalence(dataframes, graph_type):
     # reference graph
-    g_pd = Graph()
+    g_pd = graph_type()
     g_pd.load_edges_from_pandas(
         df=dataframes["pandas"]["edges"],
         time="timestamp",
@@ -205,7 +208,7 @@ def test_metadata_update_equivalence(dataframes):
     )
 
     # Pandas streaming
-    g_pd_stream = Graph()
+    g_pd_stream = graph_type()
     g_pd_stream.load_edges_from_df(
         data=dataframes["pandas"]["edges"],
         time="timestamp",
@@ -232,7 +235,7 @@ def test_metadata_update_equivalence(dataframes):
     assert g_pd == g_pd_stream, "Pandas streaming metadata ingestion failed equivalence check"
 
     # Polars
-    g_pl = Graph()
+    g_pl = graph_type()
     g_pl.load_edges_from_df(
         data=dataframes["polars"]["edges"],
         time="timestamp",
@@ -259,7 +262,7 @@ def test_metadata_update_equivalence(dataframes):
     assert g_pd == g_pl, "Polars metadata ingestion failed equivalence check"
 
     # Arrow
-    g_arrow = Graph()
+    g_arrow = graph_type()
     g_arrow.load_edges_from_df(
         data=dataframes["arrow"]["edges"],
         time="timestamp",
@@ -286,7 +289,7 @@ def test_metadata_update_equivalence(dataframes):
     assert g_pd == g_arrow, "Arrow metadata ingestion failed equivalence check"
 
     # DuckDB
-    g_duckdb = Graph()
+    g_duckdb = graph_type()
     g_duckdb.load_edges_from_df(
         data=dataframes["duckdb"]["edges"],
         time="timestamp",
@@ -314,7 +317,7 @@ def test_metadata_update_equivalence(dataframes):
 
     if fpd:
         # FireDucks
-        g_fd = Graph()
+        g_fd = graph_type()
         g_fd.load_edges_from_df(
             data=dataframes["fireducks"]["edges"],
             time="timestamp",
