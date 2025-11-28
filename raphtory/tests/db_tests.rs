@@ -228,7 +228,7 @@ fn add_edge_grows_graph_edge_len() {
 }
 
 #[test]
-fn simle_add_edge() {
+fn simple_add_edge() {
     let edges = vec![(1, 1, 2), (2, 2, 3), (3, 3, 4)];
 
     let g = Graph::new();
@@ -2040,6 +2040,50 @@ fn test_graph_metadata() {
 }
 
 #[test]
+fn test_graph_metadata_with_maps() {
+    let g = Graph::new();
+
+    let style_with_size = Prop::map(vec![
+        ("fill", Prop::str("red")),
+        ("size", Prop::I64(5)),
+    ]);
+
+    let style_with_opacity = Prop::map(vec![
+        ("fill", Prop::str("red")),
+        ("opacity", Prop::F64(0.4)),
+    ]);
+
+    // Add first metadata and verify
+    g.add_metadata(vec![("style", style_with_size.clone())])
+        .unwrap();
+    let actual = g.metadata().get("style").unwrap();
+    assert_eq!(actual, style_with_size.clone());
+
+    // Update metadata and verify
+    g.update_metadata(vec![("style", style_with_opacity.clone())])
+        .unwrap();
+    let actual = g.metadata().get("style").unwrap();
+    assert_eq!(actual, style_with_opacity.clone());
+
+    // Add another metadata property and verify
+    let config = Prop::map(vec![
+        ("theme", Prop::str("dark")),
+        ("version", Prop::I64(2)),
+    ]);
+    g.add_metadata(vec![("config", config.clone())]).unwrap();
+    let actual_config = g.metadata().get("config").unwrap();
+    assert_eq!(actual_config, config.clone());
+
+    // Verify style is still the updated value
+    let actual_style = g.metadata().get("style").unwrap();
+    assert_eq!(actual_style, style_with_opacity.clone());
+
+    // Verify all metadata keys exist
+    let keys: Vec<_> = g.metadata().keys().sorted().collect();
+    assert_eq!(keys, vec!["config", "style"]);
+}
+
+#[test]
 fn test_graph_metadata_names() {
     proptest!(|(u64_props: HashMap<String, u64>)| {
         let g = Graph::new();
@@ -2186,6 +2230,7 @@ fn test_graph_temporal_props_with_maps() {
         .unwrap()
         .history()
         .collect();
+
     assert_eq!(history, vec![0, 1, 2, 3]);
 }
 
