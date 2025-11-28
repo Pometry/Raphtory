@@ -124,6 +124,7 @@ nav:
           - user-guide/algorithms/3_node-algorithms.md
           - user-guide/algorithms/4_view-algorithms.md
           - user-guide/algorithms/5_community_detection.md
+          - user-guide/algorithms/6_vectorisation.md
       - Exporting:
           - user-guide/export/0_dummy_index.md
           - user-guide/export/1_intro.md

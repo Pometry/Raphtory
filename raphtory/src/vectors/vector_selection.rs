@@ -195,17 +195,22 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     /// Add the top `limit` adjacent entities with higher score for `query` to the selection
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
-    ///   1. All the entities 1 hop away of some of the entities included on the selection (and
-    /// not already selected) are marked as candidates.
-    ///   2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
+    ///
+    /// 1. All the entities 1 hop away of some of the entities included on the selection (and
+    ///    not already selected) are marked as candidates.
+    /// 2. Those candidates are added to the selection in descending order according to the
+    ///    similarity score obtained against the `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available
     ///
-    /// # Arguments
-    ///   * query - the embedding to score against
-    ///   * window - the window where documents need to belong to in order to be considered
+    /// Args:
+    ///   query (str | list): the text or the embedding to score against
+    ///   limit (int): the number of documents to add
+    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///     None:
     pub fn expand_entities_by_similarity(
         &mut self,
         query: &Embedding,
