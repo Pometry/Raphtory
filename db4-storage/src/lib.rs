@@ -49,13 +49,13 @@ pub mod wal;
 pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
-pub type GS = GraphPropSegmentView;
-pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS, P>;
+pub type GS<P> = GraphPropSegmentView<P>;
+pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
 pub type WalImpl = NoWal;
 pub type GIDResolver = MappingResolver;
 
-pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS, P>;
+pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NS<P>, P>;
 pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<ES<P>, P>;
 

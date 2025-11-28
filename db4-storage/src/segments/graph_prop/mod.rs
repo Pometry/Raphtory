@@ -4,7 +4,7 @@ pub mod segment;
 use crate::{
     api::graph_props::GraphPropSegmentOps,
     error::StorageError,
-    persist::strategy::NoOpStrategy,
+    persist::strategy::Config,
     segments::graph_prop::{entry::MemGraphPropEntry, segment::MemGraphPropSegment},
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -20,7 +20,7 @@ use std::{
 /// `GraphPropSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
 #[derive(Debug)]
-pub struct GraphPropSegmentView {
+pub struct GraphPropSegmentView<P: Config> {
     /// In-memory segment that contains the latest graph properties
     /// and graph metadata writes.
     head: Arc<RwLock<MemGraphPropSegment>>,
@@ -29,23 +29,26 @@ pub struct GraphPropSegmentView {
     est_size: AtomicUsize,
 
     is_dirty: AtomicBool,
+
+    _persistent: P,
 }
 
-impl GraphPropSegmentOps for GraphPropSegmentView {
-    type Extension = NoOpStrategy;
+impl<P: Config> GraphPropSegmentOps for GraphPropSegmentView<P> {
+    type Extension = P;
 
     type Entry<'a> = MemGraphPropEntry<'a>;
 
-    fn new(meta: Arc<Meta>, _path: Option<&Path>, _ext: Self::Extension) -> Self {
+    fn new(meta: Arc<Meta>, _path: Option<&Path>, ext: Self::Extension) -> Self {
         Self {
             head: Arc::new(RwLock::new(MemGraphPropSegment::new_with_meta(meta))),
             est_size: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
+            _persistent: ext,
         }
     }
 
     fn load(
-        meta: Arc<Meta>,
+        _meta: Arc<Meta>,
         _path: impl AsRef<Path>,
         _ext: Self::Extension,
     ) -> Result<Self, StorageError> {

@@ -105,7 +105,7 @@ impl Config for NoOpStrategy {
 impl PersistentStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
-    type GS = GraphPropSegmentView;
+    type GS = GraphPropSegmentView<Self>;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
