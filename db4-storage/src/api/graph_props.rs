@@ -1,12 +1,7 @@
-use crate::error::StorageError;
-use crate::segments::graph_prop::segment::MemGraphPropSegment;
+use crate::{error::StorageError, segments::graph_prop::segment::MemGraphPropSegment};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::entities::properties::meta::Meta;
-use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_api::core::entities::properties::tprop::TPropOps;
-use std::fmt::Debug;
-use std::path::Path;
-use std::sync::Arc;
+use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
+use std::{fmt::Debug, path::Path, sync::Arc};
 
 pub trait GraphPropSegmentOps: Send + Sync + Debug + 'static
 where
