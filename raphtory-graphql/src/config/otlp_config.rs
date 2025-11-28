@@ -9,6 +9,11 @@ use serde::Deserialize;
 use std::time::Duration;
 
 pub const DEFAULT_TRACING_ENABLED: bool = false;
+
+pub const TRACE_LEVELS: [&str; 2] = ["Complete", "Essential"];
+
+pub const DEFAULT_TRACING_LEVEL: &'static str = "Complete";
+
 pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
 pub const DEFAULT_OTLP_AGENT_PORT: &'static str = "4317";
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
@@ -16,6 +21,7 @@ pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
 #[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize)]
 pub struct TracingConfig {
     pub tracing_enabled: bool,
+    pub tracing_level: String,
     pub otlp_agent_host: String,
     pub otlp_agent_port: String,
     pub otlp_tracing_service_name: String,
@@ -25,6 +31,7 @@ impl Default for TracingConfig {
     fn default() -> Self {
         Self {
             tracing_enabled: DEFAULT_TRACING_ENABLED,
+            tracing_level: DEFAULT_TRACING_LEVEL.to_string(),
             otlp_agent_host: DEFAULT_OTLP_AGENT_HOST.to_owned(),
             otlp_agent_port: DEFAULT_OTLP_AGENT_PORT.to_owned(),
             otlp_tracing_service_name: DEFAULT_OTLP_TRACING_SERVICE_NAME.to_owned(),
@@ -44,6 +51,14 @@ impl TracingConfig {
                         self.otlp_agent_host
                     ),
                 ));
+            }
+
+            if !TRACE_LEVELS.contains(&self.tracing_level.as_str()) {
+                let allowed = TRACE_LEVELS.join(", ");
+                return Err(std::io::Error::other(format!(
+                    "Trace level '{}' is invalid. Allowed values: {}",
+                    self.tracing_level, allowed
+                )));
             }
             match SpanExporter::builder()
                 .with_tonic()
@@ -66,9 +81,10 @@ impl TracingConfig {
                         .build();
                     println!(
                         // info!() here does not work since tracing is not enabled yet
-                        "Sending traces to {}:{}",
+                        "Sending traces to {}:{} with tracing level: `{}`",
                         self.otlp_agent_host.clone(),
-                        self.otlp_agent_port.clone()
+                        self.otlp_agent_port.clone(),
+                        self.tracing_level.clone()
                     );
                     Ok(Some(tracer_provider))
                 }

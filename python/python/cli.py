@@ -12,6 +12,7 @@ def run_server(args):
         cache_tti_seconds=args.cache_tti_seconds,
         log_level=args.log_level,
         tracing=args.tracing,
+        tracing_level=args.tracing_level,
         otlp_agent_host=args.otlp_agent_host,
         otlp_agent_port=args.otlp_agent_port,
         otlp_tracing_service_name=args.otlp_tracing_service_name,
@@ -44,6 +45,11 @@ def main():
     )
     server_parser.add_argument("--log-level", type=str, help="Log level")
     server_parser.add_argument("--tracing", action="store_true", help="Enable tracing")
+    server_parser.add_argument(
+        "--tracing-level",
+        type=str,
+        help="Set tracing level. Options are 'Complete' for full traces through each query and 'Essential' for summary execution times.",
+    )
     server_parser.add_argument("--otlp-agent-host", type=str, help="OTLP agent host")
     server_parser.add_argument("--otlp-agent-port", type=str, help="OTLP agent port")
     server_parser.add_argument(

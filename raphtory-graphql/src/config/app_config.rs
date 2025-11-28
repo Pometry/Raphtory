@@ -65,6 +65,11 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_tracing_level(mut self, tracing_level: String) -> Self {
+        self.tracing.tracing_level = tracing_level;
+        self
+    }
+
     pub fn with_otlp_agent_host(mut self, otlp_agent_host: String) -> Self {
         self.tracing.otlp_agent_host = otlp_agent_host;
         self
@@ -156,6 +161,10 @@ pub fn load_config(
 
     if let Ok(tracing) = settings.get::<bool>("tracing.tracing_enabled") {
         app_config_builder = app_config_builder.with_tracing(tracing);
+    }
+
+    if let Ok(tracing_level) = settings.get::<String>("tracing.tracing_level") {
+        app_config_builder = app_config_builder.with_tracing_level(tracing_level);
     }
 
     if let Ok(otlp_agent_host) = settings.get::<String>("tracing.otlp_agent_host") {

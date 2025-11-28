@@ -19,6 +19,7 @@ mod tests {
 
             [tracing]
             tracing_enabled = true
+            tracing_level = Essential
 
             [cache]
             tti_seconds = 1000
