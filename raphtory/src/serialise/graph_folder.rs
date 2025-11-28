@@ -840,6 +840,12 @@ mod tests {
             .add_edge(4, 1, 3, [("test prop 4", true)], None)
             .unwrap();
 
+        graph
+            .node(1)
+            .unwrap()
+            .add_updates(5, [("test node prop", 5i32)])
+            .unwrap();
+
         let temp_folder = tempfile::TempDir::new().unwrap();
         let folder = temp_folder.path().join("graph");
         let graph_folder = GraphFolder::from(&folder);

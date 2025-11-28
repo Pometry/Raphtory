@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 pub fn prop_type() -> impl Strategy<Value = PropType> {
     let leaf = proptest::sample::select(&[
-        PropType::Str,
+        // PropType::Str, uncomment whe next arrow version is released and we can migrate to it
         PropType::I64,
         PropType::F64,
         PropType::F32,

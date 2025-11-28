@@ -10,8 +10,10 @@ use crate::{
     api::edges::{EdgeRefOps, EdgeSegmentOps, LockedESegment},
     error::StorageError,
     pages::{
+        SegmentCounts,
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
+        row_group_par_iter,
     },
     persist::strategy::Config,
     segments::edge::segment::MemEdgeSegment,
@@ -326,6 +328,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         segment_id
     }
 
+    pub fn increment_edge_segment_count(&self, eid: EID) {
+        let (segment_id, _) = resolve_pos(eid, self.max_page_len());
+        let segment = self.get_or_create_segment(segment_id);
+        segment.increment_num_edges();
+    }
+
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<ES> {
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
@@ -484,6 +492,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         }
     }
 
+    pub fn reserve_new_eid(&self, row: usize) -> EID {
+        let (segment_id, local_pos) = self.reserve_free_pos(row);
+        local_pos.as_eid(segment_id, self.max_page_len())
+    }
+
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % N;
         let maybe_free_page = {
@@ -572,5 +585,32 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                     )
                 })
             })
+    }
+
+    pub fn row_groups_par_iter(
+        &self,
+    ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = EID> + '_)> {
+        row_group_par_iter(
+            self.max_page_len() as usize,
+            self.segments.count(),
+            self.max_page_len(),
+        )
+        .map(|(s_id, iter)| (s_id, iter.filter(|eid| self.has_eid(*eid))))
+    }
+
+    fn has_eid(&self, eid: EID) -> bool {
+        let (segment_id, pos) = self.resolve_pos(eid);
+        segment_id < self.segments.count()
+            && self
+                .segments
+                .get(segment_id)
+                .is_some_and(|s| pos.0 < s.num_edges())
+    }
+
+    pub(crate) fn segment_counts(&self) -> SegmentCounts<EID> {
+        SegmentCounts::new(
+            self.max_page_len(),
+            self.pages().iter().map(|(_, seg)| seg.num_edges()),
+        )
     }
 }

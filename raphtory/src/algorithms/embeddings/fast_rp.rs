@@ -97,8 +97,10 @@ where
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _, local: Vec<FastRPState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| v.embedding_state)
+        |_, _, _, local: Vec<FastRPState>, index| {
+            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |v| {
+                v.embedding_state
+            })
         },
         threads,
         num_iters,

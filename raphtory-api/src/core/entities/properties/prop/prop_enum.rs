@@ -526,7 +526,7 @@ pub fn struct_array_from_props<P: Serialize>(
     let fields = [FieldRef::new(Field::new("value", dt.clone(), true))];
 
     let mut builder = ArrayBuilder::from_arrow(&fields)
-        .unwrap_or_else(|e| panic!("Failed to make array builder {e}"));
+        .unwrap_or_else(|e| panic!("Failed to make array builder {e}, {:?}", fields));
 
     for p in props {
         builder

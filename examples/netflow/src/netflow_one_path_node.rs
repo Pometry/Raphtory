@@ -124,7 +124,7 @@ pub fn netflow_one_path_node<G: StaticGraphViewOps>(
         vec![],
         vec![Job::new(step1)],
         None,
-        |egs, _, _, _| egs.finalize(&total_value),
+        |egs, _, _, _, _| egs.finalize(&total_value),
         threads,
         1,
         None,

@@ -252,7 +252,7 @@ where
         g.clone(),
         g.clone(),
         values.into(),
-        Some(Index::new(index)),
+        Index::Partial(index.into()),
     ))
 }
 

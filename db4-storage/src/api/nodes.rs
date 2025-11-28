@@ -21,13 +21,16 @@ use std::{
     borrow::Cow,
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, atomic::AtomicU32},
 };
+
+use rayon::prelude::*;
 
 use crate::{
     LocalPOS,
     error::StorageError,
     gen_ts::LayerIter,
+    pages::node_store::increment_and_clamp,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
 };
@@ -46,12 +49,6 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn earliest(&self) -> Option<TimeIndexEntry>;
 
     fn t_len(&self) -> usize;
-
-    fn event_id(&self) -> i64;
-
-    fn increment_event_id(&self, i: i64);
-
-    fn decrement_event_id(&self) -> i64;
 
     fn load(
         page_id: usize,
@@ -80,14 +77,6 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
-
-    fn num_nodes(&self) -> u32 {
-        self.layer_count(0)
-    }
-
-    fn num_layers(&self) -> usize;
-
-    fn layer_count(&self, layer_id: usize) -> u32;
 
     fn notify_write(
         &self,
@@ -128,6 +117,21 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &self,
         locked_head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
+
+    fn nodes_counter(&self) -> &AtomicU32;
+
+    fn increment_num_nodes(&self, max_page_len: u32) {
+        increment_and_clamp(self.nodes_counter(), max_page_len);
+    }
+
+    fn num_nodes(&self) -> u32 {
+        self.nodes_counter()
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn num_layers(&self) -> usize;
+
+    fn layer_count(&self, layer_id: usize) -> u32;
 }
 
 pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {
@@ -135,7 +139,23 @@ pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {
     where
         Self: 'a;
 
+    fn num_nodes(&self) -> u32;
+
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>;
+
+    fn iter_entries<'a>(&'a self) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+        let num_nodes = self.num_nodes();
+        (0..num_nodes).map(move |vid| self.entry_ref(LocalPOS(vid)))
+    }
+
+    fn par_iter_entries<'a>(
+        &'a self,
+    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+        let num_nodes = self.num_nodes();
+        (0..num_nodes)
+            .into_par_iter()
+            .map(move |vid| self.entry_ref(LocalPOS(vid)))
+    }
 }
 
 pub trait NodeEntryOps<'a>: Send + Sync + 'a {

@@ -9,7 +9,6 @@ use super::proto_generated::{
         NewNodeTProp, NewNodeType,
     },
     new_node, prop,
-    prop::Array,
     prop_type::{Array as ArrayType, PType, PropType as SPropType, Scalar as ScalarType},
     GraphUpdate, NewEdge, NewMeta, NewNode,
 };
@@ -26,8 +25,6 @@ use raphtory_api::core::{
     },
 };
 use std::{borrow::Borrow, collections::HashMap, sync::Arc};
-
-use raphtory_api::core::entities::properties::prop::PropArray;
 
 fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
     let val = match p_type {

@@ -10,7 +10,10 @@ mod io_tests {
         errors::GraphError,
         io::arrow::{
             dataframe::{DFChunk, DFView},
-            df_loaders::{load_edges_from_df, load_nodes_from_df},
+            df_loaders::{
+                edges::{load_edges_from_df, ColumnNames},
+                nodes::load_nodes_from_df,
+            },
         },
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
@@ -208,7 +211,10 @@ mod io_tests {
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
             let secondary_index = None;
-            load_edges_from_df(df_view, "time", secondary_index,"src", "dst", &props, &[], None, None, None, &g).unwrap();
+            load_edges_from_df(df_view,
+                ColumnNames::new("time", secondary_index, "src", "dst", None),
+                true,
+                &props, &[], None, None, &g, false).unwrap();
 
             let g2 = Graph::new();
 
@@ -243,16 +249,14 @@ mod io_tests {
 
         load_edges_from_df(
             df_view,
-            "time",
-            secondary_index,
-            "src",
-            "dst",
+            ColumnNames::new("time", secondary_index, "src", "dst", None),
+            true,
             &props,
             &[],
             None,
             None,
-            None,
             &g,
+            false,
         )
         .unwrap();
 
@@ -285,8 +289,7 @@ mod io_tests {
             let df_view = build_df_str(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
-            let secondary_index = None;
-            load_edges_from_df(df_view, "time", secondary_index, "src", "dst", &props, &[], None, None, None, &g).unwrap();
+            load_edges_from_df(df_view, ColumnNames::new("time", None, "src", "dst", None), true, &props, &[], None, None, &g, false).unwrap();
 
             let g2 = Graph::new();
 
@@ -306,20 +309,16 @@ mod io_tests {
         let df_view = build_df_str(1, &edges);
         let g = Graph::new();
         let props = ["str_prop", "int_prop"];
-        let secondary_index = None;
-
         load_edges_from_df(
             df_view,
-            "time",
-            secondary_index,
-            "src",
-            "dst",
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
             &props,
             &[],
             None,
             None,
-            None,
             &g,
+            false,
         )
         .unwrap();
 
@@ -351,16 +350,14 @@ mod io_tests {
         // Load edges from DataFrame with secondary_index
         load_edges_from_df(
             df_view,
-            "time",
-            secondary_index,
-            "src",
-            "dst",
+            ColumnNames::new("time", secondary_index, "src", "dst", None),
+            true,
             &props,
             &[],
             None,
             None,
-            None,
             &g,
+            false,
         )
         .unwrap();
 
@@ -412,16 +409,14 @@ mod io_tests {
 
             load_edges_from_df(
                 df_view,
-                "time",
-                secondary_index,
-                "src",
-                "dst",
+                ColumnNames::new("time", secondary_index, "src", "dst", None),
+                true,
                 &props,
                 &[],
                 None,
                 None,
-                None,
                 &g,
+                false,
             ).unwrap();
 
             let g2 = Graph::new();
@@ -500,6 +495,7 @@ mod io_tests {
             None,
             None,
             &g,
+            true,
         )
         .unwrap();
 
@@ -562,16 +558,14 @@ mod io_tests {
             let secondary_index = None;
             load_edges_from_df(
                 df_view,
-                "time",
-                secondary_index,
-                "src",
-                "dst",
+                ColumnNames::new("time", secondary_index, "src", "dst", None),
+                true,
                 &props,
                 &[],
                 None,
                 layer.as_deref(),
-                None,
                 &g,
+                false,
             )
             .unwrap();
             for (src, dst, time, str_prop, int_prop) in edges {

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::dataframe::DFChunk,
@@ -9,7 +11,7 @@ use iter_enum::{
 };
 use rayon::prelude::*;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) enum LayerCol<'a> {
     Name { name: Option<&'a str>, len: usize },
     Utf8 { col: &'a StringArray },
@@ -61,26 +63,93 @@ impl<'a> LayerCol<'a> {
         }
     }
 
-    pub fn resolve(
-        self,
-        graph: &(impl AdditionOps + Send + Sync),
-    ) -> Result<Vec<usize>, GraphError> {
+    pub fn get(&self, row: usize) -> Option<&'a str> {
         match self {
-            LayerCol::Name { name, len } => {
+            LayerCol::Name { name, .. } => *name,
+            LayerCol::Utf8 { col } => {
+                if col.is_valid(row) && row < col.len() {
+                    Some(col.value(row))
+                } else {
+                    None
+                }
+            }
+            LayerCol::LargeUtf8 { col } => {
+                if col.is_valid(row) && row < col.len() {
+                    Some(col.value(row))
+                } else {
+                    None
+                }
+            }
+            LayerCol::Utf8View { col } => {
+                if col.is_valid(row) && row < col.len() {
+                    Some(col.value(row))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub fn resolve_layer<'b>(
+        self,
+        layer_id_col: Option<&'b [u64]>,
+        graph: &(impl AdditionOps + Send + Sync),
+    ) -> Result<Cow<'b, [usize]>, GraphError> {
+        match (self, layer_id_col) {
+            (LayerCol::Name { name, len }, _) => {
                 let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner();
-                Ok(vec![layer; len])
+                Ok(Cow::Owned(vec![layer; len]))
             }
-            col => {
-                let iter = col.par_iter();
-                let mut res = vec![0usize; iter.len()];
-                iter.zip(res.par_iter_mut())
-                    .try_for_each(|(layer, entry)| {
-                        let layer = graph.resolve_layer(layer).map_err(into_graph_err)?.inner();
-                        *entry = layer;
-                        Ok::<(), GraphError>(())
-                    })?;
-                Ok(res)
+            (col, None) => {
+                let mut res = vec![0usize; col.len()];
+                let mut last_name = None;
+                let mut last_layer = None;
+                for (row, name) in col.iter().enumerate() {
+                    if last_name == name {
+                        if let Some(layer) = last_layer {
+                            res[row] = layer;
+                        }
+                        continue;
+                    }
+
+                    let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner();
+                    last_layer = Some(layer);
+                    res[row] = layer;
+                    last_name = name;
+                }
+                Ok(Cow::Owned(res))
             }
+            (col, Some(layer_ids)) => {
+                let mut last_pair = None;
+
+                let edge_layer_mapper = graph.edge_meta().layer_meta();
+                let node_layer_mapper = graph.node_meta().layer_meta();
+
+                let mut locked_edge_lm = edge_layer_mapper.write();
+                let mut locked_node_lm = node_layer_mapper.write();
+
+                for pair @ (name, id) in col
+                    .iter()
+                    .map(|name| name.unwrap_or("_default"))
+                    .zip(layer_ids)
+                {
+                    if last_pair != Some(pair) {
+                        locked_edge_lm.set_id(name, *id as usize);
+                        locked_node_lm.set_id(name, *id as usize);
+                    }
+                    last_pair = Some(pair);
+                }
+                Ok(Cow::Borrowed(bytemuck::cast_slice(layer_ids)))
+            }
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            LayerCol::Name { len, .. } => *len,
+            LayerCol::Utf8 { col } => col.len(),
+            LayerCol::LargeUtf8 { col } => col.len(),
+            LayerCol::Utf8View { col } => col.len(),
         }
     }
 }

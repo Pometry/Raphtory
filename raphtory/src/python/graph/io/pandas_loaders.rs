@@ -1,7 +1,14 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::GraphError,
-    io::arrow::{dataframe::*, df_loaders::*},
+    io::arrow::{
+        dataframe::*,
+        df_loaders::{
+            edges::{load_edges_from_df, ColumnNames},
+            nodes::{load_node_props_from_df, load_nodes_from_df},
+            *,
+        },
+    },
     prelude::{AdditionOps, PropertyAdditionOps},
 };
 use arrow::array::ArrayRef;
@@ -59,6 +66,7 @@ pub(crate) fn load_nodes_from_pandas<
         node_type,
         node_type_col,
         graph,
+        true,
     )
 }
 
@@ -93,16 +101,22 @@ pub(crate) fn load_edges_from_pandas<
 
     load_edges_from_df(
         df_view,
-        time,
-        secondary_index,
-        src,
-        dst,
+        ColumnNames {
+            time,
+            secondary_index,
+            src,
+            dst,
+            layer_col,
+            edge_id: None,
+            layer_id_col: None,
+        },
+        true,
         properties,
         metadata,
         shared_metadata,
         layer,
-        layer_col,
         graph,
+        false,
     )
 }
 
@@ -130,6 +144,8 @@ pub(crate) fn load_node_props_from_pandas<
         id,
         node_type,
         node_type_col,
+        None,
+        None,
         metadata,
         shared_metadata,
         graph,
@@ -165,6 +181,7 @@ pub(crate) fn load_edge_props_from_pandas<
         layer,
         layer_col,
         graph,
+        true,
     )
 }
 
@@ -193,12 +210,9 @@ pub fn load_edge_deletions_from_pandas<
     df_view.check_cols_exist(&cols_to_check)?;
     load_edge_deletions_from_df(
         df_view,
-        time,
-        secondary_index,
-        src,
-        dst,
+        ColumnNames::new(time, secondary_index, src, dst, layer_col),
+        true,
         layer,
-        layer_col,
         graph.core_graph(),
     )
 }
@@ -206,7 +220,7 @@ pub fn load_edge_deletions_from_pandas<
 pub(crate) fn process_pandas_py_df<'a>(
     df: &Bound<'a, PyAny>,
     col_names: Vec<&str>,
-) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
+) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send + 'a>> {
     let py = df.py();
     is_jupyter(py);
     py.import("pandas")?;
@@ -244,18 +258,27 @@ pub(crate) fn process_pandas_py_df<'a>(
     .collect();
 
     let names_len = names.len();
-    let chunks = rb.into_iter().map(move |rb| {
-        let chunk = (0..names_len)
-            .map(|i| {
-                let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
-                let arr = array_to_rust(&array).map_err(GraphError::from)?;
-                Ok::<_, GraphError>(arr)
-            })
-            .collect::<Result<Vec<_>, GraphError>>()?;
 
-        Ok(DFChunk { chunk })
-    });
+    // Convert all Python batches to Rust Arrow arrays while we have the GIL
+    // This makes the iterator Send-safe
+    let rust_batches: Vec<Result<DFChunk, GraphError>> = rb
+        .into_iter()
+        .map(|rb| {
+            let chunk = (0..names_len)
+                .map(|i| {
+                    let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
+                    let arr = array_to_rust(&array).map_err(GraphError::from)?;
+                    Ok::<_, GraphError>(arr)
+                })
+                .collect::<Result<Vec<_>, GraphError>>()?;
+
+            Ok(DFChunk { chunk })
+        })
+        .collect();
+
     let num_rows: usize = dropped_df.call_method0("__len__")?.extract()?;
+
+    let chunks = rust_batches.into_iter();
 
     Ok(DFView {
         names,
