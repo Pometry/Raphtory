@@ -6,6 +6,9 @@ try:
 except ModuleNotFoundError:
     fpd = None
 
+def _collect_edges(g: Graph):
+    return sorted((e.history()[0], e.src.id, e.dst.id, e["value"]) for e in g.edges)
+
 @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
 def test_load_edges_from_polars_df(graph_type):
     df = pl.DataFrame(
@@ -30,8 +33,6 @@ def test_load_edges_from_polars_df(graph_type):
 
 if fpd:
     import pandas
-    def _collect_edges(g: Graph):
-        return sorted((e.history()[0], e.src.id, e.dst.id, e["value"]) for e in g.edges)
 
     @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
     def test_load_edges_from_fireducks_df(graph_type):
