@@ -2064,68 +2064,83 @@ fn test_graph_metadata_names() {
 fn test_graph_temporal_props() {
     proptest!(|(str_props: HashMap<String, String>)| {
         global_info_logger();
-        let g = Graph::new();
 
+        let g = Graph::new();
         let (t0, t1) = (1, 2);
 
-        let (t0_props, t1_props): (Vec<_>, Vec<_>) = str_props
-            .iter()
-            .enumerate()
-            .map(|(i, props)| {
-                let (name, value) = props;
-                let value = Prop::from(value.as_str());
-                (name.as_str().into(), value, i % 2)
-            })
-            .partition(|(_, _, i)| *i == 0);
+        // Split properties into two sets based on even/odd index
+        // Even-indexed properties go to t0, odd-indexed to t1
+        let mut t0_props = HashMap::new();
+        let mut t1_props = HashMap::new();
 
-        let t0_props: HashMap<ArcStr, Prop> = t0_props
-            .into_iter()
-            .map(|(name, value, _)| (name, value))
-            .collect();
+        for (i, (name, value)) in str_props.iter().enumerate() {
+            let prop_name: ArcStr = name.as_str().into();
+            let prop_value = Prop::from(value.as_str());
 
-        let t1_props: HashMap<ArcStr, Prop> = t1_props
-            .into_iter()
-            .map(|(name, value, _)| (name, value))
-            .collect();
+            if i % 2 == 0 {
+                t0_props.insert(prop_name, prop_value);
+            } else {
+                t1_props.insert(prop_name, prop_value);
+            }
+        }
 
         g.add_properties(t0, t0_props.clone()).unwrap();
         g.add_properties(t1, t1_props.clone()).unwrap();
 
-        let check = t0_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(name).unwrap().at(t0) == Some(value.clone())
-        }) && t1_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
-        });
-        if !check {
-            error!("failed time-specific comparison for {:?}", str_props);
-            prop_assert!(false);
+        // Verify properties can be retrieved at their timestamps
+        for (name, expected_value) in t0_props.iter() {
+            let actual = g.properties().temporal().get(name).unwrap().at(t0);
+
+            prop_assert_eq!(
+                actual,
+                Some(expected_value.clone()),
+                "Property '{}' at t0 has wrong value",
+                name
+            );
         }
-        let check = check
-            && g.at(t0)
+
+        for (name, expected_value) in t1_props.iter() {
+            let actual_value = g.properties().temporal().get(name).unwrap().at(t1);
+
+            prop_assert_eq!(
+                actual_value,
+                Some(expected_value.clone()),
+                "Property '{}' at t1 has wrong value",
+                name
+            );
+        }
+
+        // Verify iter_latest returns all t0 properties
+        let actual_t0_props: HashMap<_, _> = g
+            .at(t0)
+            .properties()
+            .temporal()
+            .iter_latest()
+            .map(|(prop_name, prop_value)| (prop_name.clone(), prop_value))
+            .collect();
+
+        prop_assert_eq!(
+            actual_t0_props,
+            t0_props,
+            "iter_latest() at t0 returned wrong properties"
+        );
+
+        // Verify latest returns correct values for t1 properties
+        for (name, expected_value) in t1_props.iter() {
+            let actual = g
+                .at(t1)
                 .properties()
                 .temporal()
-                .iter_latest()
-                .map(|(k, v)| (k.clone(), v))
-                .collect::<HashMap<_, _, _>>()
-                == t0_props;
-        if !check {
-            error!("failed latest value comparison for {:?} at t0", str_props);
-            prop_assert!(false);
+                .get(name)
+                .and_then(|v| v.latest());
+
+            prop_assert_eq!(
+                actual,
+                Some(expected_value.clone()),
+                "Property '{}' latest() at t1 has wrong value",
+                name
+            );
         }
-        let check = check
-            && t1_props.iter().all(|(k, ve)| {
-                g.at(t1)
-                    .properties()
-                    .temporal()
-                    .get(k)
-                    .and_then(|v| v.latest())
-                    == Some(ve.clone())
-            });
-        if !check {
-            error!("failed latest value comparison for {:?} at t1", str_props);
-            prop_assert!(false);
-        }
-        prop_assert!(check);
     });
 }
 
