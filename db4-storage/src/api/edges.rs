@@ -8,7 +8,7 @@ use rayon::iter::ParallelIterator;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, atomic::AtomicU32},
 };
 
 use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment};
@@ -43,7 +43,12 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn segment_id(&self) -> usize;
 
-    fn num_edges(&self) -> u32;
+    fn edges_counter(&self) -> &AtomicU32;
+
+    fn num_edges(&self) -> u32 {
+        self.edges_counter()
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
 
     fn head(&self) -> RwLockReadGuard<'_, MemEdgeSegment>;
 

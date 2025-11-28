@@ -3549,6 +3549,14 @@ fn materialize_temporal_properties_one_edge() {
     let gw = g.window(-9, 3);
     let gmw = gw.materialize().unwrap();
 
+    assert_eq!(gmw.unfiltered_num_edges(), 1);
+    assert_eq!(
+        gmw.unfiltered_num_edges(),
+        gmw.core_edges()
+            .iter(&raphtory_core::entities::LayerIds::All)
+            .count()
+    );
+
     assert_graph_equal(&gw, &gmw);
 }
 

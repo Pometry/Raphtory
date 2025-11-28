@@ -276,7 +276,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 let layers = storage.edge_meta().layer_meta().keys();
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
                 for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
-                    let new_id = temporal_graph.resolve_layer(Some(&name))?.inner();
+                    let new_id = temporal_graph.resolve_layer(Some(name))?.inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
@@ -387,7 +387,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     if let Some(edge_pos) = shard.resolve_pos(eid) {
                         let mut writer = shard.writer();
                         // make the edge for the first time
-                        writer.add_static_edge(Some(edge_pos), src, dst, 0, Some(false));
+                        writer.add_static_edge(Some(edge_pos), src, dst, 0, false);
 
                         for edge in edge.explode_layers() {
                             let layer = layer_map[edge.edge.layer().unwrap()];
@@ -522,7 +522,6 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 Ok::<(), MutationError>(())
             })?;
         }
-
         Ok(self.new_base_graph(graph_storage))
     }
 

@@ -488,8 +488,8 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         self.segment_id
     }
 
-    fn num_edges(&self) -> u32 {
-        self.num_edges.load(atomic::Ordering::Relaxed)
+    fn edges_counter(&self) -> &AtomicU32 {
+        &self.num_edges
     }
 
     fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemEdgeSegment> {

@@ -80,6 +80,7 @@ impl Config for NoOpStrategy {
         self.max_node_page_len
     }
 
+    #[inline(always)]
     fn max_edge_page_len(&self) -> u32 {
         self.max_edge_page_len
     }

@@ -146,7 +146,6 @@ impl<
         }
 
         let t_len = edge_storage.t_len();
-
         Ok(Self {
             nodes: node_storage,
             edges: edge_storage,
