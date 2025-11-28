@@ -5,7 +5,7 @@ use crate::{
         history::GqlHistory,
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
-        timeindex::{GqlEventTime, GqlTimeInput},
+        timeindex::{GqlEventTime, GqlOptionalEventTime, GqlTimeInput},
         windowset::GqlEdgeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
@@ -253,23 +253,23 @@ impl GqlEdge {
     }
 
     /// Returns the earliest time of an edge.
-    async fn earliest_time(&self) -> Option<GqlEventTime> {
-        self.ee.earliest_time().map(|t| t.into())
+    async fn earliest_time(&self) -> GqlOptionalEventTime {
+        self.ee.earliest_time().into()
     }
 
-    async fn first_update(&self) -> Option<GqlEventTime> {
+    async fn first_update(&self) -> GqlOptionalEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().earliest_time().map(|t| t.into())).await
+        blocking_compute(move || self_clone.ee.history().earliest_time().into()).await
     }
 
     /// Returns the latest time of an edge.
-    async fn latest_time(&self) -> Option<GqlEventTime> {
-        self.ee.latest_time().map(|t| t.into())
+    async fn latest_time(&self) -> GqlOptionalEventTime {
+        self.ee.latest_time().into()
     }
 
-    async fn last_update(&self) -> Option<GqlEventTime> {
+    async fn last_update(&self) -> GqlOptionalEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().latest_time().map(|t| t.into())).await
+        blocking_compute(move || self_clone.ee.history().latest_time().into()).await
     }
 
     /// Returns the time of an exploded edge. Errors on an unexploded edge.
@@ -278,13 +278,13 @@ impl GqlEdge {
     }
 
     /// Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
-    async fn start(&self) -> Option<GqlEventTime> {
-        self.ee.start().map(|t| t.into())
+    async fn start(&self) -> GqlOptionalEventTime {
+        self.ee.start().into()
     }
 
     /// Returns the end time of the window. Returns none if no window is applied.
-    async fn end(&self) -> Option<GqlEventTime> {
-        self.ee.end().map(|t| t.into())
+    async fn end(&self) -> GqlOptionalEventTime {
+        self.ee.end().into()
     }
 
     /// Returns the source node of the edge.

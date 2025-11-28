@@ -222,13 +222,13 @@ type Edge {
 	"""
 	Returns the earliest time of an edge.
 	"""
-	earliestTime: EventTime
-	firstUpdate: EventTime
+	earliestTime: OptionalEventTime!
+	firstUpdate: OptionalEventTime!
 	"""
 	Returns the latest time of an edge.
 	"""
-	latestTime: EventTime
-	lastUpdate: EventTime
+	latestTime: OptionalEventTime!
+	lastUpdate: OptionalEventTime!
 	"""
 	Returns the time of an exploded edge. Errors on an unexploded edge.
 	"""
@@ -236,11 +236,11 @@ type Edge {
 	"""
 	Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
 	"""
-	start: EventTime
+	start: OptionalEventTime!
 	"""
 	Returns the end time of the window. Returns none if no window is applied.
 	"""
-	end: EventTime
+	end: OptionalEventTime!
 	"""
 	Returns the source node of the edge.
 	
@@ -609,11 +609,11 @@ type Edges {
 	"""
 	Returns the start time of the window or none if there is no window.
 	"""
-	start: EventTime
+	start: OptionalEventTime!
 	"""
 	Returns the end time of the window or none if there is no window.
 	"""
-	end: EventTime
+	end: OptionalEventTime!
 	"""
 	Returns the number of edges.
 	
@@ -856,27 +856,27 @@ type Graph {
 	"""
 	Returns the time entry of the earliest activity in the graph.
 	"""
-	earliestTime: EventTime
+	earliestTime: OptionalEventTime!
 	"""
 	Returns the time entry of the latest activity in the graph.
 	"""
-	latestTime: EventTime
+	latestTime: OptionalEventTime!
 	"""
 	Returns the start time of the window. Errors if there is no window.
 	"""
-	start: EventTime
+	start: OptionalEventTime!
 	"""
 	Returns the end time of the window. Errors if there is no window.
 	"""
-	end: EventTime
+	end: OptionalEventTime!
 	"""
 	Returns the earliest time that any edge in this graph is valid.
 	"""
-	earliestEdgeTime(includeNegative: Boolean): EventTime
+	earliestEdgeTime(includeNegative: Boolean): OptionalEventTime!
 	"""
 	Returns the latest time that any edge in this graph is valid.
 	"""
-	latestEdgeTime(includeNegative: Boolean): EventTime
+	latestEdgeTime(includeNegative: Boolean): OptionalEventTime!
 	"""
 	Returns the number of edges in the graph.
 	
@@ -974,8 +974,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
@@ -1105,11 +1105,11 @@ type History {
 	"""
 	Get the earliest time entry associated with this history or None if the history is empty.
 	"""
-	earliestTime: EventTime
+	earliestTime: OptionalEventTime!
 	"""
 	Get the latest time entry associated with this history or None if the history is empty.
 	"""
-	latestTime: EventTime
+	latestTime: OptionalEventTime!
 	"""
 	List all time entries present in this history.
 	"""
@@ -1721,27 +1721,27 @@ type Node {
 	"""
 	Returns the earliest time that the node exists.
 	"""
-	earliestTime: EventTime
+	earliestTime: OptionalEventTime!
 	"""
 	Returns the time of the first update made to the node.
 	"""
-	firstUpdate: EventTime
+	firstUpdate: OptionalEventTime!
 	"""
 	Returns the latest time that the node exists.
 	"""
-	latestTime: EventTime
+	latestTime: OptionalEventTime!
 	"""
 	Returns the time of the last update made to the node.
 	"""
-	lastUpdate: EventTime
+	lastUpdate: OptionalEventTime!
 	"""
 	Gets the start time for the window. Errors if there is no window.
 	"""
-	start: EventTime
+	start: OptionalEventTime!
 	"""
 	Gets the end time for the window. Errors if there is no window.
 	"""
-	end: EventTime
+	end: OptionalEventTime!
 	"""
 	Returns a history object for the node, with time entries for node additions and changes made to node.
 	"""
@@ -2087,11 +2087,11 @@ type Nodes {
 	"""
 	Returns the start time of the window. Errors if there is no window.
 	"""
-	start: EventTime
+	start: OptionalEventTime!
 	"""
 	Returns the end time of the window. Errors if there is no window.
 	"""
-	end: EventTime
+	end: OptionalEventTime!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -2255,6 +2255,34 @@ enum Operator {
 }
 
 """
+Raphtory’s optional EventTime type. Instances of OptionalEventTime may contain an EventTime, or be empty.
+This is used for functions that may not return data (such as earliest_time and latest_time) because the data is unavailable.
+
+If data is contained, OptionalEventTime instances can be used similarly to EventTime.
+If empty, time operations (such as .t, .dt, .event_id) will return None.
+An empty OptionalEventTime is considered smaller than (<) any EventTime or OptionalEventTime with data.
+"""
+type OptionalEventTime {
+	"""
+	Get the timestamp in milliseconds since the Unix epoch.
+	"""
+	timestamp: Int
+	"""
+	Get the event id for the EventTime. Used for ordering within the same timestamp.
+	"""
+	eventId: Int
+	"""
+	Access a datetime representation of the EventTime as a String.
+	Useful for converting millisecond timestamps into easily readable datetime strings.
+	Optionally, a format string can be passed to format the output.
+	Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
+	Refer to chrono::format::strftime for formatting specifiers and escape sequences.
+	Raises an error if a time conversion fails.
+	"""
+	datetime(formatString: String): String
+}
+
+"""
 PageRank score.
 """
 type PagerankOutput {
@@ -2348,11 +2376,11 @@ type PathFromNode {
 	"""
 	Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
 	"""
-	start: EventTime
+	start: OptionalEventTime!
 	"""
 	Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
 	"""
-	end: EventTime
+	end: OptionalEventTime!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.

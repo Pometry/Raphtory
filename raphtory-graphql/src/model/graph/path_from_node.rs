@@ -2,7 +2,7 @@ use crate::{
     model::graph::{
         filtering::PathFromNodeViewCollection,
         node::GqlNode,
-        timeindex::{GqlEventTime, GqlTimeInput},
+        timeindex::{GqlEventTime, GqlOptionalEventTime, GqlTimeInput},
         windowset::GqlPathFromNodeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
@@ -179,13 +179,13 @@ impl GqlPathFromNode {
     ////////////////////////
 
     /// Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-    async fn start(&self) -> Option<GqlEventTime> {
-        self.nn.start().map(|t| t.into())
+    async fn start(&self) -> GqlOptionalEventTime {
+        self.nn.start().into()
     }
 
     /// Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-    async fn end(&self) -> Option<GqlEventTime> {
-        self.nn.end().map(|t| t.into())
+    async fn end(&self) -> GqlOptionalEventTime {
+        self.nn.end().into()
     }
 
     /////////////////

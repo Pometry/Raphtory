@@ -6,7 +6,7 @@ use crate::{
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
         property::{GqlMetadata, GqlProperties},
-        timeindex::{GqlEventTime, GqlTimeInput},
+        timeindex::{GqlEventTime, GqlOptionalEventTime, GqlTimeInput},
         windowset::GqlNodeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
@@ -246,37 +246,37 @@ impl GqlNode {
     ////////////////////////
 
     /// Returns the earliest time that the node exists.
-    async fn earliest_time(&self) -> Option<GqlEventTime> {
+    async fn earliest_time(&self) -> GqlOptionalEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.earliest_time().map(|t| t.into())).await
+        blocking_compute(move || self_clone.vv.earliest_time().into()).await
     }
 
     /// Returns the time of the first update made to the node.
-    async fn first_update(&self) -> Option<GqlEventTime> {
+    async fn first_update(&self) -> GqlOptionalEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().earliest_time().map(|t| t.into())).await
+        blocking_compute(move || self_clone.vv.history().earliest_time().into()).await
     }
 
     /// Returns the latest time that the node exists.
-    async fn latest_time(&self) -> Option<GqlEventTime> {
+    async fn latest_time(&self) -> GqlOptionalEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.latest_time().map(|t| t.into())).await
+        blocking_compute(move || self_clone.vv.latest_time().into()).await
     }
 
     /// Returns the time of the last update made to the node.
-    async fn last_update(&self) -> Option<GqlEventTime> {
+    async fn last_update(&self) -> GqlOptionalEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().latest_time().map(|t| t.into())).await
+        blocking_compute(move || self_clone.vv.history().latest_time().into()).await
     }
 
     /// Gets the start time for the window. Errors if there is no window.
-    async fn start(&self) -> Option<GqlEventTime> {
-        self.vv.start().map(|t| t.into())
+    async fn start(&self) -> GqlOptionalEventTime {
+        self.vv.start().into()
     }
 
     /// Gets the end time for the window. Errors if there is no window.
-    async fn end(&self) -> Option<GqlEventTime> {
-        self.vv.end().map(|t| t.into())
+    async fn end(&self) -> GqlOptionalEventTime {
+        self.vv.end().into()
     }
 
     /// Returns a history object for the node, with time entries for node additions and changes made to node.

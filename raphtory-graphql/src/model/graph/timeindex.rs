@@ -91,7 +91,7 @@ impl IntoTime for GqlTimeInput {
 ///
 /// - timestamp: Number of milliseconds since the Unix epoch.
 /// - event_id: ID used for ordering between equal timestamps.
-#[derive(ResolvedObject, Clone)]
+#[derive(ResolvedObject, Clone, Copy)]
 #[graphql(name = "EventTime")]
 pub struct GqlEventTime {
     pub(crate) entry: EventTime,
@@ -154,5 +154,66 @@ pub fn dt_format_str_is_valid(fmt_str: &str) -> bool {
         false
     } else {
         true
+    }
+}
+
+/// Raphtory’s optional EventTime type. Instances of OptionalEventTime may contain an EventTime, or be empty.
+/// This is used for functions that may not return data (such as earliest_time and latest_time) because the data is unavailable.
+///
+/// If data is contained, OptionalEventTime instances can be used similarly to EventTime.
+/// If empty, time operations (such as .t, .dt, .event_id) will return None.
+/// An empty OptionalEventTime is considered smaller than (<) any EventTime or OptionalEventTime with data.
+#[derive(ResolvedObject, Clone, Copy)]
+#[graphql(name = "OptionalEventTime")]
+pub struct GqlOptionalEventTime {
+    pub(crate) inner: Option<EventTime>,
+}
+
+#[ResolvedObjectFields]
+impl GqlOptionalEventTime {
+    /// Get the timestamp in milliseconds since the Unix epoch.
+    async fn timestamp(&self) -> Option<i64> {
+        self.inner.map(|t| t.t())
+    }
+
+    /// Get the event id for the EventTime. Used for ordering within the same timestamp.
+    async fn event_id(&self) -> Option<u64> {
+        self.inner.map(|t| t.i() as u64)
+    }
+
+    /// Access a datetime representation of the EventTime as a String.
+    /// Useful for converting millisecond timestamps into easily readable datetime strings.
+    /// Optionally, a format string can be passed to format the output.
+    /// Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
+    /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
+    /// Raises an error if a time conversion fails.
+    async fn datetime(&self, format_string: Option<String>) -> Result<Option<String>, Error> {
+        let fmt_string = format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+        if dt_format_str_is_valid(fmt_string) {
+            self.inner
+                .map(|t| {
+                    t.dt()
+                        .map(|dt| dt.format(fmt_string).to_string())
+                        .map_err(|e| Error::new(e.to_string()))
+                })
+                .transpose()
+        } else {
+            Err(Error::new(format!(
+                "Invalid datetime format string: '{}'",
+                fmt_string
+            )))
+        }
+    }
+}
+
+impl From<Option<EventTime>> for GqlOptionalEventTime {
+    fn from(value: Option<EventTime>) -> Self {
+        Self { inner: value }
+    }
+}
+
+impl From<GqlOptionalEventTime> for Option<EventTime> {
+    fn from(value: GqlOptionalEventTime) -> Self {
+        value.inner
     }
 }

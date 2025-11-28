@@ -1,5 +1,5 @@
 use crate::{
-    model::graph::timeindex::{dt_format_str_is_valid, GqlEventTime},
+    model::graph::timeindex::{dt_format_str_is_valid, GqlEventTime, GqlOptionalEventTime},
     rayon::blocking_compute,
 };
 use async_graphql::Error;
@@ -38,15 +38,15 @@ impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for GqlHistory {
 #[ResolvedObjectFields]
 impl GqlHistory {
     /// Get the earliest time entry associated with this history or None if the history is empty.
-    async fn earliest_time(&self) -> Option<GqlEventTime> {
+    async fn earliest_time(&self) -> GqlOptionalEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history.earliest_time().map(|t| t.into())).await
+        blocking_compute(move || self_clone.history.earliest_time().into()).await
     }
 
     /// Get the latest time entry associated with this history or None if the history is empty.
-    async fn latest_time(&self) -> Option<GqlEventTime> {
+    async fn latest_time(&self) -> GqlOptionalEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.history.latest_time().map(|t| t.into())).await
+        blocking_compute(move || self_clone.history.latest_time().into()).await
     }
 
     /// List all time entries present in this history.

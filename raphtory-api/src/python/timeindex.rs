@@ -305,6 +305,12 @@ impl From<PyEventTime> for EventTime {
     }
 }
 
+/// Raphtory’s optional EventTime type. Instances of OptionalEventTime may contain an EventTime, or be empty.
+/// This is used for functions that may not return data (such as earliest_time and latest_time) because the data is unavailable.
+///
+/// If data is contained, OptionalEventTime instances can be used similarly to EventTime.
+/// If empty, time operations (such as .t, .dt, .event_id) will return None.
+/// An empty OptionalEventTime is considered smaller than (<) any EventTime or OptionalEventTime with data.
 #[pyclass(name = "OptionalEventTime", module = "raphtory", frozen)]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyOptionalEventTime {
