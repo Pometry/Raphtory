@@ -51,7 +51,7 @@ pub mod test_utils;
 pub struct GraphStore<NS, ES, GS, EXT: Config> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
-    graph: Arc<GraphPropStorageInner<GS, EXT>>,
+    graph_props: Arc<GraphPropStorageInner<GS, EXT>>,
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -100,7 +100,7 @@ impl<
     }
 
     pub fn graph_props(&self) -> &Arc<GraphPropStorageInner<GS, EXT>> {
-        &self.graph
+        &self.graph_props
     }
 
     pub fn edge_meta(&self) -> &Meta {
@@ -111,8 +111,8 @@ impl<
         self.nodes.prop_meta()
     }
 
-    pub fn graph_meta(&self) -> &Meta {
-        self.graph.graph_meta()
+    pub fn graph_props_meta(&self) -> &Meta {
+        self.graph_props.meta()
     }
 
     pub fn earliest(&self) -> i64 {
@@ -129,7 +129,7 @@ impl<
     pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
-        let graph_path = graph_dir.as_ref().join("graph");
+        let graph_props_path = graph_dir.as_ref().join("graph_props");
 
         let ext = read_graph_config::<EXT>(graph_dir.as_ref())?;
 
@@ -139,17 +139,18 @@ impl<
         let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata
-        let graph_storage = Arc::new(GraphPropStorageInner::load(graph_path, ext.clone())?);
+        let graph_props_storage = Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
 
         for node_type in ext.node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
         }
 
         let t_len = edge_storage.t_len();
+
         Ok(Self {
             nodes: node_storage,
             edges: edge_storage,
-            graph: graph_storage,
+            graph_props: graph_props_storage,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
@@ -160,16 +161,16 @@ impl<
         graph_dir: Option<&Path>,
         node_meta: Meta,
         edge_meta: Meta,
-        graph_meta: Meta,
+        graph_props_meta: Meta,
         ext: EXT,
     ) -> Self {
         let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
         let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
-        let graph_path = graph_dir.map(|graph_dir| graph_dir.join("graph"));
+        let graph_props_path = graph_dir.map(|graph_dir| graph_dir.join("graph_props"));
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
-        let graph_meta = Arc::new(graph_meta);
+        let graph_props_meta = Arc::new(graph_props_meta);
 
         let node_storage = Arc::new(NodeStorageInner::new_with_meta(
             nodes_path,
@@ -183,8 +184,8 @@ impl<
             ext.clone(),
         ));
         let graph_storage = Arc::new(GraphPropStorageInner::new_with_meta(
-            graph_path.as_deref(),
-            graph_meta,
+            graph_props_path.as_deref(),
+            graph_props_meta,
             ext.clone(),
         ));
 
@@ -196,7 +197,7 @@ impl<
         Self {
             nodes: node_storage,
             edges: edge_storage,
-            graph: graph_storage,
+            graph_props: graph_storage,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,
@@ -206,9 +207,9 @@ impl<
     pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        let graph_meta = Meta::new_for_graph();
+        let graph_props_meta = Meta::new_for_graph_props();
 
-        Self::new_with_meta(graph_dir, node_meta, edge_meta, graph_meta, ext)
+        Self::new_with_meta(graph_dir, node_meta, edge_meta, graph_props_meta, ext)
     }
 
     pub fn add_edge<T: TryIntoInputTime>(

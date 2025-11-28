@@ -124,8 +124,8 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     #[inline]
-    fn graph_meta(&self) -> &Meta {
-        self.core_graph().graph_meta()
+    fn graph_props_meta(&self) -> &Meta {
+        self.core_graph().graph_props_meta()
     }
 
     #[inline]

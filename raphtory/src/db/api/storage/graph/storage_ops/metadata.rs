@@ -9,15 +9,15 @@ use super::GraphStorage;
 
 impl InternalMetadataOps for GraphStorage {
     fn get_metadata_id(&self, name: &str) -> Option<usize> {
-        self.graph_meta().metadata_mapper().get_id(name)
+        self.graph_props_meta().metadata_mapper().get_id(name)
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph_meta().metadata_mapper().get_name(id).clone()
+        self.graph_props_meta().metadata_mapper().get_name(id).clone()
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph_meta().metadata_mapper().ids().into_dyn_boxed()
+        self.graph_props_meta().metadata_mapper().ids().into_dyn_boxed()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
@@ -28,7 +28,7 @@ impl InternalMetadataOps for GraphStorage {
     }
 
     fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {
-        self.graph_meta()
+        self.graph_props_meta()
             .metadata_mapper()
             .keys()
             .into_iter()

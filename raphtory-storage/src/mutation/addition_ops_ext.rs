@@ -142,7 +142,7 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     ) -> Result<MaybeNew<usize>, Self::Error> {
         Ok(self
             .graph
-            .graph_meta()
+            .graph_props_meta()
             .resolve_prop_id(prop, dtype, is_static)?)
     }
 

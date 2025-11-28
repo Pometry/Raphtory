@@ -18,7 +18,7 @@ use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
 impl InternalTemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
-        self.graph_meta()
+        self.graph_props_meta()
             .temporal_prop_mapper()
             .get_dtype(id)
             .unwrap()
@@ -74,22 +74,22 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
 
 impl InternalTemporalPropertiesOps for GraphStorage {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph_meta().temporal_prop_mapper().get_id(name)
+        self.graph_props_meta().temporal_prop_mapper().get_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph_meta().temporal_prop_mapper().get_name(id)
+        self.graph_props_meta().temporal_prop_mapper().get_name(id)
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph_meta()
+        self.graph_props_meta()
             .temporal_prop_mapper()
             .ids()
             .into_dyn_boxed()
     }
 
     fn temporal_prop_keys(&self) -> BoxedLIter<'_, ArcStr> {
-        self.graph_meta()
+        self.graph_props_meta()
             .temporal_prop_mapper()
             .keys()
             .into_iter()

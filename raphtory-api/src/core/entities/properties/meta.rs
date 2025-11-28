@@ -104,7 +104,7 @@ impl Meta {
         }
     }
 
-    pub fn new_for_graph() -> Self {
+    pub fn new_for_graph_props() -> Self {
         let meta_layer = DictMapper::new_layer_mapper();
         let meta_node_type = DictMapper::default();
         meta_node_type.get_or_create_id("_default");

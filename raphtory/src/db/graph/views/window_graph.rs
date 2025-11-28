@@ -343,7 +343,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
 impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for WindowedGraph<G> {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
-            .graph_meta()
+            .graph_props_meta()
             .temporal_prop_mapper()
             .get_dtype(id)
             .unwrap()

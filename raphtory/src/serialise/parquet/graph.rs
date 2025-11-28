@@ -21,7 +21,7 @@ use std::{collections::HashMap, path::Path};
 pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.graph_meta().temporal_prop_mapper(),
+        g.graph_props_meta().temporal_prop_mapper(),
         1,
         path,
         GRAPH_T_PATH,
@@ -105,7 +105,7 @@ pub fn encode_graph_cprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.graph_meta().metadata_mapper(),
+        g.graph_props_meta().metadata_mapper(),
         1,
         path,
         GRAPH_C_PATH,

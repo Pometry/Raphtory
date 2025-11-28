@@ -249,20 +249,20 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         // preserve all property mappings
         let mut node_meta = Meta::new_for_nodes();
         let mut edge_meta = Meta::new_for_edges();
-        let mut graph_meta = Meta::new_for_graph();
+        let mut graph_props_meta = Meta::new_for_graph_props();
 
         node_meta.set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
         node_meta.set_temporal_prop_mapper(self.node_meta().temporal_prop_mapper().deep_clone());
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         edge_meta.set_temporal_prop_mapper(self.edge_meta().temporal_prop_mapper().deep_clone());
-        graph_meta.set_metadata_mapper(self.graph_meta().metadata_mapper().deep_clone());
-        graph_meta.set_temporal_prop_mapper(self.graph_meta().temporal_prop_mapper().deep_clone());
+        graph_props_meta.set_metadata_mapper(self.graph_props_meta().metadata_mapper().deep_clone());
+        graph_props_meta.set_temporal_prop_mapper(self.graph_props_meta().temporal_prop_mapper().deep_clone());
 
         let temporal_graph = TemporalGraph::new_with_meta(
             path.map(|p| p.into()),
             node_meta,
             edge_meta,
-            graph_meta,
+            graph_props_meta,
             storage.extension().clone(),
         )
         .unwrap();
@@ -522,6 +522,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 Ok::<(), MutationError>(())
             })?;
         }
+
         Ok(self.new_base_graph(graph_storage))
     }
 

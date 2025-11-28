@@ -19,7 +19,7 @@ pub struct GraphPropStorageInner<GS, EXT> {
     page: Arc<GS>,
 
     /// Stores graph prop metadata (prop name -> prop id mappings).
-    graph_meta: Arc<Meta>,
+    meta: Arc<Meta>,
 
     path: Option<PathBuf>,
 
@@ -27,29 +27,30 @@ pub struct GraphPropStorageInner<GS, EXT> {
 }
 
 impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: Config> GraphPropStorageInner<GS, EXT> {
-    pub fn new_with_meta(path: Option<&Path>, graph_meta: Arc<Meta>, ext: EXT) -> Self {
-        let page = Arc::new(GS::new(graph_meta.clone(), path, ext.clone()));
+    pub fn new_with_meta(path: Option<&Path>, meta: Arc<Meta>, ext: EXT) -> Self {
+        let page = Arc::new(GS::new(meta.clone(), path, ext.clone()));
 
         Self {
             page,
             path: path.map(|p| p.to_path_buf()),
-            graph_meta,
+            meta,
             ext,
         }
     }
 
     pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
-        let graph_meta = Arc::new(Meta::new_for_graph());
+        let graph_props_meta = Arc::new(Meta::new_for_graph_props());
+
         Ok(Self {
-            page: Arc::new(GS::load(graph_meta.clone(), path.as_ref(), ext.clone())?),
+            page: Arc::new(GS::load(graph_props_meta.clone(), path.as_ref(), ext.clone())?),
             path: Some(path.as_ref().to_path_buf()),
-            graph_meta,
+            meta: graph_props_meta,
             ext,
         })
     }
 
-    pub fn graph_meta(&self) -> &Arc<Meta> {
-        &self.graph_meta
+    pub fn meta(&self) -> &Arc<Meta> {
+        &self.meta
     }
 
     pub fn graph_entry(&self) -> GS::Entry<'_> {

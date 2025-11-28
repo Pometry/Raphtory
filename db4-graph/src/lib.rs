@@ -124,21 +124,21 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
     pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        let graph_meta = Meta::new_for_graph();
+        let graph_props_meta = Meta::new_for_graph_props();
 
-        Self::new_with_meta(None, node_meta, edge_meta, graph_meta, ext)
+        Self::new_with_meta(None, node_meta, edge_meta, graph_props_meta, ext)
     }
 
     pub fn new_with_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        let graph_meta = Meta::new_for_graph();
+        let graph_props_meta = Meta::new_for_graph_props();
 
         Self::new_with_meta(
             Some(path.as_ref().into()),
             node_meta,
             edge_meta,
-            graph_meta,
+            graph_props_meta,
             ext,
         )
     }
@@ -263,8 +263,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
         self.storage().node_meta()
     }
 
-    pub fn graph_meta(&self) -> &Meta {
-        self.storage.graph_meta()
+    pub fn graph_props_meta(&self) -> &Meta {
+        self.storage.graph_props_meta()
     }
 
     pub fn graph_dir(&self) -> Option<&Path> {
