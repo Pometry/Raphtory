@@ -87,7 +87,9 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
             Either::Left(layer_ids) => {
                 Either::Left(self.reference.into_t_props_layers(layer_ids, prop_id))
             }
-            Either::Right(layer_id) => Either::Right(self.reference.into_t_props(layer_id, prop_id)),
+            Either::Right(layer_id) => {
+                Either::Right(self.reference.into_t_props(layer_id, prop_id))
+            }
         }
     }
 }

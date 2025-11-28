@@ -1,2 +1,2 @@
-pub mod segment;
 pub mod entry;
+pub mod segment;

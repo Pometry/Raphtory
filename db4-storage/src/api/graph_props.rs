@@ -42,7 +42,8 @@ where
     ) -> Result<(), StorageError>;
 }
 
-/// Methods for reading graph properties and metadata from storage.
+/// Trait for returning a guard-free, copyable reference to graph properties
+/// and metadata.
 pub trait GraphPropEntryOps<'a>: Send + Sync + 'a {
     type Ref<'b>: GraphPropRefOps<'b>
     where
@@ -54,7 +55,7 @@ pub trait GraphPropEntryOps<'a>: Send + Sync + 'a {
         'a: 'b;
 }
 
-/// Lightweight reference for reading graph properties and metadata.
+/// Methods for reading graph properties and metadata from a reference on storage.
 pub trait GraphPropRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type TProps: TPropOps<'a>;
 

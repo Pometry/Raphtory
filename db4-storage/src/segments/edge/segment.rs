@@ -1,5 +1,3 @@
-use crate::segments::{HasRow, SegmentContainer};
-use crate::segments::edge::entry::MemEdgeEntry;
 use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
@@ -7,7 +5,10 @@ use crate::{
     pages::resolve_pos,
     persist::strategy::PersistentStrategy,
     properties::PropMutEntry,
-    segments::edge::entry::MemEdgeRef,
+    segments::{
+        HasRow, SegmentContainer,
+        edge::entry::{MemEdgeEntry, MemEdgeRef},
+    },
     utils::Iter4,
 };
 use arrow_array::{ArrayRef, BooleanArray};

@@ -14,7 +14,13 @@ use raphtory_core::{
     storage::timeindex::AsTime,
 };
 
-pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, GS: GraphPropSegmentOps, EXT: Config> {
+pub struct WriteSession<
+    'a,
+    NS: NodeSegmentOps,
+    ES: EdgeSegmentOps,
+    GS: GraphPropSegmentOps,
+    EXT: Config,
+> {
     node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
     graph: &'a GraphStore<NS, ES, GS, EXT>,

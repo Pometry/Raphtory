@@ -1,12 +1,14 @@
 use raphtory_api::core::entities::properties::meta::Meta;
 
-use crate::api::graph_props::GraphPropSegmentOps;
-use crate::error::StorageError;
-use crate::pages::graph_prop_page::writer::GraphPropWriter;
-use crate::persist::strategy::Config;
+use crate::{
+    api::graph_props::GraphPropSegmentOps, error::StorageError,
+    pages::graph_prop_page::writer::GraphPropWriter, persist::strategy::Config,
+};
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 /// Backing store for graph temporal properties and graph metadata.
 #[derive(Debug)]

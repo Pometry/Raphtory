@@ -49,7 +49,8 @@ impl TColumns {
                 None => {
                     let col = PropColumn::new(self.num_rows, prop);
 
-                    self.t_props_log.resize_with(prop_id + 1, || PropColumn::Empty(id));
+                    self.t_props_log
+                        .resize_with(prop_id + 1, || PropColumn::Empty(id));
                     self.t_props_log[prop_id] = col;
                 }
             }

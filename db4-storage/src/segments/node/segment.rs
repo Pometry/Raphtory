@@ -1,11 +1,13 @@
-use crate::segments::{HasRow, SegmentContainer};
 use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
     persist::strategy::PersistentStrategy,
-    segments::node::entry::{MemNodeEntry, MemNodeRef},
+    segments::{
+        HasRow, SegmentContainer,
+        node::entry::{MemNodeEntry, MemNodeRef},
+    },
 };
 use either::Either;
 use parking_lot::lock_api::ArcRwLockReadGuard;

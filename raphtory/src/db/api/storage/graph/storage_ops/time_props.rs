@@ -29,11 +29,7 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
 
         // Return a boxed iterator of temporal props over the locked graph entry.
         let iter = GenLockedIter::from(graph_entry, |entry| {
-            entry
-                .as_ref()
-                .get_temporal_prop(id)
-                .iter()
-                .into_dyn_boxed()
+            entry.as_ref().get_temporal_prop(id).iter().into_dyn_boxed()
         });
 
         iter.into_dyn_boxed()

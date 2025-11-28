@@ -5,14 +5,13 @@ use std::{
 };
 
 use crate::{
-    generic_t_props::GenericTProps,
     gen_ts::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
         PropAdditionCellsRef,
     },
+    generic_t_props::GenericTProps,
     pages::{
-        GraphStore, ReadLockedGraphStore,
-        edge_store::ReadLockedEdgeStorage,
+        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
     persist::strategy::NoOpStrategy,
@@ -37,8 +36,8 @@ use segments::{
 };
 
 pub mod api;
-pub mod generic_t_props;
 pub mod gen_ts;
+pub mod generic_t_props;
 pub mod pages;
 pub mod persist;
 pub mod properties;

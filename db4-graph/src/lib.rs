@@ -12,10 +12,7 @@ use raphtory_api::core::{
     input::input_node::InputNode,
 };
 use raphtory_core::{
-    entities::{
-        graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef,
-        GidRef, LayerIds, EID, VID,
-    },
+    entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{

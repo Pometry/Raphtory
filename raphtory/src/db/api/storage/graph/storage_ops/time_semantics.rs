@@ -1,9 +1,12 @@
 use super::GraphStorage;
 use crate::{
     core::{entities::LayerIds, storage::timeindex::TimeIndexOps},
-    db::api::{storage::graph, view::internal::{
-        EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
-    }},
+    db::api::{
+        storage::graph,
+        view::internal::{
+            EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
+        },
+    },
     prelude::Prop,
 };
 use raphtory_api::{
@@ -23,8 +26,10 @@ use raphtory_storage::{
 };
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
-use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
-use storage::gen_ts::ALL_LAYERS;
+use storage::{
+    api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
+    gen_ts::ALL_LAYERS,
+};
 
 impl GraphTimeSemanticsOps for GraphStorage {
     fn node_time_semantics(&self) -> TimeSemantics {
@@ -103,7 +108,11 @@ impl GraphTimeSemanticsOps for GraphStorage {
         let graph_entry = self.graph_entry();
 
         GenLockedIter::from(graph_entry, |entry| {
-            entry.as_ref().get_temporal_prop(prop_id).iter().into_dyn_boxed()
+            entry
+                .as_ref()
+                .get_temporal_prop(prop_id)
+                .iter()
+                .into_dyn_boxed()
         })
         .into_dyn_boxed()
     }
@@ -157,7 +166,10 @@ impl GraphTimeSemanticsOps for GraphStorage {
     ) -> Option<(TimeIndexEntry, Prop)> {
         let graph_entry = self.graph_entry();
 
-        graph_entry.as_ref().get_temporal_prop(prop_id).last_before(t.next())
+        graph_entry
+            .as_ref()
+            .get_temporal_prop(prop_id)
+            .last_before(t.next())
     }
 
     fn temporal_prop_last_at_window(

@@ -1,4 +1,6 @@
-use crate::{api::graph_props::GraphPropSegmentOps, segments::graph_prop::segment::MemGraphPropSegment};
+use crate::{
+    api::graph_props::GraphPropSegmentOps, segments::graph_prop::segment::MemGraphPropSegment,
+};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::timeindex::AsTime;
@@ -11,7 +13,10 @@ pub struct GraphPropWriter<'a, GS: GraphPropSegmentOps> {
 }
 
 impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
-    pub fn new(graph_props: &'a GS, mem_segment: RwLockWriteGuard<'a, MemGraphPropSegment>) -> Self {
+    pub fn new(
+        graph_props: &'a GS,
+        mem_segment: RwLockWriteGuard<'a, MemGraphPropSegment>,
+    ) -> Self {
         Self {
             mem_segment,
             graph_props,

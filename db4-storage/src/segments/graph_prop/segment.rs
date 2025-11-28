@@ -1,6 +1,5 @@
 use crate::segments::{HasRow, SegmentContainer};
-use raphtory_api::core::entities::properties::meta::Meta;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
 use raphtory_core::{
     entities::properties::tprop::TPropCell,
     storage::timeindex::{AsTime, TimeIndexEntry},
@@ -20,7 +19,7 @@ pub struct MemGraphPropSegment {
 #[derive(Debug, Default)]
 pub struct UnitEntry(usize);
 
-// `UnitEntry` does not store data, but HasRow has to be implemented
+// `UnitEntry` does not store data, but `HasRow has to be implemented
 // for SegmentContainer to work.
 impl HasRow for UnitEntry {
     fn row(&self) -> usize {
@@ -53,10 +52,7 @@ impl MemGraphPropSegment {
         self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
     }
 
-    pub fn get_or_create_layer(
-        &mut self,
-        layer_id: usize,
-    ) -> &mut SegmentContainer<UnitEntry> {
+    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<UnitEntry> {
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();

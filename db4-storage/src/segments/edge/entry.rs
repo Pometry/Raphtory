@@ -1,3 +1,10 @@
+use crate::{
+    EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
+    api::edges::{EdgeEntryOps, EdgeRefOps},
+    gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
+    generic_t_props::WithTProps,
+    segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
+};
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
     entities::{
@@ -6,13 +13,6 @@ use raphtory_core::{
     },
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use crate::{
-    EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
-    api::edges::{EdgeEntryOps, EdgeRefOps},
-    generic_t_props::WithTProps,
-    gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
-};
-use crate::segments::{additions::MemAdditions, edge::segment::MemEdgeSegment};
 
 #[derive(Debug)]
 pub struct MemEdgeEntry<'a, MES> {

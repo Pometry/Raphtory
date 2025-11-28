@@ -32,14 +32,14 @@ use std::{
     },
 };
 
-pub mod node_page;
-pub mod node_store;
 pub mod edge_page;
 pub mod edge_store;
 pub mod graph_prop_page;
 pub mod graph_prop_store;
 pub mod layer_counter;
 pub mod locked;
+pub mod node_page;
+pub mod node_store;
 pub mod session;
 
 #[cfg(any(test, feature = "test-utils"))]

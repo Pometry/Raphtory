@@ -1,17 +1,21 @@
 pub mod entry;
 pub mod segment;
 
-use crate::api::graph_props::GraphPropSegmentOps;
-use crate::error::StorageError;
-use crate::persist::strategy::NoOpStrategy;
-use crate::segments::graph_prop::entry::MemGraphPropEntry;
-use crate::segments::graph_prop::segment::MemGraphPropSegment;
-use parking_lot::RwLock;
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use crate::{
+    api::graph_props::GraphPropSegmentOps,
+    error::StorageError,
+    persist::strategy::NoOpStrategy,
+    segments::graph_prop::{entry::MemGraphPropEntry, segment::MemGraphPropSegment},
+};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::meta::Meta;
-use std::path::Path;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::{
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+    },
+};
 
 /// `GraphPropSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
@@ -63,8 +67,7 @@ impl GraphPropSegmentOps for GraphPropSegmentView {
     }
 
     fn increment_est_size(&self, size: usize) {
-        self.est_size
-            .fetch_add(size, Ordering::Relaxed);
+        self.est_size.fetch_add(size, Ordering::Relaxed);
     }
 
     fn est_size(&self) -> usize {

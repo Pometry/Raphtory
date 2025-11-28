@@ -1,7 +1,9 @@
-use crate::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
-use crate::generic_t_props::WithTProps;
-use crate::segments::graph_prop::segment::MemGraphPropSegment;
-use crate::GraphTProps;
+use crate::{
+    GraphTProps,
+    api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
+    generic_t_props::WithTProps,
+    segments::graph_prop::segment::MemGraphPropSegment,
+};
 use parking_lot::RwLockReadGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::properties::tprop::TPropCell;
@@ -19,7 +21,8 @@ impl<'a> MemGraphPropEntry<'a> {
 }
 
 impl<'a> GraphPropEntryOps<'a> for MemGraphPropEntry<'a> {
-    type Ref<'b> = MemGraphPropRef<'b>
+    type Ref<'b>
+        = MemGraphPropRef<'b>
     where
         'a: 'b;
 

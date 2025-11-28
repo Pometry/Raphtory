@@ -1,8 +1,8 @@
 use crate::{
     LocalPOS, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
     api::nodes::{NodeEntryOps, NodeRefOps},
-    generic_t_props::WithTProps,
     gen_ts::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
+    generic_t_props::WithTProps,
     segments::node::segment::MemNodeSegment,
 };
 use raphtory_api::core::{
