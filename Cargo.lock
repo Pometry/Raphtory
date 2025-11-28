@@ -2101,7 +2101,6 @@ dependencies = [
  "parking_lot",
  "raphtory-api",
  "raphtory-core",
- "rayon",
  "tempfile",
  "uuid",
 ]
