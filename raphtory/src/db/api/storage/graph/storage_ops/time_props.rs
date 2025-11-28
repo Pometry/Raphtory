@@ -67,7 +67,8 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
         graph_entry
             .as_ref()
             .get_temporal_prop(id)
-            .at(&TimeIndexEntry::start(t))
+            .last_before(TimeIndexEntry::start(t.saturating_add(1)))
+            .map(|(_, prop)| prop)
     }
 }
 
