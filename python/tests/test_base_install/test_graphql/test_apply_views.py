@@ -1108,7 +1108,7 @@ def test_apply_view_after():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": None},
+            "applyViews": {"latestTime": {"timestamp": None}},
             "nodes": {"applyViews": {"list": []}},
             "node": {"applyViews": {"history": {"timestamps": {"list": []}}}},
             "edges": {

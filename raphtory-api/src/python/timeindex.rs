@@ -7,7 +7,7 @@ use crate::core::{
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use pyo3::{
     basic::CompareOp,
-    exceptions::{PyException, PyRuntimeError, PyTypeError},
+    exceptions::{PyRuntimeError, PyTypeError},
     prelude::*,
     types::{PyDateTime, PyList, PyTuple},
 };

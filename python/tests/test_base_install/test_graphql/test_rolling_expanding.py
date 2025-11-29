@@ -133,8 +133,8 @@ def test_graph_date():
         "graph": {
             "expanding": {
                 "list": [
-                    {"start": None, "end": {"timestamp": 1735948800000}},
-                    {"start": None, "end": {"timestamp": 1736208000000}},
+                    {"start": {"timestamp": None}, "end": {"timestamp": 1735948800000}},
+                    {"start": {"timestamp": None}, "end": {"timestamp": 1736208000000}},
                 ]
             }
         }
@@ -507,7 +507,7 @@ def test_node():
                             "start": {"timestamp": 5},
                             "end": {"timestamp": 6},
                             "degree": 0,
-                            "earliestTime": None,
+                            "earliestTime": {"timestamp": None},
                         },
                     ],
                     "count": 5,
@@ -714,7 +714,7 @@ def test_nodes():
                                     {
                                         "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 3},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 2},
@@ -726,7 +726,7 @@ def test_nodes():
                                     {
                                         "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 4},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 3},
@@ -738,7 +738,7 @@ def test_nodes():
                                     {
                                         "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 5},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 4},
@@ -750,7 +750,7 @@ def test_nodes():
                                     {
                                         "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 6},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 4},
@@ -765,7 +765,7 @@ def test_nodes():
                                     {
                                         "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 5},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 4},
@@ -777,7 +777,7 @@ def test_nodes():
                                     {
                                         "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 6},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 4},
@@ -927,7 +927,7 @@ def test_path():
                                         "degree": 0,
                                         "start": {"timestamp": 4},
                                         "end": {"timestamp": 5},
-                                        "earliestTime": None,
+                                        "earliestTime": {"timestamp": None},
                                     }
                                 ]
                             },
@@ -938,7 +938,7 @@ def test_path():
                                         "degree": 0,
                                         "start": {"timestamp": 5},
                                         "end": {"timestamp": 6},
-                                        "earliestTime": None,
+                                        "earliestTime": {"timestamp": None},
                                     }
                                 ]
                             },
@@ -952,7 +952,7 @@ def test_path():
                                         "degree": 0,
                                         "start": {"timestamp": 4},
                                         "end": {"timestamp": 5},
-                                        "earliestTime": None,
+                                        "earliestTime": {"timestamp": None},
                                     }
                                 ]
                             },
@@ -963,7 +963,7 @@ def test_path():
                                         "degree": 0,
                                         "start": {"timestamp": 5},
                                         "end": {"timestamp": 6},
-                                        "earliestTime": None,
+                                        "earliestTime": {"timestamp": None},
                                     }
                                 ]
                             },
@@ -1151,12 +1151,12 @@ def test_edge():
                         {
                             "start": {"timestamp": 4},
                             "end": {"timestamp": 5},
-                            "earliestTime": None,
+                            "earliestTime": {"timestamp": None},
                         },
                         {
                             "start": {"timestamp": 5},
                             "end": {"timestamp": 6},
-                            "earliestTime": None,
+                            "earliestTime": {"timestamp": None},
                         },
                     ],
                     "count": 5,
@@ -1164,12 +1164,12 @@ def test_edge():
                         {
                             "start": {"timestamp": 4},
                             "end": {"timestamp": 5},
-                            "earliestTime": None,
+                            "earliestTime": {"timestamp": None},
                         },
                         {
                             "start": {"timestamp": 5},
                             "end": {"timestamp": 6},
-                            "earliestTime": None,
+                            "earliestTime": {"timestamp": None},
                         },
                     ],
                 },
@@ -1177,25 +1177,25 @@ def test_edge():
                     "expanding": {
                         "list": [
                             {
-                                "start": None,
+                                "start": {"timestamp": None},
                                 "end": {"timestamp": 3},
                                 "earliestTime": {"timestamp": 2},
                                 "latestTime": {"timestamp": 2},
                             },
                             {
-                                "start": None,
+                                "start": {"timestamp": None},
                                 "end": {"timestamp": 4},
                                 "earliestTime": {"timestamp": 2},
                                 "latestTime": {"timestamp": 3},
                             },
                             {
-                                "start": None,
+                                "start": {"timestamp": None},
                                 "end": {"timestamp": 5},
                                 "earliestTime": {"timestamp": 2},
                                 "latestTime": {"timestamp": 3},
                             },
                             {
-                                "start": None,
+                                "start": {"timestamp": None},
                                 "end": {"timestamp": 6},
                                 "earliestTime": {"timestamp": 2},
                                 "latestTime": {"timestamp": 3},
@@ -1204,13 +1204,13 @@ def test_edge():
                         "count": 4,
                         "page": [
                             {
-                                "start": None,
+                                "start": {"timestamp": None},
                                 "end": {"timestamp": 5},
                                 "earliestTime": {"timestamp": 2},
                                 "latestTime": {"timestamp": 3},
                             },
                             {
-                                "start": None,
+                                "start": {"timestamp": None},
                                 "end": {"timestamp": 6},
                                 "earliestTime": {"timestamp": 2},
                                 "latestTime": {"timestamp": 3},
@@ -1347,7 +1347,7 @@ def test_edges():
                                     "id": ["1", "2"],
                                     "start": {"timestamp": 4},
                                     "end": {"timestamp": 5},
-                                    "earliestTime": None,
+                                    "earliestTime": {"timestamp": None},
                                 }
                             ]
                         },
@@ -1357,7 +1357,7 @@ def test_edges():
                                     "id": ["1", "2"],
                                     "start": {"timestamp": 5},
                                     "end": {"timestamp": 6},
-                                    "earliestTime": None,
+                                    "earliestTime": {"timestamp": None},
                                 }
                             ]
                         },
@@ -1370,7 +1370,7 @@ def test_edges():
                                     "id": ["1", "2"],
                                     "start": {"timestamp": 4},
                                     "end": {"timestamp": 5},
-                                    "earliestTime": None,
+                                    "earliestTime": {"timestamp": None},
                                 }
                             ]
                         },
@@ -1380,7 +1380,7 @@ def test_edges():
                                     "id": ["1", "2"],
                                     "start": {"timestamp": 5},
                                     "end": {"timestamp": 6},
-                                    "earliestTime": None,
+                                    "earliestTime": {"timestamp": None},
                                 }
                             ]
                         },
@@ -1393,7 +1393,7 @@ def test_edges():
                                 "page": [
                                     {
                                         "id": ["1", "2"],
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 3},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 2},
@@ -1404,7 +1404,7 @@ def test_edges():
                                 "page": [
                                     {
                                         "id": ["1", "2"],
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 4},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 3},
@@ -1415,7 +1415,7 @@ def test_edges():
                                 "page": [
                                     {
                                         "id": ["1", "2"],
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 5},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 3},
@@ -1426,7 +1426,7 @@ def test_edges():
                                 "page": [
                                     {
                                         "id": ["1", "2"],
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 6},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 3},
@@ -1440,7 +1440,7 @@ def test_edges():
                                 "page": [
                                     {
                                         "id": ["1", "2"],
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 5},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 3},
@@ -1451,7 +1451,7 @@ def test_edges():
                                 "page": [
                                     {
                                         "id": ["1", "2"],
-                                        "start": None,
+                                        "start": {"timestamp": None},
                                         "end": {"timestamp": 6},
                                         "earliestTime": {"timestamp": 2},
                                         "latestTime": {"timestamp": 3},
