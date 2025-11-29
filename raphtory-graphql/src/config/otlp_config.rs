@@ -53,7 +53,10 @@ impl TracingConfig {
                 ));
             }
 
-            if !TRACE_LEVELS.contains(&self.tracing_level.as_str()) {
+            if !TRACE_LEVELS
+                .iter()
+                .any(|lvl| lvl.eq_ignore_ascii_case(&self.tracing_level))
+            {
                 let allowed = TRACE_LEVELS.join(", ");
                 return Err(std::io::Error::other(format!(
                     "Trace level '{}' is invalid. Allowed values: {}",
