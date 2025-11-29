@@ -86,69 +86,6 @@ impl IntoTime for GqlTimeInput {
     }
 }
 
-/// Raphtory’s EventTime.
-/// Represents a unique timepoint in the graph’s history as (timestamp, event_id).
-///
-/// - timestamp: Number of milliseconds since the Unix epoch.
-/// - event_id: ID used for ordering between equal timestamps.
-#[derive(ResolvedObject, Clone, Copy)]
-#[graphql(name = "EventTime")]
-pub struct GqlEventTime {
-    pub(crate) entry: EventTime,
-}
-
-impl From<EventTime> for GqlEventTime {
-    fn from(entry: EventTime) -> Self {
-        Self { entry }
-    }
-}
-
-impl From<GqlEventTime> for EventTime {
-    fn from(entry: GqlEventTime) -> Self {
-        entry.entry
-    }
-}
-
-impl IntoTime for GqlEventTime {
-    fn into_time(self) -> EventTime {
-        self.entry
-    }
-}
-
-#[ResolvedObjectFields]
-impl GqlEventTime {
-    /// Get the timestamp in milliseconds since the Unix epoch.
-    async fn timestamp(&self) -> i64 {
-        self.entry.t()
-    }
-
-    /// Get the event id for the EventTime. Used for ordering within the same timestamp.
-    async fn event_id(&self) -> u64 {
-        self.entry.i() as u64
-    }
-
-    /// Access a datetime representation of the EventTime as a String.
-    /// Useful for converting millisecond timestamps into easily readable datetime strings.
-    /// Optionally, a format string can be passed to format the output.
-    /// Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
-    /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
-    /// Raises an error if a time conversion fails.
-    async fn datetime(&self, format_string: Option<String>) -> Result<String, Error> {
-        let fmt_string = format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
-        if dt_format_str_is_valid(fmt_string) {
-            self.entry
-                .dt()
-                .map(|dt| dt.format(fmt_string).to_string())
-                .map_err(|e| Error::new(e.to_string()))
-        } else {
-            Err(Error::new(format!(
-                "Invalid datetime format string: '{}'",
-                fmt_string
-            )))
-        }
-    }
-}
-
 pub fn dt_format_str_is_valid(fmt_str: &str) -> bool {
     if StrftimeItems::new(fmt_str).any(|it| matches!(it, Item::Error)) {
         false
@@ -157,20 +94,23 @@ pub fn dt_format_str_is_valid(fmt_str: &str) -> bool {
     }
 }
 
-/// Raphtory’s optional EventTime type. Instances of OptionalEventTime may contain an EventTime, or be empty.
-/// This is used for functions that may not return data (such as earliest_time and latest_time) because the data is unavailable.
+/// Raphtory’s EventTime.
+/// Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 ///
-/// If data is contained, OptionalEventTime instances can be used similarly to EventTime.
-/// If empty, time operations (such as .t, .dt, .event_id) will return None.
-/// An empty OptionalEventTime is considered smaller than (<) any EventTime or OptionalEventTime with data.
+/// - timestamp: Number of milliseconds since the Unix epoch.
+/// - event_id: ID used for ordering between equal timestamps.
+///
+/// Instances of EventTime may or may not contain time information.
+/// This is relevant for functions that may not return data (such as earliest_time and latest_time) because the data is unavailable.
+/// When empty, time operations (such as timestamp, datetime, and event_id) will return None.
 #[derive(ResolvedObject, Clone, Copy)]
-#[graphql(name = "OptionalEventTime")]
-pub struct GqlOptionalEventTime {
+#[graphql(name = "EventTime")]
+pub struct GqlEventTime {
     pub(crate) inner: Option<EventTime>,
 }
 
 #[ResolvedObjectFields]
-impl GqlOptionalEventTime {
+impl GqlEventTime {
     /// Get the timestamp in milliseconds since the Unix epoch.
     async fn timestamp(&self) -> Option<i64> {
         self.inner.map(|t| t.t())
@@ -206,14 +146,20 @@ impl GqlOptionalEventTime {
     }
 }
 
-impl From<Option<EventTime>> for GqlOptionalEventTime {
+impl From<Option<EventTime>> for GqlEventTime {
     fn from(value: Option<EventTime>) -> Self {
         Self { inner: value }
     }
 }
 
-impl From<GqlOptionalEventTime> for Option<EventTime> {
-    fn from(value: GqlOptionalEventTime) -> Self {
+impl From<EventTime> for GqlEventTime {
+    fn from(value: EventTime) -> Self {
+        Self { inner: Some(value) }
+    }
+}
+
+impl From<GqlEventTime> for Option<EventTime> {
+    fn from(value: GqlEventTime) -> Self {
         value.inner
     }
 }

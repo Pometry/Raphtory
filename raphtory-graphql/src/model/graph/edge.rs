@@ -5,7 +5,7 @@ use crate::{
         history::GqlHistory,
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
-        timeindex::{GqlEventTime, GqlOptionalEventTime, GqlTimeInput},
+        timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlEdgeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
@@ -253,21 +253,21 @@ impl GqlEdge {
     }
 
     /// Returns the earliest time of an edge.
-    async fn earliest_time(&self) -> GqlOptionalEventTime {
+    async fn earliest_time(&self) -> GqlEventTime {
         self.ee.earliest_time().into()
     }
 
-    async fn first_update(&self) -> GqlOptionalEventTime {
+    async fn first_update(&self) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.history().earliest_time().into()).await
     }
 
     /// Returns the latest time of an edge.
-    async fn latest_time(&self) -> GqlOptionalEventTime {
+    async fn latest_time(&self) -> GqlEventTime {
         self.ee.latest_time().into()
     }
 
-    async fn last_update(&self) -> GqlOptionalEventTime {
+    async fn last_update(&self) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.history().latest_time().into()).await
     }
@@ -278,12 +278,12 @@ impl GqlEdge {
     }
 
     /// Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
-    async fn start(&self) -> GqlOptionalEventTime {
+    async fn start(&self) -> GqlEventTime {
         self.ee.start().into()
     }
 
     /// Returns the end time of the window. Returns none if no window is applied.
-    async fn end(&self) -> GqlOptionalEventTime {
+    async fn end(&self) -> GqlEventTime {
         self.ee.end().into()
     }
 

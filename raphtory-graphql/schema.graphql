@@ -222,13 +222,13 @@ type Edge {
 	"""
 	Returns the earliest time of an edge.
 	"""
-	earliestTime: OptionalEventTime!
-	firstUpdate: OptionalEventTime!
+	earliestTime: EventTime!
+	firstUpdate: EventTime!
 	"""
 	Returns the latest time of an edge.
 	"""
-	latestTime: OptionalEventTime!
-	lastUpdate: OptionalEventTime!
+	latestTime: EventTime!
+	lastUpdate: EventTime!
 	"""
 	Returns the time of an exploded edge. Errors on an unexploded edge.
 	"""
@@ -236,11 +236,11 @@ type Edge {
 	"""
 	Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
 	"""
-	start: OptionalEventTime!
+	start: EventTime!
 	"""
 	Returns the end time of the window. Returns none if no window is applied.
 	"""
-	end: OptionalEventTime!
+	end: EventTime!
 	"""
 	Returns the source node of the edge.
 	
@@ -609,11 +609,11 @@ type Edges {
 	"""
 	Returns the start time of the window or none if there is no window.
 	"""
-	start: OptionalEventTime!
+	start: EventTime!
 	"""
 	Returns the end time of the window or none if there is no window.
 	"""
-	end: OptionalEventTime!
+	end: EventTime!
 	"""
 	Returns the number of edges.
 	
@@ -717,16 +717,20 @@ Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 
 - timestamp: Number of milliseconds since the Unix epoch.
 - event_id: ID used for ordering between equal timestamps.
+
+Instances of EventTime may or may not contain time information.
+This is relevant for functions that may not return data (such as earliest_time and latest_time) because the data is unavailable.
+When empty, time operations (such as timestamp, datetime, and event_id) will return None.
 """
 type EventTime {
 	"""
 	Get the timestamp in milliseconds since the Unix epoch.
 	"""
-	timestamp: Int!
+	timestamp: Int
 	"""
 	Get the event id for the EventTime. Used for ordering within the same timestamp.
 	"""
-	eventId: Int!
+	eventId: Int
 	"""
 	Access a datetime representation of the EventTime as a String.
 	Useful for converting millisecond timestamps into easily readable datetime strings.
@@ -735,7 +739,7 @@ type EventTime {
 	Refer to chrono::format::strftime for formatting specifiers and escape sequences.
 	Raises an error if a time conversion fails.
 	"""
-	datetime(formatString: String): String!
+	datetime(formatString: String): String
 }
 
 type Graph {
@@ -856,27 +860,27 @@ type Graph {
 	"""
 	Returns the time entry of the earliest activity in the graph.
 	"""
-	earliestTime: OptionalEventTime!
+	earliestTime: EventTime!
 	"""
 	Returns the time entry of the latest activity in the graph.
 	"""
-	latestTime: OptionalEventTime!
+	latestTime: EventTime!
 	"""
 	Returns the start time of the window. Errors if there is no window.
 	"""
-	start: OptionalEventTime!
+	start: EventTime!
 	"""
 	Returns the end time of the window. Errors if there is no window.
 	"""
-	end: OptionalEventTime!
+	end: EventTime!
 	"""
 	Returns the earliest time that any edge in this graph is valid.
 	"""
-	earliestEdgeTime(includeNegative: Boolean): OptionalEventTime!
+	earliestEdgeTime(includeNegative: Boolean): EventTime!
 	"""
 	Returns the latest time that any edge in this graph is valid.
 	"""
-	latestEdgeTime(includeNegative: Boolean): OptionalEventTime!
+	latestEdgeTime(includeNegative: Boolean): EventTime!
 	"""
 	Returns the number of edges in the graph.
 	
@@ -974,8 +978,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -1105,11 +1109,11 @@ type History {
 	"""
 	Get the earliest time entry associated with this history or None if the history is empty.
 	"""
-	earliestTime: OptionalEventTime!
+	earliestTime: EventTime!
 	"""
 	Get the latest time entry associated with this history or None if the history is empty.
 	"""
-	latestTime: OptionalEventTime!
+	latestTime: EventTime!
 	"""
 	List all time entries present in this history.
 	"""
@@ -1721,27 +1725,27 @@ type Node {
 	"""
 	Returns the earliest time that the node exists.
 	"""
-	earliestTime: OptionalEventTime!
+	earliestTime: EventTime!
 	"""
 	Returns the time of the first update made to the node.
 	"""
-	firstUpdate: OptionalEventTime!
+	firstUpdate: EventTime!
 	"""
 	Returns the latest time that the node exists.
 	"""
-	latestTime: OptionalEventTime!
+	latestTime: EventTime!
 	"""
 	Returns the time of the last update made to the node.
 	"""
-	lastUpdate: OptionalEventTime!
+	lastUpdate: EventTime!
 	"""
 	Gets the start time for the window. Errors if there is no window.
 	"""
-	start: OptionalEventTime!
+	start: EventTime!
 	"""
 	Gets the end time for the window. Errors if there is no window.
 	"""
-	end: OptionalEventTime!
+	end: EventTime!
 	"""
 	Returns a history object for the node, with time entries for node additions and changes made to node.
 	"""
@@ -2087,11 +2091,11 @@ type Nodes {
 	"""
 	Returns the start time of the window. Errors if there is no window.
 	"""
-	start: OptionalEventTime!
+	start: EventTime!
 	"""
 	Returns the end time of the window. Errors if there is no window.
 	"""
-	end: OptionalEventTime!
+	end: EventTime!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -2255,34 +2259,6 @@ enum Operator {
 }
 
 """
-Raphtory’s optional EventTime type. Instances of OptionalEventTime may contain an EventTime, or be empty.
-This is used for functions that may not return data (such as earliest_time and latest_time) because the data is unavailable.
-
-If data is contained, OptionalEventTime instances can be used similarly to EventTime.
-If empty, time operations (such as .t, .dt, .event_id) will return None.
-An empty OptionalEventTime is considered smaller than (<) any EventTime or OptionalEventTime with data.
-"""
-type OptionalEventTime {
-	"""
-	Get the timestamp in milliseconds since the Unix epoch.
-	"""
-	timestamp: Int
-	"""
-	Get the event id for the EventTime. Used for ordering within the same timestamp.
-	"""
-	eventId: Int
-	"""
-	Access a datetime representation of the EventTime as a String.
-	Useful for converting millisecond timestamps into easily readable datetime strings.
-	Optionally, a format string can be passed to format the output.
-	Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
-	Refer to chrono::format::strftime for formatting specifiers and escape sequences.
-	Raises an error if a time conversion fails.
-	"""
-	datetime(formatString: String): String
-}
-
-"""
 PageRank score.
 """
 type PagerankOutput {
@@ -2376,11 +2352,11 @@ type PathFromNode {
 	"""
 	Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
 	"""
-	start: OptionalEventTime!
+	start: EventTime!
 	"""
 	Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
 	"""
-	end: OptionalEventTime!
+	end: EventTime!
 	count: Int!
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
