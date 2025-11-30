@@ -1,8 +1,13 @@
 use raphtory_api::core::entities::properties::meta::Meta;
 
 use crate::{
-    api::graph_props::GraphPropSegmentOps, error::StorageError,
-    pages::graph_prop_page::writer::GraphPropWriter, persist::strategy::Config,
+    api::graph_props::GraphPropSegmentOps,
+    error::StorageError,
+    pages::{
+        graph_prop_page::writer::GraphPropWriter,
+        locked::graph_props::{LockedGraphPropPage, WriteLockedGraphPropPages},
+    },
+    persist::strategy::Config,
 };
 
 use std::{
@@ -61,5 +66,12 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: Config> GraphPropStorageInne
         let head = self.page.head_mut();
         let graph_props = &self.page;
         GraphPropWriter::new(graph_props, head)
+    }
+
+    pub fn write_locked<'a>(&'a self) -> WriteLockedGraphPropPages<'a, GS> {
+        WriteLockedGraphPropPages::new(LockedGraphPropPage::new(
+            self.page.as_ref(),
+            self.page.head_mut(),
+        ))
     }
 }

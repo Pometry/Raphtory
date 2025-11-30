@@ -20,7 +20,7 @@ pub struct LockedEdgePage<'a, ES> {
     lock: RwLockWriteGuard<'a, MemEdgeSegment>,
 }
 
-impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> LockedEdgePage<'a, ES> {
+impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
     pub fn new(
         page_id: usize,
         max_page_len: u32,
@@ -74,7 +74,7 @@ impl<ES> Default for WriteLockedEdgePages<'_, ES> {
     }
 }
 
-impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> WriteLockedEdgePages<'a, ES> {
+impl<'a, ES: EdgeSegmentOps> WriteLockedEdgePages<'a, ES> {
     pub fn new(writers: Vec<LockedEdgePage<'a, ES>>) -> Self {
         Self { writers }
     }

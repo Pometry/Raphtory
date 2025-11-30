@@ -19,7 +19,10 @@ use storage::{
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
-        locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
+        locked::{
+            edges::WriteLockedEdgePages, graph_props::WriteLockedGraphPropPages,
+            nodes::WriteLockedNodePages,
+        },
     },
     persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
@@ -368,9 +371,13 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
     }
 }
 
-pub struct WriteLockedGraph<'a, EXT: Config> {
+pub struct WriteLockedGraph<'a, EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+{
     pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
+    pub graph_props: WriteLockedGraphPropPages<'a, storage::GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
 }
 
@@ -381,6 +388,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),
             edges: graph.storage.edges().write_locked(),
+            graph_props: graph.storage.graph_props().write_locked(),
             graph,
         }
     }
