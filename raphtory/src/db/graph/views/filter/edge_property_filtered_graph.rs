@@ -14,7 +14,10 @@ use crate::{
         graph::views::{
             filter::{
                 internal::CreateFilter,
-                model::{edge_filter::EdgeFilter, property_filter::PropertyFilter, Windowed},
+                model::{
+                    edge_filter::EdgeFilter, property_filter::PropertyFilter,
+                    windowed_filter::Windowed,
+                },
             },
             window_graph::WindowedGraph,
         },

@@ -16,7 +16,7 @@ use crate::{
                 internal::CreateFilter,
                 model::{
                     exploded_edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilter,
-                    Windowed,
+                    windowed_filter::Windowed,
                 },
             },
             window_graph::WindowedGraph,

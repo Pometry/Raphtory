@@ -12,7 +12,8 @@ use raphtory::{
         filter_operator::FilterOperator,
         node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-        Filter, FilterValue, Windowed,
+        windowed_filter::Windowed,
+        Filter, FilterValue,
     },
     errors::GraphError,
 };
