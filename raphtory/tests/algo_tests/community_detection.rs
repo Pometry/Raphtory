@@ -57,6 +57,7 @@ fn lpa_test() {
 }
 
 use proptest::prelude::*;
+use raphtory::algorithms::community_detection::modularity::ConstModularity;
 
 #[test]
 fn test_louvain() {
@@ -90,6 +91,12 @@ fn test_all_nodes_assigned_inner(edges: Vec<(u64, u64, f64)>) {
             .nodes()
             .iter()
             .all(|n| result.get_by_node(n).is_some()));
+
+        let result = louvain::<ConstModularity, _>(graph, 1.0, Some("weight"), None);
+        assert!(graph
+            .nodes()
+            .iter()
+            .all(|n| result.get_by_node(n).is_some()));
     });
 }
 
@@ -102,6 +109,12 @@ fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) {
 
     test_storage!(&graph, |graph| {
         let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
+        assert!(graph
+            .nodes()
+            .iter()
+            .all(|n| result.get_by_node(n).is_some()));
+
+        let result = louvain::<ConstModularity, _>(graph, 1.0, None, None);
         assert!(graph
             .nodes()
             .iter()
