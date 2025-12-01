@@ -1,3 +1,4 @@
+use crate::config::otlp_config::{TracingLevel, ESSENTIAL_TRACE_SPANS};
 use async_graphql::{
     async_trait,
     extensions::{
@@ -26,12 +27,12 @@ const KEY_DEPTH: Key = Key::from_static_str("graphql.depth");
 #[cfg_attr(docsrs, doc(cfg(feature = "opentelemetry")))]
 pub struct OpenTelemetry<T> {
     tracer: Arc<T>,
-    tracing_level: String,
+    tracing_level: TracingLevel,
 }
 
 impl<T> OpenTelemetry<T> {
     /// Use tracer to create an OpenTelemetry extension.
-    pub fn new(tracer: T, tracing_level: String) -> OpenTelemetry<T>
+    pub fn new(tracer: T, tracing_level: TracingLevel) -> OpenTelemetry<T>
     where
         T: Tracer + Send + Sync + 'static,
         <T as Tracer>::Span: Sync + Send,
@@ -58,7 +59,7 @@ where
 
 struct OpenTelemetryExtension<T> {
     tracer: Arc<T>,
-    tracing_level: String,
+    tracing_level: TracingLevel,
 }
 
 #[async_trait::async_trait]
@@ -181,16 +182,28 @@ where
             ];
             match info.path_node.segment {
                 QueryPathSegment::Index(_) => None,
-                QueryPathSegment::Name(name) => match self.tracing_level.as_str() {
-                    "Complete" => Some(
+                QueryPathSegment::Name(name) => match self.tracing_level {
+                    TracingLevel::COMPLETE => Some(
                         self.tracer
                             .span_builder(name.to_string())
                             .with_kind(SpanKind::Server)
                             .with_attributes(attributes)
                             .start(&*self.tracer),
                     ),
-                    "Essential" => None,
-                    _ => None,
+                    TracingLevel::ESSENTIAL => {
+                        if ESSENTIAL_TRACE_SPANS.contains(&name) {
+                            Some(
+                                self.tracer
+                                    .span_builder(name.to_string())
+                                    .with_kind(SpanKind::Server)
+                                    .with_attributes(attributes)
+                                    .start(&*self.tracer),
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    TracingLevel::MINIMAL => None,
                 },
             }
         } else {

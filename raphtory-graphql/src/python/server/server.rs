@@ -1,5 +1,8 @@
 use crate::{
-    config::{app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG},
+    config::{
+        app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG,
+        otlp_config::TracingLevel,
+    },
     python::server::{
         running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
     },
@@ -107,7 +110,14 @@ impl PyGraphServer {
             app_config_builder = app_config_builder.with_tracing(tracing);
         }
         if let Some(tracing_level) = tracing_level {
-            app_config_builder = app_config_builder.with_tracing_level(tracing_level);
+            let json = format!("\"{}\"", tracing_level).to_uppercase();
+            let tl: TracingLevel = serde_json::from_str(json.as_str()).map_err(|_| {
+                PyValueError::new_err(format!(
+                    "Invalid tracing level. Allowed levels {} ",
+                    TracingLevel::all_levels_string()
+                ))
+            })?;
+            app_config_builder = app_config_builder.with_tracing_level(tl);
         }
         if let Some(otlp_agent_host) = otlp_agent_host {
             app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);

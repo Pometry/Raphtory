@@ -1,3 +1,4 @@
+use clap::ValueEnum;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use opentelemetry_sdk::{
@@ -7,12 +8,43 @@ use opentelemetry_sdk::{
 };
 use serde::Deserialize;
 use std::time::Duration;
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter, EnumString};
 
 pub const DEFAULT_TRACING_ENABLED: bool = false;
 
-pub const TRACE_LEVELS: [&str; 2] = ["Complete", "Essential"];
+#[derive(
+    Clone, Debug, Deserialize, PartialEq, serde::Serialize, EnumIter, EnumString, Display, ValueEnum,
+)]
+pub enum TracingLevel {
+    COMPLETE,
+    ESSENTIAL,
+    MINIMAL,
+}
 
-pub const DEFAULT_TRACING_LEVEL: &'static str = "Complete";
+impl TracingLevel {
+    pub fn all_levels_string() -> String {
+        TracingLevel::iter()
+            .map(|lvl| lvl.to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+pub const ESSENTIAL_TRACE_SPANS: [&str; 10] = [
+    "addEdge",
+    "addEdges",
+    "deleteEdge",
+    "graph",
+    "updateGraph",
+    "addNode",
+    "node",
+    "nodes",
+    "edge",
+    "edges",
+];
+
+pub const DEFAULT_TRACING_LEVEL: TracingLevel = TracingLevel::COMPLETE;
 
 pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
 pub const DEFAULT_OTLP_AGENT_PORT: &'static str = "4317";
@@ -21,7 +53,7 @@ pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
 #[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize)]
 pub struct TracingConfig {
     pub tracing_enabled: bool,
-    pub tracing_level: String,
+    pub tracing_level: TracingLevel,
     pub otlp_agent_host: String,
     pub otlp_agent_port: String,
     pub otlp_tracing_service_name: String,
@@ -31,7 +63,7 @@ impl Default for TracingConfig {
     fn default() -> Self {
         Self {
             tracing_enabled: DEFAULT_TRACING_ENABLED,
-            tracing_level: DEFAULT_TRACING_LEVEL.to_string(),
+            tracing_level: DEFAULT_TRACING_LEVEL,
             otlp_agent_host: DEFAULT_OTLP_AGENT_HOST.to_owned(),
             otlp_agent_port: DEFAULT_OTLP_AGENT_PORT.to_owned(),
             otlp_tracing_service_name: DEFAULT_OTLP_TRACING_SERVICE_NAME.to_owned(),
@@ -53,16 +85,6 @@ impl TracingConfig {
                 ));
             }
 
-            if !TRACE_LEVELS
-                .iter()
-                .any(|lvl| lvl.eq_ignore_ascii_case(&self.tracing_level))
-            {
-                let allowed = TRACE_LEVELS.join(", ");
-                return Err(std::io::Error::other(format!(
-                    "Trace level '{}' is invalid. Allowed values: {}",
-                    self.tracing_level, allowed
-                )));
-            }
             match SpanExporter::builder()
                 .with_tonic()
                 .with_endpoint(format!(
