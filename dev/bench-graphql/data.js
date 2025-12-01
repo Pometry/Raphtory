@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764265828143,
+  "lastUpdate": 1764632071967,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2483,6 +2483,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1108,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "48d12252324210befab645ff844f77b730a2e8de",
+          "message": "Added new tracing levels (#2400)\n\n* Added new tracing levels\n\n* fix test\n\n* Added new levels and changed to enum\n\n* return early is server task fnishes\n\n* Docs\n\n* break out tracing in doc\n\n---------\n\nCo-authored-by: Pedro Rico Pinazo <ricopinazo@gmail.com>\nCo-authored-by: James Baross <james.baross@pometry.com>",
+          "timestamp": "2025-12-01T22:59:09Z",
+          "tree_id": "c964e94a5e040bbd2d132e8e7ea6515d467e67ef",
+          "url": "https://github.com/Pometry/Raphtory/commit/48d12252324210befab645ff844f77b730a2e8de"
+        },
+        "date": 1764632066826,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1260,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 165,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 155,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1066,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 905,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1205,
             "unit": "req/s"
           }
         ]
