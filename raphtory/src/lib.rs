@@ -141,7 +141,7 @@ pub mod prelude {
                 },
                 view::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
             },
-            graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
+            graph::graph::Graph,
         },
     };
 
@@ -163,6 +163,7 @@ pub mod prelude {
 
     #[cfg(feature = "search")]
     pub use crate::db::api::{mutation::IndexMutationOps, view::SearchableGraphOps};
+    pub use crate::db::graph::views::filter::model::property_filter::PropertyFilter;
 }
 
 pub use raphtory_api::{atomic_extra, core::utils::logging};

@@ -1,8 +1,8 @@
 use crate::{
     db::graph::views::filter::model::{
         exploded_edge_filter::ExplodedEdgeFilter,
-        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory, Windowed,
+        property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+        PropertyFilterFactory,
     },
     python::{
         filter::property_filter_builders::{

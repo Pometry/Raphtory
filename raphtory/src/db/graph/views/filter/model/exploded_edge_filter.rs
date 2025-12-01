@@ -5,7 +5,6 @@ use crate::{
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
-            edge_node_filtered_graph::EdgeNodeFilteredGraph,
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
             internal::CreateFilter,
             model::{
@@ -15,8 +14,8 @@ use crate::{
                     InternalNodeIdFilterBuilderOps, NodeFilter,
                 },
                 property_filter::{
-                    InternalPropertyFilterBuilderOps, MetadataFilterBuilder, Op, OpChainBuilder,
-                    PropertyFilter, PropertyFilterBuilder, PropertyRef,
+                    builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
+                    InternalPropertyFilterBuilderOps, Op, PropertyFilter, PropertyRef,
                 },
                 AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,
             },

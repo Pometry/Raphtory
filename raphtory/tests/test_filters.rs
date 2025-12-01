@@ -8,8 +8,8 @@ mod test_composite_filters {
 
     use raphtory::{
         db::graph::views::filter::model::{
-            edge_filter::EdgeFilter, node_filter::NodeFilter, property_filter::PropertyFilterOps,
-            Filter, PropertyFilterFactory,
+            edge_filter::EdgeFilter, node_filter::NodeFilter,
+            property_filter::ops::PropertyFilterOps, Filter, PropertyFilterFactory,
         },
         prelude::IntoProp,
     };
@@ -133,7 +133,7 @@ mod test_property_semantics {
                     },
                     views::filter::model::{
                         node_filter::NodeFilter,
-                        property_filter::{ListAggOps, PropertyFilterOps},
+                        property_filter::ops::{ListAggOps, PropertyFilterOps},
                         PropertyFilterFactory,
                     },
                 },
@@ -475,7 +475,7 @@ mod test_property_semantics {
                     views::filter::{
                         internal::CreateFilter,
                         model::{
-                            edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
+                            edge_filter::EdgeFilter, property_filter::ops::PropertyFilterOps,
                             PropertyFilterFactory,
                         },
                     },
@@ -2289,16 +2289,13 @@ mod test_node_filter {
 #[cfg(test)]
 mod test_node_property_filter {
     use crate::{init_nodes_graph, IdentityGraphTransformer};
-    use raphtory::db::{
-        api::state::ops::NodeFilterOp,
-        graph::{
-            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
-            views::filter::model::{
-                node_filter::NodeFilter,
-                not_filter::NotFilter,
-                property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
-            },
+    use raphtory::db::graph::{
+        assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
+        views::filter::model::{
+            node_filter::NodeFilter,
+            not_filter::NotFilter,
+            property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+            ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
         },
     };
     use raphtory_api::core::entities::properties::prop::Prop;
@@ -3699,7 +3696,7 @@ mod test_node_composite_filter {
         },
         views::filter::model::{
             node_filter::{NodeFilter, NodeFilterBuilderOps},
-            property_filter::PropertyFilterOps,
+            property_filter::ops::PropertyFilterOps,
             ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
         },
     };
@@ -4144,7 +4141,7 @@ mod test_node_property_filter_agg {
                     internal::CreateFilter,
                     model::{
                         node_filter::NodeFilter,
-                        property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+                        property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
                         PropertyFilterFactory, TryAsCompositeFilter,
                     },
                 },
@@ -7672,7 +7669,7 @@ mod test_edge_filter {
         views::filter::model::{
             edge_filter::EdgeFilter,
             node_filter::{NodeFilterBuilderOps, NodeIdFilterBuilderOps},
-            property_filter::{ListAggOps, PropertyFilterOps},
+            property_filter::ops::{ListAggOps, PropertyFilterOps},
             ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
         },
     };
@@ -8827,7 +8824,7 @@ mod test_edge_property_filter {
             },
             views::filter::model::{
                 edge_filter::EdgeFilter,
-                property_filter::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+                property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
                 ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
             },
         },
@@ -10198,7 +10195,7 @@ mod test_edge_composite_filter {
         },
         views::filter::model::{
             edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
-            property_filter::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
+            property_filter::ops::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
             TryAsCompositeFilter,
         },
     };

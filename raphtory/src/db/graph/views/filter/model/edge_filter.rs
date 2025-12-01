@@ -15,7 +15,7 @@ use crate::{
                     NodeNameFilterBuilder, NodeTypeFilterBuilder,
                 },
                 property_filter::{
-                    InternalPropertyFilterBuilderOps, Op, OpChainBuilder, PropertyFilter,
+                    builders::OpChainBuilder, InternalPropertyFilterBuilderOps, Op, PropertyFilter,
                     PropertyRef,
                 },
                 AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Windowed, Wrap,

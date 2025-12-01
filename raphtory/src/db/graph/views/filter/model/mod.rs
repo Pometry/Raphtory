@@ -1,4 +1,7 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
+use crate::db::graph::views::filter::model::property_filter::builders::{
+    MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder,
+};
 pub use crate::{
     db::{
         api::view::internal::GraphView,
@@ -17,11 +20,7 @@ pub use crate::{
                     },
                     not_filter::NotFilter,
                     or_filter::OrFilter,
-                    property_filter::{
-                        CombinedFilter, InternalPropertyFilterBuilderOps, MetadataFilterBuilder,
-                        Op, OpChainBuilder, PropertyFilter, PropertyFilterBuilder,
-                        PropertyFilterOps, PropertyRef,
-                    },
+                    property_filter::{CombinedFilter, InternalPropertyFilterBuilderOps},
                 },
             },
             window_graph::WindowedGraph,
@@ -30,6 +29,7 @@ pub use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, TimeOps},
 };
+pub use property_filter::{Op, PropertyFilter, PropertyRef};
 use raphtory_api::core::{
     entities::{GidRef, GID},
     storage::timeindex::{AsTime, TimeIndexEntry},

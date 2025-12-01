@@ -22,7 +22,7 @@ use raphtory::{
                 internal::CreateFilter,
                 model::{
                     node_filter::{NodeFilter, NodeFilterBuilderOps},
-                    property_filter::PropertyFilterOps,
+                    property_filter::ops::PropertyFilterOps,
                     ComposableFilter, PropertyFilterFactory,
                 },
             },

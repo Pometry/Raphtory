@@ -5,8 +5,8 @@ use crate::{
             NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder, NodeIdFilterBuilderOps,
             NodeNameFilterBuilder, NodeTypeFilterBuilder,
         },
-        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps},
-        PropertyFilterFactory, Windowed,
+        property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+        PropertyFilterFactory,
     },
     prelude::TimeOps,
     python::{

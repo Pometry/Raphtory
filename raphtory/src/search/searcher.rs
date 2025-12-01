@@ -96,7 +96,7 @@ mod search_tests {
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
                     node_filter::{NodeFilter, NodeFilterBuilderOps},
-                    property_filter::PropertyFilterOps,
+                    property_filter::ops::PropertyFilterOps,
                     PropertyFilterFactory, TryAsCompositeFilter,
                 },
             },
@@ -183,7 +183,7 @@ mod search_tests {
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
                     edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
-                    property_filter::PropertyFilterOps, PropertyFilterFactory,
+                    property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
                     TryAsCompositeFilter,
                 },
             },

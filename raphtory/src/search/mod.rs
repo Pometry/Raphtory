@@ -654,7 +654,7 @@ mod test_index {
                     assertions::{search_edges, search_nodes},
                     views::filter::model::{
                         edge_filter::EdgeFilter, node_filter::NodeFilter,
-                        property_filter::PropertyFilterOps, ComposableFilter,
+                        property_filter::ops::PropertyFilterOps, ComposableFilter,
                         PropertyFilterFactory,
                     },
                 },

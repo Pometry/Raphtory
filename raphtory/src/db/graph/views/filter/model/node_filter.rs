@@ -18,8 +18,8 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter, filter_operator::FilterOperator,
-                property_filter::PropertyFilter, AndFilter, Filter, FilterValue, NotFilter,
-                OrFilter, TryAsCompositeFilter, Windowed, Wrap,
+                property_filter::PropertyFilter, Filter, FilterValue, TryAsCompositeFilter,
+                Windowed, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
         },

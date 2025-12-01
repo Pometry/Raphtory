@@ -1,11 +1,11 @@
 use crate::{
     db::graph::views::filter::model::{
         node_filter::{
-            InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder,
-            NodeIdFilterBuilderOps, NodeNameFilterBuilder, NodeTypeFilterBuilder,
+            NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder, NodeIdFilterBuilderOps,
+            NodeNameFilterBuilder, NodeTypeFilterBuilder,
         },
-        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory, Windowed,
+        property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+        PropertyFilterFactory,
     },
     python::{
         filter::{
