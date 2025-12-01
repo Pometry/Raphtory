@@ -144,6 +144,17 @@ pub(crate) fn valid_path(
     for component in user_facing_path.components() {
         extend_and_validate(&mut full_path, component, namespace, relative_path)?;
     }
+    if full_path.exists() {
+        if namespace {
+            if full_path.join(META_PATH).exists() {
+                return Err(InvalidPathReason::NamespaceIsGraph(user_facing_path).into());
+            }
+        } else {
+            if !full_path.join(META_PATH).exists() {
+                return Err(InvalidPathReason::GraphIsNamespace(user_facing_path).into());
+            }
+        }
+    }
     Ok(full_path)
 }
 
@@ -201,6 +212,18 @@ pub(crate) fn create_valid_path(
                     created_path.cleanup()?;
                 }
                 return Err(error.into());
+            }
+        }
+    }
+    if cleanup_marker.is_none() {
+        // folder already exists, check if it is of the right type
+        if namespace {
+            if full_path.join(META_PATH).exists() {
+                return Err(InvalidPathReason::NamespaceIsGraph(user_facing_path).into());
+            }
+        } else {
+            if !full_path.join(META_PATH).exists() {
+                return Err(InvalidPathReason::GraphIsNamespace(user_facing_path).into());
             }
         }
     }

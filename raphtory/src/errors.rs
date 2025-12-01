@@ -4,6 +4,7 @@ use crate::{
 };
 use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
+use neo4rs::Path;
 use parquet::errors::ParquetError;
 use raphtory_api::core::entities::{
     properties::prop::{PropError, PropType},
@@ -58,6 +59,10 @@ pub enum InvalidPathReason {
     GraphNamePrefix,
     #[error("The path provided does not exists as a namespace: {0}")]
     NamespaceDoesNotExist(String),
+    #[error("The path provided already exists as a namespace: {0}")]
+    GraphIsNamespace(PathBuf),
+    #[error("The path provided already exists as a graph: {0}")]
+    NamespaceIsGraph(PathBuf),
     #[error("The path provided contains non-UTF8 characters.")]
     NonUTFCharacters,
     #[error("Failed to strip prefix")]
