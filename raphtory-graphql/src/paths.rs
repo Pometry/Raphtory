@@ -79,46 +79,47 @@ fn extend_and_validate(
     component: Component,
     namespace: bool,
     user_facing_path: &str,
-) -> Result<(), InvalidPathReason> {
+) -> Result<(), InternalPathValidationError> {
     match component {
         Component::Prefix(_) => {
-            return Err(InvalidPathReason::RootNotAllowed(user_facing_path.into()))
+            return Err(InvalidPathReason::RootNotAllowed(user_facing_path.into()).into())
         }
         Component::RootDir => {
-            return Err(InvalidPathReason::RootNotAllowed(user_facing_path.into()))
+            return Err(InvalidPathReason::RootNotAllowed(user_facing_path.into()).into())
         }
         Component::CurDir => {
-            return Err(InvalidPathReason::CurDirNotAllowed(user_facing_path.into()))
+            return Err(InvalidPathReason::CurDirNotAllowed(user_facing_path.into()).into())
         }
         Component::ParentDir => {
             return Err(InvalidPathReason::ParentDirNotAllowed(
                 user_facing_path.into(),
-            ))
+            ).into())
         }
         Component::Normal(component) => {
             // check if some intermediate path is already a graph
             if full_path.join(META_PATH).exists() {
-                return Err(InvalidPathReason::ParentIsGraph(user_facing_path.into()));
+                return Err(InvalidPathReason::ParentIsGraph(user_facing_path.into()).into());
             }
             full_path.push(component);
             //check if the path with the component is a graph
             if full_path.join(META_PATH).exists() {
                 if namespace {
-                    return Err(InvalidPathReason::ParentIsGraph(user_facing_path.into()));
+                    return Err(InvalidPathReason::ParentIsGraph(user_facing_path.into()).into());
                 } else if component
                     .to_str()
                     .ok_or(InvalidPathReason::NonUTFCharacters)?
                     .starts_with("_")
                 {
-                    return Err(InvalidPathReason::GraphNamePrefix);
+                    return Err(InvalidPathReason::GraphNamePrefix.into());
                 }
             }
             //check for symlinks
             if full_path.is_symlink() {
                 return Err(InvalidPathReason::SymlinkNotAllowed(
                     user_facing_path.into(),
-                ));
+                ).into());
             }
+            ensure_clean_folder(&full_path, false)?;
         }
     }
     Ok(())
@@ -128,14 +129,14 @@ pub(crate) fn valid_path(
     base_path: PathBuf,
     relative_path: &str,
     namespace: bool,
-) -> Result<PathBuf, InvalidPathReason> {
+) -> Result<PathBuf, InternalPathValidationError> {
     let user_facing_path = PathBuf::from(relative_path);
 
     if relative_path.contains(r"//") {
-        return Err(InvalidPathReason::DoubleForwardSlash(user_facing_path));
+        return Err(InvalidPathReason::DoubleForwardSlash(user_facing_path).into());
     }
     if relative_path.contains(r"\") {
-        return Err(InvalidPathReason::BackslashError(user_facing_path));
+        return Err(InvalidPathReason::BackslashError(user_facing_path).into());
     }
 
     let mut full_path = base_path.clone();
