@@ -12,7 +12,8 @@ use crate::{
         },
         community_detection::{
             label_propagation::label_propagation as label_propagation_rs,
-            louvain::louvain as louvain_rs, modularity::ModularityUnDir,
+            louvain::louvain as louvain_rs,
+            modularity::{ConstModularity, ModularityUnDir},
         },
         components,
         cores::k_core::k_core_set,
@@ -73,7 +74,11 @@ use crate::{
 };
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
-use pyo3::{prelude::*, types::PyList};
+use pyo3::{
+    exceptions::{PyTypeError, PyValueError},
+    prelude::*,
+    types::PyList,
+};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::Direction;
 use raphtory_storage::core_ops::CoreGraphOps;
@@ -842,25 +847,31 @@ pub fn temporal_SEIR(
     )
 }
 
-/// Louvain algorithm for community detection
+/// Louvain algorithm for community detection with configuration model
 ///
 /// Arguments:
 ///     graph (GraphView): the graph view
 ///     resolution (float): the resolution parameter for modularity. Defaults to 1.0.
 ///     weight_prop (str | None): the edge property to use for weights (has to be float)
 ///     tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+///     modularity (Literal("configuration", "constant")): the modularity function to use. Default to "configuration".
 ///
 /// Returns:
 ///     NodeStateUsize: Mapping of nodes to their community assignment
 #[pyfunction]
-#[pyo3[signature=(graph, resolution=1.0, weight_prop=None, tol=None)]]
+#[pyo3[signature=(graph, resolution=1.0, weight_prop=None, tol=None, modularity="configuration")]]
 pub fn louvain(
     graph: &PyGraphView,
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
-) -> NodeState<'static, usize, DynamicGraph> {
-    louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
+    modularity: &str,
+) -> PyResult<NodeState<'static, usize, DynamicGraph>> {
+    match modularity {
+        "configuration" => Ok(louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)),
+        "constant" => Ok(louvain_rs::<ConstModularity, _>(&graph.graph, resolution, weight_prop, tol)),
+        other => Err(PyValueError::new_err(format!("'{other}' not a valid value for modularity, should be one of 'configuration' or 'constant'")))
+    }
 }
 
 /// Fruchterman Reingold layout algorithm
