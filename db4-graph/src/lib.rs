@@ -1,10 +1,7 @@
 use std::{
     io,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{self, AtomicU64, AtomicUsize},
-        Arc,
-    },
+    sync::{atomic::AtomicUsize, Arc},
 };
 
 use raphtory_api::core::{
@@ -26,8 +23,8 @@ use storage::{
     },
     persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
-    wal::{GraphWal, TransactionID, Wal},
-    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
+    wal::Wal,
+    Extension, GIDResolver, Layer, ReadLockedLayer, TransactionManager, WalImpl, ES, NS,
 };
 use tempfile::TempDir;
 
@@ -84,40 +81,6 @@ impl AsRef<Path> for GraphDir {
 impl<'a> From<&'a Path> for GraphDir {
     fn from(path: &'a Path) -> Self {
         GraphDir::Path(path.to_path_buf())
-    }
-}
-
-#[derive(Debug)]
-pub struct TransactionManager {
-    last_transaction_id: AtomicU64,
-    wal: Arc<WalImpl>,
-}
-
-impl TransactionManager {
-    const STARTING_TRANSACTION_ID: TransactionID = 1;
-
-    pub fn new(wal: Arc<WalImpl>) -> Self {
-        Self {
-            last_transaction_id: AtomicU64::new(Self::STARTING_TRANSACTION_ID),
-            wal,
-        }
-    }
-
-    pub fn load(self, last_transaction_id: TransactionID) {
-        self.last_transaction_id
-            .store(last_transaction_id, atomic::Ordering::SeqCst)
-    }
-
-    pub fn begin_transaction(&self) -> TransactionID {
-        let transaction_id = self
-            .last_transaction_id
-            .fetch_add(1, atomic::Ordering::SeqCst);
-        self.wal.log_begin_transaction(transaction_id).unwrap();
-        transaction_id
-    }
-
-    pub fn end_transaction(&self, transaction_id: TransactionID) {
-        self.wal.log_end_transaction(transaction_id).unwrap();
     }
 }
 

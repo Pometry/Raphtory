@@ -6,7 +6,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -35,7 +35,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{Extension, WalImpl};
+use storage::{Extension, TransactionManager, WalImpl};
 
 #[cfg(feature = "search")]
 use {

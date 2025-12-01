@@ -2,7 +2,7 @@ use crate::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
     MutationError,
 };
-use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
         meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
@@ -23,7 +23,7 @@ use storage::{
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, WalImpl, ES, NS,
+    Extension, TransactionManager, WalImpl, ES, NS,
 };
 
 pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> {

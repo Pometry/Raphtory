@@ -23,6 +23,7 @@ use crate::{
         node_entry::{MemNodeEntry, MemNodeRef},
     },
     wal::no_wal::NoWal,
+    transaction::TransactionManager as GenericTransactionManager,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
@@ -36,6 +37,7 @@ pub mod persist;
 pub mod properties;
 pub mod resolver;
 pub mod segments;
+pub mod transaction;
 pub mod utils;
 pub mod wal;
 
@@ -46,6 +48,7 @@ pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
 
 pub type WalImpl = NoWal;
 pub type GIDResolver = MappingResolver;
+pub type TransactionManager = GenericTransactionManager<WalImpl>;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, P>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NS<P>, P>;
