@@ -14,7 +14,7 @@ from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
 from math import isclose
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import string
 from pathlib import Path
 from pytest import fixture
@@ -1368,6 +1368,37 @@ def test_add_edge_num():
     assert g.has_node(2)
 
     assert g.has_edge(1, 2)
+
+
+def test_window_date():
+    g = Graph()
+    g.add_node("1970-01-01", 1)
+    g.add_node("1970-01-02", 2)
+    g.add_node("1970-01-03", 3)
+    g.add_node("1970-01-04", 4)
+    start = date(1970, 1, 1)  # start is inclusive
+    end = date(1970, 1, 3)    # end is exclusive
+    windowed_g = g.window(start, end)
+    windowed_nodes = [n.id for n in windowed_g.nodes]
+    assert windowed_nodes == [1, 2]
+    assert 4 not in windowed_nodes
+
+def test_window_and_add_node_date():
+    dates = [
+        date(1970, 1, 1),
+        date(1970, 1, 2),
+        date(1970, 1, 3),
+        date(1970, 1, 4),
+    ]
+    g = Graph()
+    g.add_node(dates[0], 1)
+    g.add_node(dates[1], 2)
+    g.add_node(dates[2], 3)
+    g.add_node(dates[3], 4)
+    windowed_g = g.window(dates[0], dates[2])   # start is inclusive and end is exclusive
+    windowed_nodes = [n.id for n in windowed_g.nodes]
+    assert windowed_nodes == [1, 2]
+    assert 4 not in windowed_nodes
 
 
 def test_all_neighbours_window():

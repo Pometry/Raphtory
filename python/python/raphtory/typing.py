@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import Union, Literal, Mapping
 import raphtory
 
@@ -21,4 +21,4 @@ Direction = Literal["in", "out", "both"]
 
 NodeInput = Union[int, str, "Node"]
 
-TimeInput = Union[int, str, float, datetime, raphtory.EventTime, raphtory.OptionalEventTime]
+TimeInput = Union[int, str, float, datetime, date, raphtory.EventTime, raphtory.OptionalEventTime]

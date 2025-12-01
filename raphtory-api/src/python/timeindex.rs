@@ -4,12 +4,12 @@ use crate::core::{
         InputTime, IntoTime, ParseTimeError, TryIntoInputTime, TryIntoTime, TryIntoTimeNeedsEventId,
     },
 };
-use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
 use pyo3::{
     basic::CompareOp,
     exceptions::{PyRuntimeError, PyTypeError},
     prelude::*,
-    types::{PyDateTime, PyList, PyTuple},
+    types::{PyDate, PyDateAccess, PyDateTime, PyList, PyTuple},
 };
 use serde::Serialize;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -116,6 +116,39 @@ fn extract_time_index_component<'source>(
             .map_err(ParsingError::Matched)?
             * 1000.0) as i64;
         return Ok(EventTimeComponent::new(time));
+    }
+    // NaiveDate/Date checks come after all the DateTime checks to avoid a type matching Date/NaiveDate
+    // when it can match PyDateTime/NaiveDatetime/DateTime<FixedOffset>, which potentially have time/timezone information
+    if let Ok(naive_date) = component.extract::<NaiveDate>() {
+        let naive_dt = naive_date.and_hms_opt(0, 0, 0).ok_or_else(|| {
+            ParsingError::Matched(PyRuntimeError::new_err(format!(
+                "Failed to ingest date: {naive_date}"
+            )))
+        })?;
+        return Ok(EventTimeComponent::new(
+            naive_dt.and_utc().timestamp_millis(),
+        ));
+    }
+    if let Ok(py_date) = component.downcast::<PyDate>() {
+        let year: i32 = py_date.get_year();
+        let month: u32 = py_date.get_month() as u32;
+        let day: u32 = py_date.get_day() as u32;
+
+        let naive_dt = NaiveDate::from_ymd_opt(year, month, day)
+            .ok_or_else(|| {
+                ParsingError::Matched(PyRuntimeError::new_err(format!(
+                    "Failed to ingest date: {year}-{month}-{day}"
+                )))
+            })?
+            .and_hms_opt(0, 0, 0)
+            .ok_or_else(|| {
+                ParsingError::Matched(PyRuntimeError::new_err(format!(
+                    "Failed to construct datetime internally: {year}-{month}-{day}"
+                )))
+            })?;
+        return Ok(EventTimeComponent::new(
+            naive_dt.and_utc().timestamp_millis(),
+        ));
     }
     Err(ParsingError::Unmatched)
 }
