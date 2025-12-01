@@ -20,7 +20,8 @@ use raphtory::{
                 filter_operator::{FilterOperator, FilterOperator::*},
                 node_filter::{NodeFilter, NodeFilterBuilderOps},
                 property_filter::{
-                    InternalPropertyFilterBuilderOps, PropertyFilterBuilder, PropertyFilterOps,
+                    builders::InternalPropertyFilterBuilderOps, PropertyFilterBuilder,
+                    PropertyFilterOps,
                 },
                 ComposableFilter, InternalPropertyFilterFactory, PropertyFilterFactory,
             },

@@ -1,7 +1,7 @@
 use crate::db::graph::views::filter::model::{
     property_filter::{
-        builders::OpChainBuilder, InternalPropertyFilterBuilderOps, Op, PropertyFilter,
-        PropertyFilterValue,
+        builders::{InternalPropertyFilterBuilderOps, OpChainBuilder},
+        Op, PropertyFilter, PropertyFilterValue,
     },
     FilterOperator,
 };

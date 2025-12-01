@@ -4,9 +4,11 @@ use crate::{
         model::{
             edge_filter::EndpointWrapper,
             property_filter::{
-                builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
+                builders::{
+                    InternalPropertyFilterBuilderOps, MetadataFilterBuilder, OpChainBuilder,
+                    PropertyFilterBuilder,
+                },
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                InternalPropertyFilterBuilderOps,
             },
             PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
         },

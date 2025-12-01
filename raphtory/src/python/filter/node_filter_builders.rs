@@ -1,8 +1,9 @@
 use crate::{
     db::graph::views::filter::model::{
         node_filter::{
-            NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder, NodeIdFilterBuilderOps,
-            NodeNameFilterBuilder, NodeTypeFilterBuilder,
+            builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
+            ops::{NodeFilterOps, NodeIdFilterOps},
+            NodeFilter,
         },
         property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory,
@@ -137,8 +138,8 @@ impl PyNodeFilterOp {
     ///     filter.FilterExpr:
     fn __eq__(&self, value: String) -> PyFilterExpr {
         self.map(
-            |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::eq(n, value.clone()))),
-            |t| PyFilterExpr(Arc::new(NodeFilterBuilderOps::eq(t, value.clone()))),
+            |n| PyFilterExpr(Arc::new(NodeFilterOps::eq(n, value.clone()))),
+            |t| PyFilterExpr(Arc::new(NodeFilterOps::eq(t, value.clone()))),
         )
     }
 
@@ -151,8 +152,8 @@ impl PyNodeFilterOp {
     ///     filter.FilterExpr:
     fn __ne__(&self, value: String) -> PyFilterExpr {
         self.map(
-            |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::ne(n, value.clone()))),
-            |t| PyFilterExpr(Arc::new(NodeFilterBuilderOps::ne(t, value.clone()))),
+            |n| PyFilterExpr(Arc::new(NodeFilterOps::ne(n, value.clone()))),
+            |t| PyFilterExpr(Arc::new(NodeFilterOps::ne(t, value.clone()))),
         )
     }
 
@@ -166,8 +167,8 @@ impl PyNodeFilterOp {
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<String> = values.into_iter().collect();
         self.map(
-            |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::is_in(n, vals.clone()))),
-            |t| PyFilterExpr(Arc::new(NodeFilterBuilderOps::is_in(t, vals.clone()))),
+            |n| PyFilterExpr(Arc::new(NodeFilterOps::is_in(n, vals.clone()))),
+            |t| PyFilterExpr(Arc::new(NodeFilterOps::is_in(t, vals.clone()))),
         )
     }
 
@@ -181,32 +182,22 @@ impl PyNodeFilterOp {
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<String> = values.into_iter().collect();
         self.map(
-            |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::is_not_in(n, vals.clone()))),
-            |t| PyFilterExpr(Arc::new(NodeFilterBuilderOps::is_not_in(t, vals.clone()))),
+            |n| PyFilterExpr(Arc::new(NodeFilterOps::is_not_in(n, vals.clone()))),
+            |t| PyFilterExpr(Arc::new(NodeFilterOps::is_not_in(t, vals.clone()))),
         )
     }
 
     fn starts_with(&self, value: String) -> PyFilterExpr {
         self.map(
-            |n| {
-                PyFilterExpr(Arc::new(NodeFilterBuilderOps::starts_with(
-                    n,
-                    value.clone(),
-                )))
-            },
-            |t| {
-                PyFilterExpr(Arc::new(NodeFilterBuilderOps::starts_with(
-                    t,
-                    value.clone(),
-                )))
-            },
+            |n| PyFilterExpr(Arc::new(NodeFilterOps::starts_with(n, value.clone()))),
+            |t| PyFilterExpr(Arc::new(NodeFilterOps::starts_with(t, value.clone()))),
         )
     }
 
     fn ends_with(&self, value: String) -> PyFilterExpr {
         self.map(
-            |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::ends_with(n, value.clone()))),
-            |t| PyFilterExpr(Arc::new(NodeFilterBuilderOps::ends_with(t, value.clone()))),
+            |n| PyFilterExpr(Arc::new(NodeFilterOps::ends_with(n, value.clone()))),
+            |t| PyFilterExpr(Arc::new(NodeFilterOps::ends_with(t, value.clone()))),
         )
     }
 
@@ -219,8 +210,8 @@ impl PyNodeFilterOp {
     ///     filter.FilterExpr:
     fn contains(&self, value: String) -> PyFilterExpr {
         self.map(
-            |n| PyFilterExpr(Arc::new(NodeFilterBuilderOps::contains(n, value.clone()))),
-            |t| PyFilterExpr(Arc::new(NodeFilterBuilderOps::contains(t, value.clone()))),
+            |n| PyFilterExpr(Arc::new(NodeFilterOps::contains(n, value.clone()))),
+            |t| PyFilterExpr(Arc::new(NodeFilterOps::contains(t, value.clone()))),
         )
     }
 
@@ -234,18 +225,8 @@ impl PyNodeFilterOp {
     ///     filter.FilterExpr:
     fn not_contains(&self, value: String) -> PyFilterExpr {
         self.map(
-            |n| {
-                PyFilterExpr(Arc::new(NodeFilterBuilderOps::not_contains(
-                    n,
-                    value.clone(),
-                )))
-            },
-            |t| {
-                PyFilterExpr(Arc::new(NodeFilterBuilderOps::not_contains(
-                    t,
-                    value.clone(),
-                )))
-            },
+            |n| PyFilterExpr(Arc::new(NodeFilterOps::not_contains(n, value.clone()))),
+            |t| PyFilterExpr(Arc::new(NodeFilterOps::not_contains(t, value.clone()))),
         )
     }
 
@@ -268,7 +249,7 @@ impl PyNodeFilterOp {
     ) -> PyFilterExpr {
         self.map(
             |n| {
-                PyFilterExpr(Arc::new(NodeFilterBuilderOps::fuzzy_search(
+                PyFilterExpr(Arc::new(NodeFilterOps::fuzzy_search(
                     n,
                     value.clone(),
                     levenshtein_distance,
@@ -276,7 +257,7 @@ impl PyNodeFilterOp {
                 )))
             },
             |t| {
-                PyFilterExpr(Arc::new(NodeFilterBuilderOps::fuzzy_search(
+                PyFilterExpr(Arc::new(NodeFilterOps::fuzzy_search(
                     t,
                     value.clone(),
                     levenshtein_distance,

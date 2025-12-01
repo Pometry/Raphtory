@@ -2,13 +2,13 @@ use crate::{
     db::graph::views::filter::model::{
         edge_filter::{EdgeFilter, EndpointWrapper},
         node_filter::{
-            NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder, NodeIdFilterBuilderOps,
-            NodeNameFilterBuilder, NodeTypeFilterBuilder,
+            builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
+            ops::{NodeFilterOps, NodeIdFilterOps},
+            NodeFilter,
         },
         property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory,
     },
-    prelude::TimeOps,
     python::{
         filter::{
             filter_expr::PyFilterExpr,

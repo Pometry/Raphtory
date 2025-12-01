@@ -184,7 +184,7 @@ mod test_index {
             db::{
                 api::view::{internal::InternalStorageOps, ResolvedIndexSpec, StaticGraphViewOps},
                 graph::views::filter::model::{
-                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    node_filter::{ops::NodeFilterOps, NodeFilter},
                     TryAsCompositeFilter,
                 },
             },

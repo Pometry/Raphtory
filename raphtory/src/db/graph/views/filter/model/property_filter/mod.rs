@@ -10,9 +10,8 @@ use crate::{
             views::filter::{
                 internal::CreateFilter,
                 model::{
-                    property_filter::builders::OpChainBuilder, CompositeEdgeFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, ExplodedEdgeFilter,
-                    FilterOperator, TryAsCompositeFilter,
+                    CompositeEdgeFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
+                    ExplodedEdgeFilter, FilterOperator, TryAsCompositeFilter,
                 },
             },
         },
@@ -46,50 +45,6 @@ pub mod ops;
 pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static {}
 
 impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
-
-pub trait InternalPropertyFilterBuilderOps: Send + Sync {
-    type Filter: CombinedFilter;
-
-    type Chained: InternalPropertyFilterBuilderOps;
-
-    type Marker: Send + Sync + Clone + 'static;
-
-    fn property_ref(&self) -> PropertyRef;
-
-    fn ops(&self) -> &[Op];
-
-    fn entity(&self) -> Self::Marker;
-
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter;
-
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained;
-}
-
-impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Arc<T> {
-    type Filter = T::Filter;
-    type Chained = T::Chained;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.deref().ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.deref().entity()
-    }
-
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
-        self.deref().filter(filter)
-    }
-
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
-        self.deref().chained(builder)
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Op {

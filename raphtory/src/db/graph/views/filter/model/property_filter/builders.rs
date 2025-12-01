@@ -1,9 +1,50 @@
 use crate::db::graph::views::filter::model::{
-    property_filter::{
-        CombinedFilter, InternalPropertyFilterBuilderOps, Op, PropertyFilter, PropertyRef,
-    },
+    property_filter::{CombinedFilter, Op, PropertyFilter, PropertyRef},
     Wrap,
 };
+use std::{ops::Deref, sync::Arc};
+
+pub trait InternalPropertyFilterBuilderOps: Send + Sync {
+    type Filter: CombinedFilter;
+    type Chained: InternalPropertyFilterBuilderOps;
+    type Marker: Send + Sync + Clone + 'static;
+
+    fn property_ref(&self) -> PropertyRef;
+
+    fn ops(&self) -> &[Op];
+
+    fn entity(&self) -> Self::Marker;
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter;
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained;
+}
+
+impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Arc<T> {
+    type Filter = T::Filter;
+    type Chained = T::Chained;
+    type Marker = T::Marker;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.deref().property_ref()
+    }
+
+    fn ops(&self) -> &[Op] {
+        self.deref().ops()
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.deref().entity()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        self.deref().filter(filter)
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        self.deref().chained(builder)
+    }
+}
 
 #[derive(Clone)]
 pub struct PropertyFilterBuilder<M>(String, pub M);

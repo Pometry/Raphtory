@@ -1529,11 +1529,11 @@ mod test_node_filter {
         db::graph::{
             assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
             views::filter::model::{
-                node_filter::{NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilderOps},
+                node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
                 ComposableFilter,
             },
         },
-        prelude::{Graph, GraphViewOps, NodeViewOps, TimeOps},
+        prelude::{Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps},
     };
 
     #[test]
@@ -3689,16 +3689,18 @@ mod test_node_composite_filter {
     use raphtory_api::core::Direction;
 
     use crate::{init_edges_graph, init_nodes_graph, IdentityGraphTransformer};
-    use raphtory::db::graph::{
-        assertions::{
-            assert_filter_neighbours_results, assert_filter_nodes_results,
-            assert_search_nodes_results, TestVariants,
+    use raphtory::{
+        db::graph::{
+            assertions::{
+                assert_filter_neighbours_results, assert_filter_nodes_results,
+                assert_search_nodes_results, TestVariants,
+            },
+            views::filter::model::{
+                node_filter::ops::NodeFilterOps, property_filter::ops::PropertyFilterOps,
+                ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
+            },
         },
-        views::filter::model::{
-            node_filter::{NodeFilter, NodeFilterBuilderOps},
-            property_filter::ops::PropertyFilterOps,
-            ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
-        },
+        prelude::NodeFilter,
     };
 
     #[test]
@@ -7668,10 +7670,13 @@ mod test_edge_filter {
         assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants},
         views::filter::model::{
             edge_filter::EdgeFilter,
-            node_filter::{NodeFilterBuilderOps, NodeIdFilterBuilderOps},
             property_filter::ops::{ListAggOps, PropertyFilterOps},
             ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
         },
+    };
+
+    use raphtory::db::graph::views::filter::model::node_filter::ops::{
+        NodeFilterOps, NodeIdFilterOps,
     };
 
     #[test]
@@ -10194,7 +10199,7 @@ mod test_edge_composite_filter {
             TestVariants,
         },
         views::filter::model::{
-            edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
+            edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
             property_filter::ops::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
             TryAsCompositeFilter,
         },

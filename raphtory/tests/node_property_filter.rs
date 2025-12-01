@@ -21,7 +21,7 @@ use raphtory::{
             views::filter::{
                 internal::CreateFilter,
                 model::{
-                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    node_filter::{ops::NodeFilterOps, NodeFilter},
                     property_filter::ops::PropertyFilterOps,
                     ComposableFilter, PropertyFilterFactory,
                 },

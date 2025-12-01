@@ -5,14 +5,16 @@ use crate::{
             filter::{
                 internal::CreateFilter,
                 model::{
+                    node_filter::builders::{
+                        InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
+                    },
                     property_filter::builders::{
-                        MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder,
+                        InternalPropertyFilterBuilderOps, MetadataFilterBuilder, OpChainBuilder,
+                        PropertyFilterBuilder,
                     },
                     ComposableFilter, CompositeEdgeFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EntityMarker, InternalNodeFilterBuilderOps,
-                    InternalNodeIdFilterBuilderOps, InternalPropertyFilterBuilderOps,
-                    InternalPropertyFilterFactory, Op, PropertyRef, TemporalPropertyFilterFactory,
-                    TryAsCompositeFilter, Wrap,
+                    CompositeNodeFilter, EntityMarker, InternalPropertyFilterFactory, Op,
+                    PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
             },
             window_graph::WindowedGraph,

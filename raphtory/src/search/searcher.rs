@@ -81,10 +81,7 @@ impl<'a> Searcher<'a> {
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::{
-        db::graph::views::filter::model::node_filter::{NodeFilter, NodeFilterBuilderOps},
-        prelude::*,
-    };
+    use crate::{db::graph::views::filter::model::node_filter::ops::NodeFilterOps, prelude::*};
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tracing::info;
@@ -95,7 +92,7 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    node_filter::{ops::NodeFilterOps, NodeFilter},
                     property_filter::ops::PropertyFilterOps,
                     PropertyFilterFactory, TryAsCompositeFilter,
                 },
@@ -182,7 +179,7 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
+                    edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
                     property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
                     TryAsCompositeFilter,
                 },

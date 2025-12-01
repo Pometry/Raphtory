@@ -14,13 +14,10 @@ pub use crate::{
                         CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
                     },
                     filter_operator::FilterOperator,
-                    node_filter::{
-                        CompositeNodeFilter, InternalNodeFilterBuilderOps,
-                        InternalNodeIdFilterBuilderOps, NodeFilter, NodeNameFilter, NodeTypeFilter,
-                    },
+                    node_filter::{NodeFilter, NodeNameFilter, NodeTypeFilter},
                     not_filter::NotFilter,
                     or_filter::OrFilter,
-                    property_filter::{CombinedFilter, InternalPropertyFilterBuilderOps},
+                    property_filter::CombinedFilter,
                 },
             },
             window_graph::WindowedGraph,
@@ -29,7 +26,10 @@ pub use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, TimeOps},
 };
-pub use property_filter::{Op, PropertyFilter, PropertyRef};
+pub use node_filter::CompositeNodeFilter;
+pub use property_filter::{
+    builders::InternalPropertyFilterBuilderOps, Op, PropertyFilter, PropertyRef,
+};
 use raphtory_api::core::{
     entities::{GidRef, GID},
     storage::timeindex::AsTime,

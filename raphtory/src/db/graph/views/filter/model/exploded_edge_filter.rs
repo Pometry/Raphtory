@@ -10,12 +10,15 @@ use crate::{
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
                 node_filter::{
-                    CompositeNodeFilter, InternalNodeFilterBuilderOps,
-                    InternalNodeIdFilterBuilderOps, NodeFilter,
+                    builders::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps},
+                    CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::{
-                    builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
-                    InternalPropertyFilterBuilderOps, Op, PropertyFilter, PropertyRef,
+                    builders::{
+                        InternalPropertyFilterBuilderOps, MetadataFilterBuilder, OpChainBuilder,
+                        PropertyFilterBuilder,
+                    },
+                    Op, PropertyFilter, PropertyRef,
                 },
                 windowed_filter::Windowed,
                 AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
