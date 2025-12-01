@@ -1,7 +1,7 @@
 use crate::{
     db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter, exploded_edge_filter::CompositeExplodedEdgeFilter,
-        node_filter::CompositeNodeFilter, TryAsCompositeFilter,
+        node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
     },
     errors::GraphError,
 };
@@ -15,6 +15,8 @@ impl<T: Display> Display for NotFilter<T> {
         write!(f, "NOT({})", self.0)
     }
 }
+
+impl<T> ComposableFilter for NotFilter<T> {}
 
 impl<T: TryAsCompositeFilter> TryAsCompositeFilter for NotFilter<T> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

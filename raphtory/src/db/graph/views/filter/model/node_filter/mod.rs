@@ -16,17 +16,21 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
+                edge_filter::CompositeEdgeFilter,
+                filter::{Filter, FilterValue},
                 node_filter::builders::{
                     NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
                 },
+                property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 windowed_filter::Windowed,
-                CompositeEdgeFilter, CompositeExplodedEdgeFilter, TryAsCompositeFilter, Wrap,
+                ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker,
+                InternalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
         },
     },
     errors::GraphError,
-    prelude::{Filter, GraphViewOps, PropertyFilter},
+    prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::entities::GidType;
 use raphtory_core::utils::time::IntoTime;
@@ -38,14 +42,6 @@ pub mod ops;
 
 #[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]
 pub struct NodeFilter;
-
-impl Wrap for NodeFilter {
-    type Wrapped<T> = T;
-
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        value
-    }
-}
 
 impl NodeFilter {
     pub fn id() -> NodeIdFilterBuilder {
@@ -65,7 +61,7 @@ impl NodeFilter {
     }
 
     pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphError> {
-        use crate::db::graph::views::filter::model::{FilterOperator::*, FilterValue};
+        use crate::db::graph::views::filter::model::FilterOperator::*;
         use raphtory_api::core::entities::{GidType::*, GID};
 
         let Some(kind) = id_dtype else {
@@ -179,6 +175,40 @@ impl NodeFilter {
     }
 }
 
+impl Wrap for NodeFilter {
+    type Wrapped<T> = T;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        value
+    }
+}
+
+impl EntityMarker for NodeFilter {}
+
+impl InternalPropertyFilterFactory for NodeFilter {
+    type Entity = NodeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<NodeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<NodeFilter>;
+
+    fn entity(&self) -> Self::Entity {
+        NodeFilter
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NodeIdFilter(pub Filter);
 
@@ -247,6 +277,8 @@ impl From<Filter> for NodeNameFilter {
     }
 }
 
+impl ComposableFilter for NodeNameFilter {}
+
 impl CreateFilter for NodeNameFilter {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeNameFilterOp>;
 
@@ -297,6 +329,8 @@ impl From<Filter> for NodeTypeFilter {
         NodeTypeFilter(filter)
     }
 }
+
+impl ComposableFilter for NodeTypeFilter {}
 
 impl CreateFilter for NodeTypeFilter {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeTypeFilterOp>;

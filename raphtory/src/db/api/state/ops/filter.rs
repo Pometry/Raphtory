@@ -11,7 +11,7 @@ use crate::{
             create_node_type_filter,
             views::filter::{
                 internal::CreateFilter,
-                model::{node_filter::NodeFilter, Filter},
+                model::{filter::Filter, node_filter::NodeFilter},
                 node_filtered_graph::NodeFilteredGraph,
             },
         },

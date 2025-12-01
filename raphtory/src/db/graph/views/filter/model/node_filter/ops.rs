@@ -1,12 +1,10 @@
-use crate::{
-    db::graph::views::filter::model::{
-        node_filter::{
-            builders::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps},
-            NodeIdFilter,
-        },
-        Wrap,
+use crate::db::graph::views::filter::model::{
+    filter::Filter,
+    node_filter::{
+        builders::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps},
+        NodeIdFilter,
     },
-    prelude::Filter,
+    Wrap,
 };
 use raphtory_api::core::entities::GID;
 

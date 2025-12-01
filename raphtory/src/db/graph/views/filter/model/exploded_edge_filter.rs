@@ -21,7 +21,8 @@ use crate::{
                     Op, PropertyFilter, PropertyRef,
                 },
                 windowed_filter::Windowed,
-                AndFilter, EntityMarker, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
+                AndFilter, EntityMarker, InternalPropertyFilterFactory, NotFilter, OrFilter,
+                TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
         },
     },
@@ -30,6 +31,267 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
+
+#[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
+pub struct ExplodedEdgeFilter;
+
+impl ExplodedEdgeFilter {
+    #[inline]
+    pub fn src() -> ExplodedEndpointWrapper<NodeFilter> {
+        ExplodedEndpointWrapper::new(NodeFilter, Endpoint::Src)
+    }
+
+    #[inline]
+    pub fn dst() -> ExplodedEndpointWrapper<NodeFilter> {
+        ExplodedEndpointWrapper::new(NodeFilter, Endpoint::Dst)
+    }
+
+    #[inline]
+    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
+        Windowed::from_times(start, end, ExplodedEdgeFilter)
+    }
+}
+
+impl Wrap for ExplodedEdgeFilter {
+    type Wrapped<T> = T;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        value
+    }
+}
+
+impl EntityMarker for ExplodedEdgeFilter {}
+
+impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
+    type Entity = ExplodedEdgeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<ExplodedEdgeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<ExplodedEdgeFilter>;
+
+    fn entity(&self) -> Self::Entity {
+        ExplodedEdgeFilter
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExplodedEndpointWrapper<T> {
+    pub(crate) inner: T,
+    endpoint: Endpoint,
+}
+
+impl<T: Display> Display for ExplodedEndpointWrapper<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
+impl<T> ExplodedEndpointWrapper<T> {
+    #[inline]
+    pub fn new(inner: T, endpoint: Endpoint) -> Self {
+        Self { inner, endpoint }
+    }
+
+    #[inline]
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> ExplodedEndpointWrapper<U> {
+        ExplodedEndpointWrapper {
+            inner: f(self.inner),
+            endpoint: self.endpoint,
+        }
+    }
+}
+
+impl<M> Wrap for ExplodedEndpointWrapper<M> {
+    type Wrapped<T> = ExplodedEndpointWrapper<T>;
+
+    fn wrap<T>(&self, inner: T) -> Self::Wrapped<T> {
+        ExplodedEndpointWrapper {
+            inner,
+            endpoint: self.endpoint,
+        }
+    }
+}
+
+impl<M> EntityMarker for ExplodedEndpointWrapper<M> where
+    M: EntityMarker + Send + Sync + Clone + 'static
+{
+}
+
+impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps
+    for ExplodedEndpointWrapper<T>
+{
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
+
+impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for ExplodedEndpointWrapper<T> {
+    type FilterType = T::FilterType;
+
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
+
+impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps
+    for ExplodedEndpointWrapper<T>
+{
+    type Filter = ExplodedEndpointWrapper<T::Filter>;
+    type Chained = ExplodedEndpointWrapper<T::Chained>;
+    type Marker = T::Marker;
+
+    #[inline]
+    fn property_ref(&self) -> PropertyRef {
+        self.inner.property_ref()
+    }
+
+    #[inline]
+    fn ops(&self) -> &[Op] {
+        self.inner.ops()
+    }
+
+    #[inline]
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        self.wrap(self.inner.filter(filter))
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        self.wrap(self.inner.chained(builder))
+    }
+}
+
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory
+    for ExplodedEndpointWrapper<T>
+{
+    type Entity = T::Entity;
+    type PropertyBuilder = ExplodedEndpointWrapper<T::PropertyBuilder>;
+    type MetadataBuilder = ExplodedEndpointWrapper<T::MetadataBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
+    }
+}
+
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
+    for ExplodedEndpointWrapper<T>
+{
+}
+
+impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEndpointWrapper<T> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
+        = ExplodedEdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    type NodeFilter<'graph, G>
+        = NotANodeFilter
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
+    where
+        T: 'graph,
+    {
+        let filter = self.inner.create_node_filter(graph.clone())?;
+        Ok(ExplodedEdgeNodeFilteredGraph::new(
+            graph,
+            self.endpoint,
+            filter,
+        ))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
+    }
+}
+
+impl<T> TryAsCompositeFilter for ExplodedEndpointWrapper<T>
+where
+    T: TryAsCompositeFilter + Clone,
+{
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        let nf = self.inner.try_as_composite_node_filter()?;
+        Ok(match self.endpoint {
+            Endpoint::Src => CompositeExplodedEdgeFilter::Src(nf),
+            Endpoint::Dst => CompositeExplodedEdgeFilter::Dst(nf),
+        })
+    }
+}
+
+impl<M> ExplodedEndpointWrapper<Windowed<M>>
+where
+    M: EntityMarker + Send + Sync + Clone + 'static,
+{
+    #[inline]
+    pub fn property(
+        &self,
+        name: impl Into<String>,
+    ) -> PropertyFilterBuilder<ExplodedEndpointWrapper<Windowed<M>>> {
+        PropertyFilterBuilder::new(
+            name.into(),
+            ExplodedEndpointWrapper::new(self.inner.clone(), self.endpoint),
+        )
+    }
+
+    #[inline]
+    pub fn metadata(
+        &self,
+        name: impl Into<String>,
+    ) -> MetadataFilterBuilder<ExplodedEndpointWrapper<Windowed<M>>> {
+        MetadataFilterBuilder::new(
+            name.into(),
+            ExplodedEndpointWrapper::new(self.inner.clone(), self.endpoint),
+        )
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeExplodedEdgeFilter {
@@ -131,209 +393,5 @@ impl TryAsCompositeFilter for CompositeExplodedEdgeFilter {
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Ok(self.clone())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ExplodedEndpointWrapper<T> {
-    pub(crate) inner: T,
-    endpoint: Endpoint,
-}
-
-impl<T> ExplodedEndpointWrapper<T> {
-    #[inline]
-    pub fn new(inner: T, endpoint: Endpoint) -> Self {
-        Self { inner, endpoint }
-    }
-
-    #[inline]
-    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> ExplodedEndpointWrapper<U> {
-        ExplodedEndpointWrapper {
-            inner: f(self.inner),
-            endpoint: self.endpoint,
-        }
-    }
-}
-
-impl<T: Display> Display for ExplodedEndpointWrapper<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.inner.fmt(f)
-    }
-}
-
-impl<T> TryAsCompositeFilter for ExplodedEndpointWrapper<T>
-where
-    T: TryAsCompositeFilter + Clone,
-{
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        let nf = self.inner.try_as_composite_node_filter()?;
-        Ok(match self.endpoint {
-            Endpoint::Src => CompositeExplodedEdgeFilter::Src(nf),
-            Endpoint::Dst => CompositeExplodedEdgeFilter::Dst(nf),
-        })
-    }
-}
-
-impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEndpointWrapper<T> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = ExplodedEdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G>>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
-    type NodeFilter<'graph, G>
-        = NotANodeFilter
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
-    where
-        T: 'graph,
-    {
-        let filter = self.inner.create_node_filter(graph.clone())?;
-        Ok(ExplodedEdgeNodeFilteredGraph::new(
-            graph,
-            self.endpoint,
-            filter,
-        ))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-}
-
-impl<M> ExplodedEndpointWrapper<Windowed<M>>
-where
-    M: EntityMarker + Send + Sync + Clone + 'static,
-{
-    #[inline]
-    pub fn property(
-        &self,
-        name: impl Into<String>,
-    ) -> PropertyFilterBuilder<ExplodedEndpointWrapper<Windowed<M>>> {
-        PropertyFilterBuilder::new(
-            name.into(),
-            ExplodedEndpointWrapper::new(self.inner.clone(), self.endpoint),
-        )
-    }
-
-    #[inline]
-    pub fn metadata(
-        &self,
-        name: impl Into<String>,
-    ) -> MetadataFilterBuilder<ExplodedEndpointWrapper<Windowed<M>>> {
-        MetadataFilterBuilder::new(
-            name.into(),
-            ExplodedEndpointWrapper::new(self.inner.clone(), self.endpoint),
-        )
-    }
-}
-
-impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps
-    for ExplodedEndpointWrapper<T>
-{
-    type Filter = ExplodedEndpointWrapper<T::Filter>;
-    type Chained = ExplodedEndpointWrapper<T::Chained>;
-
-    type Marker = T::Marker;
-    #[inline]
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    #[inline]
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    #[inline]
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
-        self.wrap(self.inner.chained(builder))
-    }
-}
-
-#[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
-pub struct ExplodedEdgeFilter;
-
-impl ExplodedEdgeFilter {
-    #[inline]
-    pub fn src() -> ExplodedEndpointWrapper<NodeFilter> {
-        ExplodedEndpointWrapper::new(NodeFilter, Endpoint::Src)
-    }
-
-    #[inline]
-    pub fn dst() -> ExplodedEndpointWrapper<NodeFilter> {
-        ExplodedEndpointWrapper::new(NodeFilter, Endpoint::Dst)
-    }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
-        Windowed::from_times(start, end, ExplodedEdgeFilter)
-    }
-}
-
-impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for ExplodedEndpointWrapper<T> {
-    type FilterType = T::FilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps
-    for ExplodedEndpointWrapper<T>
-{
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<M> EntityMarker for ExplodedEndpointWrapper<M> where
-    M: EntityMarker + Send + Sync + Clone + 'static
-{
-}
-
-impl Wrap for ExplodedEdgeFilter {
-    type Wrapped<T> = T;
-
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        value
-    }
-}
-
-impl<M> Wrap for ExplodedEndpointWrapper<M> {
-    type Wrapped<T> = ExplodedEndpointWrapper<T>;
-
-    fn wrap<T>(&self, inner: T) -> Self::Wrapped<T> {
-        ExplodedEndpointWrapper {
-            inner,
-            endpoint: self.endpoint,
-        }
     }
 }

@@ -8,8 +8,8 @@ mod test_composite_filters {
 
     use raphtory::{
         db::graph::views::filter::model::{
-            edge_filter::EdgeFilter, node_filter::NodeFilter,
-            property_filter::ops::PropertyFilterOps, Filter, PropertyFilterFactory,
+            edge_filter::EdgeFilter, filter::Filter, node_filter::NodeFilter,
+            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
         },
         prelude::IntoProp,
     };

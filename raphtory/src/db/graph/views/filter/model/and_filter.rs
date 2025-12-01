@@ -1,7 +1,7 @@
 use crate::{
     db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter, exploded_edge_filter::CompositeExplodedEdgeFilter,
-        node_filter::CompositeNodeFilter, TryAsCompositeFilter,
+        node_filter::CompositeNodeFilter, ComposableFilter, TryAsCompositeFilter,
     },
     errors::GraphError,
 };
@@ -18,6 +18,8 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
         write!(f, "({} AND {})", self.left, self.right)
     }
 }
+
+impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
 impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for AndFilter<L, R> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

@@ -5,6 +5,7 @@ use crate::{
             filter::{
                 internal::CreateFilter,
                 model::{
+                    edge_filter::CompositeEdgeFilter,
                     node_filter::builders::{
                         InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
                     },
@@ -12,9 +13,9 @@ use crate::{
                         InternalPropertyFilterBuilderOps, MetadataFilterBuilder, OpChainBuilder,
                         PropertyFilterBuilder,
                     },
-                    ComposableFilter, CompositeEdgeFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EntityMarker, InternalPropertyFilterFactory, Op,
-                    PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
+                    EntityMarker, InternalPropertyFilterFactory, Op, PropertyRef,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
             },
             window_graph::WindowedGraph,

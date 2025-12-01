@@ -1,6 +1,6 @@
 use crate::db::graph::views::filter::model::{
-    property_filter::{CombinedFilter, Op, PropertyFilter, PropertyRef},
-    Wrap,
+    property_filter::{Op, PropertyFilter, PropertyRef},
+    CombinedFilter, TemporalPropertyFilterFactory, Wrap,
 };
 use std::{ops::Deref, sync::Arc};
 
@@ -92,6 +92,13 @@ where
     fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
         builder
     }
+}
+
+impl<T> TemporalPropertyFilterFactory for PropertyFilterBuilder<T>
+where
+    T: Send + Sync + Clone + 'static,
+    PropertyFilter<T>: CombinedFilter,
+{
 }
 
 #[derive(Clone)]

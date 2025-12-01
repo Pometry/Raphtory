@@ -1,9 +1,7 @@
-use crate::{
-    db::graph::views::filter::model::{
-        node_filter::{NodeNameFilter, NodeTypeFilter},
-        Wrap,
-    },
-    prelude::Filter,
+use crate::db::graph::views::filter::model::{
+    filter::Filter,
+    node_filter::{NodeNameFilter, NodeTypeFilter},
+    Wrap,
 };
 use std::{ops::Deref, sync::Arc};
 

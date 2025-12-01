@@ -6,9 +6,9 @@ use crate::{
             views::filter::{
                 internal::CreateFilter,
                 model::{
+                    filter::Filter,
                     node_filter::{CompositeNodeFilter, NodeFilter},
                     property_filter::PropertyRef,
-                    Filter,
                 },
             },
         },

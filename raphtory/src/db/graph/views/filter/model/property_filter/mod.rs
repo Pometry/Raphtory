@@ -10,8 +10,9 @@ use crate::{
             views::filter::{
                 internal::CreateFilter,
                 model::{
-                    CompositeEdgeFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                    ExplodedEdgeFilter, FilterOperator, TryAsCompositeFilter,
+                    edge_filter::CompositeEdgeFilter, ComposableFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter, ExplodedEdgeFilter,
+                    FilterOperator, TryAsCompositeFilter,
                 },
             },
         },
@@ -42,10 +43,6 @@ use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 pub mod builders;
 pub mod ops;
 
-pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static {}
-
-impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Op {
     // Selectors
@@ -67,10 +64,12 @@ impl Op {
     pub fn is_selector(self) -> bool {
         matches!(self, Op::First | Op::Last)
     }
+
     #[inline]
     pub fn is_aggregator(self) -> bool {
         matches!(self, Op::Len | Op::Sum | Op::Avg | Op::Min | Op::Max)
     }
+
     #[inline]
     pub fn is_qualifier(self) -> bool {
         matches!(self, Op::Any | Op::All)
@@ -159,6 +158,11 @@ impl PropertyRef {
     }
 }
 
+enum ValueType {
+    Seq(Vec<Prop>),
+    Scalar(Option<Prop>),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PropertyFilterValue {
     None,
@@ -207,11 +211,6 @@ impl<M> Display for PropertyFilter<M> {
             }
         }
     }
-}
-
-enum ValueType {
-    Seq(Vec<Prop>),
-    Scalar(Option<Prop>),
 }
 
 impl<M> PropertyFilter<M> {
@@ -1300,6 +1299,8 @@ impl<M> PropertyFilter<M> {
         }
     }
 }
+
+impl<M> ComposableFilter for PropertyFilter<M> {}
 
 impl TryAsCompositeFilter for PropertyFilter<NodeFilter> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
