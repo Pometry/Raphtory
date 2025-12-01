@@ -20,7 +20,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::{nodes::node_ref::NodeRef, ELID};
-use storage::{Extension, TransactionManager, WalImpl};
+use storage::{Extension};
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;
@@ -91,12 +91,6 @@ pub trait InternalAdditionOps {
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error>;
-
-    /// TODO: Not sure the below methods belong here...
-
-    fn transaction_manager(&self) -> &TransactionManager;
-
-    fn wal(&self) -> &WalImpl;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -294,14 +288,6 @@ impl InternalAdditionOps for GraphStorage {
         Ok(self.mutable()?.validate_gids(gids)?)
     }
 
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.mutable().unwrap().transaction_manager.as_ref()
-    }
-
-    fn wal(&self) -> &WalImpl {
-        self.mutable().unwrap().wal.as_ref()
-    }
-
     fn resolve_node_and_type(
         &self,
         id: NodeRef,
@@ -409,16 +395,6 @@ where
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
         self.base().validate_gids(gids)
-    }
-
-    #[inline]
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.base().transaction_manager()
-    }
-
-    #[inline]
-    fn wal(&self) -> &WalImpl {
-        self.base().wal()
     }
 
     fn resolve_node_and_type(

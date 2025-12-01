@@ -1,5 +1,6 @@
 use crate::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+    durability_ops::DurabilityOps,
     MutationError,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
@@ -376,7 +377,9 @@ impl InternalAdditionOps for TemporalGraph {
             Ok(prop_ids)
         }
     }
+}
 
+impl DurabilityOps for TemporalGraph {
     fn transaction_manager(&self) -> &TransactionManager {
         &self.transaction_manager
     }

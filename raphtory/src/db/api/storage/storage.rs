@@ -24,6 +24,7 @@ use raphtory_storage::{
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+        durability_ops::DurabilityOps,
         addition_ops_ext::{UnlockedSession, WriteS},
         deletion_ops::InternalDeletionOps,
         property_addition_ops::InternalPropertyAdditionOps,
@@ -575,20 +576,22 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.validate_gids(gids)?)
     }
 
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.graph.mutable().unwrap().transaction_manager.as_ref()
-    }
-
-    fn wal(&self) -> &WalImpl {
-        self.graph.mutable().unwrap().wal.as_ref()
-    }
-
     fn resolve_node_and_type(
         &self,
         id: NodeRef,
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error> {
         Ok(self.graph.resolve_node_and_type(id, node_type)?)
+    }
+}
+
+impl DurabilityOps for Storage {
+    fn transaction_manager(&self) -> &TransactionManager {
+        self.graph.mutable().unwrap().transaction_manager.as_ref()
+    }
+
+    fn wal(&self) -> &WalImpl {
+        self.graph.mutable().unwrap().wal.as_ref()
     }
 }
 

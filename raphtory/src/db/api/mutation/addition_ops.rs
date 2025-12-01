@@ -15,9 +15,10 @@ use crate::{
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
+use raphtory_storage::mutation::durability_ops::DurabilityOps;
 use storage::wal::{GraphWal, Wal};
 
-pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
+pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> + DurabilityOps {
     // TODO: Probably add vector reference here like add
     /// Add a node to the graph
     ///
@@ -143,7 +144,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     }
 }
 
-impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> AdditionOps for G {
+impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + DurabilityOps> AdditionOps for G {
     fn add_node<
         V: AsNodeRef,
         T: TryIntoInputTime,
@@ -355,7 +356,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
 
-        // Log transaction end
+        // Log transaction end.
         self.transaction_manager().end_transaction(transaction_id);
 
         // Flush all wal entries to disk.

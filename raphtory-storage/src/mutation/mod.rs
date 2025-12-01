@@ -4,6 +4,7 @@ use crate::{
     mutation::{
         addition_ops::InheritAdditionOps, deletion_ops::InheritDeletionOps,
         property_addition_ops::InheritPropertyAdditionOps,
+        durability_ops::InheritDurabilityOps,
     },
 };
 use parking_lot::RwLockWriteGuard;
@@ -31,6 +32,7 @@ pub mod addition_ops;
 pub mod addition_ops_ext;
 pub mod deletion_ops;
 pub mod property_addition_ops;
+pub mod durability_ops;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
@@ -70,5 +72,6 @@ pub trait InheritMutationOps: Base {}
 impl<G: InheritMutationOps> InheritAdditionOps for G {}
 impl<G: InheritMutationOps> InheritPropertyAdditionOps for G {}
 impl<G: InheritMutationOps> InheritDeletionOps for G {}
+impl<G: InheritMutationOps> InheritDurabilityOps for G {}
 
 impl<T: CoreGraphOps + ?Sized> InheritMutationOps for Arc<T> {}
