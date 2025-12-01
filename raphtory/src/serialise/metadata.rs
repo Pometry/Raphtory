@@ -1,4 +1,5 @@
 use crate::{
+    db::api::view::internal::GraphView,
     prelude::{GraphViewOps, PropertiesOps},
     serialise::GraphFolder,
 };
@@ -14,6 +15,21 @@ pub struct GraphMetadata {
     pub edge_count: usize,
     pub metadata: Vec<(ArcStr, Prop)>,
     pub graph_type: GraphType,
+}
+
+impl GraphMetadata {
+    pub fn from_graph<G: GraphView>(graph: G) -> Self {
+        let node_count = graph.count_nodes();
+        let edge_count = graph.count_edges();
+        let metadata = graph.metadata().as_vec();
+        let graph_type = graph.graph_type();
+        Self {
+            node_count,
+            edge_count,
+            metadata,
+            graph_type,
+        }
+    }
 }
 
 pub fn assert_metadata_correct<'graph>(folder: &GraphFolder, graph: &impl GraphViewOps<'graph>) {

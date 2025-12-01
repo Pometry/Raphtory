@@ -166,15 +166,7 @@ impl GraphFolder {
         &self,
         graph: &impl GraphViewOps<'graph>,
     ) -> Result<(), GraphError> {
-        let node_count = graph.count_nodes();
-        let edge_count = graph.count_edges();
-        let properties = graph.metadata();
-        let metadata = GraphMetadata {
-            node_count,
-            edge_count,
-            metadata: properties.as_vec(),
-            graph_type: graph.graph_type(),
-        };
+        let metadata = GraphMetadata::from_graph(graph);
 
         if self.write_as_zip_format {
             let file = File::options()

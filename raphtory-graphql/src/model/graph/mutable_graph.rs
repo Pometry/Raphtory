@@ -113,16 +113,12 @@ pub struct EdgeAddition {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "MutableGraph")]
 pub struct GqlMutableGraph {
-    path: ExistingGraphFolder,
     graph: GraphWithVectors,
 }
 
-impl GqlMutableGraph {
-    pub(crate) fn new(path: ExistingGraphFolder, graph: GraphWithVectors) -> Self {
-        Self {
-            path: path.into(),
-            graph,
-        }
+impl From<GraphWithVectors> for GqlMutableGraph {
+    fn from(graph: GraphWithVectors) -> Self {
+        Self { graph }
     }
 }
 
@@ -144,7 +140,7 @@ fn as_properties(
 impl GqlMutableGraph {
     /// Get the non-mutable graph.
     async fn graph(&self) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.graph.clone())
+        GqlGraph::new(self.graph.folder.clone(), self.graph.graph.clone())
     }
 
     /// Get mutable existing node.
@@ -706,10 +702,10 @@ mod tests {
         let folder = data
             .validate_path_for_insert("test_graph", overwrite)
             .unwrap();
-        data.insert_graph(folder, graph).await.unwrap();
+        data.insert_graph(folder.clone(), graph).await.unwrap();
 
-        let (graph_with_vectors, path) = data.get_graph("test_graph").await.unwrap();
-        let mutable_graph = GqlMutableGraph::new(path, graph_with_vectors);
+        let graph_with_vectors = data.get_graph("test_graph").await.unwrap();
+        let mutable_graph = GqlMutableGraph::from(graph_with_vectors);
 
         (mutable_graph, data, tmp_dir)
     }
@@ -757,17 +753,17 @@ mod tests {
         assert!(result.unwrap());
 
         // TODO: #2380 (embeddings aren't working right now)
-        // let query = "node1".to_string();
-        // let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
-        // let limit = 5;
-        // let result = mutable_graph
-        //     .graph
-        //     .vectors
-        //     .unwrap()
-        //     .nodes_by_similarity(embedding, limit, None);
-        //
-        // assert!(result.is_ok());
-        // assert!(result.unwrap().get_documents().unwrap().len() == 2);
+        let query = "node1".to_string();
+        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let limit = 5;
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .nodes_by_similarity(embedding, limit, None);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().get_documents().unwrap().len() == 2);
     }
 
     #[tokio::test]

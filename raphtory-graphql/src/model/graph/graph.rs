@@ -17,6 +17,7 @@ use crate::{
     },
     paths::ExistingGraphFolder,
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -47,6 +48,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::{graph::GraphWithVectors, paths::PathValidationError};
 #[cfg(feature = "search")]
 use raphtory::db::api::view::SearchableGraphOps;
 
@@ -55,6 +57,12 @@ use raphtory::db::api::view::SearchableGraphOps;
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
+}
+
+impl From<GraphWithVectors> for GqlGraph {
+    fn from(value: GraphWithVectors) -> Self {
+        GqlGraph::new(value.folder, value.graph)
+    }
 }
 
 impl GqlGraph {
@@ -415,7 +423,7 @@ impl GqlGraph {
     //if someone write non-utf characters as a filename
 
     /// Returns the graph name.
-    async fn name(&self) -> Result<String, GraphError> {
+    async fn name(&self) -> Result<String, PathValidationError> {
         self.path.get_graph_name()
     }
 
@@ -486,13 +494,9 @@ impl GqlGraph {
     }
 
     /// Export all nodes and edges from this graph view to another existing graph
-    async fn export_to<'a>(
-        &self,
-        ctx: &Context<'a>,
-        path: String,
-    ) -> Result<bool, Arc<GraphError>> {
+    async fn export_to<'a>(&self, ctx: &Context<'a>, path: String) -> Result<bool, GQLError> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref()).await?.0;
+        let other_g = data.get_graph(path.as_ref()).await?.graph;
         let g = self.graph.clone();
         blocking_compute(move || {
             other_g.import_nodes(g.nodes(), true)?;

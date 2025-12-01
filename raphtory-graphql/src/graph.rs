@@ -32,7 +32,7 @@ use raphtory::prelude::IndexMutationOps;
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub(crate) folder: GraphFolder,
+    pub(crate) folder: ExistingGraphFolder,
     pub(crate) is_dirty: Arc<AtomicBool>,
 }
 
@@ -40,12 +40,12 @@ impl GraphWithVectors {
     pub(crate) fn new(
         graph: MaterializedGraph,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
-        folder: GraphFolder,
+        folder: ExistingGraphFolder,
     ) -> Self {
         Self {
             graph,
             vectors,
-            folder: folder,
+            folder,
             is_dirty: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -88,26 +88,26 @@ impl GraphWithVectors {
         create_index: bool,
     ) -> Result<Self, GraphError> {
         let graph = {
+            let data_path = folder.data_path();
             // Either decode a graph serialized using encode or load using underlying storage.
-            if MaterializedGraph::is_decodable(folder.get_graph_path()) {
+            if MaterializedGraph::is_decodable(data_path.get_graph_path()) {
                 let path_for_decoded_graph = None;
-                MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?
+                MaterializedGraph::decode(data_path, path_for_decoded_graph)?
             } else {
-                let metadata = folder.read_metadata()?;
+                let metadata = data_path.read_metadata()?;
                 let graph = match metadata.graph_type {
                     GraphType::EventGraph => {
-                        let graph = Graph::load_from_path(folder.get_graph_path());
+                        let graph = Graph::load_from_path(data_path.get_graph_path());
                         MaterializedGraph::EventGraph(graph)
                     }
                     GraphType::PersistentGraph => {
-                        let graph = PersistentGraph::load_from_path(folder.get_graph_path());
+                        let graph = PersistentGraph::load_from_path(data_path.get_graph_path());
                         MaterializedGraph::PersistentGraph(graph)
                     }
                 };
 
                 #[cfg(feature = "search")]
-                graph.load_index(&folder)?;
-
+                graph.load_index(&data_path)?;
                 graph
             }
         };
