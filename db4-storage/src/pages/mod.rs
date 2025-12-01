@@ -139,7 +139,8 @@ impl<
         let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata
-        let graph_props_storage = Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
+        let graph_props_storage =
+            Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
 
         for node_type in ext.node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);

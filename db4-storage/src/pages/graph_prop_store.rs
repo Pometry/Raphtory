@@ -47,7 +47,11 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: Config> GraphPropStorageInne
         let graph_props_meta = Arc::new(Meta::new_for_graph_props());
 
         Ok(Self {
-            page: Arc::new(GS::load(graph_props_meta.clone(), path.as_ref(), ext.clone())?),
+            page: Arc::new(GS::load(
+                graph_props_meta.clone(),
+                path.as_ref(),
+                ext.clone(),
+            )?),
             path: Some(path.as_ref().to_path_buf()),
             meta: graph_props_meta,
             ext,

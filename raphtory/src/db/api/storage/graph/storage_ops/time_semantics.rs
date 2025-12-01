@@ -101,7 +101,9 @@ impl GraphTimeSemanticsOps for GraphStorage {
     }
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        self.graph_props_meta().temporal_prop_mapper().has_id(prop_id)
+        self.graph_props_meta()
+            .temporal_prop_mapper()
+            .has_id(prop_id)
     }
 
     fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {

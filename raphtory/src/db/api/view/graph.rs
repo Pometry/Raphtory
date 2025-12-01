@@ -255,8 +255,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         node_meta.set_temporal_prop_mapper(self.node_meta().temporal_prop_mapper().deep_clone());
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         edge_meta.set_temporal_prop_mapper(self.edge_meta().temporal_prop_mapper().deep_clone());
-        graph_props_meta.set_metadata_mapper(self.graph_props_meta().metadata_mapper().deep_clone());
-        graph_props_meta.set_temporal_prop_mapper(self.graph_props_meta().temporal_prop_mapper().deep_clone());
+        graph_props_meta
+            .set_metadata_mapper(self.graph_props_meta().metadata_mapper().deep_clone());
+        graph_props_meta
+            .set_temporal_prop_mapper(self.graph_props_meta().temporal_prop_mapper().deep_clone());
 
         let temporal_graph = TemporalGraph::new_with_meta(
             path.map(|p| p.into()),

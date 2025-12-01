@@ -2043,10 +2043,7 @@ fn test_graph_metadata() {
 fn test_graph_metadata_with_maps() {
     let g = Graph::new();
 
-    let style_with_size = Prop::map(vec![
-        ("fill", Prop::str("red")),
-        ("size", Prop::I64(5)),
-    ]);
+    let style_with_size = Prop::map(vec![("fill", Prop::str("red")), ("size", Prop::I64(5))]);
 
     let style_with_opacity = Prop::map(vec![
         ("fill", Prop::str("red")),

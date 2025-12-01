@@ -13,11 +13,17 @@ impl InternalMetadataOps for GraphStorage {
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph_props_meta().metadata_mapper().get_name(id).clone()
+        self.graph_props_meta()
+            .metadata_mapper()
+            .get_name(id)
+            .clone()
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph_props_meta().metadata_mapper().ids().into_dyn_boxed()
+        self.graph_props_meta()
+            .metadata_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {

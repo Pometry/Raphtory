@@ -77,4 +77,3 @@ impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropPages<'a, GS> {
         self.writer.as_mut()
     }
 }
-
