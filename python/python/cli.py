@@ -48,7 +48,10 @@ def main():
     server_parser.add_argument(
         "--tracing-level",
         type=str,
-        help="Set tracing level. Options are 'Complete' for full traces through each query and 'Essential' for summary execution times.",
+        help="Set tracing level. Options are:\n"
+        + "'COMPLETE': for full traces through each query.\n "
+        + "'ESSENTIAL': which tracks these key functions  addEdge, addEdges, deleteEdge, graph, updateGraph, addNode, node, nodes, edge, edges.\n"
+        + "'MINIMAL': which provides only summary execution times.",
     )
     server_parser.add_argument("--otlp-agent-host", type=str, help="OTLP agent host")
     server_parser.add_argument("--otlp-agent-port", type=str, help="OTLP agent port")
