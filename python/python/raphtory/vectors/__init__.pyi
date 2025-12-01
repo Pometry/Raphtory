@@ -23,11 +23,11 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['VectorisedGraph', 'Document', 'Embedding', 'VectorSelection']
-class VectorisedGraph(object): 
-    """VectorisedGraph object that contains embedded documents that correspond to graph entities."""
+__all__ = ["VectorisedGraph", "Document", "Embedding", "VectorSelection"]
 
 class VectorisedGraph(object):
+    """VectorisedGraph object that contains embedded documents that correspond to graph entities."""
+
     def edges_by_similarity(
         self,
         query: str | list,
@@ -35,7 +35,7 @@ class VectorisedGraph(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> VectorSelection:
         """
-        Search the top similarity scoring edges according to matching a specified `query` with no more than `limit` edges in the result.
+        Perform a similarity search between each edge's associated document and a specified `query`. Returns a number of edges up to a specified `limit` ranked in descending order of similarity score.
 
         Args:
           query (str | list): The text or the embedding to score against.
@@ -56,7 +56,7 @@ class VectorisedGraph(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> VectorSelection:
         """
-        Search the top similarity scoring entities according to matching a specified `query` with no more than `limit` entities in the result.
+        Perform a similarity search between each entity's associated document and a specified `query`. Returns a number of entities up to a specified `limit` ranked in descending order of similarity score.
 
         Args:
           query (str | list): The text or the embedding to score against.
@@ -74,7 +74,7 @@ class VectorisedGraph(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> VectorSelection:
         """
-        Search the top similarity scoring nodes according to matching a specified `query` with no more than `limit` nodes in the result.
+        Perform a similarity search between each node's associated document and a specified `query`. Returns a number of nodes up to a specified `limit` ranked in descending order of similarity score.
 
         Args:
           query (str | list): The text or the embedding to score against.
@@ -86,15 +86,7 @@ class VectorisedGraph(object):
         """
 
 class Document(object):
-    """
-    A document corresponding to a graph entity. Used to generate embeddings.
-
-    Args:
-        content (str): The document content.
-        life (int | Tuple[int, int], optional): The optional lifespan of the document. A single value
-                                                corresponds to an event, a tuple corresponds to a
-                                                window.
-    """
+    """A document corresponding to a graph entity. Used to generate embeddings."""
 
     def __repr__(self):
         """Return repr(self)."""
