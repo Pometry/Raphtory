@@ -301,14 +301,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
         if let Some(earliest) = self.earliest_time() {
             temporal_graph.update_time(TimeIndexEntry::start(earliest));
-        } else {
-            return Ok(self.new_base_graph(temporal_graph.into()));
         };
 
         if let Some(latest) = self.latest_time() {
             temporal_graph.update_time(TimeIndexEntry::end(latest));
-        } else {
-            return Ok(self.new_base_graph(temporal_graph.into()));
         };
 
         // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
@@ -521,6 +517,44 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
                 Ok::<(), MutationError>(())
             })?;
+
+            // Copy over graph properties
+            if let Some(graph_writer) = new_storage.graph_props.writer() {
+                // Copy temporal properties
+                for (prop_name, temporal_prop) in self.properties().temporal().iter() {
+                    let prop_id = graph_storage
+                        .graph_props_meta()
+                        .temporal_prop_mapper()
+                        .get_or_create_id(&prop_name)
+                        .inner();
+
+                    for (t, prop_value) in temporal_prop.iter_indexed() {
+                        let lsn = 0;
+                        graph_writer.add_properties(t, [(prop_id, prop_value)], lsn);
+                    }
+                }
+
+                // Copy metadata (constant properties)
+                let metadata_props: Vec<_> = self
+                    .metadata()
+                    .iter_filtered()
+                    .map(|(prop_name, prop_value)| {
+                        let prop_id = graph_storage
+                            .graph_props_meta()
+                            .metadata_mapper()
+                            .get_or_create_id(&prop_name)
+                            .inner();
+                        (prop_id, prop_value)
+                    })
+                    .collect();
+
+                println!("metadata_props: {:?}", metadata_props);
+
+                if !metadata_props.is_empty() {
+                    let lsn = 0;
+                    graph_writer.add_metadata(metadata_props, lsn);
+                }
+            }
         }
 
         Ok(self.new_base_graph(graph_storage))
