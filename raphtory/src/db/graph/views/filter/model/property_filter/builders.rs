@@ -1,65 +1,31 @@
 use crate::db::graph::views::filter::model::{
     property_filter::{Op, PropertyFilter, PropertyRef},
-    CombinedFilter, TemporalPropertyFilterFactory, Wrap,
+    CombinedFilter, InternalPropertyFilterBuilderOps, TemporalPropertyFilterFactory, Wrap,
 };
 use std::{ops::Deref, sync::Arc};
 
-pub trait InternalPropertyFilterBuilderOps: Send + Sync {
-    type Filter: CombinedFilter;
-    type Chained: InternalPropertyFilterBuilderOps;
-    type Marker: Send + Sync + Clone + 'static;
-
-    fn property_ref(&self) -> PropertyRef;
-
-    fn ops(&self) -> &[Op];
-
-    fn entity(&self) -> Self::Marker;
-
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter;
-
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained;
-}
-
-impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Arc<T> {
-    type Filter = T::Filter;
-    type Chained = T::Chained;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.deref().ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.deref().entity()
-    }
-
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
-        self.deref().filter(filter)
-    }
-
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
-        self.deref().chained(builder)
-    }
-}
-
 #[derive(Clone)]
 pub struct PropertyFilterBuilder<M>(String, pub M);
+
+impl<M> PropertyFilterBuilder<M> {
+    pub fn new(prop: impl Into<String>, entity: M) -> Self {
+        Self(prop.into(), entity)
+    }
+
+    pub fn temporal(self) -> OpChainBuilder<M> {
+        OpChainBuilder {
+            prop_ref: PropertyRef::TemporalProperty(self.0),
+            ops: vec![],
+            entity: self.1,
+        }
+    }
+}
 
 impl<M> Wrap for PropertyFilterBuilder<M> {
     type Wrapped<T> = T;
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
         value
-    }
-}
-
-impl<M> PropertyFilterBuilder<M> {
-    pub fn new(prop: impl Into<String>, entity: M) -> Self {
-        Self(prop.into(), entity)
     }
 }
 
@@ -104,17 +70,17 @@ where
 #[derive(Clone)]
 pub struct MetadataFilterBuilder<M>(pub String, pub M);
 
+impl<M> MetadataFilterBuilder<M> {
+    pub fn new(prop: impl Into<String>, entity: M) -> Self {
+        Self(prop.into(), entity)
+    }
+}
+
 impl<M> Wrap for MetadataFilterBuilder<M> {
     type Wrapped<T> = T;
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
         value
-    }
-}
-
-impl<M> MetadataFilterBuilder<M> {
-    pub fn new(prop: impl Into<String>, entity: M) -> Self {
-        Self(prop.into(), entity)
     }
 }
 
@@ -154,14 +120,6 @@ pub struct OpChainBuilder<M> {
     pub prop_ref: PropertyRef,
     pub ops: Vec<Op>,
     pub entity: M,
-}
-
-impl<M> Wrap for OpChainBuilder<M> {
-    type Wrapped<T> = T;
-
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        value
-    }
 }
 
 impl<M> OpChainBuilder<M> {
@@ -212,6 +170,14 @@ impl<M> OpChainBuilder<M> {
     }
 }
 
+impl<M> Wrap for OpChainBuilder<M> {
+    type Wrapped<T> = T;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        value
+    }
+}
+
 impl<M> InternalPropertyFilterBuilderOps for OpChainBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
@@ -239,15 +205,5 @@ where
 
     fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
         builder
-    }
-}
-
-impl<M> PropertyFilterBuilder<M> {
-    pub fn temporal(self) -> OpChainBuilder<M> {
-        OpChainBuilder {
-            prop_ref: PropertyRef::TemporalProperty(self.0),
-            ops: vec![],
-            entity: self.1,
-        }
     }
 }

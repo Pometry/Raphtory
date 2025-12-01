@@ -27,9 +27,7 @@ pub use crate::{
     prelude::{GraphViewOps, TimeOps},
 };
 pub use node_filter::CompositeNodeFilter;
-pub use property_filter::{
-    builders::InternalPropertyFilterBuilderOps, Op, PropertyFilter, PropertyRef,
-};
+pub use property_filter::{Op, PropertyFilter, PropertyRef};
 use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt::Display, ops::Deref, sync::Arc};
@@ -77,6 +75,48 @@ pub trait ComposableFilter: Sized {
 
     fn not(self) -> NotFilter<Self> {
         NotFilter(self)
+    }
+}
+
+pub trait InternalPropertyFilterBuilderOps: Send + Sync {
+    type Filter: CombinedFilter;
+    type Chained: InternalPropertyFilterBuilderOps;
+    type Marker: Send + Sync + Clone + 'static;
+
+    fn property_ref(&self) -> PropertyRef;
+
+    fn ops(&self) -> &[Op];
+
+    fn entity(&self) -> Self::Marker;
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter;
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained;
+}
+
+impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Arc<T> {
+    type Filter = T::Filter;
+    type Chained = T::Chained;
+    type Marker = T::Marker;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.deref().property_ref()
+    }
+
+    fn ops(&self) -> &[Op] {
+        self.deref().ops()
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.deref().entity()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        self.deref().filter(filter)
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        self.deref().chained(builder)
     }
 }
 
