@@ -24,7 +24,7 @@ use storage::{
     persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
     wal::Wal,
-    Extension, GIDResolver, Layer, ReadLockedLayer, TransactionManager, WalImpl, ES, NS,
+    Extension, GIDResolver, Layer, ReadLockedLayer, transaction::TransactionManager, WalImpl, ES, NS,
 };
 use tempfile::TempDir;
 
@@ -119,7 +119,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             node_count,
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
-            transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            transaction_manager: Arc::new(TransactionManager::new()),
             wal,
         })
     }
@@ -164,7 +164,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
-            transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            transaction_manager: Arc::new(TransactionManager::new()),
             wal,
         })
     }

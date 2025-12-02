@@ -10,9 +10,9 @@ use storage::{
     Extension,
 };
 
-/// Wrapper struct for implementing GraphReplayer for a TemporalGraph.
-/// This is needed to workaround Rust's orphan rule since both ReplayGraph and TemporalGraph
-/// are foreign to this crate.
+/// Wrapper struct for implementing `GraphReplayer` for a `TemporalGraph`.
+/// This is needed to workaround Rust's orphan rule since both `GraphReplayer`
+/// and `TemporalGraph` are foreign to this crate.
 #[derive(Debug)]
 pub struct ReplayGraph {
     graph: TemporalGraph<Extension>,
@@ -71,6 +71,8 @@ impl GraphReplayer for ReplayGraph {
             }
             _ => {}
         }
+
+        // TODO: Check max lsn on disk to see if replay is needed.
 
         Ok(())
     }

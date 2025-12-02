@@ -36,7 +36,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{Extension, TransactionManager, WalImpl};
+use storage::{Extension, transaction::TransactionManager, WalImpl};
 
 #[cfg(feature = "search")]
 use {

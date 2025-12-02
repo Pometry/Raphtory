@@ -1,4 +1,4 @@
-use storage::{TransactionManager, WalImpl};
+use storage::{transaction::TransactionManager, WalImpl};
 use crate::graph::graph::GraphStorage;
 use raphtory_api::inherit::Base;
 
