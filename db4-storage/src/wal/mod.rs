@@ -76,7 +76,7 @@ pub trait GraphWal {
     ) -> Result<(), StorageError>;
 }
 
-/// Trait for defining callbacks for replaying from wal
+/// Trait for defining callbacks for replaying from wal.
 pub trait GraphReplayer {
     fn replay_add_edge<PN: AsRef<str>>(
         &self,
