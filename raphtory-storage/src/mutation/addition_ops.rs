@@ -36,6 +36,7 @@ pub trait InternalAdditionOps {
 
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
+
     /// map external node id to internal id, allocating a new empty node if needed
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
 

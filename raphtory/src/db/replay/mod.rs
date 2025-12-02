@@ -25,43 +25,19 @@ impl ReplayGraph {
 }
 
 impl GraphReplayer for ReplayGraph {
-    fn replay_begin_transaction(
-        &self,
-        lsn: LSN,
-        transaction_id: TransactionID,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn replay_end_transaction(
-        &self,
-        lsn: LSN,
-        transaction_id: TransactionID,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn replay_add_static_edge(
+    fn replay_add_edge<PN: AsRef<str>>(
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
         t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn replay_add_edge(
-        &self,
-        lsn: LSN,
-        transaction_id: TransactionID,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
+        src_name: GID,
+        src_id: VID,
+        dst_name: GID,
+        dst_id: VID,
         eid: EID,
+        layer_name: Option<&str>,
         layer_id: usize,
-        props: &[(usize, Prop)],
+        props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<(), StorageError> {
         let edge_segment = self.graph.storage().edges().get_edge_segment(eid);
 
@@ -74,44 +50,6 @@ impl GraphReplayer for ReplayGraph {
 
         // TODO: Check max lsn on disk to see if replay is needed.
 
-        Ok(())
-    }
-
-    fn replay_node_id(
-        &self,
-        lsn: LSN,
-        transaction_id: TransactionID,
-        gid: GID,
-        vid: VID,
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn replay_const_prop_ids<PN: AsRef<str>>(
-        &self,
-        lsn: LSN,
-        transaction_id: TransactionID,
-        props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn replay_temporal_prop_ids<PN: AsRef<str>>(
-        &self,
-        lsn: LSN,
-        transaction_id: TransactionID,
-        props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn replay_layer_id(
-        &self,
-        lsn: LSN,
-        transaction_id: TransactionID,
-        name: &str,
-        id: usize,
-    ) -> Result<(), StorageError> {
         Ok(())
     }
 }
