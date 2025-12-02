@@ -8,7 +8,10 @@ pub mod otlp_config;
 
 #[cfg(test)]
 mod tests {
-    use crate::config::app_config::{load_config, AppConfigBuilder};
+    use crate::config::{
+        app_config::{load_config, AppConfigBuilder},
+        otlp_config::TracingLevel,
+    };
     use std::{fs, path::PathBuf};
 
     #[test]
@@ -19,6 +22,7 @@ mod tests {
 
             [tracing]
             tracing_enabled = true
+            tracing_level = "Essential"
 
             [cache]
             tti_seconds = 1000
@@ -30,9 +34,11 @@ mod tests {
         fs::write(&config_path, config_toml).unwrap();
 
         let result = load_config(None, Some(config_path.clone()));
+
         let expected_config = AppConfigBuilder::new()
             .with_log_level("DEBUG".to_string())
             .with_tracing(true)
+            .with_tracing_level(TracingLevel::ESSENTIAL)
             .with_cache_capacity(30)
             .with_cache_tti_seconds(1000)
             .with_auth_public_key(Some(
