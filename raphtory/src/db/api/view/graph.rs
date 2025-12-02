@@ -360,7 +360,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                                 0,
                             );
                         } else {
-                            writer.store_node_id(node_pos, 0, gid.as_ref(), 0);
+                            writer.store_node_id(node_pos, 0, gid.clone().into(), 0);
                         }
                         graph_storage
                             .write_session()?

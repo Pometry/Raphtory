@@ -27,7 +27,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc,
-        atomic::{AtomicI64, AtomicUsize, Ordering},
+        atomic::{AtomicU32, AtomicUsize, Ordering},
     },
 };
 
@@ -365,8 +365,8 @@ impl MemNodeSegment {
 pub struct NodeSegmentView<EXT> {
     inner: Arc<parking_lot::RwLock<MemNodeSegment>>,
     segment_id: usize,
-    event_id: AtomicI64,
     est_size: AtomicUsize,
+    max_num_node: AtomicU32,
     _ext: EXT,
 }
 
@@ -403,22 +403,6 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         self.head().t_len()
     }
 
-    fn event_id(&self) -> i64 {
-        self.event_id.load(Ordering::Relaxed)
-    }
-
-    fn increment_event_id(&self, i: i64) {
-        self.event_id.fetch_add(i, Ordering::Relaxed);
-    }
-
-    fn decrement_event_id(&self) -> i64 {
-        self.event_id
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| {
-                if x > 0 { Some(x - 1) } else { None }
-            })
-            .unwrap_or_default()
-    }
-
     fn load(
         _page_id: usize,
         _node_meta: Arc<Meta>,
@@ -447,7 +431,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
                 .into(),
             segment_id: page_id,
             _ext: ext,
-            event_id: Default::default(),
+            max_num_node: AtomicU32::new(0),
             est_size: AtomicUsize::new(0),
         }
     }
@@ -545,6 +529,10 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         _locked_head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
+    }
+
+    fn nodes_counter(&self) -> &AtomicU32 {
+        &self.max_num_node
     }
 }
 

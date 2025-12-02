@@ -79,6 +79,10 @@ impl GraphStats {
         counter.load(std::sync::atomic::Ordering::Acquire)
     }
 
+    pub fn get_counter(&self, layer_id: usize) -> &AtomicUsize {
+        self.get_or_create_layer(layer_id)
+    }
+
     fn get_or_create_layer(&self, layer_id: usize) -> &AtomicUsize {
         if let Some(counter) = self.layers.get(layer_id) {
             return counter;

@@ -178,6 +178,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.page.increment_est_size(add);
     }
 
+    #[inline(always)]
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
         self.page
             .get_out_edge(pos, dst, layer_id, self.mut_segment.deref())
@@ -200,8 +201,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(pos, layer_id, node_info_as_props(Some(gid), node_type), lsn);
     }
 
-    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: GidRef<'_>, lsn: u64) {
-        self.update_c_props(pos, layer_id, node_info_as_props(Some(gid), None), lsn);
+    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: Prop, lsn: u64) {
+        self.update_c_props(pos, layer_id, [(NODE_ID_IDX, gid)], lsn);
     }
 
     pub fn update_deletion_time<T: AsTime>(&mut self, t: T, node: LocalPOS, e_id: ELID, lsn: u64) {
@@ -224,7 +225,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     for NodeWriter<'a, MP, NS>
 {
     fn drop(&mut self) {
-        self.page.increment_event_id(1);
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");

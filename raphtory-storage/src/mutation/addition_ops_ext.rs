@@ -23,7 +23,7 @@ use storage::{
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, WalImpl, ES, GS, NS,
+    Config, Extension, WalImpl, ES, GS, NS,
 };
 
 pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
@@ -234,9 +234,11 @@ impl InternalAdditionOps for TemporalGraph {
         match id {
             NodeRef::External(id) => {
                 let id = self.logical_to_physical.get_or_init(id, || {
-                    self.node_count
-                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                        .into()
+                    let (seg, pos) = self
+                        .storage()
+                        .nodes()
+                        .reserve_free_pos(self.storage().nodes().stats().get(0));
+                    pos.as_vid(seg, self.extension().max_node_page_len())
                 })?;
 
                 Ok(id)

@@ -26,6 +26,7 @@ use thiserror::Error;
 use crate::core::entities::properties::prop::prop_array::*;
 use arrow_array::{cast::AsArray, ArrayRef, LargeListArray, StructArray};
 use arrow_schema::{DataType, Field, FieldRef};
+use crate::core::entities::GID;
 
 pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
 
@@ -57,7 +58,16 @@ impl From<GidRef<'_>> for Prop {
     fn from(value: GidRef<'_>) -> Self {
         match value {
             GidRef::U64(n) => Prop::U64(n),
-            GidRef::Str(s) => Prop::str(s),
+            GidRef::Str(s) => Prop::Str(ArcStr(s.into())),
+        }
+    }
+}
+
+impl From<GID> for Prop {
+    fn from(value: GID) -> Self {
+        match value {
+            GID::U64(n) => Prop::U64(n),
+            GID::Str(s) => Prop::Str(ArcStr(s.into())),
         }
     }
 }
