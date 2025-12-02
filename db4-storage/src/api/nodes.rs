@@ -21,7 +21,7 @@ use std::{
     borrow::Cow,
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, atomic::AtomicU32},
 };
 
 use crate::{
@@ -46,12 +46,6 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn earliest(&self) -> Option<TimeIndexEntry>;
 
     fn t_len(&self) -> usize;
-
-    fn event_id(&self) -> i64;
-
-    fn increment_event_id(&self, i: i64);
-
-    fn decrement_event_id(&self) -> i64;
 
     fn load(
         page_id: usize,
@@ -80,14 +74,6 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
-
-    fn num_nodes(&self) -> u32 {
-        self.layer_count(0)
-    }
-
-    fn num_layers(&self) -> usize;
-
-    fn layer_count(&self, layer_id: usize) -> u32;
 
     fn notify_write(
         &self,
@@ -128,6 +114,17 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &self,
         locked_head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
+
+    fn nodes_counter(&self) -> &AtomicU32;
+
+    fn num_nodes(&self) -> u32 {
+        self.nodes_counter()
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn num_layers(&self) -> usize;
+
+    fn layer_count(&self, layer_id: usize) -> u32;
 }
 
 pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {

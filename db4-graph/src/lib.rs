@@ -19,7 +19,7 @@ use storage::{
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
-        locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
+        locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodeSegments},
     },
     persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
@@ -32,7 +32,6 @@ use tempfile::TempDir;
 pub struct TemporalGraph<EXT: Config = Extension> {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
-    pub node_count: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
@@ -149,14 +148,12 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
 
         let gid_resolver_dir = path.join("gid_resolver");
         let resolver = GIDResolver::new_with_path(&gid_resolver_dir)?;
-        let node_count = AtomicUsize::new(storage.nodes().num_nodes());
         let wal_dir = path.join("wal");
         let wal = Arc::new(WalImpl::new(Some(wal_dir))?);
 
         Ok(Self {
             graph_dir: Some(path.into()),
             logical_to_physical: resolver.into(),
-            node_count,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
@@ -202,7 +199,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
         Ok(Self {
             graph_dir,
             logical_to_physical,
-            node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
@@ -369,7 +365,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
 }
 
 pub struct WriteLockedGraph<'a, EXT: Config> {
-    pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
+    pub nodes: WriteLockedNodeSegments<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
 }
