@@ -231,34 +231,20 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     }
 }
 
-pub enum WriterPair<'a, MP: DerefMut<Target = MemNodeSegment>, NS: NodeSegmentOps> {
-    Same {
-        writer: NodeWriter<'a, MP, NS>,
-    },
-    Different {
-        src_writer: NodeWriter<'a, MP, NS>,
-        dst_writer: NodeWriter<'a, MP, NS>,
-    },
+
+/// Holds writers for src and dst node segments when adding an edge.
+/// If both nodes are in the same segment, `dst` is `None` and `src` is used for both.
+pub struct NodeWriters<'a, MP: DerefMut<Target = MemNodeSegment>, NS: NodeSegmentOps> {
+    pub src: NodeWriter<'a, MP, NS>,
+    pub dst: Option<NodeWriter<'a, MP, NS>>,
 }
 
-impl<'a, MP: DerefMut<Target = MemNodeSegment>, NS: NodeSegmentOps> WriterPair<'a, MP, NS> {
+impl<'a, MP: DerefMut<Target = MemNodeSegment>, NS: NodeSegmentOps> NodeWriters<'a, MP, NS> {
     pub fn get_mut_src(&mut self) -> &mut NodeWriter<'a, MP, NS> {
-        match self {
-            WriterPair::Same { writer, .. } => writer,
-            WriterPair::Different {
-                src_writer: writer_i,
-                ..
-            } => writer_i,
-        }
+        &mut self.src
     }
 
     pub fn get_mut_dst(&mut self) -> &mut NodeWriter<'a, MP, NS> {
-        match self {
-            WriterPair::Same { writer, .. } => writer,
-            WriterPair::Different {
-                dst_writer: writer_j,
-                ..
-            } => writer_j,
-        }
+        self.dst.as_mut().unwrap_or(&mut self.src)
     }
 }

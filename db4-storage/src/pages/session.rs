@@ -1,5 +1,5 @@
 use super::{
-    GraphStore, edge_page::writer::EdgeWriter, node_page::writer::WriterPair, resolve_pos,
+    GraphStore, edge_page::writer::EdgeWriter, node_page::writer::NodeWriters, resolve_pos,
 };
 use crate::{
     LocalPOS,
@@ -16,7 +16,7 @@ use raphtory_core::{
 };
 
 pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, EXT: Config> {
-    node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
+    node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
     graph: &'a GraphStore<NS, ES, EXT>,
 }
@@ -29,7 +29,7 @@ impl<
 > WriteSession<'a, NS, ES, EXT>
 {
     pub fn new(
-        node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
+        node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
         edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
         graph: &'a GraphStore<NS, ES, EXT>,
     ) -> Self {
@@ -218,23 +218,17 @@ impl<
 
     pub fn node_writers(
         &mut self,
-    ) -> &mut WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
+    ) -> &mut NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
         &mut self.node_writers
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
-        match &mut self.node_writers {
-            WriterPair::Same { writer } => {
-                writer.mut_segment.set_lsn(lsn);
-            }
-            WriterPair::Different {
-                src_writer,
-                dst_writer,
-            } => {
-                src_writer.mut_segment.set_lsn(lsn);
-                dst_writer.mut_segment.set_lsn(lsn);
-            }
+        self.node_writers.src.mut_segment.set_lsn(lsn);
+
+        if let Some(dst) = &mut self.node_writers.dst {
+            dst.mut_segment.set_lsn(lsn);
         }
+
         if let Some(edge_writer) = &mut self.edge_writer {
             edge_writer.writer.set_lsn(lsn);
         }

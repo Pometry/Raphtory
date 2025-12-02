@@ -9,7 +9,7 @@ use crate::{
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
-use node_page::writer::{NodeWriter, WriterPair};
+use node_page::writer::{NodeWriter, NodeWriters};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
@@ -315,23 +315,18 @@ impl<
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
+        // Acquire locks in consistent order (lower chunk ID first) to prevent deadlocks.
         let node_writers = if src_chunk < dst_chunk {
-            let src_writer = self.node_writer(src_chunk);
-            let dst_writer = self.node_writer(dst_chunk);
-            WriterPair::Different {
-                src_writer,
-                dst_writer,
-            }
+            let src = self.node_writer(src_chunk);
+            let dst = self.node_writer(dst_chunk);
+            NodeWriters { src, dst: Some(dst) }
         } else if src_chunk > dst_chunk {
-            let dst_writer = self.node_writer(dst_chunk);
-            let src_writer = self.node_writer(src_chunk);
-            WriterPair::Different {
-                src_writer,
-                dst_writer,
-            }
+            let dst = self.node_writer(dst_chunk);
+            let src = self.node_writer(src_chunk);
+            NodeWriters { src, dst: Some(dst) }
         } else {
-            let writer = self.node_writer(src_chunk);
-            WriterPair::Same { writer }
+            let src = self.node_writer(src_chunk);
+            NodeWriters { src, dst: None }
         };
 
         let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
@@ -352,19 +347,20 @@ impl<
             self.nodes().get_or_create_segment(src_chunk);
             self.nodes().get_or_create_segment(dst_chunk);
 
+            // FIXME: This can livelock due to inconsistent lock acquisition order.
             loop {
                 if let Some(src_writer) = self.nodes().try_writer(src_chunk) {
                     if let Some(dst_writer) = self.nodes().try_writer(dst_chunk) {
-                        break WriterPair::Different {
-                            src_writer,
-                            dst_writer,
+                        break NodeWriters {
+                            src: src_writer,
+                            dst: Some(dst_writer),
                         };
                     }
                 }
             }
         } else {
             let writer = self.node_writer(src_chunk);
-            WriterPair::Same { writer }
+            NodeWriters { src: writer, dst: None }
         };
 
         let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
