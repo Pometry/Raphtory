@@ -9,7 +9,7 @@ use crate::{
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
                 node_filter::{
-                    builders::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps},
+                    builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
                     CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::{
@@ -17,10 +17,11 @@ use crate::{
                     Op, PropertyFilter, PropertyRef,
                 },
                 windowed_filter::Windowed,
-                AndFilter, EntityMarker, InternalPropertyFilterBuilderOps,
+                AndFilter, EntityMarker, InternalPropertyFilterBuilder,
                 InternalPropertyFilterFactory, NotFilter, OrFilter, TemporalPropertyFilterFactory,
                 TryAsCompositeFilter, Wrap,
             },
+            CreateFilter,
         },
     },
     errors::GraphError,
@@ -28,7 +29,6 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
-use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
@@ -62,8 +62,8 @@ impl EntityMarker for ExplodedEdgeFilter {}
 
 impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
     type Entity = ExplodedEdgeFilter;
-    type PropertyBuilder = PropertyFilterBuilder<ExplodedEdgeFilter>;
-    type MetadataBuilder = MetadataFilterBuilder<ExplodedEdgeFilter>;
+    type PropertyBuilder = PropertyFilterBuilder<Self::Entity>;
+    type MetadataBuilder = MetadataFilterBuilder<Self::Entity>;
 
     fn entity(&self) -> Self::Entity {
         ExplodedEdgeFilter
@@ -127,15 +127,13 @@ impl<M> EntityMarker for ExplodedEndpointWrapper<M> where
 {
 }
 
-impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps
-    for ExplodedEndpointWrapper<T>
-{
+impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for ExplodedEndpointWrapper<T> {
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
 }
 
-impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for ExplodedEndpointWrapper<T> {
+impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for ExplodedEndpointWrapper<T> {
     type FilterType = T::FilterType;
 
     fn field_name(&self) -> &'static str {
@@ -143,7 +141,7 @@ impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for ExplodedE
     }
 }
 
-impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps
+impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder
     for ExplodedEndpointWrapper<T>
 {
     type Filter = ExplodedEndpointWrapper<T::Filter>;

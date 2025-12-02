@@ -10,7 +10,7 @@ use crate::{
                 Static,
             },
         },
-        graph::views::filter::model::or_filter::OrFilter,
+        graph::views::filter::{model::or_filter::OrFilter, CreateFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -26,7 +26,6 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
 };
-use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Debug, Clone)]
 pub struct OrFilteredGraph<G, L, R> {

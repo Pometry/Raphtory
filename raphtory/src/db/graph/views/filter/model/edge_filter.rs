@@ -10,7 +10,7 @@ use crate::{
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 node_filter::{
                     builders::{
-                        InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
+                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                         NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
                     },
                     CompositeNodeFilter, NodeFilter,
@@ -20,10 +20,11 @@ use crate::{
                     Op, PropertyFilter, PropertyRef,
                 },
                 windowed_filter::Windowed,
-                AndFilter, ComposableFilter, EntityMarker, InternalPropertyFilterBuilderOps,
+                AndFilter, ComposableFilter, EntityMarker, InternalPropertyFilterBuilder,
                 InternalPropertyFilterFactory, NotFilter, OrFilter, TemporalPropertyFilterFactory,
                 TryAsCompositeFilter, Wrap,
             },
+            CreateFilter,
         },
     },
     errors::GraphError,
@@ -31,7 +32,6 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
-use crate::db::graph::views::filter::CreateFilter;
 
 // User facing entry for building edge filters.
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
@@ -66,8 +66,8 @@ impl EntityMarker for EdgeFilter {}
 
 impl InternalPropertyFilterFactory for EdgeFilter {
     type Entity = EdgeFilter;
-    type PropertyBuilder = PropertyFilterBuilder<EdgeFilter>;
-    type MetadataBuilder = MetadataFilterBuilder<EdgeFilter>;
+    type PropertyBuilder = PropertyFilterBuilder<Self::Entity>;
+    type MetadataBuilder = MetadataFilterBuilder<Self::Entity>;
 
     fn entity(&self) -> Self::Entity {
         EdgeFilter
@@ -156,20 +156,20 @@ impl<M> EntityMarker for EndpointWrapper<M> where M: EntityMarker + Send + Sync 
 
 impl<T> ComposableFilter for EndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
 
-impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for EndpointWrapper<T> {
+impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for EndpointWrapper<T> {
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
 }
 
-impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for EndpointWrapper<T> {
+impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for EndpointWrapper<T> {
     type FilterType = T::FilterType;
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
 }
 
-impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for EndpointWrapper<T> {
+impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for EndpointWrapper<T> {
     type Filter = EndpointWrapper<T::Filter>;
     type Chained = EndpointWrapper<T::Chained>;
     type Marker = T::Marker;

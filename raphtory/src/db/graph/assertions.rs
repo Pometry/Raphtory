@@ -9,7 +9,10 @@ pub use crate::db::api::view::SearchableGraphOps;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    db::graph::views::{filter::model::TryAsCompositeFilter, window_graph::WindowedGraph},
+    db::graph::views::{
+        filter::{model::TryAsCompositeFilter, CreateFilter},
+        window_graph::WindowedGraph,
+    },
     errors::GraphError,
     prelude::TimeOps,
 };
@@ -19,7 +22,6 @@ use {
     crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
     raphtory_storage::disk::DiskGraphStorage, tempfile::TempDir,
 };
-use crate::db::graph::views::filter::CreateFilter;
 
 pub enum TestGraphVariants {
     Graph,

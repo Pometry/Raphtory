@@ -20,7 +20,7 @@ use raphtory::{
                 filter_operator::{FilterOperator, FilterOperator::*},
                 node_filter::{NodeFilter, NodeFilterBuilderOps},
                 property_filter::{PropertyFilterBuilder, PropertyFilterOps},
-                ComposableFilter, InternalPropertyFilterBuilderOps, InternalPropertyFilterFactory,
+                ComposableFilter, InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
                 PropertyFilterFactory,
             },
         },
@@ -199,8 +199,8 @@ fn convert_to_property_filter<M>(
 ) -> Option<PropertyFilter<M>>
 where
     M: PropertyFilterFactory + Default + InternalPropertyFilterFactory,
-    <M as InternalPropertyFilterFactory>::PropertyBuilder: PropertyFilterOps
-        + InternalPropertyFilterBuilderOps<Marker = M, Filter = PropertyFilter<M>>,
+    <M as InternalPropertyFilterFactory>::PropertyBuilder:
+        PropertyFilterOps + InternalPropertyFilterBuilder<Marker = M, Filter = PropertyFilter<M>>,
 {
     let mut rng = thread_rng();
 

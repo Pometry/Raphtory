@@ -27,6 +27,7 @@ use crate::{
                 InternalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
+            CreateFilter,
         },
     },
     errors::GraphError,
@@ -35,7 +36,6 @@ use crate::{
 use raphtory_core::utils::time::IntoTime;
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{fmt, fmt::Display, sync::Arc};
-use crate::db::graph::views::filter::CreateFilter;
 
 pub mod builders;
 pub mod ops;
@@ -74,8 +74,8 @@ impl EntityMarker for NodeFilter {}
 
 impl InternalPropertyFilterFactory for NodeFilter {
     type Entity = NodeFilter;
-    type PropertyBuilder = PropertyFilterBuilder<NodeFilter>;
-    type MetadataBuilder = MetadataFilterBuilder<NodeFilter>;
+    type PropertyBuilder = PropertyFilterBuilder<Self::Entity>;
+    type MetadataBuilder = MetadataFilterBuilder<Self::Entity>;
 
     fn entity(&self) -> Self::Entity {
         NodeFilter

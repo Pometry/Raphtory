@@ -15,7 +15,7 @@ use crate::{
             },
         },
         graph::{
-            edges::NestedEdges, node::NodeView, path::PathFromGraph,
+            edges::NestedEdges, node::NodeView, path::PathFromGraph, views::filter::CreateFilter,
         },
     },
     errors::GraphError,
@@ -30,7 +30,6 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
-use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {

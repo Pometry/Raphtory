@@ -3,9 +3,12 @@ use crate::{
         api::view::{internal::FilterOps, BoxableGraphView, Filter, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
-            views::filter::model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFilter},
-                property_filter::PropertyRef,
+            views::filter::{
+                model::{
+                    edge_filter::{CompositeEdgeFilter, EdgeFilter},
+                    property_filter::PropertyRef,
+                },
+                CreateFilter,
             },
         },
     },
@@ -26,7 +29,6 @@ use tantivy::{
     collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
     Searcher, TantivyDocument,
 };
-use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Clone, Copy)]
 pub struct EdgeFilterExecutor<'a> {

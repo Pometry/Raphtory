@@ -4,9 +4,12 @@ use crate::{
             state::NodeOp,
             view::{internal::GraphView, BoxableGraphView},
         },
-        graph::views::filter::model::{
-            edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
-            not_filter::NotFilter, or_filter::OrFilter, AndFilter, TryAsCompositeFilter,
+        graph::views::filter::{
+            model::{
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+                not_filter::NotFilter, or_filter::OrFilter, AndFilter, TryAsCompositeFilter,
+            },
+            CreateFilter,
         },
     },
     errors::GraphError,
@@ -15,7 +18,6 @@ use crate::{
 };
 use pyo3::prelude::*;
 use std::sync::Arc;
-use crate::db::graph::views::filter::CreateFilter;
 
 #[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter", subclass)]
 #[derive(Clone)]

@@ -12,6 +12,7 @@ use crate::{
             views::filter::{
                 model::{filter::Filter, node_filter::NodeFilter},
                 node_filtered_graph::NodeFilteredGraph,
+                CreateFilter,
             },
         },
     },
@@ -24,7 +25,6 @@ use raphtory_storage::{
     graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
 };
 use std::sync::Arc;
-use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Clone, Debug)]
 pub struct Mask<Op> {

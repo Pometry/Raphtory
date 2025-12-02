@@ -18,10 +18,13 @@ use raphtory::{
         graph::{
             assertions::assert_ok_or_missing_nodes,
             graph::assert_edges_equal,
-            views::filter::model::{
-                node_filter::{ops::NodeFilterOps, NodeFilter},
-                property_filter::ops::PropertyFilterOps,
-                ComposableFilter, PropertyFilterFactory,
+            views::filter::{
+                model::{
+                    node_filter::{ops::NodeFilterOps, NodeFilter},
+                    property_filter::ops::PropertyFilterOps,
+                    ComposableFilter, PropertyFilterFactory,
+                },
+                CreateFilter,
             },
         },
     },
@@ -31,7 +34,6 @@ use raphtory::{
         node_filtered_graph,
     },
 };
-use raphtory::db::graph::views::filter::CreateFilter;
 use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
 use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},

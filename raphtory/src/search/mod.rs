@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::view::{filter_ops::Filter, StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView},
+        graph::{edge::EdgeView, node::NodeView, views::filter::CreateFilter},
     },
     errors::GraphError,
     prelude::{EdgeViewOps, GraphViewOps},
@@ -19,7 +19,6 @@ use tantivy::{
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
     Index, IndexReader, IndexSettings,
 };
-use crate::db::graph::views::filter::CreateFilter;
 
 pub mod graph_index;
 pub mod searcher;

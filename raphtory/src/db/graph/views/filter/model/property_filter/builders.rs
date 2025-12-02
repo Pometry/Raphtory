@@ -1,6 +1,6 @@
 use crate::db::graph::views::filter::model::{
     property_filter::{Op, PropertyFilter, PropertyRef},
-    CombinedFilter, InternalPropertyFilterBuilderOps, TemporalPropertyFilterFactory, Wrap,
+    CombinedFilter, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory, Wrap,
 };
 use std::{ops::Deref, sync::Arc};
 
@@ -29,11 +29,11 @@ impl<M> Wrap for PropertyFilterBuilder<M> {
     }
 }
 
-impl<M> InternalPropertyFilterBuilderOps for PropertyFilterBuilder<M>
+impl<M> InternalPropertyFilterBuilder for PropertyFilterBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
-    OpChainBuilder<M>: InternalPropertyFilterBuilderOps,
+    OpChainBuilder<M>: InternalPropertyFilterBuilder,
 {
     type Filter = PropertyFilter<M>;
     type Chained = OpChainBuilder<M>;
@@ -84,11 +84,11 @@ impl<M> Wrap for MetadataFilterBuilder<M> {
     }
 }
 
-impl<M> InternalPropertyFilterBuilderOps for MetadataFilterBuilder<M>
+impl<M> InternalPropertyFilterBuilder for MetadataFilterBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
-    OpChainBuilder<M>: InternalPropertyFilterBuilderOps,
+    OpChainBuilder<M>: InternalPropertyFilterBuilder,
 {
     type Filter = PropertyFilter<M>;
     type Chained = OpChainBuilder<M>;
@@ -178,7 +178,7 @@ impl<M> Wrap for OpChainBuilder<M> {
     }
 }
 
-impl<M> InternalPropertyFilterBuilderOps for OpChainBuilder<M>
+impl<M> InternalPropertyFilterBuilder for OpChainBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,

@@ -2,17 +2,20 @@ use crate::{
     db::{
         api::view::internal::GraphView,
         graph::views::{
-            filter::model::{
-                edge_filter::CompositeEdgeFilter,
-                node_filter::builders::{
-                    InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
+            filter::{
+                model::{
+                    edge_filter::CompositeEdgeFilter,
+                    node_filter::builders::{
+                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
+                    },
+                    property_filter::builders::{
+                        MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder,
+                    },
+                    ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
+                    EntityMarker, InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op,
+                    PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
-                property_filter::builders::{
-                    MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder,
-                },
-                ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                EntityMarker, InternalPropertyFilterBuilderOps, InternalPropertyFilterFactory,
-                Op, PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                CreateFilter,
             },
             window_graph::WindowedGraph,
         },
@@ -23,7 +26,6 @@ use crate::{
 use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display};
-use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {
@@ -62,7 +64,7 @@ impl<M> Windowed<M> {
     }
 }
 
-impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Windowed<T> {
+impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Windowed<T> {
     type FilterType = T::FilterType;
 
     fn field_name(&self) -> &'static str {
@@ -70,13 +72,13 @@ impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Windowed<
     }
 }
 
-impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for Windowed<T> {
+impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Windowed<T> {
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
 }
 
-impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Windowed<T> {
+impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Windowed<T> {
     type Filter = Windowed<T::Filter>;
     type Chained = Windowed<T::Chained>;
     type Marker = T::Marker;

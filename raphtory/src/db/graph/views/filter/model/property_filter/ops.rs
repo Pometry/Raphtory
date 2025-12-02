@@ -1,11 +1,11 @@
 use crate::db::graph::views::filter::model::{
     property_filter::{builders::OpChainBuilder, Op, PropertyFilter, PropertyFilterValue},
-    FilterOperator, InternalPropertyFilterBuilderOps,
+    FilterOperator, InternalPropertyFilterBuilder,
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::sync::Arc;
 
-pub trait PropertyFilterOps: InternalPropertyFilterBuilderOps {
+pub trait PropertyFilterOps: InternalPropertyFilterBuilder {
     fn eq(&self, value: impl Into<Prop>) -> Self::Filter;
     fn ne(&self, value: impl Into<Prop>) -> Self::Filter;
     fn le(&self, value: impl Into<Prop>) -> Self::Filter;
@@ -28,7 +28,7 @@ pub trait PropertyFilterOps: InternalPropertyFilterBuilderOps {
     ) -> Self::Filter;
 }
 
-impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
+impl<T: ?Sized + InternalPropertyFilterBuilder> PropertyFilterOps for T {
     fn eq(&self, value: impl Into<Prop>) -> Self::Filter {
         let filter = PropertyFilter {
             prop_ref: self.property_ref(),
@@ -203,7 +203,7 @@ impl<T: ?Sized + InternalPropertyFilterBuilderOps> PropertyFilterOps for T {
     }
 }
 
-pub trait ElemQualifierOps: InternalPropertyFilterBuilderOps {
+pub trait ElemQualifierOps: InternalPropertyFilterBuilder {
     fn any(&self) -> Self::Chained
     where
         Self: Sized,
@@ -229,9 +229,9 @@ pub trait ElemQualifierOps: InternalPropertyFilterBuilderOps {
     }
 }
 
-impl<T: InternalPropertyFilterBuilderOps> ElemQualifierOps for T {}
+impl<T: InternalPropertyFilterBuilder> ElemQualifierOps for T {}
 
-pub trait ListAggOps: InternalPropertyFilterBuilderOps {
+pub trait ListAggOps: InternalPropertyFilterBuilder {
     fn len(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: self.property_ref(),
@@ -296,4 +296,4 @@ pub trait ListAggOps: InternalPropertyFilterBuilderOps {
     }
 }
 
-impl<T: InternalPropertyFilterBuilderOps> ListAggOps for T {}
+impl<T: InternalPropertyFilterBuilder> ListAggOps for T {}

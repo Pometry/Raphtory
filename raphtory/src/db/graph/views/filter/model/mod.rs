@@ -7,15 +7,18 @@ pub use crate::{
     db::{
         api::view::internal::GraphView,
         graph::views::{
-            filter::model::{
-                edge_filter::{EdgeFilter, EndpointWrapper},
-                exploded_edge_filter::{
-                    CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
+            filter::{
+                model::{
+                    edge_filter::{EdgeFilter, EndpointWrapper},
+                    exploded_edge_filter::{
+                        CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
+                    },
+                    filter_operator::FilterOperator,
+                    node_filter::{NodeFilter, NodeNameFilter, NodeTypeFilter},
+                    not_filter::NotFilter,
+                    or_filter::OrFilter,
                 },
-                filter_operator::FilterOperator,
-                node_filter::{NodeFilter, NodeNameFilter, NodeTypeFilter},
-                not_filter::NotFilter,
-                or_filter::OrFilter,
+                CreateFilter,
             },
             window_graph::WindowedGraph,
         },
@@ -28,7 +31,6 @@ pub use property_filter::{Op, PropertyFilter, PropertyRef};
 use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt::Display, ops::Deref, sync::Arc};
-pub use crate::db::graph::views::filter::CreateFilter;
 
 pub mod and_filter;
 pub mod edge_filter;
@@ -76,9 +78,9 @@ pub trait ComposableFilter: Sized {
     }
 }
 
-pub trait InternalPropertyFilterBuilderOps: Send + Sync {
+pub trait InternalPropertyFilterBuilder: Send + Sync {
     type Filter: CombinedFilter;
-    type Chained: InternalPropertyFilterBuilderOps;
+    type Chained: InternalPropertyFilterBuilder;
     type Marker: Send + Sync + Clone + 'static;
 
     fn property_ref(&self) -> PropertyRef;
@@ -92,7 +94,7 @@ pub trait InternalPropertyFilterBuilderOps: Send + Sync {
     fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained;
 }
 
-impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Arc<T> {
+impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Arc<T> {
     type Filter = T::Filter;
     type Chained = T::Chained;
     type Marker = T::Marker;
@@ -120,8 +122,8 @@ impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for A
 
 pub trait InternalPropertyFilterFactory {
     type Entity: Clone + Send + Sync + 'static;
-    type PropertyBuilder: InternalPropertyFilterBuilderOps + TemporalPropertyFilterFactory;
-    type MetadataBuilder: InternalPropertyFilterBuilderOps;
+    type PropertyBuilder: InternalPropertyFilterBuilder + TemporalPropertyFilterFactory;
+    type MetadataBuilder: InternalPropertyFilterBuilder;
 
     fn entity(&self) -> Self::Entity;
 
@@ -150,7 +152,7 @@ pub trait PropertyFilterFactory: InternalPropertyFilterFactory {
 
 impl<T: InternalPropertyFilterFactory> PropertyFilterFactory for T {}
 
-pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilderOps {
+pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilder {
     fn temporal(&self) -> Self::Chained {
         let builder = OpChainBuilder {
             prop_ref: PropertyRef::TemporalProperty(self.property_ref().name().to_string()),

@@ -5,11 +5,24 @@ use crate::db::graph::views::filter::model::{
 };
 use std::{ops::Deref, sync::Arc};
 
-pub trait InternalNodeIdFilterBuilderOps: Send + Sync + Wrap {
+pub trait InternalNodeIdFilterBuilder: Send + Sync + Wrap {
     fn field_name(&self) -> &'static str;
 }
 
-impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for Arc<T> {
+impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Arc<T> {
+    fn field_name(&self) -> &'static str {
+        self.deref().field_name()
+    }
+}
+
+pub trait InternalNodeFilterBuilder: Send + Sync + Wrap {
+    type FilterType: From<Filter>;
+    fn field_name(&self) -> &'static str;
+}
+
+impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Arc<T> {
+    type FilterType = T::FilterType;
+
     fn field_name(&self) -> &'static str {
         self.deref().field_name()
     }
@@ -26,22 +39,10 @@ impl Wrap for NodeIdFilterBuilder {
     }
 }
 
-impl InternalNodeIdFilterBuilderOps for NodeIdFilterBuilder {
+impl InternalNodeIdFilterBuilder for NodeIdFilterBuilder {
     #[inline]
     fn field_name(&self) -> &'static str {
         "node_id"
-    }
-}
-
-pub trait InternalNodeFilterBuilderOps: Send + Sync + Wrap {
-    type FilterType: From<Filter>;
-    fn field_name(&self) -> &'static str;
-}
-
-impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Arc<T> {
-    type FilterType = T::FilterType;
-    fn field_name(&self) -> &'static str {
-        self.deref().field_name()
     }
 }
 
@@ -56,7 +57,7 @@ impl Wrap for NodeNameFilterBuilder {
     }
 }
 
-impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
+impl InternalNodeFilterBuilder for NodeNameFilterBuilder {
     type FilterType = NodeNameFilter;
 
     fn field_name(&self) -> &'static str {
@@ -75,7 +76,7 @@ impl Wrap for NodeTypeFilterBuilder {
     }
 }
 
-impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
+impl InternalNodeFilterBuilder for NodeTypeFilterBuilder {
     type FilterType = NodeTypeFilter;
     fn field_name(&self) -> &'static str {
         "node_type"

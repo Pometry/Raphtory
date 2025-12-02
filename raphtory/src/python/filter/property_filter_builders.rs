@@ -1,12 +1,15 @@
 use crate::{
-    db::graph::views::filter::model::{
-        edge_filter::EndpointWrapper,
-        property_filter::{
-            builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
-            ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+    db::graph::views::filter::{
+        model::{
+            edge_filter::EndpointWrapper,
+            property_filter::{
+                builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
+                ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+            },
+            InternalPropertyFilterBuilder, PropertyFilterFactory, TemporalPropertyFilterFactory,
+            TryAsCompositeFilter,
         },
-        InternalPropertyFilterBuilderOps, PropertyFilterFactory, TemporalPropertyFilterFactory,
-        TryAsCompositeFilter,
+        CreateFilter,
     },
     prelude::PropertyFilter,
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
@@ -14,7 +17,6 @@ use crate::{
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
-use crate::db::graph::views::filter::CreateFilter;
 
 pub trait DynPropertyFilterOps: Send + Sync {
     fn __eq__(&self, value: Prop) -> PyFilterExpr;
@@ -148,7 +150,7 @@ impl<T: PropertyFilterOps> DynPropertyFilterOps for T {
 
 impl<T> DynListFilterOps for T
 where
-    T: InternalPropertyFilterBuilderOps + 'static,
+    T: InternalPropertyFilterBuilder + 'static,
 {
     fn any(&self) -> PyFilterOps {
         let filter = ElemQualifierOps::any(self);
@@ -442,7 +444,7 @@ impl PyPropertyFilterBuilder {
 impl<'py, M: Clone + Send + Sync + 'static> IntoPyObject<'py> for PropertyFilterBuilder<M>
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-    OpChainBuilder<M>: InternalPropertyFilterBuilderOps<Marker = M>,
+    OpChainBuilder<M>: InternalPropertyFilterBuilder<Marker = M>,
 {
     type Target = PyPropertyFilterBuilder;
     type Output = Bound<'py, Self::Target>;
@@ -459,7 +461,7 @@ where
 impl<'py, M: Send + Sync + Clone + 'static> IntoPyObject<'py> for MetadataFilterBuilder<M>
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-    OpChainBuilder<M>: InternalPropertyFilterBuilderOps<Marker = M>,
+    OpChainBuilder<M>: InternalPropertyFilterBuilder<Marker = M>,
 {
     type Target = PyFilterOps;
     type Output = Bound<'py, Self::Target>;
@@ -474,7 +476,7 @@ impl<'py, M> IntoPyObject<'py> for EndpointWrapper<PropertyFilterBuilder<M>>
 where
     M: Clone + Send + Sync + 'static,
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-    OpChainBuilder<M>: InternalPropertyFilterBuilderOps<Marker = M>,
+    OpChainBuilder<M>: InternalPropertyFilterBuilder<Marker = M>,
 {
     type Target = PyPropertyFilterBuilder;
     type Output = Bound<'py, Self::Target>;
@@ -492,7 +494,7 @@ impl<'py, M> IntoPyObject<'py> for EndpointWrapper<MetadataFilterBuilder<M>>
 where
     M: Clone + Send + Sync + 'static,
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
-    OpChainBuilder<M>: InternalPropertyFilterBuilderOps<Marker = M>,
+    OpChainBuilder<M>: InternalPropertyFilterBuilder<Marker = M>,
 {
     type Target = PyFilterOps;
     type Output = Bound<'py, Self::Target>;

@@ -1,14 +1,13 @@
 use crate::db::graph::views::filter::model::{
     filter::Filter,
     node_filter::{
-        builders::{InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps},
+        builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
         NodeIdFilter,
     },
-    Wrap,
 };
 use raphtory_api::core::entities::GID;
 
-pub trait NodeFilterOps: InternalNodeFilterBuilderOps {
+pub trait NodeFilterOps: InternalNodeFilterBuilder {
     fn eq(&self, value: impl Into<String>) -> Self::Wrapped<Self::FilterType> {
         let filter = Filter::eq(self.field_name(), value);
         self.wrap(filter.into())
@@ -64,9 +63,9 @@ pub trait NodeFilterOps: InternalNodeFilterBuilderOps {
     }
 }
 
-impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterOps for T {}
+impl<T: InternalNodeFilterBuilder + ?Sized> NodeFilterOps for T {}
 
-pub trait NodeIdFilterOps: InternalNodeIdFilterBuilderOps {
+pub trait NodeIdFilterOps: InternalNodeIdFilterBuilder {
     fn eq<T: Into<GID>>(&self, value: T) -> Self::Wrapped<NodeIdFilter> {
         let filter = Filter::eq_id(self.field_name(), value);
         self.wrap(NodeIdFilter(filter))
@@ -147,4 +146,4 @@ pub trait NodeIdFilterOps: InternalNodeIdFilterBuilderOps {
     }
 }
 
-impl<T: InternalNodeIdFilterBuilderOps + ?Sized> NodeIdFilterOps for T {}
+impl<T: InternalNodeIdFilterBuilder + ?Sized> NodeIdFilterOps for T {}

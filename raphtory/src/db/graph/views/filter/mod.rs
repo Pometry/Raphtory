@@ -1,8 +1,11 @@
-use crate::db::api::state::ops::NodeFilterOp;
-use crate::db::api::view::internal::GraphView;
-use crate::db::graph::views::filter::node_filtered_graph::NodeFilteredGraph;
-use crate::errors::GraphError;
-use crate::prelude::GraphViewOps;
+use crate::{
+    db::{
+        api::{state::ops::NodeFilterOp, view::internal::GraphView},
+        graph::views::filter::node_filtered_graph::NodeFilteredGraph,
+    },
+    errors::GraphError,
+    prelude::GraphViewOps,
+};
 
 pub mod and_filtered_graph;
 pub mod edge_node_filtered_graph;

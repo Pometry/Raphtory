@@ -12,9 +12,12 @@ use crate::{
             },
         },
         graph::views::{
-            filter::model::{
-                exploded_edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilter,
-                windowed_filter::Windowed,
+            filter::{
+                model::{
+                    exploded_edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilter,
+                    windowed_filter::Windowed,
+                },
+                CreateFilter,
             },
             window_graph::WindowedGraph,
         },
@@ -30,7 +33,6 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_storage::core_ops::InheritCoreGraphOps;
-use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {

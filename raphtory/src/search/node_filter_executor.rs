@@ -3,10 +3,13 @@ use crate::{
         api::view::{BoxableGraphView, StaticGraphViewOps},
         graph::{
             node::NodeView,
-            views::filter::model::{
-                filter::Filter,
-                node_filter::{CompositeNodeFilter, NodeFilter},
-                property_filter::PropertyRef,
+            views::filter::{
+                model::{
+                    filter::Filter,
+                    node_filter::{CompositeNodeFilter, NodeFilter},
+                    property_filter::PropertyRef,
+                },
+                CreateFilter,
             },
         },
     },
@@ -25,7 +28,6 @@ use tantivy::{
     collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
     Searcher, TantivyDocument,
 };
-use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Clone, Copy)]
 pub struct NodeFilterExecutor<'a> {
