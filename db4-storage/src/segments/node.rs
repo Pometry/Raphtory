@@ -146,7 +146,9 @@ impl MemNodeSegment {
     }
 
     pub fn set_lsn(&mut self, lsn: u64) {
-        self.lsn = lsn;
+        if lsn > self.lsn {
+            self.lsn = lsn;
+        }
     }
 
     pub fn to_vid(&self, pos: LocalPOS) -> VID {

@@ -17,7 +17,7 @@ use raphtory_core::{
         nodes::node_ref::{AsNodeRef, NodeRef},
         GidRef, EID, ELID, MAX_LAYER, VID,
     },
-    storage::timeindex::TimeIndexEntry,
+    storage::{timeindex::TimeIndexEntry},
 };
 use storage::{
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
@@ -25,6 +25,7 @@ use storage::{
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     Extension, transaction::TransactionManager, WalImpl, ES, NS,
+    wal::LSN,
 };
 
 pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> {
@@ -102,6 +103,10 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
                 .get_mut_dst()
                 .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())], 0);
         };
+    }
+
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.static_session.set_lsn(lsn);
     }
 }
 

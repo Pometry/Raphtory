@@ -6,6 +6,7 @@ use crate::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     persist::strategy::{Config, PersistentStrategy},
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
@@ -219,5 +220,23 @@ impl<
         &mut self,
     ) -> &mut WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
         &mut self.node_writers
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        match &mut self.node_writers {
+            WriterPair::Same { writer } => {
+                writer.mut_segment.set_lsn(lsn);
+            }
+            WriterPair::Different {
+                src_writer,
+                dst_writer,
+            } => {
+                src_writer.mut_segment.set_lsn(lsn);
+                dst_writer.mut_segment.set_lsn(lsn);
+            }
+        }
+        if let Some(edge_writer) = &mut self.edge_writer {
+            edge_writer.writer.set_lsn(lsn);
+        }
     }
 }

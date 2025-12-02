@@ -20,7 +20,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::{nodes::node_ref::NodeRef, ELID};
-use storage::{Extension};
+use storage::{Extension, wal::LSN};
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;
@@ -124,6 +124,8 @@ pub trait EdgeWriteLock: Send + Sync {
 
     fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
     fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
+
+    fn set_lsn(&mut self, lsn: LSN);
 }
 
 pub trait AtomicNodeAddition: Send + Sync {

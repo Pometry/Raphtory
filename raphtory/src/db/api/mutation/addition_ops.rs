@@ -333,7 +333,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
 
         // Update the src, dst and edge segments with the lsn of the wal entry.
-        // add_edge_op.update_lsn(lsn);
+        add_edge_op.set_lsn(lsn);
 
         self.transaction_manager().end_transaction(transaction_id);
 

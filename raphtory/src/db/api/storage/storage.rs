@@ -36,7 +36,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{Extension, transaction::TransactionManager, WalImpl};
+use storage::{Extension, transaction::TransactionManager, WalImpl, wal::LSN};
 
 #[cfg(feature = "search")]
 use {
@@ -337,6 +337,10 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
 
     fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
         self.session.store_dst_node_info(id, node_id);
+    }
+
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.session.set_lsn(lsn);
     }
 }
 
