@@ -12,12 +12,9 @@ use crate::{
             },
         },
         graph::views::{
-            filter::{
-                internal::CreateFilter,
-                model::{
-                    edge_filter::EdgeFilter, property_filter::PropertyFilter,
-                    windowed_filter::Windowed,
-                },
+            filter::model::{
+                edge_filter::EdgeFilter, property_filter::PropertyFilter,
+                windowed_filter::Windowed,
             },
             window_graph::WindowedGraph,
         },
@@ -27,6 +24,7 @@ use crate::{
 };
 use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {

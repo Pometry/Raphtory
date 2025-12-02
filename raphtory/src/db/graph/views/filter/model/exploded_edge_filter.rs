@@ -6,7 +6,6 @@ use crate::{
         },
         graph::views::filter::{
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
-            internal::CreateFilter,
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
                 node_filter::{
@@ -29,6 +28,7 @@ use crate::{
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
+use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;

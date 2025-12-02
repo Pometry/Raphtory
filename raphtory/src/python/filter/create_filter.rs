@@ -4,12 +4,13 @@ use crate::{
             state::NodeOp,
             view::{internal::GraphView, BoxableGraphView},
         },
-        graph::views::filter::{internal::CreateFilter, model::TryAsCompositeFilter},
+        graph::views::filter::model::TryAsCompositeFilter,
     },
     errors::GraphError,
     prelude::GraphViewOps,
 };
 use std::{ops::Deref, sync::Arc};
+use crate::db::graph::views::filter::CreateFilter;
 
 pub trait DynInternalFilterOps: Send + Sync + TryAsCompositeFilter {
     fn create_dyn_filter<'graph>(

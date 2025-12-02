@@ -1,8 +1,5 @@
 use crate::{
-    db::{
-        api::view::{filter_ops::Filter, StaticGraphViewOps},
-        graph::views::filter::internal::CreateFilter,
-    },
+    db::api::view::{filter_ops::Filter, StaticGraphViewOps},
     prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
 };
 use std::ops::Range;
@@ -22,6 +19,7 @@ use {
     crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
     raphtory_storage::disk::DiskGraphStorage, tempfile::TempDir,
 };
+use crate::db::graph::views::filter::CreateFilter;
 
 pub enum TestGraphVariants {
     Graph,

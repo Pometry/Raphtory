@@ -1,15 +1,12 @@
 use crate::{
-    db::graph::views::filter::{
-        internal::CreateFilter,
-        model::{
-            edge_filter::EndpointWrapper,
-            property_filter::{
-                builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
-                ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-            },
-            InternalPropertyFilterBuilderOps, PropertyFilterFactory, TemporalPropertyFilterFactory,
-            TryAsCompositeFilter,
+    db::graph::views::filter::model::{
+        edge_filter::EndpointWrapper,
+        property_filter::{
+            builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
+            ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
         },
+        InternalPropertyFilterBuilderOps, PropertyFilterFactory, TemporalPropertyFilterFactory,
+        TryAsCompositeFilter,
     },
     prelude::PropertyFilter,
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
@@ -17,6 +14,7 @@ use crate::{
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
+use crate::db::graph::views::filter::CreateFilter;
 
 pub trait DynPropertyFilterOps: Send + Sync {
     fn __eq__(&self, value: Prop) -> PyFilterExpr;

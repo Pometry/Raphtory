@@ -10,13 +10,12 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{FilterOps, InternalFilter, NodeList, Static},
+                internal::{FilterOps, InternalFilter, NodeList},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{
             edges::NestedEdges, node::NodeView, path::PathFromGraph,
-            views::filter::internal::CreateFilter,
         },
     },
     errors::GraphError,
@@ -31,6 +30,7 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
+use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {

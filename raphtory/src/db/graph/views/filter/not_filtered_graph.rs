@@ -10,7 +10,7 @@ use crate::{
                 InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::not_filter::NotFilter},
+        graph::views::filter::model::not_filter::NotFilter,
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -26,6 +26,7 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
 };
+use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Debug, Clone)]
 pub struct NotFilteredGraph<G, T> {

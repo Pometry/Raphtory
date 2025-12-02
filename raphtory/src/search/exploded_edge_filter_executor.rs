@@ -3,12 +3,9 @@ use crate::{
         api::view::{internal::FilterOps, BoxableGraphView, Filter, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
-            views::filter::{
-                internal::CreateFilter,
-                model::{
-                    exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
-                    property_filter::PropertyRef,
-                },
+            views::filter::model::{
+                exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
+                property_filter::PropertyRef,
             },
         },
     },
@@ -33,6 +30,7 @@ use raphtory_api::core::{
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{collections::HashSet, sync::Arc};
 use tantivy::{collector::Collector, query::Query, IndexReader};
+use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Clone, Copy)]
 pub struct ExplodedEdgeFilterExecutor<'a> {

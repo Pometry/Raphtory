@@ -14,10 +14,9 @@ use crate::{
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
-            internal::CreateFilter,
             model::{
                 edge_filter::CompositeEdgeFilter,
-                filter::{Filter, FilterValue},
+                filter::Filter,
                 node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     utils::validate,
@@ -36,6 +35,7 @@ use crate::{
 use raphtory_core::utils::time::IntoTime;
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{fmt, fmt::Display, sync::Arc};
+use crate::db::graph::views::filter::CreateFilter;
 
 pub mod builders;
 pub mod ops;

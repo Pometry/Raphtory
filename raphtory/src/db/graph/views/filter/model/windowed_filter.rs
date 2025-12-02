@@ -2,20 +2,17 @@ use crate::{
     db::{
         api::view::internal::GraphView,
         graph::views::{
-            filter::{
-                internal::CreateFilter,
-                model::{
-                    edge_filter::CompositeEdgeFilter,
-                    node_filter::builders::{
-                        InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
-                    },
-                    property_filter::builders::{
-                        MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder,
-                    },
-                    ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                    EntityMarker, InternalPropertyFilterBuilderOps, InternalPropertyFilterFactory,
-                    Op, PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+            filter::model::{
+                edge_filter::CompositeEdgeFilter,
+                node_filter::builders::{
+                    InternalNodeFilterBuilderOps, InternalNodeIdFilterBuilderOps,
                 },
+                property_filter::builders::{
+                    MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder,
+                },
+                ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
+                EntityMarker, InternalPropertyFilterBuilderOps, InternalPropertyFilterFactory,
+                Op, PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             window_graph::WindowedGraph,
         },
@@ -26,6 +23,7 @@ use crate::{
 use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display};
+use crate::db::graph::views::filter::CreateFilter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {

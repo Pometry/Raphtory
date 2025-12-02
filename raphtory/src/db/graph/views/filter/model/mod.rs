@@ -7,18 +7,15 @@ pub use crate::{
     db::{
         api::view::internal::GraphView,
         graph::views::{
-            filter::{
-                internal::CreateFilter,
-                model::{
-                    edge_filter::{EdgeFilter, EndpointWrapper},
-                    exploded_edge_filter::{
-                        CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
-                    },
-                    filter_operator::FilterOperator,
-                    node_filter::{NodeFilter, NodeNameFilter, NodeTypeFilter},
-                    not_filter::NotFilter,
-                    or_filter::OrFilter,
+            filter::model::{
+                edge_filter::{EdgeFilter, EndpointWrapper},
+                exploded_edge_filter::{
+                    CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
                 },
+                filter_operator::FilterOperator,
+                node_filter::{NodeFilter, NodeNameFilter, NodeTypeFilter},
+                not_filter::NotFilter,
+                or_filter::OrFilter,
             },
             window_graph::WindowedGraph,
         },
@@ -31,6 +28,7 @@ pub use property_filter::{Op, PropertyFilter, PropertyRef};
 use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt::Display, ops::Deref, sync::Arc};
+pub use crate::db::graph::views::filter::CreateFilter;
 
 pub mod and_filter;
 pub mod edge_filter;

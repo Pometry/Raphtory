@@ -1,10 +1,8 @@
 use crate::{
-    db::{
-        api::view::internal::{InternalFilter, InternalSelect},
-        graph::views::filter::internal::CreateFilter,
-    },
+    db::api::view::internal::{InternalFilter, InternalSelect},
     errors::GraphError,
 };
+use crate::db::graph::views::filter::CreateFilter;
 
 pub trait Filter<'graph>: InternalFilter<'graph> {
     fn filter<F: CreateFilter>(

@@ -472,18 +472,16 @@ mod test_property_semantics {
                         assert_filter_edges_results, assert_search_edges_results,
                         TestGraphVariants, TestVariants, WindowGraphTransformer,
                     },
-                    views::filter::{
-                        internal::CreateFilter,
-                        model::{
-                            edge_filter::EdgeFilter, property_filter::ops::PropertyFilterOps,
-                            PropertyFilterFactory,
-                        },
+                    views::filter::model::{
+                        edge_filter::EdgeFilter, property_filter::ops::PropertyFilterOps,
+                        PropertyFilterFactory,
                     },
                 },
             },
             errors::GraphError,
             prelude::*,
         };
+        use raphtory::db::graph::views::filter::CreateFilter;
         use raphtory_api::core::entities::properties::prop::Prop;
         use raphtory_storage::mutation::{
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
@@ -4139,13 +4137,10 @@ mod test_node_property_filter_agg {
                     assert_filter_nodes_err, assert_filter_nodes_results,
                     assert_search_nodes_results, TestVariants::NonDiskOnly,
                 },
-                views::filter::{
-                    internal::CreateFilter,
-                    model::{
-                        node_filter::NodeFilter,
-                        property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                        PropertyFilterFactory, TryAsCompositeFilter,
-                    },
+                views::filter::model::{
+                    node_filter::NodeFilter,
+                    property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+                    PropertyFilterFactory, TryAsCompositeFilter,
                 },
             },
         },
@@ -4159,6 +4154,7 @@ mod test_node_property_filter_agg {
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
     use std::{sync::Arc, vec};
+    use raphtory::db::graph::views::filter::CreateFilter;
 
     fn list_u8(xs: &[u8]) -> Prop {
         Prop::List(Arc::new(xs.iter().copied().map(Prop::U8).collect()))
