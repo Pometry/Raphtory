@@ -1,6 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{EdgeFilter, EndpointWrapper},
+        edge_filter::{EdgeEndpointWrapper, EdgeFilter},
         node_filter::{
             builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
             ops::{NodeFilterOps, NodeIdFilterOps},
@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 #[pyclass(frozen, name = "EdgeIdFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeIdFilterOp(pub EndpointWrapper<NodeIdFilterBuilder>);
+pub struct PyEdgeIdFilterOp(pub EdgeEndpointWrapper<NodeIdFilterBuilder>);
 
 #[pymethods]
 impl PyEdgeIdFilterOp {
@@ -98,18 +98,18 @@ pub struct PyEdgeFilterOp(EdgeTextBuilder);
 
 #[derive(Clone)]
 enum EdgeTextBuilder {
-    Name(EndpointWrapper<NodeNameFilterBuilder>),
-    Type(EndpointWrapper<NodeTypeFilterBuilder>),
+    Name(EdgeEndpointWrapper<NodeNameFilterBuilder>),
+    Type(EdgeEndpointWrapper<NodeTypeFilterBuilder>),
 }
 
-impl From<EndpointWrapper<NodeNameFilterBuilder>> for PyEdgeFilterOp {
-    fn from(v: EndpointWrapper<NodeNameFilterBuilder>) -> Self {
+impl From<EdgeEndpointWrapper<NodeNameFilterBuilder>> for PyEdgeFilterOp {
+    fn from(v: EdgeEndpointWrapper<NodeNameFilterBuilder>) -> Self {
         PyEdgeFilterOp(EdgeTextBuilder::Name(v))
     }
 }
 
-impl From<EndpointWrapper<NodeTypeFilterBuilder>> for PyEdgeFilterOp {
-    fn from(v: EndpointWrapper<NodeTypeFilterBuilder>) -> Self {
+impl From<EdgeEndpointWrapper<NodeTypeFilterBuilder>> for PyEdgeFilterOp {
+    fn from(v: EdgeEndpointWrapper<NodeTypeFilterBuilder>) -> Self {
         PyEdgeFilterOp(EdgeTextBuilder::Type(v))
     }
 }
@@ -118,8 +118,8 @@ impl PyEdgeFilterOp {
     #[inline]
     fn map<T>(
         &self,
-        f_name: impl FnOnce(&EndpointWrapper<NodeNameFilterBuilder>) -> T,
-        f_type: impl FnOnce(&EndpointWrapper<NodeTypeFilterBuilder>) -> T,
+        f_name: impl FnOnce(&EdgeEndpointWrapper<NodeNameFilterBuilder>) -> T,
+        f_type: impl FnOnce(&EdgeEndpointWrapper<NodeTypeFilterBuilder>) -> T,
     ) -> T {
         match &self.0 {
             EdgeTextBuilder::Name(n) => f_name(n),
@@ -268,7 +268,7 @@ impl PyEdgeFilterOp {
 
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpoint(pub EndpointWrapper<NodeFilter>);
+pub struct PyEdgeEndpoint(pub EdgeEndpointWrapper<NodeFilter>);
 
 #[pymethods]
 impl PyEdgeEndpoint {

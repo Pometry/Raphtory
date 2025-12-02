@@ -9,9 +9,10 @@ pub use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::{EdgeFilter, EndpointWrapper},
+                    edge_filter::{EdgeEndpointWrapper, EdgeFilter},
                     exploded_edge_filter::{
-                        CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
+                        CompositeExplodedEdgeFilter, ExplodedEdgeEndpointWrapper,
+                        ExplodedEdgeFilter,
                     },
                     filter_operator::FilterOperator,
                     node_filter::{NodeFilter, NodeNameFilter, NodeTypeFilter},

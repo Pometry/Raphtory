@@ -1,7 +1,7 @@
 use crate::{
     db::graph::views::filter::{
         model::{
-            edge_filter::EndpointWrapper,
+            edge_filter::EdgeEndpointWrapper,
             property_filter::{
                 builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
@@ -472,7 +472,7 @@ where
     }
 }
 
-impl<'py, M> IntoPyObject<'py> for EndpointWrapper<PropertyFilterBuilder<M>>
+impl<'py, M> IntoPyObject<'py> for EdgeEndpointWrapper<PropertyFilterBuilder<M>>
 where
     M: Clone + Send + Sync + 'static,
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
@@ -483,14 +483,14 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let inner: Arc<EndpointWrapper<PropertyFilterBuilder<M>>> = Arc::new(self);
+        let inner: Arc<EdgeEndpointWrapper<PropertyFilterBuilder<M>>> = Arc::new(self);
         let child = PyPropertyFilterBuilder::from_arc(inner.clone());
         let parent = PyFilterOps::from_arc(inner);
         Bound::new(py, (child, parent))
     }
 }
 
-impl<'py, M> IntoPyObject<'py> for EndpointWrapper<MetadataFilterBuilder<M>>
+impl<'py, M> IntoPyObject<'py> for EdgeEndpointWrapper<MetadataFilterBuilder<M>>
 where
     M: Clone + Send + Sync + 'static,
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
@@ -501,7 +501,7 @@ where
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let inner: Arc<EndpointWrapper<MetadataFilterBuilder<M>>> = Arc::new(self);
+        let inner: Arc<EdgeEndpointWrapper<MetadataFilterBuilder<M>>> = Arc::new(self);
         PyFilterOps::from_arc(inner).into_pyobject(py)
     }
 }

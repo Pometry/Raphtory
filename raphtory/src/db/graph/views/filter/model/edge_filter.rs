@@ -39,13 +39,13 @@ pub struct EdgeFilter;
 
 impl EdgeFilter {
     #[inline]
-    pub fn src() -> EndpointWrapper<NodeFilter> {
-        EndpointWrapper::new(NodeFilter, Endpoint::Src)
+    pub fn src() -> EdgeEndpointWrapper<NodeFilter> {
+        EdgeEndpointWrapper::new(NodeFilter, Endpoint::Src)
     }
 
     #[inline]
-    pub fn dst() -> EndpointWrapper<NodeFilter> {
-        EndpointWrapper::new(NodeFilter, Endpoint::Dst)
+    pub fn dst() -> EdgeEndpointWrapper<NodeFilter> {
+        EdgeEndpointWrapper::new(NodeFilter, Endpoint::Dst)
     }
 
     #[inline]
@@ -98,80 +98,81 @@ pub enum Endpoint {
 // The objective is to carry the endpoint through builder chain without having to change node builders
 // and at the end convert into a composite node filter via TryAsCompositeFilter
 #[derive(Debug, Clone)]
-pub struct EndpointWrapper<T> {
+pub struct EdgeEndpointWrapper<T> {
     pub(crate) inner: T,
     endpoint: Endpoint,
 }
 
-impl<T: Display> Display for EndpointWrapper<T> {
+impl<T: Display> Display for EdgeEndpointWrapper<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)
     }
 }
 
-impl<T> EndpointWrapper<T> {
+impl<T> EdgeEndpointWrapper<T> {
     #[inline]
     pub fn new(inner: T, endpoint: Endpoint) -> Self {
         Self { inner, endpoint }
     }
 
     #[inline]
-    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> EndpointWrapper<U> {
-        EndpointWrapper {
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> EdgeEndpointWrapper<U> {
+        EdgeEndpointWrapper {
             inner: f(self.inner),
             endpoint: self.endpoint,
         }
     }
 }
 
-impl EndpointWrapper<NodeFilter> {
+impl EdgeEndpointWrapper<NodeFilter> {
     #[inline]
-    pub fn id(&self) -> EndpointWrapper<NodeIdFilterBuilder> {
-        EndpointWrapper::new(NodeFilter::id(), self.endpoint)
+    pub fn id(&self) -> EdgeEndpointWrapper<NodeIdFilterBuilder> {
+        EdgeEndpointWrapper::new(NodeFilter::id(), self.endpoint)
     }
 
     #[inline]
-    pub fn name(&self) -> EndpointWrapper<NodeNameFilterBuilder> {
-        EndpointWrapper::new(NodeFilter::name(), self.endpoint)
+    pub fn name(&self) -> EdgeEndpointWrapper<NodeNameFilterBuilder> {
+        EdgeEndpointWrapper::new(NodeFilter::name(), self.endpoint)
     }
 
     #[inline]
-    pub fn node_type(&self) -> EndpointWrapper<NodeTypeFilterBuilder> {
-        EndpointWrapper::new(NodeFilter::node_type(), self.endpoint)
+    pub fn node_type(&self) -> EdgeEndpointWrapper<NodeTypeFilterBuilder> {
+        EdgeEndpointWrapper::new(NodeFilter::node_type(), self.endpoint)
     }
 }
 
-impl<M> Wrap for EndpointWrapper<M> {
-    type Wrapped<T> = EndpointWrapper<T>;
+impl<M> Wrap for EdgeEndpointWrapper<M> {
+    type Wrapped<T> = EdgeEndpointWrapper<T>;
 
     fn wrap<T>(&self, inner: T) -> Self::Wrapped<T> {
-        EndpointWrapper {
+        EdgeEndpointWrapper {
             inner,
             endpoint: self.endpoint,
         }
     }
 }
 
-impl<M> EntityMarker for EndpointWrapper<M> where M: EntityMarker + Send + Sync + Clone + 'static {}
+impl<M> EntityMarker for EdgeEndpointWrapper<M> where M: EntityMarker + Send + Sync + Clone + 'static
+{}
 
-impl<T> ComposableFilter for EndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
+impl<T> ComposableFilter for EdgeEndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
 
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for EndpointWrapper<T> {
+impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for EdgeEndpointWrapper<T> {
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
 }
 
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for EndpointWrapper<T> {
+impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for EdgeEndpointWrapper<T> {
     type FilterType = T::FilterType;
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
 }
 
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for EndpointWrapper<T> {
-    type Filter = EndpointWrapper<T::Filter>;
-    type Chained = EndpointWrapper<T::Chained>;
+impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for EdgeEndpointWrapper<T> {
+    type Filter = EdgeEndpointWrapper<T::Filter>;
+    type Chained = EdgeEndpointWrapper<T::Chained>;
     type Marker = T::Marker;
 
     #[inline]
@@ -198,10 +199,10 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Endpoin
     }
 }
 
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EndpointWrapper<T> {
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EdgeEndpointWrapper<T> {
     type Entity = T::Entity;
-    type PropertyBuilder = EndpointWrapper<T::PropertyBuilder>;
-    type MetadataBuilder = EndpointWrapper<T::MetadataBuilder>;
+    type PropertyBuilder = EdgeEndpointWrapper<T::PropertyBuilder>;
+    type MetadataBuilder = EdgeEndpointWrapper<T::MetadataBuilder>;
 
     fn entity(&self) -> Self::Entity {
         self.inner.entity()
@@ -222,9 +223,9 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Endpoin
     }
 }
 
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EndpointWrapper<T> {}
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EdgeEndpointWrapper<T> {}
 
-impl<T: CreateFilter + Clone + 'static> CreateFilter for EndpointWrapper<T> {
+impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> {
     type EntityFiltered<'graph, G>
         = EdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G>>
     where
@@ -253,7 +254,7 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for EndpointWrapper<T> {
     }
 }
 
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for EndpointWrapper<T> {
+impl<T: TryAsCompositeFilter> TryAsCompositeFilter for EdgeEndpointWrapper<T> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
@@ -318,12 +319,12 @@ impl CreateFilter for CompositeEdgeFilter {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         match self {
             CompositeEdgeFilter::Src(filter) => {
-                let wrapped = EndpointWrapper::new(filter, Endpoint::Src);
+                let wrapped = EdgeEndpointWrapper::new(filter, Endpoint::Src);
                 let filtered_graph = wrapped.create_filter(graph)?;
                 Ok(Arc::new(filtered_graph))
             }
             CompositeEdgeFilter::Dst(filter) => {
-                let wrapped = EndpointWrapper::new(filter, Endpoint::Dst);
+                let wrapped = EdgeEndpointWrapper::new(filter, Endpoint::Dst);
                 let filtered_graph = wrapped.create_filter(graph)?;
                 Ok(Arc::new(filtered_graph))
             }
