@@ -48,6 +48,22 @@ impl<C: Into<ComID>> FromIterator<C> for Partition {
 }
 
 impl Partition {
+    pub fn from_coms(coms: Vec<Vec<VID>>) -> Self {
+        let num_nodes: usize = coms.iter().map(|com| com.len()).sum();
+        let mut node_to_com = vec![ComID(0); num_nodes];
+        let mut com_to_nodes = Vec::with_capacity(coms.len());
+        for (i, com) in coms.into_iter().enumerate() {
+            let com: HashSet<VID> = com.into_iter().map(|v| v.into()).collect();
+            for v in com.iter() {
+                node_to_com[v.index()] = ComID(i);
+            }
+            com_to_nodes.push(com);
+        }
+        Self {
+            node_to_com,
+            com_to_nodes,
+        }
+    }
     /// Initialise all-singleton partition (i.e., each node in its own community)
     pub fn new_singletons(n: usize) -> Self {
         let node_to_com = (0..n).map(ComID).collect();
@@ -124,6 +140,37 @@ impl Partition {
             new_to_old,
             old_to_new,
         )
+    }
+
+    pub fn entropy(&self) -> f64 {
+        let mut value = 0.0;
+        let total_count = self.num_nodes() as f64;
+        for (_, com) in self.coms() {
+            let count = com.len();
+            if count > 0 {
+                let p = count as f64 / total_count;
+                value += p * p.log2();
+            }
+        }
+        -value
+    }
+
+    /// Compute normalised mutual information between this partition and other partition in bits
+    pub fn nmi(&self, other: &Partition) -> f64 {
+        let total_count = self.num_nodes() as f64;
+        let mut value = 0.0;
+        for (_, com_i) in self.coms() {
+            for (j, com_j) in other.coms() {
+                let p_ij =
+                    (com_i.iter().filter(|&v| other.com(v) == j).count() as f64) / total_count;
+                if p_ij > 0.0 {
+                    let p_i = (com_i.len() as f64) / total_count;
+                    let p_j = (com_j.len() as f64) / total_count;
+                    value += p_ij * (p_ij / (p_i * p_j)).log2();
+                }
+            }
+        }
+        2.0 * value / (self.entropy() + other.entropy())
     }
 }
 
@@ -419,6 +466,7 @@ pub struct ConstModularity {
     adj_com: Vec<HashMap<ComID, f64>>,
     n: Vec<i64>,
     n_com: Vec<i64>,
+    n_tot: i64,
     m2: f64,
     tol: f64,
 }
@@ -501,6 +549,7 @@ impl ModularityFunction for ConstModularity {
             resolution,
             n,
             n_com,
+            n_tot: num_nodes as i64,
             m2,
             tol,
         }
@@ -516,10 +565,11 @@ impl ModularityFunction for ConstModularity {
                     - self.adj_com[node.index()].get(&old_com).unwrap_or(&0.0)
                     + self.self_loops[node.index()]);
             let p = 2
-                * self.n[node.index()]
-                * (self.n_com[new_com.index()] - self.n_com[old_com.index()]);
+                * (self.n[node.index()]
+                    * (self.n_com[new_com.index()] - self.n_com[old_com.index()])
+                    + self.n[node.index()].pow(2));
 
-            (a - self.resolution * p as f64 / self.m2) / self.m2
+            (a / self.m2 - self.resolution * p as f64 / self.n_tot.pow(2) as f64)
         }
     }
 
@@ -646,7 +696,7 @@ impl ModularityFunction for ConstModularity {
             })
             .sum();
         let k: i64 = self.n_com.iter().map(|n| n.pow(2)).sum();
-        e / self.m2 - k as f64 / self.m2
+        e / self.m2 - k as f64 / self.n_tot.pow(2) as f64
     }
 
     fn partition(&self) -> &Partition {

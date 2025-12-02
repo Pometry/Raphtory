@@ -703,15 +703,17 @@ def louvain(
     resolution: float = 1.0,
     weight_prop: str | None = None,
     tol: None | float = None,
+    modularity: Literal("configuration", "constant") = "configuration",
 ) -> NodeStateUsize:
     """
-    Louvain algorithm for community detection
+    Louvain algorithm for community detection with configuration model
 
     Arguments:
         graph (GraphView): the graph view
         resolution (float): the resolution parameter for modularity. Defaults to 1.0.
         weight_prop (str | None): the edge property to use for weights (has to be float)
         tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+        modularity (Literal("configuration", "constant")): the modularity function to use. Default to "configuration".
 
     Returns:
         NodeStateUsize: Mapping of nodes to their community assignment
