@@ -1383,7 +1383,7 @@ def test_window_date():
     assert windowed_nodes == [1, 2]
     assert 4 not in windowed_nodes
 
-def test_window_and_add_node_date():
+def test_date_in_ingestion_functions():
     dates = [
         date(1970, 1, 1),
         date(1970, 1, 2),
@@ -1392,13 +1392,16 @@ def test_window_and_add_node_date():
     ]
     g = Graph()
     g.add_node(dates[0], 1)
-    g.add_node(dates[1], 2)
-    g.add_node(dates[2], 3)
-    g.add_node(dates[3], 4)
+    g.add_edge(dates[1], 2, 3)
+    n1 = g.node(1)
+    n1.add_updates(dates[2])
+    e1 = g.edge(2, 3)
+    e1.add_updates(dates[3])
+    assert g.node(1).history == ["1970-01-01", "1970-01-03"]
+    assert g.edge(2, 3).history == ["1970-01-02", "1970-01-04"]
     windowed_g = g.window(dates[0], dates[2])   # start is inclusive and end is exclusive
     windowed_nodes = [n.id for n in windowed_g.nodes]
-    assert windowed_nodes == [1, 2]
-    assert 4 not in windowed_nodes
+    assert windowed_nodes == [1, 2, 3]
 
 
 def test_all_neighbours_window():

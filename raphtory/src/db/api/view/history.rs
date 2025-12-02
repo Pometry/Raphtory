@@ -27,7 +27,10 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeError};
+use raphtory_api::{
+    core::{entities::LayerIds, storage::timeindex::TimeError},
+    iter::BoxedIter,
+};
 use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, sync::Arc};
 
@@ -821,6 +824,16 @@ impl<T: InternalHistoryOps> HistoryTimestamp<T> {
     }
 }
 
+// IntoIterator implementations when T has static lifetime is useful in python
+impl<T: InternalHistoryOps + 'static> IntoIterator for HistoryTimestamp<T> {
+    type Item = i64;
+    type IntoIter = BoxedIter<i64>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self, |item| item.iter()).into_dyn_boxed()
+    }
+}
+
 impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistoryTimestamp<T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
@@ -871,6 +884,15 @@ impl<T: InternalHistoryOps> HistoryDateTime<T> {
     }
 }
 
+impl<T: InternalHistoryOps + 'static> IntoIterator for HistoryDateTime<T> {
+    type Item = Result<DateTime<Utc>, TimeError>;
+    type IntoIter = BoxedIter<Result<DateTime<Utc>, TimeError>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self, |item| item.iter()).into_dyn_boxed()
+    }
+}
+
 impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistoryDateTime<T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
@@ -912,6 +934,15 @@ impl<T: InternalHistoryOps> HistoryEventId<T> {
 
     pub fn collect_rev(&self) -> Vec<usize> {
         self.0.iter_rev().map(|t| t.1).collect()
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> IntoIterator for HistoryEventId<T> {
+    type Item = usize;
+    type IntoIter = BoxedIter<usize>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self, |item| item.iter()).into_dyn_boxed()
     }
 }
 
@@ -1010,6 +1041,15 @@ impl<T: InternalHistoryOps> Intervals<T> {
     /// Compute the minimum interval between consecutive timestamps.
     pub fn min(&self) -> Option<i64> {
         self.iter().min()
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> IntoIterator for Intervals<T> {
+    type Item = i64;
+    type IntoIter = BoxedIter<i64>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self, |item| item.iter()).into_dyn_boxed()
     }
 }
 

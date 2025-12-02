@@ -1065,6 +1065,14 @@ impl HistoryIterable {
     pub fn collect(&self) -> Vec<Vec<EventTime>> {
         self.iter().map(|h| h.collect()).collect()
     }
+
+    /// Flatten the iterable of history objects into a single list of all contained time entries.
+    ///
+    /// Returns:
+    ///     list[EventTime]: List of time entries.
+    pub fn flatten(&self) -> Vec<EventTime> {
+        self.iter().flat_map(|h| h.into_iter()).collect::<Vec<_>>()
+    }
 }
 
 py_nested_iterable_base!(
@@ -1124,6 +1132,16 @@ impl NestedHistoryIterable {
             .map(|h| h.map(|h| h.collect()).collect())
             .collect()
     }
+
+    /// Flatten the nested iterable of history objects into a single list of all contained time entries.
+    ///
+    /// Returns:
+    ///     list[EventTime]: List of time entries.
+    pub fn flatten(&self) -> Vec<EventTime> {
+        self.iter()
+            .flat_map(|h_it| h_it.flat_map(|h| h.into_iter()))
+            .collect::<Vec<_>>()
+    }
 }
 
 py_iterable_base!(
@@ -1178,6 +1196,27 @@ impl NestedHistoryTimestampIterable {
             .map(|h| h.map(|h| h.collect()).collect())
             .collect::<Vec<Vec<Vec<i64>>>>()
     }
+
+    /// Flatten the nested iterable of history objects into a single NumPy NDArray of all contained timestamps.
+    ///
+    /// Returns:
+    ///     NDArray[np.int64]: NumPy NDArray of timestamps in milliseconds.
+    pub fn flatten<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        self.iter()
+            .flat_map(|h_it| h_it.flat_map(|h| h.into_iter()))
+            .collect::<Vec<_>>()
+            .into_pyarray(py)
+    }
+
+    /// Flatten the nested iterable of history objects into a single list of all contained timestamps.
+    ///
+    /// Returns:
+    ///     list[int]: List of timestamps in milliseconds.
+    pub fn flattened_list(&self) -> Vec<i64> {
+        self.iter()
+            .flat_map(|h_it| h_it.flat_map(|h| h.into_iter()))
+            .collect::<Vec<_>>()
+    }
 }
 
 py_iterable_base!(
@@ -1219,6 +1258,19 @@ impl NestedHistoryDateTimeIterable {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
             .collect()
+    }
+
+    /// Flatten the nested iterable of history objects into a single list of all contained datetimes.
+    ///
+    /// Returns:
+    ///     list[datetime]: List of UTC datetimes.
+    ///
+    /// Raises:
+    ///     TimeError: If a timestamp cannot be converted to a datetime.
+    pub fn flatten(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
+        self.iter()
+            .flat_map(|h_it| h_it.flat_map(|h| h.into_iter()))
+            .collect::<Result<Vec<_>, TimeError>>()
     }
 }
 
@@ -1276,6 +1328,27 @@ impl NestedHistoryEventIdIterable {
             .map(|h| h.map(|h| h.collect()).collect())
             .collect::<Vec<Vec<Vec<usize>>>>()
     }
+
+    /// Flatten the nested iterable of history objects into a single NumPy NDArray of all contained event ids.
+    ///
+    /// Returns:
+    ///     NDArray[np.uintp]: NumPy NDArray of event ids.
+    pub fn flatten<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
+        self.iter()
+            .flat_map(|h_it| h_it.flat_map(|h| h.into_iter()))
+            .collect::<Vec<_>>()
+            .into_pyarray(py)
+    }
+
+    /// Flatten the nested iterable of history objects into a single list of all contained event ids.
+    ///
+    /// Returns:
+    ///     list[int]: List of timestamps in milliseconds.
+    pub fn flattened_list(&self) -> Vec<usize> {
+        self.iter()
+            .flat_map(|h_it| h_it.flat_map(|h| h.into_iter()))
+            .collect::<Vec<_>>()
+    }
 }
 
 py_iterable_base!(IntervalsIterable, Intervals<Arc<dyn InternalHistoryOps>>);
@@ -1283,7 +1356,7 @@ py_iterable_base_methods!(IntervalsIterable, PyGenericIterator);
 
 #[pymethods]
 impl IntervalsIterable {
-    /// Collect intervals between each history's timestamps in milliseconds into a NumPy array.
+    /// Collect intervals between each history's consecutive timestamps in milliseconds into a NumPy array.
     ///
     /// Returns:
     ///     list[NDArray[np.int64]]: NumPy NDArray of intervals per history.
@@ -1291,7 +1364,7 @@ impl IntervalsIterable {
         self.iter().map(|h| h.collect().into_pyarray(py)).collect()
     }
 
-    /// Collect intervals between each history's timestamps in milliseconds into a list.
+    /// Collect intervals between each history's consecutive timestamps in milliseconds into a list.
     ///
     /// Returns:
     ///     list[list[int]]: List of intervals per history.
@@ -1308,7 +1381,7 @@ py_iterable_base_methods!(NestedIntervalsIterable, PyNestedGenericIterator);
 
 #[pymethods]
 impl NestedIntervalsIterable {
-    /// Collect intervals between each nested history's timestamps in milliseconds into a NumPy array.
+    /// Collect intervals between each nested history's consecutive timestamps in milliseconds into a NumPy array.
     ///
     /// Returns:
     ///     list[list[NDArray[np.int64]]]: NumPy NDArray of intervals per nested history.
@@ -1318,7 +1391,7 @@ impl NestedIntervalsIterable {
             .collect()
     }
 
-    /// Collect intervals between each nested history's timestamps in milliseconds into a list.
+    /// Collect intervals between each nested history's consecutive timestamps in milliseconds into a list.
     ///
     /// Returns:
     ///     list[list[list[int]]]: List of intervals per nested history.
@@ -1326,5 +1399,26 @@ impl NestedIntervalsIterable {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
             .collect::<Vec<Vec<Vec<i64>>>>()
+    }
+
+    /// Collect intervals between each nested history's consecutive timestamps in milliseconds into a single NumPy array.
+    ///
+    /// Returns:
+    ///     NDArray[np.int64]: NumPy NDArray of intervals.
+    pub fn flatten<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        self.iter()
+            .flat_map(|h_it| h_it.flat_map(|h| h.into_iter()))
+            .collect::<Vec<_>>()
+            .into_pyarray(py)
+    }
+
+    /// Collect intervals between each nested history's consecutive timestamps in milliseconds into a single list.
+    ///
+    /// Returns:
+    ///     list[int]: List of intervals.
+    pub fn flattened_list(&self) -> Vec<i64> {
+        self.iter()
+            .flat_map(|h_it| h_it.flat_map(|h| h.into_iter()))
+            .collect::<Vec<_>>()
     }
 }
