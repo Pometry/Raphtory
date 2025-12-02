@@ -134,7 +134,7 @@ mod test_property_semantics {
                     views::filter::model::{
                         node_filter::NodeFilter,
                         property_filter::ops::{ListAggOps, PropertyFilterOps},
-                        PropertyFilterFactory,
+                        PropertyFilterFactory, TemporalPropertyFilterFactory,
                     },
                 },
             },
@@ -475,7 +475,7 @@ mod test_property_semantics {
                     views::filter::{
                         model::{
                             edge_filter::EdgeFilter, property_filter::ops::PropertyFilterOps,
-                            PropertyFilterFactory,
+                            PropertyFilterFactory, TemporalPropertyFilterFactory,
                         },
                         CreateFilter,
                     },
@@ -4143,7 +4143,7 @@ mod test_node_property_filter_agg {
                     model::{
                         node_filter::NodeFilter,
                         property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                        PropertyFilterFactory, TryAsCompositeFilter,
+                        PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
                     },
                     CreateFilter,
                 },

@@ -11,14 +11,6 @@ impl<M> PropertyFilterBuilder<M> {
     pub fn new(prop: impl Into<String>, entity: M) -> Self {
         Self(prop.into(), entity)
     }
-
-    pub fn temporal(self) -> OpChainBuilder<M> {
-        OpChainBuilder {
-            prop_ref: PropertyRef::TemporalProperty(self.0),
-            ops: vec![],
-            entity: self.1,
-        }
-    }
 }
 
 impl<M> Wrap for PropertyFilterBuilder<M> {
