@@ -34,6 +34,7 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
+    lsn: u64,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
@@ -49,6 +50,7 @@ impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegm
             segment_id,
             max_page_len,
             layers,
+            lsn: 0,
         }
     }
 }
@@ -140,7 +142,11 @@ impl MemNodeSegment {
     }
 
     pub fn lsn(&self) -> u64 {
-        self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
+        self.lsn
+    }
+
+    pub fn set_lsn(&mut self, lsn: u64) {
+        self.lsn = lsn;
     }
 
     pub fn to_vid(&self, pos: LocalPOS) -> VID {
@@ -188,6 +194,7 @@ impl MemNodeSegment {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            lsn: 0,
         }
     }
 

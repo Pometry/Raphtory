@@ -51,6 +51,7 @@ impl HasRow for MemPageEntry {
 pub struct MemEdgeSegment {
     layers: Vec<SegmentContainer<MemPageEntry>>,
     est_size: usize,
+    lsn: u64,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<MemPageEntry>>> From<I> for MemEdgeSegment {
@@ -61,7 +62,11 @@ impl<I: IntoIterator<Item = SegmentContainer<MemPageEntry>>> From<I> for MemEdge
             !layers.is_empty(),
             "MemEdgeSegment must have at least one layer"
         );
-        Self { layers, est_size }
+        Self {
+            layers,
+            est_size,
+            lsn: 0,
+        }
     }
 }
 
@@ -82,6 +87,7 @@ impl MemEdgeSegment {
         Self {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
             est_size: 0,
+            lsn: 0,
         }
     }
 
@@ -128,7 +134,11 @@ impl MemEdgeSegment {
     }
 
     pub fn lsn(&self) -> u64 {
-        self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
+        self.lsn
+    }
+
+    pub fn set_lsn(&mut self, lsn: u64) {
+        self.lsn = lsn;
     }
 
     pub fn max_page_len(&self) -> u32 {
