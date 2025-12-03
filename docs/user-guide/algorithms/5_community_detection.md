@@ -15,10 +15,10 @@ First set up imports and ingest the data using NetworkX and Pandas to handle the
 /// tab | :fontawesome-brands-python: Python
 ```python
 from raphtory import Graph
+from raphtory import graphql
+from raphtory import algorithms
 import pandas as pd
 import networkx as nx
-from raphtory import graphql
-from raphtory import algorithms as rp
 import matplotlib.pyplot as plt
 
 # Load the CSV file using NetworkX
@@ -70,7 +70,7 @@ Here we use the [Louvain][raphtory.algorithms.louvain] algorithm to identify dis
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-clustering = rp.louvain(G)
+clustering = algorithms.louvain(G)
 
 # Extract unique cluster values
 unique_clusters = {cluster for node, cluster in clustering.items()}

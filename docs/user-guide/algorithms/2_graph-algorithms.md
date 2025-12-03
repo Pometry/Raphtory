@@ -10,20 +10,19 @@ To run an algorithm you simply need to import the algorithm package, choose an a
 
 /// tab | :fontawesome-brands-python: Python
 ```python
-from raphtory import algorithms as rp
-from raphtory import Graph
+import raphtory as rp
 import pandas as pd
 
 df = pd.read_csv("../data/lotr.csv")
 
-lotr_graph = Graph()
+lotr_graph = rp.Graph()
 lotr_graph.load_edges_from_pandas(
     df=df,time="time", src="src", dst="dst"
 )
 
-density = rp.directed_graph_density(lotr_graph)
-clustering_coefficient = rp.global_clustering_coefficient(lotr_graph)
-reciprocity = rp.global_reciprocity(lotr_graph)
+density = rp.algorithms.directed_graph_density(lotr_graph)
+clustering_coefficient = rp.algorithms.global_clustering_coefficient(lotr_graph)
+reciprocity = rp.algorithms.global_reciprocity(lotr_graph)
 
 print(f"The graph's density is {density}")
 print(f"The graph's clustering coefficient is {clustering_coefficient}")
