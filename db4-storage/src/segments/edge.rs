@@ -215,12 +215,10 @@ impl MemEdgeSegment {
         dst: VID,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
-        lsn: u64,
     ) {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
-        self.layers[layer_id].set_lsn(lsn);
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
 
@@ -240,14 +238,12 @@ impl MemEdgeSegment {
         src: VID,
         dst: VID,
         layer_id: usize,
-        lsn: u64,
     ) {
         let t = TimeIndexEntry::new(t.t(), t.i());
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
-        self.layers[layer_id].set_lsn(lsn);
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
         let props = self.layers[layer_id].properties_mut();
@@ -262,14 +258,12 @@ impl MemEdgeSegment {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
-        lsn: u64,
     ) {
         let src = src.into();
         let dst = dst.into();
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        self.layers[layer_id].set_lsn(lsn);
         let est_size = self.layers[layer_id].est_size();
 
         self.reserve_local_row(edge_pos, src, dst, layer_id);
@@ -613,7 +607,6 @@ mod test {
             VID(2),
             0,
             vec![(0, Prop::from("test1"))],
-            1,
         );
 
         segment.insert_edge_internal(
@@ -623,7 +616,6 @@ mod test {
             VID(4),
             0,
             vec![(0, Prop::from("test2"))],
-            2,
         );
 
         segment.insert_edge_internal(
@@ -633,7 +625,6 @@ mod test {
             VID(6),
             0,
             vec![(0, Prop::from("test3"))],
-            3,
         );
 
         // Verify edges exist
@@ -763,7 +754,6 @@ mod test {
             VID(2),
             0,
             vec![(0, Prop::from("test1"))],
-            1,
         );
         segment1.insert_edge_internal(
             TimeIndexEntry::new(2, 1),
@@ -772,7 +762,6 @@ mod test {
             VID(4),
             0,
             vec![(0, Prop::from("test2"))],
-            1,
         );
         segment1.insert_edge_internal(
             TimeIndexEntry::new(3, 2),
@@ -781,7 +770,6 @@ mod test {
             VID(6),
             0,
             vec![(0, Prop::from("test3"))],
-            1,
         );
 
         // Equivalent bulk insertion
@@ -831,7 +819,6 @@ mod test {
             VID(2),
             0,
             vec![(0, Prop::from("individual1"))],
-            1,
         );
 
         // Bulk insert some edges
@@ -863,7 +850,6 @@ mod test {
             VID(8),
             0,
             vec![(0, Prop::from("individual2"))],
-            1,
         );
 
         // Another bulk insert
@@ -983,14 +969,13 @@ mod test {
             VID(2),
             0,
             vec![(0, Prop::from("test"))],
-            1,
         );
 
         let est_size1 = segment.est_size();
 
         assert!(est_size1 > 0);
 
-        segment.delete_edge_internal(TimeIndexEntry::new(2, 3), LocalPOS(0), VID(5), VID(3), 0, 0);
+        segment.delete_edge_internal(TimeIndexEntry::new(2, 3), LocalPOS(0), VID(5), VID(3), 0);
 
         let est_size2 = segment.est_size();
 
@@ -1007,7 +992,6 @@ mod test {
             VID(6),
             0,
             vec![(0, Prop::from("test2"))],
-            1,
         );
 
         let est_size3 = segment.est_size();
@@ -1018,7 +1002,7 @@ mod test {
 
         // Insert a static edge
 
-        segment.insert_static_edge_internal(LocalPOS(1), 4, 6, 0, 1);
+        segment.insert_static_edge_internal(LocalPOS(1), 4, 6, 0);
 
         let est_size4 = segment.est_size();
         assert_eq!(

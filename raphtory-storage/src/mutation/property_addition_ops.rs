@@ -83,7 +83,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
         writer.check_metadata(node_pos, 0, &props)?;
-        writer.update_c_props(node_pos, 0, props, 0);
+        writer.update_c_props(node_pos, 0, props);
         Ok(writer)
     }
 
@@ -94,7 +94,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
-        writer.update_c_props(node_pos, 0, props, 0);
+        writer.update_c_props(node_pos, 0, props);
         Ok(writer)
     }
 

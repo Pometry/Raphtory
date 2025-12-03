@@ -42,9 +42,8 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
         &mut self,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
     ) -> MaybeNew<EID> {
-        self.static_session.add_static_edge(src, dst, lsn)
+        self.static_session.add_static_edge(src, dst)
     }
 
     fn internal_add_edge(
@@ -53,11 +52,10 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
         src: impl Into<VID>,
         dst: impl Into<VID>,
         eid: MaybeNew<ELID>,
-        lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
         self.static_session
-            .add_edge_into_layer(t, src, dst, eid, lsn, props);
+            .add_edge_into_layer(t, src, dst, eid, props);
 
         eid
     }
@@ -67,18 +65,17 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
         layer: usize,
     ) -> MaybeNew<ELID> {
         let src = src.into();
         let dst = dst.into();
         let eid = self
             .static_session
-            .add_static_edge(src, dst, lsn)
+            .add_static_edge(src, dst)
             .map(|eid| eid.with_layer_deletion(layer));
 
         self.static_session
-            .delete_edge_from_layer(t, src, dst, eid, lsn);
+            .delete_edge_from_layer(t, src, dst, eid);
 
         eid
     }
@@ -90,7 +87,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
             self.static_session
                 .node_writers()
                 .get_mut_src()
-                .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())], 0);
+                .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())]);
         };
     }
 
@@ -101,7 +98,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
             self.static_session
                 .node_writers()
                 .get_mut_dst()
-                .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())], 0);
+                .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())]);
         };
     }
 
@@ -261,7 +258,6 @@ impl InternalAdditionOps for TemporalGraph {
                     local_pos,
                     0,
                     node_info_as_props(id.as_gid_ref().left(), None),
-                    0,
                 );
                 MaybeNew::Existing(0)
             }
@@ -277,7 +273,6 @@ impl InternalAdditionOps for TemporalGraph {
                                 id.as_gid_ref().left(),
                                 Some(node_type_id.inner()).filter(|&id| id != 0),
                             ),
-                            0,
                         );
                         node_type_id
                     }
@@ -341,7 +336,7 @@ impl InternalAdditionOps for TemporalGraph {
     ) -> Result<(), Self::Error> {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
-        node_writer.add_props(t, node_pos, 0, props, 0);
+        node_writer.add_props(t, node_pos, 0, props);
         Ok(())
     }
 

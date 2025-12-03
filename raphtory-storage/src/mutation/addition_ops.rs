@@ -99,7 +99,6 @@ pub trait EdgeWriteLock: Send + Sync {
         &mut self,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
     ) -> MaybeNew<EID>;
 
     /// add edge update
@@ -109,7 +108,6 @@ pub trait EdgeWriteLock: Send + Sync {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         eid: MaybeNew<ELID>,
-        lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID>;
 
@@ -118,7 +116,6 @@ pub trait EdgeWriteLock: Send + Sync {
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
         layer: usize,
     ) -> MaybeNew<ELID>;
 

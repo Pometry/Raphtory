@@ -302,9 +302,8 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         &mut self,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
     ) -> MaybeNew<EID> {
-        self.session.internal_add_static_edge(src, dst, lsn)
+        self.session.internal_add_static_edge(src, dst)
     }
 
     fn internal_add_edge(
@@ -313,11 +312,10 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         e_id: MaybeNew<ELID>,
-        lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
         self.session
-            .internal_add_edge(t, src, dst, e_id, lsn, props)
+            .internal_add_edge(t, src, dst, e_id, props)
     }
 
     fn internal_delete_edge(
@@ -325,10 +323,9 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
         layer: usize,
     ) -> MaybeNew<ELID> {
-        self.session.internal_delete_edge(t, src, dst, lsn, layer)
+        self.session.internal_delete_edge(t, src, dst, layer)
     }
 
     fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {

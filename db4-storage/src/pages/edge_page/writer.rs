@@ -42,7 +42,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         dst: VID,
         props: impl IntoIterator<Item = (usize, Prop)>,
         layer_id: usize,
-        lsn: u64,
     ) -> LocalPOS {
         let existing_edge = self
             .page
@@ -52,7 +51,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         }
         self.graph_stats.update_time(t.t());
         self.writer
-            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props, lsn);
+            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props);
         edge_pos
     }
 
@@ -88,7 +87,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         src: VID,
         dst: VID,
         layer_id: usize,
-        lsn: u64,
     ) {
         let existing_edge = self
             .page
@@ -98,7 +96,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         }
         self.graph_stats.update_time(t.t());
         self.writer
-            .delete_edge_internal(t, edge_pos, src, dst, layer_id, lsn);
+            .delete_edge_internal(t, edge_pos, src, dst, layer_id);
     }
 
     pub fn add_static_edge(
@@ -106,7 +104,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         edge_pos: Option<LocalPOS>,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
         exists_hint: Option<bool>, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
     ) -> LocalPOS {
         let layer_id = 0; // assuming layer_id 0 for static edges, adjust as needed
@@ -117,7 +114,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(layer_id));
         self.writer
-            .insert_static_edge_internal(edge_pos, src, dst, layer_id, lsn);
+            .insert_static_edge_internal(edge_pos, src, dst, layer_id);
         edge_pos
     }
 

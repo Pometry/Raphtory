@@ -446,7 +446,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
             src,
             dst,
             MaybeNew::New(e_id.with_layer(layer_id)),
-            0,
             props,
         );
 

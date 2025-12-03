@@ -50,7 +50,6 @@ impl<
         src: impl Into<VID>,
         dst: impl Into<VID>,
         edge: MaybeNew<ELID>,
-        lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let src = src.into();
@@ -67,13 +66,13 @@ impl<
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
 
-            writer.add_edge(t, edge_pos, src, dst, props, layer, lsn);
+            writer.add_edge(t, edge_pos, src, dst, props, layer);
         } else {
             let mut writer = self.graph.edge_writer(e_id.edge);
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
 
-            writer.add_edge(t, edge_pos, src, dst, props, layer, lsn);
+            writer.add_edge(t, edge_pos, src, dst, props, layer);
             self.edge_writer = Some(writer); // Attach edge_writer to hold onto locks
         }
 
@@ -88,18 +87,18 @@ impl<
         {
             self.node_writers
                 .get_mut_src()
-                .add_outbound_edge(Some(t), src_pos, dst, edge_id, lsn);
+                .add_outbound_edge(Some(t), src_pos, dst, edge_id);
             self.node_writers
                 .get_mut_dst()
-                .add_inbound_edge(Some(t), dst_pos, src, edge_id, lsn);
+                .add_inbound_edge(Some(t), dst_pos, src, edge_id);
         }
 
         self.node_writers
             .get_mut_src()
-            .update_timestamp(t, src_pos, e_id, lsn);
+            .update_timestamp(t, src_pos, e_id);
         self.node_writers
             .get_mut_dst()
-            .update_timestamp(t, dst_pos, e_id, lsn);
+            .update_timestamp(t, dst_pos, e_id);
     }
 
     pub fn delete_edge_from_layer<T: AsTime>(
@@ -108,7 +107,6 @@ impl<
         src: impl Into<VID>,
         dst: impl Into<VID>,
         edge: MaybeNew<ELID>,
-        lsn: u64,
     ) {
         let src = src.into();
         let dst = dst.into();
@@ -124,13 +122,13 @@ impl<
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
 
-            writer.delete_edge(t, edge_pos, src, dst, layer, lsn);
+            writer.delete_edge(t, edge_pos, src, dst, layer);
         } else {
             let mut writer = self.graph.edge_writer(e_id.edge);
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
 
-            writer.delete_edge(t, edge_pos, src, dst, layer, lsn);
+            writer.delete_edge(t, edge_pos, src, dst, layer);
             self.edge_writer = Some(writer); // Attach edge_writer to hold onto locks
         }
 
@@ -149,23 +147,21 @@ impl<
                     src_pos,
                     dst,
                     edge_id,
-                    lsn,
                 );
                 self.node_writers.get_mut_dst().add_inbound_edge(
                     Some(t),
                     dst_pos,
                     src,
                     edge_id,
-                    lsn,
                 );
             }
 
             self.node_writers
                 .get_mut_src()
-                .update_deletion_time(t, src_pos, e_id, lsn);
+                .update_deletion_time(t, src_pos, e_id);
             self.node_writers
                 .get_mut_dst()
-                .update_deletion_time(t, dst_pos, e_id, lsn);
+                .update_deletion_time(t, dst_pos, e_id);
         }
     }
 
@@ -173,7 +169,6 @@ impl<
         &mut self,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
     ) -> MaybeNew<EID> {
         let src = src.into();
         let dst = dst.into();
@@ -194,12 +189,12 @@ impl<
             let edge_writer = self.edge_writer.as_mut().unwrap();
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 
-            edge_writer.add_static_edge(Some(edge_pos), src, dst, lsn, Some(true));
+            edge_writer.add_static_edge(Some(edge_pos), src, dst, Some(true));
 
             MaybeNew::Existing(e_id)
         } else {
             let mut edge_writer = self.graph.get_free_writer();
-            let edge_id = edge_writer.add_static_edge(None, src, dst, lsn, Some(false));
+            let edge_id = edge_writer.add_static_edge(None, src, dst, Some(false));
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
 
@@ -207,10 +202,10 @@ impl<
 
             self.node_writers
                 .get_mut_src()
-                .add_static_outbound_edge(src_pos, dst, edge_id, lsn);
+                .add_static_outbound_edge(src_pos, dst, edge_id);
             self.node_writers
                 .get_mut_dst()
-                .add_static_inbound_edge(dst_pos, src, edge_id, lsn);
+                .add_static_inbound_edge(dst_pos, src, edge_id);
 
             MaybeNew::New(edge_id)
         }

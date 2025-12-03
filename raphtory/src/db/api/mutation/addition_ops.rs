@@ -295,7 +295,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
         // NOTE: We log edge id after it is inserted into the edge segment.
         // This is fine as long as we hold onto the edge segment lock through add_edge_op
         // for the entire operation.
-        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, 0);
+        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id);
 
         // All names, ids and values have been generated for this operation.
         // Create a wal entry to mark it as durable.
@@ -325,7 +325,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
             src_id,
             dst_id,
             edge_id.map(|eid| eid.with_layer(layer_id)),
-            0,
             props,
         );
 

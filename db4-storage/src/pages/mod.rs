@@ -213,10 +213,11 @@ impl<
         let src = src.into();
         let dst = dst.into();
         let mut session = self.write_session(src, dst, None);
+        session.set_lsn(lsn);
         let elid = session
-            .add_static_edge(src, dst, lsn)
+            .add_static_edge(src, dst)
             .map(|eid| eid.with_layer(0));
-        session.add_edge_into_layer(t, src, dst, elid, lsn, props);
+        session.add_edge_into_layer(t, src, dst, elid, props);
         Ok(elid)
     }
 
@@ -284,7 +285,7 @@ impl<
         let (segment, node_pos) = self.nodes.resolve_pos(node);
         let mut node_writer = self.nodes.writer(segment);
         let prop_writer = PropsMetaWriter::constant(self.node_meta(), props.into_iter())?;
-        node_writer.update_c_props(node_pos, layer_id, prop_writer.into_props_const()?, 0); // TODO: LSN
+        node_writer.update_c_props(node_pos, layer_id, prop_writer.into_props_const()?);
         Ok(())
     }
 
@@ -302,7 +303,7 @@ impl<
 
         let mut node_writer = self.nodes.writer(segment);
         let prop_writer = PropsMetaWriter::temporal(self.node_meta(), props.into_iter())?;
-        node_writer.add_props(t, node_pos, layer_id, prop_writer.into_props_temporal()?, 0); // TODO: LSN
+        node_writer.add_props(t, node_pos, layer_id, prop_writer.into_props_temporal()?);
         Ok(())
     }
 

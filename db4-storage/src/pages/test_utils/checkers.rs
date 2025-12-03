@@ -56,9 +56,10 @@ pub fn make_graph_from_edges<
 
                 let layer_id = layer_id.unwrap_or(0);
                 let mut session = graph.write_session(*src, *dst, None);
-                let eid = session.add_static_edge(*src, *dst, lsn);
+                session.set_lsn(lsn);
+                let eid = session.add_static_edge(*src, *dst);
                 let elid = eid.map(|eid| eid.with_layer(layer_id));
-                session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
+                session.add_edge_into_layer(timestamp, *src, *dst, elid, []);
 
                 Ok::<_, StorageError>(())
             })
@@ -73,9 +74,10 @@ pub fn make_graph_from_edges<
                 let layer_id = layer_id.unwrap_or(0);
 
                 let mut session = graph.write_session(*src, *dst, None);
-                let eid = session.add_static_edge(*src, *dst, lsn);
+                session.set_lsn(lsn);
+                let eid = session.add_static_edge(*src, *dst);
                 let elid = eid.map(|e| e.with_layer(layer_id));
-                session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
+                session.add_edge_into_layer(timestamp, *src, *dst, elid, []);
 
                 Ok::<_, StorageError>(())
             })
