@@ -83,8 +83,14 @@ where
                 .await
         } else {
             let path = req.uri().path().trim_start_matches('/');
+            let file_name = req.uri().path().split('/').last().unwrap_or("");
 
-            if !path.is_empty()
+            if file_name.contains("worker") && file_name.ends_with("js") {
+                // Always return the worker from root
+                EmbeddedFileEndpoint::<PublicFolder>::new(file_name)
+                    .call(req)
+                    .await
+            } else if !path.is_empty()
                 && PublicFolder::get(path).is_none()
                 && PublicFolder::get(&format!("{path}/index.html")).is_none()
             {
