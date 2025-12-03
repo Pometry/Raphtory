@@ -23,8 +23,8 @@ use crate::{
                 },
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 windowed_filter::Windowed,
-                ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker,
-                InternalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                ComposableFilter, CompositeExplodedEdgeFilter, InternalPropertyFilterFactory,
+                TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -69,8 +69,6 @@ impl Wrap for NodeFilter {
         value
     }
 }
-
-impl EntityMarker for NodeFilter {}
 
 impl InternalPropertyFilterFactory for NodeFilter {
     type Entity = NodeFilter;

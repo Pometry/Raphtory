@@ -17,9 +17,8 @@ use crate::{
                     Op, PropertyFilter, PropertyRef,
                 },
                 windowed_filter::Windowed,
-                AndFilter, EntityMarker, InternalPropertyFilterBuilder,
-                InternalPropertyFilterFactory, NotFilter, OrFilter, TemporalPropertyFilterFactory,
-                TryAsCompositeFilter, Wrap,
+                AndFilter, InternalPropertyFilterBuilder, InternalPropertyFilterFactory, NotFilter,
+                OrFilter, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -57,8 +56,6 @@ impl Wrap for ExplodedEdgeFilter {
         value
     }
 }
-
-impl EntityMarker for ExplodedEdgeFilter {}
 
 impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
     type Entity = ExplodedEdgeFilter;
@@ -120,11 +117,6 @@ impl<M> Wrap for ExplodedEdgeEndpointWrapper<M> {
             endpoint: self.endpoint,
         }
     }
-}
-
-impl<M> EntityMarker for ExplodedEdgeEndpointWrapper<M> where
-    M: EntityMarker + Send + Sync + Clone + 'static
-{
 }
 
 impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder
@@ -261,33 +253,6 @@ where
             Endpoint::Src => CompositeExplodedEdgeFilter::Src(nf),
             Endpoint::Dst => CompositeExplodedEdgeFilter::Dst(nf),
         })
-    }
-}
-
-impl<M> ExplodedEdgeEndpointWrapper<Windowed<M>>
-where
-    M: EntityMarker + Send + Sync + Clone + 'static,
-{
-    #[inline]
-    pub fn property(
-        &self,
-        name: impl Into<String>,
-    ) -> PropertyFilterBuilder<ExplodedEdgeEndpointWrapper<Windowed<M>>> {
-        PropertyFilterBuilder::new(
-            name.into(),
-            ExplodedEdgeEndpointWrapper::new(self.inner.clone(), self.endpoint),
-        )
-    }
-
-    #[inline]
-    pub fn metadata(
-        &self,
-        name: impl Into<String>,
-    ) -> MetadataFilterBuilder<ExplodedEdgeEndpointWrapper<Windowed<M>>> {
-        MetadataFilterBuilder::new(
-            name.into(),
-            ExplodedEdgeEndpointWrapper::new(self.inner.clone(), self.endpoint),
-        )
     }
 }
 

@@ -13,7 +13,7 @@ use itertools::Itertools;
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::view::{internal::InternalFilter, DynamicGraph, Select},
+        api::view::{internal::InternalFilter, DynamicGraph, EdgeSelect},
         graph::edges::Edges,
     },
     errors::GraphError,

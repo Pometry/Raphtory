@@ -6,13 +6,13 @@ use raphtory::{
             properties::internal::InheritPropertiesOps,
             state::NodeOp,
             view::{
-                filter_ops::Filter,
+                filter_ops::{Filter, NodeSelect},
                 internal::{
                     GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
                     InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
                 },
-                Select,
+                EdgeSelect,
             },
         },
         graph::{
@@ -39,7 +39,6 @@ use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},
     layer_ops::InternalLayerOps,
 };
-
 #[test]
 #[ignore]
 // TODO: Enable this once fixed

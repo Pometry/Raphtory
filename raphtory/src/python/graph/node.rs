@@ -15,6 +15,7 @@ use crate::{
                 LazyNodeState, NodeStateOps,
             },
             view::{
+                filter_ops::NodeSelect,
                 internal::{
                     DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic, IntoDynamicOrMutable,
                     MaterializedGraph,

@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::view::{filter_ops::Filter, StaticGraphViewOps},
+        api::view::{
+            filter_ops::{Filter, NodeSelect},
+            StaticGraphViewOps,
+        },
         graph::{edge::EdgeView, node::NodeView, views::filter::CreateFilter},
     },
     errors::GraphError,

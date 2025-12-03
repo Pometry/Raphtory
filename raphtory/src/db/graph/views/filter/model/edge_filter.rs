@@ -20,7 +20,7 @@ use crate::{
                     Op, PropertyFilter, PropertyRef,
                 },
                 windowed_filter::Windowed,
-                AndFilter, ComposableFilter, EntityMarker, InternalPropertyFilterBuilder,
+                AndFilter, ComposableFilter, InternalPropertyFilterBuilder,
                 InternalPropertyFilterFactory, NotFilter, OrFilter, TemporalPropertyFilterFactory,
                 TryAsCompositeFilter, Wrap,
             },
@@ -61,8 +61,6 @@ impl Wrap for EdgeFilter {
         value
     }
 }
-
-impl EntityMarker for EdgeFilter {}
 
 impl InternalPropertyFilterFactory for EdgeFilter {
     type Entity = EdgeFilter;
@@ -151,9 +149,6 @@ impl<M> Wrap for EdgeEndpointWrapper<M> {
         }
     }
 }
-
-impl<M> EntityMarker for EdgeEndpointWrapper<M> where M: EntityMarker + Send + Sync + Clone + 'static
-{}
 
 impl<T> ComposableFilter for EdgeEndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
 

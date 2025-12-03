@@ -10,7 +10,7 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{FilterOps, InternalFilter, NodeList},
+                internal::{FilterOps, InternalFilter, InternalNodeSelect, NodeList},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -330,22 +330,33 @@ where
             })
             .is_some()
     }
+}
 
-    pub fn select<Filter: CreateFilter>(
+impl<'graph, G, GH, F> InternalNodeSelect<'graph> for Nodes<'graph, G, GH, F>
+where
+    G: GraphViewOps<'graph> + 'graph,
+    GH: GraphViewOps<'graph> + 'graph,
+    F: NodeFilterOp + 'graph,
+{
+    type IterGraph = GH;
+    type IterFiltered<Filter: NodeFilterOp + 'graph> = Nodes<'graph, G, GH, AndOp<F, Filter>>;
+
+    fn iter_graph(&self) -> &Self::IterGraph {
+        &self.graph
+    }
+
+    fn apply_iter_filter<Filter: NodeFilterOp + 'graph>(
         &self,
         filter: Filter,
-    ) -> Result<Nodes<'graph, G, GH, AndOp<F, Filter::NodeFilter<'graph, G>>>, GraphError> {
-        let selector = self
-            .selector
-            .clone()
-            .and(filter.create_node_filter(self.base_graph.clone())?);
-        Ok(Nodes {
+    ) -> Self::IterFiltered<Filter> {
+        let selector = self.selector.clone().and(filter);
+        Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             selector,
             nodes: self.nodes.clone(),
             _marker: Default::default(),
-        })
+        }
     }
 }
 

@@ -12,8 +12,8 @@ use crate::{
                         MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder,
                     },
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                    EntityMarker, InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op,
-                    PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -161,8 +161,6 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
 }
 
 impl<T: ComposableFilter> ComposableFilter for Windowed<T> {}
-
-impl<M: EntityMarker + Clone + Send + Sync + 'static> EntityMarker for Windowed<M> {}
 
 impl<M> Wrap for Windowed<M> {
     type Wrapped<T> = Windowed<T>;

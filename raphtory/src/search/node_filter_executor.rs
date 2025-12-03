@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::{BoxableGraphView, StaticGraphViewOps},
+        api::view::{filter_ops::NodeSelect, BoxableGraphView, StaticGraphViewOps},
         graph::{
             node::NodeView,
             views::filter::{

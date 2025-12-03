@@ -1526,16 +1526,20 @@ mod test_node_filter {
         IdentityGraphTransformer,
     };
     use raphtory::{
-        db::graph::{
-            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
-            views::filter::model::{
-                node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                ComposableFilter,
+        db::{
+            api::view::filter_ops::NodeSelect,
+            graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                },
+                views::filter::model::{
+                    node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
+                    ComposableFilter,
+                },
             },
         },
         prelude::{Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps},
     };
-
     #[test]
     fn test_node_list_is_preserved() {
         let graph = init_nodes_graph(Graph::new());

@@ -2,9 +2,11 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
-            state::NodeOp,
+            state::{ops::NodeFilterOp, NodeOp},
             view::{
-                internal::{FilterOps, InternalFilter, InternalSelect, Static},
+                internal::{
+                    FilterOps, InternalEdgeSelect, InternalFilter, InternalNodeSelect, Static,
+                },
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -17,6 +19,7 @@ use crate::{
     },
     prelude::*,
 };
+use raphtory_api::inherit::Base;
 use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
 
@@ -226,33 +229,30 @@ where
     }
 }
 
-impl<'graph, G> InternalSelect<'graph> for PathFromGraph<'graph, G>
+impl<'graph, G> InternalNodeSelect<'graph> for PathFromGraph<'graph, G>
 where
     G: GraphViewOps<'graph>,
 {
     type IterGraph = G;
-    type IterFiltered<Next: GraphViewOps<'graph> + 'graph> = PathFromGraph<'graph, G>;
+    type IterFiltered<Next: NodeFilterOp + 'graph> = PathFromGraph<'graph, G>;
 
     fn iter_graph(&self) -> &Self::IterGraph {
         &self.base_graph
     }
 
-    fn apply_iter_filter<Next: GraphViewOps<'graph>>(
+    fn apply_iter_filter<Next: NodeFilterOp + 'graph>(
         &self,
-        filtered_graph: Next,
+        filter: Next,
     ) -> Self::IterFiltered<Next> {
         let op = self.op.clone();
+        let storage = self.base_graph.core_graph().clone();
         PathFromGraph {
             base_graph: self.base_graph.clone(),
             nodes: self.nodes.clone(),
             op: Arc::new(move |vid| {
-                let filtered_graph = filtered_graph.clone();
-                let nodes_locked = filtered_graph.core_nodes();
-                Box::new(
-                    op(vid).filter(move |node| {
-                        filtered_graph.filter_node(nodes_locked.node_entry(*node))
-                    }),
-                )
+                let filter = filter.clone();
+                let storage = storage.clone();
+                Box::new(op(vid).filter(move |node| filter.apply(&storage, *node)))
             }),
         }
     }
@@ -449,32 +449,29 @@ where
     }
 }
 
-impl<'graph, G> InternalSelect<'graph> for PathFromNode<'graph, G>
+impl<'graph, G> InternalNodeSelect<'graph> for PathFromNode<'graph, G>
 where
     G: GraphViewOps<'graph>,
 {
     type IterGraph = G;
-    type IterFiltered<Next: GraphViewOps<'graph>> = PathFromNode<'graph, G>;
+    type IterFiltered<Next: NodeFilterOp + 'graph> = PathFromNode<'graph, G>;
 
     fn iter_graph(&self) -> &Self::IterGraph {
         &self.base_graph
     }
 
-    fn apply_iter_filter<Next: GraphViewOps<'graph>>(
+    fn apply_iter_filter<Next: NodeFilterOp + 'graph>(
         &self,
-        filtered_graph: Next,
+        filter: Next,
     ) -> Self::IterFiltered<Next> {
         let op = self.op.clone();
+        let storage = self.graph().core_graph().clone();
         PathFromNode {
             base_graph: self.base_graph.clone(),
             op: Arc::new(move || {
-                let filtered_graph = filtered_graph.clone();
-                let nodes_locked = filtered_graph.core_nodes();
-                Box::new(
-                    op().filter(move |node| {
-                        filtered_graph.filter_node(nodes_locked.node_entry(*node))
-                    }),
-                )
+                let filter = filter.clone();
+                let storage = storage.clone();
+                Box::new(op().filter(move |node| filter.apply(&storage, *node)))
             }),
         }
     }

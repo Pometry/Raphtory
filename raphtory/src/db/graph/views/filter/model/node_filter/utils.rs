@@ -11,7 +11,7 @@ use crate::{
 };
 use raphtory_api::core::entities::{
     GidType,
-    GidType::{Str, U64, *},
+    GidType::{Str, U64},
     GID,
 };
 

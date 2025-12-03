@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::internal::{InternalFilter, InternalSelect},
+        api::view::internal::{InternalEdgeSelect, InternalFilter, InternalNodeSelect},
         graph::views::filter::CreateFilter,
     },
     errors::GraphError,
@@ -15,7 +15,16 @@ pub trait Filter<'graph>: InternalFilter<'graph> {
     }
 }
 
-pub trait Select<'graph>: InternalSelect<'graph> {
+pub trait NodeSelect<'graph>: InternalNodeSelect<'graph> {
+    fn select<F: CreateFilter>(
+        &self,
+        filter: F,
+    ) -> Result<Self::IterFiltered<F::NodeFilter<'graph, Self::IterGraph>>, GraphError> {
+        Ok(self.apply_iter_filter(filter.create_node_filter(self.iter_graph().clone())?))
+    }
+}
+
+pub trait EdgeSelect<'graph>: InternalEdgeSelect<'graph> {
     fn select<F: CreateFilter>(
         &self,
         filter: F,
@@ -25,4 +34,5 @@ pub trait Select<'graph>: InternalSelect<'graph> {
 }
 
 impl<'graph, T: InternalFilter<'graph>> Filter<'graph> for T {}
-impl<'graph, T: InternalSelect<'graph>> Select<'graph> for T {}
+impl<'graph, T: InternalNodeSelect<'graph>> NodeSelect<'graph> for T {}
+impl<'graph, T: InternalEdgeSelect<'graph>> EdgeSelect<'graph> for T {}

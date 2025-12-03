@@ -44,8 +44,6 @@ pub mod or_filter;
 pub mod property_filter;
 pub mod windowed_filter;
 
-trait EntityMarker: Clone + Send + Sync {}
-
 pub trait Wrap {
     type Wrapped<T>;
 
