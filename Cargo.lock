@@ -2157,6 +2157,7 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "thiserror 2.0.17",
+ "tinyvec",
 ]
 
 [[package]]
@@ -6585,6 +6586,7 @@ version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa5fdc3bce6191a1dbc8c02d5c8bffcf557bafa17c124c5264a458f1b0613fa"
 dependencies = [
+ "serde",
  "tinyvec_macros",
 ]
 
