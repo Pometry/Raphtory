@@ -61,7 +61,6 @@ You can print the state of the graph object to verify it exists.
     Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=1560419400000, latest_time=1562756700000)
     ```
 
-
 For more details, see [Creating a graph](../ingestion/1_intro.md).
 
 ## Query your data
@@ -92,7 +91,6 @@ assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE'), 5)}") == 
     Rank 4: FELIPE with a score of 0.05788
     Rank 5: VIOLETTE with a score of 0.05759
     ```
-
 
 Once you have identified some interesting features, you can performed more detailed analysis by filtering your results or examining them across a [window of history](../views/2_time.md).
 

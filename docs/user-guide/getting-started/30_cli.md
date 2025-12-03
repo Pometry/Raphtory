@@ -41,7 +41,7 @@ raphtory server --port 1736
 
 ### Tracing
 
-Tracing provides the following level of verbosity:
+Tracing provides the following levels of verbosity:
 
 - COMPLETE - Provides full traces for each query.
 - ESSENTIAL - Tracks the following key functions: addEdge, addEdges, deleteEdge, graph, updateGraph, addNode, node, nodes, edge, edges.
