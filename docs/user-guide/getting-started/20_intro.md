@@ -23,7 +23,7 @@ To ingest this data you must first format it using `pandas` to create a datafram
 ```python
 from raphtory import Graph
 from raphtory import graphql
-from raphtory import algorithms as alg
+from raphtory import algorithms
 import raphtory as rp
 import pandas as pd
 
@@ -73,7 +73,7 @@ Continuing from the previous example, you can use the PageRank algorithm to find
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-results = alg.pagerank(g)
+results = algorithms.pagerank(g)
 top_5 = results.top_k(5)
 for rank, (node, score) in enumerate(top_5.items(),1):
     print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
