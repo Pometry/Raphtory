@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764632071967,
+  "lastUpdate": 1764785998863,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2537,6 +2537,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1205,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "louisch@fastmail.com",
+            "name": "Louis Chan",
+            "username": "louisch"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e386e7ee7e86df57b88f2999faf1af85a36b859e",
+          "message": "Fix requests for the worker in subpaths (#2408)",
+          "timestamp": "2025-12-03T17:44:41Z",
+          "tree_id": "29266aa73ce9dfcbeea5a7a0f297fb129bd908e0",
+          "url": "https://github.com/Pometry/Raphtory/commit/e386e7ee7e86df57b88f2999faf1af85a36b859e"
+        },
+        "date": 1764785995948,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1265,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 186,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 174,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1090,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 849,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1330,
             "unit": "req/s"
           }
         ]
