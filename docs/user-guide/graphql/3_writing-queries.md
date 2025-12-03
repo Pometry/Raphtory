@@ -288,7 +288,6 @@ You can also send GraphQL queries in Python directl using the [`.query()`][rapht
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python notest}
-from raphtory import graphql
 from raphtory.graphql import GraphServer
 
 with GraphServer(work_dir).start():
