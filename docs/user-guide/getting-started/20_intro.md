@@ -24,7 +24,6 @@ To ingest this data you must first format it using `pandas` to create a datafram
 from raphtory import Graph
 from raphtory import graphql
 from raphtory import algorithms
-import raphtory as rp
 import pandas as pd
 
 edges_df = pd.read_csv(
@@ -36,7 +35,7 @@ edges_df["Weight"] = edges_df["Category"].apply(
     lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
 )
 
-g = rp.Graph()
+g = Graph()
 g.load_edges_from_pandas(
     df=edges_df,
     src="Actor",
