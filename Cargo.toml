@@ -100,6 +100,7 @@ num-integer = "0.1"
 rand_distr = "0.5.1"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
+tinyvec = { version = "1.10", features = ["serde", "alloc"] }
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
 dashmap = { version = "6.0.1", features = ["serde", "rayon"] }
 glam = "0.29.0"

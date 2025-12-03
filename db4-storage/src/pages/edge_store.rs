@@ -10,6 +10,7 @@ use crate::{
     api::edges::{EdgeRefOps, EdgeSegmentOps, LockedESegment},
     error::StorageError,
     pages::{
+        SegmentCounts,
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     },
@@ -572,5 +573,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                     )
                 })
             })
+    }
+
+    pub(crate) fn segment_counts(&self) -> SegmentCounts<EID> {
+        SegmentCounts::new(
+            self.max_page_len(),
+            self.pages().iter().map(|(_, seg)| seg.num_edges()),
+        )
     }
 }

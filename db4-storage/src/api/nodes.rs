@@ -24,6 +24,8 @@ use std::{
     sync::{Arc, atomic::AtomicU32},
 };
 
+use rayon::prelude::*;
+
 use crate::{
     LocalPOS,
     error::StorageError,
@@ -132,7 +134,23 @@ pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {
     where
         Self: 'a;
 
+    fn num_nodes(&self) -> u32;
+
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>;
+
+    fn iter_entries<'a>(&'a self) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+        let num_nodes = self.num_nodes();
+        (0..num_nodes).map(move |vid| self.entry_ref(LocalPOS(vid)))
+    }
+
+    fn par_iter_entries<'a>(
+        &'a self,
+    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+        let num_nodes = self.num_nodes();
+        (0..num_nodes)
+            .into_par_iter()
+            .map(move |vid| self.entry_ref(LocalPOS(vid)))
+    }
 }
 
 pub trait NodeEntryOps<'a>: Send + Sync + 'a {

@@ -36,6 +36,7 @@ itertools.workspace = true
 thiserror.workspace = true
 roaring.workspace = true
 sysinfo.workspace = true
+tinyvec.workspace = true
 proptest = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 iter-enum = { workspace = true, features = ["rayon"] }

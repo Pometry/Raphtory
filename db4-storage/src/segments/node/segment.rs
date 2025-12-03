@@ -373,6 +373,16 @@ pub struct NodeSegmentView<EXT> {
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
     inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+    num_nodes: u32,
+}
+
+impl ArcLockedSegmentView {
+    pub fn new(
+        inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+        num_nodes: u32,
+    ) -> Self {
+        Self { inner, num_nodes }
+    }
 }
 
 impl LockedNSSegment for ArcLockedSegmentView {
@@ -381,6 +391,10 @@ impl LockedNSSegment for ArcLockedSegmentView {
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a> {
         let pos = pos.into();
         MemNodeRef::new(pos, &self.inner)
+    }
+
+    fn num_nodes(&self) -> u32 {
+        self.num_nodes
     }
 }
 
@@ -499,9 +513,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     }
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
-        ArcLockedSegmentView {
-            inner: self.inner.read_arc(),
-        }
+        ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
     fn num_layers(&self) -> usize {

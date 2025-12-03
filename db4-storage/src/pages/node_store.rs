@@ -4,6 +4,7 @@ use crate::{
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     pages::{
+        SegmentCounts,
         layer_counter::GraphStats,
         locked::nodes::{LockedNodePage, WriteLockedNodeSegments},
     },
@@ -24,7 +25,7 @@ use std::{
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
-const N: usize = 32;
+pub const N: usize = 32;
 
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
@@ -75,10 +76,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
     ) -> impl Iterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
-        (0..self.len()).map(move |i| {
-            let vid = VID(i);
-            self.node_ref(vid)
-        })
+        self.locked_segments
+            .iter()
+            .flat_map(move |segment| segment.iter_entries())
     }
 
     pub fn par_iter(
@@ -86,10 +86,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
     ) -> impl rayon::iter::ParallelIterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
-        (0..self.len()).into_par_iter().map(move |i| {
-            let vid = VID(i);
-            self.node_ref(vid)
-        })
+        self.locked_segments
+            .par_iter()
+            .flat_map(move |segment| segment.par_iter_entries())
     }
 }
 
@@ -168,6 +167,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         }
         empty
     }
+
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
         let locked_segments = self
             .segments
@@ -196,6 +196,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
                 .collect(),
         )
     }
+
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % N;
         let maybe_free_page = {
@@ -487,5 +488,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
                 }
             }
         }
+    }
+
+    pub(crate) fn segment_counts(&self) -> SegmentCounts<VID> {
+        SegmentCounts::new(
+            self.max_segment_len(),
+            self.segments().iter().map(|(_, seg)| seg.num_nodes()),
+        )
     }
 }
