@@ -10,6 +10,7 @@ use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::ops::DerefMut;
 
+#[derive(Debug)]
 pub struct LockedNodePage<'a, NS> {
     page_id: usize,
     max_page_len: u32,

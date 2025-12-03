@@ -234,10 +234,10 @@ impl InternalAdditionOps for TemporalGraph {
         match id {
             NodeRef::External(id) => {
                 let id = self.logical_to_physical.get_or_init(id, || {
-                    let (seg, pos) = self
-                        .storage()
-                        .nodes()
-                        .reserve_free_pos(self.storage().nodes().stats().get(0));
+                    let (seg, pos) = self.storage().nodes().reserve_free_pos(
+                        self.event_counter
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                    );
                     pos.as_vid(seg, self.extension().max_node_page_len())
                 })?;
 

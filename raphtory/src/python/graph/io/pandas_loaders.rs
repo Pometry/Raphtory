@@ -207,7 +207,7 @@ pub fn load_edge_deletions_from_pandas<
 pub(crate) fn process_pandas_py_df<'a>(
     df: &Bound<'a, PyAny>,
     col_names: Vec<&str>,
-) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
+) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send + 'a>> {
     let py = df.py();
     is_jupyter(py);
     py.import("pandas")?;

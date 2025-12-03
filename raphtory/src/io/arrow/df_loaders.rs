@@ -41,7 +41,7 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc,
+        mpsc, Arc,
     },
     usize,
 };
@@ -232,7 +232,7 @@ pub fn load_nodes_from_df<
 }
 
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     time: &str,
     secondary_index: Option<&str>,
     src: &str,
@@ -278,310 +278,316 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     // #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
 
-    let mut src_col_resolved: Vec<(VID, Prop)> = vec![];
-    let mut dst_col_resolved: Vec<(VID, Prop)> = vec![];
+    let mut src_col_resolved: Vec<VID> = vec![];
+    let mut dst_col_resolved: Vec<VID> = vec![];
     let mut eid_col_resolved: Vec<EID> = vec![];
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
-    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+    rayon::scope(|s| {
+        let (tx, rx) = mpsc::sync_channel(2);
 
-    // set the type of the resolver;
-    let chunks = df_view.chunks.peekable();
-
-    let num_nodes = AtomicUsize::new(write_locked_graph.graph().internal_num_nodes());
-
-    for chunk in chunks {
-        let df = chunk?;
-        let prop_cols =
-            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
-                session
-                    .resolve_edge_property(key, dtype, false)
-                    .map_err(into_graph_err)
-            })?;
-        let metadata_cols =
-            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
-                    .resolve_edge_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            })?;
-
-        src_col_resolved.resize_with(df.len(), || (VID(0), Prop::Bool(false)));
-        dst_col_resolved.resize_with(df.len(), || (VID(0), Prop::Bool(false)));
-
-        // let src_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut src_col_resolved));
-        // let dst_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut dst_col_resolved));
-
-        let layer = lift_layer_col(layer, layer_index, &df)?;
-        let layer_col_resolved = layer.resolve(graph)?;
-
-        let src_col = df.node_col(src_index)?;
-        src_col.validate(graph, LoadError::MissingSrcError)?;
-
-        let dst_col = df.node_col(dst_index)?;
-        dst_col.validate(graph, LoadError::MissingDstError)?;
-
-        // avoid allocation of ArcStr
-        let gid_str_cache: FxDashMap<GidRef, Prop> = FxDashMap::default();
-        // It's our graph, no one else can change it
-        src_col
-            .par_iter()
-            .zip(src_col_resolved.par_iter_mut())
-            .try_for_each(|(gid, resolved)| {
-                let gid = gid.ok_or(LoadError::FatalError)?;
-                let gid_prop = if let Some(gid_prop) = gid_str_cache.get(&gid) {
-                    gid_prop.value().clone()
-                } else {
-                    let gid_prop = gid_str_cache.entry(gid).or_insert_with(|| Prop::from(gid));
-                    gid_prop.value().clone()
-                };
-                let vid = write_locked_graph
-                    .graph()
-                    .resolve_node(gid.as_node_ref())
-                    .map_err(|_| LoadError::FatalError)?;
-
-                if vid.is_new() {
-                    num_nodes.fetch_add(1, Ordering::Relaxed);
-                }
-
-                *resolved = (vid.inner(), gid_prop);
-                Ok::<(), LoadError>(())
-            })?;
-
-        dst_col
-            .par_iter()
-            .zip(dst_col_resolved.par_iter_mut())
-            .try_for_each(|(gid, resolved)| {
-                let gid = gid.ok_or(LoadError::FatalError)?;
-
-                let gid_prop = if let Some(gid_prop) = gid_str_cache.get(&gid) {
-                    gid_prop.value().clone()
-                } else {
-                    let gid_prop = gid_str_cache.entry(gid).or_insert_with(|| Prop::from(gid));
-                    gid_prop.value().clone()
-                };
-                let vid = write_locked_graph
-                    .graph()
-                    .resolve_node(gid.as_node_ref())
-                    .map_err(|_| LoadError::FatalError)?;
-
-                if vid.is_new() {
-                    num_nodes.fetch_add(1, Ordering::Relaxed);
-                }
-
-                *resolved = (vid.inner(), gid_prop);
-                Ok::<(), LoadError>(())
-            })?;
-
-        let time_col = df.time_col(time_index)?;
-
-        // Load the secondary index column if it exists, otherwise generate from start_id.
-        let secondary_index_col = match secondary_index_index {
-            Some(col_index) => {
-                // Update the event_id to reflect ingesting new secondary indices.
-                let col = df.secondary_index_col(col_index)?;
-                session
-                    .set_max_event_id(col.max())
-                    .map_err(into_graph_err)?;
-                col
+        s.spawn(move |_| {
+            let sender = tx;
+            for chunk in df_view.chunks {
+                sender.send(chunk).unwrap()
             }
-            None => {
-                let start_id = session
-                    .reserve_event_ids(df.len())
-                    .map_err(into_graph_err)?;
-                SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
-            }
-        };
+        });
 
-        write_locked_graph.resize_chunks_to_num_nodes(num_nodes.load(Ordering::Relaxed));
+        for chunk in rx.iter() {
+            let df = chunk?;
+            let prop_cols =
+                combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
+                    session
+                        .resolve_edge_property(key, dtype, false)
+                        .map_err(into_graph_err)
+                })?;
+            let metadata_cols =
+                combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                    session
+                        .resolve_edge_property(key, dtype, true)
+                        .map_err(into_graph_err)
+                })?;
 
-        eid_col_resolved.resize_with(df.len(), Default::default);
-        eids_exist.resize_with(df.len(), Default::default);
-        layer_eids_exist.resize_with(df.len(), Default::default);
-        let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
+            src_col_resolved.resize_with(df.len(), Default::default);
+            dst_col_resolved.resize_with(df.len(), Default::default);
 
-        let edges = write_locked_graph.graph().storage().edges().clone();
-        let next_edge_id = |row: usize| {
-            let (page, pos) = edges.reserve_free_pos(row);
-            pos.as_eid(page, edges.max_page_len())
-        };
+            // let src_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut src_col_resolved));
+            // let dst_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut dst_col_resolved));
 
-        let mut per_segment_edge_count = Vec::with_capacity(write_locked_graph.nodes.len());
-        per_segment_edge_count.resize_with(write_locked_graph.nodes.len(), || AtomicUsize::new(0));
+            let layer = lift_layer_col(layer, layer_index, &df)?;
+            let layer_col_resolved = layer.resolve(graph)?;
 
-        let WriteLockedGraph {
-            nodes, ref edges, ..
-        } = &mut write_locked_graph;
+            let src_col = df.node_col(src_index)?;
+            src_col.validate(graph, LoadError::MissingSrcError)?;
 
-        // Generate all edge_ids + add outbound edges
-        nodes
-            .iter_mut() // TODO: change to par_iter_mut but preserve edge_id order
-            .enumerate()
-            .for_each(|(page_id, locked_page)| {
-                // Zip all columns for iteration.
+            let dst_col = df.node_col(dst_index)?;
+            dst_col.validate(graph, LoadError::MissingDstError)?;
+
+            // avoid allocation of ArcStr
+            let gid_str_cache = FxDashMap::default();
+            // It's our graph, no one else can change it
+            src_col
+                .par_iter()
+                .zip(src_col_resolved.par_iter_mut())
+                .try_for_each(|(gid, resolved)| {
+                    let gid = gid.ok_or(LoadError::FatalError)?;
+                    let vid = graph
+                        .resolve_node(gid.as_node_ref())
+                        .map_err(|_| LoadError::FatalError)?;
+
+                    if vid.is_new() && gid_str_cache.get(&gid).is_none() {
+                        gid_str_cache
+                            .entry(gid)
+                            .or_insert_with(|| (Prop::from(gid), vid));
+                    };
+
+                    *resolved = vid.inner();
+                    Ok::<(), LoadError>(())
+                })?;
+
+            dst_col
+                .par_iter()
+                .zip(dst_col_resolved.par_iter_mut())
+                .try_for_each(|(gid, resolved)| {
+                    let gid = gid.ok_or(LoadError::FatalError)?;
+
+                    let vid = graph
+                        .resolve_node(gid.as_node_ref())
+                        .map_err(|_| LoadError::FatalError)?;
+
+                    if vid.is_new() && gid_str_cache.get(&gid).is_none() {
+                        gid_str_cache
+                            .entry(gid)
+                            .or_insert_with(|| (Prop::from(gid), vid));
+                    };
+
+                    *resolved = vid.inner();
+                    Ok::<(), LoadError>(())
+                })?;
+
+            let time_col = df.time_col(time_index)?;
+
+            // Load the secondary index column if it exists, otherwise generate from start_id.
+            let secondary_index_col = match secondary_index_index {
+                Some(col_index) => {
+                    // Update the event_id to reflect ingesting new secondary indices.
+                    let col = df.secondary_index_col(col_index)?;
+                    session
+                        .set_max_event_id(col.max())
+                        .map_err(into_graph_err)?;
+                    col
+                }
+                None => {
+                    let start_id = session
+                        .reserve_event_ids(df.len())
+                        .map_err(into_graph_err)?;
+                    SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
+                }
+            };
+
+            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
+            eid_col_resolved.resize_with(df.len(), Default::default);
+            eids_exist.resize_with(df.len(), Default::default);
+            layer_eids_exist.resize_with(df.len(), Default::default);
+            let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
+
+            let edges = write_locked_graph.graph().storage().edges().clone();
+            let next_edge_id = |row: usize| {
+                let (page, pos) = edges.reserve_free_pos(row);
+                pos.as_eid(page, edges.max_page_len())
+            };
+
+            let mut per_segment_edge_count = Vec::with_capacity(write_locked_graph.nodes.len());
+            per_segment_edge_count
+                .resize_with(write_locked_graph.nodes.len(), || AtomicUsize::new(0));
+
+            let WriteLockedGraph {
+                nodes, ref edges, ..
+            } = &mut write_locked_graph;
+
+            // Generate all edge_ids + add outbound edges
+            nodes
+                .par_iter_mut()
+                .enumerate() // TODO: change to par_iter_mut but preserve edge_id order
+                .for_each(|(p_id, locked_page)| {
+                    // Zip all columns for iteration.
+                    let zip = izip!(
+                        src_col_resolved.iter(),
+                        dst_col_resolved.iter(),
+                        time_col.iter(),
+                        secondary_index_col.iter(),
+                        layer_col_resolved.iter()
+                    );
+
+                    for entry in gid_str_cache.iter() {
+                        let (src_gid, vid) = entry.value();
+
+                        if let Some(src_pos) = locked_page.resolve_pos(vid.inner()) {
+                            let mut writer = locked_page.writer();
+                            writer.store_node_id(src_pos, 0, src_gid.clone(), 0);
+                        }
+                    }
+
+                    for (row, (src, dst, time, secondary_index, layer)) in zip.enumerate() {
+                        if let Some(src_pos) = locked_page.resolve_pos(*src) {
+                            let mut writer = locked_page.writer();
+                            let t = TimeIndexEntry(time, secondary_index);
+                            // find the original EID in the static graph if it exists
+                            // otherwise create a new one
+
+                            let edge_id =
+                                if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
+                                    eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
+                                    eids_exist[row].store(true, Ordering::Relaxed);
+                                    edge_id.with_layer(*layer)
+                                } else {
+                                    let edge_id = next_edge_id(row);
+                                    writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
+                                    eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
+                                    eids_exist[row].store(false, Ordering::Relaxed);
+                                    edge_id.with_layer(*layer)
+                                };
+
+                            if edges.exists(edge_id)
+                            // || writer.get_out_edge(src_pos, *dst, *layer).is_some()
+                            {
+                                layer_eids_exist[row].store(true, Ordering::Relaxed);
+                                // node additions
+                                writer.update_timestamp(t, src_pos, edge_id, 0);
+                            } else {
+                                layer_eids_exist[row].store(false, Ordering::Relaxed);
+                                // actually adds the edge
+                                writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id, 0);
+                            }
+                        }
+                    }
+                });
+
+            // s.spawn(|_| {
+            write_locked_graph.nodes.par_iter_mut().for_each(|shard| {
                 let zip = izip!(
                     src_col_resolved.iter(),
                     dst_col_resolved.iter(),
+                    eid_col_resolved.iter(),
                     time_col.iter(),
                     secondary_index_col.iter(),
-                    layer_col_resolved.iter()
+                    layer_col_resolved.iter(),
+                    layer_eids_exist.iter().map(|a| a.load(Ordering::Relaxed)),
+                    eids_exist.iter().map(|b| b.load(Ordering::Relaxed))
                 );
 
-                for (row, ((src, src_gid), (dst, _), time, secondary_index, layer)) in
-                    zip.enumerate()
+                for (
+                    src,
+                    dst,
+                    eid,
+                    time,
+                    secondary_index,
+                    layer,
+                    edge_exists_in_layer,
+                    edge_exists_in_static_graph,
+                ) in zip
                 {
-                    if let Some(src_pos) = locked_page.resolve_pos(*src) {
-                        let mut writer = locked_page.writer();
+                    if let Some(dst_pos) = shard.resolve_pos(*dst) {
                         let t = TimeIndexEntry(time, secondary_index);
-                        // writer.store_node_id(src_pos, 0, src_gid.clone(), 0);
-                        // find the original EID in the static graph if it exists
-                        // otherwise create a new one
+                        let mut writer = shard.writer();
 
-                        let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
-                            eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
-                            eids_exist[row].store(true, Ordering::Relaxed);
-                            edge_id.with_layer(*layer)
-                        } else {
-                            let edge_id = next_edge_id(row);
-
-                            writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
-                            eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
-                            eids_exist[row].store(false, Ordering::Relaxed);
-                            edge_id.with_layer(*layer)
-                        };
-
-                        if edges.exists(edge_id)
-                        // || writer.get_out_edge(src_pos, *dst, *layer).is_some()
-                        {
-                            layer_eids_exist[row].store(true, Ordering::Relaxed);
-                            // node additions
-                            writer.update_timestamp(t, src_pos, edge_id, 0);
-                        } else {
-                            layer_eids_exist[row].store(false, Ordering::Relaxed);
-                            // actually adds the edge
-                            writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id, 0);
+                        if !edge_exists_in_static_graph {
+                            writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
                         }
 
-                        per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
+                        if !edge_exists_in_layer {
+                            writer.add_inbound_edge(
+                                Some(t),
+                                dst_pos,
+                                *src,
+                                eid.with_layer(*layer),
+                                0,
+                            );
+                        } else {
+                            writer.update_timestamp(t, dst_pos, eid.with_layer(*layer), 0);
+                        }
                     }
                 }
             });
+            // });
 
-        let aprox_num_edges = write_locked_graph.graph().internal_num_edges() + df.len();
+            drop(write_locked_graph);
 
-        write_locked_graph.resize_chunks_to_num_edges(aprox_num_edges);
+            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
-        // rayon::scope(|sc| {
-        //     // Add inbound edges
-        //     sc.spawn(|_| {
-        //         write_locked_graph
-        //             .nodes
-        //             .par_iter_mut()
-        //             .enumerate()
-        //             .for_each(|(page_id, shard)| {
-        //                 let zip = izip!(
-        //                     src_col_resolved.iter(),
-        //                     dst_col_resolved.iter(),
-        //                     dst_col.iter(),
-        //                     eid_col_resolved.iter(),
-        //                     time_col.iter(),
-        //                     secondary_index_col.iter(),
-        //                     layer_col_resolved.iter(),
-        //                     layer_eids_exist.iter().map(|a| a.load(Ordering::Relaxed)),
-        //                     eids_exist.iter().map(|b| b.load(Ordering::Relaxed))
-        //                 );
+            let per_edge_segment_event_count = (0..write_locked_graph.edges.len())
+                .map(|_| AtomicUsize::new(0))
+                .collect::<Vec<_>>();
 
-        //                 for (
-        //                     src,
-        //                     dst,
-        //                     dst_gid,
-        //                     eid,
-        //                     time,
-        //                     secondary_index,
-        //                     layer,
-        //                     edge_exists_in_layer,
-        //                     edge_exists_in_static_graph,
-        //                 ) in zip
-        //                 {
-        //                     if let Some(dst_pos) = shard.resolve_pos(*dst) {
-        //                         let t = TimeIndexEntry(time, secondary_index);
-        //                         let mut writer = shard.writer();
+            //     // Add temporal & constant properties to edges
+            //     sc.spawn(|_| {
+            let now = std::time::Instant::now();
+            write_locked_graph
+                .edges
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(seg_id, shard)| {
+                    let zip = izip!(
+                        src_col_resolved.iter(),
+                        dst_col_resolved.iter(),
+                        time_col.iter(),
+                        secondary_index_col.iter(),
+                        eid_col_resolved.iter(),
+                        layer_col_resolved.iter(),
+                        eids_exist
+                            .iter()
+                            .map(|exists| exists.load(Ordering::Relaxed))
+                    );
+                    let mut t_props: Vec<(usize, Prop)> = vec![];
+                    let mut c_props: Vec<(usize, Prop)> = vec![];
 
-        //                         writer.store_node_id(dst_pos, 0, dst_gid, 0);
+                    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
+                        zip.enumerate()
+                    {
+                        if let Some(eid_pos) = shard.resolve_pos(*eid) {
+                            per_edge_segment_event_count[seg_id].fetch_add(1, Ordering::Relaxed);
+                            let t = TimeIndexEntry(time, secondary_index);
+                            let mut writer = shard.writer();
 
-        //                         if !edge_exists_in_static_graph {
-        //                             writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
-        //                         }
+                            t_props.clear();
+                            t_props.extend(prop_cols.iter_row(row));
 
-        //                         if !edge_exists_in_layer {
-        //                             writer.add_inbound_edge(
-        //                                 Some(t),
-        //                                 dst_pos,
-        //                                 *src,
-        //                                 eid.with_layer(*layer),
-        //                                 0,
-        //                             );
-        //                         } else {
-        //                             writer.update_timestamp(t, dst_pos, eid.with_layer(*layer), 0);
-        //                         }
+                            c_props.clear();
+                            c_props.extend(metadata_cols.iter_row(row));
+                            c_props.extend_from_slice(&shared_metadata);
 
-        //                         per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
-        //                     }
-        //                 }
-        //             });
-        //     });
+                            writer.bulk_add_edge(
+                                t,
+                                eid_pos,
+                                *src,
+                                *dst,
+                                exists,
+                                *layer,
+                                c_props.drain(..),
+                                t_props.drain(..),
+                                0,
+                            );
+                        }
+                    }
+                });
 
-        //     // Add temporal & constant properties to edges
-        //     sc.spawn(|_| {
-        //         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
-        //             let zip = izip!(
-        //                 src_col_resolved.iter(),
-        //                 dst_col_resolved.iter(),
-        //                 time_col.iter(),
-        //                 secondary_index_col.iter(),
-        //                 eid_col_resolved.iter(),
-        //                 layer_col_resolved.iter(),
-        //                 eids_exist
-        //                     .iter()
-        //                     .map(|exists| exists.load(Ordering::Relaxed))
-        //             );
-        //             let mut t_props: Vec<(usize, Prop)> = vec![];
-        //             let mut c_props: Vec<(usize, Prop)> = vec![];
+            println!("Loading edge events took {:?}", now.elapsed());
+            //     });
+            // });
+            //
+            // println!(
+            //     "Per edge segment event count: {:?}",
+            //     per_edge_segment_event_count
+            // );
 
-        //             for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
-        //                 zip.enumerate()
-        //             {
-        //                 if let Some(eid_pos) = shard.resolve_pos(*eid) {
-        //                     let t = TimeIndexEntry(time, secondary_index);
-        //                     let mut writer = shard.writer();
-
-        //                     t_props.clear();
-        //                     t_props.extend(prop_cols.iter_row(row));
-
-        //                     c_props.clear();
-        //                     c_props.extend(metadata_cols.iter_row(row));
-        //                     c_props.extend_from_slice(&shared_metadata);
-
-        //                     writer.bulk_add_edge(
-        //                         t,
-        //                         eid_pos,
-        //                         *src,
-        //                         *dst,
-        //                         exists,
-        //                         *layer,
-        //                         c_props.drain(..),
-        //                         t_props.drain(..),
-        //                         0,
-        //                     );
-        //                 }
-        //             }
-        //         });
-        //     });
-        // });
-
-        // #[cfg(feature = "python")]
-        let _ = pb.update(df.len());
-    }
+            // #[cfg(feature = "python")]
+            let _ = pb.update(df.len());
+        }
+        Ok::<_, GraphError>(())
+    })?;
+    // set the type of the resolver;
 
     Ok(())
 }

@@ -17,6 +17,7 @@ use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
     storage::dict_mapper::MaybeNew,
 };
+use rayon::prelude::*;
 
 use raphtory_core::{
     entities::{EID, ELID, VID},
@@ -31,6 +32,7 @@ use std::{
         atomic::{self, AtomicUsize},
     },
 };
+use tinyvec::TinyVec;
 
 pub mod edge_page;
 pub mod edge_store;
@@ -124,6 +126,14 @@ impl<
 
     pub fn latest(&self) -> i64 {
         self.nodes.stats().latest().max(self.edges.stats().latest())
+    }
+
+    pub fn node_segment_counts(&self) -> SegmentCounts<VID> {
+        self.nodes.segment_counts()
+    }
+
+    pub fn edge_segment_counts(&self) -> SegmentCounts<EID> {
+        self.edges.segment_counts()
     }
 
     pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
@@ -428,6 +438,44 @@ impl<
         locked_nodes.vacuum()?;
         locked_edges.vacuum()?;
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct SegmentCounts<I> {
+    max_seg_len: u32,
+    counts: TinyVec<[u32; node_store::N]>, // this might come to be a problem
+    _marker: std::marker::PhantomData<I>,
+}
+
+impl<I: From<usize> + Send> SegmentCounts<I> {
+    pub fn new(max_seg_len: u32, counts: impl IntoIterator<Item = u32>) -> Self {
+        let counts: TinyVec<[u32; node_store::N]> = counts.into_iter().collect();
+
+        Self {
+            max_seg_len,
+            counts,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item = I> {
+        let max_seg_len = self.max_seg_len as usize;
+        self.counts.into_iter().enumerate().flat_map(move |(i, c)| {
+            let g_pos = i * max_seg_len as usize;
+            (0..c).map(move |offset| I::from(g_pos + offset as usize))
+        })
+    }
+
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = I> {
+        let max_seg_len = self.max_seg_len as usize;
+        (0..self.counts.len()).into_par_iter().flat_map(move |i| {
+            let c = self.counts[i];
+            let g_pos = i * max_seg_len as usize;
+            (0..c)
+                .into_par_iter()
+                .map(move |offset| I::from(g_pos + offset as usize))
+        })
     }
 }
 

@@ -171,7 +171,7 @@ where
         let g = self.graph.core_graph().lock();
         let view = self.graph.clone();
         let node_types_filter = self.node_types_filter.clone();
-        self.node_list().into_par_iter().filter(move |&vid| {
+        self.node_list().nodes_par_iter(&g).filter(move |&vid| {
             g.try_core_node(vid).is_some_and(|node| {
                 node_types_filter
                     .as_ref()
@@ -199,7 +199,7 @@ where
     fn iter_vids(&self, g: GraphStorage) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let node_types_filter = self.node_types_filter.clone();
         let view = self.graph.clone();
-        self.node_list().into_iter().filter(move |&vid| {
+        self.node_list().nodes_iter(&g).filter(move |&vid| {
             g.try_core_node(vid).is_some_and(|node| {
                 node_types_filter
                     .as_ref()

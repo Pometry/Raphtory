@@ -32,6 +32,7 @@ use tempfile::TempDir;
 pub struct TemporalGraph<EXT: Config = Extension> {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
+    pub event_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
@@ -153,6 +154,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
 
         Ok(Self {
             graph_dir: Some(path.into()),
+            event_counter: AtomicUsize::new(resolver.len()),
             logical_to_physical: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
@@ -201,6 +203,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
             logical_to_physical,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            event_counter: AtomicUsize::new(0),
             wal,
         })
     }
