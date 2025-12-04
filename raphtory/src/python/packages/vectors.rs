@@ -387,7 +387,7 @@ impl PyVectorSelection {
         self_.0.expand(hops, translate_window(window))
     }
 
-    /// Add the top `limit` adjacent entities with higher score for `query` to the selection
+    /// Adds the top `limit` adjacent entities with higher score for `query` to the selection.
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///
