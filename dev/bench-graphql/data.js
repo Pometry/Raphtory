@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764785998863,
+  "lastUpdate": 1764883037094,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2591,6 +2591,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1330,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "12b1bc7ccfc7e79c0ef118c8dc17cbc2c75a43a7",
+          "message": "Build(deps): bump jws from 4.0.0 to 4.0.1 in /graphql-bench in the npm_and_yarn group across 1 directory (#2410)\n\nBuild(deps): bump jws\n\nBumps the npm_and_yarn group with 1 update in the /graphql-bench directory: [jws](https://github.com/brianloveswords/node-jws).\n\n\nUpdates `jws` from 4.0.0 to 4.0.1\n- [Release notes](https://github.com/brianloveswords/node-jws/releases)\n- [Changelog](https://github.com/auth0/node-jws/blob/master/CHANGELOG.md)\n- [Commits](https://github.com/brianloveswords/node-jws/compare/v4.0.0...v4.0.1)\n\n---\nupdated-dependencies:\n- dependency-name: jws\n  dependency-version: 4.0.1\n  dependency-type: indirect\n  dependency-group: npm_and_yarn\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2025-12-04T20:41:39Z",
+          "tree_id": "e1b0d79fe5625ab1a0dceaa1bf79a415511bd502",
+          "url": "https://github.com/Pometry/Raphtory/commit/12b1bc7ccfc7e79c0ef118c8dc17cbc2c75a43a7"
+        },
+        "date": 1764883030857,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1291,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 172,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 157,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1088,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 804,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1244,
             "unit": "req/s"
           }
         ]
