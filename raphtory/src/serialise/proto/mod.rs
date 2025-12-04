@@ -60,7 +60,7 @@ impl ProtoEncoder for GraphStorage {
         let mut graph = proto_generated::Graph::default();
 
         // Graph Properties
-        let graph_meta = storage.graph_meta();
+        let graph_meta = storage.graph_props_meta();
         for (id, key) in graph_meta.metadata_mapper().read().iter_ids() {
             graph.new_graph_cprop(key, id);
         }
