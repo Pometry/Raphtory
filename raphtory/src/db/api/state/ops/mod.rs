@@ -3,51 +3,88 @@ pub mod history;
 pub mod node;
 mod properties;
 
-use crate::db::api::view::internal::{
-    filtered_node::FilteredNodeStorageOps, FilterOps, FilterState, GraphView,
+use crate::db::api::{
+    state::ops::filter::{AndOp, NotOp, OrOp},
+    view::internal::{filtered_node::FilteredNodeStorageOps, FilterOps, GraphView},
 };
 pub use history::*;
 pub use node::*;
 pub use properties::*;
-use raphtory_api::core::{entities::VID, Direction};
+use raphtory_api::core::entities::VID;
 use raphtory_storage::{
+    core_ops::CoreGraphOps,
     graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
     layer_ops::InternalLayerOps,
 };
 use std::{ops::Deref, sync::Arc};
 
-#[derive(Clone)]
-pub struct NotANodeFilter;
+pub trait NodeOp: Send + Sync {
+    type Output: Clone + Send + Sync;
 
-impl NodeOp for NotANodeFilter {
-    type Output = bool;
+    fn const_value(&self) -> Option<Self::Output> {
+        None
+    }
 
-    fn apply(&self, _storage: &GraphStorage, _node: VID) -> Self::Output {
-        panic!("Not a node filter")
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output;
+
+    fn map<V: Clone + Send + Sync>(self, map: fn(Self::Output) -> V) -> Map<Self, V>
+    where
+        Self: Sized,
+    {
+        Map { op: self, map }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Degree<G> {
-    pub(crate) dir: Direction,
-    pub(crate) view: G,
+pub type DynNodeFilter = Arc<dyn NodeOp<Output = bool>>;
+
+pub type DynNodeOp<O> = Arc<dyn NodeOp<Output = O>>;
+
+pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
+    fn is_filtered(&self) -> bool;
+
+    fn and<T>(self, other: T) -> AndOp<Self, T>;
+
+    fn or<T>(self, other: T) -> OrOp<Self, T>;
+
+    fn not(self) -> NotOp<Self>;
 }
 
-impl<G: GraphView> NodeOp for Degree<G> {
-    type Output = usize;
+impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
+    fn is_filtered(&self) -> bool {
+        // If there is a const true value, it is not filtered
+        self.const_value().is_none_or(|v| !v)
+    }
 
-    fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
-        let node = storage.core_node(node);
-        if matches!(self.view.filter_state(), FilterState::Neither) {
-            node.degree(self.view.layer_ids(), self.dir)
-        } else {
-            node.filtered_neighbours_iter(&self.view, self.view.layer_ids(), self.dir)
-                .count()
+    fn and<T>(self, other: T) -> AndOp<Self, T> {
+        AndOp {
+            left: self,
+            right: other,
         }
     }
+
+    fn or<T>(self, other: T) -> OrOp<Self, T> {
+        OrOp {
+            left: self,
+            right: other,
+        }
+    }
+
+    fn not(self) -> NotOp<Self> {
+        NotOp { 0: self }
+    }
 }
 
-impl<G: GraphView + 'static> IntoDynNodeOp for Degree<G> {}
+pub trait IntoDynNodeOp: NodeOp + Sized + 'static {
+    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> {
+        Arc::new(self)
+    }
+}
+
+impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Arc<dyn NodeOp<Output = V>> {
+    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> {
+        self.clone()
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Map<Op: NodeOp, V> {
@@ -72,8 +109,53 @@ impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
     }
 }
 
-impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Arc<dyn NodeOp<Output = V>> {
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> {
-        self.clone()
+#[derive(Clone, Copy, Debug)]
+pub struct Const<V>(pub V);
+
+impl<V> NodeOp for Const<V>
+where
+    V: Send + Sync + Clone,
+{
+    type Output = V;
+
+    fn const_value(&self) -> Option<Self::Output> {
+        Some(self.0.clone())
+    }
+
+    fn apply(&self, __storage: &GraphStorage, _node: VID) -> Self::Output {
+        self.0.clone()
+    }
+}
+
+impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Const<V> {}
+
+pub struct Eq<Left, Right> {
+    left: Left,
+    right: Right,
+}
+
+impl<Left, Right> NodeOp for Eq<Left, Right>
+where
+    Left: NodeOp,
+    Right: NodeOp,
+    Left::Output: PartialEq<Right::Output>,
+{
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.left.apply(storage, node) == self.right.apply(storage, node)
+    }
+}
+
+impl<Left, Right> IntoDynNodeOp for Eq<Left, Right> where Eq<Left, Right>: NodeOp + 'static {}
+
+#[derive(Clone)]
+pub struct NotANodeFilter;
+
+impl NodeOp for NotANodeFilter {
+    type Output = bool;
+
+    fn apply(&self, _storage: &GraphStorage, _node: VID) -> Self::Output {
+        panic!("Not a node filter")
     }
 }

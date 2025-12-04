@@ -4,7 +4,7 @@ use raphtory::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            state::NodeOp,
+            state::ops::NodeOp,
             view::{
                 filter_ops::{Filter, NodeSelect},
                 internal::{

@@ -14,11 +14,8 @@ use crate::{
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
-        graph::{
-            edges::NestedEdges, node::NodeView, path::PathFromGraph, views::filter::CreateFilter,
-        },
+        graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
     },
-    errors::GraphError,
     prelude::*,
 };
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};

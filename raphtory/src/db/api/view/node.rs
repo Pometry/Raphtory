@@ -5,7 +5,7 @@ use crate::{
     },
     db::api::{
         properties::internal::InternalPropertiesOps,
-        state::{ops, NodeOp},
+        state::{ops, ops::NodeOp},
         view::{node_edges, TimeOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},

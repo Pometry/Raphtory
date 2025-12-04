@@ -1,10 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::{
-                ops::{Const, IntoDynNodeOp, TypeId},
-                NodeOp,
-            },
+            state::ops::{Const, IntoDynNodeOp, NodeOp, TypeId},
             view::internal::GraphView,
         },
         graph::{

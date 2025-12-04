@@ -1,15 +1,11 @@
 use crate::{
     db::{
         api::{
-            state::{
-                ops::{
-                    filter::{
-                        AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
-                        OrOp,
-                    },
-                    TypeId,
+            state::ops::{
+                filter::{
+                    AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp, OrOp,
                 },
-                NodeOp,
+                NodeOp, TypeId,
             },
             view::{internal::GraphView, BoxableGraphView},
         },

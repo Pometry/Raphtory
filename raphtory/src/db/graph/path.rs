@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
-            state::{ops::NodeFilterOp, NodeOp},
+            state::ops::{NodeFilterOp, NodeOp},
             view::{
                 internal::{
                     FilterOps, InternalEdgeSelect, InternalFilter, InternalNodeSelect, Static,

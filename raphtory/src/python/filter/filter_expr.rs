@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::NodeOp,
+            state::ops::NodeOp,
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{

@@ -10,7 +10,8 @@ use crate::{
                 ops,
                 ops::{
                     filter::{AndOp, NodeTypeFilterOp, NO_FILTER},
-                    Degree, DynNodeFilter, IntoDynNodeOp, NodeFilterOp,
+                    node::Degree,
+                    DynNodeFilter, IntoDynNodeOp, NodeFilterOp,
                 },
                 LazyNodeState, NodeStateOps,
             },

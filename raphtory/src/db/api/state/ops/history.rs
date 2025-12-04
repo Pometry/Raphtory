@@ -1,5 +1,5 @@
 use crate::db::api::{
-    state::{ops::IntoDynNodeOp, NodeOp},
+    state::ops::{IntoDynNodeOp, NodeOp},
     view::internal::{GraphView, NodeTimeSemanticsOps},
 };
 use itertools::Itertools;
