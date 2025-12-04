@@ -1,3 +1,6 @@
+use either::Either;
+use storage::state::StateIndex;
+
 use super::{
     accumulator_id::AccId,
     compute_state::ComputeState,
@@ -7,7 +10,7 @@ use super::{
 use crate::{
     core::state::agg::Accumulator,
     db::{
-        api::view::StaticGraphViewOps,
+        api::{state::Index, view::StaticGraphViewOps},
         task::task_state::{Global, Shard},
     },
 };
@@ -94,7 +97,12 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.global.reset_states(ss, states);
     }
 
-    pub fn new(total_len: usize, n_parts: usize, morcel_size: usize) -> Self {
+    pub fn new(
+        total_len: usize,
+        n_parts: usize,
+        morcel_size: usize,
+        // keys: Either<Arc<StateIndex<usize>>, Index<usize>>,
+    ) -> Self {
         let last_one_size = if morcel_size == 0 {
             1
         } else {

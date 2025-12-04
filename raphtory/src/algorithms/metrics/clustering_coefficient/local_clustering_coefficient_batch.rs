@@ -52,6 +52,6 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
         graph.clone(),
         graph.clone(),
         values.into(),
-        Either::Right(Index::new(index)),
+        Index::Partial(index.into()),
     )
 }

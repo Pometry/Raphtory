@@ -1,5 +1,8 @@
 use rayon::prelude::*;
-use std::ops::{Index, IndexMut};
+use std::{
+    ops::{Index, IndexMut},
+    sync::Arc,
+};
 
 use crate::pages::SegmentCounts;
 
@@ -121,8 +124,14 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
 
     /// Get the total number of items across all chunks
     #[inline]
-    pub fn total_len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.offsets[self.num_chunks()]
+    }
+
+    /// Check if there are no items
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Get the maximum page length
@@ -156,6 +165,52 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
     /// - Chunk 1: yields (10, 10)
     /// - Chunk 2: yields (11, 20)..(15, 24)
     pub fn par_iter(&self) -> impl ParallelIterator<Item = (usize, I)> + '_
+    where
+        I: Send + Sync,
+    {
+        let max_page_len = self.max_page_len as usize;
+        let num_chunks = self.num_chunks();
+        (0..num_chunks).into_par_iter().flat_map(move |chunk_idx| {
+            let chunk_start = self.offsets[chunk_idx];
+            let chunk_end = self.offsets[chunk_idx + 1];
+            let chunk_size = chunk_end - chunk_start;
+            let global_base = chunk_idx * max_page_len;
+            (0..chunk_size).into_par_iter().map(move |local_offset| {
+                let flat_idx = chunk_start + local_offset;
+                let global_idx = I::from(global_base + local_offset);
+                (flat_idx, global_idx)
+            })
+        })
+    }
+
+    pub fn arc_into_iter(self: Arc<Self>) -> impl Iterator<Item = (usize, I)> {
+        let max_page_len = self.max_page_len as usize;
+        let num_chunks = self.num_chunks();
+        (0..num_chunks).flat_map(move |chunk_idx| {
+            let chunk_start = self.offsets[chunk_idx];
+            let chunk_end = self.offsets[chunk_idx + 1];
+            let chunk_size = chunk_end - chunk_start;
+            let global_base = chunk_idx * max_page_len;
+            (0..chunk_size).map(move |local_offset| {
+                let flat_idx = chunk_start + local_offset;
+                let global_idx = I::from(global_base + local_offset);
+                (flat_idx, global_idx)
+            })
+        })
+    }
+}
+
+impl<I: From<usize> + Into<usize>> StateIndex<I> {
+    /// Create a parallel iterator over all valid global indices with their flat indices
+    ///
+    /// This iterates through all chunks in parallel and yields tuples of (flat_index, global_index).
+    /// The flat_index starts at 0 and increments for each item in iteration order.
+    ///
+    /// For example, with chunk_sizes [10, 1, 5] and max_page_len 10:
+    /// - Chunk 0: yields (0, 0)..(9, 9)
+    /// - Chunk 1: yields (10, 10)
+    /// - Chunk 2: yields (11, 20)..(15, 24)
+    pub fn into_par_iter(self: Arc<Self>) -> impl ParallelIterator<Item = (usize, I)>
     where
         I: Send + Sync,
     {
@@ -210,7 +265,7 @@ impl<'a, I: From<usize> + Into<usize>> Iterator for StateIndexIter<'a, I> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let total = self.index.total_len();
+        let total = self.index.len();
         let consumed = if self.current_chunk < self.index.num_chunks() {
             self.index.offsets[self.current_chunk] + self.current_local
         } else {
@@ -223,7 +278,7 @@ impl<'a, I: From<usize> + Into<usize>> Iterator for StateIndexIter<'a, I> {
 
 impl<'a, I: From<usize> + Into<usize>> ExactSizeIterator for StateIndexIter<'a, I> {
     fn len(&self) -> usize {
-        let total = self.index.total_len();
+        let total = self.index.len();
         let consumed = if self.current_chunk < self.index.num_chunks() {
             self.index.offsets[self.current_chunk] + self.current_local
         } else {
@@ -262,7 +317,7 @@ impl<A: Default, I: From<usize> + Into<usize>> State<A, I> {
     /// ```
     pub fn new(chunk_sizes: Vec<usize>, max_page_len: u32) -> Self {
         let index = StateIndex::<I>::new(chunk_sizes, max_page_len);
-        let total_size = index.total_len();
+        let total_size = index.len();
 
         // Initialize state array with default values
         let state: Box<[A]> = (0..total_size)
@@ -428,7 +483,7 @@ mod tests {
         let index: StateIndex<usize> = StateIndex::new(vec![1000, 500, 1000], 1000);
 
         assert_eq!(index.num_chunks(), 3);
-        assert_eq!(index.total_len(), 2500);
+        assert_eq!(index.len(), 2500);
         assert_eq!(index.max_page_len(), 1000);
 
         // Test chunk 0
@@ -639,7 +694,7 @@ mod tests {
         assert_eq!(state.len(), 2500);
 
         // Verify via StateIndex API
-        assert_eq!(state.index().total_len(), state.len());
+        assert_eq!(state.index().len(), state.len());
     }
 
     #[test]
@@ -648,7 +703,7 @@ mod tests {
         let index: StateIndex<usize> = StateIndex::new(vec![1000, 500, 1000], 1000);
 
         // Create your own array
-        let mut data = vec![0usize; index.total_len()];
+        let mut data = vec![0usize; index.len()];
 
         // Use the index to access elements
         if let Some(flat_idx) = index.resolve(1200) {

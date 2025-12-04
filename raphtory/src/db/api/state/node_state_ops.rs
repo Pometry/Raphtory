@@ -104,7 +104,7 @@ pub trait NodeStateOps<'graph>:
             self.base_graph().clone(),
             self.graph().clone(),
             values.into(),
-            Either::Right(Index::new(keys)),
+            Index::Partial(keys.into()),
         )
     }
 
@@ -164,7 +164,7 @@ pub trait NodeStateOps<'graph>:
             self.base_graph().clone(),
             self.graph().clone(),
             values.into(),
-            Either::Right(Index::new(keys)),
+            Index::Partial(keys.into()),
         )
     }
 
