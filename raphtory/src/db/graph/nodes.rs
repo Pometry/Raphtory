@@ -32,7 +32,7 @@ use storage::state::StateIndex;
 pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
-    pub(crate) nodes: Either<Arc<StateIndex<VID>>, Index<VID>>,
+    pub(crate) nodes: Index<VID>,
     pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
 }
@@ -115,11 +115,11 @@ where
 {
     pub fn new(graph: G) -> Self {
         let base_graph = graph.clone();
-        let node_index = StateIndex::from(graph.core_graph().node_segment_counts());
+        let node_index = Index::for_graph(base_graph.clone());
         Self {
             base_graph,
             graph,
-            nodes: Either::Left(Arc::new(node_index)),
+            nodes: node_index,
             node_types_filter: None,
             _marker: PhantomData,
         }
@@ -151,7 +151,7 @@ where
     pub fn new_filtered(
         base_graph: G,
         graph: GH,
-        nodes: Either<Arc<StateIndex<VID>>, Index<VID>>,
+        nodes: Index<VID>,
         node_types_filter: Option<Arc<[bool]>>,
     ) -> Self {
         Self {
@@ -165,7 +165,7 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            Either::Right(elems) => NodeList::List { elems },
+            elems @ Index::Partial(_) => NodeList::List { elems },
             _ => self.graph.node_list(),
         }
     }
@@ -188,7 +188,7 @@ where
         Nodes::new_filtered(
             self.base_graph.clone(),
             self.graph.clone(),
-            Either::Right(index),
+            index,
             self.node_types_filter.clone(),
         )
     }
@@ -262,15 +262,15 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
-        match self.nodes.as_ref() {
-            Either::Left(_) => {
+        match &self.nodes {
+            Index::Full(_) => {
                 if self.is_list_filtered() {
                     self.par_iter_refs().count()
                 } else {
                     self.graph.node_list().len()
                 }
             }
-            Either::Right(nodes) => {
+            Index::Partial(nodes) => {
                 if self.is_filtered() {
                     self.par_iter_refs().count()
                 } else {
@@ -349,12 +349,7 @@ where
                     .as_ref()
                     .map(|filter| filter[node.node_type_id()])
                     .unwrap_or(true)
-                    && self
-                        .nodes
-                        .as_ref()
-                        .right()
-                        .map(|nodes| nodes.contains(&node.node))
-                        .unwrap_or(true)
+                    && self.nodes.contains(&node.node)
             })
             .is_some()
     }

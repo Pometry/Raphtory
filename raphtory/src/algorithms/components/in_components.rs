@@ -77,7 +77,7 @@ where
                 Nodes::new_filtered(
                     g.clone(),
                     g.clone(),
-                    Either::Right(Index::from_iter(v.in_components)),
+                    Index::from_iter(v.in_components),
                     None,
                 )
             })
@@ -128,6 +128,6 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         node.base_graph.clone(),
         node.base_graph.clone(),
         distances.into(),
-        Either::Right(Index::new(nodes)),
+        Index::Partial(nodes.into()),
     )
 }

@@ -60,11 +60,6 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
         }
     }
     NodeState::new_from_map(g.clone(), paths, |v| {
-        Nodes::new_filtered(
-            g.clone(),
-            g.clone(),
-            Either::Right(Index::from_iter(v)),
-            None,
-        )
+        Nodes::new_filtered(g.clone(), g.clone(), Index::from_iter(v), None)
     })
 }

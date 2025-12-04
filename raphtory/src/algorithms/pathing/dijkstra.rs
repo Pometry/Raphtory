@@ -191,7 +191,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         .into_iter()
         .map(|(id, (cost, path))| {
             let nodes =
-                Nodes::new_filtered(g.clone(), g.clone(), Either::Right(Index::new(path)), None);
+                Nodes::new_filtered(g.clone(), g.clone(), Index::Partial(path.into()), None);
             (id, (cost, nodes))
         })
         .unzip();
@@ -199,6 +199,6 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         g.clone(),
         g.clone(),
         values.into(),
-        Either::Right(Index::new(index)),
+        Index::Partial(index.into()),
     ))
 }

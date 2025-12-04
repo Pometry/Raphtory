@@ -164,7 +164,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
                 values.into(),
-                Either::Right(Index::new(keys)),
+                Index::Partial(keys.into()),
             )
         } else {
             let values = self.collect_vec();
@@ -172,7 +172,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
                 values.into(),
-                Either::Left(self.nodes.graph.core_graph().node_state_index().into()),
+                Index::for_graph(self.nodes.graph.clone()),
             )
         }
     }
