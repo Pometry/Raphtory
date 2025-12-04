@@ -3,32 +3,23 @@ use crate::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            state::ops::NotANodeFilter,
             view::internal::{
-                GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                 InheritEdgeLayerFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalExplodedEdgeFilterOps, Static,
             },
         },
-        graph::views::{
-            filter::{
-                model::{
-                    exploded_edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilter,
-                    windowed_filter::Windowed,
-                },
-                CreateFilter,
-            },
-            window_graph::WindowedGraph,
+        graph::views::filter::model::{
+            exploded_edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilter,
         },
     },
-    errors::GraphError,
-    prelude::{GraphViewOps, LayerOps, TimeOps},
+    prelude::GraphViewOps,
 };
 use raphtory_api::{
     core::{
         entities::{EID, ELID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
     },
     inherit::Base,
 };
@@ -55,63 +46,6 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
             prop_id,
             filter,
         }
-    }
-
-    fn filter(&self, e: EID, t: TimeIndexEntry, layer: usize) -> bool {
-        self.filter
-            .matches_exploded_edge(&self.graph, self.prop_id, e, t, layer)
-    }
-}
-
-impl CreateFilter for PropertyFilter<Windowed<ExplodedEdgeFilter>> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        ExplodedEdgePropertyFilteredGraph<WindowedGraph<G>>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        let filter = PropertyFilter {
-            prop_ref: self.prop_ref,
-            prop_value: self.prop_value,
-            operator: self.operator,
-            ops: self.ops,
-            entity: ExplodedEdgeFilter,
-        };
-        Ok(ExplodedEdgePropertyFilteredGraph::new(
-            graph.window(self.entity.start.t(), self.entity.end.t()),
-            prop_id,
-            filter,
-        ))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-}
-
-impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        Ok(ExplodedEdgePropertyFilteredGraph::new(graph, prop_id, self))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Err(GraphError::NotNodeFilter)
     }
 }
 
@@ -155,10 +89,12 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps
     for ExplodedEdgePropertyFilteredGraph<G>
 {
 }
+
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeLayerFilterOps
     for ExplodedEdgePropertyFilteredGraph<G>
 {
 }
+
 impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
     for ExplodedEdgePropertyFilteredGraph<G>
 {
@@ -180,7 +116,13 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
             if eid.is_deletion() {
                 true
             } else {
-                self.filter(eid.edge, t, eid.layer())
+                self.filter.matches_exploded_edge(
+                    &self.graph,
+                    self.prop_id,
+                    eid.edge,
+                    t,
+                    eid.layer(),
+                )
             }
         }
     }

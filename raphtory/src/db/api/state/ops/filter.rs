@@ -11,12 +11,10 @@ use crate::{
             create_node_type_filter,
             views::filter::{
                 model::{filter::Filter, node_filter::NodeFilter},
-                node_filtered_graph::NodeFilteredGraph,
                 CreateFilter,
             },
         },
     },
-    errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::{entities::VID, storage::arc_str::OptionAsStr};
@@ -111,29 +109,6 @@ impl<G> NodePropertyFilterOp<G> {
             prop_id,
             filter,
         }
-    }
-}
-
-impl CreateFilter for PropertyFilter<NodeFilter> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, NodePropertyFilterOp<G>>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph> = NodePropertyFilterOp<G>;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.create_node_filter(graph.clone())?;
-        Ok(NodeFilteredGraph::new(graph, filter))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
-        Ok(NodePropertyFilterOp::new(graph, prop_id, self))
     }
 }
 
