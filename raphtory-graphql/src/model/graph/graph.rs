@@ -4,7 +4,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{EdgeFilter, GraphViewCollection, NodeFilter},
+            filtering::{GqlEdgeFilter, GqlNodeFilter, GraphViewCollection},
             index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
@@ -30,8 +30,8 @@ use raphtory::{
         api::{
             properties::dyn_props::DynProperties,
             view::{
-                DynamicGraph, IntoDynamic, NodeViewOps, SearchableGraphOps, StaticGraphViewOps,
-                TimeOps,
+                DynamicGraph, Filter, IntoDynamic, NodeViewOps, SearchableGraphOps, Select,
+                StaticGraphViewOps, TimeOps,
             },
         },
         graph::{
@@ -375,12 +375,20 @@ impl GqlGraph {
     }
 
     /// Gets (optionally a subset of) the nodes in the graph.
-    async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
-        let nodes = self.graph.nodes();
-        match ids {
-            None => GqlNodes::new(nodes),
-            Some(ids) => GqlNodes::new(blocking_compute(move || nodes.id_filter(ids)).await),
+    async fn nodes(&self, select: Option<GqlNodeFilter>) -> Result<GqlNodes, GraphError> {
+        let nn = self.graph.nodes();
+
+        if let Some(sel) = select {
+            let nf: CompositeNodeFilter = sel.try_into()?;
+            let narrowed = blocking_compute({
+                let nn_clone = nn.clone();
+                move || nn_clone.select(nf)
+            })
+            .await?;
+            return Ok(GqlNodes::new(narrowed));
         }
+
+        Ok(GqlNodes::new(nn))
     }
 
     /// Gets the edge with the specified source and destination nodes.
@@ -389,8 +397,16 @@ impl GqlGraph {
     }
 
     /// Gets the edges in the graph.
-    async fn edges<'a>(&self) -> GqlEdges {
-        GqlEdges::new(self.graph.edges_unlocked())
+    async fn edges<'a>(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+        let base = self.graph.edges_unlocked();
+
+        if let Some(sel) = select {
+            let ef: CompositeEdgeFilter = sel.try_into()?;
+            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            return Ok(GqlEdges::new(narrowed));
+        }
+
+        Ok(GqlEdges::new(base))
     }
 
     ////////////////////////
@@ -503,11 +519,11 @@ impl GqlGraph {
         .await
     }
 
-    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+    async fn filter_nodes(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = filter.try_into()?;
-            let filtered_graph = self_clone.graph.filter_nodes(filter)?;
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
                 filtered_graph.into_dynamic(),
@@ -516,11 +532,11 @@ impl GqlGraph {
         .await
     }
 
-    async fn edge_filter(&self, filter: EdgeFilter) -> Result<Self, GraphError> {
+    async fn filter_edges(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = filter.try_into()?;
-            let filtered_graph = self_clone.graph.filter_edges(filter)?;
+            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
                 filtered_graph.into_dynamic(),
@@ -558,7 +574,7 @@ impl GqlGraph {
     /// Uses Tantivy's exact search.
     async fn search_nodes(
         &self,
-        filter: NodeFilter,
+        filter: GqlNodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlNode>, GraphError> {
@@ -584,7 +600,7 @@ impl GqlGraph {
     /// Uses Tantivy's exact search.
     async fn search_edges(
         &self,
-        filter: EdgeFilter,
+        filter: GqlEdgeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlEdge>, GraphError> {
@@ -662,8 +678,8 @@ impl GqlGraph {
                 }
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
-                GraphViewCollection::EdgeFilter(filter) => return_view.edge_filter(filter).await?,
+                GraphViewCollection::NodeFilter(filter) => return_view.filter_nodes(filter).await?,
+                GraphViewCollection::EdgeFilter(filter) => return_view.filter_edges(filter).await?,
             };
         }
         Ok(return_view)

@@ -1,28 +1,94 @@
-use crate::{
-    db::graph::views::filter::{
-        internal::CreateNodeFilter,
-        model::{
-            edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
-            filter_operator::FilterOperator,
-            node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
-            property_filter::{PropertyFilter, PropertyRef, Temporal},
+pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
+pub use crate::{
+    db::{
+        api::view::internal::GraphView,
+        graph::views::{
+            filter::{
+                internal::CreateFilter,
+                model::{
+                    edge_filter::{CompositeEdgeFilter, EdgeFilter, EndpointWrapper},
+                    exploded_edge_filter::{
+                        CompositeExplodedEdgeFilter, ExplodedEdgeFilter, ExplodedEndpointWrapper,
+                    },
+                    filter_operator::FilterOperator,
+                    node_filter::{
+                        CompositeNodeFilter, InternalNodeFilterBuilderOps,
+                        InternalNodeIdFilterBuilderOps, NodeFilter, NodeNameFilter, NodeTypeFilter,
+                    },
+                    not_filter::NotFilter,
+                    or_filter::OrFilter,
+                    property_filter::{
+                        CombinedFilter, InternalPropertyFilterBuilderOps, MetadataFilterBuilder,
+                        Op, OpChainBuilder, PropertyFilter, PropertyFilterBuilder,
+                        PropertyFilterOps, PropertyRef,
+                    },
+                },
+            },
+            window_graph::WindowedGraph,
         },
     },
-    prelude::{GraphViewOps, NodeViewOps},
+    errors::GraphError,
+    prelude::{GraphViewOps, TimeOps},
 };
-use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
+use raphtory_api::core::{
+    entities::{GidRef, GID},
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
+use raphtory_core::utils::time::IntoTime;
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 
+pub mod and_filter;
 pub mod edge_filter;
+pub mod exploded_edge_filter;
 pub mod filter_operator;
 pub mod node_filter;
+pub mod not_filter;
+pub mod or_filter;
 pub mod property_filter;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Windowed<M> {
+    pub start: TimeIndexEntry,
+    pub end: TimeIndexEntry,
+    pub inner: M,
+}
+
+impl<M: Display> Display for Windowed<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "WINDOW[{}..{}]({})",
+            self.start.t(),
+            self.end.t(),
+            self.inner
+        )
+    }
+}
+
+impl<M> Windowed<M> {
+    #[inline]
+    pub fn new(start: TimeIndexEntry, end: TimeIndexEntry, entity: M) -> Self {
+        Self {
+            start,
+            end,
+            inner: entity,
+        }
+    }
+
+    #[inline]
+    pub fn from_times<S: IntoTime, E: IntoTime>(start: S, end: E, entity: M) -> Self {
+        let s = TimeIndexEntry::start(start.into_time());
+        let e = TimeIndexEntry::end(end.into_time());
+        Self::new(s, e, entity)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilterValue {
     Single(String),
     Set(Arc<HashSet<String>>),
+    ID(GID),
+    IDSet(Arc<HashSet<GID>>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,11 +105,24 @@ impl Display for Filter {
                 write!(f, "{} {} {}", self.field_name, self.operator, value)
             }
             FilterValue::Set(values) => {
-                let mut sorted_values: Vec<_> = values.iter().collect();
-                sorted_values.sort();
-                let values_str = sorted_values
+                let mut sorted: Vec<&String> = values.iter().collect();
+                sorted.sort();
+                let values_str = sorted
                     .iter()
-                    .map(|v| v.to_string())
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
+            }
+            FilterValue::ID(id) => {
+                write!(f, "{} {} {}", self.field_name, self.operator, id)
+            }
+            FilterValue::IDSet(values) => {
+                let mut sorted: Vec<&GID> = values.iter().collect();
+                sorted.sort();
+                let values_str = sorted
+                    .iter()
+                    .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(", ");
                 write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
@@ -76,7 +155,7 @@ impl Filter {
         Self {
             field_name: field_name.into(),
             field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
-            operator: FilterOperator::In,
+            operator: FilterOperator::IsIn,
         }
     }
 
@@ -92,7 +171,23 @@ impl Filter {
         Self {
             field_name: field_name.into(),
             field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
-            operator: FilterOperator::NotIn,
+            operator: FilterOperator::IsNotIn,
+        }
+    }
+
+    pub fn starts_with(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::Single(field_value.into()),
+            operator: FilterOperator::StartsWith,
+        }
+    }
+
+    pub fn ends_with(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::Single(field_value.into()),
+            operator: FilterOperator::EndsWith,
         }
     }
 
@@ -138,164 +233,213 @@ impl Filter {
         }
     }
 
+    pub fn eq_id(field_name: impl Into<String>, field_value: impl Into<GID>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Eq,
+        }
+    }
+
+    pub fn ne_id(field_name: impl Into<String>, field_value: impl Into<GID>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Ne,
+        }
+    }
+
+    pub fn is_in_id<I, V>(field_name: impl Into<String>, field_values: I) -> Self
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        let set: HashSet<GID> = field_values.into_iter().map(|x| x.into()).collect();
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::IDSet(Arc::new(set)),
+            operator: FilterOperator::IsIn,
+        }
+    }
+
+    pub fn is_not_in_id<I, V>(field_name: impl Into<String>, field_values: I) -> Self
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        let set: HashSet<GID> = field_values.into_iter().map(|x| x.into()).collect();
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::IDSet(Arc::new(set)),
+            operator: FilterOperator::IsNotIn,
+        }
+    }
+
+    pub fn lt<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Lt,
+        }
+        .into()
+    }
+
+    pub fn le<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Le,
+        }
+        .into()
+    }
+
+    pub fn gt<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Gt,
+        }
+        .into()
+    }
+
+    pub fn ge<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Ge,
+        }
+        .into()
+    }
+
     pub fn matches(&self, node_value: Option<&str>) -> bool {
         self.operator.apply(&self.field_value, node_value)
     }
 
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
+    pub fn id_matches(&self, node_value: GidRef<'_>) -> bool {
+        self.operator.apply_id(&self.field_value, node_value)
+    }
+}
+
+impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Windowed<T> {
+    type FilterType = T::FilterType;
+
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
+
+impl<T: InternalNodeIdFilterBuilderOps> InternalNodeIdFilterBuilderOps for Windowed<T> {
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
+
+impl<T: InternalPropertyFilterBuilderOps> InternalPropertyFilterBuilderOps for Windowed<T> {
+    type Filter = Windowed<T::Filter>;
+    type Chained = Windowed<T::Chained>;
+    type Marker = T::Marker;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.inner.property_ref()
+    }
+
+    fn ops(&self) -> &[Op] {
+        self.inner.ops()
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
+
+    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+        self.wrap(self.inner.filter(filter))
+    }
+
+    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+        self.wrap(self.inner.chained(builder))
+    }
+}
+
+impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Windowed<T> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_node_filter()?;
+        let filter = CompositeNodeFilter::Windowed(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_edge_filter()?;
+        let filter = CompositeEdgeFilter::Windowed(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
         &self,
-        graph: &G,
-        edge: EdgeStorageRef,
-    ) -> bool {
-        match self.field_name.as_str() {
-            "src" => self.matches(graph.node(edge.src()).map(|n| n.name()).as_deref()),
-            "dst" => self.matches(graph.node(edge.dst()).map(|n| n.name()).as_deref()),
-            _ => false,
-        }
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_exploded_edge_filter()?;
+        let filter = CompositeExplodedEdgeFilter::Windowed(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+}
+
+impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<T> {
+    type EntityFiltered<'graph, G>
+        = T::EntityFiltered<'graph, WindowedGraph<G>>
+    where
+        G: GraphViewOps<'graph>;
+
+    type NodeFilter<'graph, G>
+        = T::NodeFilter<'graph, WindowedGraph<G>>
+    where
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        self.inner
+            .create_filter(graph.window(self.start.t(), self.end.t()))
+    }
+
+    fn create_node_filter<'graph, G>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+    where
+        G: GraphView + 'graph,
+    {
+        self.inner
+            .create_node_filter(graph.window(self.start.t(), self.end.t()))
     }
 }
 
 // Fluent Composite Filter Builder APIs
-pub trait AsNodeFilter: Send + Sync {
-    fn as_node_filter(&self) -> CompositeNodeFilter;
+pub trait TryAsCompositeFilter: Send + Sync {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError>;
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError>;
 }
 
-impl<T: AsNodeFilter + ?Sized> AsNodeFilter for Arc<T> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        self.deref().as_node_filter()
+impl<T: TryAsCompositeFilter + ?Sized> TryAsCompositeFilter for Arc<T> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        self.deref().try_as_composite_node_filter()
     }
-}
 
-pub trait AsEdgeFilter: Send + Sync {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter;
-}
-
-impl<T: AsEdgeFilter + ?Sized> AsEdgeFilter for Arc<T> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        self.deref().as_edge_filter()
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        self.deref().try_as_composite_edge_filter()
     }
-}
 
-impl AsNodeFilter for CompositeNodeFilter {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        self.clone()
-    }
-}
-
-impl AsEdgeFilter for CompositeEdgeFilter {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        self.clone()
-    }
-}
-
-impl AsNodeFilter for PropertyFilter {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Property(self.clone())
-    }
-}
-
-impl AsEdgeFilter for PropertyFilter {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Property(self.clone())
-    }
-}
-
-impl AsNodeFilter for NodeNameFilter {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Node(self.0.clone())
-    }
-}
-
-impl AsNodeFilter for NodeTypeFilter {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Node(self.0.clone())
-    }
-}
-
-impl AsEdgeFilter for EdgeFieldFilter {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Edge(self.0.clone())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AndFilter<L, R> {
-    pub(crate) left: L,
-    pub(crate) right: R,
-}
-
-impl<L: Display, R: Display> Display for AndFilter<L, R> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({} AND {})", self.left, self.right)
-    }
-}
-
-impl<L: AsNodeFilter, R: AsNodeFilter> AsNodeFilter for AndFilter<L, R> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::And(
-            Box::new(self.left.as_node_filter()),
-            Box::new(self.right.as_node_filter()),
-        )
-    }
-}
-
-impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for AndFilter<L, R> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::And(
-            Box::new(self.left.as_edge_filter()),
-            Box::new(self.right.as_edge_filter()),
-        )
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OrFilter<L, R> {
-    pub(crate) left: L,
-    pub(crate) right: R,
-}
-
-impl<L: Display, R: Display> Display for OrFilter<L, R> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({} OR {})", self.left, self.right)
-    }
-}
-
-impl<L: AsNodeFilter, R: AsNodeFilter> AsNodeFilter for OrFilter<L, R> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Or(
-            Box::new(self.left.as_node_filter()),
-            Box::new(self.right.as_node_filter()),
-        )
-    }
-}
-
-impl<L: AsEdgeFilter, R: AsEdgeFilter> AsEdgeFilter for OrFilter<L, R> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Or(
-            Box::new(self.left.as_edge_filter()),
-            Box::new(self.right.as_edge_filter()),
-        )
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NotFilter<T>(pub T);
-
-impl<T: Display> Display for NotFilter<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "NOT({})", self.0)
-    }
-}
-
-impl<T: AsNodeFilter> AsNodeFilter for NotFilter<T> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Not(Box::new(self.0.as_node_filter()))
-    }
-}
-
-impl<T: AsEdgeFilter> AsEdgeFilter for NotFilter<T> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Not(Box::new(self.0.as_edge_filter()))
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        self.deref().try_as_composite_exploded_edge_filter()
     }
 }
 
@@ -319,666 +463,247 @@ pub trait ComposableFilter: Sized {
     }
 }
 
-impl ComposableFilter for PropertyFilter {}
+impl<M> ComposableFilter for PropertyFilter<M> {}
 impl ComposableFilter for NodeNameFilter {}
 impl ComposableFilter for NodeTypeFilter {}
-impl ComposableFilter for EdgeFieldFilter {}
+impl<T> ComposableFilter for EndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 impl<T> ComposableFilter for NotFilter<T> {}
+impl<T: ComposableFilter> ComposableFilter for Windowed<T> {}
 
-pub trait InternalPropertyFilterOps: Send + Sync {
-    fn property_ref(&self) -> PropertyRef;
-}
+trait EntityMarker: Clone + Send + Sync {}
 
-impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().property_ref()
+impl EntityMarker for NodeFilter {}
+
+impl EntityMarker for EdgeFilter {}
+
+impl EntityMarker for ExplodedEdgeFilter {}
+
+impl<M: EntityMarker + Clone + Send + Sync + 'static> EntityMarker for Windowed<M> {}
+
+impl<M> Wrap for Windowed<M> {
+    type Wrapped<T> = Windowed<T>;
+
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        Windowed::new(self.start, self.end, value)
     }
 }
 
-/// Property filter operators.
-pub trait PropertyFilterOps {
-    /// Equals
-    ///
-    /// Arguments:
-    ///     PropValue: MAKE ALL THESE PROP VALUES
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn eq(&self, value: impl Into<Prop>) -> PropertyFilter;
+pub trait Wrap {
+    type Wrapped<T>;
 
-    /// Not equals
-    ///
-    /// Arguments:
-    ///     PropValue::
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn ne(&self, value: impl Into<Prop>) -> PropertyFilter;
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T>;
+}
 
-    /// Less than or equal to
-    ///
-    /// Arguments:
-    ///     PropValue:
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn le(&self, value: impl Into<Prop>) -> PropertyFilter;
+impl<S: Wrap> Wrap for Arc<S> {
+    type Wrapped<T> = S::Wrapped<T>;
+    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
+        self.deref().wrap(value)
+    }
+}
 
-    /// Greater than or equal to
-    ///
-    /// Arguments:
-    ///     PropValue:
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn ge(&self, value: impl Into<Prop>) -> PropertyFilter;
+pub trait InternalPropertyFilterFactory {
+    type Entity: Clone + Send + Sync + 'static;
+    type PropertyBuilder: InternalPropertyFilterBuilderOps + TemporalPropertyFilterFactory;
+    type MetadataBuilder: InternalPropertyFilterBuilderOps;
 
-    /// Less than or equal to
-    ///
-    /// Arguments:
-    ///     PropValue:
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn lt(&self, value: impl Into<Prop>) -> PropertyFilter;
+    fn entity(&self) -> Self::Entity;
 
-    /// Greater than
-    ///
-    /// Arguments:
-    ///     PropValue:
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn gt(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    /// Is in
-    ///
-    /// Arguments:
-    ///     values (list[PropValue]):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
-
-    /// Is not in
-    ///
-    /// Arguments:
-    ///     values (list[PropValue]):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
-
-    /// Is none
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn is_none(&self) -> PropertyFilter;
-
-    /// Is some
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn is_some(&self) -> PropertyFilter;
-
-    /// Contains
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn contains(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    /// Not contains
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter;
-
-    /// Fuzzy search
-    ///
-    /// Arguments:
-    ///     prop_value (str):
-    ///     levenshtein_distance (int):
-    ///     prefix_match (bool):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn fuzzy_search(
+    fn property_builder(
         &self,
-        prop_value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PropertyFilter;
-}
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder;
 
-impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
-    /// Equals
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn eq(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::eq(self.property_ref(), value.into())
-    }
-
-    /// Not equals
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn ne(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::ne(self.property_ref(), value.into())
-    }
-
-    /// Less than or equal to
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn le(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::le(self.property_ref(), value.into())
-    }
-
-    /// Greater than or equal to
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn ge(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::ge(self.property_ref(), value.into())
-    }
-
-    /// Less than
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn lt(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::lt(self.property_ref(), value.into())
-    }
-
-    /// Greater than
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn gt(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::gt(self.property_ref(), value.into())
-    }
-
-    /// Is in
-    ///
-    /// Arguments:
-    ///     values (list[PropValue]):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
-        PropertyFilter::is_in(self.property_ref(), values)
-    }
-
-    /// Is not in
-    ///
-    /// Arguments:
-    ///     values (list[PropValue]):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
-        PropertyFilter::is_not_in(self.property_ref(), values)
-    }
-
-    /// Is none
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn is_none(&self) -> PropertyFilter {
-        PropertyFilter::is_none(self.property_ref())
-    }
-
-    /// Is some
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn is_some(&self) -> PropertyFilter {
-        PropertyFilter::is_some(self.property_ref())
-    }
-
-    /// Contains
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn contains(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::contains(self.property_ref(), value.into())
-    }
-
-    /// Not contains
-    ///
-    /// Arguments:
-    ///     value (PropValue):
-    ///
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter {
-        PropertyFilter::not_contains(self.property_ref(), value.into())
-    }
-
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///  
-    /// Returns:
-    ///     filter.PropertyFilter:
-    fn fuzzy_search(
+    fn metadata_builder(
         &self,
-        prop_value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PropertyFilter {
-        PropertyFilter::fuzzy_search(
-            self.property_ref(),
-            prop_value.into(),
-            levenshtein_distance,
-            prefix_match,
-        )
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder;
+}
+
+pub trait PropertyFilterFactory: InternalPropertyFilterFactory {
+    fn property(&self, name: impl Into<String>) -> Self::PropertyBuilder {
+        let builder = PropertyFilterBuilder::new(name, self.entity());
+        self.property_builder(builder)
+    }
+
+    fn metadata(&self, name: impl Into<String>) -> Self::MetadataBuilder {
+        let builder = MetadataFilterBuilder::new(name, self.entity());
+        self.metadata_builder(builder)
     }
 }
 
-#[derive(Clone)]
-pub struct PropertyFilterBuilder(pub String);
+impl<T: InternalPropertyFilterFactory> PropertyFilterFactory for T {}
 
-impl PropertyFilterBuilder {
-    pub fn new(prop: impl Into<String>) -> Self {
-        Self(prop.into())
+pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilderOps {
+    fn temporal(&self) -> Self::Chained {
+        let builder = OpChainBuilder {
+            prop_ref: PropertyRef::TemporalProperty(self.property_ref().name().to_string()),
+            ops: vec![],
+            entity: self.entity(),
+        };
+        self.chained(builder)
     }
 }
 
-impl PropertyFilterBuilder {
-    pub fn temporal(self) -> TemporalPropertyFilterBuilder {
-        TemporalPropertyFilterBuilder(self.0)
-    }
-}
+impl InternalPropertyFilterFactory for NodeFilter {
+    type Entity = NodeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<NodeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<NodeFilter>;
 
-impl InternalPropertyFilterOps for PropertyFilterBuilder {
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.0.clone())
-    }
-}
-
-#[derive(Clone)]
-pub struct MetadataFilterBuilder(pub String);
-
-impl InternalPropertyFilterOps for MetadataFilterBuilder {
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Metadata(self.0.clone())
-    }
-}
-
-#[derive(Clone)]
-pub struct AnyTemporalPropertyFilterBuilder(pub String);
-
-impl InternalPropertyFilterOps for AnyTemporalPropertyFilterBuilder {
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Any)
-    }
-}
-
-#[derive(Clone)]
-pub struct LatestTemporalPropertyFilterBuilder(pub String);
-
-impl InternalPropertyFilterOps for LatestTemporalPropertyFilterBuilder {
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Latest)
-    }
-}
-
-#[derive(Clone)]
-pub struct TemporalPropertyFilterBuilder(pub String);
-
-impl TemporalPropertyFilterBuilder {
-    pub fn any(self) -> AnyTemporalPropertyFilterBuilder {
-        AnyTemporalPropertyFilterBuilder(self.0)
+    fn entity(&self) -> Self::Entity {
+        NodeFilter
     }
 
-    pub fn latest(self) -> LatestTemporalPropertyFilterBuilder {
-        LatestTemporalPropertyFilterBuilder(self.0)
-    }
-}
-
-impl PropertyFilter {
-    pub fn property(name: impl Into<String>) -> PropertyFilterBuilder {
-        PropertyFilterBuilder(name.into())
-    }
-
-    pub fn metadata(name: impl Into<String>) -> MetadataFilterBuilder {
-        MetadataFilterBuilder(name.into())
-    }
-}
-
-pub trait InternalNodeFilterBuilderOps: Send + Sync {
-    type NodeFilterType: From<Filter> + CreateNodeFilter + AsNodeFilter + Clone + 'static;
-
-    fn field_name(&self) -> &'static str;
-}
-
-impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Arc<T> {
-    type NodeFilterType = T::NodeFilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.deref().field_name()
-    }
-}
-
-pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
-    fn eq(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::eq(self.field_name(), value).into()
-    }
-
-    fn ne(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::ne(self.field_name(), value).into()
-    }
-
-    fn is_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
-        Filter::is_in(self.field_name(), values).into()
-    }
-
-    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
-        Filter::is_not_in(self.field_name(), values).into()
-    }
-
-    fn contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::contains(self.field_name(), value).into()
-    }
-
-    fn not_contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
-        Filter::not_contains(self.field_name(), value.into()).into()
-    }
-
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///  
-    fn fuzzy_search(
+    fn property_builder(
         &self,
-        value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> Self::NodeFilterType {
-        Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match).into()
-    }
-}
-
-impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
-
-pub struct NodeNameFilterBuilder;
-
-impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
-    type NodeFilterType = NodeNameFilter;
-
-    fn field_name(&self) -> &'static str {
-        "node_name"
-    }
-}
-
-pub struct NodeTypeFilterBuilder;
-
-impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
-    type NodeFilterType = NodeTypeFilter;
-
-    fn field_name(&self) -> &'static str {
-        "node_type"
-    }
-}
-
-#[derive(Clone)]
-pub struct NodeFilter;
-
-impl NodeFilter {
-    pub fn name() -> NodeNameFilterBuilder {
-        NodeNameFilterBuilder
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
     }
 
-    pub fn node_type() -> NodeTypeFilterBuilder {
-        NodeTypeFilterBuilder
-    }
-}
-
-pub trait InternalEdgeFilterBuilderOps: Send + Sync {
-    fn field_name(&self) -> &'static str;
-}
-
-impl<T: InternalEdgeFilterBuilderOps> InternalEdgeFilterBuilderOps for Arc<T> {
-    fn field_name(&self) -> &'static str {
-        self.deref().field_name()
-    }
-}
-
-pub trait EdgeFilterOps {
-    /// Equals
-    ///
-    /// Arguments:
-    ///     str:
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter;
-
-    /// Not equals
-    ///
-    /// Arguments:
-    ///     str:
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter;
-
-    /// Is in
-    ///
-    /// Arguments:
-    ///     list[str]:
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn is_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
-
-    /// Is not in
-    ///
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
-
-    /// Contains
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
-
-    /// Not contains
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn not_contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
-
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///  
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn fuzzy_search(
+    fn metadata_builder(
         &self,
-        value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> EdgeFieldFilter;
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
+    }
 }
 
-impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::eq(self.field_name(), value))
+impl InternalPropertyFilterFactory for EdgeFilter {
+    type Entity = EdgeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<EdgeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<EdgeFilter>;
+
+    fn entity(&self) -> Self::Entity {
+        EdgeFilter
     }
 
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::ne(self.field_name(), value))
-    }
-
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn is_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::is_in(self.field_name(), values))
-    }
-
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::is_not_in(self.field_name(), values))
-    }
-
-    /// Arguments:
-    ///     str:
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::contains(self.field_name(), value.into()))
-    }
-
-    /// Arguments:
-    ///     str:
-    ///
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn not_contains(&self, value: impl Into<String>) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::not_contains(self.field_name(), value.into()))
-    }
-
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///  
-    /// Returns:
-    ///     EdgeFieldFilter:
-    fn fuzzy_search(
+    fn property_builder(
         &self,
-        value: impl Into<String>,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> EdgeFieldFilter {
-        EdgeFieldFilter(Filter::fuzzy_search(
-            self.field_name(),
-            value,
-            levenshtein_distance,
-            prefix_match,
-        ))
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
     }
 }
 
-pub struct EdgeSourceFilterBuilder;
+impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
+    type Entity = ExplodedEdgeFilter;
+    type PropertyBuilder = PropertyFilterBuilder<ExplodedEdgeFilter>;
+    type MetadataBuilder = MetadataFilterBuilder<ExplodedEdgeFilter>;
 
-impl InternalEdgeFilterBuilderOps for EdgeSourceFilterBuilder {
-    fn field_name(&self) -> &'static str {
-        "src"
+    fn entity(&self) -> Self::Entity {
+        ExplodedEdgeFilter
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        builder
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        builder
     }
 }
 
-pub struct EdgeDestinationFilterBuilder;
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Windowed<T> {
+    type Entity = T::Entity;
+    type PropertyBuilder = Windowed<T::PropertyBuilder>;
+    type MetadataBuilder = Windowed<T::MetadataBuilder>;
 
-impl InternalEdgeFilterBuilderOps for EdgeDestinationFilterBuilder {
-    fn field_name(&self) -> &'static str {
-        "dst"
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
     }
 }
 
-#[derive(Clone)]
-pub struct EdgeFilter;
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Windowed<T> {}
 
-#[derive(Clone)]
-pub enum EdgeEndpointFilter {
-    Src,
-    Dst,
-}
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EndpointWrapper<T> {
+    type Entity = T::Entity;
+    type PropertyBuilder = EndpointWrapper<T::PropertyBuilder>;
+    type MetadataBuilder = EndpointWrapper<T::MetadataBuilder>;
 
-impl EdgeEndpointFilter {
-    pub fn name(&self) -> Arc<dyn InternalEdgeFilterBuilderOps> {
-        match self {
-            EdgeEndpointFilter::Src => Arc::new(EdgeSourceFilterBuilder),
-            EdgeEndpointFilter::Dst => Arc::new(EdgeDestinationFilterBuilder),
-        }
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
+    }
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
+    }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
     }
 }
 
-impl EdgeFilter {
-    pub fn src() -> EdgeEndpointFilter {
-        EdgeEndpointFilter::Src
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EndpointWrapper<T> {}
+
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory
+    for ExplodedEndpointWrapper<T>
+{
+    type Entity = T::Entity;
+    type PropertyBuilder = ExplodedEndpointWrapper<T::PropertyBuilder>;
+    type MetadataBuilder = ExplodedEndpointWrapper<T::MetadataBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
     }
-    pub fn dst() -> EdgeEndpointFilter {
-        EdgeEndpointFilter::Dst
+
+    fn property_builder(
+        &self,
+        builder: PropertyFilterBuilder<Self::Entity>,
+    ) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(builder))
     }
+
+    fn metadata_builder(
+        &self,
+        builder: MetadataFilterBuilder<Self::Entity>,
+    ) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(builder))
+    }
+}
+
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
+    for ExplodedEndpointWrapper<T>
+{
+}
+
+impl<T> TemporalPropertyFilterFactory for PropertyFilterBuilder<T>
+where
+    T: Send + Sync + Clone + 'static,
+    PropertyFilter<T>: CombinedFilter,
+{
 }

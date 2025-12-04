@@ -6,7 +6,7 @@ use crate::{
     db::api::{
         properties::internal::InternalPropertiesOps,
         state::{ops, NodeOp},
-        view::{internal::OneHopFilter, node_edges, reset_filter::ResetFilter, TimeOps},
+        view::{node_edges, TimeOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
@@ -16,21 +16,19 @@ use raphtory_api::core::Direction;
 use raphtory_storage::graph::graph::GraphStorage;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
-    type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<Op>: 'graph
     where
         Op: NodeOp + 'graph,
         Op::Output: 'graph;
-
     type PropType: InternalPropertiesOps + Clone + 'graph;
-    type PathType: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
-        + 'graph;
-    type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
+    type PathType: NodeViewOps<'graph, Graph = Self::Graph> + 'graph;
+    type Edges: EdgeViewOps<'graph, Graph = Self::Graph> + 'graph;
 
     fn graph(&self) -> &Self::Graph;
 
     fn map<F: NodeOp + Clone + 'graph>(&self, op: F) -> Self::ValueType<F>;
+
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
@@ -50,15 +48,13 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
 /// Operations defined for a node
 pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
-    type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<T: NodeOp>: 'graph
     where
         T: 'graph,
         T::Output: 'graph;
-    type PathType: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
-        + 'graph;
-    type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
+    type PathType: NodeViewOps<'graph, Graph = Self::Graph> + 'graph;
+    type Edges: EdgeViewOps<'graph, Graph = Self::Graph> + 'graph;
 
     /// Get the numeric id of the node
     fn id(&self) -> Self::ValueType<ops::Id>;
@@ -72,7 +68,9 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     /// Returns the type of node
     fn node_type(&self) -> Self::ValueType<ops::Type>;
+
     fn node_type_id(&self) -> Self::ValueType<ops::TypeId>;
+
     /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>>;
 
@@ -175,7 +173,6 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 }
 
 impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
-    type BaseGraph = V::BaseGraph;
     type Graph = V::Graph;
     type ValueType<T: NodeOp + 'graph>
         = V::ValueType<T>
@@ -193,27 +190,31 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     fn name(&self) -> Self::ValueType<ops::Name> {
         self.map(ops::Name)
     }
+
     #[inline]
     fn node_type(&self) -> Self::ValueType<ops::Type> {
         self.map(ops::Type)
     }
+
     #[inline]
     fn node_type_id(&self) -> Self::ValueType<ops::TypeId> {
         self.map(ops::TypeId)
     }
+
     #[inline]
     fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>> {
         let op = ops::EarliestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         };
         self.map(op)
     }
+
     #[inline]
     fn earliest_date_time(
         &self,
     ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>> {
         let op = ops::EarliestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .map(|t| t.and_then(|t| t.dt()));
         self.map(op)
@@ -222,7 +223,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>> {
         let op = ops::LatestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         };
         self.map(op)
     }
@@ -232,7 +233,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         &self,
     ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>> {
         let op = ops::LatestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .map(|t| t.and_then(|t| t.dt()));
         self.map(op)
@@ -241,7 +242,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn history(&self) -> Self::ValueType<ops::History<Self::Graph>> {
         let op = ops::History {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         };
         self.map(op)
     }
@@ -249,16 +250,17 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>> {
         let op = ops::EdgeHistoryCount {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         };
         self.map(op)
     }
+
     #[inline]
     fn history_date_time(
         &self,
     ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>> {
         let op = ops::History {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .map(|h| h.into_iter().map(|t| t.dt()).collect());
         self.map(op)
@@ -267,7 +269,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     /// Returns true if the node has any updates within the current window, otherwise false.
     fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>> {
         let op = ops::History {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .map(|h| !h.is_empty());
         self.map(op)
@@ -288,27 +290,30 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
             dir: Direction::BOTH,
         };
         self.map(op)
     }
+
     #[inline]
     fn in_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
-            graph: self.graph().clone(),
             dir: Direction::IN,
+            view: self.graph().clone(),
         };
         self.map(op)
     }
+
     #[inline]
     fn out_degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
             dir: Direction::OUT,
         };
         self.map(op)
     }
+
     #[inline]
     fn edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
@@ -317,6 +322,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
             node_edges(cg, g, v, Direction::BOTH)
         })
     }
+
     #[inline]
     fn in_edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
@@ -325,6 +331,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
             node_edges(cg, g, v, Direction::IN)
         })
     }
+
     #[inline]
     fn out_edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
@@ -333,6 +340,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
             node_edges(cg, g, v, Direction::OUT)
         })
     }
+
     #[inline]
     fn neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
@@ -343,6 +351,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
                 .dedup()
         })
     }
+
     #[inline]
     fn in_neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
@@ -353,6 +362,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
                 .dedup()
         })
     }
+
     #[inline]
     fn out_neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
@@ -364,5 +374,3 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         })
     }
 }
-
-impl<'graph, V: BaseNodeViewOps<'graph> + OneHopFilter<'graph>> ResetFilter<'graph> for V {}

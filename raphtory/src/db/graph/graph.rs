@@ -19,6 +19,7 @@ use super::views::deletion_graph::PersistentGraph;
 use crate::{
     db::{
         api::{
+            state::ops::NodeFilterOp,
             storage::storage::Storage,
             view::{
                 internal::{
@@ -89,28 +90,16 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     }
 }
 
-pub fn assert_node_equal<
-    'graph,
-    G1: GraphViewOps<'graph>,
-    GH1: GraphViewOps<'graph>,
-    G2: GraphViewOps<'graph>,
-    GH2: GraphViewOps<'graph>,
->(
-    n1: NodeView<'graph, G1, GH1>,
-    n2: NodeView<'graph, G2, GH2>,
+pub fn assert_node_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    n1: NodeView<'graph, G1>,
+    n2: NodeView<'graph, G2>,
 ) {
     assert_node_equal_layer(n1, n2, "", false)
 }
 
-pub fn assert_node_equal_layer<
-    'graph,
-    G1: GraphViewOps<'graph>,
-    GH1: GraphViewOps<'graph>,
-    G2: GraphViewOps<'graph>,
-    GH2: GraphViewOps<'graph>,
->(
-    n1: NodeView<'graph, G1, GH1>,
-    n2: NodeView<'graph, G2, GH2>,
+pub fn assert_node_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    n1: NodeView<'graph, G1>,
+    n2: NodeView<'graph, G2>,
     layer_tag: &str,
     persistent: bool,
 ) {
@@ -252,11 +241,13 @@ pub fn assert_nodes_equal<
     'graph,
     G1: GraphViewOps<'graph>,
     GH1: GraphViewOps<'graph>,
+    F1: NodeFilterOp + 'graph,
     G2: GraphViewOps<'graph>,
     GH2: GraphViewOps<'graph>,
+    F2: NodeFilterOp + 'graph,
 >(
-    nodes1: &Nodes<'graph, G1, GH1>,
-    nodes2: &Nodes<'graph, G2, GH2>,
+    nodes1: &Nodes<'graph, G1, GH1, F1>,
+    nodes2: &Nodes<'graph, G2, GH2, F2>,
 ) {
     assert_nodes_equal_layer(nodes1, nodes2, "", false);
 }
@@ -265,11 +256,13 @@ pub fn assert_nodes_equal_layer<
     'graph,
     G1: GraphViewOps<'graph>,
     GH1: GraphViewOps<'graph>,
+    F1: NodeFilterOp + 'graph,
     G2: GraphViewOps<'graph>,
     GH2: GraphViewOps<'graph>,
+    F2: NodeFilterOp + 'graph,
 >(
-    nodes1: &Nodes<'graph, G1, GH1>,
-    nodes2: &Nodes<'graph, G2, GH2>,
+    nodes1: &Nodes<'graph, G1, GH1, F1>,
+    nodes2: &Nodes<'graph, G2, GH2, F2>,
     layer_tag: &str,
     persistent: bool,
 ) {
@@ -291,12 +284,10 @@ pub fn assert_edges_equal<
     'graph1,
     'graph2,
     G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
     G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
 >(
-    edges1: &Edges<'graph1, G1, GH1>,
-    edges2: &Edges<'graph2, G2, GH2>,
+    edges1: &Edges<'graph1, G1>,
+    edges2: &Edges<'graph2, G2>,
 ) {
     assert_edges_equal_layer(edges1, edges2, "", false);
 }
@@ -305,12 +296,10 @@ pub fn assert_edges_equal_layer<
     'graph1,
     'graph2,
     G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
     G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
 >(
-    edges1: &Edges<'graph1, G1, GH1>,
-    edges2: &Edges<'graph2, G2, GH2>,
+    edges1: &Edges<'graph1, G1>,
+    edges2: &Edges<'graph2, G2>,
     layer_tag: &str,
     persistent: bool,
 ) {

@@ -6224,6 +6224,24 @@ Value.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metadatafilterexpr.listagg">listAgg</strong></td>
+<td valign="top"><a href="#listagg">ListAgg</a></td>
+<td>
+
+List aggregate
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metadatafilterexpr.elemqualifier">elemQualifier</strong></td>
+<td valign="top"><a href="#listelemqualifier">ListElemQualifier</a></td>
+<td>
+
+List qualifier
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -6980,6 +6998,24 @@ Value.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyfilterexpr.listagg">listAgg</strong></td>
+<td valign="top"><a href="#listagg">ListAgg</a></td>
+<td>
+
+List aggregate
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyfilterexpr.elemqualifier">elemQualifier</strong></td>
+<td valign="top"><a href="#listelemqualifier">ListElemQualifier</a></td>
+<td>
+
+List qualifier
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -7128,6 +7164,24 @@ Value.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.listagg">listAgg</strong></td>
+<td valign="top"><a href="#listagg">ListAgg</a></td>
+<td>
+
+List aggregate
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.elemqualifier">elemQualifier</strong></td>
+<td valign="top"><a href="#listelemqualifier">ListElemQualifier</a></td>
+<td>
+
+List qualifier
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -7175,6 +7229,33 @@ Properties.
 </thead>
 <tbody>
 <tr>
+<td colspan="2" valign="top"><strong id="value.u8">u8</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+8 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.u16">u16</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+16 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.u32">u32</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+32 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="value.u64">u64</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
@@ -7184,11 +7265,29 @@ Properties.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="value.i32">i32</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+32 bit signed integer.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="value.i64">i64</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
 64 bit signed integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.f32">f32</strong></td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+32 bit float.
 
 </td>
 </tr>
@@ -7425,6 +7524,60 @@ Event.
 </tbody>
 </table>
 
+### ListAgg
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>LEN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>SUM</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>AVG</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>MIN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>MAX</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### ListElemQualifier
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>ANY</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>ALL</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### NodeField
 
 <table>
@@ -7435,6 +7588,14 @@ Event.
 </tr>
 </thead>
 <tbody>
+<tr>
+<td valign="top"><strong>NODE_ID</strong></td>
+<td>
+
+Node id.
+
+</td>
+</tr>
 <tr>
 <td valign="top"><strong>NODE_NAME</strong></td>
 <td>
@@ -7545,6 +7706,14 @@ Is Not In operator.
 </td>
 </tr>
 <tr>
+<td valign="top"><strong>STARTS_WITH</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>ENDS_WITH</strong></td>
+<td></td>
+</tr>
+<tr>
 <td valign="top"><strong>CONTAINS</strong></td>
 <td>
 
@@ -7617,6 +7786,14 @@ Any.
 Latest.
 
 </td>
+</tr>
+<tr>
+<td valign="top"><strong>FIRST</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>ALL</strong></td>
+<td></td>
 </tr>
 </tbody>
 </table>

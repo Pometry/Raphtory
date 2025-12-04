@@ -25,15 +25,14 @@ from raphtory.iterables import *
 
 __all__ = [
     "FilterExpr",
+    "FilterOps",
     "PropertyFilterOps",
-    "NodeFilterBuilder",
     "Node",
-    "EdgeFilterOp",
-    "EdgeEndpoint",
     "Edge",
-    "Property",
-    "Metadata",
-    "TemporalPropertyFilterBuilder",
+    "EdgeEndpoint",
+    "EdgeFilterOp",
+    "EdgeIdFilterOp",
+    "ExplodedEdge",
 ]
 
 class FilterExpr(object):
@@ -52,7 +51,7 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class PropertyFilterOps(object):
+class FilterOps(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -71,6 +70,9 @@ class PropertyFilterOps(object):
     def __ne__(self, value):
         """Return self!=value."""
 
+    def all(self): ...
+    def any(self): ...
+    def avg(self): ...
     def contains(self, value) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if this object contains a specified property.
@@ -82,6 +84,8 @@ class PropertyFilterOps(object):
             filter.FilterExpr:
         """
 
+    def ends_with(self, value): ...
+    def first(self): ...
     def fuzzy_search(
         self, prop_value: str, levenshtein_distance: int, prefix_match: bool
     ) -> filter.FilterExpr:
@@ -137,6 +141,10 @@ class PropertyFilterOps(object):
             filter.FilterExpr:
         """
 
+    def last(self): ...
+    def len(self): ...
+    def max(self): ...
+    def min(self): ...
     def not_contains(self, value) -> filter.FilterExpr:
         """
         Returns a filter expression that checks if this object does not contain a specified property.
@@ -148,111 +156,44 @@ class PropertyFilterOps(object):
             filter.FilterExpr:
         """
 
-class NodeFilterBuilder(object):
-    """
-    A builder for constructing node filters
+    def starts_with(self, value): ...
+    def sum(self): ...
 
-    To create a filter builder see [Node][raphtory.filter.Node].
-    """
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def contains(self, value: str) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if the specified iterable of strings contains a given value.
-
-        Arguments:
-            value (str):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def fuzzy_search(
-        self, value, levenshtein_distance: int, prefix_match: bool
-    ) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if the specified properties approximately match the specified string.
-
-        Uses a specified Levenshtein distance and optional prefix matching.
-
-        Arguments:
-            prop_value (str): Property to match against.
-            levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-            prefix_match (bool): Enable prefix matching.
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def is_in(self, values: list[str]) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
-
-        Arguments:
-            values (list[str]):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
-
-        Arguments:
-            values (list[str]):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def not_contains(self, value: str) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
-
-
-        Arguments:
-            value (str):
-
-        Returns:
-            filter.FilterExpr:
-        """
+class PropertyFilterOps(FilterOps):
+    def temporal(self): ...
 
 class Node(object):
     @staticmethod
-    def name():
-        """
-        Filter node by name
-
-        Returns:
-            NodeFilterBuilder: A filter builder for filtering by node name
-        """
-
+    def id(): ...
     @staticmethod
-    def node_type():
-        """
-        Filter node by type
+    def metadata(name): ...
+    @staticmethod
+    def name(): ...
+    @staticmethod
+    def node_type(): ...
+    @staticmethod
+    def property(name): ...
+    @staticmethod
+    def window(start, end): ...
 
-        Returns:
-            NodeFilterBuilder: A filter builder for filtering by node type
-        """
+class Edge(object):
+    @staticmethod
+    def dst(): ...
+    @staticmethod
+    def metadata(name): ...
+    @staticmethod
+    def property(name): ...
+    @staticmethod
+    def src(): ...
+    @staticmethod
+    def window(start, end): ...
+
+class EdgeEndpoint(object):
+    def id(self): ...
+    def metadata(self, name): ...
+    def name(self): ...
+    def node_type(self): ...
+    def property(self, name): ...
 
 class EdgeFilterOp(object):
     def __eq__(self, value):
@@ -284,6 +225,7 @@ class EdgeFilterOp(object):
             filter.FilterExpr:
         """
 
+    def ends_with(self, value): ...
     def fuzzy_search(
         self, value, levenshtein_distance: int, prefix_match: bool
     ) -> filter.FilterExpr:
@@ -334,39 +276,39 @@ class EdgeFilterOp(object):
             filter.FilterExpr:
         """
 
-class EdgeEndpoint(object):
-    def name(self): ...
+    def starts_with(self, value): ...
 
-class Edge(object):
+class EdgeIdFilterOp(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value): ...
+    def ends_with(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
+    def starts_with(self, value): ...
+
+class ExplodedEdge(object):
     @staticmethod
-    def dst(): ...
+    def metadata(name): ...
     @staticmethod
-    def src(): ...
-
-class Property(PropertyFilterOps):
-    """
-    Construct a property filter
-
-    Arguments:
-        name (str): the name of the property to filter
-    """
-
-    def __new__(cls, name: str) -> Property:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-    def temporal(self): ...
-
-class Metadata(PropertyFilterOps):
-    """
-    Construct a metadata filter
-
-    Arguments:
-        name (str): the name of the property to filter
-    """
-
-    def __new__(cls, name: str) -> Metadata:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-class TemporalPropertyFilterBuilder(object):
-    def any(self): ...
-    def latest(self): ...
+    def property(name): ...
+    @staticmethod
+    def window(start, end): ...
