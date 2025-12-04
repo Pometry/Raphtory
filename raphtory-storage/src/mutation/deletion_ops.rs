@@ -2,7 +2,7 @@ use crate::{graph::graph::GraphStorage, mutation::MutationError};
 use raphtory_api::{
     core::{
         entities::{EID, VID},
-        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+        storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
     inherit::Base,
 };
@@ -12,14 +12,14 @@ pub trait InternalDeletionOps {
     type Error: From<MutationError>;
     fn internal_delete_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         layer: usize,
     ) -> Result<MaybeNew<EID>, Self::Error>;
     fn internal_delete_existing_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         eid: EID,
         layer: usize,
     ) -> Result<(), Self::Error>;
@@ -30,7 +30,7 @@ impl InternalDeletionOps for TemporalGraph {
 
     fn internal_delete_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         layer: usize,
@@ -45,7 +45,7 @@ impl InternalDeletionOps for TemporalGraph {
 
     fn internal_delete_existing_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         eid: EID,
         layer: usize,
     ) -> Result<(), Self::Error> {
@@ -61,7 +61,7 @@ impl InternalDeletionOps for GraphStorage {
 
     fn internal_delete_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         layer: usize,
@@ -71,7 +71,7 @@ impl InternalDeletionOps for GraphStorage {
 
     fn internal_delete_existing_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         eid: EID,
         layer: usize,
     ) -> Result<(), Self::Error> {
@@ -90,7 +90,7 @@ where
     #[inline]
     fn internal_delete_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         layer: usize,
@@ -101,7 +101,7 @@ where
     #[inline]
     fn internal_delete_existing_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         eid: EID,
         layer: usize,
     ) -> Result<(), Self::Error> {

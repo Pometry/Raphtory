@@ -7,11 +7,11 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        utils::{iter::GenLockedIter, time::IntoTime},
+        utils::iter::GenLockedIter,
     },
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input, CollectProperties},
             properties::{
                 internal::{
                     InternalMetadataOps, InternalTemporalPropertiesOps,
@@ -33,7 +33,8 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
+    utils::time::TryIntoInputTime,
 };
 use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
@@ -128,7 +129,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> 
         }
     }
 
-    pub fn deletions_hist(&self) -> BoxedLIter<'_, (TimeIndexEntry, usize)> {
+    pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, usize)> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -178,7 +179,7 @@ impl<
             + InternalDeletionOps<Error = GraphError>,
     > EdgeView<G, G>
 {
-    pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
+    pub fn delete<T: TryIntoInputTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
@@ -517,7 +518,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -556,7 +557,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -600,24 +601,21 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
 
             match self.edge.time() {
                 None => match self.edge.layer() {
-                    None => time_semantics.temporal_edge_prop_last_at(
-                        edge.as_ref(),
-                        &self.graph,
-                        id,
-                        TimeIndexEntry::start(t),
-                    ),
+                    None => {
+                        time_semantics.temporal_edge_prop_last_at(edge.as_ref(), &self.graph, id, t)
+                    }
                     Some(layer) => time_semantics.temporal_edge_prop_last_at(
                         edge.as_ref(),
                         LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                         id,
-                        TimeIndexEntry::start(t),
+                        t,
                     ),
                 },
                 Some(ti) => {
@@ -628,7 +626,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
                         ti,
                         layer,
                         id,
-                        TimeIndexEntry::start(t),
+                        t,
                     )
                 }
             }

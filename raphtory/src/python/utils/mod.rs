@@ -9,25 +9,17 @@ use crate::{
             GidRef,
         },
         storage::timeindex::AsTime,
-        utils::time::{IntoTime, TryIntoTime},
     },
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use numpy::{IntoPyArray, PyArray};
-use pyo3::{
-    exceptions::{PyRuntimeError, PyTypeError},
-    prelude::*,
-    pybacked::PyBackedStr,
-    types::PyDateTime,
-    BoundObject,
-};
+use pyo3::{exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, BoundObject};
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropUnwrap},
     VID,
 };
-use serde::Serialize;
 use std::{future::Future, thread};
 
 pub mod errors;
@@ -91,78 +83,6 @@ impl AsNodeRef for PyNodeRef {
 //     }
 // }
 
-fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
-    Python::with_gil(|py| {
-        let email_utils = PyModule::import(py, "email.utils")?;
-        let datetime = email_utils.call_method1("parsedate_to_datetime", (timestamp,))?;
-        let py_seconds = datetime.call_method1("timestamp", ())?;
-        let seconds = py_seconds.extract::<f64>()?;
-        Ok(seconds as i64 * 1000)
-    })
-}
-
-#[derive(Clone, Serialize)]
-pub struct PyTime {
-    parsing_result: i64,
-}
-
-impl<'source> FromPyObject<'source> for PyTime {
-    fn extract_bound(time: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(string) = time.extract::<String>() {
-            let timestamp = string.as_str();
-            let parsing_result = timestamp
-                .try_into_time()
-                .or_else(|e| parse_email_timestamp(timestamp).map_err(|_| e))?;
-            return Ok(PyTime::new(parsing_result));
-        }
-        if let Ok(number) = time.extract::<i64>() {
-            return Ok(PyTime::new(number.into_time()));
-        }
-        if let Ok(float_time) = time.extract::<f64>() {
-            // seconds since Unix epoch as returned by python `timestamp`
-            let float_ms = float_time * 1000.0;
-            let float_ms_trunc = float_ms.round();
-            let rel_err = (float_ms - float_ms_trunc).abs() / (float_ms.abs() + f64::EPSILON);
-            if rel_err > 4.0 * f64::EPSILON {
-                return Err(PyRuntimeError::new_err(
-                    "Float timestamps with more than millisecond precision are not supported.",
-                ));
-            }
-            return Ok(PyTime::new(float_ms_trunc as i64));
-        }
-        if let Ok(parsed_datetime) = time.extract::<DateTime<FixedOffset>>() {
-            return Ok(PyTime::new(parsed_datetime.into_time()));
-        }
-        if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
-            // Important, this is needed to ensure that naive DateTime objects are treated as UTC and not local time
-            return Ok(PyTime::new(parsed_datetime.into_time()));
-        }
-        if let Ok(py_datetime) = time.downcast::<PyDateTime>() {
-            let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
-            return Ok(PyTime::new(time));
-        }
-        let message = format!("time '{time}' must be a str, datetime, float, or an integer");
-        Err(PyTypeError::new_err(message))
-    }
-}
-impl PyTime {
-    fn new(parsing_result: i64) -> Self {
-        Self { parsing_result }
-    }
-    pub const MIN: PyTime = PyTime {
-        parsing_result: i64::MIN,
-    };
-    pub const MAX: PyTime = PyTime {
-        parsing_result: i64::MAX,
-    };
-}
-
-impl IntoTime for PyTime {
-    fn into_time(self) -> i64 {
-        self.parsing_result
-    }
-}
-
 pub trait WindowSetOps {
     fn build_iter(&self) -> PyGenericIterator;
     fn time_index(&self, center: bool) -> PyGenericIterable;
@@ -186,7 +106,7 @@ where
                     window_set
                         .clone()
                         .time_index(center)
-                        .flat_map(|epoch| epoch.dt()),
+                        .flat_map(|timestamp| timestamp.dt()),
                 );
                 iter
             };
@@ -297,8 +217,26 @@ pub struct PyGenericIterator {
 }
 
 impl PyGenericIterator {
-    fn new(iter: Box<dyn Iterator<Item = PyResult<PyObject>>>) -> Self {
+    pub fn new(iter: Box<dyn Iterator<Item = PyResult<PyObject>>>) -> Self {
         Self { iter }
+    }
+    pub fn from_result_iter<I, T, E>(iter: I) -> Self
+    where
+        I: Iterator<Item = Result<T, E>> + 'static,
+        T: for<'py> IntoPyObject<'py> + 'static,
+        PyErr: From<E>,
+    {
+        let py_iter = Box::new(iter.map(|result| {
+            Python::with_gil(|py| match result {
+                Ok(item) => Ok(item
+                    .into_pyobject(py)
+                    .map_err(|e| e.into())?
+                    .into_any()
+                    .unbind()),
+                Err(time_error) => Err(PyErr::from(time_error)),
+            })
+        }));
+        Self { iter: py_iter }
     }
 }
 
@@ -344,6 +282,19 @@ impl PyGenericIterator {
 #[pyclass(name = "NestedIterator")]
 pub struct PyNestedGenericIterator {
     iter: BoxedIter<PyGenericIterator>,
+}
+
+impl PyNestedGenericIterator {
+    pub fn from_nested_result_iter<I, J, T, E>(iter: I) -> Self
+    where
+        I: Iterator<Item = J> + Send + Sync + 'static,
+        J: Iterator<Item = Result<T, E>> + Send + Sync + 'static,
+        T: for<'py> IntoPyObject<'py> + 'static,
+        PyErr: From<E>,
+    {
+        let py_iter = Box::new(iter.map(|item| PyGenericIterator::from_result_iter(item)));
+        Self { iter: py_iter }
+    }
 }
 
 impl<I, J, T> From<I> for PyNestedGenericIterator

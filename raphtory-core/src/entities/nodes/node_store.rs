@@ -9,7 +9,7 @@ use crate::{
         LayerIds, EID, GID, VID,
     },
     storage::{
-        timeindex::{TimeIndexEntry, TimeIndexWindow},
+        timeindex::{EventTime, TimeIndexWindow},
         NodeEntry,
     },
     utils::iter::GenLockedIter,
@@ -58,8 +58,8 @@ impl NodeTimestamps {
 }
 
 impl<'a> TimeIndexOps<'a> for &'a NodeTimestamps {
-    type IndexType = TimeIndexEntry;
-    type RangeType = TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>;
+    type IndexType = EventTime;
+    type RangeType = TimeIndexWindow<'a, EventTime, NodeTimestamps>;
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -211,7 +211,7 @@ impl NodeStore {
     }
 
     #[inline]
-    pub fn update_time(&mut self, t: TimeIndexEntry, eid: ELID) {
+    pub fn update_time(&mut self, t: EventTime, eid: ELID) {
         self.timestamps.edge_ts.set(t, eid);
     }
 
@@ -230,7 +230,7 @@ impl NodeStore {
         props.update_metadata(prop_id, prop)
     }
 
-    pub fn update_t_prop_time(&mut self, t: TimeIndexEntry, prop_i: Option<usize>) {
+    pub fn update_t_prop_time(&mut self, t: EventTime, prop_i: Option<usize>) {
         self.timestamps.props_ts.set(t, prop_i);
     }
 

@@ -47,6 +47,7 @@ mod neo_loader_test {
         prelude::*,
     };
     use neo4rs::*;
+    use raphtory_api::core::storage::timeindex::AsTime;
 
     fn load_movies(row: Row, graph: &rap::Graph) {
         let film: Node = row.get("film").unwrap();
@@ -105,8 +106,8 @@ mod neo_loader_test {
         )
         .await
         .unwrap();
-        assert_eq!(2012, doc_graph.latest_time().unwrap());
-        assert_eq!(1929, doc_graph.earliest_time().unwrap());
+        assert_eq!(2012, doc_graph.latest_time().unwrap().t());
+        assert_eq!(1929, doc_graph.earliest_time().unwrap().t());
     }
 
     #[tokio::test]

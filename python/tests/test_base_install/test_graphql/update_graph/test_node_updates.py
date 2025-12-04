@@ -62,7 +62,7 @@ def test_add_updates():
         rg.node("ben").add_updates(4)
         g = client.receive_graph("path/to/event_graph")
         assert_has_properties(g.node("ben"), props)
-        check_arr(g.node("ben").history(), [1, 2, 3, 4])
+        check_arr(g.node("ben").history.t.collect(), [1, 2, 3, 4])
 
 
 def test_add_metadata():

@@ -749,12 +749,12 @@ For persistent graphs, any edge which exists at any point during the window will
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -768,7 +768,7 @@ Creates a view of the Edge including all events at a specified time.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -793,7 +793,7 @@ This is equivalent to before(time + 1) for Graph and at(time) for PersistentGrap
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -818,7 +818,7 @@ Creates a view of the Edge including all events before a specified end (exclusiv
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -832,7 +832,7 @@ Creates a view of the Edge including all events after a specified start (exclusi
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -846,12 +846,12 @@ Shrinks both the start and end of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -865,7 +865,7 @@ Set the start of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -879,7 +879,7 @@ Set the end of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -898,7 +898,7 @@ Takes a specified selection of views and applies them in given order.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.earliesttime">earliestTime</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the earliest time of an edge.
@@ -907,12 +907,12 @@ Returns the earliest time of an edge.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.firstupdate">firstUpdate</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.latesttime">latestTime</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the latest time of an edge.
@@ -921,12 +921,12 @@ Returns the latest time of an edge.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.lastupdate">lastUpdate</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.time">time</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the time of an exploded edge. Errors on an unexploded edge.
@@ -935,7 +935,7 @@ Returns the time of an exploded edge. Errors on an unexploded edge.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.start">start</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
@@ -944,7 +944,7 @@ Returns the start time for rolling and expanding windows for this edge. Returns 
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.end">end</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the end time of the window. Returns none if no window is applied.
@@ -1057,25 +1057,25 @@ Each new edge object contains only updates from the respective layers.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.history">history</strong></td>
-<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td valign="top"><a href="#history">History</a>!</td>
 <td>
 
-Returns a list of timestamps of when an edge is added or change to an edge is made.
+Returns a History object with time entries for when an edge is added or change to an edge is made.
 
 Returns:
-List[int]:
+History:
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.deletions">deletions</strong></td>
-<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td valign="top"><a href="#history">History</a>!</td>
 <td>
 
-Returns a list of timestamps of when an edge is deleted.
+Returns a history object with time entries for an edge's deletion times.
 
 Returns:
-List[int]:
+History:
 
 </td>
 </tr>
@@ -1375,12 +1375,12 @@ Creates a view of the Edge including all events between the specified start (inc
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1394,7 +1394,7 @@ Creates a view of the Edge including all events at a specified time.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1413,7 +1413,7 @@ Creates a view of the Edge including all events that are valid at time. This is 
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1436,7 +1436,7 @@ Creates a view of the Edge including all events before a specified end (exclusiv
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1450,7 +1450,7 @@ Creates a view of the Edge including all events after a specified start (exclusi
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1464,12 +1464,12 @@ Shrinks both the start and end of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1483,7 +1483,7 @@ Set the start of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1497,7 +1497,7 @@ Set the end of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1550,7 +1550,7 @@ Specify a sort order from: source, destination, property, time. You can also rev
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.start">start</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the start time of the window or none if there is no window.
@@ -1559,7 +1559,7 @@ Returns the start time of the window or none if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.end">end</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the end time of the window or none if there is no window.
@@ -1611,7 +1611,7 @@ will be returned.
 <td valign="top">[<a href="#edge">Edge</a>!]!</td>
 <td>
 
-Returns a list of all objects in the current selection of the collection. You should filter filter the collection first then call list.
+Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
 
 </td>
 </tr>
@@ -1666,6 +1666,64 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edgeswindowset.list">list</strong></td>
 <td valign="top">[<a href="#edges">Edges</a>!]!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### EventTime
+
+Raphtory’s EventTime.
+Represents a unique timepoint in the graph’s history as (timestamp, event_id).
+
+- timestamp: Number of milliseconds since the Unix epoch.
+- event_id: ID used for ordering between equal timestamps.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="eventtime.timestamp">timestamp</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the timestamp in milliseconds since the Unix epoch.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="eventtime.eventid">eventId</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the event id for the EventTime. Used for ordering within the same timestamp.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="eventtime.datetime">datetime</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Access a datetime representation of the EventTime as a String.
+Useful for converting millisecond timestamps into easily readable datetime strings.
+Optionally, a format string can be passed to format the output.
+Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
+Refer to chrono::format::strftime for formatting specifiers and escape sequences.
+Raises an error if a time conversion fails.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">formatString</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -1876,12 +1934,12 @@ Return a graph containing only the activity between start and end, by default ra
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1895,7 +1953,7 @@ Creates a view including all events at a specified time.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1918,7 +1976,7 @@ Create a view including all events that are valid at the specified time.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1941,7 +1999,7 @@ Create a view including all events before a specified end (exclusive).
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1955,7 +2013,7 @@ Create a view including all events after a specified start (exclusive).
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1969,12 +2027,12 @@ Shrink both the start and end of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -1988,7 +2046,7 @@ Set the start of the window to the larger of the specified value or current star
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -2002,7 +2060,7 @@ Set the end of the window to the smaller of the specified value or current end.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -2034,25 +2092,25 @@ Returns the graph's last updated timestamp.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.earliesttime">earliestTime</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
-Returns the timestamp of the earliest activity in the graph.
+Returns the time entry of the earliest activity in the graph.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.latesttime">latestTime</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
-Returns the timestamp of the latest activity in the graph.
+Returns the time entry of the latest activity in the graph.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.start">start</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the start time of the window. Errors if there is no window.
@@ -2061,7 +2119,7 @@ Returns the start time of the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.end">end</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the end time of the window. Errors if there is no window.
@@ -2070,7 +2128,7 @@ Returns the end time of the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.earliestedgetime">earliestEdgeTime</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the earliest time that any edge in this graph is valid.
@@ -2084,10 +2142,10 @@ Returns the earliest time that any edge in this graph is valid.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.latestedgetime">latestEdgeTime</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
-/// Returns the latest time that any edge in this graph is valid.
+Returns the latest time that any edge in this graph is valid.
 
 </td>
 </tr>
@@ -2417,26 +2475,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2454,6 +2492,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2541,6 +2599,481 @@ will be returned.
 </tbody>
 </table>
 
+### History
+
+History of updates for an object in Raphtory.
+Provides access to temporal properties.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="history.earliesttime">earliestTime</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td>
+
+Get the earliest time entry associated with this history or None if the history is empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.latesttime">latestTime</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td>
+
+Get the latest time entry associated with this history or None if the history is empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.list">list</strong></td>
+<td valign="top">[<a href="#eventtime">EventTime</a>!]!</td>
+<td>
+
+List all time entries present in this history.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.listrev">listRev</strong></td>
+<td valign="top">[<a href="#eventtime">EventTime</a>!]!</td>
+<td>
+
+List all time entries present in this history in reverse order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.page">page</strong></td>
+<td valign="top">[<a href="#eventtime">EventTime</a>!]!</td>
+<td>
+
+Fetch one page of EventTime entries with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.pagerev">pageRev</strong></td>
+<td valign="top">[<a href="#eventtime">EventTime</a>!]!</td>
+<td>
+
+Fetch one page of EventTime entries with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.isempty">isEmpty</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Returns True if the history is empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the number of entries contained in the history.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.timestamps">timestamps</strong></td>
+<td valign="top"><a href="#historytimestamp">HistoryTimestamp</a>!</td>
+<td>
+
+Returns a HistoryTimestamp object which accesses timestamps (milliseconds since the Unix epoch)
+instead of EventTime entries.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.datetimes">datetimes</strong></td>
+<td valign="top"><a href="#historydatetime">HistoryDateTime</a>!</td>
+<td>
+
+Returns a HistoryDateTime object which accesses datetimes instead of EventTime entries.
+Useful for converting millisecond timestamps into easily readable datetime strings.
+Optionally, a format string can be passed to format the output. Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
+Refer to chrono::format::strftime for formatting specifiers and escape sequences.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">formatString</td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.eventid">eventId</strong></td>
+<td valign="top"><a href="#historyeventid">HistoryEventId</a>!</td>
+<td>
+
+Returns a HistoryEventId object which accesses event ids of EventTime entries.
+They are used for ordering within the same timestamp.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.intervals">intervals</strong></td>
+<td valign="top"><a href="#intervals">Intervals</a>!</td>
+<td>
+
+Returns an Intervals object which calculates the intervals between consecutive EventTime timestamps.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### HistoryDateTime
+
+History object that provides access to datetimes instead of `EventTime` entries.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="historydatetime.list">list</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+List all datetimes formatted as strings.
+If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
+will be raised on time conversion error. Defaults to False.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filterBroken</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historydatetime.listrev">listRev</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+List all datetimes formatted as strings in reverse chronological order.
+If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
+will be raised on time conversion error. Defaults to False.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filterBroken</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historydatetime.page">page</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Fetch one page of datetimes formatted as string with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
+will be raised on time conversion error. Defaults to False.
+
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filterBroken</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historydatetime.pagerev">pageRev</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Fetch one page of datetimes formatted as string in reverse chronological order with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
+will be raised on time conversion error. Defaults to False.
+
+For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filterBroken</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### HistoryEventId
+
+History object that provides access to event ids instead of `EventTime` entries.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="historyeventid.list">list</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+List event ids.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historyeventid.listrev">listRev</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+List event ids in reverse order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historyeventid.page">page</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Fetch one page of event ids with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historyeventid.pagerev">pageRev</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Fetch one page of event ids in reverse chronological order with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### HistoryTimestamp
+
+History object that provides access to timestamps (milliseconds since the Unix epoch) instead of `EventTime` entries.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="historytimestamp.list">list</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+List all timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historytimestamp.listrev">listRev</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+List all timestamps in reverse order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historytimestamp.page">page</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Fetch one page of timestamps with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historytimestamp.pagerev">pageRev</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Fetch one page of timestamps in reverse order with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### IndexSpec
 
 <table>
@@ -2586,6 +3119,133 @@ Returns edge metadata.
 <td>
 
 Returns edge properties.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### Intervals
+
+Provides access to the intervals between temporal entries of an object.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.list">list</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+List time intervals between consecutive timestamps in milliseconds.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.listrev">listRev</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+List millisecond time intervals between consecutive timestamps in reverse order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.page">page</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Fetch one page of intervals between consecutive timestamps with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.pagerev">pageRev</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Fetch one page of intervals between consecutive timestamps in reverse order with a number of items up to a specified limit,
+optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.mean">mean</strong></td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Compute the mean interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.median">median</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Compute the median interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.max">max</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Compute the maximum interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.min">min</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Compute the minimum interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
 
 </td>
 </tr>
@@ -3020,7 +3680,7 @@ Create a new node or fail if it already exists.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of nodes
+Add a batch of nodes.
 
 </td>
 </tr>
@@ -3087,7 +3747,7 @@ Add a new edge or add updates to an existing edge.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of edges
+Add a batch of edges.
 
 </td>
 </tr>
@@ -3494,12 +4154,12 @@ Create a view of the node including all events between the specified start (incl
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -3513,7 +4173,7 @@ Create a view of the node including all events at a specified time.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -3536,7 +4196,7 @@ Create a view of the node including all events that are valid at the specified t
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -3559,7 +4219,7 @@ Create a view of the node including all events before specified end time (exclus
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -3573,7 +4233,7 @@ Create a view of the node including all events after the specified start time (e
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -3587,12 +4247,12 @@ Shrink a Window to a specified start and end time, if these are earlier and late
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -3606,7 +4266,7 @@ Set the start of the window to the larger of a specified start time and self.sta
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -3620,7 +4280,7 @@ Set the end of the window to the smaller of a specified end and self.end().
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -3635,7 +4295,7 @@ Set the end of the window to the smaller of a specified end and self.end().
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.earliesttime">earliestTime</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the earliest time that the node exists.
@@ -3644,7 +4304,7 @@ Returns the earliest time that the node exists.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.firstupdate">firstUpdate</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the time of the first update made to the node.
@@ -3653,7 +4313,7 @@ Returns the time of the first update made to the node.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.latesttime">latestTime</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the latest time that the node exists.
@@ -3662,7 +4322,7 @@ Returns the latest time that the node exists.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.lastupdate">lastUpdate</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the time of the last update made to the node.
@@ -3671,7 +4331,7 @@ Returns the time of the last update made to the node.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.start">start</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Gets the start time for the window. Errors if there is no window.
@@ -3680,7 +4340,7 @@ Gets the start time for the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.end">end</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Gets the end time for the window. Errors if there is no window.
@@ -3689,10 +4349,10 @@ Gets the end time for the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.history">history</strong></td>
-<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td valign="top"><a href="#history">History</a>!</td>
 <td>
 
-Returns the history of a node, including node additions and changes made to node.
+Returns a history object for the node, with time entries for node additions and changes made to node.
 
 </td>
 </tr>
@@ -4077,12 +4737,12 @@ Create a view of the node including all events between the specified start (incl
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4096,7 +4756,7 @@ Create a view of the nodes including all events at a specified time.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4119,7 +4779,7 @@ Create a view of the nodes including all events that are valid at the specified 
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4142,7 +4802,7 @@ Create a view of the nodes including all events before specified end time (exclu
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4156,7 +4816,7 @@ Create a view of the nodes including all events after the specified start time (
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4170,12 +4830,12 @@ Shrink both the start and end of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4189,7 +4849,7 @@ Set the start of the window to the larger of a specified start time and self.sta
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4203,7 +4863,7 @@ Set the end of the window to the smaller of a specified end and self.end().
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4256,7 +4916,7 @@ Returns a view of the node types.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.start">start</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the start time of the window. Errors if there is no window.
@@ -4265,7 +4925,7 @@ Returns the start time of the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.end">end</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the end time of the window. Errors if there is no window.
@@ -4538,12 +5198,12 @@ Create a view of the PathFromNode including all events between a specified start
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4557,7 +5217,7 @@ Create a view of the PathFromNode including all events at time.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4580,7 +5240,7 @@ Create a view of the PathFromNode including all events that are valid at the spe
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4603,7 +5263,7 @@ Create a view of the PathFromNode including all events before the specified end 
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4617,7 +5277,7 @@ Create a view of the PathFromNode including all events after the specified start
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4631,12 +5291,12 @@ Shrink both the start and end of the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4650,7 +5310,7 @@ Set the start of the window to the larger of the specified start and self.start(
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4664,7 +5324,7 @@ Set the end of the window to the smaller of the specified end and self.end().
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -4683,7 +5343,7 @@ Filter nodes by type.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.start">start</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
@@ -4692,7 +5352,7 @@ Returns the earliest time that this PathFromNode is valid or None if the PathFro
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.end">end</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a></td>
 <td>
 
 Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
@@ -4961,7 +5621,7 @@ Return all property values.
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="propertytuple.time">time</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -5111,7 +5771,7 @@ Key of a property.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.history">history</strong></td>
-<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td valign="top"><a href="#history">History</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -5130,7 +5790,7 @@ Return the values of the properties.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">t</td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -5245,7 +5905,7 @@ Two documents A and B are considered to be 1 hop away of each other if they are 
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5269,7 +5929,7 @@ Adds documents, from the set of one hop neighbours to the current selection, to 
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5293,7 +5953,7 @@ Add the adjacent nodes with higher score for query to the selection up to a spec
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5317,7 +5977,7 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -5365,7 +6025,7 @@ Search the top scoring entities according to a specified query returning no more
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5389,7 +6049,7 @@ Search the top scoring nodes according to a specified query returning no more th
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5413,7 +6073,7 @@ Search the top scoring edges according to a specified query returning no more th
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
-<td valign="top"><a href="#window">Window</a></td>
+<td valign="top"><a href="#vectorisedgraphwindow">VectorisedGraphWindow</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -5661,7 +6321,7 @@ Snapshot at latest time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Snapshot at specified time.
@@ -5715,7 +6375,7 @@ Window between a start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View at a specified time.
@@ -5724,7 +6384,7 @@ View at a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View before a specified time (end exclusive).
@@ -5733,7 +6393,7 @@ View before a specified time (end exclusive).
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View after a specified time (start exclusive).
@@ -5751,7 +6411,7 @@ Shrink a Window to a specified start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window start to a specified time.
@@ -5760,7 +6420,7 @@ Set the window start to a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window end to a specified time.
@@ -5810,7 +6470,7 @@ Snapshot at latest time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Snapshot at specified time.
@@ -5864,7 +6524,7 @@ Window between a start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.at">at</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View at a specified time.
@@ -5873,7 +6533,7 @@ View at a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.before">before</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View before a specified time (end exclusive).
@@ -5882,7 +6542,7 @@ View before a specified time (end exclusive).
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.after">after</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View after a specified time (start exclusive).
@@ -5900,7 +6560,7 @@ Shrink a Window to a specified start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window start to a specified time.
@@ -5909,7 +6569,7 @@ Set the window start to a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window end to a specified time.
@@ -6022,7 +6682,7 @@ Window between a start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.at">at</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View at a specified time.
@@ -6040,7 +6700,7 @@ View at the latest time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Snapshot at specified time.
@@ -6058,7 +6718,7 @@ Snapshot at latest time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.before">before</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View before a specified time (end exclusive).
@@ -6067,7 +6727,7 @@ View before a specified time (end exclusive).
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.after">after</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View after a specified time (start exclusive).
@@ -6085,7 +6745,7 @@ Shrink a Window to a specified start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window start to a specified time.
@@ -6094,7 +6754,7 @@ Set the window start to a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window end to a specified time.
@@ -6485,7 +7145,7 @@ Snapshot at latest time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Snapshot at specified time.
@@ -6539,7 +7199,7 @@ Window between a start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View at a specified time.
@@ -6548,7 +7208,7 @@ View at a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View before a specified time (end exclusive).
@@ -6557,7 +7217,7 @@ View before a specified time (end exclusive).
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View after a specified time (start exclusive).
@@ -6575,7 +7235,7 @@ Shrink a Window to a specified start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window start to a specified time.
@@ -6584,7 +7244,7 @@ Set the window start to a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window end to a specified time.
@@ -6688,7 +7348,7 @@ Window between a start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.at">at</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View at a specified time.
@@ -6697,7 +7357,7 @@ View at a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Snapshot at specified time.
@@ -6706,7 +7366,7 @@ Snapshot at specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.before">before</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View before a specified time (end exclusive).
@@ -6715,7 +7375,7 @@ View before a specified time (end exclusive).
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.after">after</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View after a specified time (start exclusive).
@@ -6733,7 +7393,7 @@ Shrink a Window to a specified start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window start to a specified time.
@@ -6742,7 +7402,7 @@ Set the window start to a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window end to a specified time.
@@ -6833,7 +7493,7 @@ Latest snapshot.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Time.
@@ -6887,7 +7547,7 @@ Window between a start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View at a specified time.
@@ -6896,7 +7556,7 @@ View at a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View before a specified time (end exclusive).
@@ -6905,7 +7565,7 @@ View before a specified time (end exclusive).
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 View after a specified time (start exclusive).
@@ -6923,7 +7583,7 @@ Shrink a Window to a specified start and end time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window start to a specified time.
@@ -6932,7 +7592,7 @@ Set the window start to a specified time.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
 
 Set the window end to a specified time.
@@ -7240,6 +7900,38 @@ Object.
 </tbody>
 </table>
 
+### VectorisedGraphWindow
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorisedgraphwindow.start">start</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Start time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="vectorisedgraphwindow.end">end</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+End time.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### Window
 
 <table>
@@ -7253,19 +7945,19 @@ Object.
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="window.start">start</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td>
 
-Start time.
+Window start time.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="window.end">end</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
 <td>
 
-End time.
+Window end time.
 
 </td>
 </tr>
@@ -7640,6 +8332,13 @@ The `Int` scalar type represents non-fractional signed whole numeric values. Int
 ### String
 
 The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+
+### TimeInput
+
+Input for primary time component. Expects Int, DateTime formatted String, or Object { timestamp, eventId }
+where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
+Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
+%Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
 
 ### Upload
 
