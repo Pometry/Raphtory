@@ -90,6 +90,6 @@ pub trait GraphReplayer {
         eid: EID,
         layer_name: Option<&str>,
         layer_id: usize,
-        props: &[MaybeNew<(PN, usize, Prop)>],
+        props: Vec<MaybeNew<(PN, usize, Prop)>>,
     ) -> Result<(), StorageError>;
 }
