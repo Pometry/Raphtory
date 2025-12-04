@@ -22,6 +22,7 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
+use storage::state::StateIndex;
 
 #[derive(Debug, Default)]
 pub struct Index<K> {
@@ -120,7 +121,7 @@ pub struct NodeState<'graph, V, G, GH = G> {
     base_graph: G,
     graph: GH,
     values: Arc<[V]>,
-    keys: Option<Index<VID>>,
+    keys: Either<Arc<StateIndex<VID>>, Index<VID>>,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -220,6 +221,9 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .map(|vid| values[vid.index()].clone())
                 .collect(),
         };
+        let index = index
+            .map(Either::Right)
+            .unwrap_or_else(|| Either::Left(graph.core_graph().node_state_index().into()));
         Self::new(graph.clone(), graph, values.into(), index)
     }
 
@@ -238,18 +242,27 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .map(|vid| map(values[vid.index()].clone()))
                 .collect(),
         };
+        let index = index
+            .map(Either::Right)
+            .unwrap_or_else(|| Either::Left(graph.core_graph().node_state_index().into()));
         Self::new(graph.clone(), graph, values, index)
     }
 
     /// create a new empty NodeState
     pub fn new_empty(graph: G) -> Self {
-        Self::new(graph.clone(), graph, [].into(), Some(Index::default()))
+        let index = Either::Left(Arc::new(StateIndex::from(
+            graph.core_graph().node_segment_counts(),
+        )));
+        Self::new(graph.clone(), graph, [].into(), index)
     }
 
     /// create a new NodeState from a list of values for the node (takes care of creating an index for
     /// node filtering when needed)
     pub fn new_from_values(graph: G, values: impl Into<Arc<[V]>>) -> Self {
         let index = Index::for_graph(&graph);
+        let index = index
+            .map(Either::Right)
+            .unwrap_or_else(|| Either::Left(graph.core_graph().node_state_index().into()));
         Self::new(graph.clone(), graph, values.into(), index)
     }
 
@@ -272,13 +285,23 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .iter()
                 .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
                 .unzip();
-            Self::new(graph.clone(), graph, values.into(), Some(Index::new(index)))
+            Self::new(
+                graph.clone(),
+                graph,
+                values.into(),
+                Either::Right(Index::new(index)),
+            )
         }
     }
 }
 
 impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {
-    pub fn new(base_graph: G, graph: GH, values: Arc<[V]>, keys: Option<Index<VID>>) -> Self {
+    pub fn new(
+        base_graph: G,
+        graph: GH,
+        values: Arc<[V]>,
+        keys: Either<Arc<StateIndex<VID>>, Index<VID>>,
+    ) -> Self {
         Self {
             base_graph,
             graph,
@@ -286,10 +309,6 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
             keys,
             _marker: PhantomData,
         }
-    }
-
-    pub fn into_inner(self) -> (Arc<[V]>, Option<Index<VID>>) {
-        (self.values, self.keys)
     }
 
     pub fn values(&self) -> &Arc<[V]> {
@@ -375,27 +394,22 @@ impl<
         'graph: 'a,
     {
         match &self.keys {
-            Some(index) => index
-                .iter()
-                .zip(self.values.iter())
-                .map(|(n, v)| {
+            Either::Right(index) => {
+                Either::Right(index.iter().zip(self.values.iter()).map(|(n, v)| {
                     (
                         NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
                         v,
                     )
-                })
-                .into_dyn_boxed(),
-            None => self
-                .values
-                .iter()
-                .enumerate()
-                .map(|(i, v)| {
+                }))
+            }
+            Either::Left(index) => {
+                Either::Left(index.iter().zip(self.values.iter()).map(|(n, v)| {
                     (
-                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, VID(i)),
+                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
                         v,
                     )
-                })
-                .into_dyn_boxed(),
+                }))
+            }
         }
     }
 
@@ -424,7 +438,7 @@ impl<
         'graph: 'a,
     {
         match &self.keys {
-            Some(index) => {
+            Either::Right(index) => {
                 Either::Left(index.par_iter().zip(self.values.par_iter()).map(|(n, v)| {
                     (
                         NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
@@ -432,43 +446,20 @@ impl<
                     )
                 }))
             }
-            None => Either::Right(self.values.par_iter().enumerate().map(|(i, v)| {
+            Either::Left(index) => Either::Right(index.par_iter().map(|(i, v)| {
                 (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, VID(i)),
-                    v,
+                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v),
+                    &self.values[i],
                 )
             })),
-        }
-    }
-
-    fn get_by_index(
-        &self,
-        index: usize,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
-        match &self.keys {
-            Some(node_index) => node_index.key(index).map(|n| {
-                (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
-                    &self.values[index],
-                )
-            }),
-            None => self.values.get(index).map(|v| {
-                (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, VID(index)),
-                    v,
-                )
-            }),
         }
     }
 
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
         let id = self.graph.internalise_node(node.as_node_ref())?;
         match &self.keys {
-            Some(index) => index.index(&id).map(|i| &self.values[i]),
-            None => Some(&self.values[id.0]),
+            Either::Right(index) => index.index(&id).map(|i| &self.values[i]),
+            Either::Left(index) => Some(&self.values[id.0]),
         }
     }
 
@@ -479,6 +470,8 @@ impl<
 
 #[cfg(test)]
 mod test {
+    use raphtory_storage::core_ops::CoreGraphOps;
+
     use crate::{
         db::api::state::{node_state::NodeState, AsOrderedNodeStateOps, OrderedNodeStateOps},
         prelude::*,
@@ -488,21 +481,8 @@ mod test {
     fn float_state() {
         let g = Graph::new();
         g.add_node(0, 0, NO_PROPS, None).unwrap();
-        let float_state = NodeState {
-            base_graph: g.clone(),
-            graph: g.clone(),
-            values: [0.0f64].into(),
-            keys: None,
-            _marker: Default::default(),
-        };
-
-        let int_state = NodeState {
-            base_graph: g.clone(),
-            graph: g.clone(),
-            values: [1i64].into(),
-            keys: None,
-            _marker: Default::default(),
-        };
+        let float_state = NodeState::new_from_values(g.clone(), [0.0f64]);
+        let int_state = NodeState::new_from_values(g.clone(), [1i64]);
         let min_float = float_state.min_item().unwrap().1;
         let min_int = int_state.min_item().unwrap().1;
         assert_eq!(min_float, &0.0);

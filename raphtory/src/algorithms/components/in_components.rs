@@ -15,6 +15,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use either::Either;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
@@ -76,7 +77,7 @@ where
                 Nodes::new_filtered(
                     g.clone(),
                     g.clone(),
-                    Some(Index::from_iter(v.in_components)),
+                    Either::Right(Index::from_iter(v.in_components)),
                     None,
                 )
             })
@@ -127,6 +128,6 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         node.base_graph.clone(),
         node.base_graph.clone(),
         distances.into(),
-        Some(Index::new(nodes)),
+        Either::Right(Index::new(nodes)),
     )
 }

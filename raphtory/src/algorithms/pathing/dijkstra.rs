@@ -9,6 +9,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
+use either::Either;
 use indexmap::IndexSet;
 use raphtory_api::core::{
     entities::{
@@ -189,7 +190,8 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = paths
         .into_iter()
         .map(|(id, (cost, path))| {
-            let nodes = Nodes::new_filtered(g.clone(), g.clone(), Some(Index::new(path)), None);
+            let nodes =
+                Nodes::new_filtered(g.clone(), g.clone(), Either::Right(Index::new(path)), None);
             (id, (cost, nodes))
         })
         .unzip();
@@ -197,6 +199,6 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         g.clone(),
         g.clone(),
         values.into(),
-        Some(Index::new(index)),
+        Either::Right(Index::new(index)),
     ))
 }

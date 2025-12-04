@@ -2,6 +2,8 @@
 //!
 //! This module provides an implementation of the Single Source Shortest Path algorithm.
 //! It finds the shortest paths from a given source node to all other nodes in a graph.
+use either::Either;
+
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
@@ -58,6 +60,11 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
         }
     }
     NodeState::new_from_map(g.clone(), paths, |v| {
-        Nodes::new_filtered(g.clone(), g.clone(), Some(Index::from_iter(v)), None)
+        Nodes::new_filtered(
+            g.clone(),
+            g.clone(),
+            Either::Right(Index::from_iter(v)),
+            None,
+        )
     })
 }
