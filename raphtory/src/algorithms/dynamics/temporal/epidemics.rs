@@ -9,6 +9,7 @@ use crate::{
     },
     prelude::*,
 };
+use either::Either;
 use indexmap::IndexSet;
 use rand::{
     distr::{Bernoulli, Distribution},
@@ -252,7 +253,7 @@ where
         g.clone(),
         g.clone(),
         values.into(),
-        Some(Index::new(index)),
+        Either::Right(Index::new(index)),
     ))
 }
 

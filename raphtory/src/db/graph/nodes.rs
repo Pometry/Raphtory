@@ -13,6 +13,7 @@ use crate::{
     },
     prelude::*,
 };
+use either::Either;
 use raphtory_storage::{
     core_ops::is_view_compatible,
     graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
@@ -25,12 +26,13 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
+use storage::state::StateIndex;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
-    pub(crate) nodes: Option<Index<VID>>,
+    pub(crate) nodes: Either<Arc<StateIndex<VID>>, Index<VID>>,
     pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
 }
@@ -113,10 +115,11 @@ where
 {
     pub fn new(graph: G) -> Self {
         let base_graph = graph.clone();
+        let node_index = StateIndex::from(graph.core_graph().node_segment_counts());
         Self {
             base_graph,
             graph,
-            nodes: None,
+            nodes: Either::Left(Arc::new(node_index)),
             node_types_filter: None,
             _marker: PhantomData,
         }
@@ -148,7 +151,7 @@ where
     pub fn new_filtered(
         base_graph: G,
         graph: GH,
-        nodes: Option<Index<VID>>,
+        nodes: Either<Arc<StateIndex<VID>>, Index<VID>>,
         node_types_filter: Option<Arc<[bool]>>,
     ) -> Self {
         Self {
@@ -162,8 +165,8 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            None => self.graph.node_list(),
-            Some(elems) => NodeList::List { elems },
+            Either::Right(elems) => NodeList::List { elems },
+            _ => self.graph.node_list(),
         }
     }
 
@@ -185,7 +188,7 @@ where
         Nodes::new_filtered(
             self.base_graph.clone(),
             self.graph.clone(),
-            Some(index),
+            Either::Right(index),
             self.node_types_filter.clone(),
         )
     }
@@ -260,14 +263,14 @@ where
     #[inline]
     pub fn len(&self) -> usize {
         match self.nodes.as_ref() {
-            None => {
+            Either::Left(_) => {
                 if self.is_list_filtered() {
                     self.par_iter_refs().count()
                 } else {
                     self.graph.node_list().len()
                 }
             }
-            Some(nodes) => {
+            Either::Right(nodes) => {
                 if self.is_filtered() {
                     self.par_iter_refs().count()
                 } else {
@@ -349,6 +352,7 @@ where
                     && self
                         .nodes
                         .as_ref()
+                        .right()
                         .map(|nodes| nodes.contains(&node.node))
                         .unwrap_or(true)
             })

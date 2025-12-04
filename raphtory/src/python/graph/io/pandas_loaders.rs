@@ -245,18 +245,27 @@ pub(crate) fn process_pandas_py_df<'a>(
     .collect();
 
     let names_len = names.len();
-    let chunks = rb.into_iter().map(move |rb| {
-        let chunk = (0..names_len)
-            .map(|i| {
-                let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
-                let arr = array_to_rust(&array).map_err(GraphError::from)?;
-                Ok::<_, GraphError>(arr)
-            })
-            .collect::<Result<Vec<_>, GraphError>>()?;
 
-        Ok(DFChunk { chunk })
-    });
+    // Convert all Python batches to Rust Arrow arrays while we have the GIL
+    // This makes the iterator Send-safe
+    let rust_batches: Vec<Result<DFChunk, GraphError>> = rb
+        .into_iter()
+        .map(|rb| {
+            let chunk = (0..names_len)
+                .map(|i| {
+                    let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
+                    let arr = array_to_rust(&array).map_err(GraphError::from)?;
+                    Ok::<_, GraphError>(arr)
+                })
+                .collect::<Result<Vec<_>, GraphError>>()?;
+
+            Ok(DFChunk { chunk })
+        })
+        .collect();
+
     let num_rows: usize = dropped_df.call_method0("__len__")?.extract()?;
+
+    let chunks = rust_batches.into_iter();
 
     Ok(DFView {
         names,

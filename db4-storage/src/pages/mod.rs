@@ -450,7 +450,7 @@ pub struct SegmentCounts<I> {
     _marker: std::marker::PhantomData<I>,
 }
 
-impl<I: From<usize> + Send> SegmentCounts<I> {
+impl<I: From<usize>> SegmentCounts<I> {
     pub fn new(max_seg_len: u32, counts: impl IntoIterator<Item = u32>) -> Self {
         let counts: TinyVec<[u32; node_store::N]> = counts.into_iter().collect();
 
@@ -469,11 +469,20 @@ impl<I: From<usize> + Send> SegmentCounts<I> {
         })
     }
 
+    pub(crate) fn counts(&self) -> &[u32] {
+        &self.counts
+    }
+
+    pub(crate) fn max_seg_len(&self) -> u32 {
+        self.max_seg_len
+    }
+}
+impl<I: From<usize> + Send> SegmentCounts<I> {
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = I> {
         let max_seg_len = self.max_seg_len as usize;
         (0..self.counts.len()).into_par_iter().flat_map(move |i| {
             let c = self.counts[i];
-            let g_pos = i * max_seg_len as usize;
+            let g_pos = i * max_seg_len;
             (0..c)
                 .into_par_iter()
                 .map(move |offset| I::from(g_pos + offset as usize))
@@ -485,10 +494,10 @@ impl<NS, ES, GS, EXT: Config> Drop for GraphStore<NS, ES, GS, EXT> {
     fn drop(&mut self) {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         self._ext.set_node_types(node_types);
-        if let Some(graph_dir) = self.graph_dir.as_ref() {
-            if write_graph_config(graph_dir, &self._ext).is_err() {
-                eprintln!("Unrecoverable! Failed to write graph meta");
-            }
+        if let Some(graph_dir) = self.graph_dir.as_ref()
+            && write_graph_config(graph_dir, &self._ext).is_err()
+        {
+            eprintln!("Unrecoverable! Failed to write graph meta");
         }
     }
 }
