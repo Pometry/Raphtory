@@ -4913,6 +4913,7 @@ version = "0.16.3"
 dependencies = [
  "ahash",
  "arrow",
+ "arrow-csv",
  "arrow-json",
  "arroy",
  "async-openai",

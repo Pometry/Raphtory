@@ -9,7 +9,7 @@ use crate::{
         api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
-    errors::GraphError,
+    errors::{GraphError, GraphError::PythonError},
     io::parquet_loaders::*,
     prelude::*,
     python::{
@@ -21,6 +21,7 @@ use crate::{
                 arrow_loaders::{
                     load_edge_metadata_from_arrow_c_stream, load_edges_from_arrow_c_stream,
                     load_node_metadata_from_arrow_c_stream, load_nodes_from_arrow_c_stream,
+                    load_nodes_from_csv_path,
                 },
                 pandas_loaders::*,
             },
@@ -35,12 +36,14 @@ use crate::{
         InternalStableDecode, StableEncode,
     },
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::PyDict};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashMap,
+    ffi::OsStr,
     fmt::{Debug, Formatter},
+    fs,
     path::PathBuf,
 };
 
@@ -629,6 +632,94 @@ impl PyGraph {
     ///     Graph: the graph with event semantics applied
     pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
         PyGraph::py_from_db_graph(self.graph.event_graph())
+    }
+
+    #[pyo3(
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None)
+    )]
+    fn load_nodes<'py>(
+        &self,
+        data: &Bound<'py, PyAny>,
+        time: &str,
+        id: &str,
+        node_type: Option<&str>,
+        node_type_col: Option<&str>,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        if data.hasattr("__arrow_c_stream__")? {
+            load_nodes_from_arrow_c_stream(
+                &self.graph,
+                data,
+                time,
+                id,
+                node_type,
+                node_type_col,
+                &properties,
+                &metadata,
+                shared_metadata.as_ref(),
+            )
+        } else if let Ok(path) = data.extract::<PathBuf>() {
+            // handles Strings too
+            let is_parquet = if path.is_dir() {
+                fs::read_dir(&path)?.any(|entry| {
+                    entry.map_or(false, |e| {
+                        e.path().extension().and_then(OsStr::to_str) == Some("parquet")
+                    })
+                })
+            } else {
+                path.extension().and_then(OsStr::to_str) == Some("parquet")
+            };
+
+            let is_csv = if path.is_dir() {
+                fs::read_dir(&path)?.any(|entry| {
+                    entry.map_or(false, |e| {
+                        let p = e.path();
+                        let s = p.to_string_lossy();
+                        s.ends_with(".csv") || s.ends_with(".csv.gz") || s.ends_with(".csv.bz2")
+                    })
+                })
+            } else {
+                let path_str = path.to_string_lossy();
+                path_str.ends_with(".csv")
+                    || path_str.ends_with(".csv.gz")
+                    || path_str.ends_with(".csv.bz2")
+            };
+
+            if is_parquet {
+                load_nodes_from_parquet(
+                    &self.graph,
+                    path.as_path(),
+                    time,
+                    id,
+                    node_type,
+                    node_type_col,
+                    &properties,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    None,
+                )
+            } else if is_csv {
+                load_nodes_from_csv_path(
+                    &self.graph,
+                    path,
+                    time,
+                    id,
+                    node_type,
+                    node_type_col,
+                    &properties,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                )
+            } else {
+                Err(PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files (but not both)")))
+            }
+        } else {
+            Err(PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files (but not both), and objects that implement an __arrow_c_stream__ method.")))
+        }
     }
 
     /// Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).

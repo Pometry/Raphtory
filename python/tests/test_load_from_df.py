@@ -1,4 +1,7 @@
+from pathlib import Path
+
 import polars as pl
+import pandas as pd
 from raphtory import Graph, PersistentGraph
 import pytest
 try:
@@ -30,6 +33,57 @@ def test_load_edges_from_polars_df(graph_type):
     assert _collect_edges(g_to_pandas) == _collect_edges(g_from_df)
     assert _collect_edges(g_to_pandas) == expected
     assert _collect_edges(g_from_df) == expected
+
+def test_different_data_sources():
+    g = Graph()
+    file_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/subset/flattened_data_subset.parquet"
+    num_nodes_ingested = []
+
+    # test path string for file
+    g.load_nodes(data=file_path_str, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g
+
+    # test Path object for file
+    file_path_obj = Path(file_path_str)
+    g = Graph()
+    g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g, file_path_obj
+
+    # test path string for directory
+    dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/subset"
+    g = Graph()
+    g.load_nodes(data=dir_path_str, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g, dir_path_str
+
+    # test Path object for directory
+    dir_path_obj = Path("/Users/arien/RustroverProjects/Raphtory/dataset_tests/subset")
+    g = Graph()
+    g.load_nodes(data=dir_path_obj, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g, dir_path_obj
+
+    # test pandas
+    df_pd = pd.read_parquet(file_path_str)
+    g = Graph()
+    g.load_nodes(data=df_pd, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g, df_pd
+
+    # test polars
+    df_pl = pl.read_parquet(file_path_str)
+    g = Graph()
+    g.load_nodes(data=df_pl, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g, df_pl
+
+    # sanity check, make sure we ingested the same number of nodes each time
+    print(f"Number of tests ran: {len(num_nodes_ingested)}")
+    for i in range(len(num_nodes_ingested)-1):
+        assert num_nodes_ingested[0] == num_nodes_ingested[i+1]
+
 
 if fpd:
     import pandas

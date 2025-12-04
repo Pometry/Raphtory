@@ -1290,6 +1290,9 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def load_nodes(self, data, time, id, node_type=None, node_type_col=None, properties=None, metadata=None, shared_metadata=None):
+        ...
+
     def load_nodes_from_df(self, data: Any, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).

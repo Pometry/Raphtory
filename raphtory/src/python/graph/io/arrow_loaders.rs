@@ -19,9 +19,19 @@ use arrow::{
     },
     datatypes::SchemaRef,
 };
+use arrow_csv::{reader::Format, ReaderBuilder};
+use bzip2::read::BzDecoder;
+use flate2::read::GzDecoder;
 use pyo3::{prelude::*, types::PyCapsule};
 use raphtory_api::core::entities::properties::prop::Prop;
-use std::{cmp::min, collections::HashMap};
+use std::{
+    cmp::min,
+    collections::HashMap,
+    fs,
+    fs::File,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 const CHUNK_SIZE: usize = 1_000_000; // split large chunks so progress bar updates reasonably
 
@@ -159,7 +169,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     )
 }
 
-pub fn load_edge_deletions_from_arrow_c_stream<
+pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
@@ -251,33 +261,192 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
                 Ok(batch) => batch,
                 Err(e) => return vec![Err(e)],
             };
-            let num_rows = batch.num_rows();
 
-            // many times, all the data will be passed as a single RecordBatch, meaning the progress bar
-            // will not update properly (only updates at the end of each batch). Splitting into smaller batches
-            // means the progress bar will update reasonably (every CHUNK_SIZE rows)
-            if num_rows > CHUNK_SIZE {
-                let num_chunks = (num_rows + CHUNK_SIZE - 1) / CHUNK_SIZE;
-                let mut result = Vec::with_capacity(num_chunks);
-                for i in 0..num_chunks {
-                    let offset = i * CHUNK_SIZE;
-                    let length = min(CHUNK_SIZE, num_rows - offset);
-                    let sliced_batch = batch.slice(offset, length);
-                    let chunk_arrays = indices
-                        .iter()
-                        .map(|&idx| sliced_batch.column(idx).clone())
-                        .collect::<Vec<_>>();
-                    result.push(Ok(DFChunk::new(chunk_arrays)));
-                }
-                result
-            } else {
-                let chunk_arrays = indices
-                    .iter()
-                    .map(|&idx| batch.column(idx).clone())
-                    .collect::<Vec<_>>();
-                vec![Ok(DFChunk::new(chunk_arrays))]
-            }
+            split_into_chunks(&batch, &indices)
         });
 
     Ok(DFView::new(names, chunks, len_from_python))
+}
+
+/// Splits a RecordBatch into chunks of CHUNK_SIZE owned by DFChunk objects
+fn split_into_chunks(batch: &RecordBatch, indices: &[usize]) -> Vec<Result<DFChunk, GraphError>> {
+    // many times, all the data will be passed as a single RecordBatch, meaning the progress bar
+    // will not update properly (only updates at the end of each batch). Splitting into smaller batches
+    // means the progress bar will update reasonably (every CHUNK_SIZE rows)
+    let num_rows = batch.num_rows();
+    if num_rows > CHUNK_SIZE {
+        let num_chunks = (num_rows + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        let mut result = Vec::with_capacity(num_chunks);
+        for i in 0..num_chunks {
+            let offset = i * CHUNK_SIZE;
+            let length = min(CHUNK_SIZE, num_rows - offset);
+            let sliced_batch = batch.slice(offset, length);
+            let chunk_arrays = indices
+                .iter()
+                .map(|&idx| sliced_batch.column(idx).clone())
+                .collect::<Vec<_>>();
+            result.push(Ok(DFChunk::new(chunk_arrays)));
+        }
+        result
+    } else {
+        let chunk_arrays = indices
+            .iter()
+            .map(|&idx| batch.column(idx).clone())
+            .collect::<Vec<_>>();
+        vec![Ok(DFChunk::new(chunk_arrays))]
+    }
+}
+
+fn get_reader(filename: &str, file: File) -> Box<dyn std::io::Read> {
+    if filename.ends_with(".csv.gz") {
+        Box::new(GzDecoder::new(file))
+    } else if filename.ends_with(".csv.bz2") {
+        Box::new(BzDecoder::new(file))
+    } else {
+        // no need for a BufReader because ReaderBuilder::build internally wraps into BufReader
+        Box::new(file)
+    }
+}
+
+// Load from CSV files using arrow-csv
+pub(crate) fn load_nodes_from_csv_path<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+>(
+    graph: &G,
+    path: PathBuf,
+    time: &str,
+    id: &str,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![id, time];
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(metadata);
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
+    }
+
+    // get the CSV file paths
+    let mut csv_paths = Vec::new();
+    if path.is_dir() {
+        for entry in fs::read_dir(&path)? {
+            let entry = entry?;
+            let p = entry.path();
+            let s = p.to_string_lossy();
+            if s.ends_with(".csv") || s.ends_with(".csv.gz") || s.ends_with(".csv.bz2") {
+                csv_paths.push(p);
+            }
+        }
+    } else {
+        csv_paths.push(path.clone());
+    }
+
+    if csv_paths.is_empty() {
+        return Err(GraphError::LoadFailure(format!(
+            "No CSV files found at path '{}'",
+            path.display()
+        )));
+    }
+
+    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_nodes_from_df(
+        df_view,
+        time,
+        id,
+        properties,
+        metadata,
+        shared_metadata,
+        node_type,
+        node_type_col,
+        graph,
+    )
+}
+
+fn build_csv_reader(
+    path: &Path,
+    schema: SchemaRef,
+) -> Result<arrow_csv::reader::Reader<Box<dyn std::io::Read>>, GraphError> {
+    let file = File::open(path)?;
+    let path_str = path.to_string_lossy();
+
+    // Support bz2 and gz compression
+    let reader = get_reader(path_str.as_ref(), file);
+
+    ReaderBuilder::new(schema)
+        .with_header(true)
+        .build(reader)
+        .map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Arrow CSV error while reading '{}': {e}",
+                path.display()
+            ))
+        })
+}
+
+fn read_csv_chunks_from_file(
+    path: &Path,
+    schema: SchemaRef,
+    indices: &[usize],
+) -> Result<Vec<Result<DFChunk, GraphError>>, GraphError> {
+    let mut csv_reader = build_csv_reader(path, schema)?;
+    let mut chunks = Vec::new();
+
+    for batch_res in &mut csv_reader {
+        let batch = batch_res.map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Arrow CSV error while reading a batch from '{}': {e}",
+                path.display()
+            ))
+        })?;
+        chunks.extend(split_into_chunks(&batch, indices))
+    }
+    Ok(chunks)
+}
+
+fn process_csv_paths_df<'a>(
+    paths: &'a [PathBuf],
+    col_names: Vec<&str>,
+) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>, GraphError> {
+    if paths.is_empty() {
+        return Err(GraphError::LoadFailure(
+            "No CSV files found at the provided path".to_string(),
+        ));
+    }
+
+    // infer the schema
+    // TODO: Add support for user provided schema
+    let mut schema_reader = get_reader(paths[0].to_string_lossy().as_ref(), File::open(&paths[0])?);
+    let (schema, _) = Format::default()
+        .with_header(true)
+        .infer_schema(&mut schema_reader, Some(100))
+        .map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Arrow CSV error while inferring schema from '{}': {e}",
+                paths[0].display()
+            ))
+        })?;
+    let schema_ref: SchemaRef = Arc::new(schema);
+
+    // get column names and indices
+    let mut names: Vec<String> = Vec::new();
+    let mut indices: Vec<usize> = Vec::new();
+    for (idx, field) in schema_ref.fields().iter().enumerate() {
+        if col_names.contains(&field.name().as_str()) {
+            names.push(field.name().clone());
+            indices.push(idx);
+        }
+    }
+
+    let chunks = paths.iter().cloned().flat_map(move |path| {
+        read_csv_chunks_from_file(path.as_path(), schema_ref.clone(), &indices)
+            .unwrap_or_else(|e| vec![Err(e)])
+    });
+
+    // we don't know the total number of rows until we read all files
+    Ok(DFView::new(names, chunks, None))
 }
