@@ -115,9 +115,8 @@ impl<
         }
     }
 
-    fn pid(&self) -> usize {
-        let VID(i) = self.node;
-        i
+    fn pid(&self) -> VID {
+        self.node
     }
 
     fn node_state(&self) -> Ref<'_, EVState<'a, CS>> {
