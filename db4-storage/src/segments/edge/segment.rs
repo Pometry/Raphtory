@@ -305,7 +305,7 @@ impl MemEdgeSegment {
         row.row
     }
 
-    pub fn check_const_properties(
+    pub fn check_metadata(
         &self,
         edge_pos: LocalPOS,
         layer_id: usize,

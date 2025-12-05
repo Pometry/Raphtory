@@ -113,7 +113,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
             panic!("Edge with EID {eid:?} not found in layer {layer}");
         });
-        writer.validate_c_props(edge_pos, layer, &props)?;
+        writer.check_metadata(edge_pos, layer, &props)?;
         writer.update_c_props(edge_pos, src, dst, layer, props);
         Ok(writer)
     }

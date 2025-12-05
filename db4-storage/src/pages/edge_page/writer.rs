@@ -169,14 +169,13 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.page.get_edge(edge_pos, layer_id, self.writer.deref())
     }
 
-    pub fn validate_c_props(
+    pub fn check_metadata(
         &self,
         edge_pos: LocalPOS,
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), StorageError> {
-        self.writer
-            .check_const_properties(edge_pos, layer_id, props)
+        self.writer.check_metadata(edge_pos, layer_id, props)
     }
 
     pub fn update_c_props(
