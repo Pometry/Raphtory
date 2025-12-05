@@ -246,7 +246,6 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
 
-        // preserve all property mappings
         let mut node_meta = Meta::new_for_nodes();
         let mut edge_meta = Meta::new_for_edges();
         let mut graph_props_meta = Meta::new_for_graph_props();
@@ -260,15 +259,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         graph_props_meta
             .set_temporal_prop_mapper(self.graph_props_meta().temporal_prop_mapper().deep_clone());
 
-        let temporal_graph = TemporalGraph::new_with_meta(
-            path.map(|p| p.into()),
-            node_meta,
-            edge_meta,
-            graph_props_meta,
-            storage.extension().clone(),
-        )
-        .unwrap();
+        let layer_meta = edge_meta.layer_meta();
 
+        // NOTE: layers must be set in layer_meta before the TemporalGraph is initialized to
+        // make sure empty layers are created.
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
                 // no layers to map
@@ -277,29 +271,46 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             LayerIds::All => {
                 let layers = storage.edge_meta().layer_meta().keys();
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+
                 for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
-                    let new_id = temporal_graph.resolve_layer(Some(name))?.inner();
+                    let new_id = layer_meta.get_or_create_id(name).inner();
                     layer_map[id] = new_id;
                 }
+
                 layer_map
             }
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-                let new_id = temporal_graph
-                    .resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
-                layer_map[*l_id] = new_id.inner();
+                let layer_name = storage.edge_meta().get_layer_name_by_id(*l_id);
+                let new_id = layer_meta.get_or_create_id(&layer_name).inner();
+
+                layer_map[*l_id] = new_id;
                 layer_map
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
                 let layers = storage.edge_meta().layer_meta().all_keys();
+
                 for id in ids {
-                    let new_id = temporal_graph.resolve_layer(Some(&layers[id]))?.inner();
+                    let layer_name = &layers[id];
+                    let new_id = layer_meta.get_or_create_id(layer_name).inner();
                     layer_map[id] = new_id;
                 }
+
                 layer_map
             }
         };
+
+        node_meta.set_layer_mapper(layer_meta.clone());
+
+        let temporal_graph = TemporalGraph::new_with_meta(
+            path.map(|p| p.into()),
+            node_meta,
+            edge_meta,
+            graph_props_meta,
+            storage.extension().clone(),
+        )
+        .unwrap();
 
         if let Some(earliest) = self.earliest_time() {
             temporal_graph.update_time(TimeIndexEntry::start(earliest));
