@@ -1,5 +1,4 @@
-use either::Either;
-use storage::state::StateIndex;
+use raphtory_core::entities::VID;
 
 use super::{
     accumulator_id::AccId,
@@ -21,6 +20,7 @@ pub struct ShuffleComputeState<CS> {
     morcel_size: usize,
     pub global: MorcelComputeState<CS>,
     pub parts: Vec<MorcelComputeState<CS>>,
+    index: Index<VID>,
 }
 
 // every partition has a struct as such
@@ -97,12 +97,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.global.reset_states(ss, states);
     }
 
-    pub fn new(
-        total_len: usize,
-        n_parts: usize,
-        morcel_size: usize,
-        // keys: Either<Arc<StateIndex<usize>>, Index<usize>>,
-    ) -> Self {
+    pub fn new(total_len: usize, n_parts: usize, morcel_size: usize, index: Index<VID>) -> Self {
         let last_one_size = if morcel_size == 0 {
             1
         } else {
@@ -122,26 +117,29 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             morcel_size,
             parts,
             global: MorcelComputeState::new(1),
+            index,
         }
     }
 
-    pub fn global() -> Self {
+    pub fn global(index: Index<VID>) -> Self {
         Self {
             morcel_size: 1,
             parts: vec![],
             global: MorcelComputeState::new(1),
+            index,
         }
     }
 
     pub fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         ss: usize,
-        p_id: usize,
+        vid: VID,
         a: IN,
         agg_ref: &AccId<A, IN, OUT, ACC>,
     ) where
         A: StateType,
     {
+        let p_id = self.index.index(&vid).expect("VID not found in index");
         let (morcel_id, offset) = self.resolve_pid(p_id);
         self.parts[morcel_id].accumulate_into(ss, offset, a, agg_ref)
     }
@@ -149,13 +147,18 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     pub fn read_with_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         ss: usize,
-        p_id: usize,
+        vid: VID,
         agg_ref: &AccId<A, IN, OUT, ACC>,
     ) -> Option<OUT>
     where
         A: StateType,
         OUT: std::fmt::Debug,
     {
+        dbg!(&vid, &self.index);
+        let p_id = self
+            .index
+            .index(&vid)
+            .unwrap_or_else(|| panic!("VID {:?} not found in index", vid));
         let (morcel_id, offset) = self.resolve_pid(p_id);
         self.parts[morcel_id].read::<A, IN, OUT, ACC>(offset, agg_ref.id(), ss)
     }
@@ -175,13 +178,14 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     pub fn read<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         ss: usize,
-        p_id: usize,
+        vid: VID,
         agg_ref: &AccId<A, IN, OUT, ACC>,
     ) -> Option<OUT>
     where
         A: StateType,
         OUT: std::fmt::Debug,
     {
+        let p_id = self.index.index(&vid).expect("VID not found in index");
         let (morcel_id, offset) = self.resolve_pid(p_id);
         self.parts[morcel_id].read::<A, IN, OUT, ACC>(offset, agg_ref.id(), ss)
     }
@@ -189,12 +193,13 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     pub fn read_ref<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         ss: usize,
-        p_id: usize,
+        vid: VID,
         agg_ref: &AccId<A, IN, OUT, ACC>,
     ) -> Option<&A>
     where
         A: StateType,
     {
+        let p_id = self.index.index(&vid).expect("VID not found in index");
         let (morcel_id, offset) = self.resolve_pid(p_id);
         self.parts[morcel_id].read_ref::<A, IN, OUT, ACC>(offset, agg_ref.id(), ss)
     }

@@ -1,4 +1,9 @@
-use crate::core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState};
+use raphtory_core::entities::VID;
+
+use crate::{
+    core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
+    db::api::state::Index,
+};
 use std::{borrow::Cow, sync::Arc};
 
 // this only contains the global state and it is synchronized after each task run
@@ -23,11 +28,17 @@ impl<'a, S: 'static> PrevLocalState<'a, S> {
 }
 
 impl<CS: ComputeState> Shard<CS> {
-    pub(crate) fn new(total_len: usize, num_morcels: usize, morcel_size: usize) -> Self {
+    pub(crate) fn new(
+        total_len: usize,
+        num_morcels: usize,
+        morcel_size: usize,
+        index: Index<VID>,
+    ) -> Self {
         Self(Arc::new(ShuffleComputeState::new(
             total_len,
             num_morcels,
             morcel_size,
+            index,
         )))
     }
 
@@ -66,8 +77,8 @@ impl<CS: ComputeState> From<Arc<ShuffleComputeState<CS>>> for Shard<CS> {
 }
 
 impl<CS: ComputeState> Global<CS> {
-    pub(crate) fn new() -> Self {
-        Self(Arc::new(ShuffleComputeState::global()))
+    pub(crate) fn new(index: Index<VID>) -> Self {
+        Self(Arc::new(ShuffleComputeState::global(index)))
     }
 
     pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {

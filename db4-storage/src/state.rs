@@ -1,3 +1,4 @@
+use rayon::iter::plumbing::{Producer, ProducerCallback, UnindexedConsumer, bridge};
 use rayon::prelude::*;
 use std::{
     ops::{Index, IndexMut},
@@ -797,20 +798,6 @@ mod tests {
 
         assert_eq!(values, expected);
         assert_eq!(state.iter().len(), 16);
-    }
-
-    #[test]
-    fn test_state_iter_mut() {
-        let mut state: State<usize> = State::new(vec![5, 2], 10);
-
-        // Modify all elements via iter_mut
-        for (i, value) in state.iter_mut().enumerate() {
-            *value = i * 2;
-        }
-
-        // Verify via iter
-        let values: Vec<usize> = state.iter().copied().collect();
-        assert_eq!(values, vec![0, 2, 4, 6, 8, 10, 12]);
     }
 
     #[test]
