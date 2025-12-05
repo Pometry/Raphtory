@@ -1,5 +1,7 @@
 use crate::{
-    api::graph_props::GraphPropSegmentOps, segments::graph_prop::segment::MemGraphPropSegment,
+    api::graph_props::GraphPropSegmentOps,
+    error::StorageError,
+    segments::graph_prop::segment::MemGraphPropSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -34,6 +36,13 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
 
         self.graph_props.increment_est_size(add);
         self.graph_props.mark_dirty();
+    }
+
+    pub fn check_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<(), StorageError> {
+        self.mem_segment.check_metadata(props)
     }
 
     pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {

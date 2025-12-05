@@ -260,9 +260,10 @@ impl<T: HasRow> SegmentContainer<T> {
     ) -> Result<(), StorageError> {
         if let Some(item) = self.get(local_pos) {
             let local_row = item.row();
-            let edge_properties = self.properties().get_entry(local_row);
+            let prop_entry = self.properties().get_entry(local_row);
+
             for (prop_id, prop_val) in props {
-                edge_properties.check_metadata(*prop_id, prop_val)?;
+                prop_entry.check_metadata(*prop_id, prop_val)?;
             }
         }
         Ok(())

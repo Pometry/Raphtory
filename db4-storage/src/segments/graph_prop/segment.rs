@@ -1,4 +1,8 @@
-use crate::segments::{HasRow, SegmentContainer};
+use crate::{
+    LocalPOS,
+    error::StorageError,
+    segments::{HasRow, SegmentContainer},
+};
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
 use raphtory_core::{
     entities::properties::tprop::TPropCell,
@@ -103,8 +107,15 @@ impl MemGraphPropSegment {
         layer_est_size - est_size
     }
 
-    pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
-        self.update_metadata(props);
+    pub fn check_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<(), StorageError> {
+        if let Some(layer) = self.layers.get(Self::DEFAULT_LAYER) {
+            layer.check_metadata(Self::DEFAULT_ROW.into(), props)?;
+        }
+
+        Ok(())
     }
 
     pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) -> usize {
