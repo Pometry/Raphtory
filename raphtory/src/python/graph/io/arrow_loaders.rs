@@ -29,6 +29,7 @@ use std::{
     collections::HashMap,
     fs,
     fs::File,
+    iter,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -393,6 +394,7 @@ fn build_csv_reader(
 
     ReaderBuilder::new(schema_ref)
         .with_header(true)
+        .with_batch_size(CHUNK_SIZE)
         .build(reader)
         .map_err(|e| {
             GraphError::LoadFailure(format!(
@@ -400,25 +402,6 @@ fn build_csv_reader(
                 path.display()
             ))
         })
-}
-
-fn read_csv_chunks_from_file(
-    path: &Path,
-    indices: &[usize],
-) -> Result<Vec<Result<DFChunk, GraphError>>, GraphError> {
-    let mut csv_reader = build_csv_reader(path)?;
-    let mut chunks = Vec::new();
-
-    for batch_res in &mut csv_reader {
-        let batch = batch_res.map_err(|e| {
-            GraphError::LoadFailure(format!(
-                "Arrow CSV error while reading a batch from '{}': {e}",
-                path.display()
-            ))
-        })?;
-        chunks.extend(split_into_chunks(&batch, indices))
-    }
-    Ok(chunks)
 }
 
 fn process_csv_paths_df<'a>(
@@ -434,9 +417,11 @@ fn process_csv_paths_df<'a>(
     // TODO: Add support for user provided schema
     let names = col_names.iter().map(|&name| name.to_string()).collect();
     let chunks = paths.iter().flat_map(move |path| {
+        // BoxedLIter couldn't be used because it has Send + Sync bound
+        type ChunkIter<'b> = Box<dyn Iterator<Item = Result<DFChunk, GraphError>> + 'b>;
         let csv_reader = match build_csv_reader(path.as_path()) {
             Ok(r) => r,
-            Err(e) => return vec![Err(e)],
+            Err(e) => return Box::new(iter::once(Err(e))) as ChunkIter<'a>,
         };
         let mut indices = Vec::with_capacity(col_names.len());
         for required_col in &col_names {
@@ -449,23 +434,29 @@ fn process_csv_paths_df<'a>(
             {
                 indices.push(idx);
             } else {
-                return vec![Err(GraphError::LoadFailure(format!(
+                return Box::new(iter::once(Err(GraphError::LoadFailure(format!(
                     "Column '{required_col}' not found in file {}",
                     path.display()
-                )))];
+                ))))) as ChunkIter<'a>;
             }
         }
-        let mut results = Vec::new();
-        for batch_res in csv_reader {
-            match batch_res {
-                Ok(batch) => results.extend(split_into_chunks(&batch, &indices)),
-                Err(e) => results.push(Err(GraphError::LoadFailure(format!(
-                    "Arrow CSV error while reading a batch from '{}': {e}",
-                    path.display()
-                )))),
-            }
-        }
-        results
+        Box::new(
+            csv_reader
+                .into_iter()
+                .map(move |batch_res| match batch_res {
+                    Ok(batch) => {
+                        let arrays = indices
+                            .iter()
+                            .map(|&idx| batch.column(idx).clone())
+                            .collect::<Vec<_>>();
+                        Ok(DFChunk::new(arrays))
+                    }
+                    Err(e) => Err(GraphError::LoadFailure(format!(
+                        "Arrow CSV error while reading a batch from '{}': {e}",
+                        path.display()
+                    ))),
+                }),
+        ) as ChunkIter<'a>
     });
 
     // we don't know the total number of rows until we read all files
