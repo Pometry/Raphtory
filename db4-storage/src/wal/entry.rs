@@ -1,9 +1,6 @@
 use std::path::Path;
 
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::dict_mapper::MaybeNew,
-};
+use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
@@ -17,7 +14,7 @@ use crate::{
 impl GraphWal for NoWal {
     type ReplayEntry = ();
 
-    fn log_add_edge<PN: AsRef<str>>(
+    fn log_add_edge(
         &self,
         _transaction_id: TransactionID,
         _t: TimeIndexEntry,
@@ -28,7 +25,7 @@ impl GraphWal for NoWal {
         _eid: EID,
         _layer_name: Option<&str>,
         _layer_id: usize,
-        _props: &[MaybeNew<(PN, usize, Prop)>],
+        _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
         Ok(0)
     }

@@ -299,6 +299,15 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
 
         // All names, ids and values have been generated for this operation.
         // Create a wal entry to mark it as durable.
+
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
         let lsn = self.wal().log_add_edge(
             transaction_id,
             ti,
@@ -309,7 +318,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
             edge_id.inner(),
             layer,
             layer_id,
-            &props_with_status,
+            props_for_wal,
         ).unwrap();
 
         let props = props_with_status

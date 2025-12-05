@@ -1,5 +1,5 @@
 use crate::error::StorageError;
-use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
@@ -46,7 +46,7 @@ pub trait GraphWal {
     /// ReplayEntry represents the type of the wal entry returned during replay.
     type ReplayEntry;
 
-    fn log_add_edge<PN: AsRef<str>>(
+    fn log_add_edge(
         &self,
         transaction_id: TransactionID,
         t: TimeIndexEntry,
@@ -57,7 +57,7 @@ pub trait GraphWal {
         eid: EID,
         layer_name: Option<&str>,
         layer_id: usize,
-        props: &[MaybeNew<(PN, usize, Prop)>],
+        props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
@@ -78,7 +78,7 @@ pub trait GraphWal {
 
 /// Trait for defining callbacks for replaying from wal.
 pub trait GraphReplayer {
-    fn replay_add_edge<PN: AsRef<str>>(
+    fn replay_add_edge(
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
@@ -88,8 +88,8 @@ pub trait GraphReplayer {
         dst_name: GID,
         dst_id: VID,
         eid: EID,
-        layer_name: Option<&str>,
+        layer_name: Option<String>,
         layer_id: usize,
-        props: Vec<MaybeNew<(PN, usize, Prop)>>,
+        props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 }

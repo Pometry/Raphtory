@@ -4,7 +4,7 @@ use crate::db::api::{
     };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, EID, GID, VID},
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    storage::timeindex::TimeIndexEntry,
 };
 use raphtory_core::entities::GidRef;
 use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps}};
@@ -30,7 +30,7 @@ impl ReplayGraph {
 }
 
 impl GraphReplayer for ReplayGraph {
-    fn replay_add_edge<PN: AsRef<str>>(
+    fn replay_add_edge(
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
@@ -40,9 +40,9 @@ impl GraphReplayer for ReplayGraph {
         dst_name: GID,
         dst_id: VID,
         eid: EID,
-        layer_name: Option<&str>,
+        layer_name: Option<String>,
         layer_id: usize,
-        props_with_status: Vec<MaybeNew<(PN, usize, Prop)>>,
+        props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         // TODO: Check max lsn on disk to see if this record should be replayed.
 
@@ -57,11 +57,10 @@ impl GraphReplayer for ReplayGraph {
         let edge_meta = temporal_graph.edge_meta();
         let mut prop_ids = Vec::new();
 
-        for prop in props_with_status.into_iter() {
-            let (prop_name, prop_id, prop_value) = prop.inner();
+        for (prop_name, prop_id, prop_value) in props.into_iter() {
             let prop_mapper = edge_meta.temporal_prop_mapper();
 
-            prop_mapper.set_id_and_dtype(prop_name.as_ref(), prop_id, prop_value.dtype());
+            prop_mapper.set_id_and_dtype(prop_name, prop_id, prop_value.dtype());
             prop_ids.push((prop_id, prop_value));
         }
 
@@ -72,8 +71,8 @@ impl GraphReplayer for ReplayGraph {
         // 3. Insert layer id into the layer meta of both edge and node.
         let node_meta = temporal_graph.node_meta();
 
-        edge_meta.layer_meta().set_id(layer_name.unwrap_or("_default"), layer_id);
-        node_meta.layer_meta().set_id(layer_name.unwrap_or("_default"), layer_id);
+        edge_meta.layer_meta().set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+        node_meta.layer_meta().set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
 
         // 4. Grab src, dst and edge segment locks and add the edge.
         let mut add_edge_op = temporal_graph.atomic_add_edge(src_id, dst_id, Some(eid), layer_id).unwrap();
