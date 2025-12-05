@@ -1,5 +1,6 @@
 use pyo3::{create_exception, exceptions::PyException};
 
+pub mod arrow_loaders;
 pub mod pandas_loaders;
 
 create_exception!(exceptions, ArrowErrorException, PyException);

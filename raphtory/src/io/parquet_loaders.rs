@@ -116,7 +116,7 @@ pub fn load_edges_from_parquet<
     let df_view = DFView {
         names: all_names,
         chunks: all_df_view,
-        num_rows: count_rows,
+        num_rows: Some(count_rows),
     };
 
     load_edges_from_df(
@@ -289,7 +289,7 @@ pub(crate) fn process_parquet_file_to_df(
     Ok(DFView {
         names,
         chunks,
-        num_rows,
+        num_rows: Some(num_rows),
     })
 }
 
