@@ -1,18 +1,12 @@
 use crate::{
-    db::{
-        api::{
-            properties::internal::InheritPropertiesOps,
-            state::ops::{filter::AndOp, NodeFilterOp},
-            view::internal::{
-                EdgeList, GraphView, Immutable, InheritMaterialize, InheritStorageOps,
-                InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
-                InternalExplodedEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps, ListOps,
-                NodeList, Static,
-            },
+    db::api::{
+        properties::internal::InheritPropertiesOps,
+        view::internal::{
+            EdgeList, Immutable, InheritMaterialize, InheritStorageOps, InheritTimeSemantics,
+            InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+            InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, Static,
         },
-        graph::views::filter::{model::AndFilter, CreateFilter},
     },
-    errors::GraphError,
     prelude::GraphViewOps,
 };
 use raphtory_api::{
@@ -29,46 +23,10 @@ use raphtory_storage::{
 
 #[derive(Debug, Clone)]
 pub struct AndFilteredGraph<G, L, R> {
-    graph: G,
-    left: L,
-    right: R,
-    layer_ids: LayerIds,
-}
-
-impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = AndFilteredGraph<G, L::EntityFiltered<'graph, G>, R::EntityFiltered<'graph, G>>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph>
-        = AndOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
-    where
-        Self: 'graph;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let left = self.left.create_filter(graph.clone())?;
-        let right = self.right.create_filter(graph.clone())?;
-        let layer_ids = left.layer_ids().intersect(right.layer_ids());
-        Ok(AndFilteredGraph {
-            graph,
-            left,
-            right,
-            layer_ids,
-        })
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let left = self.left.create_node_filter(graph.clone())?;
-        let right = self.right.create_node_filter(graph.clone())?;
-        Ok(left.and(right))
-    }
+    pub(crate) graph: G,
+    pub(crate) left: L,
+    pub(crate) right: R,
+    pub(crate) layer_ids: LayerIds,
 }
 
 impl<G, L, R> Base for AndFilteredGraph<G, L, R> {

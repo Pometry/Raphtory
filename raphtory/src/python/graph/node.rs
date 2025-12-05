@@ -474,7 +474,7 @@ impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph, DynamicGraph, DynNo
 impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph> {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let nodes = &ob.downcast::<PyNodes>()?.get().nodes;
-        if nodes.selector.is_filtered() {
+        if nodes.predicate.is_filtered() {
             Err(PyTypeError::new_err("Expected unfiltered nodes"))
         } else {
             Ok(Nodes::new_filtered(
@@ -533,7 +533,7 @@ impl<
     fn from(value: Nodes<'static, G, GH, F>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
         let graph = value.graph.into_dynamic();
-        let select = value.selector.into_dynamic();
+        let select = value.predicate.into_dynamic();
         Self {
             nodes: Nodes::new_filtered(base_graph, graph, select, value.nodes),
         }
