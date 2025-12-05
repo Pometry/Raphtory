@@ -470,7 +470,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
     where
         Self: Sized,
     {
-        todo!()
+        return Err(StorageError::GenericFailure("load not supported".to_string()));
     }
 
     fn new(page_id: usize, meta: Arc<Meta>, _path: Option<PathBuf>, ext: Self::Extension) -> Self {

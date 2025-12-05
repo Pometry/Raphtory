@@ -429,7 +429,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     where
         Self: Sized,
     {
-        todo!()
+        return Err(StorageError::GenericFailure("load not supported".to_string()));
     }
 
     fn new(
