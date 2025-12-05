@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import polars as pl
@@ -35,45 +36,76 @@ def test_load_edges_from_polars_df(graph_type):
     assert _collect_edges(g_from_df) == expected
 
 def test_different_data_sources():
-    g = Graph()
-    file_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/subset/flattened_data_subset.parquet"
     num_nodes_ingested = []
 
-    # test path string for file
-    g.load_nodes(data=file_path_str, time="block_timestamp", id="inputs_address")
+    ######### PARQUET #########
+    parquet_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/parquet_subset"
+    parquet_file_path_str = parquet_dir_path_str + "/flattened_data_subset.parquet"
+    # test path string for parquet file
+    g = Graph()
+    g.load_nodes(data=parquet_file_path_str, time="block_timestamp", id="inputs_address")
     num_nodes_ingested.append(len(g.nodes))
     del g
 
-    # test Path object for file
-    file_path_obj = Path(file_path_str)
+    # test Path object for parquet file
+    file_path_obj = Path(parquet_file_path_str)
     g = Graph()
     g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
     num_nodes_ingested.append(len(g.nodes))
-    del g, file_path_obj
+    del g
 
-    # test path string for directory
-    dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/subset"
+    # test path string for parquet directory
     g = Graph()
-    g.load_nodes(data=dir_path_str, time="block_timestamp", id="inputs_address")
+    g.load_nodes(data=parquet_dir_path_str, time="block_timestamp", id="inputs_address")
     num_nodes_ingested.append(len(g.nodes))
-    del g, dir_path_str
+    del g
 
-    # test Path object for directory
-    dir_path_obj = Path("/Users/arien/RustroverProjects/Raphtory/dataset_tests/subset")
+    # test Path object for parquet directory
+    dir_path_obj = Path(parquet_dir_path_str)
     g = Graph()
     g.load_nodes(data=dir_path_obj, time="block_timestamp", id="inputs_address")
     num_nodes_ingested.append(len(g.nodes))
-    del g, dir_path_obj
+    del g
 
+    ######### CSV #########
+    csv_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/csv_subset"
+    csv_file_path_str = csv_dir_path_str + "/flattened_data_subset.csv"
+    # test path string for CSV file
+    g = Graph()
+    g.load_nodes(data=csv_file_path_str, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g
+
+    # test Path object for CSV file
+    file_path_obj = Path(csv_file_path_str)
+    g = Graph()
+    g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g
+
+    # test path string for CSV directory
+    g = Graph()
+    g.load_nodes(data=csv_dir_path_str, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g
+
+    # test Path object for CSV directory
+    dir_path_obj = Path(csv_dir_path_str)
+    g = Graph()
+    g.load_nodes(data=dir_path_obj, time="block_timestamp", id="inputs_address")
+    num_nodes_ingested.append(len(g.nodes))
+    del g
+
+    ######### arrow_c_stream #########
     # test pandas
-    df_pd = pd.read_parquet(file_path_str)
+    df_pd = pd.read_parquet(parquet_file_path_str)
     g = Graph()
     g.load_nodes(data=df_pd, time="block_timestamp", id="inputs_address")
     num_nodes_ingested.append(len(g.nodes))
     del g, df_pd
 
     # test polars
-    df_pl = pl.read_parquet(file_path_str)
+    df_pl = pl.read_parquet(parquet_file_path_str)
     g = Graph()
     g.load_nodes(data=df_pl, time="block_timestamp", id="inputs_address")
     num_nodes_ingested.append(len(g.nodes))
