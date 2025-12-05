@@ -81,6 +81,7 @@ impl Meta {
         let meta_layer = DictMapper::new_layer_mapper();
         let meta_node_type = DictMapper::default();
         meta_node_type.get_or_create_id("_default");
+
         Self {
             temporal_prop_mapper: PropMapper::default(),
             metadata_mapper: PropMapper::new_with_private_fields(
@@ -96,6 +97,7 @@ impl Meta {
         let meta_layer = DictMapper::new_layer_mapper();
         let meta_node_type = DictMapper::default();
         meta_node_type.get_or_create_id("_default");
+
         Self {
             temporal_prop_mapper: PropMapper::default(),
             metadata_mapper: PropMapper::default(),
@@ -107,7 +109,6 @@ impl Meta {
     pub fn new_for_graph_props() -> Self {
         let meta_layer = DictMapper::new_layer_mapper();
         let meta_node_type = DictMapper::default();
-        meta_node_type.get_or_create_id("_default");
 
         // For now, only temporal and metadata mappers are used for graph metadata.
         Self {
