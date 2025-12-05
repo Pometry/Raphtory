@@ -2,7 +2,10 @@ use proptest::{arbitrary::any, proptest};
 use raphtory::{
     db::{
         api::view::Filter,
-        graph::{graph::assert_graph_equal, views::filter::model::PropertyFilterOps},
+        graph::{
+            graph::assert_graph_equal,
+            views::filter::model::property_filter::ops::PropertyFilterOps,
+        },
     },
     prelude::*,
     test_utils::{build_graph, build_graph_strat, make_node_types},
@@ -193,7 +196,10 @@ mod test_filters_node_type_filtered_subgraph {
 
     mod test_nodes_filters_node_type_filtered_subgraph {
         use raphtory::{
-            db::{api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps},
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::views::filter::model::property_filter::ops::PropertyFilterOps,
+            },
             prelude::AdditionOps,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
@@ -232,11 +238,7 @@ mod test_filters_node_type_filtered_subgraph {
         use crate::test_filters_node_type_filtered_subgraph::{
             NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };
-        use raphtory::{
-            db::graph::views::filter::model::property_filter::PropertyFilter,
-            prelude::{NodeFilter, PropertyFilterFactory},
-        };
-
+        use raphtory::prelude::{NodeFilter, PropertyFilterFactory};
         #[test]
         fn test_nodes_filters() {
             let filter = NodeFilter.property("p1").eq(1u64);
@@ -358,8 +360,11 @@ mod test_filters_node_type_filtered_subgraph {
 
     mod test_edges_filters_node_type_filtered_subgraph {
         use raphtory::{
-            db::{api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{AdditionOps, PropertyFilter, NO_PROPS},
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::views::filter::model::property_filter::ops::PropertyFilterOps,
+            },
+            prelude::{AdditionOps, NO_PROPS},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 

@@ -1,4 +1,4 @@
-use crate::prelude::GraphViewOps;
+use crate::{db::api::state::ops::NodeFilterOp, prelude::GraphViewOps};
 
 pub trait InternalFilter<'graph> {
     type Graph: GraphViewOps<'graph> + 'graph;
@@ -16,10 +16,29 @@ pub trait InternalFilter<'graph> {
     ) -> Self::Filtered<FilteredGraph>;
 }
 
-pub trait InternalSelect<'graph> {
+pub trait InternalNodeSelect<'graph> {
     type IterGraph: GraphViewOps<'graph> + 'graph;
 
-    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph>: InternalSelect<'graph>;
+    type IterFiltered<Filter: NodeFilterOp + 'graph>: InternalNodeSelect<
+        'graph,
+        IterGraph = Self::IterGraph,
+    >;
+
+    fn iter_graph(&self) -> &Self::IterGraph;
+
+    fn apply_iter_filter<Filter: NodeFilterOp + 'graph>(
+        &self,
+        filter: Filter,
+    ) -> Self::IterFiltered<Filter>;
+}
+
+pub trait InternalEdgeSelect<'graph> {
+    type IterGraph: GraphViewOps<'graph> + 'graph;
+
+    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph>: InternalEdgeSelect<
+        'graph,
+        IterGraph = Self::IterGraph,
+    >;
 
     fn iter_graph(&self) -> &Self::IterGraph;
 

@@ -172,8 +172,11 @@ pub mod test_filters_layer_graph {
 
     pub mod test_nodes_filters_layer_graph {
         use raphtory::{
-            db::{api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{AdditionOps, PropertyFilter},
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::views::filter::model::property_filter::ops::PropertyFilterOps,
+            },
+            prelude::AdditionOps,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -456,10 +459,10 @@ pub mod test_filters_layer_graph {
                         assert_filter_edges_results, assert_search_edges_results,
                         TestGraphVariants, TestVariants,
                     },
-                    views::filter::model::PropertyFilterOps,
+                    views::filter::model::property_filter::ops::PropertyFilterOps,
                 },
             },
-            prelude::{AdditionOps, EdgeFilter, PropertyFilter, PropertyFilterFactory},
+            prelude::{AdditionOps, EdgeFilter, PropertyFilterFactory},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 

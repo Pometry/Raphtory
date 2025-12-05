@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, Select, StaticGraphViewOps},
+        api::view::{DynamicGraph, EdgeSelect, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},

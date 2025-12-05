@@ -1,7 +1,10 @@
 use crate::{
     db::{
-        api::view::{filter_ops::Filter, StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView, views::filter::internal::CreateFilter},
+        api::view::{
+            filter_ops::{Filter, NodeSelect},
+            StaticGraphViewOps,
+        },
+        graph::{edge::EdgeView, node::NodeView, views::filter::CreateFilter},
     },
     errors::GraphError,
     prelude::{EdgeViewOps, GraphViewOps},
@@ -184,7 +187,7 @@ mod test_index {
             db::{
                 api::view::{internal::InternalStorageOps, ResolvedIndexSpec, StaticGraphViewOps},
                 graph::views::filter::model::{
-                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    node_filter::{ops::NodeFilterOps, NodeFilter},
                     TryAsCompositeFilter,
                 },
             },
@@ -654,8 +657,8 @@ mod test_index {
                     assertions::{search_edges, search_nodes},
                     views::filter::model::{
                         edge_filter::EdgeFilter, node_filter::NodeFilter,
-                        property_filter::PropertyFilterOps, ComposableFilter,
-                        PropertyFilterFactory,
+                        property_filter::ops::PropertyFilterOps, ComposableFilter,
+                        PropertyFilterFactory, TemporalPropertyFilterFactory,
                     },
                 },
             },

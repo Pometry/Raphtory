@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::{
             properties::{Metadata, Properties},
-            state::NodeOp,
+            state::ops::NodeOp,
         },
         graph::node::NodeView,
     },

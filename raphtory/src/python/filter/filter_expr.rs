@@ -1,15 +1,15 @@
 use crate::{
     db::{
         api::{
-            state::NodeOp,
+            state::ops::NodeOp,
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
-            internal::CreateFilter,
             model::{
                 edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
                 not_filter::NotFilter, or_filter::OrFilter, AndFilter, TryAsCompositeFilter,
             },
+            CreateFilter,
         },
     },
     errors::GraphError,

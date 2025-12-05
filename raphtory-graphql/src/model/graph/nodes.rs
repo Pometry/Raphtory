@@ -17,7 +17,7 @@ use raphtory::{
     db::{
         api::{
             state::{ops::DynNodeFilter, Index},
-            view::{DynamicGraph, Filter, Select},
+            view::{filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter},
         },
         graph::{
             nodes::{IntoDynNodes, Nodes},

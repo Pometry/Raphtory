@@ -5,8 +5,8 @@ use crate::{
         api::{
             state::{
                 ops,
-                ops::{DynNodeFilter, IntoDynNodeOp},
-                LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
+                ops::{DynNodeFilter, IntoDynNodeOp, NodeOp},
+                LazyNodeState, NodeGroups, NodeState, NodeStateGroupBy, NodeStateOps,
                 OrderedNodeStateOps,
             },
             view::{DynamicGraph, GraphViewOps},

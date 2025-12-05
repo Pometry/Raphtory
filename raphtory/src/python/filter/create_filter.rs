@@ -1,10 +1,10 @@
 use crate::{
     db::{
         api::{
-            state::NodeOp,
+            state::ops::NodeOp,
             view::{internal::GraphView, BoxableGraphView},
         },
-        graph::views::filter::{internal::CreateFilter, model::TryAsCompositeFilter},
+        graph::views::filter::{model::TryAsCompositeFilter, CreateFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,

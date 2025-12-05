@@ -179,7 +179,7 @@ pub mod test_filters_node_subgraph {
                         assert_filter_nodes_results, assert_search_nodes_results,
                         TestGraphVariants, TestVariants,
                     },
-                    views::filter::model::PropertyFilterOps,
+                    views::filter::model::property_filter::ops::PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, NodeFilter, PropertyFilterFactory},
@@ -337,7 +337,7 @@ pub mod test_filters_node_subgraph {
                     assertions::{
                         assert_filter_edges_results, assert_search_edges_results, TestVariants,
                     },
-                    views::filter::model::PropertyFilterOps,
+                    views::filter::model::property_filter::ops::PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, EdgeFilter, PropertyFilterFactory},

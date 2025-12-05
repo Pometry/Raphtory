@@ -14,7 +14,7 @@ use crate::{
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
-            state::NodeOp,
+            state::ops::NodeOp,
             view::{
                 internal::{GraphTimeSemanticsOps, InternalFilter, NodeTimeSemanticsOps, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,

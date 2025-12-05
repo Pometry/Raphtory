@@ -4,7 +4,7 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             view::{
-                internal::{FilterOps, InternalFilter, InternalSelect, Static},
+                internal::{FilterOps, InternalEdgeSelect, InternalFilter, Static},
                 BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -182,7 +182,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Static> From<Edges<'static, G>>
     }
 }
 
-impl<'graph, G> InternalSelect<'graph> for Edges<'graph, G>
+impl<'graph, G> InternalEdgeSelect<'graph> for Edges<'graph, G>
 where
     G: GraphViewOps<'graph> + 'graph,
 {
@@ -357,7 +357,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'g
     }
 }
 
-impl<'graph, G> InternalSelect<'graph> for NestedEdges<'graph, G>
+impl<'graph, G> InternalEdgeSelect<'graph> for NestedEdges<'graph, G>
 where
     G: GraphViewOps<'graph> + 'graph,
 {
