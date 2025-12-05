@@ -2040,6 +2040,15 @@ fn test_graph_metadata() {
 }
 
 #[test]
+fn test_add_graph_metadata_with_existing_key_throws_error() {
+    let g = Graph::new();
+    g.add_metadata(vec![("style", Prop::str("red"))]).unwrap();
+
+    assert!(g.add_metadata(vec![("style", Prop::str("blue"))]).is_err());
+    assert_eq!(g.metadata().get("style").unwrap(), Prop::str("red")); // Value is unchanged
+}
+
+#[test]
 fn test_graph_metadata_with_maps() {
     let g = Graph::new();
 
