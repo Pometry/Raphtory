@@ -1,4 +1,4 @@
-use super::properties::{Properties, RowEntry};
+use super::properties::{Properties, PropEntry};
 use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
@@ -305,21 +305,21 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     /// returns items in insertion order!
-    pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry<'_>)> {
+    pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, PropEntry<'_>)> {
         self.data
             .iter_filled()
             .map(|(l_pos, entry)| (l_pos, entry, self.properties().get_entry(entry.row())))
     }
 
     /// return filled entries ordered by index
-    pub fn row_entries_ordered(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry<'_>)> {
+    pub fn row_entries_ordered(&self) -> impl Iterator<Item = (LocalPOS, &T, PropEntry<'_>)> {
         self.all_entries().filter_map(|(pos, entry)| {
             let (v, row) = entry?;
             Some((pos, v, row))
         })
     }
 
-    pub fn all_entries(&self) -> impl Iterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> {
+    pub fn all_entries(&self) -> impl Iterator<Item = (LocalPOS, Option<(&T, PropEntry<'_>)>)> {
         let max_local_pos = self.data.max_local_pos().map(|p| p.0 as usize).unwrap_or(0);
         self.data
             .iter_all()
@@ -336,7 +336,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn all_entries_par(
         &self,
-    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> + '_ {
+    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, PropEntry<'_>)>)> + '_ {
         self.data.par_iter_all().enumerate().map(|(i, v)| {
             (
                 LocalPOS::from(i),
