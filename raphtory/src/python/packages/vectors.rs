@@ -20,7 +20,7 @@ use crate::{
 
 use itertools::Itertools;
 use pyo3::{
-    exceptions::PyTypeError,
+    exceptions::{PyException, PyTypeError},
     prelude::*,
     types::{PyFunction, PyList},
 };
@@ -103,83 +103,83 @@ impl EmbeddingServerDecorator {
         PyEmbeddingServer {
             function: function.into(),
             address: self.address.clone(),
-            running: None,
         }
     }
 }
 
-struct RunningServer {
-    runtime: Runtime,
-    server: EmbeddingServer,
-}
+// struct RunningServer {
+//     runtime: Runtime,
+//     server: EmbeddingServer,
+// }
 
 #[pyclass(name = "EmbeddingServer")]
 pub struct PyEmbeddingServer {
     function: Arc<Py<PyFunction>>,
     address: String,
-    running: Option<RunningServer>, // TODO: use all of these ideas for the GraphServer implementation
+    // running: Option<RunningServer>, // TODO: use all of these ideas for the GraphServer implementation
 }
 // TODO: ideally, I should allow users to provide this server object as embedding model, so the  fact it has an OpenAI  like API is transparent to the user
 
 impl PyEmbeddingServer {
-    fn create_running_server(&self) -> RunningServer {
-        assert!(self.running.is_none()); // TODO: return error
-        let runtime = build_runtime();
-        let server = runtime.block_on(serve_custom_embedding(&self.address, self.function.clone()));
-        RunningServer { runtime, server }
-    }
-}
-
-impl PyEmbeddingServer {
-    // TODO: instead of having to have this, we could try just using PyEmbedding::start() directly
-    fn inner_start(&mut self) {
-        let running = self.create_running_server();
-        println!("starting embedding server");
-        self.running = Some(running)
+    fn create_running_server(&self) -> (Runtime, EmbeddingServer) {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        // let runtime = tokio::runtime::Builder::new_multi_thread()
+        //     .enable_all()
+        //     .build()
+        //     .unwrap();
+        let execution =
+            runtime.block_on(serve_custom_embedding(&self.address, self.function.clone()));
+        (runtime, execution)
     }
 }
 
 #[pymethods]
 impl PyEmbeddingServer {
     fn run(&self) {
-        let running = self.create_running_server();
-        running.runtime.block_on(running.server.wait());
+        let (runtime, execution) = self.create_running_server();
+        runtime.block_on(execution.wait());
     }
 
-    fn start(mut slf: PyRefMut<'_, Self>) {
-        slf.inner_start();
+    fn start(&self) -> PyRunningEmbeddingServer {
+        let (runtime, execution) = self.create_running_server();
+        PyRunningEmbeddingServer {
+            runtime,
+            execution: Some(execution),
+        }
     }
+}
 
-    fn stop(mut slf: PyRefMut<'_, Self>) {
-        if let Some(RunningServer { runtime, server }) = &mut slf.running {
-            runtime.block_on(server.stop());
-            println!("stopping embedding server");
-            slf.running = None
+#[pyclass(name = "RunningEmbeddingServer")]
+struct PyRunningEmbeddingServer {
+    runtime: Runtime,
+    execution: Option<EmbeddingServer>, // TODO: rename EmbeddingServer to ServerHandle?
+}
+
+#[pymethods]
+impl PyRunningEmbeddingServer {
+    fn stop(&mut self) -> PyResult<()> {
+        if let Some(execution) = &mut self.execution {
+            self.runtime.block_on(execution.stop());
+            self.execution = None;
+            Ok(())
         } else {
-            panic!("nothing to stop")
+            Err(PyException::new_err("Embedding server was already stopped"))
         }
     }
 
-    fn __enter__(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-        slf.inner_start();
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
         slf
     }
 
     fn __exit__(
-        slf: PyRefMut<'_, Self>,
-        _exc_type: Option<PyObject>,
-        _exc_value: Option<PyObject>,
-        _traceback: Option<PyObject>,
-    ) {
-        PyEmbeddingServer::stop(slf);
+        &mut self,
+        // py: Python,
+        _exc_type: PyObject,
+        _exc_val: PyObject,
+        _exc_tb: PyObject,
+    ) -> PyResult<()> {
+        self.stop()
     }
-}
-
-fn build_runtime() -> Runtime {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap()
 }
 
 pub type PyWindow = Option<(PyTime, PyTime)>;

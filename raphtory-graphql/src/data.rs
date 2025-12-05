@@ -171,6 +171,9 @@ impl Data {
         let graph = self.read_graph_from_folder(folder.clone()).await?.graph;
         self.vectorise_with_template(graph, folder, template, model)
             .await;
+        self.cache
+            .remove(&folder.get_original_path().to_path_buf())
+            .await;
         Ok(())
     }
 

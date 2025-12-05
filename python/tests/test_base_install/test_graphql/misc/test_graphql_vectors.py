@@ -77,12 +77,18 @@ def test_new_graph():
     print("test_new_graph")
     work_dir = tempfile.TemporaryDirectory()
     server = setup_server(work_dir.name)
-    with server.start():
-        client = RaphtoryClient("http://localhost:1736")
-        client.new_graph("abb", "EVENT")
-        rg = client.remote_graph("abb")
-        setup_graph(rg)
-        assert_correct_documents(client)
+    with embeddings.start():
+        with server.start():
+            client = RaphtoryClient("http://localhost:1736")
+            client.new_graph("abb", "EVENT")
+            rg = client.remote_graph("abb")
+            setup_graph(rg)
+            client.query("""
+                {
+                    vectoriseGraph(path: "abb", apiBase: "http://localhost:7340", nodes: { custom: "{{ name }}" }, edges: { enabled: false })
+                }
+                """)
+            assert_correct_documents(client)
 
 
 def test_upload_graph():
@@ -90,38 +96,38 @@ def test_upload_graph():
     work_dir = tempfile.mkdtemp()
     temp_dir = tempfile.mkdtemp()
     server = setup_server(work_dir)
-    with server.start():
-        client = RaphtoryClient("http://localhost:1736")
-        g = Graph()
-        setup_graph(g)
-        g_path = temp_dir + "/abb"
-        g.save_to_zip(g_path)
-        client.upload_graph(path="abb", file_path=g_path, overwrite=True)
-        assert_correct_documents(client)
+    with embeddings.start():
+        with server.start():
+            client = RaphtoryClient("http://localhost:1736")
+            g = Graph()
+            setup_graph(g)
+            g_path = temp_dir + "/abb"
+            g.save_to_zip(g_path)
+            client.upload_graph(path="abb", file_path=g_path, overwrite=True)
+            client.query("""
+                {
+                    vectoriseGraph(path: "abb", apiBase: "http://localhost:7340", nodes: { custom: "{{ name }}" }, edges: { enabled: false })
+                }
+                """)
+            assert_correct_documents(client)
 
-GRAPH_NAME = "/abb"
+GRAPH_NAME = "abb"
 
 def test_include_graph():
-    print("-1")
     work_dir = tempfile.mkdtemp()
     g_path = work_dir + "/" + GRAPH_NAME
     g = Graph()
     setup_graph(g)
     g.save_to_file(g_path)
-    print("0")
     server = setup_server(work_dir)
-    print("1")
-    with embeddings:
-        print("2")
+    with embeddings.start():
         embedding_client = OpenAIEmbeddings(api_base="http://localhost:7340")
-        print("3")
         server.vectorise_graph(
             name=GRAPH_NAME,
             embeddings=embedding_client,
             nodes="{{ name }}",
             edges=False
         )
-        print("4")
         with server.start():
             client = RaphtoryClient("http://localhost:1736")
             assert_correct_documents(client)

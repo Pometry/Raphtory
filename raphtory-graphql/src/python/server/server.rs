@@ -135,6 +135,7 @@ impl PyGraphServer {
     )]
     fn vectorise_graph(
         &self,
+        py: Python,
         name: &str,
         embeddings: PyOpenAIEmbeddings, // FIXME: this will create a breaking change once there are more options
         nodes: TemplateConfig,
@@ -144,11 +145,14 @@ impl PyGraphServer {
             "at least one of nodes and edges has to be set to True or some string",
         ))?;
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            self.0
-                .vectorise_graph(name, template, embeddings.into())
-                .await?;
-            Ok(())
+        // allow threads just in case the embedding server is using the same python runtime
+        py.allow_threads(|| {
+            rt.block_on(async move {
+                self.0
+                    .vectorise_graph(name, template, embeddings.into())
+                    .await?;
+                Ok(())
+            })
         })
     }
 
@@ -197,7 +201,7 @@ impl PyGraphServer {
             let url = format!("http://localhost:{port}");
             // we need to release the GIL, otherwise the server will deadlock when trying to use python function as the embedding function
             // and wait_for_server_online will never return
-            // FIXME: this does not apply anymore, can remove
+            // FIXME: this does not apply anymore, can remove?
             let result =
                 py.allow_threads(|| PyRunningGraphServer::wait_for_server_online(&url, timeout_ms));
             match result {

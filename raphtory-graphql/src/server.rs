@@ -173,16 +173,16 @@ impl GraphServer {
     /// Vectorise the graph 'name'in the server working directory.
     ///
     /// Arguments:
-    ///   * name - the name of the graph to vectorise.
+    ///   * path - the path of the graph to vectorise.
     ///   * template - the template to use for creating documents.
     pub async fn vectorise_graph(
         &self,
-        name: &str,
+        path: &str,
         template: DocumentTemplate,
         embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
         let model = self.data.vector_cache.openai(embeddings).await?;
-        let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), name)?;
+        let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), path)?;
         self.data.vectorise_folder(&folder, &template, model).await
     }
 

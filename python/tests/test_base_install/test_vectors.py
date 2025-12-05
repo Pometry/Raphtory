@@ -21,7 +21,7 @@ def test_server():
     def custom_embeddings(text: str):
         return embedding_map[text]
 
-    with custom_embeddings:
+    with custom_embeddings.start():
         yield
 
 
@@ -60,7 +60,7 @@ def test_embedding_sever_context_manager():
     def constant(text: str):
         return [1.0]
 
-    with constant as embeddings:
+    with constant.start():
         headers = { "Content-Type": "application/json" }
         data = {
             # "model": "whatever",
@@ -237,7 +237,7 @@ def test_default_template():
     g.add_node(1, "node1")
     g.add_edge(2, "node1", "node1")
 
-    constant_embedding.start()
+    running = constant_embedding.start()
 
     vg = g.vectorise(OpenAIEmbeddings(api_base="http://localhost:7341"))
 
@@ -252,4 +252,4 @@ def test_default_template():
         == "There is an edge from node1 to node1 with events at:\n- Jan 1 1970 00:00\n"
     )
 
-    constant_embedding.stop()
+    running.stop()

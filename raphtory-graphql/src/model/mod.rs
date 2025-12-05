@@ -9,20 +9,24 @@ use crate::{
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
-    paths::valid_path,
+    paths::{valid_path, ExistingGraphFolder},
     rayon::blocking_compute,
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
-    Result, Upload,
+    App, Enum, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
+    ResolvedObjectFields, Result, Upload,
 };
 use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
     prelude::*,
     serialise::InternalStableDecode,
+    vectors::{
+        storage::OpenAIEmbeddings,
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    },
     version,
 };
 #[cfg(feature = "storage")]
@@ -87,6 +91,22 @@ pub enum GqlGraphType {
 #[graphql(root)]
 pub(crate) struct QueryRoot;
 
+#[derive(OneOfInput, Clone, Debug)]
+pub enum Template {
+    /// The default template.
+    Enabled(bool),
+    /// A custom template.
+    Custom(String),
+}
+
+fn resolve(template: Option<Template>, default: &str) -> Option<String> {
+    match template? {
+        Template::Enabled(false) => None,
+        Template::Enabled(true) => Some(default.to_owned()),
+        Template::Custom(template) => Some(template),
+    }
+}
+
 #[ResolvedObjectFields]
 impl QueryRoot {
     /// Hello world demo
@@ -102,6 +122,7 @@ impl QueryRoot {
             .await
             .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
+
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
@@ -114,6 +135,34 @@ impl QueryRoot {
             .await
             .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
         Ok(graph)
+    }
+
+    /// Update graph query, has side effects to update graph state
+    ///
+    /// Returns:: GqlMutableGraph
+    async fn vectorise_graph<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        model: Option<String>,
+        api_base: Option<String>,
+        nodes: Option<Template>,
+        edges: Option<Template>,
+    ) -> Result<bool> {
+        ctx.require_write_access()?;
+        let data = ctx.data_unchecked::<Data>();
+        let template = DocumentTemplate {
+            node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
+            edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
+        };
+        let embeddings = OpenAIEmbeddings {
+            model: model.unwrap_or("text-embedding-3-small".to_owned()),
+            api_base,
+            ..Default::default()
+        };
+        let model = data.vector_cache.openai(embeddings).await?;
+        let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)?;
+        data.vectorise_folder(&folder, &template, model).await?;
+        Ok(true)
     }
 
     /// Create vectorised graph in the format used for queries
