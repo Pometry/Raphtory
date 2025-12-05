@@ -689,6 +689,7 @@ impl PyGraph {
                     || path_str.ends_with(".csv.bz2")
             };
 
+            // support directories with mixed parquet and CSV files
             if is_parquet {
                 load_nodes_from_parquet(
                     &self.graph,
@@ -701,11 +702,12 @@ impl PyGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
-                )
-            } else if is_csv {
+                )?;
+            }
+            if is_csv {
                 load_nodes_from_csv_path(
                     &self.graph,
-                    path,
+                    &path,
                     time,
                     id,
                     node_type,
@@ -713,12 +715,14 @@ impl PyGraph {
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
-                )
-            } else {
-                Err(PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files (but not both)")))
+                )?;
             }
+            if !is_parquet && !is_csv {
+                return Err(PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files")));
+            }
+            Ok(())
         } else {
-            Err(PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files (but not both), and objects that implement an __arrow_c_stream__ method.")))
+            Err(PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
         }
     }
 

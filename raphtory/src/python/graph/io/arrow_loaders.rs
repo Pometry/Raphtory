@@ -316,7 +316,7 @@ pub(crate) fn load_nodes_from_csv_path<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
-    path: PathBuf,
+    path: &PathBuf,
     time: &str,
     id: &str,
     node_type: Option<&str>,
@@ -335,7 +335,7 @@ pub(crate) fn load_nodes_from_csv_path<
     // get the CSV file paths
     let mut csv_paths = Vec::new();
     if path.is_dir() {
-        for entry in fs::read_dir(&path)? {
+        for entry in fs::read_dir(path)? {
             let entry = entry?;
             let p = entry.path();
             let s = p.to_string_lossy();
