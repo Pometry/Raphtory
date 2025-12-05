@@ -297,7 +297,8 @@ fn split_into_chunks(batch: &RecordBatch, indices: &[usize]) -> Vec<Result<DFChu
     }
 }
 
-fn get_reader(filename: &str, file: File) -> Box<dyn std::io::Read> {
+fn get_csv_reader(filename: &str, file: File) -> Box<dyn std::io::Read> {
+    // Support bz2 and gz compression
     if filename.ends_with(".csv.gz") {
         Box::new(GzDecoder::new(file))
     } else if filename.ends_with(".csv.bz2") {
@@ -369,15 +370,28 @@ pub(crate) fn load_nodes_from_csv_path<
 
 fn build_csv_reader(
     path: &Path,
-    schema: SchemaRef,
 ) -> Result<arrow_csv::reader::Reader<Box<dyn std::io::Read>>, GraphError> {
     let file = File::open(path)?;
     let path_str = path.to_string_lossy();
 
-    // Support bz2 and gz compression
-    let reader = get_reader(path_str.as_ref(), file);
+    // infer schema
+    let reader = get_csv_reader(path_str.as_ref(), file);
+    let (schema, _) = Format::default()
+        .with_header(true)
+        .infer_schema(reader, Some(100))
+        .map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Arrow CSV error while inferring schema from '{}': {e}",
+                path.display()
+            ))
+        })?;
+    let schema_ref: SchemaRef = Arc::new(schema);
 
-    ReaderBuilder::new(schema)
+    // we need another reader because the first one gets consumed
+    let file = File::open(path)?;
+    let reader = get_csv_reader(path_str.as_ref(), file);
+
+    ReaderBuilder::new(schema_ref)
         .with_header(true)
         .build(reader)
         .map_err(|e| {
@@ -390,10 +404,9 @@ fn build_csv_reader(
 
 fn read_csv_chunks_from_file(
     path: &Path,
-    schema: SchemaRef,
     indices: &[usize],
 ) -> Result<Vec<Result<DFChunk, GraphError>>, GraphError> {
-    let mut csv_reader = build_csv_reader(path, schema)?;
+    let mut csv_reader = build_csv_reader(path)?;
     let mut chunks = Vec::new();
 
     for batch_res in &mut csv_reader {
@@ -410,7 +423,7 @@ fn read_csv_chunks_from_file(
 
 fn process_csv_paths_df<'a>(
     paths: &'a [PathBuf],
-    col_names: Vec<&str>,
+    col_names: Vec<&'a str>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>, GraphError> {
     if paths.is_empty() {
         return Err(GraphError::LoadFailure(
@@ -418,33 +431,41 @@ fn process_csv_paths_df<'a>(
         ));
     }
 
-    // infer the schema
     // TODO: Add support for user provided schema
-    let mut schema_reader = get_reader(paths[0].to_string_lossy().as_ref(), File::open(&paths[0])?);
-    let (schema, _) = Format::default()
-        .with_header(true)
-        .infer_schema(&mut schema_reader, Some(100))
-        .map_err(|e| {
-            GraphError::LoadFailure(format!(
-                "Arrow CSV error while inferring schema from '{}': {e}",
-                paths[0].display()
-            ))
-        })?;
-    let schema_ref: SchemaRef = Arc::new(schema);
-
-    // get column names and indices
-    let mut names: Vec<String> = Vec::new();
-    let mut indices: Vec<usize> = Vec::new();
-    for (idx, field) in schema_ref.fields().iter().enumerate() {
-        if col_names.contains(&field.name().as_str()) {
-            names.push(field.name().clone());
-            indices.push(idx);
+    let names = col_names.iter().map(|&name| name.to_string()).collect();
+    let chunks = paths.iter().flat_map(move |path| {
+        let csv_reader = match build_csv_reader(path.as_path()) {
+            Ok(r) => r,
+            Err(e) => return vec![Err(e)],
+        };
+        let mut indices = Vec::with_capacity(col_names.len());
+        for required_col in &col_names {
+            if let Some((idx, _)) = csv_reader
+                .schema()
+                .fields()
+                .iter()
+                .enumerate()
+                .find(|(_, f)| f.name() == required_col)
+            {
+                indices.push(idx);
+            } else {
+                return vec![Err(GraphError::LoadFailure(format!(
+                    "Column '{required_col}' not found in file {}",
+                    path.display()
+                )))];
+            }
         }
-    }
-
-    let chunks = paths.iter().cloned().flat_map(move |path| {
-        read_csv_chunks_from_file(path.as_path(), schema_ref.clone(), &indices)
-            .unwrap_or_else(|e| vec![Err(e)])
+        let mut results = Vec::new();
+        for batch_res in csv_reader {
+            match batch_res {
+                Ok(batch) => results.extend(split_into_chunks(&batch, &indices)),
+                Err(e) => results.push(Err(GraphError::LoadFailure(format!(
+                    "Arrow CSV error while reading a batch from '{}': {e}",
+                    path.display()
+                )))),
+            }
+        }
+        results
     });
 
     // we don't know the total number of rows until we read all files
