@@ -563,7 +563,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
                 if !metadata_props.is_empty() {
                     let lsn = 0;
-                    graph_writer.add_metadata(metadata_props, lsn);
+                    graph_writer.update_metadata(metadata_props, lsn);
                 }
             }
         }

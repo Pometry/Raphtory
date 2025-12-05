@@ -68,7 +68,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     // FIXME: this can't fail
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         let mut writer = self.storage().graph_props().writer();
-        writer.add_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
+        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 

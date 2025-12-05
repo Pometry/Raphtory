@@ -171,6 +171,7 @@ pub trait SessionAdditionOps: Send + Sync {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error>;
+
     fn resolve_edge_property(
         &self,
         prop: &str,

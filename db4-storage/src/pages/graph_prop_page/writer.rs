@@ -36,10 +36,6 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
         self.graph_props.mark_dirty();
     }
 
-    pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
-        self.update_metadata(props, lsn);
-    }
-
     pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
         let add = self.mem_segment.update_metadata(props);
         self.mem_segment.layers_mut()[MemGraphPropSegment::DEFAULT_LAYER].set_lsn(lsn);
