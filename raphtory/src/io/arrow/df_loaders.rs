@@ -151,8 +151,7 @@ pub fn load_nodes_from_df<
                 let start_id = session
                     .reserve_event_ids(df.len())
                     .map_err(into_graph_err)?;
-                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
-                col
+                SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
             }
         };
 
@@ -274,6 +273,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .map_err(into_graph_err)
     })?;
 
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
 
     let mut src_col_resolved = vec![];
@@ -286,34 +286,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
     // set the type of the resolver;
     let chunks = df_view.chunks.peekable();
-    // let mapping = Mapping::new();
-    // let mapping = write_locked_graph.graph().logical_to_physical.clone();
-
-    // if let Some(chunk) = chunks.peek() {
-    //     if let Ok(chunk) = chunk {
-    //         let src_col = chunk.node_col(src_index)?;
-    //         let dst_col = chunk.node_col(dst_index)?;
-    //         src_col.validate(graph, LoadError::MissingSrcError)?;
-    //         dst_col.validate(graph, LoadError::MissingDstError)?;
-    //         let mut iter = src_col.iter();
-
-    //         if let Some(id) = iter.next() {
-    //             let vid = graph
-    //                 .resolve_node(id.as_node_ref())
-    //                 .map_err(|_| LoadError::FatalError)?; // initialize the type of the resolver
-    //             mapping
-    //                 .set(id, vid.inner())
-    //                 .map_err(|_| LoadError::FatalError)?;
-    //         } else {
-    //             return Ok(());
-    //         }
-    //     }
-    // } else {
-    //     return Ok(());
-    // }
 
     let num_nodes = AtomicUsize::new(write_locked_graph.graph().internal_num_nodes());
-    let all_graph_layers = graph.edge_meta().layer_meta().all_ids().collect::<Vec<_>>();
 
     for chunk in chunks {
         let df = chunk?;
@@ -344,35 +318,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         let dst_col = df.node_col(dst_index)?;
         dst_col.validate(graph, LoadError::MissingDstError)?;
-
-        // let gid_type = src_col.dtype();
-
-        // let fallback_resolver = write_locked_graph.graph().logical_to_physical.clone();
-
-        // mapping
-        //     .mapping()
-        //     .run_with_locked(|mut shard| match gid_type {
-        //         GidType::Str => load_into_shard(
-        //             src_col_shared,
-        //             dst_col_shared,
-        //             &src_col,
-        //             &dst_col,
-        //             &num_nodes,
-        //             shard.as_str().unwrap(),
-        //             |gid| Cow::Borrowed(gid.as_str().unwrap()),
-        //             |id| fallback_resolver.get_str(id),
-        //         ),
-        //         GidType::U64 => load_into_shard(
-        //             src_col_shared,
-        //             dst_col_shared,
-        //             &src_col,
-        //             &dst_col,
-        //             &num_nodes,
-        //             shard.as_u64().unwrap(),
-        //             |gid| Cow::Owned(gid.as_u64().unwrap()),
-        //             |id| fallback_resolver.get_u64(*id),
-        //         ),
-        //     })?;
 
         // It's our graph, no one else can change it
         src_col
@@ -427,8 +372,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 let start_id = session
                     .reserve_event_ids(df.len())
                     .map_err(into_graph_err)?;
-                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
-                col
+                SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
             }
         };
 
@@ -439,9 +383,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         layer_eids_exist.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
-        let num_edges: Arc<AtomicUsize> =
-            AtomicUsize::new(write_locked_graph.graph().internal_num_edges()).into();
-        let next_edge_id = || num_edges.fetch_add(1, Ordering::Relaxed);
+        let edges = write_locked_graph.graph().storage().edges().clone();
+        let next_edge_id = |row: usize| {
+            let (page, pos) = edges.reserve_free_pos(row);
+            pos.as_eid(page, edges.max_page_len())
+        };
 
         let mut per_segment_edge_count = Vec::with_capacity(write_locked_graph.nodes.len());
         per_segment_edge_count.resize_with(write_locked_graph.nodes.len(), || AtomicUsize::new(0));
@@ -472,14 +418,13 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         writer.store_node_id(src_pos, 0, src_gid, 0);
                         // find the original EID in the static graph if it exists
                         // otherwise create a new one
-                        // find the edge id in the layer, first using the EID then using get_out_edge (more expensive)
 
                         let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                             eids_exist[row].store(true, Ordering::Relaxed);
                             edge_id.with_layer(*layer)
                         } else {
-                            let edge_id = EID(next_edge_id());
+                            let edge_id = next_edge_id(row);
 
                             writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
@@ -504,7 +449,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 }
             });
 
-        write_locked_graph.resize_chunks_to_num_edges(num_edges.load(Ordering::Relaxed));
+        let aprox_num_edges = write_locked_graph.graph().internal_num_edges() + df.len();
+
+        write_locked_graph.resize_chunks_to_num_edges(aprox_num_edges);
 
         rayon::scope(|sc| {
             // Add inbound edges
@@ -583,52 +530,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     let mut t_props: Vec<(usize, Prop)> = vec![];
                     let mut c_props: Vec<(usize, Prop)> = vec![];
 
-                    // let temporal_prop_cols = prop_cols.cols();
-                    // // let metadata_cols = metadata_cols.cols();
-
-                    // let masks = if layer_col.is_some() {
-                    //     let mut masks = vec![];
-                    //     for l in &all_graph_layers {
-                    //         let mut mask = BooleanArray::builder(src_col_resolved.len());
-                    //         for (i, (eid, layer)) in
-                    //             eid_col_resolved.iter().zip(&layer_col_resolved).enumerate()
-                    //         {
-                    //             let exists = shard.resolve_pos(*eid).is_some() && *layer == *l;
-                    //             mask.append_value(exists);
-                    //         }
-                    //         let mask = mask.finish();
-                    //         if !mask.is_empty() {
-                    //             masks.push(mask);
-                    //         }
-                    //     }
-                    //     masks
-                    // } else {
-                    //     let mut mask = BooleanArray::builder(src_col_resolved.len());
-                    //     // all these go into a single layer
-                    //     for (i, eid) in eid_col_resolved.iter().enumerate() {
-                    //         let exists = shard.resolve_pos(*eid).is_some();
-                    //         mask.append_value(exists);
-                    //     }
-                    //     let mask = mask.finish();
-                    //     vec![mask]
-                    // };
-
-                    // let mut writer = shard.writer();
-
-                    // for mask in masks {
-                    //     writer.bulk_add_edges(
-                    //         &mask,
-                    //         time_col.values(),
-                    //         start_idx,
-                    //         &eid_col_resolved,
-                    //         &src_col_resolved,
-                    //         &dst_col_resolved,
-                    //         0, // use the mask to select for layer
-                    //         &temporal_prop_cols,
-                    //         prop_cols.prop_ids(),
-                    //     )
-                    // }
-
                     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
                         zip.enumerate()
                     {
@@ -643,9 +544,17 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                             c_props.extend(metadata_cols.iter_row(row));
                             c_props.extend_from_slice(&shared_metadata);
 
-                            writer.add_static_edge(Some(eid_pos), *src, *dst, 0, Some(exists));
-                            writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
-                            writer.add_edge(t, eid_pos, *src, *dst, t_props.drain(..), *layer, 0);
+                            writer.bulk_add_edge(
+                                t,
+                                eid_pos,
+                                *src,
+                                *dst,
+                                exists,
+                                *layer,
+                                c_props.drain(..),
+                                t_props.drain(..),
+                                0,
+                            );
                         }
                     }
                 });
@@ -655,22 +564,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
-
-    // put the mapping into the fallback resolver
-    // let fallback_resolver = &write_locked_graph.graph().logical_to_physical;
-    // match fallback_resolver.dtype() {
-    //     Some(GidType::Str) => {
-    //         fallback_resolver
-    //             .bulk_set_str(mapping.iter_str())
-    //             .map_err(|_| LoadError::FatalError)?;
-    //     }
-    //     Some(GidType::U64) => {
-    //         fallback_resolver
-    //             .bulk_set_u64(mapping.iter_u64())
-    //             .map_err(|_| LoadError::FatalError)?;
-    //     }
-    //     _ => {}
-    // }
 
     Ok(())
 }

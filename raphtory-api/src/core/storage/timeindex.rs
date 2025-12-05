@@ -181,6 +181,7 @@ impl TimeIndexEntry {
     pub const MIN: TimeIndexEntry = TimeIndexEntry(i64::MIN, 0);
 
     pub const MAX: TimeIndexEntry = TimeIndexEntry(i64::MAX, usize::MAX);
+
     pub fn new(t: i64, s: usize) -> Self {
         Self(t, s)
     }

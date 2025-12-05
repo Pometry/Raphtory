@@ -1,3 +1,10 @@
+use crate::{
+    EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
+    api::edges::{EdgeEntryOps, EdgeRefOps},
+    gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
+    generic_t_props::WithTProps,
+    segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
+};
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
     entities::{
@@ -6,15 +13,6 @@ use raphtory_core::{
     },
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-
-use crate::{
-    EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
-    api::edges::{EdgeEntryOps, EdgeRefOps},
-    gen_t_props::WithTProps,
-    gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
-};
-
-use super::{additions::MemAdditions, edge::MemEdgeSegment};
 
 #[derive(Debug)]
 pub struct MemEdgeEntry<'a, MES> {
@@ -149,15 +147,13 @@ impl<'a> WithTProps<'a> for MemEdgeRef<'a> {
 
 impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type Additions = EdgeAdditions<'a>;
-
     type Deletions = EdgeDeletions<'a>;
-
     type TProps = EdgeTProps<'a>;
 
     fn edge(self, layer_id: usize) -> Option<(VID, VID)> {
         self.es
             .as_ref()
-            .get(layer_id)? //.get(layer_id)?
+            .get(layer_id)?
             .get(self.pos)
             .map(|entry| (entry.src, entry.dst))
     }

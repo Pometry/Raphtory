@@ -8,7 +8,7 @@ use crate::{
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
     },
     persist::strategy::Config,
-    segments::node::MemNodeSegment,
+    segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::meta::Meta;
@@ -232,7 +232,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let nodes_path = nodes_path.as_ref();
-
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !nodes_path.exists() {

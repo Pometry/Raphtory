@@ -3,7 +3,7 @@ use crate::{
     api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{layer_counter::GraphStats, node_page::writer::NodeWriter, resolve_pos},
-    segments::node::MemNodeSegment,
+    segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_core::entities::VID;
@@ -18,7 +18,7 @@ pub struct LockedNodePage<'a, NS> {
     lock: RwLockWriteGuard<'a, MemNodeSegment>,
 }
 
-impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
+impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
     pub fn new(
         page_id: usize,
         layer_counter: &'a GraphStats,
@@ -68,6 +68,7 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
         self.layer_counter.get(layer_id);
     }
 }
+
 pub struct WriteLockedNodePages<'a, NS> {
     writers: Vec<LockedNodePage<'a, NS>>,
 }
@@ -80,7 +81,7 @@ impl<NS> Default for WriteLockedNodePages<'_, NS> {
     }
 }
 
-impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> {
+impl<'a, NS: NodeSegmentOps> WriteLockedNodePages<'a, NS> {
     pub fn new(writers: Vec<LockedNodePage<'a, NS>>) -> Self {
         Self { writers }
     }

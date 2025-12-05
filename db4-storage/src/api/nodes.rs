@@ -28,7 +28,7 @@ use crate::{
     LocalPOS,
     error::StorageError,
     gen_ts::LayerIter,
-    segments::node::MemNodeSegment,
+    segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
 };
 
@@ -42,12 +42,15 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type ArcLockedSegment: LockedNSSegment;
 
     fn latest(&self) -> Option<TimeIndexEntry>;
+
     fn earliest(&self) -> Option<TimeIndexEntry>;
 
     fn t_len(&self) -> usize;
 
     fn event_id(&self) -> i64;
+
     fn increment_event_id(&self, i: i64);
+
     fn decrement_event_id(&self) -> i64;
 
     fn load(
@@ -59,6 +62,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     ) -> Result<Self, StorageError>
     where
         Self: Sized;
+
     fn new(
         page_id: usize,
         node_meta: Arc<Meta>,
@@ -70,6 +74,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn segment_id(&self) -> usize;
 
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>;
+
     fn head(&self) -> RwLockReadGuard<'_, MemNodeSegment>;
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
@@ -109,13 +114,14 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
-    fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a>;
+    fn entry(&self, pos: impl Into<LocalPOS>) -> Self::Entry<'_>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 
     fn flush(&self);
 
     fn est_size(&self) -> usize;
+
     fn increment_est_size(&self, size: usize) -> usize;
 
     fn vacuum(
@@ -158,9 +164,7 @@ pub trait NodeEntryOps<'a>: Send + Sync + 'a {
 
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type Additions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
-
     type EdgeAdditions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
-
     type TProps: TPropOps<'a>;
 
     fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;

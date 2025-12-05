@@ -219,8 +219,10 @@ mod io_tests {
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
 
+            let count_edges = g.core_edges().iter(&raphtory_core::entities::LayerIds::All).count();
             assert_eq!(g.unfiltered_num_edges(), distinct_edges);
             assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            assert_eq!(count_edges, distinct_edges);
             assert_graph_equal(&g, &g2);
         })
     }

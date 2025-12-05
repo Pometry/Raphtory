@@ -18,6 +18,7 @@ pub trait PropertyAdditionOps:
     ) -> Result<(), GraphError>;
 
     fn add_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
+
     fn update_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
 }
 

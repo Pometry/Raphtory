@@ -262,7 +262,7 @@ mod proto_test {
         let pm = graph.edge_meta().temporal_prop_mapper();
         check_prop_mapper(pm);
 
-        let pm = graph.graph_meta().temporal_mapper();
+        let pm = graph.graph_props_meta().temporal_prop_mapper();
         check_prop_mapper(pm);
 
         let mut vec1 = actual.keys().collect::<Vec<_>>();

@@ -228,7 +228,7 @@ fn add_edge_grows_graph_edge_len() {
 }
 
 #[test]
-fn simle_add_edge() {
+fn simple_add_edge() {
     let edges = vec![(1, 1, 2), (2, 2, 3), (3, 3, 4)];
 
     let g = Graph::new();
@@ -1984,7 +1984,7 @@ fn test_prop_display_str() {
 }
 
 #[test]
-fn test_graph_metadata() {
+fn test_graph_metadata_proptest() {
     proptest!(|(u64_props: HashMap<String, u64>)| {
         let g = Graph::new();
 
@@ -1993,7 +1993,7 @@ fn test_graph_metadata() {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-    g.add_metadata(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
@@ -2004,7 +2004,7 @@ fn test_graph_metadata() {
 }
 
 #[test]
-fn test_graph_metadata2() {
+fn test_graph_metadata() {
     let g = Graph::new();
 
     let as_props: Vec<(&str, Prop)> =
@@ -2040,6 +2040,56 @@ fn test_graph_metadata2() {
 }
 
 #[test]
+fn test_add_graph_metadata_with_existing_key_throws_error() {
+    let g = Graph::new();
+    g.add_metadata(vec![("style", Prop::str("red"))]).unwrap();
+
+    assert!(g.add_metadata(vec![("style", Prop::str("blue"))]).is_err());
+    assert_eq!(g.metadata().get("style").unwrap(), Prop::str("red")); // Value is unchanged
+}
+
+#[test]
+fn test_graph_metadata_with_maps() {
+    let g = Graph::new();
+
+    let style_with_size = Prop::map(vec![("fill", Prop::str("red")), ("size", Prop::I64(5))]);
+
+    let style_with_opacity = Prop::map(vec![
+        ("fill", Prop::str("red")),
+        ("opacity", Prop::F64(0.4)),
+    ]);
+
+    // Add first metadata and verify
+    g.add_metadata(vec![("style", style_with_size.clone())])
+        .unwrap();
+    let actual = g.metadata().get("style").unwrap();
+    assert_eq!(actual, style_with_size.clone());
+
+    // Update metadata and verify
+    g.update_metadata(vec![("style", style_with_opacity.clone())])
+        .unwrap();
+    let actual = g.metadata().get("style").unwrap();
+    assert_eq!(actual, style_with_opacity.clone());
+
+    // Add another metadata property and verify
+    let config = Prop::map(vec![
+        ("theme", Prop::str("dark")),
+        ("version", Prop::I64(2)),
+    ]);
+    g.add_metadata(vec![("config", config.clone())]).unwrap();
+    let actual_config = g.metadata().get("config").unwrap();
+    assert_eq!(actual_config, config.clone());
+
+    // Verify style is still the updated value
+    let actual_style = g.metadata().get("style").unwrap();
+    assert_eq!(actual_style, style_with_opacity.clone());
+
+    // Verify all metadata keys exist
+    let keys: Vec<_> = g.metadata().keys().sorted().collect();
+    assert_eq!(keys, vec!["config", "style"]);
+}
+
+#[test]
 fn test_graph_metadata_names() {
     proptest!(|(u64_props: HashMap<String, u64>)| {
         let g = Graph::new();
@@ -2049,7 +2099,7 @@ fn test_graph_metadata_names() {
             .map(|(name, value)| (name.into(), Prop::U64(value)))
             .collect::<Vec<_>>();
 
-    g.add_metadata(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()
@@ -2064,69 +2114,130 @@ fn test_graph_metadata_names() {
 fn test_graph_temporal_props() {
     proptest!(|(str_props: HashMap<String, String>)| {
         global_info_logger();
-        let g = Graph::new();
 
+        let g = Graph::new();
         let (t0, t1) = (1, 2);
 
-        let (t0_props, t1_props): (Vec<_>, Vec<_>) = str_props
-            .iter()
-            .enumerate()
-            .map(|(i, props)| {
-                let (name, value) = props;
-                let value = Prop::from(value.as_str());
-                (name.as_str().into(), value, i % 2)
-            })
-            .partition(|(_, _, i)| *i == 0);
+        // Split properties into two sets based on even/odd index
+        // Even-indexed properties go to t0, odd-indexed to t1
+        let mut t0_props = HashMap::new();
+        let mut t1_props = HashMap::new();
 
-        let t0_props: HashMap<ArcStr, Prop> = t0_props
-            .into_iter()
-            .map(|(name, value, _)| (name, value))
-            .collect();
+        for (i, (name, value)) in str_props.iter().enumerate() {
+            let prop_name: ArcStr = name.as_str().into();
+            let prop_value = Prop::from(value.as_str());
 
-        let t1_props: HashMap<ArcStr, Prop> = t1_props
-            .into_iter()
-            .map(|(name, value, _)| (name, value))
-            .collect();
+            if i % 2 == 0 {
+                t0_props.insert(prop_name, prop_value);
+            } else {
+                t1_props.insert(prop_name, prop_value);
+            }
+        }
 
         g.add_properties(t0, t0_props.clone()).unwrap();
         g.add_properties(t1, t1_props.clone()).unwrap();
 
-        let check = t0_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(name).unwrap().at(t0) == Some(value.clone())
-        }) && t1_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
-        });
-        if !check {
-            error!("failed time-specific comparison for {:?}", str_props);
-            prop_assert!(false);
+        // Verify properties can be retrieved at their timestamps
+        for (name, expected_value) in t0_props.iter() {
+            let actual = g.properties().temporal().get(name).unwrap().at(t0);
+
+            prop_assert_eq!(
+                actual,
+                Some(expected_value.clone()),
+                "Property '{}' at t0 has wrong value",
+                name
+            );
         }
-        let check = check
-            && g.at(t0)
+
+        for (name, expected_value) in t1_props.iter() {
+            let actual_value = g.properties().temporal().get(name).unwrap().at(t1);
+
+            prop_assert_eq!(
+                actual_value,
+                Some(expected_value.clone()),
+                "Property '{}' at t1 has wrong value",
+                name
+            );
+        }
+
+        // Verify iter_latest returns all t0 properties
+        let actual_t0_props: HashMap<_, _> = g
+            .at(t0)
+            .properties()
+            .temporal()
+            .iter_latest()
+            .map(|(prop_name, prop_value)| (prop_name.clone(), prop_value))
+            .collect();
+
+        prop_assert_eq!(
+            actual_t0_props,
+            t0_props,
+            "iter_latest() at t0 returned wrong properties"
+        );
+
+        // Verify latest returns correct values for t1 properties
+        for (name, expected_value) in t1_props.iter() {
+            let actual = g
+                .at(t1)
                 .properties()
                 .temporal()
-                .iter_latest()
-                .map(|(k, v)| (k.clone(), v))
-                .collect::<HashMap<_, _, _>>()
-                == t0_props;
-        if !check {
-            error!("failed latest value comparison for {:?} at t0", str_props);
-            prop_assert!(false);
+                .get(name)
+                .and_then(|v| v.latest());
+
+            prop_assert_eq!(
+                actual,
+                Some(expected_value.clone()),
+                "Property '{}' latest() at t1 has wrong value",
+                name
+            );
         }
-        let check = check
-            && t1_props.iter().all(|(k, ve)| {
-                g.at(t1)
-                    .properties()
-                    .temporal()
-                    .get(k)
-                    .and_then(|v| v.latest())
-                    == Some(ve.clone())
-            });
-        if !check {
-            error!("failed latest value comparison for {:?} at t1", str_props);
-            prop_assert!(false);
-        }
-        prop_assert!(check);
     });
+}
+
+#[test]
+fn test_graph_temporal_props_with_maps() {
+    let g = Graph::new();
+
+    let style_with_size = Prop::map(vec![("fill", Prop::str("red")), ("size", Prop::I64(5))]);
+
+    let style_with_opacity = Prop::map(vec![
+        ("fill", Prop::str("red")),
+        ("opacity", Prop::F64(0.4)),
+    ]);
+
+    // Add temporal properties with nested maps at different timestamps
+    g.add_properties(0, vec![("style", style_with_size.clone())])
+        .unwrap();
+    g.add_properties(1, vec![("style", style_with_opacity.clone())])
+        .unwrap();
+    g.add_properties(2, vec![("style", style_with_size.clone())])
+        .unwrap();
+    g.add_properties(3, vec![("style", style_with_opacity.clone())])
+        .unwrap();
+
+    // Verify properties can be retrieved at their timestamps
+    let actual_t0 = g.properties().temporal().get("style").unwrap().at(0);
+    assert_eq!(actual_t0, Some(style_with_size.clone()));
+
+    let actual_t1 = g.properties().temporal().get("style").unwrap().at(1);
+    assert_eq!(actual_t1, Some(style_with_opacity.clone()));
+
+    let actual_t2 = g.properties().temporal().get("style").unwrap().at(2);
+    assert_eq!(actual_t2, Some(style_with_size.clone()));
+
+    let actual_t3 = g.properties().temporal().get("style").unwrap().at(3);
+    assert_eq!(actual_t3, Some(style_with_opacity.clone()));
+
+    // Verify history returns all timestamps
+    let history: Vec<_> = g
+        .properties()
+        .temporal()
+        .get("style")
+        .unwrap()
+        .history()
+        .collect();
+
+    assert_eq!(history, vec![0, 1, 2, 3]);
 }
 
 #[test]
@@ -3548,6 +3659,14 @@ fn materialize_temporal_properties_one_edge() {
 
     let gw = g.window(-9, 3);
     let gmw = gw.materialize().unwrap();
+
+    assert_eq!(gmw.unfiltered_num_edges(), 1);
+    assert_eq!(
+        gmw.unfiltered_num_edges(),
+        gmw.core_edges()
+            .iter(&raphtory_core::entities::LayerIds::All)
+            .count()
+    );
 
     assert_graph_equal(&gw, &gmw);
 }

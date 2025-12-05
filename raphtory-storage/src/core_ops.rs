@@ -97,6 +97,7 @@ pub trait CoreGraphOps: Send + Sync {
     fn core_edges(&self) -> EdgesStorage {
         self.core_graph().owned_edges()
     }
+
     #[inline]
     fn core_edge(&self, eid: EID) -> EdgeStorageEntry<'_> {
         self.core_graph().edge_entry(eid)
@@ -123,8 +124,8 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     #[inline]
-    fn graph_meta(&self) -> &GraphMeta {
-        self.core_graph().graph_meta()
+    fn graph_props_meta(&self) -> &Meta {
+        self.core_graph().graph_props_meta()
     }
 
     #[inline]

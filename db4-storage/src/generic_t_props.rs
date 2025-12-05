@@ -8,6 +8,10 @@ use raphtory_core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
 
 use crate::utils::Iter4;
 
+/// `WithTProps` defines behavior for types that store multiple temporal
+/// properties either in memory or on disk.
+///
+/// Used by `GenericTProps` to implement `TPropOps` for such types.
 pub trait WithTProps<'a>: Clone + Copy + Send + Sync
 where
     Self: 'a,
@@ -15,6 +19,7 @@ where
     type TProp: TPropOps<'a>;
 
     fn num_layers(&self) -> usize;
+
     fn into_t_props(
         self,
         layer_id: usize,
@@ -44,44 +49,52 @@ where
     }
 }
 
+/// A generic implementation of `TPropOps` that aggregates temporal properties
+/// across storage.
+///
+/// Wraps types implementing `WithTProps` (eg, `MemNodeRef`, `DiskNodeRef`)
+/// to provide unified access to temporal properties. Also handles k-merging
+/// temporal properties when queried.
 #[derive(Clone, Copy)]
-pub struct GenTProps<'a, Ref> {
-    node: Ref,
+pub struct GenericTProps<'a, Ref: WithTProps<'a>> {
+    reference: Ref,
     layer_id: Either<&'a LayerIds, usize>,
     prop_id: usize,
 }
 
-impl<'a, Ref> GenTProps<'a, Ref> {
-    pub fn new(node: Ref, layer_id: &'a LayerIds, prop_id: usize) -> Self {
+impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
+    pub fn new(reference: Ref, layer_id: &'a LayerIds, prop_id: usize) -> Self {
         Self {
-            node,
+            reference,
             layer_id: Either::Left(layer_id),
             prop_id,
         }
     }
 
-    pub fn new_with_layer(node: Ref, layer_id: usize, prop_id: usize) -> Self {
+    pub fn new_with_layer(reference: Ref, layer_id: usize, prop_id: usize) -> Self {
         Self {
-            node,
+            reference,
             layer_id: Either::Right(layer_id),
             prop_id,
         }
     }
 }
 
-impl<'a, Ref: WithTProps<'a>> GenTProps<'a, Ref> {
+impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
     #[box_on_debug_lifetime]
     fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
         match self.layer_id {
             Either::Left(layer_ids) => {
-                Either::Left(self.node.into_t_props_layers(layer_ids, prop_id))
+                Either::Left(self.reference.into_t_props_layers(layer_ids, prop_id))
             }
-            Either::Right(layer_id) => Either::Right(self.node.into_t_props(layer_id, prop_id)),
+            Either::Right(layer_id) => {
+                Either::Right(self.reference.into_t_props(layer_id, prop_id))
+            }
         }
     }
 }
 
-impl<'a, Ref: WithTProps<'a> + 'a> TPropOps<'a> for GenTProps<'a, Ref> {
+impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last_before(t))
@@ -111,6 +124,6 @@ impl<'a, Ref: WithTProps<'a> + 'a> TPropOps<'a> for GenTProps<'a, Ref> {
     fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         self.tprops(self.prop_id)
             .flat_map(|t_props| t_props.at(ti))
-            .next() //TODO: need to figure out how to handle this
+            .next() // TODO: need to figure out how to handle this
     }
 }

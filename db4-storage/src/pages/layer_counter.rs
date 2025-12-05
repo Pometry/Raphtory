@@ -71,12 +71,12 @@ impl GraphStats {
 
     pub fn increment(&self, layer_id: usize) -> usize {
         let counter = self.get_or_create_layer(layer_id);
-        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        counter.fetch_add(1, std::sync::atomic::Ordering::Release)
     }
 
     pub fn get(&self, layer_id: usize) -> usize {
         let counter = self.get_or_create_layer(layer_id);
-        counter.load(std::sync::atomic::Ordering::Relaxed)
+        counter.load(std::sync::atomic::Ordering::Acquire)
     }
 
     fn get_or_create_layer(&self, layer_id: usize) -> &AtomicUsize {

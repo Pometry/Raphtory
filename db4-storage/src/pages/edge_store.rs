@@ -14,7 +14,7 @@ use crate::{
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     },
     persist::strategy::Config,
-    segments::edge::MemEdgeSegment,
+    segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
@@ -188,9 +188,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         let max_page_len = ext.max_edge_page_len();
 
         let meta = Arc::new(Meta::new_for_edges());
+
         if !edges_path.exists() {
             return Ok(Self::new(Some(edges_path.to_path_buf()), ext.clone()));
         }
+
         let mut pages = std::fs::read_dir(edges_path)?
             .filter(|entry| {
                 entry
@@ -207,6 +209,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
                 let page = ES::load(page_id, max_page_len, meta.clone(), edges_path, ext.clone())
                     .map(|page| (page_id, page));
+
                 Some(page)
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
@@ -251,11 +254,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                 }
             })
             .collect::<Vec<_>>();
+
         let mut next_free_page = free_pages
             .last()
             .map(|page| *(page.read()))
             .map(|last| last + 1)
             .unwrap_or_else(|| pages.count());
+
         free_pages.resize_with(N, || {
             let lock = RwLock::new(next_free_page);
             next_free_page += 1;
@@ -317,6 +322,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         while self.segments.get(segment_id).is_none() {
             // wait
         }
+
         segment_id
     }
 
@@ -363,6 +369,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         }
     }
 
+    #[inline(always)]
     pub fn max_page_len(&self) -> u32 {
         self.ext.max_edge_page_len()
     }
@@ -475,6 +482,52 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                 }
             }
         }
+    }
+
+    pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
+        let slot_idx = row % N;
+        let maybe_free_page = {
+            let lock_slot = self.free_pages[slot_idx].read_recursive();
+            let page_id = *lock_slot;
+            let page = self.segments.get(page_id);
+            page.and_then(|page| {
+                self.reserve_page_row(page)
+                    .map(|pos| (page.segment_id(), LocalPOS(pos)))
+            })
+        };
+
+        if let Some(reserved_pos) = maybe_free_page {
+            reserved_pos
+        } else {
+            // not lucky, go wait on your slot
+            let mut slot = self.free_pages[slot_idx].write();
+            loop {
+                if let Some(page) = self.segments.get(*slot)
+                    && let Some(pos) = self.reserve_page_row(page)
+                {
+                    return (page.segment_id(), LocalPOS(pos));
+                }
+                *slot = self.push_new_page();
+            }
+        }
+    }
+
+    fn reserve_page_row(&self, page: &Arc<ES>) -> Option<u32> {
+        // TODO: if this becomes a hotspot, we can switch to a fetch_add followed by a fetch_min
+        // this means when we read the counter we need to clamp it to max_page_len so the iterators don't break
+        page.edges_counter()
+            .fetch_update(
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+                |current| {
+                    if current < self.max_page_len() {
+                        Some(current + 1)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .ok()
     }
 
     pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
