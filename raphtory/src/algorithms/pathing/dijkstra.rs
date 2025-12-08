@@ -66,6 +66,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     weight: Option<&str>,
     direction: Direction,
 ) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
+    let index = Index::for_graph(g);
     let source_ref = source.as_node_ref();
     let source_node = match g.node(source_ref) {
         Some(src) => src,
@@ -86,10 +87,11 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         }
     }
 
-    let mut target_nodes = vec![false; g.unfiltered_num_nodes()];
+    let mut target_nodes = vec![false; g.count_nodes()];
     for target in targets {
         if let Some(target_node) = g.node(target) {
-            target_nodes[target_node.node.index()] = true;
+            let pos = index.index(&target_node.node).unwrap();
+            target_nodes[pos] = true;
         }
     }
 
@@ -143,7 +145,8 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         node: node_vid,
     }) = heap.pop()
     {
-        if target_nodes[node_vid.index()] && !paths.contains_key(&node_vid) {
+        let pos = index.index(&node_vid).unwrap();
+        if target_nodes[pos] && !paths.contains_key(&node_vid) {
             let mut path = IndexSet::default();
             path.insert(node_vid);
             let mut current_node_id = node_vid;
