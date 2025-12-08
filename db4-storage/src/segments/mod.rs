@@ -1,4 +1,4 @@
-use super::properties::{Properties, PropEntry};
+use super::properties::{PropEntry, Properties};
 use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},

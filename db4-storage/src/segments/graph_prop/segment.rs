@@ -107,10 +107,7 @@ impl MemGraphPropSegment {
         layer_est_size - est_size
     }
 
-    pub fn check_metadata(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<(), StorageError> {
+    pub fn check_metadata(&self, props: &[(usize, Prop)]) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(Self::DEFAULT_LAYER) {
             layer.check_metadata(Self::DEFAULT_ROW.into(), props)?;
         }

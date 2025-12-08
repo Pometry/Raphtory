@@ -1,6 +1,5 @@
 use crate::{
-    api::graph_props::GraphPropSegmentOps,
-    error::StorageError,
+    api::graph_props::GraphPropSegmentOps, error::StorageError,
     segments::graph_prop::segment::MemGraphPropSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -38,10 +37,7 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
         self.graph_props.mark_dirty();
     }
 
-    pub fn check_metadata(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<(), StorageError> {
+    pub fn check_metadata(&self, props: &[(usize, Prop)]) -> Result<(), StorageError> {
         self.mem_segment.check_metadata(props)
     }
 

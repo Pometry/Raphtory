@@ -106,7 +106,7 @@ impl PersistentGraph {
     /// # Returns
     /// A raphtory graph with storage at the specified path
     /// # Example
-    /// ```
+    /// ```no_run
     /// use raphtory::prelude::PersistentGraph;
     /// let g = Graph::new_at_path("/path/to/storage");
     /// ```
@@ -120,7 +120,7 @@ impl PersistentGraph {
     /// # Returns
     /// A raphtory graph loaded from the specified path
     /// # Example
-    /// ```
+    /// ```no_run
     /// use raphtory::prelude::Graph;
     /// let g = Graph::load_from_path("/path/to/storage");
     ///

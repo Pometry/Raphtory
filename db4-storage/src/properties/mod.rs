@@ -366,7 +366,8 @@ impl<'a> PropEntry<'a> {
 
     pub fn check_metadata(self, prop_id: usize, new_val: &Prop) -> Result<(), StorageError> {
         if let Some(col) = self.properties.c_column(prop_id) {
-            col.check(self.row, new_val).map_err(Into::<MetadataError>::into)?;
+            col.check(self.row, new_val)
+                .map_err(Into::<MetadataError>::into)?;
         }
 
         Ok(())

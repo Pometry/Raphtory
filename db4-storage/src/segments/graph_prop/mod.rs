@@ -52,7 +52,9 @@ impl<P: Config> GraphPropSegmentOps for GraphPropSegmentView<P> {
         _path: impl AsRef<Path>,
         _ext: Self::Extension,
     ) -> Result<Self, StorageError> {
-        return Err(StorageError::GenericFailure("load not supported".to_string()));
+        Err(StorageError::GenericFailure(
+            "load not supported".to_string(),
+        ))
     }
 
     fn head(&self) -> RwLockReadGuard<'_, MemGraphPropSegment> {
