@@ -26,7 +26,6 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
-use storage::state::StateIndex;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -115,11 +114,11 @@ where
 {
     pub fn new(graph: G) -> Self {
         let base_graph = graph.clone();
-        let node_index = Index::for_graph(base_graph.clone());
+        let node_index = base_graph.core_graph().node_state_index();
         Self {
             base_graph,
             graph,
-            nodes: node_index,
+            nodes: node_index.into(),
             node_types_filter: None,
             _marker: PhantomData,
         }

@@ -8,6 +8,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::InternalMetadataOps, Metadata, Properties},
+            state::Index,
             view::{internal::*, *},
         },
         graph::{
@@ -330,11 +331,27 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             let node_map_shared =
                 atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
+            // reverse index pos -> new_vid
+            let index = Index::for_graph(self);
+            self.nodes().par_iter().for_each(|node| {
+                let vid = node.node;
+                if let Some(pos) = index.index(&vid) {
+                    let new_vid = new_storage.graph().storage().nodes().reserve_vid(pos);
+                    node_map_shared[pos].store(new_vid.index(), Ordering::Relaxed);
+                }
+            });
+
+            let get_new_vid = |old_vid: VID, index: &Index<VID>, node_map: &[VID]| -> VID {
+                let pos = index
+                    .index(&old_vid)
+                    .expect("old_vid should exist in index");
+                node_map[pos]
+            };
+
             new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-                for (index, node) in self.nodes().iter().enumerate() {
-                    let new_id = VID(index);
+                for node in self.nodes().iter() {
+                    let new_id = get_new_vid(node.node, &index, &node_map);
                     let gid = node.id();
-                    node_map_shared[node.node.index()].store(new_id.index(), Ordering::Relaxed);
                     if let Some(node_pos) = shard.resolve_pos(new_id) {
                         let mut writer = shard.writer();
                         if let Some(node_type) = node.node_type() {
@@ -379,11 +396,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 new_storage.edges.ensure_layer(*layer_id);
             }
 
+            let edge_storage = new_storage.graph().storage().edges().clone();
+
             new_storage.edges.par_iter_mut().try_for_each(|shard| {
-                for (eid, edge) in self.edges().iter().enumerate() {
-                    let src = node_map[edge.edge.src().index()];
-                    let dst = node_map[edge.edge.dst().index()];
-                    let eid = EID(eid);
+                for (row, edge) in self.edges().iter().enumerate() {
+                    let src = get_new_vid(edge.edge.src(), &index, &node_map);
+                    let dst = get_new_vid(edge.edge.dst(), &index, &node_map);
+                    let eid = edge_storage.reserve_new_eid(row);
                     if let Some(edge_pos) = shard.resolve_pos(eid) {
                         let mut writer = shard.writer();
                         // make the edge for the first time
@@ -444,8 +463,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             new_storage.nodes.par_iter_mut().try_for_each(|shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     let eid = EID(eid);
-                    let src_id = node_map[edge.edge.src().index()];
-                    let dst_id = node_map[edge.edge.dst().index()];
+                    let src_id = get_new_vid(edge.edge.src(), &index, &node_map);
+                    let dst_id = get_new_vid(edge.edge.dst(), &index, &node_map);
                     let maybe_src_pos = shard.resolve_pos(src_id);
                     let maybe_dst_pos = shard.resolve_pos(dst_id);
 
@@ -568,7 +587,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
-    #[inline]
+    // #[inline]
     fn earliest_time(&self) -> Option<i64> {
         match self.filter_state() {
             FilterState::Neither => self.earliest_time_global(),

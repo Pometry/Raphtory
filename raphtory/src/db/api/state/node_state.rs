@@ -30,6 +30,12 @@ pub enum Index<K> {
     Partial(Arc<IndexSet<K, ahash::RandomState>>),
 }
 
+impl<K> From<StateIndex<K>> for Index<K> {
+    fn from(index: StateIndex<K>) -> Self {
+        Self::Full(index.into())
+    }
+}
+
 impl<K> Default for Index<K> {
     fn default() -> Self {
         Self::Partial(Arc::new(Default::default()))
@@ -59,7 +65,7 @@ impl Index<VID> {
                     NodeList::All { .. } => {
                         Self::Full(graph.core_graph().node_state_index().into())
                     }
-                    NodeList::List { elems } => elems.into(),
+                    NodeList::List { elems } => elems,
                 }
             } else {
                 Self::from_iter(graph.nodes().iter().map(|node| node.node))

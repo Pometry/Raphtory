@@ -1,7 +1,10 @@
 use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::{
+            state::Index,
+            view::{NodeViewOps, StaticGraphViewOps},
+        },
         graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
@@ -73,6 +76,7 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+    let index = Index::for_graph(g);
 
     runner.run(
         vec![Job::new(step1)],
@@ -81,7 +85,7 @@ where
         |_, _, _, local| {
             g.nodes()
                 .iter()
-                .filter(|node| local[node.node.0].alive)
+                .filter(|node| local[index.index(&node.node).unwrap()].alive)
                 .map(|node| node.node)
                 .collect()
         },
