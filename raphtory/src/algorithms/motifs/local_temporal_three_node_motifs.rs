@@ -4,7 +4,7 @@ use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::{
-            state::NodeState,
+            state::{Index, NodeState},
             view::{NodeViewOps, *},
         },
         graph::views::node_subgraph::NodeSubgraph,
@@ -18,6 +18,7 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
+use rand::seq::index;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -212,20 +213,12 @@ where
             for v in u.neighbours() {
                 // Find triangles on the UV edge
                 let intersection_nbs = {
-                    match (
-                        u.entry(&neighbours_set)
-                            .read_ref()
-                            .unwrap_or(&FxHashSet::default()),
-                        v.entry(&neighbours_set)
-                            .read_ref()
-                            .unwrap_or(&FxHashSet::default()),
-                    ) {
-                        (u_set, v_set) => {
-                            let intersection =
-                                u_set.intersection(v_set).cloned().collect::<Vec<_>>();
-                            intersection
-                        }
-                    }
+                    let default = FxHashSet::default();
+                    let u_entry = u.entry(&neighbours_set);
+                    let u_set = u_entry.read_ref().unwrap_or(&default);
+                    let v_entry = v.entry(&neighbours_set);
+                    let v_set = v_entry.read_ref().unwrap_or(&default);
+                    u_set.intersection(v_set).cloned().collect::<Vec<_>>()
                 };
 
                 if intersection_nbs.is_empty() {
@@ -298,6 +291,7 @@ where
         });
 
     let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_subgraph);
+    let index = Index::for_graph(&kcore_subgraph);
 
     runner.run(
         vec![Job::new(neighbourhood_update_step)],
@@ -305,9 +299,9 @@ where
         None,
         |_, _, _els, mut local| {
             let mut tri_motifs = HashMap::new();
-            for node in graph.nodes() {
+            for node in kcore_subgraph.nodes() {
                 let v_gid = node.name();
-                let triangle = mem::take(&mut local[node.node.0].triangle);
+                let triangle = mem::take(&mut local[index.index(&node.node).unwrap()].triangle);
                 if triangle.is_empty() {
                     tri_motifs.insert(v_gid.clone(), vec![[0; 8]; delta_len]);
                 } else {
@@ -360,6 +354,7 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+    let index = Index::for_graph(g);
 
     runner.run(
         vec![Job::new(star_motif_step)],
@@ -370,7 +365,7 @@ where
                 .nodes()
                 .par_iter()
                 .map(|n| {
-                    let mc = &local[n.node.index()];
+                    let mc = &local[index.index(&n.node).unwrap()];
                     let v_gid = n.name();
                     let triangles = triadic_motifs
                         .get(&v_gid)

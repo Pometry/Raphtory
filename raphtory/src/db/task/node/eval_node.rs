@@ -207,7 +207,12 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        Entry::new(self.node_state(), *agg_r, &self.node, self.eval_graph.ss)
+        Entry::new(
+            self.node_state(),
+            *agg_r,
+            self.state_pos,
+            self.eval_graph.ss,
+        )
     }
 
     /// Read the prev value of the node state using the given accumulator.
@@ -570,7 +575,7 @@ impl<
 pub struct Entry<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeState> {
     state: Ref<'a, EVState<'b, CS>>,
     acc_id: AccId<A, IN, OUT, ACC>,
-    v_ref: &'a VID,
+    state_pos: usize,
     ss: usize,
 }
 
@@ -589,13 +594,13 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub(crate) fn new(
         state: Ref<'a, EVState<'b, CS>>,
         acc_id: AccId<A, IN, OUT, ACC>,
-        v_ref: &'a VID,
+        state_pos: usize,
         ss: usize,
     ) -> Entry<'a, 'b, A, IN, OUT, ACC, CS> {
         Entry {
             state,
             acc_id,
-            v_ref,
+            state_pos,
             ss,
         }
     }
@@ -604,6 +609,6 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub fn read_ref(&self) -> Option<&A> {
         self.state
             .shard()
-            .read_ref(self.ss, (*self.v_ref).into(), &self.acc_id)
+            .read_ref(self.ss, self.state_pos, &self.acc_id)
     }
 }
