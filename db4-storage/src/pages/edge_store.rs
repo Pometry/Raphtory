@@ -485,6 +485,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         }
     }
 
+    pub fn reserve_new_eid(&self, row: usize) -> EID {
+        let (segment_id, local_pos) = self.reserve_free_pos(row);
+        local_pos.as_eid(segment_id, self.max_page_len())
+    }
+
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % N;
         let maybe_free_page = {

@@ -197,6 +197,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         )
     }
 
+    pub fn reserve_vid(&self, row: usize) -> VID {
+        let (seg, pos) = self.reserve_free_pos(row);
+        pos.as_vid(seg, self.max_segment_len())
+    }
+
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % N;
         let maybe_free_page = {

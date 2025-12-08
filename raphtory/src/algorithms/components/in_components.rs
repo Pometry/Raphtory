@@ -15,7 +15,6 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use either::Either;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
