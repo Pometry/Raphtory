@@ -15,7 +15,6 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use either::Either;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
@@ -72,8 +71,8 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<OutState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
+        |_, _, _, local: Vec<OutState>, index| {
+            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |v| {
                 Nodes::new_filtered(
                     g.clone(),
                     g.clone(),

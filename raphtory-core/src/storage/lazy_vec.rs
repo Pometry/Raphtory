@@ -277,7 +277,7 @@ where
     #[cfg(test)]
     fn iter(&self) -> Box<dyn Iterator<Item = &A> + Send + '_> {
         match self {
-            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::Empty => Box::new(std::iter::empty()),
             LazyVec::LazyVec1(default, tuples) => {
                 Box::new(tuples.iter().map(|value| value.unwrap_or(default)))
             }
@@ -290,7 +290,7 @@ where
     #[cfg(test)]
     fn iter_opt(&self) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_> {
         match self {
-            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::Empty => Box::new(std::iter::empty()),
             LazyVec::LazyVec1(_, tuples) => Box::new(tuples.iter()),
             LazyVec::LazyVecN(_, vector) => Box::new(vector.iter()),
         }

@@ -71,8 +71,8 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<InState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
+        |_, _, _, local: Vec<InState>, index| {
+            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |v| {
                 Nodes::new_filtered(
                     g.clone(),
                     g.clone(),

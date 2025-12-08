@@ -261,6 +261,40 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
         Self::new(graph.clone(), graph, values.into(), index)
     }
 
+    /// Construct a node state from an eval result
+    ///
+    /// # Arguments
+    /// - `graph`: the graph view
+    /// - `values`: the values indexed by flat position (i.e., `values.len() == index.len()`).
+    /// - `index`: the index mapping VID to flat position in values
+    pub fn new_from_eval_with_index(graph: G, values: Vec<V>, index: Index<VID>) -> Self
+    where
+        V: Clone,
+    {
+        // Values are already in flat index order from TaskRunner
+        Self::new(graph.clone(), graph, values.into(), index)
+    }
+
+    /// Construct a node state from an eval result, mapping values
+    ///
+    /// # Arguments
+    /// - `graph`: the graph view
+    /// - `values`: the values indexed by flat position (i.e., `values.len() == index.len()`).
+    /// - `map`: Closure mapping input to output values
+    pub fn new_from_eval_mapped_with_index<R: Clone>(
+        graph: G,
+        values: Vec<R>,
+        index: Index<VID>,
+        map: impl Fn(R) -> V,
+    ) -> Self
+    where
+        V: std::fmt::Debug,
+    {
+        // Values are already in flat index order from TaskRunner, just map them
+        let values = values.into_iter().map(map).collect();
+        Self::new(graph.clone(), graph, values, index)
+    }
+
     /// Construct a node state from an eval result, mapping values
     ///
     /// # Arguments

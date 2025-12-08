@@ -213,7 +213,11 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
-    fn make_cur_and_prev_states<S: Clone + Default>(&self, mut init: Vec<S>, num_nodes: usize) -> (Vec<S>, Vec<S>) {
+    fn make_cur_and_prev_states<S: Clone + Default>(
+        &self,
+        mut init: Vec<S>,
+        num_nodes: usize,
+    ) -> (Vec<S>, Vec<S>) {
         init.resize(num_nodes, S::default());
 
         (init.clone(), init)
@@ -221,7 +225,13 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
     pub fn run<
         B,
-        F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, Vec<S>) -> B,
+        F: FnOnce(
+            GlobalState<CS>,
+            EvalShardState<G, CS>,
+            EvalLocalState<G, CS>,
+            Vec<S>,
+            Index<VID>,
+        ) -> B,
         S: Send + Sync + Clone + 'static + std::fmt::Debug + Default,
     >(
         &mut self,
@@ -250,14 +260,20 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let index = Index::for_graph(graph.clone());
 
         println!("DEBUG TaskRunner::run:");
-        println!("  graph.unfiltered_num_nodes() = {}", graph.unfiltered_num_nodes());
+        println!(
+            "  graph.unfiltered_num_nodes() = {}",
+            graph.unfiltered_num_nodes()
+        );
         println!("  node_index.len() = {}", num_nodes);
         println!("  morcel_size = {}", morcel_size);
         println!("  num_chunks = {}", num_chunks);
-        println!("  index variant = {:?}", match &index {
-            Index::Full(_) => "Full",
-            Index::Partial(_) => "Partial",
-        });
+        println!(
+            "  index variant = {:?}",
+            match &index {
+                Index::Full(_) => "Full",
+                Index::Partial(_) => "Partial",
+            }
+        );
 
         let mut shard_state =
             shard_initial_state.unwrap_or_else(|| Shard::new(num_nodes, num_chunks, morcel_size));
@@ -336,6 +352,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
             EvalLocalState::new(ss, self.ctx.graph(), vec![]),
             last_local_state,
+            index,
         );
         self.ctx.reset_ss();
         to_return

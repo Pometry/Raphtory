@@ -291,13 +291,12 @@ where
         });
 
     let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_subgraph);
-    let index = Index::for_graph(&kcore_subgraph);
 
     runner.run(
         vec![Job::new(neighbourhood_update_step)],
         vec![Job::new(intersection_compute_step)],
         None,
-        |_, _, _els, mut local| {
+        |_, _, _els, mut local, index| {
             let mut tri_motifs = HashMap::new();
             for node in kcore_subgraph.nodes() {
                 let v_gid = node.name();
@@ -354,13 +353,12 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let index = Index::for_graph(g);
 
     runner.run(
         vec![Job::new(star_motif_step)],
         vec![],
         None,
-        |_, _, _, local| {
+        |_, _, _, local, index| {
             let values: Vec<_> = g
                 .nodes()
                 .par_iter()

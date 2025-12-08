@@ -1,3 +1,7 @@
+use either::Either;
+use raphtory_api::iter::IntoDynBoxed;
+use raphtory_core::utils::iter::GenLockedIter;
+
 use super::{
     accumulator_id::AccId,
     compute_state::ComputeState,
@@ -204,13 +208,22 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .read::<A, IN, OUT, ACC>(GLOBAL_STATE_KEY, agg_ref.id(), ss)
     }
 
-    pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: StaticGraphViewOps>(
+    pub fn finalize<
+        A,
+        B,
+        F,
+        IN,
+        OUT,
+        ACC: Accumulator<A, IN, OUT>,
+        G: StaticGraphViewOps,
+        C: FromIterator<(usize, B)>,
+    >(
         &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
         ss: usize,
         _g: &G,
         f: F,
-    ) -> HashMap<usize, B>
+    ) -> C
     where
         OUT: StateType,
         A: StateType,
@@ -225,12 +238,33 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             })
             .collect()
     }
+    pub fn finalize_vec<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: StaticGraphViewOps>(
+        &self,
+        agg_def: &AccId<A, IN, OUT, ACC>,
+        ss: usize,
+        _g: &G,
+        f: F,
+    ) -> Vec<B>
+    where
+        OUT: StateType,
+        A: StateType,
+        F: Fn(OUT) -> B + Copy,
+    {
+        self.iter(ss, *agg_def)
+            .map(|(_, a)| {
+                let out = a
+                    .map(|a| ACC::finish(a))
+                    .unwrap_or_else(|| ACC::finish(&ACC::zero()));
+                f(out)
+            })
+            .collect()
+    }
 
     pub fn iter<'a, A: StateType, IN: 'a, OUT: 'a, ACC: Accumulator<A, IN, OUT>>(
         &'a self,
         ss: usize,
         acc_id: AccId<A, IN, OUT, ACC>,
-    ) -> impl Iterator<Item = (usize, Option<&'a A>)> + 'a {
+    ) -> impl Iterator<Item = (usize, Option<&'a A>)> + Send + 'a {
         self.parts
             .iter()
             .flat_map(move |part| part.iter(ss, &acc_id))
@@ -309,6 +343,24 @@ impl<G: StaticGraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
             inner.finalize(agg_def, self.ss, &self.g, f)
         } else {
             HashMap::new()
+        }
+    }
+
+    pub fn finalize_vec<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        self,
+        agg_def: &AccId<A, IN, OUT, ACC>,
+        f: F,
+    ) -> Vec<B>
+    where
+        OUT: StateType,
+        A: StateType,
+        F: Fn(OUT) -> B + Copy,
+    {
+        let inner = self.shard_states.consume();
+        if let Ok(inner) = inner {
+            inner.finalize_vec(agg_def, self.ss, &self.g, f)
+        } else {
+            vec![]
         }
     }
 
