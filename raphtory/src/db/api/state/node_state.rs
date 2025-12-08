@@ -245,19 +245,13 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     ///
     /// # Arguments
     /// - `graph`: the graph view
-    /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
+    /// - `values`: the values indexed by flat position (i.e., `values.len() == index.len()`).
     pub fn new_from_eval(graph: G, values: Vec<V>) -> Self
     where
         V: Clone,
     {
         let index = Index::for_graph(graph.clone());
-        let values = match &index {
-            Index::Full(_) => values,
-            Index::Partial(index) => index
-                .iter()
-                .map(|vid| values[vid.index()].clone())
-                .collect(),
-        };
+        // Values are already in flat index order from TaskRunner
         Self::new(graph.clone(), graph, values.into(), index)
     }
 
@@ -265,17 +259,15 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     ///
     /// # Arguments
     /// - `graph`: the graph view
-    /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
+    /// - `values`: the values indexed by flat position (i.e., `values.len() == index.len()`).
     /// - `map`: Closure mapping input to output values
-    pub fn new_from_eval_mapped<R: Clone>(graph: G, values: Vec<R>, map: impl Fn(R) -> V) -> Self {
+    pub fn new_from_eval_mapped<R: Clone>(graph: G, values: Vec<R>, map: impl Fn(R) -> V) -> Self
+    where
+        V: std::fmt::Debug,
+    {
         let index = Index::for_graph(graph.clone());
-        let values = match &index {
-            Index::Full(_) => values.into_iter().map(map).collect(),
-            Index::Partial(index) => index
-                .iter()
-                .map(|vid| map(values[vid.index()].clone()))
-                .collect(),
-        };
+        // Values are already in flat index order from TaskRunner, just map them
+        let values = values.into_iter().map(map).collect();
         Self::new(graph.clone(), graph, values, index)
     }
 

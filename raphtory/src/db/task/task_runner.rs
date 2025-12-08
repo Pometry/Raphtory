@@ -58,6 +58,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         prev_local_state: &Vec<S>,
         reverse_vids: &Vec<VID>,
         storage: &GraphStorage,
+        index: &Index<VID>,
         atomic_done: &AtomicBool,
         morcel_size: usize,
         morcel_id: usize,
@@ -80,10 +81,11 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 ss: self.ctx.ss(),
                 base_graph: &g,
                 storage,
+                index,
                 local_state_prev: &local,
                 node_state: node_state.clone(),
             };
-            let mut vv = EvalNodeView::new_local(node, eval_graph, Some(local_state));
+            let mut vv = EvalNodeView::new_local(node, v_ref, eval_graph, Some(local_state));
 
             match task.run(&mut vv) {
                 Step::Continue => {
@@ -133,6 +135,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         prev_local_state: &Vec<S>,
         reverse_vids: &Vec<VID>,
         storage: &GraphStorage,
+        index: &Index<VID>,
     ) -> (bool, Shard<CS>, Global<CS>, Vec<S>) {
         pool.install(move || {
             let mut new_shard_state = shard_state;
@@ -155,6 +158,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                 prev_local_state,
                                 reverse_vids,
                                 storage,
+                                index,
                                 &atomic_done,
                                 morcel_size,
                                 morcel_id,
@@ -174,6 +178,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                     prev_local_state,
                                     reverse_vids,
                                     storage,
+                                    index,
                                     &atomic_done,
                                     morcel_size,
                                     morcel_id,
@@ -208,9 +213,8 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
-    fn make_cur_and_prev_states<S: Clone + Default>(&self, mut init: Vec<S>) -> (Vec<S>, Vec<S>) {
-        let g = self.ctx.graph();
-        init.resize(g.unfiltered_num_nodes(), S::default());
+    fn make_cur_and_prev_states<S: Clone + Default>(&self, mut init: Vec<S>, num_nodes: usize) -> (Vec<S>, Vec<S>) {
+        init.resize(num_nodes, S::default());
 
         (init.clone(), init)
     }
@@ -245,13 +249,23 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let index = Index::for_graph(graph.clone());
 
-        let mut shard_state = shard_initial_state
-            .unwrap_or_else(|| Shard::new(num_nodes, num_chunks, morcel_size, index.clone()));
+        println!("DEBUG TaskRunner::run:");
+        println!("  graph.unfiltered_num_nodes() = {}", graph.unfiltered_num_nodes());
+        println!("  node_index.len() = {}", num_nodes);
+        println!("  morcel_size = {}", morcel_size);
+        println!("  num_chunks = {}", num_chunks);
+        println!("  index variant = {:?}", match &index {
+            Index::Full(_) => "Full",
+            Index::Partial(_) => "Partial",
+        });
 
-        let mut global_state = global_initial_state.unwrap_or_else(|| Global::new(index.clone()));
+        let mut shard_state =
+            shard_initial_state.unwrap_or_else(|| Shard::new(num_nodes, num_chunks, morcel_size));
+
+        let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
         let (mut cur_local_state, mut prev_local_state) =
-            self.make_cur_and_prev_states::<S>(init.unwrap_or_default());
+            self.make_cur_and_prev_states::<S>(init.unwrap_or_default(), num_nodes);
 
         let mut _done = false;
 
@@ -264,6 +278,11 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             });
         }
 
+        println!("  reverse_vids mapping (flat_idx -> VID):");
+        for (flat_idx, vid) in reverse_vids.iter().enumerate() {
+            println!("    {} -> {}", flat_idx, vid.0);
+        }
+
         (_done, shard_state, global_state, cur_local_state) = self.run_task_list(
             &init_tasks,
             &pool,
@@ -274,6 +293,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             &prev_local_state,
             &reverse_vids,
             storage,
+            &index,
         );
 
         // To allow the init step to cache stuff we will copy everything from cur_local_state to prev_local_state
@@ -290,6 +310,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 &prev_local_state,
                 &reverse_vids,
                 storage,
+                &index,
             );
 
             // copy and reset the state from the step that just ended

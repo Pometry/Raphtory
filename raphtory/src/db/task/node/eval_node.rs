@@ -28,6 +28,7 @@ use std::{
 
 pub struct EvalNodeView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = ComputeStateVec> {
     pub node: VID,
+    pub(crate) state_pos: usize,
     pub(crate) eval_graph: EvalGraph<'graph, 'a, G, S, CS>,
     pub(crate) graph: GH,
     pub(crate) local_state: Option<&'graph mut S>,
@@ -38,12 +39,14 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: ComputeState + 'a, S>
 {
     pub(crate) fn new_local(
         node: VID,
+        state_pos: usize,
         eval_graph: EvalGraph<'graph, 'a, G, S, CS>,
         local_state: Option<&'graph mut S>,
     ) -> Self {
         let graph = eval_graph.base_graph;
         Self {
             node,
+            state_pos,
             eval_graph,
             graph,
             local_state,
@@ -63,6 +66,7 @@ impl<
     fn clone(&self) -> Self {
         Self {
             node: self.node,
+            state_pos: self.state_pos,
             eval_graph: self.eval_graph.clone(),
             graph: self.graph.clone(),
             local_state: None,
@@ -83,8 +87,7 @@ impl<
         self.eval_graph.clone()
     }
     pub fn prev(&self) -> &S {
-        let VID(i) = self.node;
-        &self.eval_graph.local_state_prev.state[i]
+        &self.eval_graph.local_state_prev.state[self.state_pos]
     }
 
     pub fn get_mut(&mut self) -> &mut S {
@@ -103,20 +106,18 @@ impl<
 
     pub(crate) fn new_filtered(
         node: VID,
+        state_pos: usize,
         eval_graph: EvalGraph<'graph, 'a, G, S, CS>,
         graph: GH,
         local_state: Option<&'graph mut S>,
     ) -> Self {
         Self {
             node,
+            state_pos,
             eval_graph,
             graph,
             local_state,
         }
-    }
-
-    fn pid(&self) -> VID {
-        self.node
     }
 
     fn node_state(&self) -> Ref<'_, EVState<'a, CS>> {
@@ -132,9 +133,12 @@ impl<
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        self.node_state_mut()
-            .shard_mut()
-            .accumulate_into(self.eval_graph.ss, self.pid(), a, id);
+        self.node_state_mut().shard_mut().accumulate_into(
+            self.eval_graph.ss,
+            self.state_pos,
+            a,
+            id,
+        );
     }
 
     pub fn global_update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -189,7 +193,7 @@ impl<
     {
         self.node_state()
             .shard()
-            .read_with_pid(self.eval_graph.ss, self.pid(), agg_r)
+            .read_with_pid(self.eval_graph.ss, self.state_pos, agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -218,7 +222,7 @@ impl<
     {
         self.node_state()
             .shard()
-            .read_with_pid(self.eval_graph.ss + 1, self.pid(), agg_r)
+            .read_with_pid(self.eval_graph.ss + 1, self.state_pos, agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -266,8 +270,11 @@ impl<
     pub fn iter(&self) -> impl Iterator<Item = EvalNodeView<'graph, 'a, G, S, GH, CS>> + 'graph {
         let base_graph = self.base_graph.clone();
         let graph = self.graph.clone();
-        self.iter_refs()
-            .map(move |v| EvalNodeView::new_filtered(v, base_graph.clone(), graph.clone(), None))
+        let index = self.base_graph.index;
+        self.iter_refs().map(move |v| {
+            let state_pos = index.index(&v).expect("VID not found in index");
+            EvalNodeView::new_filtered(v, state_pos, base_graph.clone(), graph.clone(), None)
+        })
     }
 
     pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(&self, node_types: I) -> Self {
@@ -373,6 +380,7 @@ impl<
             self.graph.clone(),
             self.op.clone(),
         );
+        let index = self.base_graph.index;
         let edges = path.map_edges(op);
         EvalEdges {
             ss,
@@ -380,6 +388,7 @@ impl<
             node_state,
             local_state_prev,
             storage,
+            index,
         }
     }
 
@@ -469,7 +478,7 @@ impl<
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
         let eval_graph = self.eval_graph.clone();
-        EvalNodeView::new_filtered(self.node, eval_graph, filtered_graph, None)
+        EvalNodeView::new_filtered(self.node, self.state_pos, eval_graph, filtered_graph, None)
     }
 }
 
@@ -522,12 +531,14 @@ impl<
             graph: self.graph.clone(),
             edges,
         };
+        let index = self.eval_graph.index;
         EvalEdges {
             ss,
             edges,
             node_state,
             local_state_prev,
             storage,
+            index,
         }
     }
 
