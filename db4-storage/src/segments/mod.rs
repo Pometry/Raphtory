@@ -1,4 +1,4 @@
-use super::properties::{Properties, RowEntry};
+use super::properties::{PropEntry, Properties};
 use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
@@ -19,11 +19,10 @@ use std::{
 };
 
 pub mod edge;
+pub mod graph_prop;
 pub mod node;
 
 pub mod additions;
-pub mod edge_entry;
-pub mod node_entry;
 
 pub type PageIndexT = u32;
 
@@ -163,12 +162,14 @@ pub struct SegmentContainer<T> {
 
 pub trait HasRow: Default + Send + Sync + Sized {
     fn row(&self) -> usize;
+
     fn row_mut(&mut self) -> &mut usize;
 }
 
 impl<T: HasRow> SegmentContainer<T> {
     pub fn new(segment_id: usize, max_page_len: u32, meta: Arc<Meta>) -> Self {
         assert!(max_page_len > 0, "max_page_len must be greater than 0");
+
         Self {
             segment_id,
             data: Default::default(),
@@ -179,9 +180,18 @@ impl<T: HasRow> SegmentContainer<T> {
         }
     }
 
+    /// Replaces this container with an empty instance, returning the
+    /// old container with its data.
+    pub fn take(&mut self) -> Self {
+        std::mem::replace(
+            self,
+            Self::new(self.segment_id, self.max_page_len, self.meta.clone()),
+        )
+    }
+
     #[inline]
     pub fn est_size(&self) -> usize {
-        //TODO: this is a rough estimate and should be improved
+        // TODO: this is a rough estimate and should be improved
         let data_size =
             (self.data.num_filled() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
         let timestamp_size = std::mem::size_of::<TimeIndexEntry>();
@@ -250,9 +260,10 @@ impl<T: HasRow> SegmentContainer<T> {
     ) -> Result<(), StorageError> {
         if let Some(item) = self.get(local_pos) {
             let local_row = item.row();
-            let edge_properties = self.properties().get_entry(local_row);
+            let prop_entry = self.properties().get_entry(local_row);
+
             for (prop_id, prop_val) in props {
-                edge_properties.check_metadata(*prop_id, prop_val)?;
+                prop_entry.check_metadata(*prop_id, prop_val)?;
             }
         }
         Ok(())
@@ -294,21 +305,21 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     /// returns items in insertion order!
-    pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry<'_>)> {
+    pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, PropEntry<'_>)> {
         self.data
             .iter_filled()
             .map(|(l_pos, entry)| (l_pos, entry, self.properties().get_entry(entry.row())))
     }
 
     /// return filled entries ordered by index
-    pub fn row_entries_ordered(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry<'_>)> {
+    pub fn row_entries_ordered(&self) -> impl Iterator<Item = (LocalPOS, &T, PropEntry<'_>)> {
         self.all_entries().filter_map(|(pos, entry)| {
             let (v, row) = entry?;
             Some((pos, v, row))
         })
     }
 
-    pub fn all_entries(&self) -> impl Iterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> {
+    pub fn all_entries(&self) -> impl Iterator<Item = (LocalPOS, Option<(&T, PropEntry<'_>)>)> {
         let max_local_pos = self.data.max_local_pos().map(|p| p.0 as usize).unwrap_or(0);
         self.data
             .iter_all()
@@ -325,7 +336,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn all_entries_par(
         &self,
-    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> + '_ {
+    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, PropEntry<'_>)>)> + '_ {
         self.data.par_iter_all().enumerate().map(|(i, v)| {
             (
                 LocalPOS::from(i),

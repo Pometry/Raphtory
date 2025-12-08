@@ -33,6 +33,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -105,7 +106,7 @@ impl PersistentGraph {
     /// # Returns
     /// A raphtory graph with storage at the specified path
     /// # Example
-    /// ```
+    /// ```no_run
     /// use raphtory::prelude::PersistentGraph;
     /// let g = Graph::new_at_path("/path/to/storage");
     /// ```
@@ -119,7 +120,7 @@ impl PersistentGraph {
     /// # Returns
     /// A raphtory graph loaded from the specified path
     /// # Example
-    /// ```
+    /// ```no_run
     /// use raphtory::prelude::Graph;
     /// let g = Graph::load_from_path("/path/to/storage");
     ///
@@ -152,6 +153,7 @@ impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
 
 impl Base for PersistentGraph {
     type Base = Storage;
+
     #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.0
@@ -235,26 +237,33 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             .is_some()
     }
 
+    /// Iterates over temporal property values within a time window `[start, end)`.
+    ///
+    /// # Returns
+    /// A boxed iterator yielding `(TimeIndexEntry, Prop)` tuples.
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
         start: i64,
         end: i64,
     ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
-            let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
-                .map(|v| (TimeIndexEntry::start(start), v));
+        let graph_entry = self.core_graph().graph_entry();
+
+        GenLockedIter::from(graph_entry, move |entry| {
+            let tprop = entry.as_ref().get_temporal_prop(prop_id);
+
+            // Get the property value that was active at the start of the window.
+            let first = persisted_prop_value_at(start, tprop, &TimeIndex::Empty)
+                .map(|prop_value| (TimeIndexEntry::start(start), prop_value));
+
+            // Chain the initial prop with the rest of the props that occur
+            // within the window.
             first
                 .into_iter()
-                .chain(GenLockedIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_boxed()
-                }))
+                .chain(tprop.iter_window(TimeIndexEntry::range(start..end)))
                 .into_dyn_boxed()
-        } else {
-            iter::empty().into_dyn_boxed()
-        }
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_prop_iter_window_rev(
@@ -263,19 +272,23 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         start: i64,
         end: i64,
     ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
-        if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
-            let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
-                .map(|v| (TimeIndexEntry::start(start), v));
-            let iter = GenLockedIter::from(prop, |prop| {
-                prop.deref()
-                    .iter_window_rev(TimeIndexEntry::range(start..end))
-                    .into_dyn_boxed()
-            });
+        let graph_entry = self.core_graph().graph_entry();
 
-            iter.into_iter().chain(first).into_dyn_boxed()
-        } else {
-            iter::empty().into_dyn_boxed()
-        }
+        GenLockedIter::from(graph_entry, move |entry| {
+            let tprop = entry.as_ref().get_temporal_prop(prop_id);
+
+            // Get the property value that was active at the start of the window.
+            let first = persisted_prop_value_at(start, tprop, &TimeIndex::Empty)
+                .map(|prop_value| (TimeIndexEntry::start(start), prop_value));
+
+            // Chain the initial prop with the rest of the props that occur
+            // within the window, in reverse order.
+            tprop
+                .iter_window_rev(TimeIndexEntry::range(start..end))
+                .chain(first)
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_prop_last_at(

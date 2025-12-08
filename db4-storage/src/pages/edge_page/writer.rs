@@ -1,10 +1,13 @@
 use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
-    segments::edge::MemEdgeSegment,
+    segments::edge::segment::MemEdgeSegment,
 };
 use arrow_array::{ArrayRef, BooleanArray};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
-use raphtory_core::{entities::EID, storage::timeindex::AsTime};
+use raphtory_core::{
+    entities::EID,
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
 use std::ops::DerefMut;
 
 pub struct EdgeWriter<
@@ -56,30 +59,30 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         edge_pos
     }
 
-    pub fn bulk_add_edges(
-        &mut self,
-        mask: &BooleanArray,
-        time: &[i64],
-        start_idx: usize,
-        eids: &[EID],
-        srcs: &[VID],
-        dsts: &[VID],
-        layer_id: usize,
-        cols: &[ArrayRef],
-        cols_prop_ids: &[usize],
-    ) {
-        self.writer.bulk_insert_edges_internal(
-            mask,
-            time,
-            start_idx,
-            eids,
-            srcs,
-            dsts,
-            layer_id,
-            cols,
-            cols_prop_ids,
-        );
-    }
+    // pub fn bulk_add_edges(
+    //     &mut self,
+    //     mask: &BooleanArray,
+    //     time: &[i64],
+    //     start_idx: usize,
+    //     eids: &[EID],
+    //     srcs: &[VID],
+    //     dsts: &[VID],
+    //     layer_id: usize,
+    //     cols: &[ArrayRef],
+    //     cols_prop_ids: &[usize],
+    // ) {
+    //     self.writer.bulk_insert_edges_internal(
+    //         mask,
+    //         time,
+    //         start_idx,
+    //         eids,
+    //         srcs,
+    //         dsts,
+    //         layer_id,
+    //         cols,
+    //         cols_prop_ids,
+    //     );
+    // }
 
     pub fn delete_edge<T: AsTime>(
         &mut self,
@@ -107,18 +110,47 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         src: impl Into<VID>,
         dst: impl Into<VID>,
         lsn: u64,
-        exists_hint: Option<bool>, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
+        exist: bool, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
     ) -> LocalPOS {
         let layer_id = 0; // assuming layer_id 0 for static edges, adjust as needed
 
-        if exists_hint == Some(false) && edge_pos.is_some() {
-            self.new_local_pos(layer_id); // increment the counts, this is triggered from the bulk loader
+        if edge_pos.is_some() && !exist {
+            self.page.increment_num_edges();
+            self.increment_layer_num_edges(layer_id);
         }
 
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(layer_id));
         self.writer
             .insert_static_edge_internal(edge_pos, src, dst, layer_id, lsn);
         edge_pos
+    }
+
+    pub fn bulk_add_edge(
+        &mut self,
+        t: TimeIndexEntry,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        exists: bool,
+        layer_id: usize,
+        c_props: impl IntoIterator<Item = (usize, Prop)>,
+        t_props: impl IntoIterator<Item = (usize, Prop)>,
+        lsn: u64,
+    ) {
+        if !exists {
+            self.increment_layer_num_edges(0);
+            self.increment_layer_num_edges(layer_id);
+        }
+
+        self.writer
+            .insert_static_edge_internal(edge_pos, src, dst, 0, lsn);
+
+        self.writer
+            .update_const_properties(edge_pos, src, dst, layer_id, c_props);
+
+        self.graph_stats.update_time(t.t());
+        self.writer
+            .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props, lsn);
     }
 
     pub fn segment_id(&self) -> usize {
@@ -137,14 +169,13 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.page.get_edge(edge_pos, layer_id, self.writer.deref())
     }
 
-    pub fn validate_c_props(
+    pub fn check_metadata(
         &self,
         edge_pos: LocalPOS,
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), StorageError> {
-        self.writer
-            .check_const_properties(edge_pos, layer_id, props)
+        self.writer.check_metadata(edge_pos, layer_id, props)
     }
 
     pub fn update_c_props(
