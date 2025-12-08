@@ -26,7 +26,11 @@ pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
         i: usize,
     ) -> Option<&A>;
 
-    fn iter<A: StateType>(&self, ss: usize, extend_to: usize) -> Box<dyn Iterator<Item = &A> + '_>;
+    fn iter<A: StateType>(
+        &self,
+        ss: usize,
+        extend_to: usize,
+    ) -> Box<dyn Iterator<Item = &A> + Send + '_>;
 
     fn agg<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ss: usize, a: IN, ki: usize)
     where
@@ -118,7 +122,11 @@ impl ComputeState for ComputeStateVec {
         vec.current(ss).get(i)
     }
 
-    fn iter<A: StateType>(&self, ss: usize, extend_to: usize) -> Box<dyn Iterator<Item = &A> + '_> {
+    fn iter<A: StateType>(
+        &self,
+        ss: usize,
+        extend_to: usize,
+    ) -> Box<dyn Iterator<Item = &A> + Send + '_> {
         let vec = self
             .current()
             .as_any()

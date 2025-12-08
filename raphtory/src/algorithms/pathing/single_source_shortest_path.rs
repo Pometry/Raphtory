@@ -2,7 +2,6 @@
 //!
 //! This module provides an implementation of the Single Source Shortest Path algorithm.
 //! It finds the shortest paths from a given source node to all other nodes in a graph.
-use either::Either;
 
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},

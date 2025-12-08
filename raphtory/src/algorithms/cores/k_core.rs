@@ -76,13 +76,12 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let index = Index::for_graph(g);
 
     runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _, local| {
+        |_, _, _, local, index| {
             g.nodes()
                 .iter()
                 .filter(|node| local[index.index(&node.node).unwrap()].alive)
