@@ -25,6 +25,7 @@ use raphtory_api::core::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 
 pub struct PropCols {
     prop_ids: Vec<usize>,
@@ -55,6 +56,7 @@ pub fn combine_properties_arrow<E>(
     props: &[impl AsRef<str>],
     indices: &[usize],
     df: &DFChunk,
+    schema: Option<&HashMap<String, PropType>>,
     prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, E>,
 ) -> Result<PropCols, GraphError>
 where
@@ -62,7 +64,16 @@ where
 {
     let dtypes = indices
         .iter()
-        .map(|idx| data_type_as_prop_type(df.chunk[*idx].data_type()))
+        .enumerate()
+        .map(|(i, idx)| {
+            let col_name = props[i].as_ref();
+            if let Some(schema_map) = schema {
+                if let Some(prop_type) = schema_map.get(col_name) {
+                    return Ok(prop_type.clone());
+                }
+            }
+            data_type_as_prop_type(df.chunk[*idx].data_type())
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let cols = indices
         .iter()

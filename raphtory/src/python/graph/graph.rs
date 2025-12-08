@@ -9,7 +9,7 @@ use crate::{
         api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
-    errors::{GraphError, GraphError::PythonError},
+    errors::GraphError,
     io::parquet_loaders::*,
     prelude::*,
     python::{
@@ -36,14 +36,23 @@ use crate::{
         InternalStableDecode, StableEncode,
     },
 };
-use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::PyDict};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use pyo3::{
+    exceptions::{PyTypeError, PyValueError},
+    prelude::*,
+    pybacked::PyBackedStr,
+    types::PyDict,
+};
+use raphtory_api::core::{
+    entities::{properties::prop::PropType, GID},
+    storage::arc_str::ArcStr,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashMap,
     ffi::OsStr,
     fmt::{Debug, Formatter},
     fs,
+    ops::Deref,
     path::PathBuf,
 };
 
@@ -153,6 +162,40 @@ impl PyGraphEncoder {
     }
     fn __setstate__(&self) {}
     fn __getstate__(&self) {}
+}
+
+fn parse_column_schema<'py>(
+    schema: Option<Vec<(PyBackedStr, PyBackedStr)>>,
+) -> PyResult<Option<HashMap<String, PropType>>> {
+    let Some(pairs) = schema else {
+        return Ok(None);
+    };
+
+    // TODO: Move this to FromPyObject<PropType> impl?
+    let parse_type_fn = |s: &str| match s.to_ascii_lowercase().as_str() {
+        "i64" | "int64" | "int" => Ok(PropType::I64),
+        "i32" | "int32" => Ok(PropType::I32),
+        "u64" | "uint64" => Ok(PropType::U64),
+        "u32" | "uint32" => Ok(PropType::I32),
+        "u16" | "uint16" => Ok(PropType::U16),
+        "u8" | "uint8" => Ok(PropType::U8),
+        "f64" | "float64" | "float" | "double" => Ok(PropType::F64),
+        "f32" | "float32" => Ok(PropType::F32),
+        "bool" | "boolean" => Ok(PropType::Bool),
+        "str" | "string" | "utf8" => Ok(PropType::Str),
+        "ndtime" | "naivedatetime" | "datetime" => Ok(PropType::NDTime),
+        "dtime" | "datetimetz" => Ok(PropType::DTime),
+        other => Err(PyTypeError::new_err(format!(
+            "Unknown type name '{other:?}' in schema"
+        ))),
+    };
+    let mut out = HashMap::with_capacity(pairs.len());
+    for (name, type_str) in pairs {
+        let col_name = name.to_string();
+        let prop_type = parse_type_fn(col_name.as_ref())?;
+        out.insert(col_name, prop_type);
+    }
+    Ok(Some(out))
 }
 
 /// A temporal graph.
@@ -634,8 +677,28 @@ impl PyGraph {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
+    /// Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+    /// a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+    /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+    ///
+    /// Arguments:
+    ///     data (Any): The data source containing the nodes.
+    ///     time (str): The column name for the timestamps.
+    ///     id (str): The column name for the node IDs.
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
+    ///     node_type_col (str, optional): The node type column name in a dataframe. Cannot be used in combination with node_type. Defaults to None.
+    ///     properties (List[str], optional): List of node property column names. Defaults to None.
+    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None)
     )]
     fn load_nodes<'py>(
         &self,
@@ -647,9 +710,11 @@ impl PyGraph {
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
+        schema: Option<Vec<(PyBackedStr, PyBackedStr)>>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        let column_schema = parse_column_schema(schema).map_err(|e| GraphError::PythonError(e))?;
         if data.hasattr("__arrow_c_stream__")? {
             load_nodes_from_arrow_c_stream(
                 &self.graph,
@@ -661,6 +726,7 @@ impl PyGraph {
                 &properties,
                 &metadata,
                 shared_metadata.as_ref(),
+                column_schema.as_ref(),
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // handles Strings too
@@ -718,11 +784,11 @@ impl PyGraph {
                 )?;
             }
             if !is_parquet && !is_csv {
-                return Err(PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files")));
+                return Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files")));
             }
             Ok(())
         } else {
-            Err(PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
+            Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
         }
     }
 
@@ -771,6 +837,7 @@ impl PyGraph {
             &properties,
             &metadata,
             shared_metadata.as_ref(),
+            None, // TODO: Add schema
         )
     }
 
@@ -915,6 +982,7 @@ impl PyGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            None, // TODO: Add schema
         )
     }
 
@@ -1055,6 +1123,7 @@ impl PyGraph {
             node_type_col,
             &metadata,
             shared_metadata.as_ref(),
+            None, // TODO: Add schema
         )
     }
 
@@ -1178,6 +1247,7 @@ impl PyGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            None, // TODO: Add schema
         )
     }
 

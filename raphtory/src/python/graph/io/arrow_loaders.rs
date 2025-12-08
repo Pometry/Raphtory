@@ -23,7 +23,7 @@ use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use pyo3::{prelude::*, types::PyCapsule};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{
     cmp::min,
     collections::HashMap,
@@ -49,6 +49,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend_from_slice(properties);
@@ -68,6 +69,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
         node_type,
         node_type_col,
         graph,
+        schema,
     )
 }
 
@@ -85,6 +87,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
+    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend_from_slice(properties);
@@ -105,6 +108,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
         layer,
         layer_col,
         graph,
+        schema,
     )
 }
 
@@ -119,6 +123,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
     node_type_col: Option<&str>,
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
     cols_to_check.extend_from_slice(metadata);
@@ -135,6 +140,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
         metadata,
         shared_metadata,
         graph,
+        schema,
     )
 }
 
@@ -150,6 +156,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
+    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst];
     if let Some(ref layer_col) = layer_col {
@@ -167,6 +174,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
         layer,
         layer_col,
         graph,
+        schema,
     )
 }
 
@@ -366,6 +374,7 @@ pub(crate) fn load_nodes_from_csv_path<
         node_type,
         node_type_col,
         graph,
+        None,
     )
 }
 

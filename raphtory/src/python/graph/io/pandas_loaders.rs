@@ -54,6 +54,7 @@ pub(crate) fn load_nodes_from_pandas<
         node_type,
         node_type_col,
         graph,
+        None, // TODO: Add schema
     )
 }
 
@@ -92,6 +93,7 @@ pub(crate) fn load_edges_from_pandas<
         layer,
         layer_col,
         graph,
+        None, // TODO: Add schema
     )
 }
 
@@ -122,6 +124,7 @@ pub(crate) fn load_node_props_from_pandas<
         metadata,
         shared_metadata,
         graph,
+        None, // TODO: Add schema
     )
 }
 
@@ -154,6 +157,7 @@ pub(crate) fn load_edge_props_from_pandas<
         layer,
         layer_col,
         graph,
+        None, // TODO: Add schema
     )
 }
 
