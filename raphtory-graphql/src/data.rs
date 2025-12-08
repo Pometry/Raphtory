@@ -365,8 +365,10 @@ impl Drop for Data {
     fn drop(&mut self) {
         // On drop, serialize graphs that don't have underlying storage.
         for (_, graph) in self.cache.iter() {
-            if let Err(e) = graph.folder.write_graph_data(graph.graph) {
-                error!("Error encoding graph to disk on drop: {e}");
+            if graph.is_dirty() {
+                if let Err(e) = graph.folder.write_graph_data(graph.graph) {
+                    error!("Error encoding graph to disk on drop: {e}");
+                }
             }
         }
     }

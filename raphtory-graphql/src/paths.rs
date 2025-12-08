@@ -317,14 +317,15 @@ impl WriteableGraphFolder {
     }
 
     fn finish_inner(&self) -> Result<(), InternalPathValidationError> {
-        let old_path = self.folder.data_path.get_data_path().ok();
+        let old_path = read_data_path(self.folder.data_path().root())?;
         fs::rename(
             self.folder.data_path.root().join(DIRTY_PATH),
             self.folder.data_path.root().join(META_PATH),
         )?;
         if let Some(old_path) = old_path {
-            if old_path.exists() {
-                fs::remove_dir_all(old_path)?;
+            let path = self.folder.data_path.root().join(&old_path);
+            if path.exists() {
+                fs::remove_dir_all(path)?;
             }
         }
         if let Some(cleanup) = self.dirty_marker.as_ref() {

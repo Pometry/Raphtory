@@ -272,7 +272,7 @@ impl GraphFolder {
 
     pub fn replace_graph(&self, graph: impl ParquetEncoder + GraphView) -> Result<(), GraphError> {
         let data_path = self.get_data_path()?;
-        let old_graph_path = self.get_graph_path().ok();
+        let old_graph_path = read_data_path(&data_path)?;
         let new_graph_path = make_data_path(&data_path, GRAPH_PATH)?;
         let meta = Some(GraphMetadata::from_graph(&graph));
         let new_graph_folder = data_path.join(&new_graph_path);
