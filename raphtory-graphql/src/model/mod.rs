@@ -5,7 +5,7 @@ use crate::{
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
-            mutable_graph::GqlMutableGraph, namespace::Namespace,
+            mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
@@ -19,6 +19,7 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
+use itertools::Itertools;
 use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
@@ -124,25 +125,26 @@ impl QueryRoot {
     /// Returns::  List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
-        GqlCollection::new(root.get_all_namespaces().into())
+        let root = Namespace::root(data.work_dir.clone());
+        let list = blocking_compute(move || {
+            root.get_all_children()
+                .filter_map(|child| match child {
+                    NamespacedItem::Namespace(item) => Some(item),
+                    NamespacedItem::MetaGraph(_) => None,
+                })
+                .sorted()
+                .collect()
+        })
+        .await;
+        GqlCollection::new(list)
     }
 
     /// Returns a specific namespace at a given path
     ///
     /// Returns:: Namespace or error if no namespace found
-    async fn namespace<'a>(
-        ctx: &Context<'a>,
-        path: String,
-    ) -> Result<Namespace, InvalidPathReason> {
+    async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        let current_dir = valid_path(data.work_dir.clone(), path.as_str(), true)?;
-
-        if current_dir.exists() {
-            Ok(Namespace::new(data.work_dir.clone(), current_dir))
-        } else {
-            Err(InvalidPathReason::NamespaceDoesNotExist(path))
-        }
+        Ok(Namespace::try_new(data.work_dir.clone(), path)?)
     }
 
     /// Returns root namespace
@@ -150,7 +152,7 @@ impl QueryRoot {
     /// Returns::  Root namespace
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
-        Namespace::new(data.work_dir.clone(), data.work_dir.clone())
+        Namespace::root(data.work_dir.clone())
     }
 
     /// Returns a plugin.
@@ -200,11 +202,11 @@ impl Mut {
         ctx: &Context<'a>,
         path: String,
         graph_type: GqlGraphType,
-    ) -> Result<bool, InsertionError> {
+    ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
-        let graph_path = folder.data_path().get_graph_path();
+        let graph_path = folder.data_path().get_graph_path()?;
         let graph: MaterializedGraph = match graph_type {
             GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path).into(),
             GqlGraphType::Event => Graph::new_at_path(graph_path).into(),
@@ -287,7 +289,7 @@ impl Mut {
             WriteableGraphFolder::try_new(data.work_dir.clone(), path)?
         };
         let g: MaterializedGraph =
-            url_decode_graph(graph, Some(&folder.data_path().get_graph_path()))?;
+            url_decode_graph(graph, Some(&folder.data_path().get_graph_path()?))?;
 
         data.insert_graph(folder, g).await?;
         Ok(path.to_owned())

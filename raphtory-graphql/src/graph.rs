@@ -90,18 +90,18 @@ impl GraphWithVectors {
         let graph = {
             let data_path = folder.data_path();
             // Either decode a graph serialized using encode or load using underlying storage.
-            if MaterializedGraph::is_decodable(data_path.get_graph_path()) {
+            if MaterializedGraph::is_decodable(data_path.get_graph_path()?) {
                 let path_for_decoded_graph = None;
                 MaterializedGraph::decode(data_path, path_for_decoded_graph)?
             } else {
                 let metadata = data_path.read_metadata()?;
                 let graph = match metadata.graph_type {
                     GraphType::EventGraph => {
-                        let graph = Graph::load_from_path(data_path.get_graph_path());
+                        let graph = Graph::load_from_path(data_path.get_graph_path()?);
                         MaterializedGraph::EventGraph(graph)
                     }
                     GraphType::PersistentGraph => {
-                        let graph = PersistentGraph::load_from_path(data_path.get_graph_path());
+                        let graph = PersistentGraph::load_from_path(data_path.get_graph_path()?);
                         MaterializedGraph::PersistentGraph(graph)
                     }
                 };
@@ -113,7 +113,8 @@ impl GraphWithVectors {
         };
 
         let vectors = cache.and_then(|cache| {
-            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
+            VectorisedGraph::read_from_path(&folder.get_vectors_path().ok()?, graph.clone(), cache)
+                .ok()
         });
 
         info!("Graph loaded = {}", folder.get_original_path_str());

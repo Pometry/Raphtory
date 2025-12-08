@@ -15,6 +15,7 @@ pub struct GraphMetadata {
     pub edge_count: usize,
     pub metadata: Vec<(ArcStr, Prop)>,
     pub graph_type: GraphType,
+    pub is_diskgraph: bool,
 }
 
 impl GraphMetadata {
@@ -23,11 +24,13 @@ impl GraphMetadata {
         let edge_count = graph.count_edges();
         let metadata = graph.metadata().as_vec();
         let graph_type = graph.graph_type();
+        let is_diskgraph = graph.disk_storage_enabled();
         Self {
             node_count,
             edge_count,
             metadata,
             graph_type,
+            is_diskgraph,
         }
     }
 }

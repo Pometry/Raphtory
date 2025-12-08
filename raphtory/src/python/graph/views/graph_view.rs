@@ -478,7 +478,7 @@ impl PyGraphView {
     /// Materializes the graph view into a graphql compatible folder.
     fn materialize_to_graph_folder(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
         let folder: GraphFolder = path.into();
-        folder.reserve()?;
+        folder.init()?;
 
         let graph = self.graph.materialize_at(Some(&folder.get_graph_path()))?;
         folder.write_metadata(&graph)?;

@@ -3,8 +3,9 @@ use crate::{
     graph::GraphWithVectors,
     model::blocking_io,
     paths::{
-        mark_dirty, read_data_path, valid_path, valid_relative_graph_path, ExistingGraphFolder,
-        InternalPathValidationError, PathValidationError, ValidGraphFolder, WriteableGraphFolder,
+        mark_dirty, valid_path, valid_relative_graph_path, ExistingGraphFolder,
+        InternalPathValidationError, PathValidationError, ValidGraphFolder, WithPath,
+        WriteableGraphFolder,
     },
     rayon::blocking_compute,
     GQLError,
@@ -112,24 +113,27 @@ impl DeletionError {
     }
 }
 
+/// Get relative path as String joined with `"/"` for use with the validation methods.
+/// The path is not validated here!
 pub(crate) fn get_relative_path(
-    work_dir: PathBuf,
+    work_dir: &Path,
     path: &Path,
-    namespace: bool,
-) -> Result<String, InvalidPathReason> {
-    let path_buf = path.strip_prefix(work_dir.clone())?.to_path_buf();
-    let components = path_buf
-        .components()
-        .into_iter()
-        .map(|c| {
-            c.as_os_str()
-                .to_str()
-                .ok_or(InvalidPathReason::NonUTFCharacters)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    //a safe unwrap as checking above
-    let path_str = components.into_iter().join("/");
-    valid_path(work_dir, &path_str, namespace)?;
+) -> Result<String, InternalPathValidationError> {
+    let relative = path.strip_prefix(work_dir)?;
+    let mut path_str = String::new();
+    let mut components = relative.components().map(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .ok_or(InternalPathValidationError::NonUTFCharacters)
+    });
+    if let Some(first) = components.next() {
+        path_str.push_str(first?);
+    }
+    for component in components {
+        path_str.push('/');
+        path_str.push_str(component?);
+    }
     Ok(path_str)
 }
 
@@ -214,9 +218,7 @@ impl Data {
         })
         .await?;
 
-        self.cache
-            .insert(graph.folder.local_path.clone(), graph)
-            .await;
+        self.cache.insert(graph.folder.local_path(), graph).await;
         Ok(())
     }
 
@@ -246,9 +248,9 @@ impl Data {
         graph_folder: ExistingGraphFolder,
     ) -> Result<(), MutationErrorInner> {
         blocking_io(move || {
-            mark_dirty(&graph_folder.path)?;
-            fs::remove_dir_all(&graph_folder.path)?;
-            fs::remove_file(graph_folder.data_folder.join(DIRTY_PATH))?;
+            let dirty_file = mark_dirty(graph_folder.path())?;
+            fs::remove_dir_all(graph_folder.path())?;
+            fs::remove_file(dirty_file)?;
             Ok::<_, MutationErrorInner>(())
         })
         .await?;
@@ -282,7 +284,7 @@ impl Data {
             .vectorise(
                 conf.cache.clone(),
                 template.clone(),
-                Some(&folder.get_vectors_path()),
+                Some(&folder.get_vectors_path().ok()?),
                 true, // verbose
             )
             .await;
@@ -320,7 +322,7 @@ impl Data {
 
     pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
         for folder in self.get_all_graph_folders() {
-            if !folder.data_path().get_vectors_path().exists() {
+            if !folder.data_path().get_vectors_path()?.exists() {
                 self.vectorise_folder(folder).await;
             }
         }
@@ -335,7 +337,7 @@ impl Data {
             .filter_map(move |e| {
                 let entry = e.ok()?;
                 let path = entry.path();
-                let relative = get_relative_path(base_path.clone(), path, false).ok()?;
+                let relative = get_relative_path(&base_path, path).ok()?;
                 let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
                 Some(folder)
             })
@@ -501,7 +503,7 @@ pub(crate) mod data_tests {
         let paths = data
             .get_all_graph_folders()
             .into_iter()
-            .map(|folder| folder.0.path)
+            .map(|folder| folder.0.data_path().root().to_path_buf())
             .collect_vec();
 
         assert_eq!(paths.len(), 5);

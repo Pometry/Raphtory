@@ -20,7 +20,7 @@ use crate::{
     GQLError,
 };
 use async_graphql::Context;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use itertools::Itertools;
 use raphtory::{
     core::{
@@ -254,18 +254,18 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns the timestamp for the creation of the graph.
-    async fn created(&self) -> Result<i64, GraphError> {
-        self.path.created_async().await
+    async fn created(&self) -> Result<i64> {
+        Ok(self.path.created_async().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
-    async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.path.last_opened_async().await
+    async fn last_opened(&self) -> Result<i64> {
+        Ok(self.path.last_opened_async().await?)
     }
 
     /// Returns the graph's last updated timestamp.
-    async fn last_updated(&self) -> Result<i64, GraphError> {
-        self.path.last_updated_async().await
+    async fn last_updated(&self) -> Result<i64> {
+        Ok(self.path.last_updated_async().await?)
     }
 
     /// Returns the timestamp of the earliest activity in the graph.

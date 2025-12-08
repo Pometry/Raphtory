@@ -57,14 +57,11 @@ pub enum InvalidPathReason {
     ParentIsGraph(PathBuf),
     #[error("Graph name cannot start with _")]
     GraphNamePrefix,
-    #[error("The path provided does not exists as a namespace: {0}")]
-    NamespaceDoesNotExist(String),
+
     #[error("The path provided already exists as a namespace: {0}")]
     GraphIsNamespace(PathBuf),
     #[error("The path provided already exists as a graph: {0}")]
     NamespaceIsGraph(PathBuf),
-    #[error("The path provided contains non-UTF8 characters.")]
-    NonUTFCharacters,
     #[error("Failed to strip prefix")]
     StripPrefix {
         #[from]
@@ -261,6 +258,9 @@ pub enum GraphError {
         #[from]
         source: zip::result::ZipError,
     },
+
+    #[error("Not a zip archive")]
+    NotAZip,
 
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),

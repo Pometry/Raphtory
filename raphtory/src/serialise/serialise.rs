@@ -41,8 +41,8 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
             #[cfg(feature = "search")]
             self.persist_index_to_disk_zip(&folder)?;
         } else {
-            folder.reserve()?;
-            self.encode_parquet(&folder.get_graph_path())?;
+            folder.init()?;
+            self.encode_parquet(&folder.get_graph_path()?)?;
 
             #[cfg(feature = "search")]
             self.persist_index_to_disk(&folder)?;
@@ -100,7 +100,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
             let reader = std::fs::File::open(&folder.get_base_path())?;
             graph = Self::decode_parquet_from_zip(reader, path_for_decoded_graph)?;
         } else {
-            graph = Self::decode_parquet(&folder.get_graph_path(), path_for_decoded_graph)?;
+            graph = Self::decode_parquet(&folder.get_graph_path()?, path_for_decoded_graph)?;
         }
 
         #[cfg(feature = "search")]

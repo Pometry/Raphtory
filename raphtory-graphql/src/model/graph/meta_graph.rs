@@ -1,5 +1,5 @@
 use crate::{model::graph::property::GqlProperty, paths::ExistingGraphFolder};
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
@@ -39,10 +39,11 @@ impl MetaGraph {
         }
     }
 
-    async fn meta(&self) -> Result<&GraphMetadata, GraphError> {
-        self.meta
+    async fn meta(&self) -> Result<&GraphMetadata> {
+        Ok(self
+            .meta
             .get_or_try_init(|| self.folder.read_metadata_async())
-            .await
+            .await?)
     }
 }
 
@@ -60,22 +61,22 @@ impl MetaGraph {
     }
 
     /// Returns the timestamp for the creation of the graph.
-    async fn created(&self) -> Result<i64, GraphError> {
-        self.folder.created_async().await
+    async fn created(&self) -> Result<i64> {
+        Ok(self.folder.created_async().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
-    async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.folder.last_opened_async().await
+    async fn last_opened(&self) -> Result<i64> {
+        Ok(self.folder.last_opened_async().await?)
     }
 
     /// Returns the graph's last updated timestamp.
-    async fn last_updated(&self) -> Result<i64, GraphError> {
-        self.folder.last_updated_async().await
+    async fn last_updated(&self) -> Result<i64> {
+        Ok(self.folder.last_updated_async().await?)
     }
 
     /// Returns the number of nodes in the graph.
-    async fn node_count(&self) -> Result<usize, GraphError> {
+    async fn node_count(&self) -> Result<usize> {
         Ok(self.meta().await?.node_count)
     }
 
@@ -83,12 +84,12 @@ impl MetaGraph {
     ///
     /// Returns:
     ///     int:
-    async fn edge_count(&self) -> Result<usize, GraphError> {
+    async fn edge_count(&self) -> Result<usize> {
         Ok(self.meta().await?.edge_count)
     }
 
     /// Returns the metadata of the graph.
-    async fn metadata(&self) -> Result<Vec<GqlProperty>, GraphError> {
+    async fn metadata(&self) -> Result<Vec<GqlProperty>> {
         Ok(self
             .meta()
             .await?
