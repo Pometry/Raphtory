@@ -38,7 +38,7 @@ struct OutState {
 ///
 pub fn out_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
 where
-    G: StaticGraphViewOps,
+    G: StaticGraphViewOps + std::fmt::Debug,
 {
     let ctx: Context<G, ComputeStateVec> = g.into();
     let step1 = ATask::new(move |vv: &mut EvalNodeView<G, OutState>| {
