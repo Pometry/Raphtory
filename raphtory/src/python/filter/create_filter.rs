@@ -11,7 +11,7 @@ use crate::{
 };
 use std::{ops::Deref, sync::Arc};
 
-pub trait DynInternalFilterOps: Send + Sync + TryAsCompositeFilter {
+pub trait DynCreateFilter: Send + Sync + TryAsCompositeFilter {
     fn create_dyn_filter<'graph>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
@@ -23,7 +23,7 @@ pub trait DynInternalFilterOps: Send + Sync + TryAsCompositeFilter {
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
 }
 
-impl<T> DynInternalFilterOps for T
+impl<T> DynCreateFilter for T
 where
     T: CreateFilter + TryAsCompositeFilter + Clone + Send + Sync + 'static,
 {
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl<T: DynInternalFilterOps + ?Sized + 'static> CreateFilter for Arc<T> {
+impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>>
         = Arc<dyn BoxableGraphView + 'graph>
     where
