@@ -69,7 +69,6 @@ pub(crate) fn load_nodes_from_df<
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     graph: &G,
-    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     if matches!(df_view.is_empty(), Some(true)) {
         return Ok(());
@@ -113,19 +112,14 @@ pub(crate) fn load_nodes_from_df<
     for chunk in df_view.chunks {
         let df = chunk?;
         let start_id = graph.reserve_event_ids(df.len()).map_err(into_graph_err)?;
-        let prop_cols = combine_properties_arrow(
-            properties,
-            &properties_indices,
-            &df,
-            schema,
-            |key, dtype| {
+        let prop_cols =
+            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
                     .resolve_node_property(key, dtype, false)
                     .map_err(into_graph_err)
-            },
-        )?;
+            })?;
         let metadata_cols =
-            combine_properties_arrow(metadata, &metadata_indices, &df, schema, |key, dtype| {
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
                 graph
                     .resolve_node_property(key, dtype, true)
                     .map_err(into_graph_err)
@@ -239,7 +233,6 @@ pub fn load_edges_from_df<
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
-    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     if matches!(df_view.is_empty(), Some(true)) {
         return Ok(());
@@ -287,19 +280,14 @@ pub fn load_edges_from_df<
     for chunk in df_view.chunks {
         let df = chunk?;
         let start_idx = graph.reserve_event_ids(df.len()).map_err(into_graph_err)?;
-        let prop_cols = combine_properties_arrow(
-            properties,
-            &properties_indices,
-            &df,
-            schema,
-            |key, dtype| {
+        let prop_cols =
+            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
                     .resolve_edge_property(key, dtype, false)
                     .map_err(into_graph_err)
-            },
-        )?;
+            })?;
         let metadata_cols =
-            combine_properties_arrow(metadata, &metadata_indices, &df, schema, |key, dtype| {
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
                 graph
                     .resolve_edge_property(key, dtype, true)
                     .map_err(into_graph_err)
@@ -555,7 +543,6 @@ pub(crate) fn load_node_props_from_df<
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
-    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     if matches!(df_view.is_empty(), Some(true)) {
         return Ok(());
@@ -594,7 +581,7 @@ pub(crate) fn load_node_props_from_df<
     for chunk in df_view.chunks {
         let df = chunk?;
         let metadata_cols =
-            combine_properties_arrow(metadata, &metadata_indices, &df, schema, |key, dtype| {
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
                 graph
                     .resolve_node_property(key, dtype, true)
                     .map_err(into_graph_err)
@@ -679,7 +666,6 @@ pub(crate) fn load_edges_props_from_df<
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
-    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     if matches!(df_view.is_empty(), Some(true)) {
         return Ok(());
@@ -724,7 +710,7 @@ pub(crate) fn load_edges_props_from_df<
     for chunk in df_view.chunks {
         let df = chunk?;
         let metadata_cols =
-            combine_properties_arrow(metadata, &metadata_indices, &df, schema, |key, dtype| {
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
                 graph
                     .resolve_edge_property(key, dtype, true)
                     .map_err(into_graph_err)
@@ -844,7 +830,6 @@ pub(crate) fn load_graph_props_from_df<
     properties: Option<&[&str]>,
     metadata: Option<&[&str]>,
     graph: &G,
-    schema: Option<&HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     if matches!(df_view.is_empty(), Some(true)) {
         return Ok(());
@@ -869,19 +854,14 @@ pub(crate) fn load_graph_props_from_df<
     for chunk in df_view.chunks {
         let df = chunk?;
         let start_id = graph.reserve_event_ids(df.len()).map_err(into_graph_err)?;
-        let prop_cols = combine_properties_arrow(
-            properties,
-            &properties_indices,
-            &df,
-            schema,
-            |key, dtype| {
+        let prop_cols =
+            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 graph
                     .resolve_graph_property(key, dtype, false)
                     .map_err(into_graph_err)
-            },
-        )?;
+            })?;
         let metadata_cols =
-            combine_properties_arrow(metadata, &metadata_indices, &df, schema, |key, dtype| {
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
                 graph
                     .resolve_graph_property(key, dtype, true)
                     .map_err(into_graph_err)

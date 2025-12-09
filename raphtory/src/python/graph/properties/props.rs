@@ -24,9 +24,11 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropType},
+    storage::arc_str::ArcStr,
+};
 use std::{collections::HashMap, ops::Deref, sync::Arc};
-use raphtory_api::core::entities::properties::prop::PropType;
 
 #[derive(Clone, Debug)]
 pub struct PyPropsComp(HashMap<ArcStr, Prop>);

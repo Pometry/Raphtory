@@ -51,7 +51,6 @@ pub fn load_nodes_from_parquet<
             node_type,
             node_type_col,
             graph,
-            None, // TODO: Add schema
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
@@ -131,7 +130,6 @@ pub fn load_edges_from_parquet<
         layer,
         layer_col,
         graph,
-        None, // TODO: Add schema
     )
     .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
 
@@ -169,7 +167,6 @@ pub fn load_node_props_from_parquet<
             metadata_properties,
             shared_metadata,
             graph,
-            None, // TODO: Add schema
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
@@ -209,7 +206,6 @@ pub fn load_edge_props_from_parquet<
             layer,
             layer_col,
             graph,
-            None, // TODO: Add schema
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
@@ -258,15 +254,8 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_graph_props_from_df(
-            df_view,
-            time,
-            Some(properties),
-            Some(metadata),
-            graph,
-            None, // TODO: Add schema
-        )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        load_graph_props_from_df(df_view, time, Some(properties), Some(metadata), graph)
+            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
 
     Ok(())

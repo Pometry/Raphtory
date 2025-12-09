@@ -37,7 +37,7 @@ use crate::{
     },
 };
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::{PyValueError},
     prelude::*,
     pybacked::PyBackedStr,
     types::PyDict,
@@ -52,7 +52,6 @@ use std::{
     ffi::OsStr,
     fmt::{Debug, Formatter},
     fs,
-    ops::Deref,
     path::PathBuf,
 };
 
@@ -693,7 +692,7 @@ impl PyGraph {
                 &properties,
                 &metadata,
                 shared_metadata.as_ref(),
-                column_schema.as_ref(),
+                column_schema,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // handles Strings too

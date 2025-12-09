@@ -3,12 +3,12 @@ use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
+    pybacked::PyBackedStr,
     sync::GILOnceCell,
     types::{PyBool, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 use std::{ops::Deref, str::FromStr, sync::Arc};
-use pyo3::pybacked::PyBackedStr;
 
 #[cfg(feature = "arrow")]
 mod array_ext {
@@ -231,7 +231,9 @@ impl<'source> FromPyObject<'source> for PropType {
                 ))),
             }
         } else {
-            Err(PyTypeError::new_err("PropType must be a string or an instance of itself."))
+            Err(PyTypeError::new_err(
+                "PropType must be a string or an instance of itself.",
+            ))
         }
     }
 }

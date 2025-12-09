@@ -13,21 +13,23 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use arrow::{
-    array::{RecordBatch, RecordBatchReader},
-    datatypes::SchemaRef,
+    array::{Array, RecordBatch, RecordBatchReader},
+    compute::cast,
+    datatypes::{Field, Schema, SchemaRef},
 };
 use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use pyo3::{prelude::*, types::PyCapsule};
 use pyo3_arrow::PyRecordBatchReader;
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
     cmp::min,
     collections::HashMap,
     fs,
     fs::File,
     iter,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -47,7 +49,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
-    schema: Option<&HashMap<String, PropType>>,
+    schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend_from_slice(properties);
@@ -55,7 +57,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_nodes_from_df(
         df_view,
@@ -67,7 +69,6 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
         node_type,
         node_type_col,
         graph,
-        schema,
     )
 }
 
@@ -85,7 +86,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
-    schema: Option<&HashMap<String, PropType>>,
+    schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend_from_slice(properties);
@@ -93,7 +94,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     if let Some(layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_from_df(
         df_view,
@@ -106,7 +107,6 @@ pub(crate) fn load_edges_from_arrow_c_stream<
         layer,
         layer_col,
         graph,
-        schema,
     )
 }
 
@@ -121,14 +121,14 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
     node_type_col: Option<&str>,
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
-    schema: Option<&HashMap<String, PropType>>,
+    schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
     cols_to_check.extend_from_slice(metadata);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_node_props_from_df(
         df_view,
@@ -138,7 +138,6 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
         metadata,
         shared_metadata,
         graph,
-        schema,
     )
 }
 
@@ -154,14 +153,14 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
-    schema: Option<&HashMap<String, PropType>>,
+    schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst];
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
     cols_to_check.extend_from_slice(metadata);
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_props_from_df(
         df_view,
@@ -172,7 +171,6 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
         layer,
         layer_col,
         graph,
-        schema,
     )
 }
 
@@ -193,7 +191,7 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
         cols_to_check.push(layer_col.as_ref());
     }
 
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone())?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), None)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edge_deletions_from_df(
         df_view,
@@ -210,6 +208,7 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
 pub(crate) fn process_arrow_c_stream_df<'a>(
     data: &Bound<'a, PyAny>,
     col_names: Vec<&str>,
+    schema: Option<HashMap<String, PropType>>,
 ) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
     let py = data.py();
     is_jupyter(py);
@@ -245,11 +244,10 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
         })?;
 
     // Get column names and indices once only
-    let schema: SchemaRef = reader.schema();
     let mut names: Vec<String> = Vec::with_capacity(col_names.len());
     let mut indices: Vec<usize> = Vec::with_capacity(col_names.len());
 
-    for (idx, field) in schema.fields().iter().enumerate() {
+    for (idx, field) in reader.schema().fields().iter().enumerate() {
         if col_names.contains(&field.name().as_str()) {
             names.push(field.name().clone());
             indices.push(idx);
@@ -265,7 +263,7 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
     let chunks = reader
         .into_iter()
         .flat_map(move |batch_res: Result<RecordBatch, _>| {
-            let batch = match batch_res.map_err(|e| {
+            let batch: RecordBatch = match batch_res.map_err(|e| {
                 GraphError::LoadFailure(format!(
                     "Arrow stream error while reading a batch: {}",
                     e.to_string()
@@ -274,11 +272,64 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
                 Ok(batch) => batch,
                 Err(e) => return vec![Err(e)],
             };
+            let casted_batch = if let Some(schema) = &schema {
+                match cast_columns(&batch, schema) {
+                    Ok(casted_batch) => casted_batch,
+                    Err(e) => return vec![Err(e)],
+                }
+            } else {
+                batch
+            };
 
-            split_into_chunks(&batch, &indices)
+            split_into_chunks(&casted_batch, &indices)
         });
 
     Ok(DFView::new(names, chunks, len_from_python))
+}
+
+fn cast_columns(
+    batch: &RecordBatch,
+    schema: &HashMap<String, PropType>,
+) -> Result<RecordBatch, GraphError> {
+    let old_schema_ref = batch.schema();
+    let old_fields = old_schema_ref.fields();
+
+    let mut new_columns = Vec::with_capacity(batch.num_columns());
+    let mut new_fields: Vec<Field> = Vec::with_capacity(batch.num_columns());
+
+    for (i, field) in old_fields.iter().enumerate() {
+        let col = batch.column(i);
+
+        if let Some(target_prop_type) = schema.get(field.name()) {
+            let target_dtype = arrow_dtype_from_prop_type(target_prop_type);
+
+            if col.data_type() != &target_dtype {
+                let casted = cast(col.as_ref(), &target_dtype).map_err(|e| {
+                    GraphError::LoadFailure(format!(
+                        "Failed to cast column '{}' from {:?} to {:?}: {e}",
+                        field.name(),
+                        col.data_type(),
+                        target_dtype
+                    ))
+                })?;
+                new_columns.push(casted);
+                let new_field = Field::new(field.name(), target_dtype, field.is_nullable())
+                    .with_metadata(field.metadata().clone());
+                new_fields.push(new_field);
+            } else {
+                // type was already correct
+                new_columns.push(col.clone());
+                new_fields.push(field.deref().clone());
+            }
+        } else {
+            // schema doesn't say anything about this column
+            new_columns.push(col.clone());
+            new_fields.push(field.deref().clone());
+        }
+    }
+    let new_schema = Arc::new(Schema::new(new_fields));
+    RecordBatch::try_new(new_schema, new_columns)
+        .map_err(|e| GraphError::LoadFailure(format!("Failed while casting columns: {e}")))
 }
 
 /// Splits a RecordBatch into chunks of CHUNK_SIZE owned by DFChunk objects
@@ -378,7 +429,6 @@ pub(crate) fn load_nodes_from_csv_path<
         node_type,
         node_type_col,
         graph,
-        None,
     )
 }
 
