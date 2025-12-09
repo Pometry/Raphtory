@@ -26,7 +26,7 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'PropType', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -1290,8 +1290,30 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes(self, data, time, id, node_type=None, node_type_col=None, properties=None, metadata=None, shared_metadata=None):
-        ...
+    def load_nodes(self, data: Any, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, schema: Optional[list[tuple[str, PropType | str]]] = None) -> None:
+        """
+        Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+
+        Arguments:
+            data (Any): The data source containing the nodes.
+            time (str): The column name for the timestamps.
+            id (str): The column name for the node IDs.
+            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
+            node_type_col (str, optional): The node type column name in a dataframe. Cannot be used in combination with node_type. Defaults to None.
+            properties (List[str], optional): List of node property column names. Defaults to None.
+            metadata (List[str], optional): List of node metadata column names. Defaults to None.
+            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            schema (list[tuple[str, PropType | str]], optional): A list of (column_name, column_type) tuples to cast column types to. Defaults to None.
+
+        Returns:
+            None: This function does not return a value if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
 
     def load_nodes_from_df(self, data: Any, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
@@ -6208,6 +6230,18 @@ class Properties(object):
             PropValue:
         """
 
+    def get_dtype_of(self, key: str) -> PropType:
+        """
+        Get the PropType of a property. Specifically, returns the PropType of the latest value for this property if it exists.
+        If not, it returns the PropType for the static property matching this name.
+
+        Arguments:
+            key (str): the name of the property.
+
+        Returns:
+            PropType:
+        """
+
     def items(self) -> list[Tuple[str, PropValue]]:
         """
         Get a list of key-value pairs
@@ -6331,6 +6365,11 @@ class PyPropValueList(object):
         Returns:
             PropValue:
         """
+
+class PropType(object): 
+
+    def __repr__(self):
+        """Return repr(self)."""
 
 class Metadata(object): 
     """A view of metadata of an entity"""

@@ -26,6 +26,7 @@ use pyo3::{
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::{collections::HashMap, ops::Deref, sync::Arc};
+use raphtory_api::core::entities::properties::prop::PropType;
 
 #[derive(Clone, Debug)]
 pub struct PyPropsComp(HashMap<ArcStr, Prop>);
@@ -96,6 +97,18 @@ impl PyProperties {
     ///     PropValue:
     pub fn get(&self, key: &str) -> Option<Prop> {
         self.props.get(key)
+    }
+
+    /// Get the PropType of a property. Specifically, returns the PropType of the latest value for this property if it exists.
+    /// If not, it returns the PropType for the static property matching this name.
+    ///
+    /// Arguments:
+    ///     key (str): the name of the property.
+    ///
+    /// Returns:
+    ///     PropType:
+    pub fn get_dtype_of(&self, key: &str) -> Option<PropType> {
+        self.props.get(key).map(|p| p.dtype())
     }
 
     /// Check if property `key` exists.

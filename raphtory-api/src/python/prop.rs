@@ -1,4 +1,4 @@
-use crate::core::entities::properties::prop::Prop;
+use crate::core::entities::properties::prop::{Prop, PropType};
 use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
@@ -8,6 +8,7 @@ use pyo3::{
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 use std::{ops::Deref, str::FromStr, sync::Arc};
+use pyo3::pybacked::PyBackedStr;
 
 #[cfg(feature = "arrow")]
 mod array_ext {
@@ -124,5 +125,113 @@ impl<'source> FromPyObject<'source> for Prop {
             "Could not convert {:?} to Prop",
             ob
         )))
+    }
+}
+
+#[pyclass(name = "PropType", frozen, module = "raphtory")]
+pub struct PyPropType(pub PropType);
+
+#[pymethods]
+impl PyPropType {
+    #[classattr]
+    pub fn u8() -> PropType {
+        PropType::U8
+    }
+
+    #[classattr]
+    pub fn u16() -> PropType {
+        PropType::U16
+    }
+
+    #[classattr]
+    pub fn u32() -> PropType {
+        PropType::U32
+    }
+
+    #[classattr]
+    pub fn u64() -> PropType {
+        PropType::U64
+    }
+
+    #[classattr]
+    pub fn i32() -> PropType {
+        PropType::I32
+    }
+
+    #[classattr]
+    pub fn i64() -> PropType {
+        PropType::I64
+    }
+
+    #[classattr]
+    pub fn f32() -> PropType {
+        PropType::F32
+    }
+
+    #[classattr]
+    pub fn f64() -> PropType {
+        PropType::F64
+    }
+
+    #[classattr]
+    pub fn str() -> PropType {
+        PropType::Str
+    }
+
+    #[classattr]
+    pub fn bool() -> PropType {
+        PropType::Bool
+    }
+
+    #[classattr]
+    pub fn naive_datetime() -> PropType {
+        PropType::NDTime
+    }
+
+    #[classattr]
+    pub fn datetime() -> PropType {
+        PropType::DTime
+    }
+
+    fn __repr__(&self) -> String {
+        format!("PropType.{}", self.0)
+    }
+}
+
+impl<'py> IntoPyObject<'py> for PropType {
+    type Target = PyPropType;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyPropType(self).into_pyobject(py)
+    }
+}
+
+impl<'source> FromPyObject<'source> for PropType {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        if let Ok(prop_type) = ob.downcast::<PyPropType>() {
+            Ok(prop_type.get().0.clone())
+        } else if let Ok(prop_type_str) = ob.extract::<PyBackedStr>() {
+            match prop_type_str.deref().to_ascii_lowercase().as_str() {
+                "i64" | "int64" | "int" => Ok(PropType::I64),
+                "i32" | "int32" => Ok(PropType::I32),
+                "u64" | "uint64" => Ok(PropType::U64),
+                "u32" | "uint32" => Ok(PropType::I32),
+                "u16" | "uint16" => Ok(PropType::U16),
+                "u8" | "uint8" => Ok(PropType::U8),
+                "f64" | "float64" | "float" | "double" => Ok(PropType::F64),
+                "f32" | "float32" => Ok(PropType::F32),
+                "bool" | "boolean" => Ok(PropType::Bool),
+                "str" | "string" | "utf8" => Ok(PropType::Str),
+                "ndtime" | "naivedatetime" | "datetime" => Ok(PropType::NDTime),
+                "dtime" | "datetimetz" => Ok(PropType::DTime),
+                other => Err(PyTypeError::new_err(format!(
+                    "Unknown type name '{other:?}'"
+                ))),
+            }
+        } else {
+            Err(PyTypeError::new_err("PropType must be a string or an instance of itself."))
+        }
     }
 }

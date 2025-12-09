@@ -164,40 +164,6 @@ impl PyGraphEncoder {
     fn __getstate__(&self) {}
 }
 
-fn parse_column_schema<'py>(
-    schema: Option<Vec<(PyBackedStr, PyBackedStr)>>,
-) -> PyResult<Option<HashMap<String, PropType>>> {
-    let Some(pairs) = schema else {
-        return Ok(None);
-    };
-
-    // TODO: Move this to FromPyObject<PropType> impl?
-    let parse_type_fn = |s: &str| match s.to_ascii_lowercase().as_str() {
-        "i64" | "int64" | "int" => Ok(PropType::I64),
-        "i32" | "int32" => Ok(PropType::I32),
-        "u64" | "uint64" => Ok(PropType::U64),
-        "u32" | "uint32" => Ok(PropType::I32),
-        "u16" | "uint16" => Ok(PropType::U16),
-        "u8" | "uint8" => Ok(PropType::U8),
-        "f64" | "float64" | "float" | "double" => Ok(PropType::F64),
-        "f32" | "float32" => Ok(PropType::F32),
-        "bool" | "boolean" => Ok(PropType::Bool),
-        "str" | "string" | "utf8" => Ok(PropType::Str),
-        "ndtime" | "naivedatetime" | "datetime" => Ok(PropType::NDTime),
-        "dtime" | "datetimetz" => Ok(PropType::DTime),
-        other => Err(PyTypeError::new_err(format!(
-            "Unknown type name '{other:?}' in schema"
-        ))),
-    };
-    let mut out = HashMap::with_capacity(pairs.len());
-    for (name, type_str) in pairs {
-        let col_name = name.to_string();
-        let prop_type = parse_type_fn(col_name.as_ref())?;
-        out.insert(col_name, prop_type);
-    }
-    Ok(Some(out))
-}
-
 /// A temporal graph.
 #[pymethods]
 impl PyGraph {
@@ -691,6 +657,7 @@ impl PyGraph {
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+    ///     schema (list[tuple[str, PropType | str]], optional): A list of (column_name, column_type) tuples to cast column types to. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -710,11 +677,11 @@ impl PyGraph {
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
-        schema: Option<Vec<(PyBackedStr, PyBackedStr)>>,
+        schema: Option<Vec<(String, PropType)>>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        let column_schema = parse_column_schema(schema).map_err(|e| GraphError::PythonError(e))?;
+        let column_schema = schema.map(|s| s.into_iter().collect::<HashMap<String, PropType>>());
         if data.hasattr("__arrow_c_stream__")? {
             load_nodes_from_arrow_c_stream(
                 &self.graph,

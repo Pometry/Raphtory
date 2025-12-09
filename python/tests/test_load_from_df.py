@@ -3,7 +3,7 @@ from pathlib import Path
 
 import polars as pl
 import pandas as pd
-from raphtory import Graph, PersistentGraph
+from raphtory import Graph, PersistentGraph, PropType
 import pytest
 try:
     import fireducks.pandas as fpd
@@ -115,6 +115,38 @@ def test_different_data_sources():
     print(f"Number of tests ran: {len(num_nodes_ingested)}")
     for i in range(len(num_nodes_ingested)-1):
         assert num_nodes_ingested[0] == num_nodes_ingested[i+1]
+
+def test_schema_casting():
+    # time/id as regular ints (I64), value column as explicit int32
+    df = pd.DataFrame(
+        {
+            "time": pd.Series([1, 2, 3], dtype="int64"),
+            "id": pd.Series([10, 20, 30], dtype="int64"),
+            "val_i32": pd.Series([1, 2, 3], dtype="int32"),
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        time="time",
+        id="id",
+        properties=["val_i32"],
+        # Request that this column be treated as I64
+        schema=[("val_i32", PropType.i64)],
+    )
+    n_prop = g.node(10).properties
+    print(f"\ndtype of Property 'val_i32' with cast:    {n_prop.get_dtype_of("val_i32")}")
+    del g
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        time="time",
+        id="id",
+        properties=["val_i32"],
+        # No casting
+    )
+    n_prop = g.node(10).properties
+    print(f"dtype of Property 'val_i32' without cast: {n_prop.get_dtype_of("val_i32")}")
 
 
 if fpd:
