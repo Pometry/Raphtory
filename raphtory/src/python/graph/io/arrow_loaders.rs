@@ -13,16 +13,14 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use arrow::{
-    array::{
-        ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream},
-        RecordBatch, RecordBatchReader,
-    },
+    array::{RecordBatch, RecordBatchReader},
     datatypes::SchemaRef,
 };
 use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use pyo3::{prelude::*, types::PyCapsule};
+use pyo3_arrow::PyRecordBatchReader;
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{
     cmp::min,
@@ -231,13 +229,19 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
             "Stream capsule is not valid".to_string(),
         )));
     }
-    let stream_ptr = stream_capsule.pointer() as *mut FFI_ArrowArrayStream;
-    let reader: ArrowArrayStreamReader = unsafe { ArrowArrayStreamReader::from_raw(stream_ptr) }
+    let reader = PyRecordBatchReader::from_arrow_pycapsule(stream_capsule)
         .map_err(|e| {
-            GraphError::LoadFailure(format!(
+            PyErr::from(GraphError::LoadFailure(format!(
                 "Arrow stream error while creating the reader: {}",
-                e.to_string()
-            ))
+                e
+            )))
+        })?
+        .into_reader()
+        .map_err(|e| {
+            PyErr::from(GraphError::LoadFailure(format!(
+                "Arrow stream error while creating the reader: {}",
+                e
+            )))
         })?;
 
     // Get column names and indices once only
