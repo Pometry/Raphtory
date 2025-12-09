@@ -36,12 +36,7 @@ use crate::{
         InternalStableDecode, StableEncode,
     },
 };
-use pyo3::{
-    exceptions::{PyValueError},
-    prelude::*,
-    pybacked::PyBackedStr,
-    types::PyDict,
-};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::PyDict};
 use raphtory_api::core::{
     entities::{properties::prop::PropType, GID},
     storage::arc_str::ArcStr,
@@ -642,6 +637,7 @@ impl PyGraph {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
+    // TODO: Fix DataType in schema argument below
     /// Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
     /// a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
     /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
@@ -656,7 +652,7 @@ impl PyGraph {
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-    ///     schema (list[tuple[str, PropType | str]], optional): A list of (column_name, column_type) tuples to cast column types to. Defaults to None.
+    ///     schema (list[tuple[str, DataType | PropType | str]], optional): A list of (column_name, column_type) tuples to cast column types to. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.

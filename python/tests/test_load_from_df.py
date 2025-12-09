@@ -3,6 +3,7 @@ from pathlib import Path
 
 import polars as pl
 import pandas as pd
+import pyarrow as pa
 from raphtory import Graph, PersistentGraph, PropType
 import pytest
 try:
@@ -131,22 +132,36 @@ def test_schema_casting():
         time="time",
         id="id",
         properties=["val_i32"],
-        # Request that this column be treated as I64
-        schema=[("val_i32", PropType.i64)],
+        # No casting
     )
     n_prop = g.node(10).properties
-    print(f"\ndtype of Property 'val_i32' with cast:    {n_prop.get_dtype_of("val_i32")}")
+    print(f"\ndtype of Property 'val_i32' without cast:       {n_prop.get_dtype_of("val_i32")}")
     del g
+
     g = Graph()
     g.load_nodes(
         data=df,
         time="time",
         id="id",
         properties=["val_i32"],
-        # No casting
+        # Request that this column be treated as I64
+        schema=[("val_i32", PropType.i64)],
     )
     n_prop = g.node(10).properties
-    print(f"dtype of Property 'val_i32' without cast: {n_prop.get_dtype_of("val_i32")}")
+    print(f"dtype of Property 'val_i32' with PropType cast: {n_prop.get_dtype_of("val_i32")}")
+    del g
+
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        time="time",
+        id="id",
+        properties=["val_i32"],
+        # Request that this column be treated as I64
+        schema=[("val_i32", pa.int64())],
+    )
+    n_prop = g.node(10).properties
+    print(f"dtype of Property 'val_i32' with pyarrow cast:  {n_prop.get_dtype_of("val_i32")}")
 
 
 if fpd:
