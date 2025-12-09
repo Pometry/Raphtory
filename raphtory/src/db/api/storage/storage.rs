@@ -37,6 +37,7 @@ use std::{
 };
 use storage::{Extension, WalImpl};
 
+use crate::serialise::GraphPaths;
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -239,7 +240,7 @@ impl Storage {
         self.index.read_recursive().is_indexed()
     }
 
-    pub(crate) fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn persist_index_to_disk(&self, path: &impl GraphPaths) -> Result<(), GraphError> {
         let guard = self.get_index().read_recursive();
         if guard.is_indexed() {
             if guard.path().is_none() {
@@ -275,7 +276,7 @@ impl InternalStorageOps for Storage {
         Some(self)
     }
 
-    fn disk_storage_enabled(&self) -> bool {
+    fn disk_storage_enabled(&self) -> Option<&Path> {
         self.graph.disk_storage_enabled()
     }
 }

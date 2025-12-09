@@ -7,7 +7,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
-    serialise::{GraphFolder, INDEX_PATH},
+    serialise::{GraphFolder, GraphPaths, InnerGraphFolder, INDEX_PATH},
 };
 use parking_lot::RwLock;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
@@ -43,7 +43,7 @@ impl Index {
 #[derive(Clone)]
 pub struct ImmutableGraphIndex {
     pub(crate) index: Index,
-    pub(crate) path: Arc<GraphFolder>,
+    pub(crate) path: Arc<InnerGraphFolder>,
     pub index_spec: Arc<IndexSpec>,
 }
 
@@ -189,7 +189,7 @@ impl GraphIndex {
             let temp_dir = match cached_graph_path {
                 // Creates index in a temp dir within cache graph dir.
                 // The intention is to avoid creating index in a tmp dir that could be on another file system.
-                Some(path) => TempDir::new_in(path.get_base_path())?,
+                Some(path) => TempDir::new_in(path.root())?,
                 None => TempDir::new()?,
             };
 
@@ -242,31 +242,12 @@ impl GraphIndex {
         }
     }
 
-    pub(crate) fn persist_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn persist_to_disk(&self, path: &impl GraphPaths) -> Result<(), GraphError> {
         let source_path = self.path().ok_or(GraphError::CannotPersistRamIndex)?;
-        let path = path.get_index_path();
-        let path = path.as_path();
-
-        let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
-
-        copy_dir_recursive(&source_path, temp_path)?;
-
-        // Always overwrite the existing graph index when persisting, since the in-memory
-        // working index may have newer updates. The persisted index is decoupled from the
-        // active one, and changes remain in memory unless explicitly saved.
-        // This behavior mirrors how the in-memory graph works — updates are not persisted
-        // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
-        // This however is reached only when write_updates, otherwise graph is not allowed to be written to
-        // the existing location anyway. See GraphError::NonEmptyGraphFolder.
-        if path.exists() {
-            fs::remove_dir_all(path)
-                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.to_path_buf()))?;
+        let path = path.index_path()?;
+        if source_path != path {
+            copy_dir_recursive(&source_path, &path)?;
         }
-
-        fs::rename(temp_path, path).map_err(|e| {
-            GraphError::IOErrorMsg(format!("Failed to rename temp index folder: {}", e))
-        })?;
-
         Ok(())
     }
 
@@ -314,10 +295,10 @@ impl GraphIndex {
 
     pub fn make_mutable_if_needed(&mut self) -> Result<(), GraphError> {
         if let GraphIndex::Immutable(immutable) = self {
-            let temp_dir = TempDir::new_in(&immutable.path.get_base_path())?;
+            let temp_dir = TempDir::new_in(immutable.path.as_ref())?;
             let temp_path = temp_dir.path();
 
-            copy_dir_recursive(&immutable.path.get_index_path(), temp_path)?;
+            copy_dir_recursive(&immutable.path.index_path(), temp_path)?;
 
             let node_index = NodeIndex::load_from_path(&temp_path.join("nodes"))?;
             let edge_index = EdgeIndex::load_from_path(&temp_path.join("edges"))?;
@@ -350,7 +331,7 @@ impl GraphIndex {
 
     pub fn path(&self) -> Option<PathBuf> {
         match self {
-            GraphIndex::Immutable(i) => Some(i.path.get_index_path()),
+            GraphIndex::Immutable(i) => Some(i.path.index_path()),
             GraphIndex::Mutable(m) => m.path.as_ref().map(|p| p.path().to_path_buf()),
             GraphIndex::Empty => None,
         }

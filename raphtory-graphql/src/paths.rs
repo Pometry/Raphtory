@@ -11,7 +11,8 @@ use raphtory::{
     prelude::ParquetEncoder,
     serialise::{
         make_data_path, metadata::GraphMetadata, read_data_path, read_dirty_path,
-        read_path_pointer, GraphFolder, Metadata, RelativePath, DATA_PATH, META_PATH,
+        read_path_pointer, GraphFolder, GraphPaths, InnerGraphFolder, Metadata, RelativePath,
+        WriteableGraphFolder, DATA_PATH, META_PATH,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -19,13 +20,28 @@ use std::{
     cmp::Ordering,
     fs,
     fs::File,
-    io::{ErrorKind, Read, Write},
+    io::{ErrorKind, Read, Seek, Write},
     ops::Deref,
     path::{Component, Path, PathBuf, StripPrefixError},
     time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::io::AsyncReadExt;
 use tracing::{error, metadata, warn};
+
+pub trait ValidGraphPaths: GraphPaths {
+    fn local_path(&self) -> &str;
+
+    fn local_path_string(&self) -> String {
+        self.local_path().to_owned()
+    }
+
+    fn with_internal_errors<R: WithPath>(
+        &self,
+        fun: impl FnOnce() -> R,
+    ) -> Result<R::Value, PathValidationError> {
+        fun().with_path(self.local_path())
+    }
+}
 
 pub struct ValidPath(PathBuf);
 
@@ -48,6 +64,22 @@ impl ValidPath {
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ExistingGraphFolder(pub(crate) ValidGraphFolder);
 
+impl GraphPaths for ExistingGraphFolder {
+    fn root(&self) -> &Path {
+        self.0.root()
+    }
+
+    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
+        self.0.data_path()
+    }
+}
+
+impl ValidGraphPaths for ExistingGraphFolder {
+    fn local_path(&self) -> &str {
+        self.0.local_path()
+    }
+}
+
 impl Deref for ExistingGraphFolder {
     type Target = ValidGraphFolder;
 
@@ -69,7 +101,7 @@ impl ExistingGraphFolder {
         let graph_folder: GraphFolder = base_path.into_path().into();
         if graph_folder.is_reserved() {
             Ok(Self(ValidGraphFolder {
-                data_path: graph_folder,
+                graph_folder: graph_folder,
                 local_path: relative_path.to_string(),
             }))
         } else {
@@ -78,11 +110,23 @@ impl ExistingGraphFolder {
             ))
         }
     }
+
+    fn replace_graph_data_inner(
+        &self,
+        graph: MaterializedGraph,
+    ) -> Result<(), InternalPathValidationError> {
+        self.graph_folder.data_path()?.replace_graph(graph)?;
+        Ok(())
+    }
+    pub fn replace_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
+        self.replace_graph_data_inner(graph)
+            .with_path(self.local_path())
+    }
 }
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ValidGraphFolder {
-    data_path: GraphFolder,
+    graph_folder: GraphFolder,
     local_path: String,
 }
 
@@ -144,7 +188,7 @@ pub(crate) fn valid_path(
 }
 
 #[derive(Clone, Debug)]
-struct NewPath {
+pub struct NewPath {
     path: PathBuf,
     cleanup: Option<CleanupPath>,
 }
@@ -231,20 +275,29 @@ impl CleanupPath {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct WriteableGraphFolder {
-    folder: ValidGraphFolder,
+pub(crate) struct ValidWriteableGraphFolder {
+    data_path: WriteableGraphFolder,
+    local_path: String,
     dirty_marker: Option<CleanupPath>,
 }
 
-impl Deref for WriteableGraphFolder {
-    type Target = ValidGraphFolder;
+impl GraphPaths for ValidWriteableGraphFolder {
+    fn root(&self) -> &Path {
+        self.data_path.root()
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.folder
+    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
+        self.data_path.data_path()
     }
 }
 
-impl WriteableGraphFolder {
+impl ValidGraphPaths for ValidWriteableGraphFolder {
+    fn local_path(&self) -> &str {
+        &self.local_path
+    }
+}
+
+impl ValidWriteableGraphFolder {
     fn new_inner(
         valid_path: NewPath,
         graph_name: &str,
@@ -256,24 +309,11 @@ impl WriteableGraphFolder {
                 return Err(InternalPathValidationError::GraphIsNamespace);
             }
         }
-        let next_path = make_data_path(graph_folder.root(), DATA_PATH)?;
-        let data_folder = graph_folder.root().join(&next_path);
-        fs::create_dir(&data_folder)?;
-
-        fs::write(
-            graph_folder.root().join(DIRTY_PATH),
-            &serde_json::to_vec(&Metadata {
-                path: next_path,
-                meta: None,
-            })?,
-        )?;
-        let folder = ValidGraphFolder {
-            data_path: graph_folder,
-            local_path: graph_name.to_string(),
-        };
+        let data_path = graph_folder.init_swap()?;
         Ok(Self {
-            folder,
+            data_path,
             dirty_marker: valid_path.cleanup,
+            local_path: graph_name.to_string(),
         })
     }
     fn new(valid_path: NewPath, graph_name: &str) -> Result<Self, PathValidationError> {
@@ -316,33 +356,43 @@ impl WriteableGraphFolder {
         Self::new(path, relative_path)
     }
 
-    fn finish_inner(&self) -> Result<(), InternalPathValidationError> {
-        let old_path = read_data_path(self.folder.data_path().root())?;
-        fs::rename(
-            self.folder.data_path.root().join(DIRTY_PATH),
-            self.folder.data_path.root().join(META_PATH),
-        )?;
-        if let Some(old_path) = old_path {
-            let path = self.folder.data_path.root().join(&old_path);
-            if path.exists() {
-                fs::remove_dir_all(path)?;
-            }
-        }
-        if let Some(cleanup) = self.dirty_marker.as_ref() {
-            cleanup.persist()?;
-        }
+    fn write_graph_data_inner(
+        &self,
+        graph: MaterializedGraph,
+    ) -> Result<(), InternalPathValidationError> {
+        self.data_path.data_path()?.replace_graph(graph)?;
         Ok(())
+    }
+    pub fn write_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
+        self.write_graph_data_inner(graph)
+            .with_path(self.local_path())
+    }
+
+    pub fn read_graph(&self) -> Result<MaterializedGraph, PathValidationError> {
+        self.with_internal_errors(|| self.data_path()?.read_graph())
+    }
+
+    pub fn write_graph_bytes<R: Read + Seek + Send + 'static>(
+        &self,
+        bytes: R,
+    ) -> Result<(), PathValidationError> {
+        self.data_path
+            .data_path()
+            .with_path(&self.local_path)?
+            .unzip_to_folder(bytes)
+            .with_path(&self.local_path)
     }
 
     /// Swap old and new data and delete the old graph
     pub fn finish(self) -> Result<ValidGraphFolder, PathValidationError> {
-        match self.finish_inner() {
-            Ok(_) => Ok(self.folder),
-            Err(error) => Err(PathValidationError::InternalError {
-                graph: self.folder.local_path,
-                error,
-            }),
+        let data_path = self.data_path.finish().with_path(&self.local_path)?;
+        if let Some(cleanup) = self.dirty_marker.as_ref() {
+            cleanup.persist().with_path(&self.local_path)?;
         }
+        Ok(ValidGraphFolder {
+            graph_folder: data_path,
+            local_path: self.local_path,
+        })
     }
 }
 
@@ -398,14 +448,16 @@ pub enum PathValidationError {
     IOError { graph: String, error: io::Error },
 }
 
-pub trait WithPath<V> {
-    fn with_path(self, graph: String) -> Result<V, PathValidationError>;
+pub trait WithPath {
+    type Value;
+    fn with_path<S: Into<String>>(self, graph: S) -> Result<Self::Value, PathValidationError>;
 }
 
-impl<V, E: Into<InternalPathValidationError>> WithPath<V> for Result<V, E> {
-    fn with_path(self, graph: String) -> Result<V, PathValidationError> {
+impl<V, E: Into<InternalPathValidationError>> WithPath for Result<V, E> {
+    type Value = V;
+    fn with_path<S: Into<String>>(self, graph: S) -> Result<V, PathValidationError> {
         self.map_err(move |error| PathValidationError::InternalError {
-            graph,
+            graph: graph.into(),
             error: error.into(),
         })
     }
@@ -501,6 +553,22 @@ pub(crate) fn mark_dirty(path: &Path) -> Result<PathBuf, InternalPathValidationE
     Ok(dirty_file_path)
 }
 
+impl GraphPaths for ValidGraphFolder {
+    fn root(&self) -> &Path {
+        self.graph_folder.root()
+    }
+
+    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
+        self.graph_folder.data_path()
+    }
+}
+
+impl ValidGraphPaths for ValidGraphFolder {
+    fn local_path(&self) -> &str {
+        &self.local_path
+    }
+}
+
 impl ValidGraphFolder {
     fn with_internal_errors<V>(
         &self,
@@ -509,20 +577,18 @@ impl ValidGraphFolder {
         map().with_path(self.local_path())
     }
 
-    pub fn path(&self) -> &Path {
-        &self.data_path.root()
-    }
-    pub fn local_path(&self) -> String {
-        self.local_path.clone()
+    pub fn graph_folder(&self) -> &GraphFolder {
+        &self.graph_folder
     }
     pub fn created(&self) -> Result<i64, PathValidationError> {
-        let path = self.meta_path()?;
-        self.with_internal_errors(move || Ok(path.metadata()?.created()?.to_millis()?))
+        self.with_internal_errors(|| {
+            Ok(self.root_meta_path().metadata()?.created()?.to_millis()?)
+        })
     }
 
     pub fn last_opened(&self) -> Result<i64, PathValidationError> {
         self.with_internal_errors(|| {
-            Ok(fs::metadata(self.data_path.get_meta_path()?)?
+            Ok(fs::metadata(self.graph_folder.meta_path()?)?
                 .accessed()?
                 .to_millis()?)
         })
@@ -530,47 +596,30 @@ impl ValidGraphFolder {
 
     pub fn last_updated(&self) -> Result<i64, PathValidationError> {
         self.with_internal_errors(|| {
-            Ok(fs::metadata(self.data_path().get_meta_path()?)?
-                .modified()?
-                .to_millis()?)
+            Ok(fs::metadata(self.meta_path()?)?.modified()?.to_millis()?)
         })
     }
 
     pub async fn created_async(&self) -> Result<i64, PathValidationError> {
-        let path = self.meta_path()?;
-        let metadata = tokio::fs::metadata(path)
-            .await
-            .with_path(self.local_path())?;
-        self.with_internal_errors(|| Ok(metadata.created()?.to_millis()?))
+        let cloned = self.clone();
+        blocking_io(move || cloned.created()).await
     }
 
     pub async fn last_opened_async(&self) -> Result<i64, PathValidationError> {
-        let metadata = tokio::fs::metadata(self.meta_path()?)
-            .await
-            .with_path(self.local_path())?;
-        self.with_internal_errors(|| Ok(metadata.accessed()?.to_millis()?))
+        let cloned = self.clone();
+        blocking_io(move || cloned.last_opened()).await
     }
 
     pub async fn last_updated_async(&self) -> Result<i64, PathValidationError> {
-        let metadata = tokio::fs::metadata(self.meta_path()?)
-            .await
-            .with_path(self.local_path())?;
-        self.with_internal_errors(|| Ok(metadata.modified()?.to_millis()?))
+        let cloned = self.clone();
+        blocking_io(move || cloned.last_updated()).await
     }
 
     pub async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
-        let folder: GraphFolder = self.data_path.clone();
+        let folder: GraphFolder = self.graph_folder.clone();
         blocking_compute(move || folder.read_metadata())
             .await
             .with_path(self.local_path())
-    }
-
-    pub fn get_original_path_str(&self) -> &str {
-        &self.local_path
-    }
-
-    pub fn get_original_path(&self) -> &Path {
-        &Path::new(&self.local_path)
     }
 
     /// This returns the PathBuf used to build multiple GraphError types
@@ -598,49 +647,8 @@ impl ValidGraphFolder {
         };
         Ok(name)
     }
-
-    fn write_graph_data_inner(
-        &self,
-        graph: MaterializedGraph,
-    ) -> Result<(), InternalPathValidationError> {
-        let metadata = GraphMetadata::from_graph(&graph);
-        let data_folder = &self.data_path;
-        if graph.disk_storage_enabled() {
-            let path = data_folder.get_relative_graph_path()?;
-            let meta_json = serde_json::to_string(&Metadata {
-                path,
-                meta: Some(metadata),
-            })?;
-            let dirty_path = data_folder.root().join(DIRTY_PATH);
-            fs::write(&dirty_path, &meta_json)?;
-            fs::rename(&dirty_path, data_folder.root().join(META_PATH))?;
-        } else {
-            data_folder.replace_graph(graph)?;
-        }
-        Ok(())
-    }
-    pub(crate) fn write_graph_data(
-        &self,
-        graph: MaterializedGraph,
-    ) -> Result<(), PathValidationError> {
-        self.write_graph_data_inner(graph)
-            .with_path(self.local_path())
-    }
-
-    pub(crate) fn data_path(&self) -> &GraphFolder {
-        &self.data_path
-    }
-
-    pub(crate) fn meta_path(&self) -> Result<PathBuf, PathValidationError> {
-        self.with_internal_errors(|| Ok(self.data_path.get_meta_path()?))
-    }
-
-    pub(crate) fn get_vectors_path(&self) -> Result<PathBuf, PathValidationError> {
-        self.with_internal_errors(|| Ok(self.data_path().get_vectors_path()?))
-    }
-
     pub(crate) fn as_existing(&self) -> Result<ExistingGraphFolder, PathValidationError> {
-        if self.data_path().is_reserved() {
+        if self.graph_folder.is_reserved() {
             Ok(ExistingGraphFolder(self.clone()))
         } else {
             Err(PathValidationError::GraphNotExistsError(

@@ -4,8 +4,8 @@ use crate::{
     model::blocking_io,
     paths::{
         mark_dirty, valid_path, valid_relative_graph_path, ExistingGraphFolder,
-        InternalPathValidationError, PathValidationError, ValidGraphFolder, WithPath,
-        WriteableGraphFolder,
+        InternalPathValidationError, PathValidationError, ValidGraphFolder, ValidGraphPaths,
+        ValidWriteableGraphFolder, WithPath,
     },
     rayon::blocking_compute,
     GQLError,
@@ -18,7 +18,7 @@ use raphtory::{
     db::api::view::{internal::InternalStorageOps, MaterializedGraph},
     errors::{GraphError, InvalidPathReason},
     prelude::StableEncode,
-    serialise::{GraphFolder, META_PATH},
+    serialise::{GraphFolder, GraphPaths, META_PATH},
     vectors::{
         cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
@@ -43,7 +43,7 @@ pub const DIRTY_PATH: &'static str = ".dirty";
 pub struct EmbeddingConf {
     pub(crate) cache: VectorCache,
     pub(crate) global_template: Option<DocumentTemplate>,
-    pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
+    pub(crate) individual_templates: HashMap<String, DocumentTemplate>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -159,7 +159,7 @@ impl Data {
                         return;
                     }
                     if let Err(e) =
-                        blocking_compute(move || graph.folder.write_graph_data(graph.graph)).await
+                        blocking_compute(move || graph.folder.replace_graph_data(graph.graph)).await
                     {
                         error!("Error encoding graph to disk on eviction: {e}");
                     }
@@ -185,11 +185,11 @@ impl Data {
         &self,
         path: &str,
         overwrite: bool,
-    ) -> Result<WriteableGraphFolder, PathValidationError> {
+    ) -> Result<ValidWriteableGraphFolder, PathValidationError> {
         if overwrite {
-            WriteableGraphFolder::try_existing_or_new(self.work_dir.clone(), path)
+            ValidWriteableGraphFolder::try_existing_or_new(self.work_dir.clone(), path)
         } else {
-            WriteableGraphFolder::try_new(self.work_dir.clone(), path)
+            ValidWriteableGraphFolder::try_new(self.work_dir.clone(), path)
         }
     }
 
@@ -206,7 +206,7 @@ impl Data {
 
     pub async fn insert_graph(
         &self,
-        writeable_folder: WriteableGraphFolder,
+        writeable_folder: ValidWriteableGraphFolder,
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
         let vectors = self.vectorise(graph.clone(), &writeable_folder).await;
@@ -218,27 +218,25 @@ impl Data {
         })
         .await?;
 
-        self.cache.insert(graph.folder.local_path(), graph).await;
+        self.cache
+            .insert(graph.folder.local_path_string(), graph)
+            .await;
         Ok(())
     }
 
     /// Insert a graph serialized from a graph folder.
     pub async fn insert_graph_as_bytes<R: Read + Seek + Send + 'static>(
         &self,
-        folder: WriteableGraphFolder,
+        folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
         let folder_clone = folder.clone();
-        blocking_io(move || {
-            folder_clone
-                .data_path()
-                .unzip_to_folder(bytes)
-                .map_err(|err| {
-                    InsertionError::from_graph_err(folder_clone.get_original_path_str(), err)
-                })
-        })
-        .await?;
-        self.vectorise_folder(folder.as_existing()?).await;
+        blocking_io(move || folder_clone.write_graph_bytes(bytes)).await?;
+        if let Some(template) = self.resolve_template(folder.local_path()) {
+            let folder_clone = folder.clone();
+            let graph = blocking_io(move || folder_clone.read_graph()).await?;
+            self.vectorise_with_template(graph, &folder, template).await;
+        }
         blocking_io(move || folder.finish()).await?;
         Ok(())
     }
@@ -248,8 +246,8 @@ impl Data {
         graph_folder: ExistingGraphFolder,
     ) -> Result<(), MutationErrorInner> {
         blocking_io(move || {
-            let dirty_file = mark_dirty(graph_folder.path())?;
-            fs::remove_dir_all(graph_folder.path())?;
+            let dirty_file = mark_dirty(graph_folder.root())?;
+            fs::remove_dir_all(graph_folder.root())?;
             fs::remove_file(dirty_file)?;
             Ok::<_, MutationErrorInner>(())
         })
@@ -266,7 +264,7 @@ impl Data {
         Ok(())
     }
 
-    fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
+    fn resolve_template(&self, graph: &str) -> Option<&DocumentTemplate> {
         let conf = self.embedding_conf.as_ref()?;
         conf.individual_templates
             .get(graph)
@@ -276,7 +274,7 @@ impl Data {
     async fn vectorise_with_template(
         &self,
         graph: MaterializedGraph,
-        folder: &ValidGraphFolder,
+        folder: &impl ValidGraphPaths,
         template: &DocumentTemplate,
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
         let conf = self.embedding_conf.as_ref()?;
@@ -284,14 +282,14 @@ impl Data {
             .vectorise(
                 conf.cache.clone(),
                 template.clone(),
-                Some(&folder.get_vectors_path().ok()?),
+                Some(&folder.vectors_path().ok()?),
                 true, // verbose
             )
             .await;
         match vectors {
             Ok(vectors) => Some(vectors),
             Err(error) => {
-                let name = folder.get_original_path_str();
+                let name = folder.local_path_string();
                 warn!("An error occurred when trying to vectorise graph {name}: {error}");
                 None
             }
@@ -301,16 +299,16 @@ impl Data {
     async fn vectorise(
         &self,
         graph: MaterializedGraph,
-        folder: &ValidGraphFolder,
+        folder: &ValidWriteableGraphFolder,
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let template = self.resolve_template(folder.get_original_path())?;
+        let template = self.resolve_template(folder.local_path())?;
         self.vectorise_with_template(graph, folder, template).await
     }
 
     async fn vectorise_folder(&self, folder: ExistingGraphFolder) -> Option<()> {
         // it's important that we check if there is a valid template set for this graph path
         // before actually loading the graph, otherwise we are loading the graph for no reason
-        let template = self.resolve_template(folder.get_original_path())?;
+        let template = self.resolve_template(folder.local_path())?;
         let graph = self
             .read_graph_from_disk_inner(folder.clone())
             .await
@@ -322,14 +320,13 @@ impl Data {
 
     pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
         for folder in self.get_all_graph_folders() {
-            if !folder.data_path().get_vectors_path()?.exists() {
+            if !folder.vectors_path()?.exists() {
                 self.vectorise_folder(folder).await;
             }
         }
         Ok(())
     }
 
-    // TODO: return iter
     pub fn get_all_graph_folders(&self) -> impl Iterator<Item = ExistingGraphFolder> {
         let base_path = self.work_dir.clone();
         WalkDir::new(&self.work_dir)
@@ -366,7 +363,7 @@ impl Drop for Data {
         // On drop, serialize graphs that don't have underlying storage.
         for (_, graph) in self.cache.iter() {
             if graph.is_dirty() {
-                if let Err(e) = graph.folder.write_graph_data(graph.graph) {
+                if let Err(e) = graph.folder.replace_graph_data(graph.graph) {
                     error!("Error encoding graph to disk on drop: {e}");
                 }
             }
@@ -382,6 +379,7 @@ pub(crate) mod data_tests {
     use raphtory::{
         db::api::view::{internal::InternalStorageOps, MaterializedGraph},
         prelude::*,
+        serialise::GraphPaths,
     };
     use std::{collections::HashMap, fs, path::Path, time::Duration};
     use tokio::time::sleep;
@@ -505,7 +503,7 @@ pub(crate) mod data_tests {
         let paths = data
             .get_all_graph_folders()
             .into_iter()
-            .map(|folder| folder.0.data_path().root().to_path_buf())
+            .map(|folder| folder.0.root().to_path_buf())
             .collect_vec();
 
         assert_eq!(paths.len(), 5);
@@ -568,7 +566,7 @@ pub(crate) mod data_tests {
         let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
-        if loaded_graph1.graph.disk_storage_enabled() {
+        if loaded_graph1.graph.disk_storage_enabled().is_some() {
             assert!(
                 !loaded_graph1.is_dirty(),
                 "Graph1 should not be dirty when loaded from disk"
@@ -675,7 +673,7 @@ pub(crate) mod data_tests {
         data.cache.run_pending_tasks().await;
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
-        if loaded_graph1.graph.disk_storage_enabled() {
+        if loaded_graph1.graph.disk_storage_enabled().is_some() {
             // Check modification times after eviction
             let graph1_metadata_after = fs::metadata(&graph1_path).unwrap();
             let graph2_metadata_after = fs::metadata(&graph2_path).unwrap();

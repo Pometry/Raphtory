@@ -2,7 +2,7 @@ use crate::{
     db::api::view::{IndexSpec, IndexSpecBuilder},
     errors::GraphError,
     prelude::AdditionOps,
-    serialise::GraphFolder,
+    serialise::{GraphFolder, GraphPaths},
 };
 use std::{fs::File, path::Path};
 use zip::ZipArchive;
@@ -154,10 +154,10 @@ impl<G: AdditionOps> IndexMutationOps for G {
             })
     }
 
-    fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    fn persist_index_to_disk(&self, path: &impl GraphPaths) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.persist_index_to_disk(&path)?;
+                storage.persist_index_to_disk(path)?;
                 Ok(())
             })
     }

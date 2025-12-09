@@ -11,6 +11,7 @@ use tempfile;
 
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
+use crate::serialise::GraphPaths;
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     /// Encode the graph into bytes.
@@ -35,21 +36,19 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         let folder: GraphFolder = path.into();
 
         if folder.write_as_zip_format {
-            let file = File::create_new(&folder.get_base_path())?;
+            let file = File::create_new(&folder.root())?;
             self.encode_parquet_to_zip(file)?;
-
             #[cfg(feature = "search")]
             self.persist_index_to_disk_zip(&folder)?;
+            folder.write_metadata(self)?;
         } else {
-            folder.init()?;
-            self.encode_parquet(&folder.get_graph_path()?)?;
-
+            let write_folder = folder.init_write()?;
+            self.encode_parquet(write_folder.graph_path()?)?;
             #[cfg(feature = "search")]
-            self.persist_index_to_disk(&folder)?;
+            self.persist_index_to_disk(&write_folder)?;
+            write_folder.data_path()?.write_metadata(self)?;
+            write_folder.finish()?;
         }
-
-        folder.write_metadata(self)?;
-
         Ok(())
     }
 }
@@ -97,10 +96,10 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         let folder: GraphFolder = path.into();
 
         if folder.is_zip() {
-            let reader = std::fs::File::open(&folder.get_base_path())?;
+            let reader = std::fs::File::open(&folder.root())?;
             graph = Self::decode_parquet_from_zip(reader, path_for_decoded_graph)?;
         } else {
-            graph = Self::decode_parquet(&folder.get_graph_path()?, path_for_decoded_graph)?;
+            graph = Self::decode_parquet(&folder.graph_path()?, path_for_decoded_graph)?;
         }
 
         #[cfg(feature = "search")]

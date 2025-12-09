@@ -262,6 +262,9 @@ pub enum GraphError {
     #[error("Not a zip archive")]
     NotAZip,
 
+    #[error("Graph folder is not initialised for writing")]
+    NoWriteInProgress,
+
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
 
@@ -430,8 +433,8 @@ pub enum GraphError {
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
 
-    #[error("Cannot initialize cache for zipped graph. Unzip the graph to initialize the cache.")]
-    ZippedGraphCannotBeCached,
+    #[error("Cannot swap zipped graph data")]
+    ZippedGraphCannotBeSwapped,
 }
 
 impl From<MetadataError> for GraphError {

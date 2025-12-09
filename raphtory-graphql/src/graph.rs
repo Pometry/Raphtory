@@ -1,4 +1,4 @@
-use crate::paths::ExistingGraphFolder;
+use crate::paths::{ExistingGraphFolder, ValidGraphPaths};
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -27,6 +27,7 @@ use tracing::info;
 
 #[cfg(feature = "search")]
 use raphtory::prelude::IndexMutationOps;
+use raphtory::serialise::GraphPaths;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
@@ -87,37 +88,12 @@ impl GraphWithVectors {
         cache: Option<VectorCache>,
         create_index: bool,
     ) -> Result<Self, GraphError> {
-        let graph = {
-            let data_path = folder.data_path();
-            // Either decode a graph serialized using encode or load using underlying storage.
-            if MaterializedGraph::is_decodable(data_path.get_graph_path()?) {
-                let path_for_decoded_graph = None;
-                MaterializedGraph::decode(data_path, path_for_decoded_graph)?
-            } else {
-                let metadata = data_path.read_metadata()?;
-                let graph = match metadata.graph_type {
-                    GraphType::EventGraph => {
-                        let graph = Graph::load_from_path(data_path.get_graph_path()?);
-                        MaterializedGraph::EventGraph(graph)
-                    }
-                    GraphType::PersistentGraph => {
-                        let graph = PersistentGraph::load_from_path(data_path.get_graph_path()?);
-                        MaterializedGraph::PersistentGraph(graph)
-                    }
-                };
-
-                #[cfg(feature = "search")]
-                graph.load_index(&data_path)?;
-                graph
-            }
-        };
-
+        let graph = folder.data_path()?.read_graph()?;
         let vectors = cache.and_then(|cache| {
-            VectorisedGraph::read_from_path(&folder.get_vectors_path().ok()?, graph.clone(), cache)
-                .ok()
+            VectorisedGraph::read_from_path(&folder.vectors_path().ok()?, graph.clone(), cache).ok()
         });
 
-        info!("Graph loaded = {}", folder.get_original_path_str());
+        info!("Graph loaded = {}", folder.local_path());
 
         #[cfg(feature = "search")]
         if create_index {

@@ -1,4 +1,7 @@
-use crate::{model::graph::property::GqlProperty, paths::ExistingGraphFolder};
+use crate::{
+    model::graph::property::GqlProperty,
+    paths::{ExistingGraphFolder, ValidGraphPaths},
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
 use std::{cmp::Ordering, sync::Arc};
@@ -57,7 +60,7 @@ impl MetaGraph {
 
     /// Returns path of graph.
     async fn path(&self) -> String {
-        self.folder.get_original_path_str().to_owned()
+        self.folder.local_path_string()
     }
 
     /// Returns the timestamp for the creation of the graph.

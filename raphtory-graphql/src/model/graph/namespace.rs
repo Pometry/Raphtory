@@ -103,7 +103,11 @@ impl Namespace {
 
     pub fn try_new_child(&self, file_name: &str) -> Result<NamespacedItem, PathValidationError> {
         let current_dir = valid_path(self.current_dir.clone(), file_name)?;
-        let relative_path = [&self.relative_path, file_name].join("/");
+        let relative_path = if self.relative_path.is_empty() {
+            file_name.to_owned()
+        } else {
+            [&self.relative_path, file_name].join("/")
+        };
         let child = if current_dir.is_namespace() {
             NamespacedItem::Namespace(Self::try_from_valid(current_dir, relative_path)?)
         } else {
@@ -118,6 +122,7 @@ impl Namespace {
     /// Non-recursively list children
     pub fn get_children(&self) -> impl Iterator<Item = NamespacedItem> + use<'_> {
         WalkDir::new(&self.current_dir)
+            .min_depth(1)
             .max_depth(1)
             .into_iter()
             .flatten()

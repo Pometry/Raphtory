@@ -48,7 +48,10 @@ use std::{
     sync::Arc,
 };
 
-use crate::{graph::GraphWithVectors, paths::PathValidationError};
+use crate::{
+    graph::GraphWithVectors,
+    paths::{PathValidationError, ValidGraphPaths},
+};
 #[cfg(feature = "search")]
 use raphtory::db::api::view::SearchableGraphOps;
 
@@ -428,28 +431,17 @@ impl GqlGraph {
     }
 
     /// Returns path of graph.
-    async fn path(&self) -> Result<String, GraphError> {
-        Ok(self
-            .path
-            .get_original_path()
-            .to_str()
-            .ok_or(InvalidPathReason::PathNotParsable(
-                self.path.to_error_path(),
-            ))?
-            .to_owned())
+    async fn path(&self) -> String {
+        self.path.local_path_string()
     }
 
     /// Returns namespace of graph.
-    async fn namespace(&self) -> Result<String, GraphError> {
-        Ok(self
-            .path
-            .get_original_path()
-            .parent()
-            .and_then(|p| p.to_str().map(|s| s.to_string()))
-            .ok_or(InvalidPathReason::PathNotParsable(
-                self.path.to_error_path(),
-            ))?
-            .to_owned())
+    async fn namespace(&self) -> String {
+        self.path
+            .local_path()
+            .rsplit_once("/")
+            .map_or("", |(prefix, _)| prefix)
+            .to_string()
     }
 
     /// Returns the graph schema.

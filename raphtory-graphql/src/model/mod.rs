@@ -10,7 +10,7 @@ use crate::{
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
-    paths::{valid_path, ValidGraphFolder, WriteableGraphFolder},
+    paths::{valid_path, ValidGraphFolder, ValidWriteableGraphFolder},
     rayon::blocking_compute,
     url_encode::{url_decode_graph, url_encode_graph},
 };
@@ -206,7 +206,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
-        let graph_path = folder.data_path().get_graph_path()?;
+        let graph_path = folder.graph_path()?;
         let graph: MaterializedGraph = match graph_type {
             GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path).into(),
             GqlGraphType::Event => Graph::new_at_path(graph_path).into(),
@@ -284,12 +284,11 @@ impl Mut {
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let folder = if overwrite {
-            WriteableGraphFolder::try_existing_or_new(data.work_dir.clone(), path)?
+            ValidWriteableGraphFolder::try_existing_or_new(data.work_dir.clone(), path)?
         } else {
-            WriteableGraphFolder::try_new(data.work_dir.clone(), path)?
+            ValidWriteableGraphFolder::try_new(data.work_dir.clone(), path)?
         };
-        let g: MaterializedGraph =
-            url_decode_graph(graph, Some(&folder.data_path().get_graph_path()?))?;
+        let g: MaterializedGraph = url_decode_graph(graph, Some(&folder.graph_path()?))?;
 
         data.insert_graph(folder, g).await?;
         Ok(path.to_owned())
@@ -307,14 +306,15 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let parent_graph = data.get_graph(parent_path).await?.graph;
-        let new_subgraph =
-            blocking_compute(move || parent_graph.subgraph(nodes).materialize()).await?;
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
-
-        if overwrite {
-            let _ignored = data.delete_graph(&new_path).await;
-        }
+        let parent_graph = data.get_graph(parent_path).await?.graph;
+        let graph_path = folder.graph_path()?;
+        let new_subgraph = blocking_compute(move || {
+            parent_graph
+                .subgraph(nodes)
+                .materialize_at(Some(&graph_path))
+        })
+        .await?;
 
         data.insert_graph(folder, new_subgraph).await?;
         Ok(new_path)

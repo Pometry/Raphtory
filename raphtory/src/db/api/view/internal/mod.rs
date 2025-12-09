@@ -12,6 +12,7 @@ use crate::{
 };
 use std::{
     fmt::{Debug, Formatter},
+    path::Path,
     sync::Arc,
 };
 
@@ -25,6 +26,7 @@ mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
+use crate::serialise::GraphFolder;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
 pub use into_dynamic::{IntoDynHop, IntoDynamic};
@@ -106,7 +108,7 @@ pub trait InternalStorageOps {
 
     /// Returns `true` if the underlying storage saves data to disk,
     /// or `false` if the storage is in-memory only.
-    fn disk_storage_enabled(&self) -> bool;
+    fn disk_storage_enabled(&self) -> Option<&Path>;
 }
 
 impl<G: InheritStorageOps> InternalStorageOps for G
@@ -117,7 +119,7 @@ where
         self.base().get_storage()
     }
 
-    fn disk_storage_enabled(&self) -> bool {
+    fn disk_storage_enabled(&self) -> Option<&Path> {
         self.base().disk_storage_enabled()
     }
 }

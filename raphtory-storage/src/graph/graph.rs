@@ -13,7 +13,7 @@ use crate::{
 use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
 use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
-use std::{fmt::Debug, iter, sync::Arc};
+use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::Extension;
 use thiserror::Error;
 
@@ -94,7 +94,7 @@ impl GraphStorage {
         }
     }
 
-    pub fn disk_storage_enabled(&self) -> bool {
+    pub fn disk_storage_enabled(&self) -> Option<&Path> {
         match self {
             GraphStorage::Mem(graph) => graph.graph.disk_storage_enabled(),
             GraphStorage::Unlocked(graph) => graph.disk_storage_enabled(),
