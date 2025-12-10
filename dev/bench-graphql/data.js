@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764883037094,
+  "lastUpdate": 1765387052239,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2645,6 +2645,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1244,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.baross@pometry.com",
+            "name": "James Baross",
+            "username": "jbaross-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bfe42154cecafa13441f597c1821a2a91d4c29ad",
+          "message": "example metadata (#2398)\n\n* example metadata\n\n* update style schema\n\n* fix formatting\n\n* Update 20_graph_view.md\n\n---------\n\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2025-12-10T08:42:14-08:00",
+          "tree_id": "7512fc1b118239db84363acd178f7a79fc6a0ddf",
+          "url": "https://github.com/Pometry/Raphtory/commit/bfe42154cecafa13441f597c1821a2a91d4c29ad"
+        },
+        "date": 1765387048820,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1283,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 170,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 141,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 886,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 826,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1277,
             "unit": "req/s"
           }
         ]
