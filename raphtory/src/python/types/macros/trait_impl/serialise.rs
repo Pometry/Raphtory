@@ -1,3 +1,5 @@
+use crate::errors::GraphError;
+
 /// Macro for implementing all the Cache methods on a python wrapper
 ///
 /// # Arguments
@@ -69,9 +71,12 @@ macro_rules! impl_serialise {
             ///
             /// Returns:
             ///   bytes:
-            fn serialise<'py>(&self, py: Python<'py>) -> Bound<'py, pyo3::types::PyBytes> {
-                let bytes = $crate::serialise::StableEncode::encode_to_bytes(&self.$field);
-                pyo3::types::PyBytes::new(py, &bytes)
+            fn serialise<'py>(
+                &self,
+                py: Python<'py>,
+            ) -> Result<Bound<'py, pyo3::types::PyBytes>, GraphError> {
+                let bytes = $crate::serialise::StableEncode::encode_to_bytes(&self.$field)?;
+                Ok(pyo3::types::PyBytes::new(py, &bytes))
             }
         }
     };

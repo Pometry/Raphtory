@@ -385,15 +385,11 @@ impl GraphFolder {
 
     /// Creates a zip file from the folder.
     pub fn zip_from_folder<W: Write + Seek>(&self, mut writer: W) -> Result<(), GraphError> {
-        let mut buffer = Vec::new();
-
         if self.is_zip() {
             let mut reader = File::open(&self.root_folder)?;
-            reader.read_to_end(&mut buffer)?;
-            writer.write_all(&buffer)?;
+            io::copy(&mut reader, &mut writer)?;
         } else {
             let mut zip = ZipWriter::new(writer);
-
             for entry in WalkDir::new(&self.root_folder)
                 .into_iter()
                 .filter_map(Result::ok)
@@ -410,7 +406,7 @@ impl GraphFolder {
 
                     let mut file = File::open(path)?;
                     std::io::copy(&mut file, &mut zip)?;
-                } else if path.is_dir() {
+                } else if path.is_dir() && !zip_entry_name.is_empty() {
                     // Add empty directories to the zip
                     zip.add_directory::<_, ()>(zip_entry_name, FileOptions::default())?;
                 }
@@ -418,7 +414,13 @@ impl GraphFolder {
 
             zip.finish()?;
         }
+        Ok(())
+    }
 
+    pub fn unzip_to_folder<R: Read + Seek>(&self, reader: R) -> Result<(), GraphError> {
+        self.ensure_clean_root_dir()?;
+        let mut archive = ZipArchive::new(reader)?;
+        archive.extract(self.root())?;
         Ok(())
     }
 }
@@ -644,100 +646,99 @@ mod tests {
     /// Verify that the metadata is re-created if it does not exist.
     #[test]
     #[ignore = "Need to think about how to deal with reading old format"]
-    fn test_read_metadata_from_noninitialized_zip() {
-        global_info_logger();
+    // fn test_read_metadata_from_noninitialized_zip() {
+    //     global_info_logger();
+    //
+    //     let graph = Graph::new();
+    //     graph.add_node(0, 0, NO_PROPS, None).unwrap();
+    //
+    //     let tmp_dir = tempfile::TempDir::new().unwrap();
+    //     let zip_path = tmp_dir.path().join("graph.zip");
+    //     let folder = GraphFolder::new_as_zip(&zip_path);
+    //     graph.encode(&folder).unwrap();
+    //
+    //     // Remove the metadata file from the zip to simulate a noninitialized zip
+    //     remove_metadata_from_zip(&zip_path);
+    //
+    //     // Should fail because the metadata file is not present
+    //     let err = folder.try_read_metadata();
+    //     assert!(err.is_err());
+    //
+    //     // Should re-create the metadata file
+    //     let result = folder.read_metadata().unwrap();
+    //     assert_eq!(
+    //         result,
+    //         GraphMetadata {
+    //             node_count: 1,
+    //             edge_count: 0,
+    //             metadata: vec![],
+    //             graph_type: GraphType::EventGraph,
+    //             is_diskgraph: false
+    //         }
+    //     );
+    // }
 
-        let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+    // /// Helper function to remove the metadata file from a zip
+    // fn remove_metadata_from_zip(zip_path: &Path) {
+    //     let mut zip_file = std::fs::File::open(&zip_path).unwrap();
+    //     let mut zip_archive = zip::ZipArchive::new(&mut zip_file).unwrap();
+    //     let mut temp_zip = tempfile::NamedTempFile::new().unwrap();
+    //
+    //     // Scope for the zip writer
+    //     {
+    //         let mut zip_writer = zip::ZipWriter::new(&mut temp_zip);
+    //
+    //         for i in 0..zip_archive.len() {
+    //             let mut file = zip_archive.by_index(i).unwrap();
+    //
+    //             // Copy all files except the metadata file
+    //             if file.name() != META_PATH {
+    //                 zip_writer
+    //                     .start_file::<_, ()>(file.name(), FileOptions::default())
+    //                     .unwrap();
+    //                 std::io::copy(&mut file, &mut zip_writer).unwrap();
+    //             }
+    //         }
+    //
+    //         zip_writer.finish().unwrap();
+    //     }
+    //
+    //     std::fs::copy(temp_zip.path(), &zip_path).unwrap();
+    // }
 
-        let tmp_dir = tempfile::TempDir::new().unwrap();
-        let zip_path = tmp_dir.path().join("graph.zip");
-        let folder = GraphFolder::new_as_zip(&zip_path);
-        graph.encode(&folder).unwrap();
-
-        // Remove the metadata file from the zip to simulate a noninitialized zip
-        remove_metadata_from_zip(&zip_path);
-
-        // Should fail because the metadata file is not present
-        let err = folder.try_read_metadata();
-        assert!(err.is_err());
-
-        // Should re-create the metadata file
-        let result = folder.read_metadata().unwrap();
-        assert_eq!(
-            result,
-            GraphMetadata {
-                node_count: 1,
-                edge_count: 0,
-                metadata: vec![],
-                graph_type: GraphType::EventGraph,
-                is_diskgraph: false
-            }
-        );
-    }
-
-    /// Helper function to remove the metadata file from a zip
-    fn remove_metadata_from_zip(zip_path: &Path) {
-        let mut zip_file = std::fs::File::open(&zip_path).unwrap();
-        let mut zip_archive = zip::ZipArchive::new(&mut zip_file).unwrap();
-        let mut temp_zip = tempfile::NamedTempFile::new().unwrap();
-
-        // Scope for the zip writer
-        {
-            let mut zip_writer = zip::ZipWriter::new(&mut temp_zip);
-
-            for i in 0..zip_archive.len() {
-                let mut file = zip_archive.by_index(i).unwrap();
-
-                // Copy all files except the metadata file
-                if file.name() != META_PATH {
-                    zip_writer
-                        .start_file::<_, ()>(file.name(), FileOptions::default())
-                        .unwrap();
-                    std::io::copy(&mut file, &mut zip_writer).unwrap();
-                }
-            }
-
-            zip_writer.finish().unwrap();
-        }
-
-        std::fs::copy(temp_zip.path(), &zip_path).unwrap();
-    }
-
-    /// Verify that the metadata is re-created if it does not exist.
-    #[test]
-    #[ignore = "Need to think about how to handle reading from old format"]
-    fn test_read_metadata_from_noninitialized_folder() {
-        global_info_logger();
-
-        let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-
-        let temp_folder = tempfile::TempDir::new().unwrap();
-        let folder = GraphFolder::from(temp_folder.path());
-        graph.encode(&folder).unwrap();
-
-        // Remove the metadata file
-        std::fs::remove_file(folder.get_meta_path()).unwrap();
-
-        // Should fail because the metadata file is not present
-        let err = folder.try_read_metadata();
-        assert!(err.is_err());
-
-        // Should re-create the metadata file
-        let result = folder.read_metadata().unwrap();
-        assert_eq!(
-            result,
-            GraphMetadata {
-                node_count: 1,
-                edge_count: 0,
-                metadata: vec![],
-                graph_type: GraphType::EventGraph,
-                is_diskgraph: false
-            }
-        );
-    }
-
+    // /// Verify that the metadata is re-created if it does not exist.
+    // #[test]
+    // #[ignore = "Need to think about how to handle reading from old format"]
+    // fn test_read_metadata_from_noninitialized_folder() {
+    //     global_info_logger();
+    //
+    //     let graph = Graph::new();
+    //     graph.add_node(0, 0, NO_PROPS, None).unwrap();
+    //
+    //     let temp_folder = tempfile::TempDir::new().unwrap();
+    //     let folder = GraphFolder::from(temp_folder.path());
+    //     graph.encode(&folder).unwrap();
+    //
+    //     // Remove the metadata file
+    //     std::fs::remove_file(folder.get_meta_path()).unwrap();
+    //
+    //     // Should fail because the metadata file is not present
+    //     let err = folder.try_read_metadata();
+    //     assert!(err.is_err());
+    //
+    //     // Should re-create the metadata file
+    //     let result = folder.read_metadata().unwrap();
+    //     assert_eq!(
+    //         result,
+    //         GraphMetadata {
+    //             node_count: 1,
+    //             edge_count: 0,
+    //             metadata: vec![],
+    //             graph_type: GraphType::EventGraph,
+    //             is_diskgraph: false
+    //         }
+    //     );
+    // }
     #[test]
     fn test_zip_from_folder() {
         let graph = Graph::new();
@@ -750,8 +751,8 @@ mod tests {
         let initial_folder = GraphFolder::from(temp_folder.path().join("initial"));
         graph.encode(&initial_folder).unwrap();
 
-        assert!(initial_folder.get_graph_path().exists());
-        assert!(initial_folder.get_meta_path().exists());
+        assert!(initial_folder.graph_path().unwrap().exists());
+        assert!(initial_folder.meta_path().unwrap().exists());
 
         // Create a zip file from the folder
         let output_zip_path = temp_folder.path().join("output.zip");
@@ -832,7 +833,7 @@ mod tests {
         let graph_folder = GraphFolder::from(&folder);
 
         graph.encode(&graph_folder).unwrap();
-        assert!(graph_folder.get_graph_path().exists());
+        assert!(graph_folder.graph_path().unwrap().exists());
 
         // Zip the folder
         let mut zip_bytes = Vec::new();
@@ -846,8 +847,8 @@ mod tests {
         unzip_folder.unzip_to_folder(cursor).unwrap();
 
         // Verify the extracted folder has the same structure
-        assert!(unzip_folder.get_graph_path().exists());
-        assert!(unzip_folder.get_meta_path().exists());
+        assert!(unzip_folder.graph_path().unwrap().exists());
+        assert!(unzip_folder.meta_path().unwrap().exists());
 
         // Verify the extracted graph is the same as the original
         let extracted_graph = Graph::decode(&unzip_folder, None::<&std::path::Path>).unwrap();

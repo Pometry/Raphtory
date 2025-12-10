@@ -119,9 +119,9 @@ impl PyPersistentGraph {
         PersistentGraph::load_from_path(path)
     }
 
-    fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
-        let state = self.graph.encode_to_bytes();
-        (PyGraphEncoder, (state,))
+    fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {
+        let state = self.graph.encode_to_bytes()?;
+        Ok((PyGraphEncoder, (state,)))
     }
 
     /// Adds a new node with the given id and properties to the graph.

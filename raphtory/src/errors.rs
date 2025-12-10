@@ -4,7 +4,6 @@ use crate::{
 };
 use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
-use neo4rs::Path;
 use parquet::errors::ParquetError;
 use raphtory_api::core::entities::{
     properties::prop::{PropError, PropType},
@@ -19,9 +18,8 @@ use raphtory_core::{
 };
 use raphtory_storage::mutation::MutationError;
 use std::{
-    backtrace::Backtrace,
     fmt::Debug,
-    io, panic,
+    io,
     panic::Location,
     path::{PathBuf, StripPrefixError},
     sync::Arc,

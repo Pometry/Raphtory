@@ -26,7 +26,6 @@ mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
-use crate::serialise::GraphFolder;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
 pub use into_dynamic::{IntoDynHop, IntoDynamic};

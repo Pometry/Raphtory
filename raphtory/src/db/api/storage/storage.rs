@@ -37,13 +37,12 @@ use std::{
 };
 use storage::{Extension, WalImpl};
 
-use crate::serialise::GraphPaths;
 #[cfg(feature = "search")]
 use {
     crate::{
         db::api::view::IndexSpec,
         search::graph_index::{GraphIndex, MutableGraphIndex},
-        serialise::GraphFolder,
+        serialise::{GraphFolder, GraphPaths},
     },
     either::Either,
     parking_lot::RwLock,

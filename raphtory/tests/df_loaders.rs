@@ -613,7 +613,8 @@ mod parquet_tests {
             PropUpdatesFixture,
         },
     };
-    use std::str::FromStr;
+    use std::{io::Cursor, str::FromStr};
+    use zip::{ZipArchive, ZipWriter};
 
     #[test]
     fn node_temp_props() {
@@ -1125,10 +1126,13 @@ mod parquet_tests {
 
         // Test writing to a file
         let file = std::fs::File::create(&zip_path).unwrap();
-        g.encode_parquet_to_zip(file).unwrap();
+        let mut writer = ZipWriter::new(file);
+        g.encode_parquet_to_zip(&mut writer, "graph").unwrap();
+        writer.finish().unwrap();
 
-        let reader = std::fs::File::open(&zip_path).unwrap();
-        let g2 = Graph::decode_parquet_from_zip(reader, None::<&std::path::Path>).unwrap();
+        let mut reader = ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();
+        let g2 =
+            Graph::decode_parquet_from_zip(&mut reader, None::<&std::path::Path>, "graph").unwrap();
         assert_graph_equal(&g, &g2);
     }
 
@@ -1151,8 +1155,12 @@ mod parquet_tests {
         g.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
         g.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
 
-        let bytes = g.encode_parquet_to_bytes().unwrap();
-        let g2 = Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>).unwrap();
+        let mut bytes = Vec::new();
+        let mut writer = ZipWriter::new(Cursor::new(&mut bytes));
+        g.encode_parquet_to_zip(&mut writer, "graph").unwrap();
+        writer.finish().unwrap();
+        let g2 =
+            Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>, "graph").unwrap();
         assert_graph_equal(&g, &g2);
     }
 
@@ -1160,8 +1168,11 @@ mod parquet_tests {
     fn test_parquet_bytes_proptest() {
         proptest!(|(edges in build_graph_strat(30, 30, 10, 10, true))| {
             let g = Graph::from(build_graph(&edges));
-            let bytes = g.encode_parquet_to_bytes().unwrap();
-            let g2 = Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>).unwrap();
+            let mut bytes = Vec::new();
+            let mut writer = ZipWriter::new(Cursor::new(&mut bytes));
+            g.encode_parquet_to_zip(&mut writer, "graph").unwrap();
+            writer.finish().unwrap();
+            let g2 = Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>, "graph").unwrap();
 
             assert_graph_equal(&g, &g2);
         })
