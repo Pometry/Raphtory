@@ -70,14 +70,14 @@ pub trait GraphWal {
     ) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
 
     /// Replays and applies all the wal entries in the given directory to the given graph.
-    fn replay_to_graph<G: GraphReplayer>(
+    fn replay_to_graph<G: GraphReplay>(
         dir: impl AsRef<Path>,
         graph: &mut G,
     ) -> Result<(), StorageError>;
 }
 
 /// Trait for defining callbacks for replaying from wal.
-pub trait GraphReplayer {
+pub trait GraphReplay {
     fn replay_add_edge(
         &self,
         lsn: LSN,

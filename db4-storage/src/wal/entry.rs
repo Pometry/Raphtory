@@ -8,7 +8,7 @@ use raphtory_core::{
 
 use crate::{
     error::StorageError,
-    wal::{GraphReplayer, GraphWal, LSN, TransactionID, no_wal::NoWal},
+    wal::{GraphReplay, GraphWal, LSN, TransactionID, no_wal::NoWal},
 };
 
 impl GraphWal for NoWal {
@@ -40,7 +40,7 @@ impl GraphWal for NoWal {
         std::iter::once(Ok((0, ())))
     }
 
-    fn replay_to_graph<G: GraphReplayer>(
+    fn replay_to_graph<G: GraphReplay>(
         _dir: impl AsRef<Path>,
         _graph: &mut G,
     ) -> Result<(), StorageError> {

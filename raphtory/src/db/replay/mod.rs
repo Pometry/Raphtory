@@ -11,25 +11,11 @@ use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::{EdgeWrit
 use storage::{
     api::edges::EdgeSegmentOps,
     error::StorageError,
-    wal::{GraphReplayer, TransactionID, LSN},
+    wal::{GraphReplay, TransactionID, LSN},
 };
 use storage::resolver::GIDResolverOps;
 
-/// Wrapper struct for implementing `GraphReplayer` for a `Storage`.
-/// This is needed to workaround Rust's orphan rule since both `GraphReplayer`
-/// and `Storage` are foreign to this crate.
-#[derive(Debug)]
-pub struct ReplayGraph {
-    storage: Storage,
-}
-
-impl ReplayGraph {
-    pub fn new(graph: Storage) -> Self {
-        Self { storage: graph }
-    }
-}
-
-impl GraphReplayer for ReplayGraph {
+impl GraphReplay for Storage {
     fn replay_add_edge(
         &self,
         lsn: LSN,
@@ -46,7 +32,7 @@ impl GraphReplayer for ReplayGraph {
     ) -> Result<(), StorageError> {
         // TODO: Check max lsn on disk to see if this record should be replayed.
 
-        let storage = self.storage.get_storage()
+        let storage = self.get_storage()
             .ok_or_else(|| StorageError::GenericFailure("Storage not available during replay".to_string()))?;
 
         let temporal_graph = storage.core_graph().mutable().unwrap();
