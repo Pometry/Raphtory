@@ -246,16 +246,23 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
 
-        // preserve all property mappings
         let mut node_meta = Meta::new_for_nodes();
         let mut edge_meta = Meta::new_for_edges();
+        let mut graph_props_meta = Meta::new_for_graph_props();
 
         node_meta.set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
         node_meta.set_temporal_prop_mapper(self.node_meta().temporal_prop_mapper().deep_clone());
         edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         edge_meta.set_temporal_prop_mapper(self.edge_meta().temporal_prop_mapper().deep_clone());
+        graph_props_meta
+            .set_metadata_mapper(self.graph_props_meta().metadata_mapper().deep_clone());
+        graph_props_meta
+            .set_temporal_prop_mapper(self.graph_props_meta().temporal_prop_mapper().deep_clone());
+
         let layer_meta = edge_meta.layer_meta();
 
+        // NOTE: layers must be set in layer_meta before the TemporalGraph is initialized to
+        // make sure empty layers are created.
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
                 // no layers to map
@@ -264,54 +271,53 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             LayerIds::All => {
                 let layers = storage.edge_meta().layer_meta().keys();
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+
                 for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
                     let new_id = layer_meta.get_or_create_id(name).inner();
                     layer_map[id] = new_id;
                 }
+
                 layer_map
             }
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-                let new_id = layer_meta
-                    .get_or_create_id(&storage.edge_meta().get_layer_name_by_id(*l_id))
-                    .inner();
+                let layer_name = storage.edge_meta().get_layer_name_by_id(*l_id);
+                let new_id = layer_meta.get_or_create_id(&layer_name).inner();
+
                 layer_map[*l_id] = new_id;
                 layer_map
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
                 let layers = storage.edge_meta().layer_meta().all_keys();
+
                 for id in ids {
-                    let new_id = layer_meta.get_or_create_id(&layers[id]).inner();
+                    let layer_name = &layers[id];
+                    let new_id = layer_meta.get_or_create_id(layer_name).inner();
                     layer_map[id] = new_id;
                 }
+
                 layer_map
             }
         };
 
         node_meta.set_layer_mapper(layer_meta.clone());
 
-        let mut temporal_graph = TemporalGraph::new_with_meta(
+        let temporal_graph = TemporalGraph::new_with_meta(
             path.map(|p| p.into()),
             node_meta,
             edge_meta,
+            graph_props_meta,
             storage.extension().clone(),
         )
         .unwrap();
 
-        // Copy all graph properties
-        temporal_graph.graph_meta = self.graph_meta().deep_clone().into();
-
         if let Some(earliest) = self.earliest_time() {
             temporal_graph.update_time(TimeIndexEntry::start(earliest));
-        } else {
-            return Ok(self.new_base_graph(temporal_graph.into()));
         };
 
         if let Some(latest) = self.latest_time() {
             temporal_graph.update_time(TimeIndexEntry::end(latest));
-        } else {
-            return Ok(self.new_base_graph(temporal_graph.into()));
         };
 
         // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
@@ -388,7 +394,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     if let Some(edge_pos) = shard.resolve_pos(eid) {
                         let mut writer = shard.writer();
                         // make the edge for the first time
-                        writer.add_static_edge(Some(edge_pos), src, dst, Some(false));
+                        writer.add_static_edge(Some(edge_pos), src, dst, false);
 
                         for edge in edge.explode_layers() {
                             let layer = layer_map[edge.edge.layer().unwrap()];
@@ -520,6 +526,42 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
                 Ok::<(), MutationError>(())
             })?;
+
+            // Copy over graph properties
+            if let Some(graph_writer) = new_storage.graph_props.writer() {
+                // Copy temporal properties
+                for (prop_name, temporal_prop) in self.properties().temporal().iter() {
+                    let prop_id = graph_storage
+                        .graph_props_meta()
+                        .temporal_prop_mapper()
+                        .get_or_create_id(&prop_name)
+                        .inner();
+
+                    for (t, prop_value) in temporal_prop.iter_indexed() {
+                        let lsn = 0;
+                        graph_writer.add_properties(t, [(prop_id, prop_value)], lsn);
+                    }
+                }
+
+                // Copy metadata (constant properties)
+                let metadata_props: Vec<_> = self
+                    .metadata()
+                    .iter_filtered()
+                    .map(|(prop_name, prop_value)| {
+                        let prop_id = graph_storage
+                            .graph_props_meta()
+                            .metadata_mapper()
+                            .get_or_create_id(&prop_name)
+                            .inner();
+                        (prop_id, prop_value)
+                    })
+                    .collect();
+
+                if !metadata_props.is_empty() {
+                    let lsn = 0;
+                    graph_writer.update_metadata(metadata_props, lsn);
+                }
+            }
         }
 
         Ok(self.new_base_graph(graph_storage))

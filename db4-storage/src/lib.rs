@@ -5,11 +5,11 @@ use std::{
 };
 
 use crate::{
-    gen_t_props::GenTProps,
     gen_ts::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
         PropAdditionCellsRef,
     },
+    generic_t_props::GenericTProps,
     pages::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
@@ -17,20 +17,27 @@ use crate::{
     persist::strategy::NoOpStrategy,
     resolver::mapping_resolver::MappingResolver,
     segments::{
-        edge::EdgeSegmentView,
-        edge_entry::{MemEdgeEntry, MemEdgeRef},
-        node::NodeSegmentView,
-        node_entry::{MemNodeEntry, MemNodeRef},
+        edge::{
+            entry::{MemEdgeEntry, MemEdgeRef},
+            segment::EdgeSegmentView,
+        },
+        graph_prop::entry::{MemGraphPropEntry, MemGraphPropRef},
+        node::{
+            entry::{MemNodeEntry, MemNodeRef},
+            segment::NodeSegmentView,
+        },
     },
     wal::no_wal::NoWal,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
-use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
+use segments::{
+    edge::segment::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::segment::MemNodeSegment,
+};
 
 pub mod api;
-pub mod gen_t_props;
 pub mod gen_ts;
+pub mod generic_t_props;
 pub mod pages;
 pub mod persist;
 pub mod properties;
@@ -43,27 +50,32 @@ pub mod wal;
 pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
-pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
+pub type GS<P> = GraphPropSegmentView<P>;
+pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
 pub type WalImpl = NoWal;
 pub type GIDResolver = MappingResolver;
 
-pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, P>;
+pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NS<P>, P>;
 pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<ES<P>, P>;
 
 pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
 pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
+pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
+pub type GraphPropEntryRef<'a> = MemGraphPropRef<'a>;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
 
 pub type EdgeAdditions<'a> = GenericTimeOps<'a, AdditionCellsRef<'a, MemEdgeRef<'a>>>;
 pub type EdgeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemEdgeRef<'a>>>;
-pub type NodeTProps<'a> = GenTProps<'a, MemNodeRef<'a>>;
-pub type EdgeTProps<'a> = GenTProps<'a, MemEdgeRef<'a>>;
+
+pub type NodeTProps<'a> = GenericTProps<'a, MemNodeRef<'a>>;
+pub type EdgeTProps<'a> = GenericTProps<'a, MemEdgeRef<'a>>;
+pub type GraphTProps<'a> = GenericTProps<'a, MemGraphPropRef<'a>>;
 
 pub mod error {
     use std::{path::PathBuf, sync::Arc};

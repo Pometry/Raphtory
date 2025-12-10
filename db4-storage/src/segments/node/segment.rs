@@ -1,11 +1,13 @@
-use super::{HasRow, SegmentContainer};
 use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
     persist::strategy::PersistentStrategy,
-    segments::node_entry::{MemNodeEntry, MemNodeRef},
+    segments::{
+        HasRow, SegmentContainer,
+        node::entry::{MemNodeEntry, MemNodeRef},
+    },
 };
 use either::Either;
 use parking_lot::lock_api::ArcRwLockReadGuard;
@@ -315,7 +317,7 @@ impl MemNodeSegment {
         Ok(())
     }
 
-    pub fn update_c_props(
+    pub fn update_metadata(
         &mut self,
         node_pos: LocalPOS,
         layer_id: usize,
@@ -430,7 +432,9 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     where
         Self: Sized,
     {
-        todo!()
+        Err(StorageError::GenericFailure(
+            "load not supported".to_string(),
+        ))
     }
 
     fn new(
@@ -549,7 +553,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
 #[cfg(test)]
 mod test {
-    use std::{ops::Deref, sync::Arc};
+    use std::sync::Arc;
 
     use raphtory_api::core::entities::properties::{
         meta::Meta,
@@ -559,11 +563,10 @@ mod test {
     use tempfile::tempdir;
 
     use crate::{
-        LocalPOS,
+        LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::strategy::NoOpStrategy,
-        segments::node::NodeSegmentView,
     };
 
     #[test]

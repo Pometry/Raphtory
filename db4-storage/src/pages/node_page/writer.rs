@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS, api::nodes::NodeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
-    segments::node::MemNodeSegment,
+    segments::node::segment::MemNodeSegment,
 };
 use raphtory_api::core::entities::{
     EID, VID,
@@ -151,7 +151,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        let (is_new_node, add) = self.mut_segment.update_c_props(pos, layer_id, props);
+        let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
         self.page.increment_est_size(add);
         if is_new_node && !self.page.check_node(pos, layer_id) {
             self.l_counter.increment(layer_id);

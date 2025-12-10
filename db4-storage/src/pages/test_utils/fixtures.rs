@@ -1,7 +1,7 @@
 use proptest::{collection, prelude::*};
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::VID;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 
 use super::props::{make_props, prop_type};
 
@@ -51,6 +51,27 @@ pub fn make_edges(num_edges: usize, num_nodes: usize) -> impl Strategy<Value = F
     (1..=num_edges, 1..=num_nodes)
         .prop_flat_map(|(len, num_nodes)| build_raw_edges(len, num_nodes))
         .prop_map(|edges| edges.into())
+}
+
+pub type PropsFixture = (Vec<(i64, Vec<(String, Prop)>)>, Vec<(String, Prop)>);
+
+pub fn make_props_strat(num_props: Range<usize>) -> impl Strategy<Value = PropsFixture> {
+    let schema = proptest::collection::hash_map(
+        (0i32..10).prop_map(|i| i.to_string()),
+        prop_type(),
+        num_props.clone(),
+    );
+
+    schema.prop_flat_map(move |schema| {
+        let (t_props, c_props) = make_props(&schema);
+        let temp_props = proptest::collection::vec((0i64..1000, t_props), num_props.clone());
+
+        temp_props.prop_flat_map(move |temp_props| {
+            c_props
+                .clone()
+                .prop_map(move |const_props| (temp_props.clone(), const_props))
+        })
+    })
 }
 
 pub fn make_nodes(num_nodes: usize) -> impl Strategy<Value = NodeFixture> {

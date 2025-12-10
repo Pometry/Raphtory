@@ -3,9 +3,9 @@ use super::{
 };
 use crate::{
     LocalPOS,
-    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     persist::strategy::{Config, PersistentStrategy},
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
@@ -15,23 +15,30 @@ use raphtory_core::{
     storage::timeindex::AsTime,
 };
 
-pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, EXT: Config> {
+pub struct WriteSession<
+    'a,
+    NS: NodeSegmentOps,
+    ES: EdgeSegmentOps,
+    GS: GraphPropSegmentOps,
+    EXT: Config,
+> {
     node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
-    graph: &'a GraphStore<NS, ES, EXT>,
+    graph: &'a GraphStore<NS, ES, GS, EXT>,
 }
 
 impl<
     'a,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistentStrategy,
-> WriteSession<'a, NS, ES, EXT>
+> WriteSession<'a, NS, ES, GS, EXT>
 {
     pub fn new(
         node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
         edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
-        graph: &'a GraphStore<NS, ES, EXT>,
+        graph: &'a GraphStore<NS, ES, GS, EXT>,
     ) -> Self {
         Self {
             node_writers,
@@ -189,12 +196,12 @@ impl<
             let edge_writer = self.edge_writer.as_mut().unwrap();
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 
-            edge_writer.add_static_edge(Some(edge_pos), src, dst, Some(true));
+            edge_writer.add_static_edge(Some(edge_pos), src, dst, true);
 
             MaybeNew::Existing(e_id)
         } else {
             let mut edge_writer = self.graph.get_free_writer();
-            let edge_id = edge_writer.add_static_edge(None, src, dst, Some(false));
+            let edge_id = edge_writer.add_static_edge(None, src, dst, false);
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
 

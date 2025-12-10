@@ -25,11 +25,10 @@ use storage::{
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     Extension, transaction::TransactionManager, WalImpl, ES, NS,
-    wal::LSN,
 };
 
-pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> {
-    static_session: WriteSession<'a, NS<EXT>, ES<EXT>, EXT>,
+pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
+    static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -37,7 +36,9 @@ pub struct UnlockedSession<'a> {
     graph: &'a TemporalGraph<Extension>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for WriteS<'a, EXT> {
+impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> EdgeWriteLock
+    for WriteS<'a, EXT>
+{
     fn internal_add_static_edge(
         &mut self,
         src: impl Into<VID>,
@@ -143,8 +144,8 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     ) -> Result<MaybeNew<usize>, Self::Error> {
         Ok(self
             .graph
-            .graph_meta
-            .resolve_property(prop, dtype, is_static)?)
+            .graph_props_meta()
+            .resolve_prop_id(prop, dtype, is_static)?)
     }
 
     fn resolve_node_property(
@@ -217,10 +218,12 @@ impl InternalAdditionOps for TemporalGraph {
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
         let id = self.edge_meta().get_or_create_layer_id(layer);
         // TODO: we replicate the layer id in the node meta as well, perhaps layer meta should be common
-        self.node_meta().layer_meta().set_id(
-            self.edge_meta().layer_meta().get_name(id.inner()),
-            id.inner(),
-        );
+        if id.is_new() {
+            self.node_meta().layer_meta().set_id(
+                self.edge_meta().layer_meta().get_name(id.inner()),
+                id.inner(),
+            );
+        }
         if let MaybeNew::New(id) = id {
             if id > MAX_LAYER {
                 Err(TooManyLayers)?;

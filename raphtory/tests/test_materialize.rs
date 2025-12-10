@@ -33,6 +33,7 @@ fn test_materialize() {
         .get("layer1")
         .and_then(|prop| prop.latest())
         .is_none());
+
     assert!(gm
         .into_events()
         .unwrap()

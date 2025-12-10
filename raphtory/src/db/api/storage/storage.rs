@@ -598,6 +598,7 @@ impl DurabilityOps for Storage {
 
 impl InternalPropertyAdditionOps for Storage {
     type Error = GraphError;
+
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,

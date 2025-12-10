@@ -54,31 +54,28 @@ pub trait InternalPropertyAdditionOps {
 impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     type Error = MutationError;
 
+    // FIXME: this can't fail
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        // FIXME: check atomicity
-        for (id, prop) in props {
-            self.graph_meta.add_prop(t, *id, prop.clone())?;
-        }
+        let mut writer = self.storage().graph_props().writer();
+        writer.add_properties(t, props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        // FIXME: check atomicity
-        for (id, prop) in props {
-            self.graph_meta.add_metadata(*id, prop.clone())?;
-        }
+        let mut writer = self.storage().graph_props().writer();
+        writer.check_metadata(props)?;
+        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 
+    // FIXME: this can't fail
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        // FIXME: check atomicity
-        for (id, prop) in props {
-            self.graph_meta.update_metadata(*id, prop.clone());
-        }
+        let mut writer = self.storage().graph_props().writer();
+        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
         Ok(())
     }
 
@@ -116,7 +113,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
             panic!("Edge with EID {eid:?} not found in layer {layer}");
         });
-        writer.validate_c_props(edge_pos, layer, &props)?;
+        writer.check_metadata(edge_pos, layer, &props)?;
         writer.update_c_props(edge_pos, src, dst, layer, props);
         Ok(writer)
     }
