@@ -159,7 +159,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
                     .properties_mut()
                     .set_has_properties()
             }
-            segment.mark_dirty();
+            segment.set_dirty(true);
         }
         empty
     }

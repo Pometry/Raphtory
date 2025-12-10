@@ -33,7 +33,7 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
         let add = self.mem_segment.add_properties(t, props);
 
         self.graph_props.increment_est_size(add);
-        self.graph_props.mark_dirty();
+        self.graph_props.set_dirty(true);
     }
 
     pub fn check_metadata(&self, props: &[(usize, Prop)]) -> Result<(), StorageError> {
@@ -44,7 +44,7 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
         let add = self.mem_segment.update_metadata(props);
 
         self.graph_props.increment_est_size(add);
-        self.graph_props.mark_dirty();
+        self.graph_props.set_dirty(true);
     }
 }
 

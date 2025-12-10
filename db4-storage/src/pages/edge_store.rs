@@ -144,7 +144,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                     .properties_mut()
                     .set_has_properties()
             }
-            segment.mark_dirty();
+            segment.set_dirty(true);
         }
         empty
     }

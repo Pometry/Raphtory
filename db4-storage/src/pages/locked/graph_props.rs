@@ -29,7 +29,7 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
         let add = self.lock.add_properties(t, props);
 
         self.page.increment_est_size(add);
-        self.page.mark_dirty();
+        self.page.set_dirty(true);
     }
 
     /// Add metadata (constant properties) to the graph
@@ -42,7 +42,7 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
         let add = self.lock.update_metadata(props);
 
         self.page.increment_est_size(add);
-        self.page.mark_dirty();
+        self.page.set_dirty(true);
     }
 }
 
