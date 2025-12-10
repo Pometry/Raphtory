@@ -1,8 +1,13 @@
 use crate::python::filter::{
-    edge_filter_builders::{PyEdgeEndpoint, PyEdgeFilter, PyEdgeFilterOp, PyEdgeIdFilterOp},
+    edge_filter_builders::{
+        PyEdgeEndpoint, PyEdgeEndpointIdFilter, PyEdgeEndpointNameFilter, PyEdgeEndpointTypeFilter,
+        PyEdgeFilter,
+    },
     exploded_edge_filter_builder::PyExplodedEdgeFilter,
     filter_expr::PyFilterExpr,
-    node_filter_builders::PyNodeFilter,
+    node_filter_builders::{
+        PyNodeFilter, PyNodeIdFilterBuilder, PyNodeNameFilterBuilder, PyNodeTypeFilterBuilder,
+    },
     property_filter_builders::{PyFilterOps, PyPropertyFilterBuilder},
 };
 use pyo3::{
@@ -25,11 +30,15 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> 
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
 
     filter_module.add_class::<PyNodeFilter>()?;
+    filter_module.add_class::<PyNodeIdFilterBuilder>()?;
+    filter_module.add_class::<PyNodeNameFilterBuilder>()?;
+    filter_module.add_class::<PyNodeTypeFilterBuilder>()?;
 
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyEdgeEndpoint>()?;
-    filter_module.add_class::<PyEdgeFilterOp>()?;
-    filter_module.add_class::<PyEdgeIdFilterOp>()?;
+    filter_module.add_class::<PyEdgeEndpointIdFilter>()?;
+    filter_module.add_class::<PyEdgeEndpointNameFilter>()?;
+    filter_module.add_class::<PyEdgeEndpointTypeFilter>()?;
 
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
 

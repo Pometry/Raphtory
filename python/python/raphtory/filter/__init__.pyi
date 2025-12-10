@@ -28,10 +28,14 @@ __all__ = [
     "FilterOps",
     "PropertyFilterOps",
     "Node",
+    "NodeIdFilterBuilder",
+    "NodeNameFilterBuilder",
+    "NodeTypeFilterBuilder",
     "Edge",
     "EdgeEndpoint",
-    "EdgeFilterOp",
-    "EdgeIdFilterOp",
+    "EdgeEndpointIdFilter",
+    "EdgeEndpointNameFilter",
+    "EdgeEndpointTypeFilter",
     "ExplodedEdge",
 ]
 
@@ -176,6 +180,87 @@ class Node(object):
     @staticmethod
     def window(start, end): ...
 
+class NodeIdFilterBuilder(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value): ...
+    def ends_with(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
+    def starts_with(self, value): ...
+
+class NodeNameFilterBuilder(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value): ...
+    def ends_with(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
+    def starts_with(self, value): ...
+
+class NodeTypeFilterBuilder(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value): ...
+    def ends_with(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
+    def starts_with(self, value): ...
+
 class Edge(object):
     @staticmethod
     def dst(): ...
@@ -195,7 +280,7 @@ class EdgeEndpoint(object):
     def node_type(self): ...
     def property(self, name): ...
 
-class EdgeFilterOp(object):
+class EdgeEndpointIdFilter(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -214,71 +299,42 @@ class EdgeFilterOp(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value: str) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if a given value contains the specified string.
-
-        Arguments:
-            value (str):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
+    def contains(self, value): ...
     def ends_with(self, value): ...
-    def fuzzy_search(
-        self, value, levenshtein_distance: int, prefix_match: bool
-    ) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if the specified properties approximately match the specified string.
-
-        Uses a specified Levenshtein distance and optional prefix matching.
-
-        Arguments:
-            prop_value (str): Property to match against.
-            levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-            prefix_match (bool): Enable prefix matching.
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def is_in(self, values: list[str]) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
-
-        Arguments:
-            values (list[str]):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
-
-        Arguments:
-            values (list[str]):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def not_contains(self, value: str) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if a given value does not contain the specified string.
-
-        Arguments:
-            value (str):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
     def starts_with(self, value): ...
 
-class EdgeIdFilterOp(object):
+class EdgeEndpointNameFilter(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value): ...
+    def ends_with(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
+    def starts_with(self, value): ...
+
+class EdgeEndpointTypeFilter(object):
     def __eq__(self, value):
         """Return self==value."""
 

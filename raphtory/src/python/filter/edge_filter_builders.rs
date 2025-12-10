@@ -24,12 +24,12 @@ use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
 use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
-#[pyclass(frozen, name = "EdgeIdFilterOp", module = "raphtory.filter")]
+#[pyclass(frozen, name = "EdgeEndpointIdFilter", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeIdFilterOp(pub EdgeEndpointWrapper<NodeIdFilterBuilder>);
+pub struct PyEdgeEndpointIdFilter(pub EdgeEndpointWrapper<NodeIdFilterBuilder>);
 
 #[pymethods]
-impl PyEdgeIdFilterOp {
+impl PyEdgeEndpointIdFilter {
     fn __eq__(&self, value: GID) -> PyFilterExpr {
         PyFilterExpr(Arc::new(self.0.eq(value)))
     }
@@ -92,179 +92,70 @@ impl PyEdgeIdFilterOp {
     }
 }
 
-#[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
+#[pyclass(frozen, name = "EdgeEndpointNameFilter", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeFilterOp(EdgeTextBuilder);
+pub struct PyEdgeEndpointNameFilter(pub EdgeEndpointWrapper<NodeNameFilterBuilder>);
 
+#[pyclass(frozen, name = "EdgeEndpointTypeFilter", module = "raphtory.filter")]
 #[derive(Clone)]
-enum EdgeTextBuilder {
-    Name(EdgeEndpointWrapper<NodeNameFilterBuilder>),
-    Type(EdgeEndpointWrapper<NodeTypeFilterBuilder>),
-}
+pub struct PyEdgeEndpointTypeFilter(pub EdgeEndpointWrapper<NodeTypeFilterBuilder>);
 
-impl From<EdgeEndpointWrapper<NodeNameFilterBuilder>> for PyEdgeFilterOp {
-    fn from(v: EdgeEndpointWrapper<NodeNameFilterBuilder>) -> Self {
-        PyEdgeFilterOp(EdgeTextBuilder::Name(v))
-    }
-}
+macro_rules! impl_edge_endpoint_text_filter {
+    ($wrapper:ident) => {
+        #[pymethods]
+        impl $wrapper {
+            fn __eq__(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.eq(value)))
+            }
 
-impl From<EdgeEndpointWrapper<NodeTypeFilterBuilder>> for PyEdgeFilterOp {
-    fn from(v: EdgeEndpointWrapper<NodeTypeFilterBuilder>) -> Self {
-        PyEdgeFilterOp(EdgeTextBuilder::Type(v))
-    }
-}
+            fn __ne__(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.ne(value)))
+            }
 
-impl PyEdgeFilterOp {
-    #[inline]
-    fn map<T>(
-        &self,
-        f_name: impl FnOnce(&EdgeEndpointWrapper<NodeNameFilterBuilder>) -> T,
-        f_type: impl FnOnce(&EdgeEndpointWrapper<NodeTypeFilterBuilder>) -> T,
-    ) -> T {
-        match &self.0 {
-            EdgeTextBuilder::Name(n) => f_name(n),
-            EdgeTextBuilder::Type(t) => f_type(t),
+            fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+                let vals: Vec<String> = values.into_iter().collect();
+                PyFilterExpr(Arc::new(self.0.is_in(vals)))
+            }
+
+            fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+                let vals: Vec<String> = values.into_iter().collect();
+                PyFilterExpr(Arc::new(self.0.is_not_in(vals)))
+            }
+
+            fn starts_with(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.starts_with(value)))
+            }
+
+            fn ends_with(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.ends_with(value)))
+            }
+
+            fn contains(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.contains(value)))
+            }
+
+            fn not_contains(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.not_contains(value)))
+            }
+
+            fn fuzzy_search(
+                &self,
+                value: String,
+                levenshtein_distance: usize,
+                prefix_match: bool,
+            ) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.fuzzy_search(
+                    value,
+                    levenshtein_distance,
+                    prefix_match,
+                )))
+            }
         }
-    }
+    };
 }
 
-#[pymethods]
-impl PyEdgeFilterOp {
-    /// Returns a filter expression that checks if a specified string is equal to a given value.
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter expression
-    fn __eq__(&self, value: String) -> PyFilterExpr {
-        self.map(
-            |n| PyFilterExpr(Arc::new(n.eq(value.clone()))),
-            |t| PyFilterExpr(Arc::new(t.eq(value.clone()))),
-        )
-    }
-
-    /// Returns a filter expression that checks if a specified string is not equal to a given value.
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter expression
-    fn __ne__(&self, value: String) -> PyFilterExpr {
-        self.map(
-            |n| PyFilterExpr(Arc::new(n.ne(value.clone()))),
-            |t| PyFilterExpr(Arc::new(t.ne(value.clone()))),
-        )
-    }
-
-    /// Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
-    ///
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let vals: Vec<String> = values.into_iter().collect();
-        self.map(
-            |n| PyFilterExpr(Arc::new(n.is_in(vals.clone()))),
-            |t| PyFilterExpr(Arc::new(t.is_in(vals.clone()))),
-        )
-    }
-
-    /// Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
-    ///
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let vals: Vec<String> = values.into_iter().collect();
-        self.map(
-            |n| PyFilterExpr(Arc::new(n.is_not_in(vals.clone()))),
-            |t| PyFilterExpr(Arc::new(t.is_not_in(vals.clone()))),
-        )
-    }
-
-    fn starts_with(&self, value: String) -> PyFilterExpr {
-        self.map(
-            |n| PyFilterExpr(Arc::new(n.starts_with(value.clone()))),
-            |t| PyFilterExpr(Arc::new(t.starts_with(value.clone()))),
-        )
-    }
-
-    fn ends_with(&self, value: String) -> PyFilterExpr {
-        self.map(
-            |n| PyFilterExpr(Arc::new(n.ends_with(value.clone()))),
-            |t| PyFilterExpr(Arc::new(t.ends_with(value.clone()))),
-        )
-    }
-
-    /// Returns a filter expression that checks if a given value contains the specified string.
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn contains(&self, value: String) -> PyFilterExpr {
-        self.map(
-            |n| PyFilterExpr(Arc::new(n.contains(value.clone()))),
-            |t| PyFilterExpr(Arc::new(t.contains(value.clone()))),
-        )
-    }
-
-    /// Returns a filter expression that checks if a given value does not contain the specified string.
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn not_contains(&self, value: String) -> PyFilterExpr {
-        self.map(
-            |n| PyFilterExpr(Arc::new(n.not_contains(value.clone()))),
-            |t| PyFilterExpr(Arc::new(t.not_contains(value.clone()))),
-        )
-    }
-
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn fuzzy_search(
-        &self,
-        value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        self.map(
-            |n| {
-                PyFilterExpr(Arc::new(n.fuzzy_search(
-                    value.clone(),
-                    levenshtein_distance,
-                    prefix_match,
-                )))
-            },
-            |t| {
-                PyFilterExpr(Arc::new(t.fuzzy_search(
-                    value.clone(),
-                    levenshtein_distance,
-                    prefix_match,
-                )))
-            },
-        )
-    }
-}
+impl_edge_endpoint_text_filter!(PyEdgeEndpointNameFilter);
+impl_edge_endpoint_text_filter!(PyEdgeEndpointTypeFilter);
 
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 #[derive(Clone)]
@@ -272,16 +163,16 @@ pub struct PyEdgeEndpoint(pub EdgeEndpointWrapper<NodeFilter>);
 
 #[pymethods]
 impl PyEdgeEndpoint {
-    fn id(&self) -> PyEdgeIdFilterOp {
-        PyEdgeIdFilterOp(self.0.id())
+    fn id(&self) -> PyEdgeEndpointIdFilter {
+        PyEdgeEndpointIdFilter(self.0.id())
     }
 
-    fn name(&self) -> PyEdgeFilterOp {
-        PyEdgeFilterOp::from(self.0.name())
+    fn name(&self) -> PyEdgeEndpointNameFilter {
+        PyEdgeEndpointNameFilter(self.0.name())
     }
 
-    fn node_type(&self) -> PyEdgeFilterOp {
-        PyEdgeFilterOp::from(self.0.node_type())
+    fn node_type(&self) -> PyEdgeEndpointTypeFilter {
+        PyEdgeEndpointTypeFilter(self.0.node_type())
     }
 
     fn property<'py>(
