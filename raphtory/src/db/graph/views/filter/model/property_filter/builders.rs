@@ -25,10 +25,10 @@ impl<M> InternalPropertyFilterBuilder for PropertyFilterBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
-    OpChainBuilder<M>: InternalPropertyFilterBuilder,
+    PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
 {
     type Filter = PropertyFilter<M>;
-    type Chained = OpChainBuilder<M>;
+    type ExprBuilder = PropertyExprBuilder<M>;
     type Marker = M;
 
     fn property_ref(&self) -> PropertyRef {
@@ -47,7 +47,7 @@ where
         filter
     }
 
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
         builder
     }
 }
@@ -80,10 +80,10 @@ impl<M> InternalPropertyFilterBuilder for MetadataFilterBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
-    OpChainBuilder<M>: InternalPropertyFilterBuilder,
+    PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
 {
     type Filter = PropertyFilter<M>;
-    type Chained = OpChainBuilder<M>;
+    type ExprBuilder = PropertyExprBuilder<M>;
     type Marker = M;
 
     fn property_ref(&self) -> PropertyRef {
@@ -102,19 +102,19 @@ where
         filter
     }
 
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
         builder
     }
 }
 
 #[derive(Clone)]
-pub struct OpChainBuilder<M> {
+pub struct PropertyExprBuilder<M> {
     pub prop_ref: PropertyRef,
     pub ops: Vec<Op>,
     pub entity: M,
 }
 
-impl<M> OpChainBuilder<M> {
+impl<M> PropertyExprBuilder<M> {
     pub fn with_op(mut self, op: Op) -> Self {
         self.ops.push(op);
         self
@@ -162,7 +162,7 @@ impl<M> OpChainBuilder<M> {
     }
 }
 
-impl<M> Wrap for OpChainBuilder<M> {
+impl<M> Wrap for PropertyExprBuilder<M> {
     type Wrapped<T> = T;
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
@@ -170,13 +170,13 @@ impl<M> Wrap for OpChainBuilder<M> {
     }
 }
 
-impl<M> InternalPropertyFilterBuilder for OpChainBuilder<M>
+impl<M> InternalPropertyFilterBuilder for PropertyExprBuilder<M>
 where
     M: Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
 {
     type Filter = PropertyFilter<M>;
-    type Chained = OpChainBuilder<M>;
+    type ExprBuilder = PropertyExprBuilder<M>;
     type Marker = M;
 
     fn property_ref(&self) -> PropertyRef {
@@ -195,7 +195,7 @@ where
         filter
     }
 
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
+    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
         builder
     }
 }

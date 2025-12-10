@@ -1,7 +1,9 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
 use crate::db::graph::views::filter::model::{
     edge_filter::CompositeEdgeFilter,
-    property_filter::builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
+    property_filter::builders::{
+        MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
+    },
 };
 pub use crate::{
     db::{
@@ -79,7 +81,7 @@ pub trait ComposableFilter: Sized {
 
 pub trait InternalPropertyFilterBuilder: Send + Sync {
     type Filter: CombinedFilter;
-    type Chained: InternalPropertyFilterBuilder;
+    type ExprBuilder: InternalPropertyFilterBuilder;
     type Marker: Send + Sync + Clone + 'static;
 
     fn property_ref(&self) -> PropertyRef;
@@ -90,12 +92,12 @@ pub trait InternalPropertyFilterBuilder: Send + Sync {
 
     fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter;
 
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained;
+    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder;
 }
 
 impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Arc<T> {
     type Filter = T::Filter;
-    type Chained = T::Chained;
+    type ExprBuilder = T::ExprBuilder;
     type Marker = T::Marker;
 
     fn property_ref(&self) -> PropertyRef {
@@ -114,8 +116,8 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Arc<T> 
         self.deref().filter(filter)
     }
 
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
-        self.deref().chained(builder)
+    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
+        self.deref().into_expr_builder(builder)
     }
 }
 
@@ -152,13 +154,13 @@ pub trait PropertyFilterFactory: InternalPropertyFilterFactory {
 impl<T: InternalPropertyFilterFactory> PropertyFilterFactory for T {}
 
 pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilder {
-    fn temporal(&self) -> Self::Chained {
-        let builder = OpChainBuilder {
+    fn temporal(&self) -> Self::ExprBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: PropertyRef::TemporalProperty(self.property_ref().name().to_string()),
             ops: vec![],
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 }
 

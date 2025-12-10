@@ -8,7 +8,7 @@ use crate::python::filter::{
     node_filter_builders::{
         PyNodeFilter, PyNodeIdFilterBuilder, PyNodeNameFilterBuilder, PyNodeTypeFilterBuilder,
     },
-    property_filter_builders::{PyFilterOps, PyPropertyFilterBuilder},
+    property_filter_builders::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
 };
 use pyo3::{
     prelude::{PyModule, PyModuleMethods},
@@ -26,7 +26,7 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> 
     let filter_module = PyModule::new(py, "filter")?;
 
     filter_module.add_class::<PyFilterExpr>()?;
-    filter_module.add_class::<PyFilterOps>()?;
+    filter_module.add_class::<PyPropertyExprBuilder>()?;
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
 
     filter_module.add_class::<PyNodeFilter>()?;

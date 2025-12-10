@@ -16,7 +16,7 @@ use crate::{
                     CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::{
-                    builders::{MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder},
+                    builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
                     Op, PropertyFilter, PropertyRef,
                 },
                 windowed_filter::Windowed,
@@ -167,7 +167,7 @@ impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for EdgeEndpointWra
 
 impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for EdgeEndpointWrapper<T> {
     type Filter = EdgeEndpointWrapper<T::Filter>;
-    type Chained = EdgeEndpointWrapper<T::Chained>;
+    type ExprBuilder = EdgeEndpointWrapper<T::ExprBuilder>;
     type Marker = T::Marker;
 
     #[inline]
@@ -189,8 +189,8 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for EdgeEnd
         self.wrap(self.inner.filter(filter))
     }
 
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
-        self.wrap(self.inner.chained(builder))
+    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
+        self.wrap(self.inner.into_expr_builder(builder))
     }
 }
 

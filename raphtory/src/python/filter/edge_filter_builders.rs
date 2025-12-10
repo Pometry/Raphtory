@@ -13,7 +13,7 @@ use crate::{
         filter::{
             filter_expr::PyFilterExpr,
             property_filter_builders::{
-                PyFilterOps, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+                PyPropertyExprBuilder, PyPropertyFilterBuilder, PyPropertyFilterFactory,
             },
         },
         types::iterable::FromIterable,
@@ -184,7 +184,11 @@ impl PyEdgeEndpoint {
         b.into_pyobject(py)
     }
 
-    fn metadata<'py>(&self, py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
+    fn metadata<'py>(
+        &self,
+        py: Python<'py>,
+        name: String,
+    ) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
         let b = PropertyFilterFactory::metadata(&self.0, name);
         b.into_pyobject(py)
     }
@@ -217,7 +221,7 @@ impl PyEdgeFilter {
     }
 
     #[staticmethod]
-    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
+    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
         let b: MetadataFilterBuilder<EdgeFilter> =
             PropertyFilterFactory::metadata(&EdgeFilter, name);
         b.into_pyobject(py)

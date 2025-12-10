@@ -12,7 +12,7 @@ use crate::{
         filter::{
             filter_expr::PyFilterExpr,
             property_filter_builders::{
-                PyFilterOps, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+                PyPropertyExprBuilder, PyPropertyFilterBuilder, PyPropertyFilterFactory,
             },
         },
         types::iterable::FromIterable,
@@ -188,7 +188,7 @@ impl PyNodeFilter {
     }
 
     #[staticmethod]
-    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
+    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
         let b: MetadataFilterBuilder<NodeFilter> =
             PropertyFilterFactory::metadata(&NodeFilter, name);
         b.into_pyobject(py)

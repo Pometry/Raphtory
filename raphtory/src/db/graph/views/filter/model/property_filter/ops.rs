@@ -1,5 +1,5 @@
 use crate::db::graph::views::filter::model::{
-    property_filter::{builders::OpChainBuilder, Op, PropertyFilter, PropertyFilterValue},
+    property_filter::{builders::PropertyExprBuilder, Op, PropertyFilter, PropertyFilterValue},
     FilterOperator, InternalPropertyFilterBuilder,
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
@@ -204,95 +204,95 @@ impl<T: ?Sized + InternalPropertyFilterBuilder> PropertyFilterOps for T {
 }
 
 pub trait ElemQualifierOps: InternalPropertyFilterBuilder {
-    fn any(&self) -> Self::Chained
+    fn any(&self) -> Self::ExprBuilder
     where
         Self: Sized,
     {
-        let builder = OpChainBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Any]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 
-    fn all(&self) -> Self::Chained
+    fn all(&self) -> Self::ExprBuilder
     where
         Self: Sized,
     {
-        let builder = OpChainBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::All]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 }
 
 impl<T: InternalPropertyFilterBuilder> ElemQualifierOps for T {}
 
 pub trait ListAggOps: InternalPropertyFilterBuilder {
-    fn len(&self) -> Self::Chained {
-        let builder = OpChainBuilder {
+    fn len(&self) -> Self::ExprBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Len]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 
-    fn sum(&self) -> Self::Chained {
-        let builder = OpChainBuilder {
+    fn sum(&self) -> Self::ExprBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Sum]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 
-    fn avg(&self) -> Self::Chained {
-        let builder = OpChainBuilder {
+    fn avg(&self) -> Self::ExprBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Avg]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 
-    fn min(&self) -> Self::Chained {
-        let builder = OpChainBuilder {
+    fn min(&self) -> Self::ExprBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Min]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 
-    fn max(&self) -> Self::Chained {
-        let builder = OpChainBuilder {
+    fn max(&self) -> Self::ExprBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Max]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 
-    fn first(&self) -> Self::Chained {
-        let builder = OpChainBuilder {
+    fn first(&self) -> Self::ExprBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::First]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 
-    fn last(&self) -> Self::Chained {
-        let builder = OpChainBuilder {
+    fn last(&self) -> Self::ExprBuilder {
+        let builder = PropertyExprBuilder {
             prop_ref: self.property_ref(),
             ops: self.ops().iter().copied().chain([Op::Last]).collect(),
             entity: self.entity(),
         };
-        self.chained(builder)
+        self.into_expr_builder(builder)
     }
 }
 

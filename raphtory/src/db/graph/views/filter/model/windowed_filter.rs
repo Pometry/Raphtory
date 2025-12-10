@@ -9,7 +9,7 @@ use crate::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                     },
                     property_filter::builders::{
-                        MetadataFilterBuilder, OpChainBuilder, PropertyFilterBuilder,
+                        MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
                     },
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
@@ -80,7 +80,7 @@ impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Windowed<T>
 
 impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Windowed<T> {
     type Filter = Windowed<T::Filter>;
-    type Chained = Windowed<T::Chained>;
+    type ExprBuilder = Windowed<T::ExprBuilder>;
     type Marker = T::Marker;
 
     fn property_ref(&self) -> PropertyRef {
@@ -99,8 +99,8 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Windowe
         self.wrap(self.inner.filter(filter))
     }
 
-    fn chained(&self, builder: OpChainBuilder<Self::Marker>) -> Self::Chained {
-        self.wrap(self.inner.chained(builder))
+    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
+        self.wrap(self.inner.into_expr_builder(builder))
     }
 }
 

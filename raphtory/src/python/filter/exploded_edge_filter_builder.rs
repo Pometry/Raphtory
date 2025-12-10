@@ -6,7 +6,7 @@ use crate::{
     },
     python::{
         filter::property_filter_builders::{
-            PyFilterOps, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+            PyPropertyExprBuilder, PyPropertyFilterBuilder, PyPropertyFilterFactory,
         },
         utils::PyTime,
     },
@@ -30,7 +30,7 @@ impl PyExplodedEdgeFilter {
     }
 
     #[staticmethod]
-    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyFilterOps>> {
+    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
         let b: MetadataFilterBuilder<ExplodedEdgeFilter> =
             PropertyFilterFactory::metadata(&ExplodedEdgeFilter, name);
         b.into_pyobject(py)
