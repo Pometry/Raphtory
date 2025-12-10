@@ -13,9 +13,9 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use arrow::{
-    array::{Array, RecordBatch, RecordBatchReader},
+    array::{Array, RecordBatch, RecordBatchReader, StructArray},
     compute::cast,
-    datatypes::{Field, Schema, SchemaRef},
+    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
 };
 use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
@@ -273,7 +273,7 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
                 Err(e) => return vec![Err(e)],
             };
             let casted_batch = if let Some(schema) = &schema {
-                match cast_columns(&batch, schema) {
+                match cast_columns(batch, schema) {
                     Ok(casted_batch) => casted_batch,
                     Err(e) => return vec![Err(e)],
                 }
@@ -288,48 +288,47 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
 }
 
 fn cast_columns(
-    batch: &RecordBatch,
+    batch: RecordBatch,
     schema: &HashMap<String, PropType>,
 ) -> Result<RecordBatch, GraphError> {
     let old_schema_ref = batch.schema();
     let old_fields = old_schema_ref.fields();
 
-    let mut new_columns = Vec::with_capacity(batch.num_columns());
-    let mut new_fields: Vec<Field> = Vec::with_capacity(batch.num_columns());
+    let mut target_fields: Vec<Field> = Vec::with_capacity(old_fields.len());
 
-    for (i, field) in old_fields.iter().enumerate() {
-        let col = batch.column(i);
-
+    for field in old_fields.iter() {
         if let Some(target_prop_type) = schema.get(field.name()) {
             let target_dtype = arrow_dtype_from_prop_type(target_prop_type);
-
-            if col.data_type() != &target_dtype {
-                let casted = cast(col.as_ref(), &target_dtype).map_err(|e| {
-                    GraphError::LoadFailure(format!(
-                        "Failed to cast column '{}' from {:?} to {:?}: {e}",
-                        field.name(),
-                        col.data_type(),
-                        target_dtype
-                    ))
-                })?;
-                new_columns.push(casted);
-                let new_field = Field::new(field.name(), target_dtype, field.is_nullable())
-                    .with_metadata(field.metadata().clone());
-                new_fields.push(new_field);
-            } else {
-                // type was already correct
-                new_columns.push(col.clone());
-                new_fields.push(field.deref().clone());
-            }
+            target_fields.push(
+                Field::new(field.name(), target_dtype, field.is_nullable())
+                    .with_metadata(field.metadata().clone()),
+            );
         } else {
             // schema doesn't say anything about this column
-            new_columns.push(col.clone());
-            new_fields.push(field.deref().clone());
+            target_fields.push(field.as_ref().clone());
         }
     }
-    let new_schema = Arc::new(Schema::new(new_fields));
-    RecordBatch::try_new(new_schema, new_columns)
-        .map_err(|e| GraphError::LoadFailure(format!("Failed while casting columns: {e}")))
+    let struct_array = StructArray::from(batch);
+    let target_struct_type = DataType::Struct(Fields::from(target_fields));
+
+    // cast whole RecordBatch at once
+    let casted = cast(&struct_array, &target_struct_type).map_err(|e| {
+        GraphError::LoadFailure(format!(
+            "Failed to cast RecordBatch to target schema {:?}: {e}",
+            target_struct_type
+        ))
+    })?;
+
+    let casted_struct = casted
+        .as_any()
+        .downcast_ref::<StructArray>()
+        .ok_or_else(|| {
+            GraphError::LoadFailure(
+                "Internal error: casting RecordBatch did not return StructArray".to_string(),
+            )
+        })?;
+
+    Ok(RecordBatch::from(casted_struct))
 }
 
 /// Splits a RecordBatch into chunks of CHUNK_SIZE owned by DFChunk objects

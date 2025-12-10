@@ -6371,6 +6371,66 @@ class PropType(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    @staticmethod
+    def array(p):
+        ...
+
+    @staticmethod
+    def bool():
+        ...
+
+    @staticmethod
+    def datetime():
+        ...
+
+    @staticmethod
+    def f32():
+        ...
+
+    @staticmethod
+    def f64():
+        ...
+
+    @staticmethod
+    def i32():
+        ...
+
+    @staticmethod
+    def i64():
+        ...
+
+    @staticmethod
+    def list(p):
+        ...
+
+    @staticmethod
+    def map(hash_map):
+        ...
+
+    @staticmethod
+    def naive_datetime():
+        ...
+
+    @staticmethod
+    def str():
+        ...
+
+    @staticmethod
+    def u16():
+        ...
+
+    @staticmethod
+    def u32():
+        ...
+
+    @staticmethod
+    def u64():
+        ...
+
+    @staticmethod
+    def u8():
+        ...
+
 class Metadata(object): 
     """A view of metadata of an entity"""
 

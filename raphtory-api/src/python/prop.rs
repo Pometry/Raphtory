@@ -10,7 +10,7 @@ use pyo3::{
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 use pyo3_arrow::PyDataType;
-use std::{ops::Deref, str::FromStr, sync::Arc};
+use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
 #[cfg(feature = "arrow")]
 mod array_ext {
@@ -135,64 +135,79 @@ pub struct PyPropType(pub PropType);
 
 #[pymethods]
 impl PyPropType {
-    #[classattr]
+    #[staticmethod]
     pub fn u8() -> PropType {
         PropType::U8
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn u16() -> PropType {
         PropType::U16
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn u32() -> PropType {
         PropType::U32
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn u64() -> PropType {
         PropType::U64
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn i32() -> PropType {
         PropType::I32
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn i64() -> PropType {
         PropType::I64
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn f32() -> PropType {
         PropType::F32
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn f64() -> PropType {
         PropType::F64
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn str() -> PropType {
         PropType::Str
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn bool() -> PropType {
         PropType::Bool
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn naive_datetime() -> PropType {
         PropType::NDTime
     }
 
-    #[classattr]
+    #[staticmethod]
     pub fn datetime() -> PropType {
         PropType::DTime
+    }
+
+    #[staticmethod]
+    pub fn list(p: PropType) -> PropType {
+        PropType::List(Box::new(p))
+    }
+
+    #[staticmethod]
+    pub fn map(hash_map: HashMap<String, PropType>) -> PropType {
+        PropType::Map(Arc::new(hash_map))
+    }
+
+    #[staticmethod]
+    pub fn array(p: PropType) -> PropType {
+        PropType::Array(Box::new(p))
     }
 
     fn __repr__(&self) -> String {

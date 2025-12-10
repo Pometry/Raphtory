@@ -127,42 +127,86 @@ def test_schema_casting():
         }
     )
     g = Graph()
+    # No casting
     g.load_nodes(
         data=df,
         time="time",
         id="id",
         properties=["val_i32"],
-        # No casting
     )
     n_prop = g.node(10).properties
     print(f"\ndtype of Property 'val_i32' without cast:       {n_prop.get_dtype_of("val_i32")}")
     del g
 
+    # Cast the val_i32 column to I64 using PropType.i64()
     g = Graph()
     g.load_nodes(
         data=df,
         time="time",
         id="id",
         properties=["val_i32"],
-        # Request that this column be treated as I64
-        schema=[("val_i32", PropType.i64)],
+        schema=[("val_i32", PropType.i64())],
     )
     n_prop = g.node(10).properties
     print(f"dtype of Property 'val_i32' with PropType cast: {n_prop.get_dtype_of("val_i32")}")
     del g
 
+    # Cast the val_i32 column to I64 using PyArrow int64 DataType
     g = Graph()
     g.load_nodes(
         data=df,
         time="time",
         id="id",
         properties=["val_i32"],
-        # Request that this column be treated as I64
         schema=[("val_i32", pa.int64())],
     )
     n_prop = g.node(10).properties
     print(f"dtype of Property 'val_i32' with pyarrow cast:  {n_prop.get_dtype_of("val_i32")}")
 
+
+def test_nested_schema_casting():
+    table = pa.Table.from_pydict(
+        {
+            "time": pa.array([1, 2, 3], type=pa.int64()),
+            "id": pa.array([10, 20, 30], type=pa.int64()),
+            "val_list_i32": pa.array(
+                [[1, 2], [3, 4], [5, 6]],
+                type=pa.list_(pa.int32()),
+            ),
+        }
+    )
+
+    # No casting
+    g = Graph()
+    g.load_nodes(data=table, time="time", id="id", properties=["val_list_i32"])
+    n_prop = g.node(10).properties
+    print(f"\ndtype of property 'val_list_i32' without cast:       {n_prop.get_dtype_of("val_list_i32")}")
+    del g
+
+    # Cast the val_list_i32 column to I64 using PropType.list(PropType.i64())
+    g = Graph()
+    g.load_nodes(
+        data=table,
+        time="time",
+        id="id",
+        properties=["val_list_i32"],
+        schema=[("val_list_i32", PropType.list(PropType.i64()))],
+    )
+    n_prop = g.node(10).properties
+    print(f"dtype of Property 'val_list_i32' with PropType cast: {n_prop.get_dtype_of("val_list_i32")}")
+    del g
+
+    # Cast the val_list_i32 column to I64 using PyArrow list<int64> DataType
+    g = Graph()
+    g.load_nodes(
+        data=table,
+        time="time",
+        id="id",
+        properties=["val_list_i32"],
+        schema=[("val_list_i32", pa.list_(pa.int64()))],
+    )
+    n_prop = g.node(10).properties
+    print(f"dtype of Property 'val_list_i32' with pyarrow cast:  {n_prop.get_dtype_of("val_list_i32")}")
 
 if fpd:
     import pandas
