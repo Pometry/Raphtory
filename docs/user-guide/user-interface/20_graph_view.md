@@ -99,12 +99,40 @@ The format for styles is as follows:
 
 ```python
 # Graph styles
-{'nodeStylePerson': {'nodeType': 'Person', 'fill': '#1cb917', 'size': 24}, 'nodeStyleNone': {}}
+{
+    '_style': {
+        'node_types': {
+            'Person': {'fill': '#1cb917'},
+            'Company': {'fill': '#f8e61b'},
+        },
+        'edge_layers': {
+            'meets':{'startArrowSize': 4,  'lineWidth': 1, 'endArrowSize': 4},
+           'founds':{'startArrowSize': 5, 'lineWidth': 2, 'endArrowSize': 5}, 
+        }
+    }
+}
 # Node styles
-{'style': {'fill': '#417505', 'size': 12}}
+{
+   '_style':{
+      'fill':'#417505',
+      'size':12
+   }
+}
 # Edge styles
-{'style': [None, {'meets': {'startArrowSize': 4, 'stroke': '#f8e61b', 'lineWidth': 1, 'endArrowSize': 4}}, None, None]}
-```
+{
+   '_style':{
+      'meets':{
+         'startArrowSize':4,
+         'stroke':'#f8e61b',
+         'lineWidth':1,
+         'endArrowSize':4
+      },
+      'knows':{
+         'stroke':'#631854',
+         'endArrowSize':4
+      },
+   }
+}```
 
 ### Set the styles for a specified node type
 
