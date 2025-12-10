@@ -23,7 +23,8 @@ use storage::{
     },
     persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
-    Extension, GIDResolver, Layer, ReadLockedLayer, transaction::TransactionManager, WalImpl, ES, NS,
+    Extension, GIDResolver, Layer, ReadLockedLayer, transaction::TransactionManager,
+    WalImpl, ES, NS, GS, wal::Wal,
 };
 use tempfile::TempDir;
 

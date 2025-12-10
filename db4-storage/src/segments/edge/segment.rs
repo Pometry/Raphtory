@@ -10,6 +10,7 @@ use crate::{
         edge::entry::{MemEdgeEntry, MemEdgeRef},
     },
     utils::Iter4,
+    wal::LSN,
 };
 use arrow_array::{ArrayRef, BooleanArray};
 use parking_lot::lock_api::ArcRwLockReadGuard;
@@ -53,7 +54,7 @@ impl HasRow for EdgeEntry {
 pub struct MemEdgeSegment {
     layers: Vec<SegmentContainer<EdgeEntry>>,
     est_size: usize,
-    lsn: u64,
+    lsn: LSN,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<EdgeEntry>>> From<I> for MemEdgeSegment {

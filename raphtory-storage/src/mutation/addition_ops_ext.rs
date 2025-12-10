@@ -24,7 +24,8 @@ use storage::{
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, transaction::TransactionManager, WalImpl, ES, NS,
+    Extension, transaction::TransactionManager, WalImpl, ES, NS, GS,
+    wal::LSN,
 };
 
 pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {

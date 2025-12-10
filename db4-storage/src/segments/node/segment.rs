@@ -1,13 +1,7 @@
 use crate::{
-    LocalPOS,
-    api::nodes::{LockedNSSegment, NodeSegmentOps},
-    error::StorageError,
-    loop_lock_write,
-    persist::strategy::PersistentStrategy,
-    segments::{
-        HasRow, SegmentContainer,
-        node::entry::{MemNodeEntry, MemNodeRef},
-    },
+    api::nodes::{LockedNSSegment, NodeSegmentOps}, error::StorageError, loop_lock_write, persist::strategy::PersistentStrategy, segments::{
+        node::entry::{MemNodeEntry, MemNodeRef}, HasRow, SegmentContainer
+    }, wal::LSN, LocalPOS
 };
 use either::Either;
 use parking_lot::lock_api::ArcRwLockReadGuard;
@@ -36,7 +30,7 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
-    lsn: u64,
+    lsn: LSN,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
@@ -143,11 +137,11 @@ impl MemNodeSegment {
         self.get_adj(n, layer_id).map_or(0, |adj| adj.degree(dir))
     }
 
-    pub fn lsn(&self) -> u64 {
+    pub fn lsn(&self) -> LSN {
         self.lsn
     }
 
-    pub fn set_lsn(&mut self, lsn: u64) {
+    pub fn set_lsn(&mut self, lsn: LSN) {
         if lsn > self.lsn {
             self.lsn = lsn;
         }
