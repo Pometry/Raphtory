@@ -132,7 +132,8 @@ The format for styles is as follows:
          'endArrowSize':4
       },
    }
-}```
+}
+```
 
 ### Set the styles for a specified node type
 
