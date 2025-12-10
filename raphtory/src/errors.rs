@@ -435,6 +435,9 @@ pub enum GraphError {
 
     #[error("Cannot swap zipped graph data")]
     ZippedGraphCannotBeSwapped,
+
+    #[error("Invalid prefix, expected '{expected}', got '{actual}'")]
+    InvalidPrefix { expected: String, actual: String },
 }
 
 impl From<MetadataError> for GraphError {

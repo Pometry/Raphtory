@@ -21,7 +21,7 @@ pub enum UrlDecodeError {
 
 pub fn url_encode_graph<G: Into<MaterializedGraph>>(graph: G) -> Result<String, GraphError> {
     let g: MaterializedGraph = graph.into();
-    let bytes = g.encode_to_bytes();
+    let bytes = g.encode_to_bytes()?;
 
     Ok(BASE64_URL_SAFE.encode(bytes))
 }

@@ -22,8 +22,10 @@ use zip::{
 
 /// Stores graph data
 pub const GRAPH_PATH: &str = "graph";
+pub const DEFAULT_GRAPH_PATH: &str = "graph0";
 
 pub const DATA_PATH: &str = "data";
+pub const DEFAULT_DATA_PATH: &str = "data0";
 
 /// Stores graph metadata
 pub const META_PATH: &str = ".raph";
@@ -82,21 +84,37 @@ pub fn make_data_path(base_path: &Path, prefix: &str) -> Result<String, io::Erro
     Ok(path)
 }
 
-fn get_zip_data_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
+pub fn read_or_default_data_path(base_path: &Path, prefix: &str) -> Result<String, GraphError> {
+    match read_data_path(base_path)? {
+        None => Ok(prefix.to_owned() + "0"),
+        Some(path) => {
+            if path.starts_with(prefix) {
+                Ok(path)
+            } else {
+                Err(GraphError::InvalidPrefix {
+                    expected: prefix.to_owned(),
+                    actual: path,
+                })
+            }
+        }
+    }
+}
+
+pub fn get_zip_data_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
     let file = zip.by_name(META_PATH)?;
     Ok(read_path_from_file(file)?)
 }
 
-fn get_zip_graph_path(zip: &mut ZipArchive<File>) -> Result<String, GraphError> {
+pub fn get_zip_graph_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
     let mut path = get_zip_data_path(zip)?;
     let graph_path = get_zip_graph_path_name(zip, path.clone())?;
     path.push('/');
     path.push_str(&graph_path);
-    Ok(graph_path)
+    Ok(path)
 }
 
-fn get_zip_graph_path_name(
-    zip: &mut ZipArchive<File>,
+pub fn get_zip_graph_path_name<R: Read + Seek>(
+    zip: &mut ZipArchive<R>,
     mut data_path: String,
 ) -> Result<String, GraphError> {
     data_path.push('/');
@@ -105,7 +123,7 @@ fn get_zip_graph_path_name(
     Ok(graph_path)
 }
 
-fn get_zip_meta_path(zip: &mut ZipArchive<File>) -> Result<String, GraphError> {
+pub fn get_zip_meta_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
     let mut path = get_zip_graph_path(zip)?;
     path.push('/');
     path.push_str(META_PATH);
@@ -134,25 +152,37 @@ pub trait GraphPaths {
         self.root().join(META_PATH)
     }
 
-    fn data_path(&self) -> Result<InnerGraphFolder, GraphError>;
+    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
+        Ok(InnerGraphFolder {
+            path: self.root().join(self.relative_data_path()?),
+        })
+    }
+
+    fn relative_data_path(&self) -> Result<String, GraphError>;
     fn vectors_path(&self) -> Result<PathBuf, GraphError> {
-        Ok(self.data_path()?.vectors_path())
+        let mut path = self.data_path()?.path;
+        path.push(VECTORS_PATH);
+        Ok(path)
     }
 
     fn index_path(&self) -> Result<PathBuf, GraphError> {
-        Ok(self.data_path()?.index_path())
+        let mut path = self.data_path()?.path;
+        path.push(INDEX_PATH);
+        Ok(path)
     }
 
     fn graph_path(&self) -> Result<PathBuf, GraphError> {
-        self.data_path()?.graph_path()
+        let mut path = self.data_path()?.path;
+        path.push(self.relative_graph_path()?);
+        Ok(path)
     }
 
-    fn relative_graph_path(&self) -> Result<String, GraphError> {
-        self.data_path()?.relative_graph_path()
-    }
+    fn relative_graph_path(&self) -> Result<String, GraphError>;
 
     fn meta_path(&self) -> Result<PathBuf, GraphError> {
-        Ok(self.data_path()?.meta_path())
+        let mut path = self.data_path()?.path;
+        path.push(META_PATH);
+        Ok(path)
     }
 }
 
@@ -181,12 +211,25 @@ impl GraphPaths for GraphFolder {
         &self.root_folder
     }
 
-    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
-        let relative =
-            read_data_path(&self.root_folder)?.unwrap_or_else(|| DATA_PATH.to_string() + "0");
-        Ok(InnerGraphFolder {
-            path: self.root_folder.join(relative),
-        })
+    fn relative_data_path(&self) -> Result<String, GraphError> {
+        let path = if self.is_zip() {
+            let mut zip = self.read_zip()?;
+            get_zip_data_path(&mut zip)?
+        } else {
+            read_or_default_data_path(self.root(), DATA_PATH)?
+        };
+        Ok(path)
+    }
+
+    fn relative_graph_path(&self) -> Result<String, GraphError> {
+        if self.is_zip() {
+            let mut zip = self.read_zip()?;
+            let data_path = get_zip_data_path(&mut zip)?;
+            get_zip_graph_path_name(&mut zip, data_path)
+        } else {
+            let data_path = self.data_path()?;
+            read_or_default_data_path(data_path.as_ref(), GRAPH_PATH)
+        }
     }
 }
 
@@ -205,7 +248,7 @@ impl GraphFolder {
         if self.write_as_zip_format {
             return Err(GraphError::ZippedGraphCannotBeSwapped);
         }
-        let relative_data_path = self.get_relative_data_path()?;
+        let relative_data_path = self.relative_data_path()?;
         let meta = serde_json::to_string(&RelativePath {
             path: relative_data_path.clone(),
         })?;
@@ -282,24 +325,14 @@ impl GraphFolder {
         Ok(())
     }
 
-    pub fn get_relative_data_path(&self) -> Result<String, GraphError> {
-        let path = if self.is_zip() {
-            let mut zip = self.read_zip()?;
-            get_zip_data_path(&mut zip)?
-        } else {
-            read_data_path(&self.root_folder)?.unwrap_or_else(|| DATA_PATH.to_string() + "0")
-        };
-        Ok(path)
-    }
-
-    pub fn get_relative_graph_path(&self) -> Result<String, GraphError> {
+    pub fn get_zip_graph_prefix(&self) -> Result<String, GraphError> {
         if self.is_zip() {
             let mut zip = self.read_zip()?;
-            let data_path = get_zip_data_path(&mut zip)?;
-            get_zip_graph_path_name(&mut zip, data_path)
+            Ok([get_zip_data_path(&mut zip)?, get_zip_graph_path(&mut zip)?].join("/"))
         } else {
-            let data_path = self.data_path()?;
-            Ok(read_data_path(data_path.as_ref())?.unwrap_or_else(|| GRAPH_PATH.to_string() + "0"))
+            let data_path = read_or_default_data_path(self.root(), DATA_PATH)?;
+            let graph_path = read_or_default_data_path(&self.root().join(&data_path), GRAPH_PATH)?;
+            Ok([data_path, graph_path].join("/"))
         }
     }
 
@@ -330,31 +363,6 @@ impl GraphFolder {
         }
         let metadata: Metadata = serde_json::from_str(&json)?;
         Ok(metadata.meta)
-    }
-
-    pub fn write_metadata<'graph>(
-        &self,
-        graph: &impl GraphViewOps<'graph>,
-    ) -> Result<(), GraphError> {
-        let graph_path = self.get_relative_graph_path()?;
-        let data_path = self.get_relative_data_path()?;
-        let metadata = GraphMetadata::from_graph(graph);
-        let meta = Metadata {
-            path: graph_path,
-            meta: metadata,
-        };
-
-        if self.write_as_zip_format {
-            let file = File::options().read(true).write(true).open(&self.root())?;
-            let mut zip = ZipWriter::new_append(file)?;
-
-            zip.start_file::<_, ()>(META_PATH, FileOptions::default())?;
-            Ok(serde_json::to_writer(zip, &meta)?)
-        } else {
-            let path = self.meta_path()?;
-            let file = File::create(path.clone())?;
-            Ok(serde_json::to_writer(file, &meta)?)
-        }
     }
 
     fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
@@ -426,11 +434,14 @@ impl GraphPaths for WriteableGraphFolder {
         &self.path
     }
 
-    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
+    fn relative_data_path(&self) -> Result<String, GraphError> {
         let path = read_dirty_path(self.root())?.ok_or(GraphError::NoWriteInProgress)?;
-        Ok(InnerGraphFolder {
-            path: self.root().join(path),
-        })
+        Ok(path)
+    }
+
+    fn relative_graph_path(&self) -> Result<String, GraphError> {
+        let path = read_or_default_data_path(&self.data_path()?.as_ref(), GRAPH_PATH)?;
+        Ok(path)
     }
 }
 

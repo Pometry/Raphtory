@@ -39,7 +39,7 @@ use crate::{
         types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },
-    serialise::GraphFolder,
+    serialise::{GraphFolder, GraphPaths},
 };
 use chrono::prelude::*;
 use pyo3::prelude::*;
@@ -478,11 +478,11 @@ impl PyGraphView {
     /// Materializes the graph view into a graphql compatible folder.
     fn materialize_to_graph_folder(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
         let folder: GraphFolder = path.into();
-        folder.init_write()?;
+        let write = folder.init_write()?;
 
-        let graph = self.graph.materialize_at(Some(&folder.get_graph_path()?))?;
-        folder.write_metadata(&graph)?;
-
+        let graph = self.graph.materialize_at(Some(&write.graph_path()?))?;
+        write.data_path()?.write_metadata(&graph)?;
+        write.finish()?;
         Ok(graph)
     }
 

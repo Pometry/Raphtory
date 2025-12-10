@@ -69,8 +69,12 @@ impl GraphPaths for ExistingGraphFolder {
         self.0.root()
     }
 
-    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
-        self.0.data_path()
+    fn relative_data_path(&self) -> Result<String, GraphError> {
+        self.0.relative_data_path()
+    }
+
+    fn relative_graph_path(&self) -> Result<String, GraphError> {
+        self.0.relative_graph_path()
     }
 }
 
@@ -101,7 +105,7 @@ impl ExistingGraphFolder {
         let graph_folder: GraphFolder = base_path.into_path().into();
         if graph_folder.is_reserved() {
             Ok(Self(ValidGraphFolder {
-                graph_folder: graph_folder,
+                global_path: graph_folder,
                 local_path: relative_path.to_string(),
             }))
         } else {
@@ -115,7 +119,7 @@ impl ExistingGraphFolder {
         &self,
         graph: MaterializedGraph,
     ) -> Result<(), InternalPathValidationError> {
-        self.graph_folder.data_path()?.replace_graph(graph)?;
+        self.global_path.data_path()?.replace_graph(graph)?;
         Ok(())
     }
     pub fn replace_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
@@ -126,7 +130,7 @@ impl ExistingGraphFolder {
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ValidGraphFolder {
-    graph_folder: GraphFolder,
+    global_path: GraphFolder,
     local_path: String,
 }
 
@@ -276,18 +280,22 @@ impl CleanupPath {
 
 #[derive(Clone, Debug)]
 pub(crate) struct ValidWriteableGraphFolder {
-    data_path: WriteableGraphFolder,
+    global_path: WriteableGraphFolder,
     local_path: String,
     dirty_marker: Option<CleanupPath>,
 }
 
 impl GraphPaths for ValidWriteableGraphFolder {
     fn root(&self) -> &Path {
-        self.data_path.root()
+        self.global_path.root()
     }
 
-    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
-        self.data_path.data_path()
+    fn relative_data_path(&self) -> Result<String, GraphError> {
+        self.global_path.relative_data_path()
+    }
+
+    fn relative_graph_path(&self) -> Result<String, GraphError> {
+        self.global_path.relative_data_path()
     }
 }
 
@@ -311,7 +319,7 @@ impl ValidWriteableGraphFolder {
         }
         let data_path = graph_folder.init_swap()?;
         Ok(Self {
-            data_path,
+            global_path: data_path,
             dirty_marker: valid_path.cleanup,
             local_path: graph_name.to_string(),
         })
@@ -360,7 +368,7 @@ impl ValidWriteableGraphFolder {
         &self,
         graph: MaterializedGraph,
     ) -> Result<(), InternalPathValidationError> {
-        self.data_path.data_path()?.replace_graph(graph)?;
+        self.global_path.data_path()?.replace_graph(graph)?;
         Ok(())
     }
     pub fn write_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
@@ -376,7 +384,7 @@ impl ValidWriteableGraphFolder {
         &self,
         bytes: R,
     ) -> Result<(), PathValidationError> {
-        self.data_path
+        self.global_path
             .data_path()
             .with_path(&self.local_path)?
             .unzip_to_folder(bytes)
@@ -385,12 +393,12 @@ impl ValidWriteableGraphFolder {
 
     /// Swap old and new data and delete the old graph
     pub fn finish(self) -> Result<ValidGraphFolder, PathValidationError> {
-        let data_path = self.data_path.finish().with_path(&self.local_path)?;
+        let data_path = self.global_path.finish().with_path(&self.local_path)?;
         if let Some(cleanup) = self.dirty_marker.as_ref() {
             cleanup.persist().with_path(&self.local_path)?;
         }
         Ok(ValidGraphFolder {
-            graph_folder: data_path,
+            global_path: data_path,
             local_path: self.local_path,
         })
     }
@@ -555,11 +563,15 @@ pub(crate) fn mark_dirty(path: &Path) -> Result<PathBuf, InternalPathValidationE
 
 impl GraphPaths for ValidGraphFolder {
     fn root(&self) -> &Path {
-        self.graph_folder.root()
+        self.global_path.root()
     }
 
-    fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
-        self.graph_folder.data_path()
+    fn relative_data_path(&self) -> Result<String, GraphError> {
+        self.global_path.relative_data_path()
+    }
+
+    fn relative_graph_path(&self) -> Result<String, GraphError> {
+        self.global_path.relative_graph_path()
     }
 }
 
@@ -578,7 +590,7 @@ impl ValidGraphFolder {
     }
 
     pub fn graph_folder(&self) -> &GraphFolder {
-        &self.graph_folder
+        &self.global_path
     }
     pub fn created(&self) -> Result<i64, PathValidationError> {
         self.with_internal_errors(|| {
@@ -588,7 +600,7 @@ impl ValidGraphFolder {
 
     pub fn last_opened(&self) -> Result<i64, PathValidationError> {
         self.with_internal_errors(|| {
-            Ok(fs::metadata(self.graph_folder.meta_path()?)?
+            Ok(fs::metadata(self.global_path.meta_path()?)?
                 .accessed()?
                 .to_millis()?)
         })
@@ -616,7 +628,7 @@ impl ValidGraphFolder {
     }
 
     pub async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
-        let folder: GraphFolder = self.graph_folder.clone();
+        let folder: GraphFolder = self.global_path.clone();
         blocking_compute(move || folder.read_metadata())
             .await
             .with_path(self.local_path())
@@ -648,7 +660,7 @@ impl ValidGraphFolder {
         Ok(name)
     }
     pub(crate) fn as_existing(&self) -> Result<ExistingGraphFolder, PathValidationError> {
-        if self.graph_folder.is_reserved() {
+        if self.global_path.is_reserved() {
             Ok(ExistingGraphFolder(self.clone()))
         } else {
             Err(PathValidationError::GraphNotExistsError(
