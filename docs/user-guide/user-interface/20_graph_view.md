@@ -104,10 +104,6 @@ The format for styles is as follows:
         'node_types': {
             'Person': {'fill': '#1cb917'},
             'Company': {'fill': '#f8e61b'},
-        },
-        'edge_layers': {
-            'meets':{'startArrowSize': 4,  'lineWidth': 1, 'endArrowSize': 4},
-           'founds':{'startArrowSize': 5, 'lineWidth': 2, 'endArrowSize': 5}, 
         }
     }
 }
