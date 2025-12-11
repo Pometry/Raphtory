@@ -1,6 +1,8 @@
 use crate::{
     db::graph::views::filter::model::{
-        filter_operator::FilterOperator, property_filter::PropertyFilterValue, Filter, FilterValue,
+        filter::{Filter, FilterValue},
+        filter_operator::FilterOperator,
+        property_filter::PropertyFilterValue,
     },
     errors::GraphError,
     prelude::PropertyFilter,
@@ -16,7 +18,7 @@ use tantivy::{
     query::{
         AllQuery, BooleanQuery, EmptyQuery, Occur,
         Occur::{Must, MustNot, Should},
-        Query, RangeQuery, TermQuery,
+        PhrasePrefixQuery, Query, RangeQuery, TermQuery,
     },
     schema::{Field, FieldType, IndexRecordOption, Type},
     tokenizer::TokenizerManager,
@@ -33,10 +35,10 @@ impl<'a> QueryBuilder<'a> {
         Self { index }
     }
 
-    pub(crate) fn build_property_query(
+    pub(crate) fn build_property_query<M>(
         &self,
         property_index: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<M>,
     ) -> Result<Option<Box<dyn Query>>, GraphError> {
         let prop_name = filter.prop_ref.name();
         let prop_value = &filter.prop_value;
@@ -73,6 +75,15 @@ impl<'a> QueryBuilder<'a> {
                         create_property_exact_tantivy_term(property_index, prop_name, prop_value)?;
                     create_ge_query(prop_name.to_string(), prop_field_type, term)
                 }
+                FilterOperator::StartsWith => {
+                    let terms = create_property_tokenized_tantivy_terms(
+                        property_index,
+                        prop_name,
+                        prop_value,
+                    )?;
+                    create_starts_with_query(terms)
+                }
+                FilterOperator::EndsWith => None,
                 FilterOperator::Contains => {
                     let terms = create_property_tokenized_tantivy_terms(
                         property_index,
@@ -105,8 +116,8 @@ impl<'a> QueryBuilder<'a> {
                     .collect();
                 let terms = terms?;
                 match &filter.operator {
-                    FilterOperator::In => create_in_query(terms),
-                    FilterOperator::NotIn => create_not_in_query(terms),
+                    FilterOperator::IsIn => create_in_query(terms),
+                    FilterOperator::IsNotIn => create_not_in_query(terms),
                     _ => unreachable!(),
                 }
             }
@@ -139,6 +150,12 @@ impl<'a> QueryBuilder<'a> {
                     let term = create_node_exact_tantivy_term(node_index, field_name, node_value)?;
                     create_ne_query(term)
                 }
+                FilterOperator::StartsWith => {
+                    let terms =
+                        create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
+                    create_starts_with_query(terms)
+                }
+                FilterOperator::EndsWith => None,
                 FilterOperator::Contains => {
                     let terms =
                         create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
@@ -163,11 +180,16 @@ impl<'a> QueryBuilder<'a> {
                     .collect();
                 let terms = terms?;
                 match operator {
-                    FilterOperator::In => create_in_query(terms),
-                    FilterOperator::NotIn => create_not_in_query(terms),
+                    FilterOperator::IsIn => create_in_query(terms),
+                    FilterOperator::IsNotIn => create_not_in_query(terms),
                     _ => unreachable!(),
                 }
             }
+            // Unless we support persisting node ids (GID and not internal node ids) as part of index,
+            // we are better off falling back to raphtory apis to avoid wrong results. Because if we choose to use name
+            // to match against ids by converting ids to string before comparisons we are going to get wrong results.
+            // For instance, NodeFilter::id().ne(1) and NodeFilter::id().ne("1") should return different results.
+            _ => None,
         };
 
         Ok((Arc::from(node_index.clone()), query))
@@ -192,6 +214,12 @@ impl<'a> QueryBuilder<'a> {
                     let term = create_edge_exact_tantivy_term(edge_index, field_name, node_value)?;
                     create_ne_query(term)
                 }
+                FilterOperator::StartsWith => {
+                    let terms =
+                        create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
+                    create_starts_with_query(terms)
+                }
+                FilterOperator::EndsWith => None,
                 FilterOperator::Contains => {
                     let terms =
                         create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
@@ -216,11 +244,12 @@ impl<'a> QueryBuilder<'a> {
                     .collect();
                 let terms = terms?;
                 match operator {
-                    FilterOperator::In => create_in_query(terms),
-                    FilterOperator::NotIn => create_not_in_query(terms),
+                    FilterOperator::IsIn => create_in_query(terms),
+                    FilterOperator::IsNotIn => create_not_in_query(terms),
                     _ => unreachable!(),
                 }
             }
+            _ => None,
         };
 
         Ok((Arc::from(edge_index.clone()), query))
@@ -453,6 +482,13 @@ fn create_not_in_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
     } else {
         Some(Box::new(EmptyQuery))
     }
+}
+
+fn create_starts_with_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
+    if terms.is_empty() {
+        return Some(Box::new(EmptyQuery));
+    }
+    Some(Box::new(PhrasePrefixQuery::new(terms)))
 }
 
 fn create_contains_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {

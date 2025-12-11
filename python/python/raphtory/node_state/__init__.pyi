@@ -134,39 +134,6 @@ class DegreeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> DegreeView:
-        """
-         Create a view of the DegreeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             DegreeView:
-        """
-
-    def at(self, time: TimeInput) -> DegreeView:
-        """
-         Create a view of the DegreeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             DegreeView:
-        """
-
-    def before(self, end: TimeInput) -> DegreeView:
-        """
-         Create a view of the DegreeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             DegreeView:
-        """
-
     def bottom_k(self, k: int) -> NodeStateUsize:
         """
         Compute the k smallest values
@@ -194,96 +161,6 @@ class DegreeView(object):
              NodeStateUsize: the computed `NodeState`
         """
 
-    def default_layer(self) -> DegreeView:
-        """
-         Return a view of DegreeView containing only the default edge layer
-        Returns:
-             DegreeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this DegreeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this DegreeView is valid or None if the DegreeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this DegreeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> DegreeView:
-        """
-         Return a view of DegreeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             DegreeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> DegreeView:
-        """
-         Return a view of DegreeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             DegreeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> DegreeView:
-        """
-         Return a view of DegreeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             DegreeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> DegreeView:
-        """
-         Return a view of DegreeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             DegreeView: The layered view
-        """
-
-    def expanding(
-        self, step: int | str, alignment_unit: str | None = None
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
-                the windows will be aligned on days (00:00:00 to 23:59:59).
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
     def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
         """
         Get value for node
@@ -304,55 +181,12 @@ class DegreeView(object):
             NodeGroups: The grouped nodes
         """
 
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if DegreeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
     def items(self) -> Iterator[Tuple[Node, int]]:
         """
         Iterate over items
 
         Returns:
              Iterator[Tuple[Node, int]]: Iterator over items
-        """
-
-    def latest(self) -> DegreeView:
-        """
-         Create a view of the DegreeView including all events at the latest time.
-
-        Returns:
-             DegreeView:
-        """
-
-    def layer(self, name: str) -> DegreeView:
-        """
-         Return a view of DegreeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             DegreeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> DegreeView:
-        """
-         Return a view of DegreeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             DegreeView: The layered view
         """
 
     def max(self) -> Optional[int]:
@@ -420,91 +254,6 @@ class DegreeView(object):
             Nodes: The nodes
         """
 
-    def rolling(
-        self,
-        window: int | str,
-        step: int | str | None = None,
-        alignment_unit: str | None = None,
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
-        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step (or window if no step is passed).
-                For example, if the step is "1 month and 1 day",
-                the first window will begin at the start of the day of the first time event.
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> DegreeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             DegreeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> DegreeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             DegreeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> DegreeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             DegreeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> DegreeView:
-        """
-         Create a view of the DegreeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             DegreeView:
-        """
-
-    def snapshot_latest(self) -> DegreeView:
-        """
-         Create a view of the DegreeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             DegreeView:
-        """
-
     def sorted(self, reverse: bool = False) -> NodeStateUsize:
         """
         Sort by value
@@ -522,24 +271,6 @@ class DegreeView(object):
 
         Returns:
              NodeStateUsize: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this DegreeView
-
-        Returns:
-            Optional[int]: The earliest time that this DegreeView is valid or None if the DegreeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this DegreeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
 
     def sum(self) -> PropValue:
@@ -573,45 +304,12 @@ class DegreeView(object):
              NodeStateUsize: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> DegreeView:
-        """
-         Return a view of DegreeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             DegreeView: The layered view
-        """
-
     def values(self) -> Iterator[int]:
         """
         Iterate over values
 
         Returns:
              Iterator[int]: Iterator over values
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> DegreeView:
-        """
-         Create a view of the DegreeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-            end (TimeInput): The end time of the window.
-
-        Returns:
-            DegreeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this DegreeView.
-
-        Returns:
-            Optional[int]:
         """
 
 class NodeStateUsize(object):
@@ -1557,39 +1255,6 @@ class EarliestTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> EarliestTimeView:
-        """
-         Create a view of the EarliestTimeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             EarliestTimeView:
-        """
-
-    def at(self, time: TimeInput) -> EarliestTimeView:
-        """
-         Create a view of the EarliestTimeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             EarliestTimeView:
-        """
-
-    def before(self, end: TimeInput) -> EarliestTimeView:
-        """
-         Create a view of the EarliestTimeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             EarliestTimeView:
-        """
-
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -1617,96 +1282,6 @@ class EarliestTimeView(object):
              NodeStateOptionI64: the computed `NodeState`
         """
 
-    def default_layer(self) -> EarliestTimeView:
-        """
-         Return a view of EarliestTimeView containing only the default edge layer
-        Returns:
-             EarliestTimeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this EarliestTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this EarliestTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> EarliestTimeView:
-        """
-         Return a view of EarliestTimeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             EarliestTimeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> EarliestTimeView:
-        """
-         Return a view of EarliestTimeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             EarliestTimeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> EarliestTimeView:
-        """
-         Return a view of EarliestTimeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             EarliestTimeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> EarliestTimeView:
-        """
-         Return a view of EarliestTimeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             EarliestTimeView: The layered view
-        """
-
-    def expanding(
-        self, step: int | str, alignment_unit: str | None = None
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
-                the windows will be aligned on days (00:00:00 to 23:59:59).
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
     def get(
         self, node: NodeInput, default: Optional[Optional[int]] = None
     ) -> Optional[Optional[int]]:
@@ -1729,55 +1304,12 @@ class EarliestTimeView(object):
             NodeGroups: The grouped nodes
         """
 
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if EarliestTimeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
     def items(self) -> Iterator[Tuple[Node, Optional[int]]]:
         """
         Iterate over items
 
         Returns:
              Iterator[Tuple[Node, Optional[int]]]: Iterator over items
-        """
-
-    def latest(self) -> EarliestTimeView:
-        """
-         Create a view of the EarliestTimeView including all events at the latest time.
-
-        Returns:
-             EarliestTimeView:
-        """
-
-    def layer(self, name: str) -> EarliestTimeView:
-        """
-         Return a view of EarliestTimeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             EarliestTimeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> EarliestTimeView:
-        """
-         Return a view of EarliestTimeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             EarliestTimeView: The layered view
         """
 
     def max(self) -> Optional[Optional[int]]:
@@ -1837,91 +1369,6 @@ class EarliestTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(
-        self,
-        window: int | str,
-        step: int | str | None = None,
-        alignment_unit: str | None = None,
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
-        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step (or window if no step is passed).
-                For example, if the step is "1 month and 1 day",
-                the first window will begin at the start of the day of the first time event.
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> EarliestTimeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             EarliestTimeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> EarliestTimeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             EarliestTimeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> EarliestTimeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             EarliestTimeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> EarliestTimeView:
-        """
-         Create a view of the EarliestTimeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             EarliestTimeView:
-        """
-
-    def snapshot_latest(self) -> EarliestTimeView:
-        """
-         Create a view of the EarliestTimeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             EarliestTimeView:
-        """
-
     def sorted(self, reverse: bool = False) -> NodeStateOptionI64:
         """
         Sort by value
@@ -1939,24 +1386,6 @@ class EarliestTimeView(object):
 
         Returns:
              NodeStateOptionI64: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this EarliestTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this EarliestTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -1981,45 +1410,12 @@ class EarliestTimeView(object):
              NodeStateOptionI64: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> EarliestTimeView:
-        """
-         Return a view of EarliestTimeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             EarliestTimeView: The layered view
-        """
-
     def values(self) -> Iterator[Optional[int]]:
         """
         Iterate over values
 
         Returns:
              Iterator[Optional[int]]: Iterator over values
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> EarliestTimeView:
-        """
-         Create a view of the EarliestTimeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-            end (TimeInput): The end time of the window.
-
-        Returns:
-            EarliestTimeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this EarliestTimeView.
-
-        Returns:
-            Optional[int]:
         """
 
 class LatestTimeView(object):
@@ -2055,39 +1451,6 @@ class LatestTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> LatestTimeView:
-        """
-         Create a view of the LatestTimeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             LatestTimeView:
-        """
-
-    def at(self, time: TimeInput) -> LatestTimeView:
-        """
-         Create a view of the LatestTimeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             LatestTimeView:
-        """
-
-    def before(self, end: TimeInput) -> LatestTimeView:
-        """
-         Create a view of the LatestTimeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             LatestTimeView:
-        """
-
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -2115,96 +1478,6 @@ class LatestTimeView(object):
              NodeStateOptionI64: the computed `NodeState`
         """
 
-    def default_layer(self) -> LatestTimeView:
-        """
-         Return a view of LatestTimeView containing only the default edge layer
-        Returns:
-             LatestTimeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this LatestTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this LatestTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> LatestTimeView:
-        """
-         Return a view of LatestTimeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             LatestTimeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> LatestTimeView:
-        """
-         Return a view of LatestTimeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             LatestTimeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> LatestTimeView:
-        """
-         Return a view of LatestTimeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             LatestTimeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> LatestTimeView:
-        """
-         Return a view of LatestTimeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             LatestTimeView: The layered view
-        """
-
-    def expanding(
-        self, step: int | str, alignment_unit: str | None = None
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
-                the windows will be aligned on days (00:00:00 to 23:59:59).
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
     def get(
         self, node: NodeInput, default: Optional[Optional[int]] = None
     ) -> Optional[Optional[int]]:
@@ -2227,55 +1500,12 @@ class LatestTimeView(object):
             NodeGroups: The grouped nodes
         """
 
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if LatestTimeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
     def items(self) -> Iterator[Tuple[Node, Optional[int]]]:
         """
         Iterate over items
 
         Returns:
              Iterator[Tuple[Node, Optional[int]]]: Iterator over items
-        """
-
-    def latest(self) -> LatestTimeView:
-        """
-         Create a view of the LatestTimeView including all events at the latest time.
-
-        Returns:
-             LatestTimeView:
-        """
-
-    def layer(self, name: str) -> LatestTimeView:
-        """
-         Return a view of LatestTimeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             LatestTimeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> LatestTimeView:
-        """
-         Return a view of LatestTimeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             LatestTimeView: The layered view
         """
 
     def max(self) -> Optional[Optional[int]]:
@@ -2335,91 +1565,6 @@ class LatestTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(
-        self,
-        window: int | str,
-        step: int | str | None = None,
-        alignment_unit: str | None = None,
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
-        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step (or window if no step is passed).
-                For example, if the step is "1 month and 1 day",
-                the first window will begin at the start of the day of the first time event.
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> LatestTimeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             LatestTimeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> LatestTimeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             LatestTimeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> LatestTimeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             LatestTimeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> LatestTimeView:
-        """
-         Create a view of the LatestTimeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             LatestTimeView:
-        """
-
-    def snapshot_latest(self) -> LatestTimeView:
-        """
-         Create a view of the LatestTimeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             LatestTimeView:
-        """
-
     def sorted(self, reverse: bool = False) -> NodeStateOptionI64:
         """
         Sort by value
@@ -2437,24 +1582,6 @@ class LatestTimeView(object):
 
         Returns:
              NodeStateOptionI64: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this LatestTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this LatestTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -2479,45 +1606,12 @@ class LatestTimeView(object):
              NodeStateOptionI64: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> LatestTimeView:
-        """
-         Return a view of LatestTimeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             LatestTimeView: The layered view
-        """
-
     def values(self) -> Iterator[Optional[int]]:
         """
         Iterate over values
 
         Returns:
              Iterator[Optional[int]]: Iterator over values
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> LatestTimeView:
-        """
-         Create a view of the LatestTimeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-            end (TimeInput): The end time of the window.
-
-        Returns:
-            LatestTimeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this LatestTimeView.
-
-        Returns:
-            Optional[int]:
         """
 
 class NameView(object):
@@ -2923,39 +2017,6 @@ class EarliestDateTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def at(self, time: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def before(self, end: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
     def bottom_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k smallest values
@@ -2983,96 +2044,6 @@ class EarliestDateTimeView(object):
              NodeStateOptionDateTime: the computed `NodeState`
         """
 
-    def default_layer(self) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing only the default edge layer
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this EarliestDateTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this EarliestDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def expanding(
-        self, step: int | str, alignment_unit: str | None = None
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
-                the windows will be aligned on days (00:00:00 to 23:59:59).
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
     def get(
         self, node: NodeInput, default: Optional[Optional[datetime]] = None
     ) -> Optional[Optional[datetime]]:
@@ -3095,55 +2066,12 @@ class EarliestDateTimeView(object):
             NodeGroups: The grouped nodes
         """
 
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if EarliestDateTimeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
     def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
         """
         Iterate over items
 
         Returns:
              Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
-        """
-
-    def latest(self) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events at the latest time.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def layer(self, name: str) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
         """
 
     def max(self) -> Optional[Optional[datetime]]:
@@ -3203,91 +2131,6 @@ class EarliestDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(
-        self,
-        window: int | str,
-        step: int | str | None = None,
-        alignment_unit: str | None = None,
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
-        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step (or window if no step is passed).
-                For example, if the step is "1 month and 1 day",
-                the first window will begin at the start of the day of the first time event.
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> EarliestDateTimeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> EarliestDateTimeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> EarliestDateTimeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def snapshot_latest(self) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
     def sorted(self, reverse: bool = False) -> NodeStateOptionDateTime:
         """
         Sort by value
@@ -3305,24 +2148,6 @@ class EarliestDateTimeView(object):
 
         Returns:
              NodeStateOptionDateTime: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this EarliestDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this EarliestDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -3347,45 +2172,12 @@ class EarliestDateTimeView(object):
              NodeStateOptionDateTime: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
     def values(self) -> Iterator[Optional[datetime]]:
         """
         Iterate over values
 
         Returns:
              Iterator[Optional[datetime]]: Iterator over values
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-            end (TimeInput): The end time of the window.
-
-        Returns:
-            EarliestDateTimeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this EarliestDateTimeView.
-
-        Returns:
-            Optional[int]:
         """
 
 class LatestDateTimeView(object):
@@ -3421,39 +2213,6 @@ class LatestDateTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def at(self, time: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def before(self, end: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
     def bottom_k(self, k: int) -> NodeStateOptionDateTime:
         """
         Compute the k smallest values
@@ -3481,96 +2240,6 @@ class LatestDateTimeView(object):
              NodeStateOptionDateTime: the computed `NodeState`
         """
 
-    def default_layer(self) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing only the default edge layer
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this LatestDateTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this LatestDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def expanding(
-        self, step: int | str, alignment_unit: str | None = None
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
-                the windows will be aligned on days (00:00:00 to 23:59:59).
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
     def get(
         self, node: NodeInput, default: Optional[Optional[datetime]] = None
     ) -> Optional[Optional[datetime]]:
@@ -3593,55 +2262,12 @@ class LatestDateTimeView(object):
             NodeGroups: The grouped nodes
         """
 
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if LatestDateTimeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
     def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
         """
         Iterate over items
 
         Returns:
              Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
-        """
-
-    def latest(self) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events at the latest time.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def layer(self, name: str) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
         """
 
     def max(self) -> Optional[Optional[datetime]]:
@@ -3701,91 +2327,6 @@ class LatestDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(
-        self,
-        window: int | str,
-        step: int | str | None = None,
-        alignment_unit: str | None = None,
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
-        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step (or window if no step is passed).
-                For example, if the step is "1 month and 1 day",
-                the first window will begin at the start of the day of the first time event.
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> LatestDateTimeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> LatestDateTimeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> LatestDateTimeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def snapshot_latest(self) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             LatestDateTimeView:
-        """
-
     def sorted(self, reverse: bool = False) -> NodeStateOptionDateTime:
         """
         Sort by value
@@ -3803,24 +2344,6 @@ class LatestDateTimeView(object):
 
         Returns:
              NodeStateOptionDateTime: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this LatestDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this LatestDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -3845,45 +2368,12 @@ class LatestDateTimeView(object):
              NodeStateOptionDateTime: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
     def values(self) -> Iterator[Optional[datetime]]:
         """
         Iterate over values
 
         Returns:
              Iterator[Optional[datetime]]: Iterator over values
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-            end (TimeInput): The end time of the window.
-
-        Returns:
-            LatestDateTimeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this LatestDateTimeView.
-
-        Returns:
-            Optional[int]:
         """
 
 class NodeStateOptionDateTime(object):
@@ -4097,39 +2587,6 @@ class HistoryView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> HistoryView:
-        """
-         Create a view of the HistoryView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             HistoryView:
-        """
-
-    def at(self, time: TimeInput) -> HistoryView:
-        """
-         Create a view of the HistoryView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             HistoryView:
-        """
-
-    def before(self, end: TimeInput) -> HistoryView:
-        """
-         Create a view of the HistoryView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             HistoryView:
-        """
-
     def bottom_k(self, k: int) -> NodeStateListI64:
         """
         Compute the k smallest values
@@ -4157,96 +2614,6 @@ class HistoryView(object):
              NodeStateListI64: the computed `NodeState`
         """
 
-    def default_layer(self) -> HistoryView:
-        """
-         Return a view of HistoryView containing only the default edge layer
-        Returns:
-             HistoryView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this HistoryView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this HistoryView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> HistoryView:
-        """
-         Return a view of HistoryView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             HistoryView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> HistoryView:
-        """
-         Return a view of HistoryView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             HistoryView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> HistoryView:
-        """
-         Return a view of HistoryView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             HistoryView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> HistoryView:
-        """
-         Return a view of HistoryView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             HistoryView: The layered view
-        """
-
-    def expanding(
-        self, step: int | str, alignment_unit: str | None = None
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
-                the windows will be aligned on days (00:00:00 to 23:59:59).
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
     def get(
         self, node: NodeInput, default: Optional[list[int]] = None
     ) -> Optional[list[int]]:
@@ -4261,55 +2628,12 @@ class HistoryView(object):
             Optional[list[int]]: the value for the node or the default value
         """
 
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if HistoryView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
     def items(self) -> Iterator[Tuple[Node, list[int]]]:
         """
         Iterate over items
 
         Returns:
              Iterator[Tuple[Node, list[int]]]: Iterator over items
-        """
-
-    def latest(self) -> HistoryView:
-        """
-         Create a view of the HistoryView including all events at the latest time.
-
-        Returns:
-             HistoryView:
-        """
-
-    def layer(self, name: str) -> HistoryView:
-        """
-         Return a view of HistoryView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             HistoryView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> HistoryView:
-        """
-         Return a view of HistoryView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             HistoryView: The layered view
         """
 
     def max(self) -> Optional[list[int]]:
@@ -4369,91 +2693,6 @@ class HistoryView(object):
             Nodes: The nodes
         """
 
-    def rolling(
-        self,
-        window: int | str,
-        step: int | str | None = None,
-        alignment_unit: str | None = None,
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
-        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step (or window if no step is passed).
-                For example, if the step is "1 month and 1 day",
-                the first window will begin at the start of the day of the first time event.
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> HistoryView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             HistoryView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> HistoryView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             HistoryView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> HistoryView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             HistoryView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> HistoryView:
-        """
-         Create a view of the HistoryView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             HistoryView:
-        """
-
-    def snapshot_latest(self) -> HistoryView:
-        """
-         Create a view of the HistoryView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             HistoryView:
-        """
-
     def sorted(self, reverse: bool = False) -> NodeStateListI64:
         """
         Sort by value
@@ -4471,24 +2710,6 @@ class HistoryView(object):
 
         Returns:
              NodeStateListI64: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this HistoryView
-
-        Returns:
-            Optional[int]: The earliest time that this HistoryView is valid or None if the HistoryView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this HistoryView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -4513,45 +2734,12 @@ class HistoryView(object):
              NodeStateListI64: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> HistoryView:
-        """
-         Return a view of HistoryView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             HistoryView: The layered view
-        """
-
     def values(self) -> Iterator[list[int]]:
         """
         Iterate over values
 
         Returns:
              Iterator[list[int]]: Iterator over values
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> HistoryView:
-        """
-         Create a view of the HistoryView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-            end (TimeInput): The end time of the window.
-
-        Returns:
-            HistoryView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this HistoryView.
-
-        Returns:
-            Optional[int]:
         """
 
 class EdgeHistoryCountView(object):
@@ -4587,39 +2775,6 @@ class EdgeHistoryCountView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> EdgeHistoryCountView:
-        """
-         Create a view of the EdgeHistoryCountView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             EdgeHistoryCountView:
-        """
-
-    def at(self, time: TimeInput) -> EdgeHistoryCountView:
-        """
-         Create a view of the EdgeHistoryCountView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             EdgeHistoryCountView:
-        """
-
-    def before(self, end: TimeInput) -> EdgeHistoryCountView:
-        """
-         Create a view of the EdgeHistoryCountView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             EdgeHistoryCountView:
-        """
-
     def bottom_k(self, k: int) -> EdgeHistoryCountView:
         """
         Compute the k smallest values
@@ -4647,96 +2802,6 @@ class EdgeHistoryCountView(object):
              EdgeHistoryCountView: the computed `NodeState`
         """
 
-    def default_layer(self) -> EdgeHistoryCountView:
-        """
-         Return a view of EdgeHistoryCountView containing only the default edge layer
-        Returns:
-             EdgeHistoryCountView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this EdgeHistoryCountView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this EdgeHistoryCountView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> EdgeHistoryCountView:
-        """
-         Return a view of EdgeHistoryCountView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             EdgeHistoryCountView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> EdgeHistoryCountView:
-        """
-         Return a view of EdgeHistoryCountView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             EdgeHistoryCountView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> EdgeHistoryCountView:
-        """
-         Return a view of EdgeHistoryCountView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             EdgeHistoryCountView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> EdgeHistoryCountView:
-        """
-         Return a view of EdgeHistoryCountView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             EdgeHistoryCountView: The layered view
-        """
-
-    def expanding(
-        self, step: int | str, alignment_unit: str | None = None
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
-                the windows will be aligned on days (00:00:00 to 23:59:59).
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
     def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
         """
         Get value for node
@@ -4749,55 +2814,12 @@ class EdgeHistoryCountView(object):
             Optional[int]: the value for the node or the default value
         """
 
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if EdgeHistoryCountView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
     def items(self) -> Iterator[Tuple[Node, int]]:
         """
         Iterate over items
 
         Returns:
              Iterator[Tuple[Node, int]]: Iterator over items
-        """
-
-    def latest(self) -> EdgeHistoryCountView:
-        """
-         Create a view of the EdgeHistoryCountView including all events at the latest time.
-
-        Returns:
-             EdgeHistoryCountView:
-        """
-
-    def layer(self, name: str) -> EdgeHistoryCountView:
-        """
-         Return a view of EdgeHistoryCountView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             EdgeHistoryCountView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> EdgeHistoryCountView:
-        """
-         Return a view of EdgeHistoryCountView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             EdgeHistoryCountView: The layered view
         """
 
     def max(self) -> Optional[int]:
@@ -4865,91 +2887,6 @@ class EdgeHistoryCountView(object):
             Nodes: The nodes
         """
 
-    def rolling(
-        self,
-        window: int | str,
-        step: int | str | None = None,
-        alignment_unit: str | None = None,
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
-        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step (or window if no step is passed).
-                For example, if the step is "1 month and 1 day",
-                the first window will begin at the start of the day of the first time event.
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> EdgeHistoryCountView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             EdgeHistoryCountView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> EdgeHistoryCountView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             EdgeHistoryCountView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> EdgeHistoryCountView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             EdgeHistoryCountView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> EdgeHistoryCountView:
-        """
-         Create a view of the EdgeHistoryCountView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             EdgeHistoryCountView:
-        """
-
-    def snapshot_latest(self) -> EdgeHistoryCountView:
-        """
-         Create a view of the EdgeHistoryCountView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             EdgeHistoryCountView:
-        """
-
     def sorted(self, reverse: bool = False) -> EdgeHistoryCountView:
         """
         Sort by value
@@ -4967,24 +2904,6 @@ class EdgeHistoryCountView(object):
 
         Returns:
              EdgeHistoryCountView: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this EdgeHistoryCountView
-
-        Returns:
-            Optional[int]: The earliest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this EdgeHistoryCountView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
         """
 
     def sum(self) -> PropValue:
@@ -5018,45 +2937,12 @@ class EdgeHistoryCountView(object):
              EdgeHistoryCountView: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> EdgeHistoryCountView:
-        """
-         Return a view of EdgeHistoryCountView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             EdgeHistoryCountView: The layered view
-        """
-
     def values(self) -> Iterator[int]:
         """
         Iterate over values
 
         Returns:
              Iterator[int]: Iterator over values
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> EdgeHistoryCountView:
-        """
-         Create a view of the EdgeHistoryCountView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-            end (TimeInput): The end time of the window.
-
-        Returns:
-            EdgeHistoryCountView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this EdgeHistoryCountView.
-
-        Returns:
-            Optional[int]:
         """
 
 class NodeStateListI64(object):
@@ -5262,39 +3148,6 @@ class HistoryDateTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, start: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def at(self, time: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def before(self, end: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
     def bottom_k(self, k: int) -> NodeStateOptionListDateTime:
         """
         Compute the k smallest values
@@ -5322,96 +3175,6 @@ class HistoryDateTimeView(object):
              NodeStateOptionListDateTime: the computed `NodeState`
         """
 
-    def default_layer(self) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing only the default edge layer
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this HistoryDateTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this HistoryDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def expanding(
-        self, step: int | str, alignment_unit: str | None = None
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step. For example, if the step is "1 month and 1 day",
-                the windows will be aligned on days (00:00:00 to 23:59:59).
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
     def get(
         self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
     ) -> Optional[Optional[list[datetime]]]:
@@ -5426,55 +3189,12 @@ class HistoryDateTimeView(object):
             Optional[Optional[list[datetime]]]: the value for the node or the default value
         """
 
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if HistoryDateTimeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
     def items(self) -> Iterator[Tuple[Node, Optional[list[datetime]]]]:
         """
         Iterate over items
 
         Returns:
              Iterator[Tuple[Node, Optional[list[datetime]]]]: Iterator over items
-        """
-
-    def latest(self) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events at the latest time.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def layer(self, name: str) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
         """
 
     def max(self) -> Optional[Optional[list[datetime]]]:
@@ -5534,91 +3254,6 @@ class HistoryDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(
-        self,
-        window: int | str,
-        step: int | str | None = None,
-        alignment_unit: str | None = None,
-    ) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-        If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
-        may appear before the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-            alignment_unit (str | None): If no alignment_unit is passed, aligns the start of the first window
-                to the smallest unit of time passed to step (or window if no step is passed).
-                For example, if the step is "1 month and 1 day",
-                the first window will begin at the start of the day of the first time event.
-                If set to "unaligned", the first window will begin at the first time event.
-                If any other alignment unit is passed, the windows will be aligned to that unit.
-                alignment_unit defaults to None.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> HistoryDateTimeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> HistoryDateTimeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> HistoryDateTimeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def snapshot_latest(self) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
     def sorted(self, reverse: bool = False) -> NodeStateOptionListDateTime:
         """
         Sort by value
@@ -5636,24 +3271,6 @@ class HistoryDateTimeView(object):
 
         Returns:
              NodeStateOptionListDateTime: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this HistoryDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this HistoryDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -5678,45 +3295,12 @@ class HistoryDateTimeView(object):
              NodeStateOptionListDateTime: The k largest values as a node state
         """
 
-    def valid_layers(self, names: list[str]) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
     def values(self) -> Iterator[Optional[list[datetime]]]:
         """
         Iterate over values
 
         Returns:
              Iterator[Optional[list[datetime]]]: Iterator over values
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-            end (TimeInput): The end time of the window.
-
-        Returns:
-            HistoryDateTimeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this HistoryDateTimeView.
-
-        Returns:
-            Optional[int]:
         """
 
 class NodeStateOptionListDateTime(object):

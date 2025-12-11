@@ -1,6 +1,8 @@
 use crate::{
     model::graph::{
-        filtering::PathFromNodeViewCollection, node::GqlNode, windowset::GqlPathFromNodeWindowSet,
+        filtering::{GqlNodeFilter, PathFromNodeViewCollection},
+        node::GqlNode,
+        windowset::GqlPathFromNodeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
@@ -8,7 +10,10 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::time::TryIntoInterval,
-    db::{api::view::DynamicGraph, graph::path::PathFromNode},
+    db::{
+        api::view::{filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter},
+        graph::{path::PathFromNode, views::filter::model::node_filter::CompositeNodeFilter},
+    },
     errors::GraphError,
     prelude::*,
 };
@@ -16,19 +21,17 @@ use raphtory::{
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
 pub(crate) struct GqlPathFromNode {
-    pub(crate) nn: PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    pub(crate) nn: PathFromNode<'static, DynamicGraph>,
 }
 
 impl GqlPathFromNode {
-    fn update<N: Into<PathFromNode<'static, DynamicGraph, DynamicGraph>>>(&self, nodes: N) -> Self {
+    fn update<N: Into<PathFromNode<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
         GqlPathFromNode::new(nodes)
     }
 }
 
 impl GqlPathFromNode {
-    pub(crate) fn new<N: Into<PathFromNode<'static, DynamicGraph, DynamicGraph>>>(
-        nodes: N,
-    ) -> Self {
+    pub(crate) fn new<N: Into<PathFromNode<'static, DynamicGraph>>>(nodes: N) -> Self {
         Self { nn: nodes.into() }
     }
 
@@ -271,5 +274,27 @@ impl GqlPathFromNode {
             }
         }
         Ok(return_view)
+    }
+
+    /// Returns a filtered view that applies to list down the chain
+    async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
+    }
+
+    /// Returns filtered list of neighbour nodes
+    async fn select(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.select(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
     }
 }

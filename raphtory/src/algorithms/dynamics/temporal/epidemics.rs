@@ -246,7 +246,6 @@ where
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
     Ok(NodeState::new(
         g.clone(),
-        g.clone(),
         values.into(),
         Some(Index::new(index)),
     ))

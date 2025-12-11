@@ -4,10 +4,7 @@ use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 
 pub trait InternalNodeFilterOps {
     /// Check if GraphView filters nodes (i.e., there exists nodes in the underlying graph for which `filter_node` returns false
-    #[inline]
-    fn internal_nodes_filtered(&self) -> bool {
-        true
-    }
+    fn internal_nodes_filtered(&self) -> bool;
 
     /// Check if node list can be trusted. (if false, nodes in `self.node_list` need further filtering,
     /// if true, the result of `self.node_list` can be trusted, in particular, its len is the number

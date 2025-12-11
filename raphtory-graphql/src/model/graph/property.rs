@@ -36,10 +36,20 @@ pub struct ObjectEntry {
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum Value {
+    /// 8 bit unsigned integer.
+    U8(u8),
+    /// 16 bit unsigned integer.
+    U16(u16),
+    /// 32 bit unsigned integer.
+    U32(u32),
     /// 64 bit unsigned integer.
     U64(u64),
+    /// 32 bit signed integer.
+    I32(i32),
     /// 64 bit signed integer.
     I64(i64),
+    /// 32 bit float.
+    F32(f32),
     /// 64 bit float.
     F64(f64),
     /// String.
@@ -55,8 +65,13 @@ pub enum Value {
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Value::U8(v) => write!(f, "U8({})", v),
+            Value::U16(v) => write!(f, "U16({})", v),
+            Value::U32(v) => write!(f, "U32({})", v),
             Value::U64(v) => write!(f, "U64({})", v),
+            Value::I32(v) => write!(f, "I32({})", v),
             Value::I64(v) => write!(f, "I64({})", v),
+            Value::F32(v) => write!(f, "F32({})", v),
             Value::F64(v) => write!(f, "F64({})", v),
             Value::Str(v) => write!(f, "Str({})", v),
             Value::Bool(v) => write!(f, "Bool({})", v),
@@ -85,8 +100,13 @@ impl TryFrom<Value> for Prop {
 
 fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     match value {
+        Value::U8(n) => Ok(Prop::U8(n)),
+        Value::U16(n) => Ok(Prop::U16(n)),
+        Value::U32(n) => Ok(Prop::U32(n)),
         Value::U64(n) => Ok(Prop::U64(n)),
+        Value::I32(n) => Ok(Prop::I32(n)),
         Value::I64(n) => Ok(Prop::I64(n)),
+        Value::F32(n) => Ok(Prop::F32(n)),
         Value::F64(n) => Ok(Prop::F64(n)),
         Value::Str(s) => Ok(Prop::Str(s.into())),
         Value::Bool(b) => Ok(Prop::Bool(b)),
@@ -253,11 +273,13 @@ pub(crate) struct GqlTemporalProperty {
     key: String,
     prop: TemporalPropertyView<DynProps>,
 }
+
 impl GqlTemporalProperty {
     pub(crate) fn new(key: String, prop: TemporalPropertyView<DynProps>) -> Self {
         Self { key, prop }
     }
 }
+
 impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProperty {
     fn from(value: (String, TemporalPropertyView<DynProps>)) -> Self {
         GqlTemporalProperty::new(value.0, value.1)
@@ -324,6 +346,7 @@ impl GqlTemporalProperty {
 pub(crate) struct GqlProperties {
     props: DynProperties,
 }
+
 impl GqlProperties {
     #[allow(dead_code)] //This is actually being used, but for some reason cargo complains
     pub(crate) fn new(props: DynProperties) -> Self {
@@ -344,11 +367,13 @@ impl<P: Into<DynProperties>> From<P> for GqlProperties {
 pub(crate) struct GqlTemporalProperties {
     props: DynTemporalProperties,
 }
+
 impl GqlTemporalProperties {
     pub(crate) fn new(props: DynTemporalProperties) -> Self {
         Self { props }
     }
 }
+
 impl From<DynTemporalProperties> for GqlTemporalProperties {
     fn from(value: DynTemporalProperties) -> Self {
         GqlTemporalProperties::new(value)
@@ -360,11 +385,13 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
 pub(crate) struct GqlMetadata {
     props: DynMetadata,
 }
+
 impl GqlMetadata {
     pub(crate) fn new(props: DynMetadata) -> Self {
         Self { props }
     }
 }
+
 impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
     fn from(value: P) -> Self {
         GqlMetadata::new(value.into())

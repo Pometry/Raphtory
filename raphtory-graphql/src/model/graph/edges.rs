@@ -13,7 +13,7 @@ use itertools::Itertools;
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::view::{internal::OneHopFilter, DynamicGraph},
+        api::view::{internal::InternalFilter, DynamicGraph, EdgeSelect},
         graph::edges::Edges,
     },
     errors::GraphError,
@@ -21,6 +21,11 @@ use raphtory::{
 };
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
+
+use crate::model::graph::filtering::GqlEdgeFilter;
+use raphtory::db::{
+    api::view::Filter, graph::views::filter::model::edge_filter::CompositeEdgeFilter,
+};
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]
@@ -222,6 +227,7 @@ impl GqlEdges {
                 }
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                EdgesViewCollection::EdgeFilter(filter) => return_view.filter(filter).await?,
             }
         }
 
@@ -292,7 +298,6 @@ impl GqlEdges {
                 .map(|edge_view| edge_view.edge)
                 .collect();
             self_clone.update(Edges::new(
-                self_clone.ee.current_filter().clone(),
                 self_clone.ee.base_graph().clone(),
                 Arc::new(move || {
                     let sorted = sorted.clone();
@@ -353,5 +358,27 @@ impl GqlEdges {
     async fn list(&self) -> Vec<GqlEdge> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.iter().collect()).await
+    }
+
+    /// Returns a filtered view that applies to list down the chain
+    async fn filter(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filtered = self_clone.ee.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
+    }
+
+    /// Returns filtered list of edges
+    async fn select(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filtered = self_clone.ee.select(filter)?;
+            Ok(self_clone.update(filtered))
+        })
+        .await
     }
 }

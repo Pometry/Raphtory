@@ -79,6 +79,10 @@ impl<P: InternalPropertiesOps> TemporalPropertyView<P> {
         self.props.temporal_values_iter(self.id)
     }
 
+    pub fn first(&self) -> Option<Prop> {
+        self.props.temporal_values_iter(self.id).next()
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
         self.history().zip(self.values())
     }

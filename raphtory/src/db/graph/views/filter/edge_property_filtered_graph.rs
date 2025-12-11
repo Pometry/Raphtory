@@ -10,10 +10,9 @@ use crate::{
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateEdgeFilter, PropertyFilter},
+        graph::views::filter::model::{edge_filter::EdgeFilter, property_filter::PropertyFilter},
     },
-    errors::GraphError,
-    prelude::{GraphViewOps, LayerOps},
+    prelude::GraphViewOps,
 };
 use raphtory_api::inherit::Base;
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
@@ -21,29 +20,17 @@ use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::Ed
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
     graph: G,
-    prop_id: Option<usize>,
-    filter: PropertyFilter,
+    prop_id: usize,
+    filter: PropertyFilter<EdgeFilter>,
 }
 
 impl<G> EdgePropertyFilteredGraph<G> {
-    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: PropertyFilter) -> Self {
+    pub(crate) fn new(graph: G, prop_id: usize, filter: PropertyFilter<EdgeFilter>) -> Self {
         Self {
             graph,
             prop_id,
             filter,
         }
-    }
-}
-
-impl CreateEdgeFilter for PropertyFilter {
-    type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
-
-    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        Ok(EdgePropertyFilteredGraph::new(graph, prop_id, self))
     }
 }
 
@@ -89,10 +76,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgePropertyFilt
 
     #[inline]
     fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.internal_filter_edge(edge, layer_ids) {
-            self.filter.matches_edge(&self.graph, self.prop_id, edge)
-        } else {
-            false
-        }
+        self.graph.internal_filter_edge(edge, layer_ids)
+            && self.filter.matches_edge(&self.graph, self.prop_id, edge)
     }
 }
