@@ -18,8 +18,8 @@ use raphtory::{
             views::filter::model::{
                 edge_filter::EdgeFilter,
                 filter_operator::{FilterOperator, FilterOperator::*},
-                node_filter::{NodeFilter, NodeFilterBuilderOps},
-                property_filter::{PropertyFilterBuilder, PropertyFilterOps},
+                node_filter::{ops::NodeFilterOps, NodeFilter},
+                property_filter::ops::PropertyFilterOps,
                 ComposableFilter, InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
                 PropertyFilterFactory,
             },

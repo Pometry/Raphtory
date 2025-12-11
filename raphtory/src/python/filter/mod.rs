@@ -1,7 +1,7 @@
 use crate::python::filter::{
     edge_filter_builders::{
-        PyEdgeEndpoint, PyEdgeEndpointIdFilter, PyEdgeEndpointNameFilter, PyEdgeEndpointTypeFilter,
-        PyEdgeFilter,
+        PyEdgeEndpoint, PyEdgeEndpointIdFilterBuilder, PyEdgeEndpointNameFilterBuilder,
+        PyEdgeEndpointTypeFilterBuilder, PyEdgeFilter,
     },
     exploded_edge_filter_builder::PyExplodedEdgeFilter,
     filter_expr::PyFilterExpr,
@@ -36,9 +36,9 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> 
 
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyEdgeEndpoint>()?;
-    filter_module.add_class::<PyEdgeEndpointIdFilter>()?;
-    filter_module.add_class::<PyEdgeEndpointNameFilter>()?;
-    filter_module.add_class::<PyEdgeEndpointTypeFilter>()?;
+    filter_module.add_class::<PyEdgeEndpointIdFilterBuilder>()?;
+    filter_module.add_class::<PyEdgeEndpointNameFilterBuilder>()?;
+    filter_module.add_class::<PyEdgeEndpointTypeFilterBuilder>()?;
 
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
 

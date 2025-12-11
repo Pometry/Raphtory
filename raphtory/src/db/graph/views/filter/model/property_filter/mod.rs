@@ -405,39 +405,6 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
     }
 }
 
-impl CreateFilter for PropertyFilter<Windowed<EdgeFilter>> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        EdgePropertyFilteredGraph<WindowedGraph<G>>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        let filter = PropertyFilter {
-            prop_ref: self.prop_ref,
-            prop_value: self.prop_value,
-            operator: self.operator,
-            ops: self.ops,
-            entity: EdgeFilter,
-        };
-        Ok(EdgePropertyFilteredGraph::new(
-            graph.window(self.entity.start.t(), self.entity.end.t()),
-            prop_id,
-            filter,
-        ))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-}
-
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
@@ -448,38 +415,6 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
         Ok(ExplodedEdgePropertyFilteredGraph::new(graph, prop_id, self))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-}
-
-impl CreateFilter for PropertyFilter<Windowed<ExplodedEdgeFilter>> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        ExplodedEdgePropertyFilteredGraph<WindowedGraph<G>>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        let filter = PropertyFilter {
-            prop_ref: self.prop_ref,
-            prop_value: self.prop_value,
-            operator: self.operator,
-            ops: self.ops,
-            entity: ExplodedEdgeFilter,
-        };
-        Ok(ExplodedEdgePropertyFilteredGraph::new(
-            graph.window(self.entity.start.t(), self.entity.end.t()),
-            prop_id,
-            filter,
-        ))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(

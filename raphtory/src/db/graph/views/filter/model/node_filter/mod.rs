@@ -15,7 +15,7 @@ use crate::{
                 filter::Filter,
                 node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
-                    utils::validate,
+                    validate::validate,
                 },
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 windowed_filter::Windowed,
@@ -35,7 +35,7 @@ use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
 pub mod ops;
-mod utils;
+mod validate;
 
 #[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]
 pub struct NodeFilter;

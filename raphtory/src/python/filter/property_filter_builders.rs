@@ -212,151 +212,180 @@ impl PyPropertyExprBuilder {
 
 #[pymethods]
 impl PyPropertyExprBuilder {
-    /// Returns a filter expression that checks if a specified property is equal to a given value.
+    /// Returns a filter expression that checks whether the property
+    /// is equal to the given value.
     ///
     /// Arguments:
-    ///     PropValue:
+    ///     value (Prop): Property value to compare against.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating equality.
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         self.inner.__eq__(value)
     }
 
-    /// Returns a filter expression that checks if a specified property is not equal to a given value.
+    /// Returns a filter expression that checks whether the property
+    /// is not equal to the given value.
     ///
     /// Arguments:
-    ///     PropValue:
+    ///     value (Prop): Property value to compare against.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating inequality.
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
         self.inner.__ne__(value)
     }
 
-    /// Returns a filter expression that checks if a specified property is less than to a given value.
+    /// Returns a filter expression that checks whether the property
+    /// is less than the given value.
     ///
     /// Arguments:
-    ///     PropValue:
+    ///     value (Prop): Upper bound (exclusive) for the property.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating a `<` comparison.
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
         self.inner.__lt__(value)
     }
 
-    /// Returns a filter expression that checks if a specified property is less than or equal to a given value.
+    /// Returns a filter expression that checks whether the property
+    /// is less than or equal to the given value.
     ///
     /// Arguments:
-    ///     PropValue:
+    ///     value (Prop): Upper bound (inclusive) for the property.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating a `<=` comparison.
     fn __le__(&self, value: Prop) -> PyFilterExpr {
         self.inner.__le__(value)
     }
 
-    /// Returns a filter expression that checks if a specified property is greater than a given value.
+    /// Returns a filter expression that checks whether the property
+    /// is greater than the given value.
     ///
     /// Arguments:
-    ///     PropValue:
+    ///     value (Prop): Lower bound (exclusive) for the property.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating a `>` comparison.
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
         self.inner.__gt__(value)
     }
 
-    /// Returns a filter expression that checks if a specified property is greater than or equal to a given value.
+    /// Returns a filter expression that checks whether the property
+    /// is greater than or equal to the given value.
     ///
     /// Arguments:
-    ///     PropValue:
+    ///     value (Prop): Lower bound (inclusive) for the property.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating a `>=` comparison.
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
         self.inner.__ge__(value)
     }
 
-    /// Returns a filter expression that checks if a given value is in a specified iterable of properties.
+    /// Returns a filter expression that checks whether the property
+    /// is contained within the specified iterable of values.
     ///
     /// Arguments:
-    ///     values (list[PropValue]):
+    ///     values (list[Prop]): Iterable of property values to match against.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating membership.
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         self.inner.is_in(values)
     }
 
-    /// Returns a filter expression that checks if a given value is not in a specified iterable of properties.
+    /// Returns a filter expression that checks whether the property
+    /// is **not** contained within the specified iterable of values.
     ///
     /// Arguments:
-    ///     values (list[PropValue]):
+    ///     values (list[Prop]): Iterable of property values to exclude.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating non-membership.
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         self.inner.is_not_in(values)
     }
 
-    /// Returns a filter expression that checks if a given value is none.
+    /// Returns a filter expression that checks whether the property
+    /// value is `None` / missing.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating `value is None`.
     fn is_none(&self) -> PyFilterExpr {
         self.inner.is_none()
     }
 
-    /// Returns a filter expression that checks if a given value is some.
+    /// Returns a filter expression that checks whether the property
+    /// value is present (not `None`).
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating `value is not None`.
     fn is_some(&self) -> PyFilterExpr {
         self.inner.is_some()
     }
 
+    /// Returns a filter expression that checks whether the property's
+    /// string representation starts with the given value.
+    ///
+    /// Arguments:
+    ///     value (Prop): Prefix to check for.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr: A filter expression evaluating prefix matching.
     fn starts_with(&self, value: Prop) -> PyFilterExpr {
         self.inner.starts_with(value)
     }
 
+    /// Returns a filter expression that checks whether the property's
+    /// string representation ends with the given value.
+    ///
+    /// Arguments:
+    ///     value (Prop): Suffix to check for.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr: A filter expression evaluating suffix matching.
     fn ends_with(&self, value: Prop) -> PyFilterExpr {
         self.inner.ends_with(value)
     }
 
-    /// Returns a filter expression that checks if this object contains a specified property.
+    /// Returns a filter expression that checks whether the property's
+    /// string representation contains the given value.
     ///
     /// Arguments:
-    ///     PropValue:
+    ///     value (Prop): Substring that must appear within the value.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating substring search.
     fn contains(&self, value: Prop) -> PyFilterExpr {
         self.inner.contains(value)
     }
 
-    /// Returns a filter expression that checks if this object does not contain a specified property.
+    /// Returns a filter expression that checks whether the property's
+    /// string representation **does not** contain the given value.
     ///
     /// Arguments:
-    ///     PropValue:
+    ///     value (Prop): Substring that must not appear within the value.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating substring exclusion.
     fn not_contains(&self, value: Prop) -> PyFilterExpr {
         self.inner.not_contains(value)
     }
 
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    /// Returns a filter expression that performs fuzzy matching
+    /// against the property's string value.
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
+    ///     prop_value (str): String to approximately match against.
+    ///     levenshtein_distance (int): Maximum allowed Levenshtein distance.
+    ///     prefix_match (bool): Whether to require a matching prefix.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression performing approximate text matching.
     fn fuzzy_search(
         &self,
         prop_value: String,
