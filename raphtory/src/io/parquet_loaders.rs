@@ -1,7 +1,10 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{GraphError, InvalidPathReason::PathDoesNotExist},
-    io::arrow::{dataframe::*, df_loaders::*},
+    io::arrow::{
+        dataframe::*,
+        df_loaders::{edges::load_edges_from_df, *},
+    },
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
 };
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
