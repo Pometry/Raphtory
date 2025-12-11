@@ -1,5 +1,4 @@
-use crate::core::entities::properties::prop::{Prop, PropType};
-use arrow_schema::DataType;
+use crate::core::entities::properties::prop::{data_type_as_prop_type, Prop, PropType};
 use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
@@ -249,56 +248,11 @@ impl<'source> FromPyObject<'source> for PropType {
             }
         } else if let Ok(py_datatype) = ob.extract::<PyDataType>() {
             data_type_as_prop_type(&py_datatype.into_inner())
+                .map_err(|e| PyTypeError::new_err(format!("Unsupported Arrow DataType {:?}", e.0)))
         } else {
             Err(PyTypeError::new_err(
                 "PropType must be a string or an instance of itself.",
             ))
         }
-    }
-}
-
-// TODO: Get rid of this and use the one in prop_handler.rs instead
-fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, PyErr> {
-    match dt {
-        DataType::Boolean => Ok(PropType::Bool),
-        DataType::Int32 => Ok(PropType::I32),
-        DataType::Int64 => Ok(PropType::I64),
-        DataType::UInt8 => Ok(PropType::U8),
-        DataType::UInt16 => Ok(PropType::U16),
-        DataType::UInt32 => Ok(PropType::U32),
-        DataType::UInt64 => Ok(PropType::U64),
-        DataType::Float32 => Ok(PropType::F32),
-        DataType::Float64 => Ok(PropType::F64),
-        DataType::Utf8 => Ok(PropType::Str),
-        DataType::LargeUtf8 => Ok(PropType::Str),
-        DataType::Utf8View => Ok(PropType::Str),
-        DataType::Struct(fields) => Ok(PropType::map(fields.iter().filter_map(|f| {
-            data_type_as_prop_type(f.data_type())
-                .ok()
-                .map(move |pt| (f.name(), pt))
-        }))),
-        DataType::List(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
-            v.data_type(),
-        )?))),
-        DataType::FixedSizeList(v, _) => Ok(PropType::List(Box::new(data_type_as_prop_type(
-            v.data_type(),
-        )?))),
-        DataType::LargeList(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
-            v.data_type(),
-        )?))),
-        DataType::Timestamp(_, v) => match v {
-            None => Ok(PropType::NDTime),
-            Some(_) => Ok(PropType::DTime),
-        },
-        DataType::Date32 => Ok(PropType::NDTime),
-        DataType::Date64 => Ok(PropType::NDTime),
-        DataType::Decimal128(precision, scale) if *precision <= 38 => Ok(PropType::Decimal {
-            scale: *scale as i64,
-        }),
-        DataType::Null => Ok(PropType::Empty),
-        _ => Err(PyTypeError::new_err(format!(
-            "Unsupported Arrow DataType {:?}",
-            dt
-        ))),
     }
 }
