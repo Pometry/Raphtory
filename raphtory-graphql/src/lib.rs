@@ -62,6 +62,28 @@ mod graphql_test {
     use tempfile::tempdir;
 
     #[tokio::test]
+    async fn test_copy_graph() {
+        let graph = Graph::new();
+        graph.add_node(1, "test", NO_PROPS, None).unwrap();
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let namespace = tmp_dir.path().join("test");
+        fs::create_dir(&namespace).unwrap();
+        graph.encode(namespace.join("g3")).unwrap();
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let query = r#"mutation {
+            copyGraph(
+                path: "test/g3",
+                newPath: "test/g4",
+            )
+        }"#;
+
+        let req = Request::new(query);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors, []);
+    }
+
+    #[tokio::test]
     #[cfg(feature = "search")]
     async fn test_search_nodes_gql() {
         let graph = Graph::new();

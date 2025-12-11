@@ -242,8 +242,8 @@ impl Mut {
         // for the templates or if it needs to be vectorised at all
         let overwrite = overwrite.unwrap_or(false);
         let data = ctx.data_unchecked::<Data>();
-        let folder = data.validate_path_for_insert(new_path, overwrite)?;
         let graph = data.get_graph(path).await?.graph;
+        let folder = data.validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, graph).await?;
 
         Ok(true)
