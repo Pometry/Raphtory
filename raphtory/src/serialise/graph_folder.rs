@@ -372,7 +372,7 @@ impl GraphFolder {
                 return Err(GraphError::NonEmptyGraphFolder(self.root_folder.clone()));
             }
         } else {
-            fs::create_dir_all(&self.root_folder)?
+            fs::create_dir(&self.root_folder)?
         }
 
         Ok(())
