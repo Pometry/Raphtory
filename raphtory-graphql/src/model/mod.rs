@@ -262,11 +262,6 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
-
-        if overwrite {
-            let _ignored = data.delete_graph(&path).await;
-        }
-
         data.insert_graph_as_bytes(folder, in_file).await?;
 
         Ok(path)
