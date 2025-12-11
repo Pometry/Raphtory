@@ -212,6 +212,10 @@ impl PyPropType {
     fn __repr__(&self) -> String {
         format!("PropType.{}", self.0)
     }
+
+    fn __eq__(&self, other: PropType) -> bool {
+        self.0 == other
+    }
 }
 
 impl<'py> IntoPyObject<'py> for PropType {

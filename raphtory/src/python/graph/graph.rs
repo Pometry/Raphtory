@@ -672,11 +672,19 @@ impl PyGraph {
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
-        schema: Option<Vec<(String, PropType)>>,
+        schema: Option<Bound<'py, PyAny>>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        let column_schema = schema.map(|s| s.into_iter().collect::<HashMap<String, PropType>>());
+        let column_schema = schema.map(|s| {
+            if let Ok(list) = s.extract::<Vec<(String, PropType)>>() {
+                Ok(list.into_iter().collect::<HashMap<String, PropType>>())
+            } else if let Ok(map) = s.extract::<HashMap<String, PropType>>() {
+                Ok(map)
+            } else {
+                Err(GraphError::from(PyValueError::new_err("Argument 'schema' must either be a list of (column_name, column_type) tuples or a dict mapping {'column_name' : column_type}")))
+            }
+        }).transpose()?;
         if data.hasattr("__arrow_c_stream__")? {
             load_nodes_from_arrow_c_stream(
                 &self.graph,
