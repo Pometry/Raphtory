@@ -439,20 +439,20 @@ impl From<io::Error> for InternalPathValidationError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum PathValidationError {
-    #[error("Graph {0} already exists")]
+    #[error("Graph '{0}' already exists")]
     GraphExistsError(String),
-    #[error("Graph {0} does not exist")]
+    #[error("Graph '{0}' does not exist")]
     GraphNotExistsError(String),
-    #[error("The path provided does not exists as a namespace: {0}")]
+    #[error("'{0}' does not exist as a namespace")]
     NamespaceDoesNotExist(String),
     #[error(transparent)]
     InvalidPath(#[from] InvalidPathReason),
-    #[error("Graph {graph} is corrupted: {error}")]
+    #[error("Graph '{graph}' is corrupted: {error}")]
     InternalError {
         graph: String,
         error: InternalPathValidationError,
     },
-    #[error("Unexpected IO error for graph {graph}: {error}")]
+    #[error("Unexpected IO error for graph '{graph}': {error}")]
     IOError { graph: String, error: io::Error },
 }
 

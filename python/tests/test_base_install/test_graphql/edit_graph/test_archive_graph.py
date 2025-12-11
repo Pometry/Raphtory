@@ -21,7 +21,7 @@ def test_archive_graph_fails_if_graph_not_found():
                 }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'g1' not found" in str(excinfo.value)
 
 
 def test_archive_graph_fails_if_graph_not_found_at_namespace():
@@ -38,7 +38,7 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
                 }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'shivam/g1' not found" in str(excinfo.value)
 
 
 def test_archive_graph_succeeds():
