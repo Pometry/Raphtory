@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 #[cfg(feature = "search")]
 use crate::config::index_config::IndexConfig;
+use crate::config::otlp_config::TracingLevel;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
 pub struct AppConfig {
@@ -62,6 +63,11 @@ impl AppConfigBuilder {
 
     pub fn with_tracing(mut self, tracing: bool) -> Self {
         self.tracing.tracing_enabled = tracing;
+        self
+    }
+
+    pub fn with_tracing_level(mut self, tracing_level: TracingLevel) -> Self {
+        self.tracing.tracing_level = tracing_level;
         self
     }
 
@@ -156,6 +162,10 @@ pub fn load_config(
 
     if let Ok(tracing) = settings.get::<bool>("tracing.tracing_enabled") {
         app_config_builder = app_config_builder.with_tracing(tracing);
+    }
+
+    if let Ok(tracing_level) = settings.get::<TracingLevel>("tracing.tracing_level") {
+        app_config_builder = app_config_builder.with_tracing_level(tracing_level);
     }
 
     if let Ok(otlp_agent_host) = settings.get::<String>("tracing.otlp_agent_host") {

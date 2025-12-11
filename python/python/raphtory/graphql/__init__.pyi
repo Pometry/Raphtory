@@ -68,6 +68,7 @@ class GraphServer(object):
         cache_tti_seconds: Optional[int] = None,
         log_level: Optional[str] = None,
         tracing: Optional[bool] = None,
+        tracing_level=None,
         otlp_agent_host: Optional[str] = None,
         otlp_agent_port: Optional[str] = None,
         otlp_tracing_service_name: Optional[str] = None,

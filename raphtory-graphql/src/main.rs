@@ -8,8 +8,8 @@ use raphtory_graphql::{
         cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
-            DEFAULT_OTLP_AGENT_HOST, DEFAULT_OTLP_AGENT_PORT, DEFAULT_OTLP_TRACING_SERVICE_NAME,
-            DEFAULT_TRACING_ENABLED,
+            TracingLevel, DEFAULT_OTLP_AGENT_HOST, DEFAULT_OTLP_AGENT_PORT,
+            DEFAULT_OTLP_TRACING_SERVICE_NAME, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
         },
     },
     model::App,
@@ -40,6 +40,9 @@ struct Args {
 
     #[arg(long, default_value_t = DEFAULT_TRACING_ENABLED)]
     tracing: bool,
+
+    #[arg(long, default_value_t = DEFAULT_TRACING_LEVEL)]
+    tracing_level: TracingLevel,
 
     #[arg(long, default_value = DEFAULT_OTLP_AGENT_HOST)]
     otlp_agent_host: String,
@@ -86,6 +89,7 @@ async fn main() -> IoResult<()> {
             .with_cache_tti_seconds(args.cache_tti_seconds)
             .with_log_level(args.log_level)
             .with_tracing(args.tracing)
+            .with_tracing_level(args.tracing_level)
             .with_otlp_agent_host(args.otlp_agent_host)
             .with_otlp_agent_port(args.otlp_agent_port)
             .with_otlp_tracing_service_name(args.otlp_tracing_service_name)
