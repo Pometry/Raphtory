@@ -56,8 +56,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Edge
         eid: MaybeNew<ELID>,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
-        self.static_session
-            .add_edge_into_layer(t, src, dst, eid, props);
+        self.static_session.add_edge_into_layer(t, src, dst, eid, props);
 
         eid
     }

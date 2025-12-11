@@ -193,6 +193,7 @@ impl<
             if self.edge_writer.is_none() {
                 self.edge_writer = Some(self.graph.edge_writer(e_id));
             }
+
             let edge_writer = self.edge_writer.as_mut().unwrap();
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 

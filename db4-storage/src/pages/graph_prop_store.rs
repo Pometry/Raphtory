@@ -66,6 +66,10 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: Config> GraphPropStorageInne
         self.page.entry()
     }
 
+    pub fn segment(&self) -> &Arc<GS> {
+        &self.page
+    }
+
     pub fn writer(&self) -> GraphPropWriter<'_, GS> {
         let head = self.page.head_mut();
         let graph_props = &self.page;

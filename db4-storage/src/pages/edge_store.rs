@@ -117,6 +117,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         &self.layer_counter
     }
 
+    pub fn segments(&self) -> &boxcar::Vec<Arc<ES>> {
+        &self.segments
+    }
+
     pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
         let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {

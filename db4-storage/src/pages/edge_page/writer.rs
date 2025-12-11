@@ -119,6 +119,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(layer_id));
         self.writer
             .insert_static_edge_internal(edge_pos, src, dst, layer_id);
+
         edge_pos
     }
 

@@ -42,7 +42,7 @@ impl GraphWal for NoWal {
 
     fn replay_to_graph<G: GraphReplay>(
         _dir: impl AsRef<Path>,
-        _graph: &mut G,
+        _graph: &G,
     ) -> Result<(), StorageError> {
         todo!()
     }

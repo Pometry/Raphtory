@@ -72,7 +72,7 @@ pub trait GraphWal {
     /// Replays and applies all the wal entries in the given directory to the given graph.
     fn replay_to_graph<G: GraphReplay>(
         dir: impl AsRef<Path>,
-        graph: &mut G,
+        graph: &G,
     ) -> Result<(), StorageError>;
 }
 
