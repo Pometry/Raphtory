@@ -4,11 +4,11 @@ use crate::{
         graph::{
             edge::EdgeView,
             views::filter::{
-                internal::CreateFilter,
                 model::{
                     exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                     property_filter::PropertyRef,
                 },
+                CreateFilter,
             },
         },
     },

@@ -669,8 +669,8 @@ mod test_filters_window_graph {
                 graph::{
                     assertions::WindowGraphTransformer,
                     views::filter::model::{
-                        node_filter::{NodeFilter, NodeFilterBuilderOps},
-                        property_filter::PropertyFilterOps,
+                        node_filter::{ops::NodeFilterOps, NodeFilter},
+                        property_filter::ops::PropertyFilterOps,
                         PropertyFilterFactory,
                     },
                 },
@@ -2798,8 +2798,8 @@ mod test_filters_window_graph {
                         TestGraphVariants, TestVariants, WindowGraphTransformer,
                     },
                     views::filter::model::{
-                        edge_filter::EdgeFilter, node_filter::NodeFilterBuilderOps,
-                        property_filter::PropertyFilterOps, ComposableFilter,
+                        edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
+                        property_filter::ops::PropertyFilterOps, ComposableFilter,
                         PropertyFilterFactory,
                     },
                 },

@@ -10,4 +10,4 @@ pub use lazy_node_state::LazyNodeState;
 pub use node_state::{Index, NodeState};
 pub use node_state_ops::NodeStateOps;
 pub use node_state_ord_ops::{AsOrderedNodeStateOps, OrderedNodeStateOps};
-pub use ops::node::NodeOp;
+pub use ops::NodeOp;

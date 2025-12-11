@@ -4,27 +4,27 @@ use raphtory::{
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            state::NodeOp,
+            state::ops::NodeOp,
             view::{
-                filter_ops::Filter,
+                filter_ops::{Filter, NodeSelect},
                 internal::{
                     GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter,
                     InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
                     InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
                 },
-                Select,
+                EdgeSelect,
             },
         },
         graph::{
             assertions::assert_ok_or_missing_nodes,
             graph::assert_edges_equal,
             views::filter::{
-                internal::CreateFilter,
                 model::{
-                    node_filter::{NodeFilter, NodeFilterBuilderOps},
-                    property_filter::PropertyFilterOps,
+                    node_filter::{ops::NodeFilterOps, NodeFilter},
+                    property_filter::ops::PropertyFilterOps,
                     ComposableFilter, PropertyFilterFactory,
                 },
+                CreateFilter,
             },
         },
     },
@@ -39,7 +39,6 @@ use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},
     layer_ops::InternalLayerOps,
 };
-
 #[test]
 #[ignore]
 // TODO: Enable this once fixed

@@ -12,7 +12,7 @@ use raphtory::{
             },
             views::{
                 deletion_graph::PersistentGraph,
-                filter::model::{ExplodedEdgeFilter, PropertyFilterOps},
+                filter::model::{property_filter::ops::PropertyFilterOps, ExplodedEdgeFilter},
             },
         },
     },

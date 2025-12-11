@@ -1,8 +1,5 @@
 use crate::{
-    db::{
-        api::view::{filter_ops::Filter, StaticGraphViewOps},
-        graph::views::filter::internal::CreateFilter,
-    },
+    db::api::view::{filter_ops::Filter, StaticGraphViewOps},
     prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
 };
 use std::ops::Range;
@@ -12,7 +9,10 @@ pub use crate::db::api::view::SearchableGraphOps;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    db::graph::views::{filter::model::TryAsCompositeFilter, window_graph::WindowedGraph},
+    db::graph::views::{
+        filter::{model::TryAsCompositeFilter, CreateFilter},
+        window_graph::WindowedGraph,
+    },
     errors::GraphError,
     prelude::TimeOps,
 };

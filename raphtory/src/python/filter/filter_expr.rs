@@ -1,27 +1,27 @@
 use crate::{
     db::{
         api::{
-            state::NodeOp,
+            state::ops::NodeOp,
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
-            internal::CreateFilter,
             model::{
                 edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
                 not_filter::NotFilter, or_filter::OrFilter, AndFilter, TryAsCompositeFilter,
             },
+            CreateFilter,
         },
     },
     errors::GraphError,
     prelude::GraphViewOps,
-    python::filter::create_filter::DynInternalFilterOps,
+    python::filter::create_filter::DynCreateFilter,
 };
 use pyo3::prelude::*;
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter", subclass)]
 #[derive(Clone)]
-pub struct PyFilterExpr(pub Arc<dyn DynInternalFilterOps>);
+pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>);
 
 impl PyFilterExpr {
     pub fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

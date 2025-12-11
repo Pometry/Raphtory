@@ -13,8 +13,8 @@ use itertools::Itertools;
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::view::{internal::InternalFilter, DynamicGraph, Select},
-        graph::{edges::Edges, views::filter::model::edge_filter::CompositeEdgeFilter},
+        api::view::{internal::InternalFilter, DynamicGraph, EdgeSelect},
+        graph::edges::Edges,
     },
     errors::GraphError,
     prelude::*,
@@ -23,7 +23,9 @@ use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
 
 use crate::model::graph::filtering::GqlEdgeFilter;
-use raphtory::db::api::view::Filter;
+use raphtory::db::{
+    api::view::Filter, graph::views::filter::model::edge_filter::CompositeEdgeFilter,
+};
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]

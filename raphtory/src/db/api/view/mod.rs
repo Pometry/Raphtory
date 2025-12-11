@@ -14,7 +14,7 @@ use ouroboros::self_referencing;
 use std::marker::PhantomData;
 
 use crate::db::api::view::internal::{filtered_node::FilteredNodeStorageOps, GraphView};
-pub use filter_ops::{Filter, Select};
+pub use filter_ops::{EdgeSelect, Filter};
 pub use graph::*;
 pub use internal::{
     BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynHop, IntoDynamic, MaterializedGraph,

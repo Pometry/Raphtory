@@ -28,10 +28,14 @@ __all__ = [
     "FilterOps",
     "PropertyFilterOps",
     "Node",
+    "NodeIdFilterBuilder",
+    "NodeNameFilterBuilder",
+    "NodeTypeFilterBuilder",
     "Edge",
     "EdgeEndpoint",
-    "EdgeFilterOp",
-    "EdgeIdFilterOp",
+    "EdgeEndpointIdFilter",
+    "EdgeEndpointNameFilter",
+    "EdgeEndpointTypeFilter",
     "ExplodedEdge",
 ]
 
@@ -73,90 +77,119 @@ class FilterOps(object):
     def all(self): ...
     def any(self): ...
     def avg(self): ...
-    def contains(self, value) -> filter.FilterExpr:
+    def contains(self, value: Prop) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if this object contains a specified property.
+        Returns a filter expression that checks whether the property's
+        string representation contains the given value.
 
         Arguments:
-            PropValue:
+            value (Prop): Substring that must appear within the value.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating substring search.
         """
 
-    def ends_with(self, value): ...
+    def ends_with(self, value: Prop) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the property's
+        string representation ends with the given value.
+
+        Arguments:
+            value (Prop): Suffix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating suffix matching.
+        """
+
     def first(self): ...
     def fuzzy_search(
         self, prop_value: str, levenshtein_distance: int, prefix_match: bool
     ) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if the specified properties approximately match the specified string.
+        Returns a filter expression that performs fuzzy matching
+        against the property's string value.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
         Arguments:
-            prop_value (str): Property to match against.
-            levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-            prefix_match (bool): Enable prefix matching.
+            prop_value (str): String to approximately match against.
+            levenshtein_distance (int): Maximum allowed Levenshtein distance.
+            prefix_match (bool): Whether to require a matching prefix.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression performing approximate text matching.
         """
 
-    def is_in(self, values: list[PropValue]) -> filter.FilterExpr:
+    def is_in(self, values: list[Prop]) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if a given value is in a specified iterable of properties.
+        Returns a filter expression that checks whether the property
+        is contained within the specified iterable of values.
 
         Arguments:
-            values (list[PropValue]):
+            values (list[Prop]): Iterable of property values to match against.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating membership.
         """
 
     def is_none(self) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if a given value is none.
+        Returns a filter expression that checks whether the property
+        value is `None` / missing.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating `value is None`.
         """
 
-    def is_not_in(self, values: list[PropValue]) -> filter.FilterExpr:
+    def is_not_in(self, values: list[Prop]) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if a given value is not in a specified iterable of properties.
+        Returns a filter expression that checks whether the property
+        is **not** contained within the specified iterable of values.
 
         Arguments:
-            values (list[PropValue]):
+            values (list[Prop]): Iterable of property values to exclude.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating non-membership.
         """
 
     def is_some(self) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if a given value is some.
+        Returns a filter expression that checks whether the property
+        value is present (not `None`).
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating `value is not None`.
         """
 
     def last(self): ...
     def len(self): ...
     def max(self): ...
     def min(self): ...
-    def not_contains(self, value) -> filter.FilterExpr:
+    def not_contains(self, value: Prop) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if this object does not contain a specified property.
+        Returns a filter expression that checks whether the property's
+        string representation **does not** contain the given value.
 
         Arguments:
-            PropValue:
+            value (Prop): Substring that must not appear within the value.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating substring exclusion.
         """
 
-    def starts_with(self, value): ...
+    def starts_with(self, value: Prop) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the property's
+        string representation starts with the given value.
+
+        Arguments:
+            value (Prop): Prefix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating prefix matching.
+        """
+
     def sum(self): ...
 
 class PropertyFilterOps(FilterOps):
@@ -176,26 +209,7 @@ class Node(object):
     @staticmethod
     def window(start, end): ...
 
-class Edge(object):
-    @staticmethod
-    def dst(): ...
-    @staticmethod
-    def metadata(name): ...
-    @staticmethod
-    def property(name): ...
-    @staticmethod
-    def src(): ...
-    @staticmethod
-    def window(start, end): ...
-
-class EdgeEndpoint(object):
-    def id(self): ...
-    def metadata(self, name): ...
-    def name(self): ...
-    def node_type(self): ...
-    def property(self, name): ...
-
-class EdgeFilterOp(object):
+class NodeIdFilterBuilder(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -216,69 +230,95 @@ class EdgeFilterOp(object):
 
     def contains(self, value: str) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if a given value contains the specified string.
+        Returns a filter expression that checks whether the string
+        representation of the node ID contains the given substring.
 
         Arguments:
-            value (str):
+            value (str): Substring that must appear within the value.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating substring search.
         """
 
-    def ends_with(self, value): ...
+    def ends_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the string
+        representation of the node ID ends with the given suffix.
+
+        Arguments:
+            value (str): Suffix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating suffix matching.
+        """
+
     def fuzzy_search(
-        self, value, levenshtein_distance: int, prefix_match: bool
+        self, value: str, levenshtein_distance: int, prefix_match: bool
     ) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if the specified properties approximately match the specified string.
+        Returns a filter expression that performs fuzzy matching
+        against the string representation of the node ID.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
         Arguments:
-            prop_value (str): Property to match against.
-            levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-            prefix_match (bool): Enable prefix matching.
+            value (str): String to approximately match against.
+            levenshtein_distance (int): Maximum allowed edit distance.
+            prefix_match (bool): If true, the value must also match as a prefix.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression performing approximate text matching.
         """
 
-    def is_in(self, values: list[str]) -> filter.FilterExpr:
+    def is_in(self, values: list[int]) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
+        Returns a filter expression that checks whether the node ID
+        is contained within the specified iterable of IDs.
 
         Arguments:
-            values (list[str]):
+            values (list[int]): Iterable of node IDs to match against.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating membership.
         """
 
-    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
+    def is_not_in(self, values: list[int]) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
+        Returns a filter expression that checks whether the node ID
+        is **not** contained within the specified iterable of IDs.
 
         Arguments:
-            values (list[str]):
+            values (list[int]): Iterable of node IDs to exclude.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating non-membership.
         """
 
     def not_contains(self, value: str) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks if a given value does not contain the specified string.
+        Returns a filter expression that checks whether the string
+        representation of the node ID **does not** contain the given substring.
 
         Arguments:
-            value (str):
+            value (str): Substring that must not appear within the value.
 
         Returns:
-            filter.FilterExpr:
+            filter.FilterExpr: A filter expression evaluating substring exclusion.
         """
 
-    def starts_with(self, value): ...
+    def starts_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the string
+        representation of the node ID starts with the given prefix.
 
-class EdgeIdFilterOp(object):
+        Arguments:
+            value (str): Prefix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating prefix matching.
+        """
+
+class NodeNameFilterBuilder(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -297,13 +337,550 @@ class EdgeIdFilterOp(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value): ...
-    def ends_with(self, value): ...
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
-    def is_in(self, values): ...
-    def is_not_in(self, values): ...
-    def not_contains(self, value): ...
-    def starts_with(self, value): ...
+    def contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value contains the given substring.
+
+        Arguments:
+            value (str): Substring that must appear within the value.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring search.
+        """
+
+    def ends_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value ends with the specified suffix.
+
+        Arguments:
+            value (str): Suffix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating suffix matching.
+        """
+
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
+        """
+        Returns a filter expression that performs fuzzy matching
+        against the entity's string value.
+
+        Uses a specified Levenshtein distance and optional prefix matching.
+
+        Arguments:
+            value (str): String to approximately match against.
+            levenshtein_distance (int): Maximum allowed edit distance.
+            prefix_match (bool): If true, the value must also match as a prefix.
+
+        Returns:
+            filter.FilterExpr: A filter expression performing approximate text matching.
+        """
+
+    def is_in(self, values: list[str]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value is contained within the given iterable of strings.
+
+        Arguments:
+            values (list[str]): Iterable of allowed string values.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating membership.
+        """
+
+    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value is **not** contained within the given iterable of strings.
+
+        Arguments:
+            values (list[str]): Iterable of string values to exclude.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating non-membership.
+        """
+
+    def not_contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value **does not** contain the given substring.
+
+        Arguments:
+            value (str): Substring that must not appear within the value.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring exclusion.
+        """
+
+    def starts_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value starts with the specified prefix.
+
+        Arguments:
+            value (str): Prefix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating prefix matching.
+        """
+
+class NodeTypeFilterBuilder(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value contains the given substring.
+
+        Arguments:
+            value (str): Substring that must appear within the value.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring search.
+        """
+
+    def ends_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value ends with the specified suffix.
+
+        Arguments:
+            value (str): Suffix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating suffix matching.
+        """
+
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
+        """
+        Returns a filter expression that performs fuzzy matching
+        against the entity's string value.
+
+        Uses a specified Levenshtein distance and optional prefix matching.
+
+        Arguments:
+            value (str): String to approximately match against.
+            levenshtein_distance (int): Maximum allowed edit distance.
+            prefix_match (bool): If true, the value must also match as a prefix.
+
+        Returns:
+            filter.FilterExpr: A filter expression performing approximate text matching.
+        """
+
+    def is_in(self, values: list[str]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value is contained within the given iterable of strings.
+
+        Arguments:
+            values (list[str]): Iterable of allowed string values.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating membership.
+        """
+
+    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value is **not** contained within the given iterable of strings.
+
+        Arguments:
+            values (list[str]): Iterable of string values to exclude.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating non-membership.
+        """
+
+    def not_contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value **does not** contain the given substring.
+
+        Arguments:
+            value (str): Substring that must not appear within the value.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring exclusion.
+        """
+
+    def starts_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value starts with the specified prefix.
+
+        Arguments:
+            value (str): Prefix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating prefix matching.
+        """
+
+class Edge(object):
+    @staticmethod
+    def dst(): ...
+    @staticmethod
+    def metadata(name): ...
+    @staticmethod
+    def property(name): ...
+    @staticmethod
+    def src(): ...
+    @staticmethod
+    def window(start, end): ...
+
+class EdgeEndpoint(object):
+    def id(self): ...
+    def metadata(self, name): ...
+    def name(self): ...
+    def node_type(self): ...
+    def property(self, name): ...
+
+class EdgeEndpointIdFilter(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the string
+        representation of the endpoint ID contains the given substring.
+
+        Arguments:
+            value (str): Substring to search for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring search.
+        """
+
+    def ends_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the string
+        representation of the endpoint ID ends with the given suffix.
+
+        Arguments:
+            value (str): Suffix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating suffix matching.
+        """
+
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
+        """
+        Returns a filter expression that performs fuzzy matching
+        against the string representation of the endpoint ID.
+
+        Uses a specified Levenshtein distance and optional prefix matching.
+
+        Arguments:
+            value (str): String to approximately match against.
+            levenshtein_distance (int): Maximum allowed Levenshtein distance.
+            prefix_match (bool): Whether to require a matching prefix.
+
+        Returns:
+            filter.FilterExpr: A filter expression performing approximate text matching.
+        """
+
+    def is_in(self, values: list[int]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the endpoint ID
+        is contained within the specified iterable of IDs.
+
+        Arguments:
+            values (list[int]): Iterable of node IDs to match against.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating membership.
+        """
+
+    def is_not_in(self, values: list[int]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the endpoint ID
+        is **not** contained within the specified iterable of IDs.
+
+        Arguments:
+            values (list[int]): Iterable of node IDs to exclude.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating non-membership.
+        """
+
+    def not_contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the string
+        representation of the endpoint ID **does not** contain the given substring.
+
+        Arguments:
+            value (str): Substring to exclude.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring exclusion.
+        """
+
+    def starts_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the string
+        representation of the endpoint ID starts with the given prefix.
+
+        Arguments:
+            value (str): Prefix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating prefix matching.
+        """
+
+class EdgeEndpointNameFilter(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value contains the given substring.
+
+        Arguments:
+            value (str): Substring that must appear within the value.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring search.
+        """
+
+    def ends_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value ends with the specified suffix.
+
+        Arguments:
+            value (str): Suffix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating suffix matching.
+        """
+
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
+        """
+        Returns a filter expression that performs fuzzy matching
+        against the entity's string value.
+
+        Uses a specified Levenshtein distance and optional prefix matching.
+
+        Arguments:
+            value (str): String to approximately match against.
+            levenshtein_distance (int): Maximum allowed edit distance.
+            prefix_match (bool): If true, the value must also match as a prefix.
+
+        Returns:
+            filter.FilterExpr: A filter expression performing approximate text matching.
+        """
+
+    def is_in(self, values: list[str]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value is contained within the given iterable of strings.
+
+        Arguments:
+            values (list[str]): Iterable of allowed string values.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating membership.
+        """
+
+    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value is **not** contained within the given iterable of strings.
+
+        Arguments:
+            values (list[str]): Iterable of string values to exclude.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating non-membership.
+        """
+
+    def not_contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value **does not** contain the given substring.
+
+        Arguments:
+            value (str): Substring that must not appear within the value.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring exclusion.
+        """
+
+    def starts_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value starts with the specified prefix.
+
+        Arguments:
+            value (str): Prefix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating prefix matching.
+        """
+
+class EdgeEndpointTypeFilter(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value contains the given substring.
+
+        Arguments:
+            value (str): Substring that must appear within the value.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring search.
+        """
+
+    def ends_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value ends with the specified suffix.
+
+        Arguments:
+            value (str): Suffix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating suffix matching.
+        """
+
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
+        """
+        Returns a filter expression that performs fuzzy matching
+        against the entity's string value.
+
+        Uses a specified Levenshtein distance and optional prefix matching.
+
+        Arguments:
+            value (str): String to approximately match against.
+            levenshtein_distance (int): Maximum allowed edit distance.
+            prefix_match (bool): If true, the value must also match as a prefix.
+
+        Returns:
+            filter.FilterExpr: A filter expression performing approximate text matching.
+        """
+
+    def is_in(self, values: list[str]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value is contained within the given iterable of strings.
+
+        Arguments:
+            values (list[str]): Iterable of allowed string values.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating membership.
+        """
+
+    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value is **not** contained within the given iterable of strings.
+
+        Arguments:
+            values (list[str]): Iterable of string values to exclude.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating non-membership.
+        """
+
+    def not_contains(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value **does not** contain the given substring.
+
+        Arguments:
+            value (str): Substring that must not appear within the value.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating substring exclusion.
+        """
+
+    def starts_with(self, value: str) -> filter.FilterExpr:
+        """
+        Returns a filter expression that checks whether the entity's
+        string value starts with the specified prefix.
+
+        Arguments:
+            value (str): Prefix to check for.
+
+        Returns:
+            filter.FilterExpr: A filter expression evaluating prefix matching.
+        """
 
 class ExplodedEdge(object):
     @staticmethod

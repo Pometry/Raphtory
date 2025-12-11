@@ -18,11 +18,10 @@ use raphtory::{
             views::filter::model::{
                 edge_filter::EdgeFilter,
                 filter_operator::{FilterOperator, FilterOperator::*},
-                node_filter::{NodeFilter, NodeFilterBuilderOps},
-                property_filter::{
-                    InternalPropertyFilterBuilderOps, PropertyFilterBuilder, PropertyFilterOps,
-                },
-                ComposableFilter, InternalPropertyFilterFactory, PropertyFilterFactory,
+                node_filter::{ops::NodeFilterOps, NodeFilter},
+                property_filter::ops::PropertyFilterOps,
+                ComposableFilter, InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                PropertyFilterFactory,
             },
         },
     },
@@ -200,8 +199,8 @@ fn convert_to_property_filter<M>(
 ) -> Option<PropertyFilter<M>>
 where
     M: PropertyFilterFactory + Default + InternalPropertyFilterFactory,
-    <M as InternalPropertyFilterFactory>::PropertyBuilder: PropertyFilterOps
-        + InternalPropertyFilterBuilderOps<Marker = M, Filter = PropertyFilter<M>>,
+    <M as InternalPropertyFilterFactory>::PropertyBuilder:
+        PropertyFilterOps + InternalPropertyFilterBuilder<Marker = M, Filter = PropertyFilter<M>>,
 {
     let mut rng = thread_rng();
 

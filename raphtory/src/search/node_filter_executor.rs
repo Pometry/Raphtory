@@ -1,15 +1,15 @@
 use crate::{
     db::{
-        api::view::{BoxableGraphView, StaticGraphViewOps},
+        api::view::{filter_ops::NodeSelect, BoxableGraphView, StaticGraphViewOps},
         graph::{
             node::NodeView,
             views::filter::{
-                internal::CreateFilter,
                 model::{
+                    filter::Filter,
                     node_filter::{CompositeNodeFilter, NodeFilter},
                     property_filter::PropertyRef,
-                    Filter,
                 },
+                CreateFilter,
             },
         },
     },

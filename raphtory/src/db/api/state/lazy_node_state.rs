@@ -305,7 +305,7 @@ mod test {
         db::api::{
             state::{
                 lazy_node_state::LazyNodeState,
-                ops::{node::NodeOp, Degree},
+                ops::{node::Degree, NodeOp},
             },
             view::IntoDynamic,
         },

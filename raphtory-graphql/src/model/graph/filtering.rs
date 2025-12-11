@@ -9,10 +9,11 @@ use dynamic_graphql::{
 use raphtory::{
     db::graph::views::filter::model::{
         edge_filter::{CompositeEdgeFilter, EdgeFilter},
+        filter::{Filter, FilterValue},
         filter_operator::FilterOperator,
         node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-        Filter, FilterValue, Windowed,
+        windowed_filter::Windowed,
     },
     errors::GraphError,
 };

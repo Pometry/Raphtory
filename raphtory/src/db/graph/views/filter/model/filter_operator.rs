@@ -1,4 +1,6 @@
-use crate::db::graph::views::filter::model::{property_filter::PropertyFilterValue, FilterValue};
+use crate::db::graph::views::filter::model::{
+    filter::FilterValue, property_filter::PropertyFilterValue,
+};
 use raphtory_api::core::entities::{properties::prop::Prop, GidRef, GID};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;

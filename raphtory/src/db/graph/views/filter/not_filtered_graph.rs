@@ -1,18 +1,13 @@
 use crate::{
-    db::{
-        api::{
-            properties::internal::InheritPropertiesOps,
-            state::ops::{filter::NotOp, NodeFilterOp},
-            view::internal::{
-                FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
-                InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
-            },
+    db::api::{
+        properties::internal::InheritPropertiesOps,
+        view::internal::{
+            FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
+            InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
         },
-        graph::views::filter::{internal::CreateFilter, model::not_filter::NotFilter},
     },
-    errors::GraphError,
     prelude::GraphViewOps,
 };
 use raphtory_api::{
@@ -29,35 +24,8 @@ use raphtory_storage::{
 
 #[derive(Debug, Clone)]
 pub struct NotFilteredGraph<G, T> {
-    graph: G,
-    filter: T,
-}
-
-impl<T: CreateFilter> CreateFilter for NotFilter<T> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = NotFilteredGraph<G, T::EntityFiltered<'graph, G>>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph>
-        = NotOp<T::NodeFilter<'graph, G>>
-    where
-        Self: 'graph;
-
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.0.create_filter(graph.clone())?;
-        Ok(NotFilteredGraph { graph, filter })
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(self.0.create_node_filter(graph)?.not())
-    }
+    pub(crate) graph: G,
+    pub(crate) filter: T,
 }
 
 impl<G, T> Base for NotFilteredGraph<G, T> {

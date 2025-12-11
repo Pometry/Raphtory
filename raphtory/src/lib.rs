@@ -141,12 +141,16 @@ pub mod prelude {
                 },
                 view::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
             },
-            graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
+            graph::graph::Graph,
         },
     };
 
     pub use crate::db::graph::views::filter::model::{
-        node_filter::NodeFilter, EdgeFilter, Filter, PropertyFilterFactory,
+        filter::Filter, property_filter::PropertyFilter,
+    };
+
+    pub use crate::db::graph::views::filter::model::{
+        node_filter::NodeFilter, EdgeFilter, PropertyFilterFactory,
     };
 
     #[cfg(feature = "storage")]
