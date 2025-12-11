@@ -20,7 +20,7 @@ def test_copy_graph_fails_if_graph_not_found():
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph 'ben/g5' not found" in str(excinfo.value)
+        assert "Graph 'ben/g5' does not exist" in str(excinfo.value)
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists():
