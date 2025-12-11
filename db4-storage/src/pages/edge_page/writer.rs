@@ -3,9 +3,7 @@ use crate::{
     segments::edge::segment::MemEdgeSegment,
 };
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
-use raphtory_core::{
-    storage::timeindex::{AsTime, TimeIndexEntry},
-};
+use raphtory_core::storage::timeindex::{AsTime, TimeIndexEntry};
 use std::ops::DerefMut;
 
 pub struct EdgeWriter<
@@ -56,31 +54,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, props, lsn);
         edge_pos
     }
-
-    // pub fn bulk_add_edges(
-    //     &mut self,
-    //     mask: &BooleanArray,
-    //     time: &[i64],
-    //     start_idx: usize,
-    //     eids: &[EID],
-    //     srcs: &[VID],
-    //     dsts: &[VID],
-    //     layer_id: usize,
-    //     cols: &[ArrayRef],
-    //     cols_prop_ids: &[usize],
-    // ) {
-    //     self.writer.bulk_insert_edges_internal(
-    //         mask,
-    //         time,
-    //         start_idx,
-    //         eids,
-    //         srcs,
-    //         dsts,
-    //         layer_id,
-    //         cols,
-    //         cols_prop_ids,
-    //     );
-    // }
 
     pub fn delete_edge<T: AsTime>(
         &mut self,

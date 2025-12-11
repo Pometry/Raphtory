@@ -7,6 +7,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
+    serialise::parquet::{DST_COL_ID, EDGE_COL_ID, SRC_COL_ID},
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
@@ -54,8 +55,9 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetTEdge<'a, G> {
 
         state.serialize_entry(TIME_COL, &t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &t.1)?;
-        state.serialize_entry(SRC_COL, &ParquetGID(edge.src().id()))?;
-        state.serialize_entry(DST_COL, &ParquetGID(edge.dst().id()))?;
+        state.serialize_entry(SRC_COL_ID, &edge.src().node.0)?;
+        state.serialize_entry(DST_COL_ID, &edge.dst().node.0)?;
+        state.serialize_entry(EDGE_COL_ID, &edge.edge.pid())?;
         state.serialize_entry(LAYER_COL, &layer)?;
 
         for (name, prop) in edge.properties().temporal().iter_latest() {

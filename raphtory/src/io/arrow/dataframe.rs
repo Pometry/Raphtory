@@ -47,10 +47,12 @@ where
     }
 
     pub(crate) fn get_index(&self, name: &str) -> Result<usize, GraphError> {
-        self.names
-            .iter()
-            .position(|n| n == name)
+        self.get_index_opt(name)
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
+    }
+
+    pub(crate) fn get_index_opt(&self, name: &str) -> Option<usize> {
+        self.names.iter().position(|n| n == name)
     }
 
     pub fn is_empty(&self) -> bool {

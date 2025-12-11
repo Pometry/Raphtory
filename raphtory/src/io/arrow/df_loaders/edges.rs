@@ -11,6 +11,10 @@ use crate::{
     },
     prelude::*,
 };
+use arrow::{
+    array::{AsArray, PrimitiveArray},
+    datatypes::UInt64Type,
+};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;
@@ -42,23 +46,38 @@ use storage::{
     Extension,
 };
 
+#[derive(Debug, Copy, Clone)]
+pub struct ColumnNames<'a> {
+    pub time: &'a str,
+    pub secondary_index: Option<&'a str>,
+    pub src: &'a str,
+    pub dst: &'a str,
+    pub edge_id: Option<&'a str>,
+    pub layer_col: Option<&'a str>,
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
-    time: &str,
-    secondary_index: Option<&str>,
-    src: &str,
-    dst: &str,
+    column_names: ColumnNames,
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
-    layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
     }
+
+    let ColumnNames {
+        time,
+        secondary_index,
+        src,
+        dst,
+        edge_id,
+        layer_col,
+    } = column_names;
 
     let properties_indices = properties
         .iter()
@@ -72,6 +91,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
+    let edge_id_col = edge_id.and_then(|name| df_view.get_index_opt(name));
     let secondary_index_index = secondary_index
         .map(|col| df_view.get_index(col))
         .transpose()?;
@@ -95,6 +115,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut eid_col_resolved: Vec<EID> = vec![];
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
+
+    let resolve_ids = true; // todo add this to function params
 
     rayon::scope(|s| {
         let (tx, rx) = mpsc::sync_channel(2);
@@ -120,24 +142,24 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         .resolve_edge_property(key, dtype, true)
                         .map_err(into_graph_err)
                 })?;
-
-            src_col_resolved.resize_with(df.len(), Default::default);
-            dst_col_resolved.resize_with(df.len(), Default::default);
-
-            let atomic_src_col = atomic_vid_from_mut_slice(&mut src_col_resolved);
-            let atomic_dst_col = atomic_vid_from_mut_slice(&mut dst_col_resolved);
-
+            // validate src and dst columns
+            let src_col = df.node_col(src_index)?;
+            src_col.validate(graph, LoadError::MissingSrcError)?;
+            let dst_col = df.node_col(dst_index)?;
+            dst_col.validate(graph, LoadError::MissingDstError)?;
             let layer = lift_layer_col(layer, layer_index, &df)?;
             let layer_col_resolved = layer.resolve(graph)?;
 
-            let src_col = df.node_col(src_index)?;
-            src_col.validate(graph, LoadError::MissingSrcError)?;
-
-            let dst_col = df.node_col(dst_index)?;
-            dst_col.validate(graph, LoadError::MissingDstError)?;
-            let gid_str_cache = resolve_nodes_with_cache::<G>(
+            let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
                 graph,
-                [(&src_col, atomic_src_col), (&dst_col, atomic_dst_col)].as_ref(),
+                src_index,
+                dst_index,
+                &mut src_col_resolved,
+                &mut dst_col_resolved,
+                resolve_ids,
+                &df,
+                &src_col,
+                &dst_col,
             )?;
 
             let time_col = df.time_col(time_index)?;
@@ -159,42 +181,61 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 pos.as_eid(page, edges.max_page_len())
             };
 
-            let mut per_segment_edge_count = Vec::with_capacity(write_locked_graph.nodes.len());
-            per_segment_edge_count
-                .resize_with(write_locked_graph.nodes.len(), || AtomicUsize::new(0));
-
             let WriteLockedGraph {
                 nodes, ref edges, ..
             } = &mut write_locked_graph;
+
+            let eids = edge_id_col.and_then(|edge_id_col| {
+                Some(
+                    df.chunk[edge_id_col]
+                        .as_primitive_opt::<UInt64Type>()?
+                        .values()
+                        .as_ref(),
+                )
+            });
 
             // Generate all edge_ids + add outbound edges
             nodes.par_iter_mut().for_each(|locked_page| {
                 // Zip all columns for iteration.
                 let zip = izip!(
-                    src_col_resolved.iter(),
-                    dst_col_resolved.iter(),
+                    src_vids.iter(),
+                    dst_vids.iter(),
                     time_col.iter(),
                     secondary_index_col.iter(),
                     layer_col_resolved.iter()
                 );
 
-                store_node_ids(&gid_str_cache, locked_page);
+                if resolve_ids {
+                    store_node_ids(&gid_str_cache, locked_page);
+                }
 
-                add_and_resolve_outbound_edges(
-                    &eids_exist,
-                    &layer_eids_exist,
-                    &eid_col_shared,
-                    next_edge_id,
-                    edges,
-                    locked_page,
-                    zip,
-                );
+                if resolve_ids {
+                    add_and_resolve_outbound_edges(
+                        &eids_exist,
+                        &layer_eids_exist,
+                        &eid_col_shared,
+                        next_edge_id,
+                        edges,
+                        locked_page,
+                        zip,
+                    );
+                } else if let Some(edge_ids) = eids {
+                    add_and_resolve_outbound_edges(
+                        &eids_exist,
+                        &layer_eids_exist,
+                        &eid_col_shared,
+                        |row| EID(edge_ids[row] as usize),
+                        edges,
+                        locked_page,
+                        zip,
+                    );
+                }
             });
 
             write_locked_graph.nodes.par_iter_mut().for_each(|shard| {
                 let zip = izip!(
-                    src_col_resolved.iter(),
-                    dst_col_resolved.iter(),
+                    src_vids.iter(),
+                    dst_vids.iter(),
                     eid_col_resolved.iter(),
                     time_col.iter(),
                     secondary_index_col.iter(),
@@ -212,8 +253,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             write_locked_graph.edges.par_iter_mut().for_each(|shard| {
                 let zip = izip!(
-                    src_col_resolved.iter(),
-                    dst_col_resolved.iter(),
+                    src_vids.iter(),
+                    dst_vids.iter(),
                     time_col.iter(),
                     secondary_index_col.iter(),
                     eid_col_resolved.iter(),
@@ -233,6 +274,65 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     // set the type of the resolver;
 
     Ok(())
+}
+
+fn get_or_resolve_node_vids<
+    'a: 'c,
+    'b: 'c,
+    'c,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    graph: &G,
+    src_index: usize,
+    dst_index: usize,
+    src_col_resolved: &'a mut Vec<VID>,
+    dst_col_resolved: &'a mut Vec<VID>,
+    resolve_nodes: bool,
+    df: &'b DFChunk,
+    src_col: &'a NodeCol,
+    dst_col: &'a NodeCol,
+) -> Result<
+    (
+        &'c [VID],
+        &'c [VID],
+        FxDashMap<GidRef<'a>, (Prop, MaybeNew<VID>)>,
+    ),
+    GraphError,
+> {
+    let (src_vids, dst_vids, gid_str_cache) = if resolve_nodes {
+        src_col_resolved.resize_with(df.len(), Default::default);
+        dst_col_resolved.resize_with(df.len(), Default::default);
+
+        let atomic_src_col = atomic_vid_from_mut_slice(src_col_resolved);
+        let atomic_dst_col = atomic_vid_from_mut_slice(dst_col_resolved);
+
+        let gid_str_cache = resolve_nodes_with_cache::<G>(
+            graph,
+            [(src_col, atomic_src_col), (dst_col, atomic_dst_col)].as_ref(),
+        )?;
+        (
+            src_col_resolved.as_slice(),
+            dst_col_resolved.as_slice(),
+            gid_str_cache,
+        )
+    } else {
+        let srcs = df.chunk[src_index]
+            .as_primitive_opt::<UInt64Type>()
+            .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[src_index].data_type().clone()))?
+            .values()
+            .as_ref();
+        let dsts = df.chunk[dst_index]
+            .as_primitive_opt::<UInt64Type>()
+            .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[dst_index].data_type().clone()))?
+            .values()
+            .as_ref();
+        (
+            bytemuck::cast_slice(srcs),
+            bytemuck::cast_slice(dsts),
+            FxDashMap::default(),
+        )
+    };
+    Ok((src_vids, dst_vids, gid_str_cache))
 }
 
 #[inline(never)]

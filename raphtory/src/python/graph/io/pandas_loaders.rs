@@ -3,7 +3,10 @@ use crate::{
     errors::GraphError,
     io::arrow::{
         dataframe::*,
-        df_loaders::{edges::load_edges_from_df, *},
+        df_loaders::{
+            edges::{load_edges_from_df, ColumnNames},
+            *,
+        },
     },
     prelude::{AdditionOps, PropertyAdditionOps},
     python::graph::io::*,
@@ -97,15 +100,18 @@ pub(crate) fn load_edges_from_pandas<
 
     load_edges_from_df(
         df_view,
-        time,
-        secondary_index,
-        src,
-        dst,
+        ColumnNames {
+            time,
+            secondary_index,
+            src,
+            dst,
+            layer_col,
+            edge_id: None,
+        },
         properties,
         metadata,
         shared_metadata,
         layer,
-        layer_col,
         graph,
     )
 }
