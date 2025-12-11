@@ -214,7 +214,7 @@ class VectorSelection(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> None:
         """
-        Add the top `limit` adjacent entities with higher score for `query` to the selection
+        Adds the top `limit` adjacent entities with higher score for `query` to the selection.
 
         The expansion algorithm is a loop with two steps on each iteration:
 
