@@ -9,7 +9,7 @@ mod test {
     use crate::{
         io::arrow::{
             dataframe::{DFChunk, DFView},
-            df_loaders::*,
+            df_loaders::{edges::load_edges_from_df, *},
         },
         prelude::*,
     };

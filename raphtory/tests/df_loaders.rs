@@ -10,7 +10,7 @@ mod io_tests {
         errors::GraphError,
         io::arrow::{
             dataframe::{DFChunk, DFView},
-            df_loaders::{load_edges_from_df, load_nodes_from_df},
+            df_loaders::{edges::load_edges_from_df, load_nodes_from_df},
         },
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},

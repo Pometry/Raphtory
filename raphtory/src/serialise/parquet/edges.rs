@@ -22,12 +22,13 @@ pub(crate) fn encode_edge_tprop(
         g.edges().segmented_par_iter(),
         path,
         EDGES_T_PATH,
-        |id_type| {
+        |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(SRC_COL, id_type.clone(), false),
-                Field::new(DST_COL, id_type.clone(), false),
+                Field::new(SRC_COL_ID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
             ]
         },

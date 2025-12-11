@@ -3,7 +3,10 @@ use crate::{
     errors::{GraphError, InvalidPathReason::PathDoesNotExist},
     io::arrow::{
         dataframe::*,
-        df_loaders::{edges::load_edges_from_df, *},
+        df_loaders::{
+            edges::{load_edges_from_df, ColumnNames},
+            *,
+        },
     },
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
 };
@@ -130,15 +133,18 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
 
     load_edges_from_df(
         df_view,
-        time,
-        secondary_index,
-        src,
-        dst,
+        ColumnNames {
+            time,
+            secondary_index,
+            src,
+            dst,
+            layer_col,
+            edge_id: None,
+        },
         properties,
         metadata,
         shared_metadata,
         layer,
-        layer_col,
         graph,
     )
     .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;

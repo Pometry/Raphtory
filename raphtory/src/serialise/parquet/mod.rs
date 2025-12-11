@@ -186,6 +186,9 @@ const TIME_COL: &str = "rap_time";
 const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
 const SRC_COL: &str = "rap_src";
 const DST_COL: &str = "rap_dst";
+const SRC_COL_ID: &str = "rap_src_id";
+const DST_COL_ID: &str = "rap_dst_id";
+const EDGE_COL_ID: &str = "rap_edge_id";
 const LAYER_COL: &str = "rap_layer";
 const EDGES_T_PATH: &str = "edges_t";
 const EDGES_D_PATH: &str = "edges_d"; // deletions
@@ -528,7 +531,13 @@ fn decode_graph_storage(
     let t_edge_path = path.as_ref().join(EDGES_T_PATH);
 
     if std::fs::exists(&t_edge_path)? {
-        let exclude = vec![TIME_COL, SECONDARY_INDEX_COL, SRC_COL, DST_COL, LAYER_COL];
+        let exclude = vec![
+            TIME_COL,
+            SECONDARY_INDEX_COL,
+            SRC_COL_ID,
+            DST_COL_ID,
+            LAYER_COL,
+        ];
         let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;
         let t_prop_columns = t_prop_columns
             .iter()
@@ -540,8 +549,8 @@ fn decode_graph_storage(
             &t_edge_path,
             TIME_COL,
             Some(SECONDARY_INDEX_COL),
-            SRC_COL,
-            DST_COL,
+            SRC_COL_ID,
+            DST_COL_ID,
             &t_prop_columns,
             &[],
             None,
