@@ -354,17 +354,26 @@ impl<
         let node_writers = if src_chunk < dst_chunk {
             let src = self.node_writer(src_chunk);
             let dst = self.node_writer(dst_chunk);
+
             NodeWriters { src, dst: Some(dst) }
         } else if src_chunk > dst_chunk {
             let dst = self.node_writer(dst_chunk);
             let src = self.node_writer(src_chunk);
+
             NodeWriters { src, dst: Some(dst) }
         } else {
             let src = self.node_writer(src_chunk);
+
             NodeWriters { src, dst: None }
         };
 
-        let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
+        let (_, src_pos) = self.nodes.resolve_pos(src);
+        let existing_eid = node_writers.src.get_out_edge(src_pos, dst, 0);
+
+        let edge_writer = match e_id.or(existing_eid) {
+            Some(e_id) => self.edge_writer(e_id),
+            None => self.get_free_writer(),
+        };
 
         WriteSession::new(node_writers, edge_writer, self)
     }
@@ -398,7 +407,13 @@ impl<
             NodeWriters { src: writer, dst: None }
         };
 
-        let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
+        let (_, src_pos) = self.nodes.resolve_pos(src);
+        let existing_eid = node_writers.src.get_out_edge(src_pos, dst, 0);
+
+        let edge_writer = match e_id.or(existing_eid) {
+            Some(e_id) => self.edge_writer(e_id),
+            None => self.get_free_writer(),
+        };
 
         WriteSession::new(node_writers, edge_writer, self)
     }
