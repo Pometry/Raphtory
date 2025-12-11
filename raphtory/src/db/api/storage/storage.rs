@@ -32,6 +32,7 @@ use raphtory_storage::{
 };
 use std::{
     fmt::{Display, Formatter},
+    io::{Seek, Write},
     path::Path,
     sync::Arc,
 };
@@ -50,6 +51,7 @@ use {
     raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
     std::ops::{Deref, DerefMut},
     tracing::info,
+    zip::ZipWriter,
 };
 
 #[derive(Debug, Default)]
@@ -251,14 +253,18 @@ impl Storage {
         Ok(())
     }
 
-    pub(crate) fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn persist_index_to_disk_zip<W: Write + Seek>(
+        &self,
+        writer: &mut ZipWriter<W>,
+        prefix: &str,
+    ) -> Result<(), GraphError> {
         let guard = self.get_index().read_recursive();
         if guard.is_indexed() {
             if guard.path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
                 return Ok(());
             }
-            self.if_index(|index| index.persist_to_disk_zip(path))?;
+            self.if_index(|index| index.persist_to_disk_zip(writer, prefix))?;
         }
         Ok(())
     }

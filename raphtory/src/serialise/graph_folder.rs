@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File},
     io::{self, ErrorKind, Read, Seek, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 use walkdir::WalkDir;
 use zip::{
@@ -468,6 +468,7 @@ impl WriteableGraphFolder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct InnerGraphFolder {
     path: PathBuf,
 }

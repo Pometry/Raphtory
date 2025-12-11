@@ -438,7 +438,7 @@ mod serialise_test {
     fn encode_decode_prop_test() {
         proptest!(|(edges in build_edge_list(100, 100))| {
             let g = build_graph_from_edge_list(&edges);
-            let bytes = g.encode_to_bytes();
+            let bytes = g.encode_to_bytes().unwrap();
             let g2 = Graph::decode_from_bytes(&bytes, None).unwrap();
             assert_graph_equal(&g, &g2);
         })

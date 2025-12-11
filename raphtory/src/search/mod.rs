@@ -906,7 +906,7 @@ mod test_index {
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
             let folder = GraphFolder::new_as_zip(path);
-            graph.encode(folder.root_folder).unwrap();
+            graph.encode(folder).unwrap();
 
             let graph = Graph::decode(path, None).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());

@@ -33,6 +33,9 @@ use pyo3::PyErr;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
+#[cfg(feature = "io")]
+use zip::result::ZipError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
     #[error("Backslash not allowed in path: {0}")]
@@ -60,11 +63,8 @@ pub enum InvalidPathReason {
     GraphIsNamespace(PathBuf),
     #[error("The path provided already exists as a graph: {0}")]
     NamespaceIsGraph(PathBuf),
-    #[error("Failed to strip prefix")]
-    StripPrefix {
-        #[from]
-        source: StripPrefixError,
-    },
+    #[error("Failed to strip prefix: {source}")]
+    StripPrefix { source: StripPrefixError },
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -253,8 +253,8 @@ pub enum GraphError {
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
-        #[from]
         source: zip::result::ZipError,
+        location: &'static Location<'static>,
     },
 
     #[error("Not a zip archive")]
@@ -436,6 +436,12 @@ pub enum GraphError {
 
     #[error("Invalid prefix, expected '{expected}', got '{actual}'")]
     InvalidPrefix { expected: String, actual: String },
+
+    #[error("{source} at {location}")]
+    StripPrefixError {
+        source: StripPrefixError,
+        location: &'static Location<'static>,
+    },
 }
 
 impl From<MetadataError> for GraphError {
@@ -480,6 +486,23 @@ impl From<io::Error> for GraphError {
     fn from(source: io::Error) -> Self {
         let location = Location::caller();
         GraphError::IOError { source, location }
+    }
+}
+
+#[cfg(feature = "io")]
+impl From<ZipError> for GraphError {
+    #[track_caller]
+    fn from(source: ZipError) -> Self {
+        let location = Location::caller();
+        GraphError::ZipError { source, location }
+    }
+}
+
+impl From<StripPrefixError> for GraphError {
+    #[track_caller]
+    fn from(source: StripPrefixError) -> Self {
+        let location = Location::caller();
+        GraphError::StripPrefixError { source, location }
     }
 }
 

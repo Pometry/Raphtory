@@ -1,11 +1,15 @@
 use crate::{
-    db::api::view::{IndexSpec, IndexSpecBuilder},
+    db::api::view::{internal::InternalStorageOps, IndexSpec, IndexSpecBuilder},
     errors::GraphError,
     prelude::AdditionOps,
     serialise::{GraphFolder, GraphPaths},
 };
-use std::{fs::File, path::Path};
-use zip::ZipArchive;
+use std::{
+    fs::File,
+    io::{Seek, Write},
+    path::Path,
+};
+use zip::{ZipArchive, ZipWriter};
 
 /// Mutation operations for managing indexes.
 pub trait IndexMutationOps: Sized + AdditionOps {
@@ -55,7 +59,7 @@ pub trait IndexMutationOps: Sized + AdditionOps {
     ///
     /// Returns:
     ///     None:
-    fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError>;
+    fn persist_index_to_disk(&self, path: &impl GraphPaths) -> Result<(), GraphError>;
 
     /// Persists the current index to disk as a compressed ZIP file at the specified path.
     ///
@@ -64,7 +68,11 @@ pub trait IndexMutationOps: Sized + AdditionOps {
     ///
     /// Returns:
     ///     None:
-    fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError>;
+    fn persist_index_to_disk_zip<W: Write + Seek>(
+        &self,
+        writer: &mut ZipWriter<W>,
+        prefix: &str,
+    ) -> Result<(), GraphError>;
 
     /// Drops (removes) the current index from the database.
     ///
@@ -138,13 +146,13 @@ impl<G: AdditionOps> IndexMutationOps for G {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 if path.is_zip() {
-                    if has_index(path.get_base_path())? {
+                    if has_index(path.root())? {
                         storage.load_index_if_empty(&path)?;
                     } else {
                         return Ok(()); // Skip if no index in zip
                     }
                 } else {
-                    let index_path = path.get_index_path();
+                    let index_path = path.index_path()?;
                     if index_path.exists() && index_path.read_dir()?.next().is_some() {
                         storage.load_index_if_empty(&path)?;
                     }
@@ -162,12 +170,14 @@ impl<G: AdditionOps> IndexMutationOps for G {
             })
     }
 
-    fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    fn persist_index_to_disk_zip<W: Write + Seek>(
+        &self,
+        writer: &mut ZipWriter<W>,
+        prefix: &str,
+    ) -> Result<(), GraphError> {
         self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.persist_index_to_disk_zip(&path)?;
-                Ok(())
-            })
+            .ok_or(GraphError::IndexingNotSupported)?
+            .persist_index_to_disk_zip(writer, prefix)
     }
 
     fn drop_index(&self) -> Result<(), GraphError> {
