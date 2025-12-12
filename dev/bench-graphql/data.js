@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765549637947,
+  "lastUpdate": 1765555156676,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2807,6 +2807,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1295,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "79378897+arienandalibi@users.noreply.github.com",
+            "name": "arienandalibi",
+            "username": "arienandalibi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9fd87709d3865c1dd060a5167951716dc390a97d",
+          "message": "Adding support for loading data from any `__arrow_c_stream__` source (#2391)\n\n* Added tests for loading edges from polars and from fireducks. Added a load_edges_from_polars that internally calls to_pandas() on the polars dataframe. Fireducks works.\n\n* Adding loading of data (only edges for now) from arrow directly\n\n* Adding loading of data (only edges for now) from arrow with streaming in rust instead of obtaining each column of each batch from Python individually.\n\n* Added loading of edges from DuckDB, either normally or using streaming.\n\n* Added loading edges from fireducks.pandas dataframes. General cleaning up. Committing benchmarks and tests that check graph equality when using different ingestion pathways.\n\n* Adding flag to stream/not stream data in load_* functions. Will get rid of them and always stream. Added benchmark for loading from fireducks.\n\n* Added functions for load_nodes, load_node_props, load_edges, load_edge_props, that all use the __arrow_c_stream__() interface. If a data source is passed with no __len__ function, we calculate the len ourselves. Updated ingestion benchmarks to also test pandas_streaming, fireducks_streaming, polars_streaming\n\n* Cleaned up benchmark print statements\n\n* Ran make stubs\n\n* Removed num_rows from DFView. No longer calculating/storing the total number of rows.\n\n* Cleaned up load_*_from_df functions. load_edge_props/load_node_props renamed to load_edge_metadata/load_node_metadata.\n\n* Re-added total number of rows in DFView, but as an Option. We use it if the data source provides __len__(), and if not, the loading/progress bar for loading nodes and edges doesn't show progression, only iterations per second.\n\n* Added splitting of large chunks into smaller chunks so that the progress bar for loading updates properly when using the __arrow_c_stream__ interface.\n\n* Renamed props to metadata for remaining functions\n\n* Added tests to check equality between graphs created using different ingestion pathways\n\n* Changed load_*_metadata_* back to load_*_props_*\n\n* Fixed tests and updated workflow dependencies\n\n* Added try-catch blocks for fireducks import in tests\n\n* Fixed tests and notebooks\n\n* Fixed invalid function call in test\n\n* Fixed fireducks package not available on Windows (for now anyway)\n\n* Added load_*_from_df functions to PyPersistentGraph, including load_edge_deletions_from_df\n\n* Cleaned up load_from_df tests and parametrized them to run for both event graphs/persistent graphs.\n\n* Fixed bug in tests\n\n* Removed btc dataset benchmarks\n\n* Merge cleanup and fixing python docs errors\n\n* Changed unsafe ArrowArrayStreamReader pointer cast to stream arrow data from python. Replaced it with PyRecordBatchReader::from_arrow_pycapsule for safety and future changes.\n\n* Removed artefact comment\n\n* Fix innit and tidy\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: miratepuffin <b.a.steer@qmul.ac.uk>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-12-12T15:23:23Z",
+          "tree_id": "4e586b033864158a919058827769463a3019d8ab",
+          "url": "https://github.com/Pometry/Raphtory/commit/9fd87709d3865c1dd060a5167951716dc390a97d"
+        },
+        "date": 1765555151310,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1242,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 193,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 162,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1094,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 904,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1231,
             "unit": "req/s"
           }
         ]
