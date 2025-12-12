@@ -71,17 +71,23 @@ pub fn load_nodes_from_parquet<
 pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     parquet_path: impl AsRef<Path>,
-    time: &str,
-    secondary_index: Option<&str>,
-    src: &str,
-    dst: &str,
+    column_names: ColumnNames,
+    resolve_nodes: bool,
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
-    layer_col: Option<&str>,
     batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
+    let ColumnNames {
+        time,
+        secondary_index,
+        src,
+        dst,
+        layer_col,
+        ..
+    } = column_names;
+
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend_from_slice(properties);
@@ -133,14 +139,8 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
 
     load_edges_from_df(
         df_view,
-        ColumnNames {
-            time,
-            secondary_index,
-            src,
-            dst,
-            layer_col,
-            edge_id: None,
-        },
+        column_names,
+        resolve_nodes,
         properties,
         metadata,
         shared_metadata,

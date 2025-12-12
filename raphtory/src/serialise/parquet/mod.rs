@@ -4,9 +4,13 @@ use crate::{
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
-    io::parquet_loaders::{
-        load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
-        load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
+    io::{
+        arrow::df_loaders::edges::ColumnNames,
+        parquet_loaders::{
+            load_edge_deletions_from_parquet, load_edge_props_from_parquet,
+            load_edges_from_parquet, load_graph_props_from_parquet, load_node_props_from_parquet,
+            load_nodes_from_parquet,
+        },
     },
     prelude::*,
     serialise::{
@@ -547,15 +551,19 @@ fn decode_graph_storage(
         load_edges_from_parquet(
             &graph,
             &t_edge_path,
-            TIME_COL,
-            Some(SECONDARY_INDEX_COL),
-            SRC_COL_ID,
-            DST_COL_ID,
+            ColumnNames {
+                time: TIME_COL,
+                secondary_index: Some(SECONDARY_INDEX_COL),
+                src: SRC_COL_ID,
+                dst: DST_COL_ID,
+                layer_col: Some(LAYER_COL),
+                edge_id: None,
+            },
+            false,
             &t_prop_columns,
             &[],
             None,
             None,
-            Some(LAYER_COL),
             batch_size,
         )?;
     }

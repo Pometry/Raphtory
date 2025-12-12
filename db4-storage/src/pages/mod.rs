@@ -524,9 +524,30 @@ fn read_graph_config<EXT: PersistentStrategy>(
 #[inline(always)]
 pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: u32) -> (usize, LocalPOS) {
     let i = i.into();
-    let chunk = i / max_page_len as usize;
+    let seg = i / max_page_len as usize;
     let pos = i % max_page_len as usize;
-    (chunk, LocalPOS(pos as u32))
+    (seg, LocalPOS(pos as u32))
+}
+
+fn gen_interleave(
+    chunk_size: usize,
+    num_segments: usize,
+    max_seg_len: u32,
+) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = usize>)> {
+    let chunk_size = (chunk_size / num_segments).max(1);
+    (0..max_seg_len as usize)
+        .into_par_iter()
+        .chunks(chunk_size)
+        .enumerate()
+        .map(move |(chunk_id, items)| {
+            let iter = items.into_iter().flat_map(move |x| {
+                (0..num_segments).map(move |seg| -> usize {
+                    // clamp this by the largest local pos in the segment
+                    seg * max_seg_len as usize + x
+                })
+            });
+            (chunk_id, iter)
+        })
 }
 
 #[cfg(test)]
@@ -545,6 +566,27 @@ mod test {
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
+    use rayon::iter::ParallelIterator;
+
+    #[test]
+    fn test_iterleave() {
+        let chunk_size = 3;
+        let num_segments = 3;
+        let max_seg_len = 4;
+
+        let actual = super::gen_interleave(chunk_size, num_segments, max_seg_len)
+            .map(|(c, items)| (c, items.collect::<Vec<_>>()))
+            .collect::<Vec<_>>();
+
+        let expected = vec![
+            (0, vec![0, 4, 8]),
+            (1, vec![1, 5, 9]),
+            (2, vec![2, 6, 10]),
+            (3, vec![3, 7, 11]),
+        ];
+
+        assert_eq!(actual, expected);
+    }
 
     fn check_edges(edges: Vec<(impl Into<VID>, impl Into<VID>)>, chunk_size: u32, par_load: bool) {
         // Set optional layer_id to None

@@ -108,6 +108,7 @@ pub(crate) fn load_edges_from_pandas<
             layer_col,
             edge_id: None,
         },
+        true,
         properties,
         metadata,
         shared_metadata,
