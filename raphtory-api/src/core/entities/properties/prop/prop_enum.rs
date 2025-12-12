@@ -34,7 +34,7 @@ pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equ
 pub struct InvalidBigDecimal(BigDecimal);
 
 /// Denotes the types of properties allowed to be stored in the graph.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, derive_more::From)]
+#[derive(Debug, Serialize, PartialEq, Clone, derive_more::From)]
 pub enum Prop {
     Str(ArcStr),
     U8(u8),

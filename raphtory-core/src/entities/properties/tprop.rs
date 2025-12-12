@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 use thiserror::Error;
 
-#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize)]
 pub enum TProp {
     #[default]
     Empty,

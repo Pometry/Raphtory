@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 pub struct GraphMetadata {
     pub node_count: usize,
     pub edge_count: usize,
-    pub metadata: Vec<(ArcStr, Prop)>,
     pub graph_type: GraphType,
     pub is_diskgraph: bool,
 }
@@ -22,13 +21,11 @@ impl GraphMetadata {
     pub fn from_graph<G: GraphView>(graph: G) -> Self {
         let node_count = graph.count_nodes();
         let edge_count = graph.count_edges();
-        let metadata = graph.metadata().as_vec();
         let graph_type = graph.graph_type();
         let is_diskgraph = graph.disk_storage_enabled().is_some();
         Self {
             node_count,
             edge_count,
-            metadata,
             graph_type,
             is_diskgraph,
         }
@@ -39,6 +36,5 @@ pub fn assert_metadata_correct<'graph>(folder: &GraphFolder, graph: &impl GraphV
     let metadata = folder.read_metadata().unwrap();
     assert_eq!(metadata.node_count, graph.count_nodes());
     assert_eq!(metadata.edge_count, graph.count_edges());
-    assert_eq!(metadata.metadata, graph.properties().as_vec());
     assert_eq!(metadata.graph_type, graph.graph_type());
 }

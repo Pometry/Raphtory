@@ -93,12 +93,7 @@ impl MetaGraph {
 
     /// Returns the metadata of the graph.
     async fn metadata(&self) -> Result<Vec<GqlProperty>> {
-        Ok(self
-            .meta()
-            .await?
-            .metadata
-            .iter()
-            .map(|(key, prop)| GqlProperty::new(key.to_string(), prop.clone()))
-            .collect())
+        // Need to read this from parquet
+        todo!()
     }
 }

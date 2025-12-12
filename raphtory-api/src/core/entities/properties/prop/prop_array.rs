@@ -207,15 +207,6 @@ impl Serialize for PropArray {
     }
 }
 
-impl<'de> Deserialize<'de> for PropArray {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let vec: Vec<Prop> = Deserialize::deserialize(deserializer)?;
-        Ok(PropArray::Vec(Arc::from(vec)))
-    }
-}
 
 impl PartialEq for PropArray {
     fn eq(&self, other: &Self) -> bool {
