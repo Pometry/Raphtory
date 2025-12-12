@@ -7,6 +7,7 @@ use crate::{
         SegmentCounts,
         layer_counter::GraphStats,
         locked::nodes::{LockedNodePage, WriteLockedNodeSegments},
+        row_group_par_iter,
     },
     persist::strategy::Config,
     segments::node::segment::MemNodeSegment,
@@ -89,6 +90,23 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
         self.locked_segments
             .par_iter()
             .flat_map(move |segment| segment.par_iter_entries())
+    }
+
+    pub fn row_groups_par_iter(
+        &self,
+    ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = VID> + '_)> {
+        row_group_par_iter(
+            self.storage.max_segment_len() as usize,
+            self.locked_segments.len(),
+            self.storage.max_segment_len(),
+        )
+        .map(|(s_id, iter)| (s_id, iter.filter(|vid| self.has_vid(*vid))))
+    }
+
+    fn has_vid(&self, vid: VID) -> bool {
+        let (segment_id, pos) = self.storage.resolve_pos(vid);
+        segment_id < self.locked_segments.len()
+            && pos.0 < self.locked_segments[segment_id].num_nodes()
     }
 }
 

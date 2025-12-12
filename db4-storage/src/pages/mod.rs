@@ -527,25 +527,24 @@ pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: u32) -> (usize, Lo
     (seg, LocalPOS(pos as u32))
 }
 
-fn gen_interleave(
+pub fn row_group_par_iter<I: From<usize>>(
     chunk_size: usize,
     num_segments: usize,
     max_seg_len: u32,
-) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = usize>)> {
+) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = I>)> {
     let chunk_size = (chunk_size / num_segments).max(1);
-    (0..max_seg_len as usize)
-        .into_par_iter()
-        .chunks(chunk_size)
-        .enumerate()
-        .map(move |(chunk_id, items)| {
-            let iter = items.into_iter().flat_map(move |x| {
-                (0..num_segments).map(move |seg| -> usize {
-                    // clamp this by the largest local pos in the segment
-                    seg * max_seg_len as usize + x
-                })
-            });
-            (chunk_id, iter)
-        })
+    let num_chunks = (max_seg_len as usize + chunk_size - 1) / chunk_size;
+
+    (0..num_chunks).into_par_iter().map(move |chunk_id| {
+        let start = chunk_id * chunk_size;
+        let end = ((chunk_id + 1) * chunk_size).min(max_seg_len as usize);
+
+        let iter = (start..end).flat_map(move |x| {
+            (0..num_segments).map(move |seg| I::from(seg * max_seg_len as usize + x))
+        });
+
+        (chunk_id, iter)
+    })
 }
 
 #[cfg(test)]
@@ -572,7 +571,7 @@ mod test {
         let num_segments = 3;
         let max_seg_len = 4;
 
-        let actual = super::gen_interleave(chunk_size, num_segments, max_seg_len)
+        let actual = super::row_group_par_iter(chunk_size, num_segments, max_seg_len)
             .map(|(c, items)| (c, items.collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
