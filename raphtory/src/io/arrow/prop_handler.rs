@@ -1,8 +1,4 @@
-use crate::{
-    errors::{GraphError, LoadError},
-    io::arrow::dataframe::DFChunk,
-    prelude::Prop,
-};
+use crate::{errors::GraphError, io::arrow::dataframe::DFChunk, prelude::Prop};
 use arrow::{
     array::{
         Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,

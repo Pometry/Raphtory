@@ -21,7 +21,7 @@ use crate::{
                 arrow_loaders::{
                     load_edge_metadata_from_arrow_c_stream, load_edges_from_arrow_c_stream,
                     load_node_metadata_from_arrow_c_stream, load_nodes_from_arrow_c_stream,
-                    load_nodes_from_csv_path,
+                    load_nodes_from_csv_path, CsvReadOptions,
                 },
                 pandas_loaders::*,
             },
@@ -660,7 +660,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None)
     )]
     fn load_nodes<'py>(
         &self,
@@ -673,6 +673,7 @@ impl PyGraph {
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
         schema: Option<Bound<'py, PyAny>>,
+        csv_options: Option<CsvReadOptions>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -725,6 +726,14 @@ impl PyGraph {
                     || path_str.ends_with(".csv.bz2")
             };
 
+            // before loading anything, fail if CSV options were passed but no CSV files were detected
+            if !is_csv && csv_options.is_some() {
+                return Err(GraphError::from(PyValueError::new_err(format!(
+                    "CSV options were passed but no CSV files were detected at {}.",
+                    path.display()
+                ))));
+            }
+
             // support directories with mixed parquet and CSV files
             if is_parquet {
                 load_nodes_from_parquet(
@@ -751,6 +760,7 @@ impl PyGraph {
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
+                    csv_options.as_ref(),
                 )?;
             }
             if !is_parquet && !is_csv {

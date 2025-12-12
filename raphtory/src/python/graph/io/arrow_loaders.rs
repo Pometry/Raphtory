@@ -15,12 +15,16 @@ use crate::{
 use arrow::{
     array::{Array, RecordBatch, RecordBatchReader, StructArray},
     compute::cast,
-    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
+    datatypes::{DataType, Field, Fields, SchemaRef},
 };
 use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
-use pyo3::{prelude::*, types::PyCapsule};
+use pyo3::{
+    exceptions::PyValueError,
+    prelude::*,
+    types::{PyCapsule, PyDict},
+};
 use pyo3_arrow::PyRecordBatchReader;
 use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
@@ -29,7 +33,6 @@ use std::{
     fs,
     fs::File,
     iter,
-    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -360,15 +363,57 @@ fn split_into_chunks(batch: &RecordBatch, indices: &[usize]) -> Vec<Result<DFChu
     }
 }
 
-fn get_csv_reader(filename: &str, file: File) -> Box<dyn std::io::Read> {
-    // Support bz2 and gz compression
-    if filename.ends_with(".csv.gz") {
-        Box::new(GzDecoder::new(file))
-    } else if filename.ends_with(".csv.bz2") {
-        Box::new(BzDecoder::new(file))
-    } else {
-        // no need for a BufReader because ReaderBuilder::build internally wraps into BufReader
-        Box::new(file)
+/// CSV options we support, passed as Python dict
+pub(crate) struct CsvReadOptions {
+    delimiter: Option<u8>,
+    comment: Option<u8>,
+    escape: Option<u8>,
+    quote: Option<u8>,
+    terminator: Option<u8>,
+    allow_truncated_rows: Option<bool>,
+    has_header: Option<bool>,
+}
+
+impl<'a> FromPyObject<'a> for CsvReadOptions {
+    fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
+        let dict = ob.downcast::<PyDict>().map_err(|e| {
+            PyValueError::new_err(format!("CSV options should be passed as a dict: {e}"))
+        })?;
+        let get_char = |option: &str| match dict.get_item(option)? {
+            None => Ok(None),
+            Some(val) => {
+                if let Ok(s) = val.extract::<String>() {
+                    if s.len() != 1 {
+                        return Err(PyValueError::new_err(format!(
+                            "CSV option '{option}' must be a single character string or int 0-255",
+                        )));
+                    }
+                    Ok(Some(s.as_bytes()[0]))
+                } else if let Ok(b) = val.extract::<u8>() {
+                    Ok(Some(b))
+                } else {
+                    return Err(PyValueError::new_err(format!(
+                        "CSV option '{option}' must be a single character string or int 0-255",
+                    )));
+                }
+            }
+        };
+        let get_bool = |option: &str| {
+            dict.get_item(option)?
+                .map(|val| val.extract::<bool>())
+                .transpose()
+                .map_err(|_| PyValueError::new_err(format!("CSV option '{option}' must be a bool")))
+        };
+
+        Ok(CsvReadOptions {
+            delimiter: get_char("delimiter")?,
+            comment: get_char("comment")?,
+            escape: get_char("escape")?,
+            quote: get_char("quote")?,
+            terminator: get_char("terminator")?,
+            allow_truncated_rows: get_bool("allow_truncated_rows")?,
+            has_header: get_bool("has_header")?,
+        })
     }
 }
 
@@ -386,6 +431,7 @@ pub(crate) fn load_nodes_from_csv_path<
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    csv_options: Option<&CsvReadOptions>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend_from_slice(properties);
@@ -416,7 +462,7 @@ pub(crate) fn load_nodes_from_csv_path<
         )));
     }
 
-    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone())?;
+    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_nodes_from_df(
         df_view,
@@ -431,44 +477,108 @@ pub(crate) fn load_nodes_from_csv_path<
     )
 }
 
+fn get_csv_reader(filename: &str, file: File) -> Box<dyn std::io::Read> {
+    // Support bz2 and gz compression
+    if filename.ends_with(".csv.gz") {
+        Box::new(GzDecoder::new(file))
+    } else if filename.ends_with(".csv.bz2") {
+        Box::new(BzDecoder::new(file))
+    } else {
+        // no need for a BufReader because ReaderBuilder::build internally wraps into BufReader
+        Box::new(file)
+    }
+}
+
 fn build_csv_reader(
     path: &Path,
+    csv_options: Option<&CsvReadOptions>,
 ) -> Result<arrow_csv::reader::Reader<Box<dyn std::io::Read>>, GraphError> {
     let file = File::open(path)?;
     let path_str = path.to_string_lossy();
 
+    let mut format = Format::default();
+
+    let has_header = csv_options.and_then(|o| o.has_header).unwrap_or(true);
+    format = format.with_header(has_header);
+
+    if let Some(delim) = csv_options.and_then(|o| o.delimiter) {
+        format = format.with_delimiter(delim);
+    }
+
+    if let Some(comment) = csv_options.and_then(|o| o.comment) {
+        format = format.with_comment(comment);
+    }
+
+    if let Some(escape) = csv_options.and_then(|o| o.escape) {
+        format = format.with_escape(escape);
+    }
+
+    if let Some(quote) = csv_options.and_then(|o| o.quote) {
+        format = format.with_quote(quote);
+    }
+
+    if let Some(terminator) = csv_options.and_then(|o| o.terminator) {
+        format = format.with_terminator(terminator);
+    }
+
+    if let Some(allow_truncated_rows) = csv_options.and_then(|o| o.allow_truncated_rows) {
+        format = format.with_truncated_rows(allow_truncated_rows);
+    }
+
     // infer schema
     let reader = get_csv_reader(path_str.as_ref(), file);
-    let (schema, _) = Format::default()
-        .with_header(true)
-        .infer_schema(reader, Some(100))
-        .map_err(|e| {
-            GraphError::LoadFailure(format!(
-                "Arrow CSV error while inferring schema from '{}': {e}",
-                path.display()
-            ))
-        })?;
+    let (schema, _) = format.infer_schema(reader, Some(100)).map_err(|e| {
+        GraphError::LoadFailure(format!(
+            "Arrow CSV error while inferring schema from '{}': {e}",
+            path.display()
+        ))
+    })?;
     let schema_ref: SchemaRef = Arc::new(schema);
 
     // we need another reader because the first one gets consumed
     let file = File::open(path)?;
     let reader = get_csv_reader(path_str.as_ref(), file);
 
-    ReaderBuilder::new(schema_ref)
-        .with_header(true)
-        .with_batch_size(CHUNK_SIZE)
-        .build(reader)
-        .map_err(|e| {
-            GraphError::LoadFailure(format!(
-                "Arrow CSV error while reading '{}': {e}",
-                path.display()
-            ))
-        })
+    let mut reader_builder = ReaderBuilder::new(schema_ref)
+        .with_header(has_header)
+        .with_batch_size(CHUNK_SIZE);
+
+    if let Some(delimiter) = csv_options.and_then(|o| o.delimiter) {
+        reader_builder = reader_builder.with_delimiter(delimiter);
+    }
+
+    if let Some(comment) = csv_options.and_then(|o| o.comment) {
+        reader_builder = reader_builder.with_comment(comment);
+    }
+
+    if let Some(escape) = csv_options.and_then(|o| o.escape) {
+        reader_builder = reader_builder.with_escape(escape);
+    }
+
+    if let Some(quote) = csv_options.and_then(|o| o.quote) {
+        reader_builder = reader_builder.with_quote(quote);
+    }
+
+    if let Some(terminator) = csv_options.and_then(|o| o.terminator) {
+        reader_builder = reader_builder.with_terminator(terminator);
+    }
+
+    if let Some(allow_truncated_rows) = csv_options.and_then(|o| o.allow_truncated_rows) {
+        reader_builder = reader_builder.with_truncated_rows(allow_truncated_rows);
+    }
+
+    reader_builder.build(reader).map_err(|e| {
+        GraphError::LoadFailure(format!(
+            "Arrow CSV error while reading '{}': {e}",
+            path.display()
+        ))
+    })
 }
 
 fn process_csv_paths_df<'a>(
     paths: &'a [PathBuf],
     col_names: Vec<&'a str>,
+    csv_options: Option<&'a CsvReadOptions>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>, GraphError> {
     if paths.is_empty() {
         return Err(GraphError::LoadFailure(
@@ -481,7 +591,7 @@ fn process_csv_paths_df<'a>(
     let chunks = paths.iter().flat_map(move |path| {
         // BoxedLIter couldn't be used because it has Send + Sync bound
         type ChunkIter<'b> = Box<dyn Iterator<Item = Result<DFChunk, GraphError>> + 'b>;
-        let csv_reader = match build_csv_reader(path.as_path()) {
+        let csv_reader = match build_csv_reader(path.as_path(), csv_options) {
             Ok(r) => r,
             Err(e) => return Box::new(iter::once(Err(e))) as ChunkIter<'a>,
         };
