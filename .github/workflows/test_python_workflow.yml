@@ -21,7 +21,7 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          echo "python-versions=[\"3.11\",\"3.14\"]" >> $GITHUB_OUTPUT
+          echo "python-versions=[\"3.11\",\"3.14.0\"]" >> $GITHUB_OUTPUT
   python-test:
     if: ${{ !inputs.skip_tests }}
     name: Python Tests
@@ -75,19 +75,19 @@ jobs:
         run: |
           cd examples/netflow/test && pytest .
       - name: Validate graphQL schema
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14.0'
         run: |
           npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql || true
       - name: Update docs from graphQL schema
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14.0'
         run: |
           python docs/scripts/gen_docs_graphql_pages.py
       - name: Run python linter
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14.0'
         run: |
           cd python && black .
       - name: Run stubsgen
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14.0'
         run: |
           echo "Installing Raphtory from ./python"
           pip install -e ./python
@@ -99,7 +99,7 @@ jobs:
           mypy -m raphtory
 
       - name: Check for uncommitted changes
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14.0'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
