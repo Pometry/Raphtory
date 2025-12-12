@@ -1,7 +1,7 @@
 mod graph_folder;
 pub mod metadata;
 
-pub(crate) mod parquet;
+pub mod parquet;
 
 #[cfg(feature = "proto")]
 pub mod proto;

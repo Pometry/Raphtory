@@ -3,7 +3,11 @@ use crate::{
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
-use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
+use raphtory::{
+    errors::GraphError,
+    io::parquet_loaders::load_graph_props_from_parquet,
+    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata, GraphPaths},
+};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 
@@ -93,7 +97,10 @@ impl MetaGraph {
 
     /// Returns the metadata of the graph.
     async fn metadata(&self) -> Result<Vec<GqlProperty>> {
-        // Need to read this from parquet
-        todo!()
+        let res = decode_graph_metadata(&self.folder)?;
+        Ok(res
+            .into_iter()
+            .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
+            .collect())
     }
 }

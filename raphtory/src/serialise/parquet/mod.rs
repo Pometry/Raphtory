@@ -4,9 +4,13 @@ use crate::{
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
-    io::parquet_loaders::{
-        load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
-        load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
+    io::{
+        arrow::{df_loaders::load_graph_props_from_df, prop_handler::lift_property_col},
+        parquet_loaders::{
+            get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_props_from_parquet,
+            load_edges_from_parquet, load_graph_props_from_parquet, load_node_props_from_parquet,
+            load_nodes_from_parquet, process_parquet_file_to_df,
+        },
     },
     prelude::*,
     serialise::{
@@ -17,6 +21,7 @@ use crate::{
             model::get_id_type,
             nodes::{encode_nodes_cprop, encode_nodes_tprop},
         },
+        GraphPaths,
     },
 };
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
@@ -399,6 +404,30 @@ fn decode_graph_type(path: impl AsRef<Path>) -> Result<GraphType, GraphError> {
     let (_, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
 
     g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))
+}
+
+pub fn decode_graph_metadata(
+    path: &impl GraphPaths,
+) -> Result<Vec<(String, Option<Prop>)>, GraphError> {
+    let c_graph_path = path.graph_path()?.join(GRAPH_C_PATH);
+    let exclude = vec![TIME_COL];
+    let (c_props, _) = collect_prop_columns(&c_graph_path, &exclude)?;
+    let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+    let mut result: Vec<(String, Option<Prop>)> =
+        c_props.iter().map(|s| (s.to_string(), None)).collect();
+
+    for path in get_parquet_file_paths(&c_graph_path)? {
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&c_props), None)?;
+        for chunk in df_view.chunks {
+            let chunk = chunk?;
+            for (col, res) in chunk.chunk.into_iter().zip(&mut result) {
+                if let Some(value) = lift_property_col(&col).get(0) {
+                    res.1 = Some(value);
+                }
+            }
+        }
+    }
+    Ok(result)
 }
 
 fn decode_graph_storage(
