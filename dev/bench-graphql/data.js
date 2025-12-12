@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765539573202,
+  "lastUpdate": 1765549637947,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2753,6 +2753,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1311,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "41898282+github-actions[bot]@users.noreply.github.com",
+            "name": "github-actions[bot]",
+            "username": "github-actions[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7e5a1e65cc4ef0e7497b007d43bbbb04e9b3688e",
+          "message": "Release v0.16.4 (#2417)\n\nchore: Release\n\nCo-authored-by: Pometry-Team <ben.steer@pometry.com>",
+          "timestamp": "2025-12-12T13:53:32Z",
+          "tree_id": "1fdbb76bba9463f0d5afd73c3a6ce10f2300f42c",
+          "url": "https://github.com/Pometry/Raphtory/commit/7e5a1e65cc4ef0e7497b007d43bbbb04e9b3688e"
+        },
+        "date": 1765549634297,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1263,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 191,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 167,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1093,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 893,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1295,
             "unit": "req/s"
           }
         ]
