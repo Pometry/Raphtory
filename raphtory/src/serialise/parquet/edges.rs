@@ -34,7 +34,6 @@ pub(crate) fn encode_edge_tprop(
         },
         |edges, g, decoder, writer| {
             let row_group_size = 100_000;
-            let edges = edges.collect::<Vec<_>>();
 
             for edge_rows in edges
                 .into_iter()

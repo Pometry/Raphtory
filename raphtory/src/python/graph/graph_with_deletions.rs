@@ -15,7 +15,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::GraphError,
-    io::parquet_loaders::*,
+    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
@@ -756,15 +756,19 @@ impl PyPersistentGraph {
         load_edges_from_parquet(
             &self.graph,
             parquet_path.as_path(),
-            time,
-            secondary_index,
-            src,
-            dst,
+            ColumnNames {
+                time,
+                secondary_index,
+                src,
+                dst,
+                layer_col,
+                edge_id: None,
+            },
+            true,
             &properties,
             &metadata,
             shared_metadata.as_ref(),
             layer,
-            layer_col,
             None,
         )
     }

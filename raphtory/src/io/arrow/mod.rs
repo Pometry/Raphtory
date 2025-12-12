@@ -9,7 +9,10 @@ mod test {
     use crate::{
         io::arrow::{
             dataframe::{DFChunk, DFView},
-            df_loaders::{edges::load_edges_from_df, *},
+            df_loaders::{
+                edges::{load_edges_from_df, ColumnNames},
+                *,
+            },
         },
         prelude::*,
     };
@@ -54,15 +57,19 @@ mod test {
 
         load_edges_from_df(
             df,
-            "time",
-            secondary_index,
-            "src",
-            "dst",
+            ColumnNames {
+                time: "time",
+                secondary_index,
+                src: "src",
+                dst: "dst",
+                edge_id: None,
+                layer_col,
+            },
+            true,
             &["prop1", "prop2"],
             &[],
             None,
             layer_name,
-            layer_col,
             &graph,
         )
         .expect("failed to load edges from pretend df");

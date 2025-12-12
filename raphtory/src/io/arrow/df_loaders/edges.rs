@@ -60,6 +60,7 @@ pub struct ColumnNames<'a> {
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     column_names: ColumnNames,
+    resolve_nodes: bool,
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
@@ -116,8 +117,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
-    let resolve_ids = true; // todo add this to function params
-
     rayon::scope(|s| {
         let (tx, rx) = mpsc::sync_channel(2);
 
@@ -156,7 +155,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 dst_index,
                 &mut src_col_resolved,
                 &mut dst_col_resolved,
-                resolve_ids,
+                resolve_nodes,
                 &df,
                 &src_col,
                 &dst_col,
@@ -205,11 +204,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     layer_col_resolved.iter()
                 );
 
-                if resolve_ids {
+                if resolve_nodes {
                     store_node_ids(&gid_str_cache, locked_page);
                 }
 
-                if resolve_ids {
+                if resolve_nodes {
                     add_and_resolve_outbound_edges(
                         &eids_exist,
                         &layer_eids_exist,
