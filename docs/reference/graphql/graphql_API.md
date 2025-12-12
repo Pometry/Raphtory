@@ -898,7 +898,7 @@ Takes a specified selection of views and applies them in given order.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.earliesttime">earliestTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the earliest time of an edge.
@@ -907,12 +907,12 @@ Returns the earliest time of an edge.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.firstupdate">firstUpdate</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.latesttime">latestTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the latest time of an edge.
@@ -921,7 +921,7 @@ Returns the latest time of an edge.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.lastupdate">lastUpdate</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td></td>
 </tr>
 <tr>
@@ -935,7 +935,7 @@ Returns the time of an exploded edge. Errors on an unexploded edge.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.start">start</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
@@ -944,7 +944,7 @@ Returns the start time for rolling and expanding windows for this edge. Returns 
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.end">end</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the end time of the window. Returns none if no window is applied.
@@ -1550,7 +1550,7 @@ Specify a sort order from: source, destination, property, time. You can also rev
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.start">start</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the start time of the window or none if there is no window.
@@ -1559,7 +1559,7 @@ Returns the start time of the window or none if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.end">end</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the end time of the window or none if there is no window.
@@ -1679,6 +1679,10 @@ Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 - timestamp: Number of milliseconds since the Unix epoch.
 - event_id: ID used for ordering between equal timestamps.
 
+Instances of EventTime may or may not contain time information.
+This is relevant for functions that may not return data (such as earliest_time and latest_time) because the data is unavailable.
+When empty, time operations (such as timestamp, datetime, and event_id) will return None.
+
 <table>
 <thead>
 <tr>
@@ -1691,7 +1695,7 @@ Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="eventtime.timestamp">timestamp</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#int">Int</a></td>
 <td>
 
 Get the timestamp in milliseconds since the Unix epoch.
@@ -1700,7 +1704,7 @@ Get the timestamp in milliseconds since the Unix epoch.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="eventtime.eventid">eventId</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#int">Int</a></td>
 <td>
 
 Get the event id for the EventTime. Used for ordering within the same timestamp.
@@ -1709,7 +1713,7 @@ Get the event id for the EventTime. Used for ordering within the same timestamp.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="eventtime.datetime">datetime</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
+<td valign="top"><a href="#string">String</a></td>
 <td>
 
 Access a datetime representation of the EventTime as a String.
@@ -2092,7 +2096,7 @@ Returns the graph's last updated timestamp.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.earliesttime">earliestTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the time entry of the earliest activity in the graph.
@@ -2101,7 +2105,7 @@ Returns the time entry of the earliest activity in the graph.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.latesttime">latestTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the time entry of the latest activity in the graph.
@@ -2110,7 +2114,7 @@ Returns the time entry of the latest activity in the graph.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.start">start</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the start time of the window. Errors if there is no window.
@@ -2119,7 +2123,7 @@ Returns the start time of the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.end">end</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the end time of the window. Errors if there is no window.
@@ -2128,7 +2132,7 @@ Returns the end time of the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.earliestedgetime">earliestEdgeTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the earliest time that any edge in this graph is valid.
@@ -2142,7 +2146,7 @@ Returns the earliest time that any edge in this graph is valid.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.latestedgetime">latestEdgeTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the latest time that any edge in this graph is valid.
@@ -2475,26 +2479,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -2512,6 +2496,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">direction</td>
 <td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
+<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2616,7 +2620,7 @@ Provides access to temporal properties.
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="history.earliesttime">earliestTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Get the earliest time entry associated with this history or None if the history is empty.
@@ -2625,7 +2629,7 @@ Get the earliest time entry associated with this history or None if the history 
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="history.latesttime">latestTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Get the latest time entry associated with this history or None if the history is empty.
@@ -4295,7 +4299,7 @@ Set the end of the window to the smaller of a specified end and self.end().
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.earliesttime">earliestTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the earliest time that the node exists.
@@ -4304,7 +4308,7 @@ Returns the earliest time that the node exists.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.firstupdate">firstUpdate</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the time of the first update made to the node.
@@ -4313,7 +4317,7 @@ Returns the time of the first update made to the node.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.latesttime">latestTime</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the latest time that the node exists.
@@ -4322,7 +4326,7 @@ Returns the latest time that the node exists.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.lastupdate">lastUpdate</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the time of the last update made to the node.
@@ -4331,7 +4335,7 @@ Returns the time of the last update made to the node.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.start">start</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Gets the start time for the window. Errors if there is no window.
@@ -4340,7 +4344,7 @@ Gets the start time for the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.end">end</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Gets the end time for the window. Errors if there is no window.
@@ -4916,7 +4920,7 @@ Returns a view of the node types.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.start">start</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the start time of the window. Errors if there is no window.
@@ -4925,7 +4929,7 @@ Returns the start time of the window. Errors if there is no window.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.end">end</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the end time of the window. Errors if there is no window.
@@ -5343,7 +5347,7 @@ Filter nodes by type.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.start">start</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
@@ -5352,7 +5356,7 @@ Returns the earliest time that this PathFromNode is valid or None if the PathFro
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.end">end</strong></td>
-<td valign="top"><a href="#eventtime">EventTime</a></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
 
 Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.

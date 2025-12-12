@@ -1,7 +1,6 @@
 """
 Generate Raphtory graphs from attachment models
 """
-
 from __future__ import annotations
 
 ###############################################################################
@@ -30,8 +29,7 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ["random_attachment", "ba_preferential_attachment"]
-
+__all__ = ['random_attachment', 'ba_preferential_attachment']
 def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
     """
     Generates a graph using the random attachment model
@@ -50,9 +48,7 @@ def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any 
      None
     """
 
-def ba_preferential_attachment(
-    g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None
-):
+def ba_preferential_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
     """
     Generates a graph using the preferential attachment model.
 
