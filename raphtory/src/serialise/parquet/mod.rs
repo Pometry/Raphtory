@@ -489,7 +489,13 @@ fn decode_graph_storage(
     let t_node_path = path.as_ref().join(NODES_T_PATH);
 
     if std::fs::exists(&t_node_path)? {
-        let exclude = vec![NODE_ID_COL, TIME_COL, SECONDARY_INDEX_COL, TYPE_COL];
+        let exclude = vec![
+            NODE_ID_COL,
+            NODE_VID_COL,
+            TIME_COL,
+            SECONDARY_INDEX_COL,
+            TYPE_COL,
+        ];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
         let t_prop_columns = t_prop_columns
             .iter()
@@ -501,7 +507,7 @@ fn decode_graph_storage(
             &t_node_path,
             TIME_COL,
             Some(SECONDARY_INDEX_COL),
-            NODE_ID_COL,
+            NODE_VID_COL,
             None,
             Some(TYPE_COL),
             &t_prop_columns,

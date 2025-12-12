@@ -4,17 +4,14 @@ use crate::{
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView, SecondaryIndexCol},
-        df_loaders::{build_progress_bar, process_shared_properties},
+        df_loaders::{build_progress_bar, extract_secondary_index_col, process_shared_properties},
         layer_col::lift_layer_col,
         node_col::NodeCol,
         prop_handler::*,
     },
     prelude::*,
 };
-use arrow::{
-    array::{AsArray, PrimitiveArray},
-    datatypes::UInt64Type,
-};
+use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;
@@ -33,7 +30,7 @@ use rayon::prelude::*;
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc,
     },
 };
@@ -520,29 +517,4 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
             Ok::<(), LoadError>(())
         })?;
     Ok(gid_str_cache)
-}
-
-#[inline(never)]
-fn extract_secondary_index_col<G: InternalAdditionOps + AdditionOps>(
-    secondary_index_index: Option<usize>,
-    session: &<G as InternalAdditionOps>::WS<'_>,
-    df: &DFChunk,
-) -> Result<SecondaryIndexCol, GraphError> {
-    let secondary_index_col = match secondary_index_index {
-        Some(col_index) => {
-            // Update the event_id to reflect ingesting new secondary indices.
-            let col = df.secondary_index_col(col_index)?;
-            session
-                .set_max_event_id(col.max())
-                .map_err(into_graph_err)?;
-            col
-        }
-        None => {
-            let start_id = session
-                .reserve_event_ids(df.len())
-                .map_err(into_graph_err)?;
-            SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
-        }
-    };
-    Ok(secondary_index_col)
 }
