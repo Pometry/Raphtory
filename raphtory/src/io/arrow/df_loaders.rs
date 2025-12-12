@@ -415,9 +415,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         let mut writer = locked_page.writer();
                         let t = TimeIndexEntry(time, secondary_index);
                         writer.store_node_id(src_pos, 0, src_gid);
+
                         // find the original EID in the static graph if it exists
                         // otherwise create a new one
-
                         let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                             eids_exist[row].store(true, Ordering::Relaxed);

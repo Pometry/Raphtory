@@ -28,6 +28,8 @@ use storage::{
 };
 use tempfile::TempDir;
 
+mod replay;
+
 #[derive(Debug)]
 pub struct TemporalGraph<EXT: Config = Extension> {
     // mapping between logical and physical ids
@@ -334,6 +336,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
     }
 }
 
+/// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
 where
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,

@@ -1,21 +1,28 @@
+//! Implement WAL replay for a `WriteLockedGraph`.
+//!
+
 use crate::db::api::{
-        storage::{graph, storage::Storage},
-        view::internal::{Base, InternalStorageOps},
-    };
+    storage::{graph, storage::Storage},
+    view::internal::{Base, InternalStorageOps},
+};
+use crate::WriteLockedGraph;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_core::entities::GidRef;
-use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps}};
 use storage::{
-    api::edges::EdgeSegmentOps,
+    persist::strategy::PersistentStrategy,
+    NS, ES, GS,
     error::StorageError,
     wal::{GraphReplay, TransactionID, LSN},
 };
 use storage::resolver::GIDResolverOps;
 
-impl GraphReplay for Storage {
+impl<EXT> GraphReplay for WriteLockedGraph<'_, EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+{
     fn replay_add_edge(
         &self,
         lsn: LSN,
@@ -31,8 +38,7 @@ impl GraphReplay for Storage {
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         // TODO: Check max lsn on disk to see if this record should be replayed.
-
-        let temporal_graph = self.core_graph().mutable().unwrap();
+        let temporal_graph = self.graph();
 
         // 1. Insert prop ids into edge meta.
         // No need to validate props again since they are already validated before
@@ -57,19 +63,9 @@ impl GraphReplay for Storage {
         edge_meta.layer_meta().set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
         node_meta.layer_meta().set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
 
-        // 4. Grab src, dst and edge segment locks and add the edge.
-        println!("Grabbing add_edge_op lock");
-        let mut add_edge_op = temporal_graph.atomic_add_edge(src_id, dst_id, Some(eid), layer_id).unwrap();
+        // 4. Grab src, dst and edge segment writers and add the edge.
+        let src_writer = self.nodes().get_writer(src_id);
 
-        println!("Added edge to atomic_add_edge");
-
-        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id);
-        let edge_id_with_layer = edge_id.map(|eid| eid.with_layer(layer_id));
-
-        println!("Adding edge to internal_add_edge");
-        add_edge_op.internal_add_edge(t, src_id, dst_id, edge_id_with_layer, prop_ids);
-
-        println!("Added edge to internal_add_edge");
 
         Ok(())
     }
