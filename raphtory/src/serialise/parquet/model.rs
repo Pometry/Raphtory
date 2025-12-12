@@ -7,7 +7,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
-    serialise::parquet::{DST_COL_ID, EDGE_COL_ID, SRC_COL_ID},
+    serialise::parquet::{DST_COL_ID, EDGE_COL_ID, NODE_VID_COL, SRC_COL_ID},
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
@@ -82,8 +82,9 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetCEdge<'a, G> {
             .layer_name()
             .map_err(|_| S::Error::custom("Edge has no layer"))?;
 
-        state.serialize_entry(SRC_COL, &ParquetGID(edge.src().id()))?;
-        state.serialize_entry(DST_COL, &ParquetGID(edge.dst().id()))?;
+        state.serialize_entry(SRC_COL_ID, &(edge.src().node.0))?;
+        state.serialize_entry(DST_COL_ID, &(edge.dst().node.0))?;
+        state.serialize_entry(EDGE_COL_ID, &(edge.edge.pid().0))?;
         state.serialize_entry(LAYER_COL, &layer)?;
 
         for (name, prop) in edge.metadata().iter_filtered() {
@@ -110,8 +111,9 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
 
         state.serialize_entry(TIME_COL, &self.del.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &self.del.1)?;
-        state.serialize_entry(SRC_COL, &ParquetGID(edge.src().id()))?;
-        state.serialize_entry(DST_COL, &ParquetGID(edge.dst().id()))?;
+        state.serialize_entry(SRC_COL_ID, &(edge.src().node.0))?;
+        state.serialize_entry(DST_COL_ID, &(edge.dst().node.0))?;
+        state.serialize_entry(EDGE_COL_ID, &(edge.edge.pid().0))?;
         state.serialize_entry(LAYER_COL, &self.layer)?;
 
         state.end()
@@ -133,6 +135,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
         let mut state = serializer.serialize_map(None)?;
 
         state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
+        state.serialize_entry(NODE_VID_COL, &self.node.node.0)?;
         state.serialize_entry(TIME_COL, &self.t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &self.t.1)?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
@@ -157,6 +160,7 @@ impl<'a> Serialize for ParquetCNode<'a> {
         let mut state = serializer.serialize_map(None)?;
 
         state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
+        state.serialize_entry(NODE_VID_COL, &self.node.node.0)?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.node.metadata().iter_filtered() {

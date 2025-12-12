@@ -13,6 +13,7 @@ use crate::{
         SegmentCounts,
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
+        row_group_par_iter,
     },
     persist::strategy::Config,
     segments::edge::segment::MemEdgeSegment,
@@ -578,6 +579,26 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                     )
                 })
             })
+    }
+
+    pub fn row_groups_par_iter(
+        &self,
+    ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = EID> + '_)> {
+        row_group_par_iter(
+            self.max_page_len() as usize,
+            self.segments.count(),
+            self.max_page_len(),
+        )
+        .map(|(s_id, iter)| (s_id, iter.filter(|eid| self.has_eid(*eid))))
+    }
+
+    fn has_eid(&self, eid: EID) -> bool {
+        let (segment_id, pos) = self.resolve_pos(eid);
+        segment_id < self.segments.count()
+            && self
+                .segments
+                .get(segment_id)
+                .is_some_and(|s| pos.0 < s.num_edges())
     }
 
     pub(crate) fn segment_counts(&self) -> SegmentCounts<EID> {

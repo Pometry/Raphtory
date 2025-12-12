@@ -185,6 +185,7 @@ pub trait ParquetDecoder: Sized {
 }
 
 const NODE_ID_COL: &str = "rap_node_id";
+const NODE_VID_COL: &str = "rap_node_vid";
 const TYPE_COL: &str = "rap_node_type";
 const TIME_COL: &str = "rap_time";
 const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
