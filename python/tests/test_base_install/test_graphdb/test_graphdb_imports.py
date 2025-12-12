@@ -11,11 +11,11 @@ def test_import_into_graph():
     gg = Graph()
     res = gg.import_node(g_a)
     assert res.name == g_a.name
-    assert res.history() == g_a.history()
+    assert res.history == g_a.history
 
     res = gg.import_node(g_b)
     assert res.name == g_b.name
-    assert res.history() == g_b.history()
+    assert res.history == g_b.history
     assert res.properties.get("temp") == True
     assert res.metadata.get("con") == 11
 
@@ -82,7 +82,7 @@ def test_import_node_as():
     gg = Graph()
     res = gg.import_node_as(a, "X")
     assert res.name == "X"
-    assert res.history().tolist() == [1]
+    assert res.history.collect() == [1]
 
     gg.add_node(1, "Y")
 
@@ -94,7 +94,7 @@ def test_import_node_as():
     assert gg.nodes.name == ["X", "Y"]
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [1]
+    assert y.history.collect() == [1]
     assert y.properties.get("temp") is None
     assert y.metadata.get("con") is None
 
@@ -108,7 +108,7 @@ def test_import_node_as_merge():
     gg = Graph()
     res = gg.import_node_as(a, "X")
     assert res.name == "X"
-    assert res.history().tolist() == [1]
+    assert res.history.collect() == [1]
 
     gg.add_node(1, "Y")
     gg.import_node_as(b, "Y", True)
@@ -116,7 +116,7 @@ def test_import_node_as_merge():
     assert gg.nodes.name == ["X", "Y"]
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [1]
+    assert y.history.collect() == [1, 1]
     assert y.properties.get("temp") == True
     assert y.metadata.get("con") == 11
 
@@ -140,7 +140,7 @@ def test_import_nodes_as():
     assert sorted(gg.nodes.name) == ["Y"]
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [1]
+    assert y.history.collect() == [1]
     assert y.properties.get("temp") is None
     assert y.metadata.get("con") is None
 
@@ -158,11 +158,11 @@ def test_import_nodes_as_merge():
     assert sorted(gg.nodes.name) == ["X", "Y"]
     x = gg.node("X")
     assert x.name == "X"
-    assert x.history().tolist() == [1]
+    assert x.history.collect() == [1]
 
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [1]
+    assert y.history.collect() == [1, 1]
     assert y.properties.get("temp") == True
     assert y.metadata.get("con") == 11
 
@@ -188,11 +188,11 @@ def test_import_edge_as():
     assert sorted(gg.nodes.name) == ["X", "Y", "Z"]
     x = gg.node("X")
     assert x.name == "X"
-    assert x.history().tolist() == [1]
+    assert x.history.collect() == [1]
 
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [1, 2]
+    assert y.history.collect() == [1, 2]
     assert y.properties.get("temp") is None
     assert y.metadata.get("con") is None
 
@@ -215,12 +215,12 @@ def test_import_edge_as_merge():
     assert sorted(gg.nodes.name) == ["X", "Y"]
     x = gg.node("X")
     assert x.name == "X"
-    print(x.history())
-    assert x.history().tolist() == [2, 3]
+    print(x.history)
+    assert x.history.collect() == [2, 3]
 
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [2, 3]
+    assert y.history.collect() == [2, 3]
     assert y.properties.get("temp") is None
     assert y.metadata.get("con") is None
 
@@ -249,13 +249,13 @@ def test_import_edges_as():
 
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [1]
+    assert y.history.collect() == [1]
     assert y.properties.get("temp") is None
     assert y.metadata.get("con") is None
 
     z = gg.node("Z")
     assert z.name == "Z"
-    assert z.history().tolist() == [1]
+    assert z.history.collect() == [1]
 
 
 def test_import_edges_as_merge():
@@ -276,17 +276,17 @@ def test_import_edges_as_merge():
 
     x = gg.node("X")
     assert x.name == "X"
-    assert x.history().tolist() == [2]
+    assert x.history.collect() == [2]
 
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [2, 3]
+    assert y.history.collect() == [2, 2, 3]
     assert y.properties.get("temp") is None
     assert y.metadata.get("con") is None
 
     z = gg.node("Z")
     assert z.name == "Z"
-    assert z.history().tolist() == [2, 3]
+    assert z.history.collect() == [2, 3]
 
 
 def test_import_edges():

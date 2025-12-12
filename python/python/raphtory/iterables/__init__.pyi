@@ -17,13 +17,15 @@ from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
+import numpy as np
+from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['NestedUtcDateTimeIterable', 'NestedGIDIterable', 'GIDIterable', 'StringIterable', 'OptionArcStringIterable', 'UsizeIterable', 'OptionI64Iterable', 'NestedOptionArcStringIterable', 'NestedStringIterable', 'NestedOptionI64Iterable', 'NestedI64VecIterable', 'NestedUsizeIterable', 'BoolIterable', 'ArcStringIterable', 'NestedVecUtcDateTimeIterable', 'OptionVecUtcDateTimeIterable', 'GIDGIDIterable', 'NestedGIDGIDIterable', 'NestedBoolIterable', 'U64Iterable', 'OptionUtcDateTimeIterable', 'ArcStringVecIterable', 'NestedArcStringVecIterable']
+__all__ = ['NestedUtcDateTimeIterable', 'NestedGIDIterable', 'GIDIterable', 'StringIterable', 'OptionArcStringIterable', 'UsizeIterable', 'OptionI64Iterable', 'NestedOptionArcStringIterable', 'NestedStringIterable', 'NestedOptionI64Iterable', 'NestedI64VecIterable', 'NestedUsizeIterable', 'BoolIterable', 'ArcStringIterable', 'NestedVecUtcDateTimeIterable', 'OptionVecUtcDateTimeIterable', 'GIDGIDIterable', 'NestedGIDGIDIterable', 'NestedBoolIterable', 'U64Iterable', 'OptionUtcDateTimeIterable', 'ArcStringVecIterable', 'NestedArcStringVecIterable', 'NestedEventTimeIterable', 'NestedArcStringIterable', 'NestedOptionEventTimeIterable', 'NestedHistoryIterable', 'EventTimeIterable', 'OptionEventTimeIterable', 'HistoryIterable', 'HistoryTimestampIterable', 'IntervalsIterable', 'HistoryEventIdIterable', 'HistoryDateTimeIterable', 'OptionUsizeIterable', 'ResultOptionUtcDateTimeIterable', 'I64Iterable', 'ResultUtcDateTimeIterable', 'NestedHistoryTimestampIterable', 'NestedIntervalsIterable', 'NestedHistoryEventIdIterable', 'NestedHistoryDateTimeIterable', 'NestedOptionUsizeIterable', 'NestedResultOptionUtcDateTimeIterable', 'NestedI64Iterable', 'NestedResultUtcDateTimeIterable']
 class NestedUtcDateTimeIterable(object): 
 
     def __eq__(self, value):
@@ -807,6 +809,903 @@ class NestedArcStringVecIterable(object):
 
     def __ne__(self, value):
         """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+class NestedEventTimeIterable(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+    @property
+    def dt(self) -> NestedResultUtcDateTimeIterable:
+        """
+        Change this nested Iterable of EventTime into a nested Iterable of corresponding UTC DateTimes.
+
+        Returns:
+            NestedResultUtcDateTimeIterable: Nested iterable of UTC datetimes for each EventTime.
+
+        Raises:
+            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+        """
+
+    @property
+    def event_id(self) -> NestedUsizeIterable:
+        """
+        Change this nested Iterable of EventTime into a nested Iterable of their associated event ids.
+
+        Returns:
+            NestedUsizeIterable: Nested iterable of event ids associated to each EventTime.
+        """
+
+    def max(self):
+        ...
+
+    def min(self):
+        ...
+
+    @property
+    def t(self) -> NestedI64Iterable:
+        """
+        Change this nested Iterable of EventTime into a nested Iterable of corresponding Unix timestamps in milliseconds.
+
+        Returns:
+            NestedI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each EventTime.
+        """
+
+class NestedArcStringIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+class NestedOptionEventTimeIterable(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+    @property
+    def dt(self) -> NestedResultOptionUtcDateTimeIterable:
+        """
+        Change this nested Iterable of Optional[EventTime] into a nested Iterable of corresponding UTC DateTimes.
+
+        Returns:
+            NestedResultOptionUtcDateTimeIterable: Nested iterable of UTC datetimes for each EventTime, if available.
+
+        Raises:
+            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+        """
+
+    @property
+    def event_id(self) -> NestedOptionUsizeIterable:
+        """
+        Change this nested Iterable of Optional[EventTime] into a nested Iterable of their associated event ids.
+
+        Returns:
+            NestedOptionUsizeIterable: Nested iterable of event ids associated to each EventTime, if available.
+        """
+
+    def max(self):
+        ...
+
+    def min(self):
+        ...
+
+    @property
+    def t(self) -> NestedOptionI64Iterable:
+        """
+        Change this nested Iterable of Optional[EventTime] into a nested Iterable of corresponding Unix timestamps in milliseconds.
+
+        Returns:
+            NestedOptionI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each EventTime, if available.
+        """
+
+class NestedHistoryIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list[list[EventTime]]]:
+        """
+        Collect time entries from each history within each nested iterable.
+
+        Returns:
+            list[list[list[EventTime]]]: Collected entries per nested history.
+        """
+
+    @property
+    def dt(self) -> NestedHistoryDateTimeIterable:
+        """
+        Access nested histories as datetime views.
+
+        Returns:
+            NestedHistoryDateTimeIterable: Iterable of iterables of HistoryDateTime objects.
+        """
+
+    @property
+    def event_id(self) -> NestedHistoryEventIdIterable:
+        """
+        Access nested histories as event id views.
+
+        Returns:
+            NestedHistoryEventIdIterable: Iterable of iterables of HistoryEventId objects.
+        """
+
+    def flatten(self) -> list[EventTime]:
+        """
+        Flatten the nested iterable of history objects into a single list of all contained time entries.
+
+        Returns:
+            list[EventTime]: List of time entries.
+        """
+
+    @property
+    def intervals(self) -> NestedIntervalsIterable:
+        """
+        Access nested histories as intervals views.
+
+        Returns:
+            NestedIntervalsIterable: Iterable of iterables of Intervals objects.
+        """
+
+    @property
+    def t(self) -> NestedHistoryTimestampIterable:
+        """
+        Access nested histories as timestamp views.
+
+        Returns:
+            NestedHistoryTimestampIterable: Iterable of iterables of HistoryTimestamp objects.
+        """
+
+class EventTimeIterable(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+    @property
+    def dt(self) -> ResultUtcDateTimeIterable:
+        """
+        Change this Iterable of EventTime into an Iterable of corresponding UTC DateTimes.
+
+        Returns:
+            ResultUtcDateTimeIterable: Iterable of UTC datetimes for each EventTime.
+
+        Raises:
+            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+        """
+
+    @property
+    def event_id(self) -> UsizeIterable:
+        """
+        Change this Iterable of EventTime into an Iterable of their associated event ids.
+
+        Returns:
+            UsizeIterable: Iterable of event ids associated to each EventTime.
+        """
+
+    def max(self):
+        ...
+
+    def min(self):
+        ...
+
+    @property
+    def t(self) -> I64Iterable:
+        """
+        Change this Iterable of EventTime into an Iterable of corresponding Unix timestamps in milliseconds.
+
+        Returns:
+            I64Iterable: Iterable of millisecond timestamps since the Unix epoch for each EventTime.
+        """
+
+class OptionEventTimeIterable(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+    @property
+    def dt(self) -> ResultOptionUtcDateTimeIterable:
+        """
+        Change this Iterable of Optional[EventTime] into an Iterable of corresponding UTC DateTimes.
+
+        Returns:
+            ResultOptionUtcDateTimeIterable: Iterable of UTC datetimes for each EventTime, if available.
+
+        Raises:
+            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
+        """
+
+    @property
+    def event_id(self) -> OptionUsizeIterable:
+        """
+        Change this Iterable of Optional[EventTime] into an Iterable of their associated event ids.
+
+        Returns:
+            OptionUsizeIterable: Iterable of event ids associated to each EventTime, if available.
+        """
+
+    def max(self):
+        ...
+
+    def min(self):
+        ...
+
+    @property
+    def t(self) -> OptionI64Iterable:
+        """
+        Change this Iterable of Optional[EventTime] into an Iterable of corresponding Unix timestamps in milliseconds.
+
+        Returns:
+            OptionI64Iterable: Iterable of millisecond timestamps since the Unix epoch for each EventTime, if available.
+        """
+
+class HistoryIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list[EventTime]]:
+        """
+        Collect time entries from each history in the iterable.
+
+        Returns:
+            list[list[EventTime]]: Collected entries per history.
+        """
+
+    @property
+    def dt(self) -> HistoryDateTimeIterable:
+        """
+        Access history items as UTC datetimes.
+
+        Returns:
+            HistoryDateTimeIterable: Iterable of HistoryDateTime objects, one for each item.
+        """
+
+    @property
+    def event_id(self) -> HistoryEventIdIterable:
+        """
+        Access event ids of history items.
+
+        Returns:
+            HistoryEventIdIterable: Iterable of HistoryEventId objects, one for each item.
+        """
+
+    def flatten(self) -> list[EventTime]:
+        """
+        Flatten the iterable of history objects into a single list of all contained time entries.
+
+        Returns:
+            list[EventTime]: List of time entries.
+        """
+
+    @property
+    def intervals(self) -> IntervalsIterable:
+        """
+        Access intervals between consecutive timestamps in milliseconds.
+
+        Returns:
+            IntervalsIterable: Iterable of Intervals objects, one for each item.
+        """
+
+    @property
+    def t(self) -> HistoryTimestampIterable:
+        """
+        Access history items as timestamps (milliseconds since the Unix epoch).
+
+        Returns:
+            HistoryTimestampIterable: Iterable of HistoryTimestamp objects, one for each item.
+        """
+
+class HistoryTimestampIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[NDArray[np.int64]]:
+        """
+        Collect timestamps for each history into a NumPy array.
+
+        Returns:
+            list[NDArray[np.int64]]: NumPy NDArray of timestamps in milliseconds per history.
+        """
+
+    def to_list(self) -> list[list[int]]:
+        """
+        Collect timestamps for each history into a list.
+
+        Returns:
+            list[list[int]]: List of timestamps in milliseconds per history.
+        """
+
+class IntervalsIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[NDArray[np.int64]]:
+        """
+        Collect intervals between each history's consecutive timestamps in milliseconds into a NumPy array.
+
+        Returns:
+            list[NDArray[np.int64]]: NumPy NDArray of intervals per history.
+        """
+
+    def to_list(self) -> list[list[int]]:
+        """
+        Collect intervals between each history's consecutive timestamps in milliseconds into a list.
+
+        Returns:
+            list[list[int]]: List of intervals per history.
+        """
+
+class HistoryEventIdIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[NDArray[np.uintp]]:
+        """
+        Collect event ids for each history into a NumPy array.
+
+        Returns:
+            list[NDArray[np.uintp]]: NumPy NDArray of event ids per history.
+        """
+
+    def to_list(self) -> list[list[int]]:
+        """
+        Collect event ids for each history into a list.
+
+        Returns:
+            list[list[int]]: List of event ids per history.
+        """
+
+class HistoryDateTimeIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list[datetime]]:
+        """
+        Collect datetimes for each history.
+
+        Returns:
+            list[list[datetime]]: UTC datetimes per history.
+
+        Raises:
+            TimeError: If a timestamp cannot be converted to a datetime.
+        """
+
+class OptionUsizeIterable(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+    def max(self):
+        ...
+
+    def min(self):
+        ...
+
+class ResultOptionUtcDateTimeIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+class I64Iterable(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+    def max(self):
+        ...
+
+    def mean(self):
+        ...
+
+    def min(self):
+        ...
+
+    def sum(self):
+        ...
+
+class ResultUtcDateTimeIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+class NestedHistoryTimestampIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list[NDArray[np.int64]]]:
+        """
+        Collect timestamps for each history in each nested iterable into a NumPy array.
+
+        Returns:
+            list[list[NDArray[np.int64]]]: NumPy NDArray of timestamps in milliseconds per nested history.
+        """
+
+    def flatten(self) -> NDArray[np.int64]:
+        """
+        Flatten the nested iterable of history objects into a single NumPy NDArray of all contained timestamps.
+
+        Returns:
+            NDArray[np.int64]: NumPy NDArray of timestamps in milliseconds.
+        """
+
+    def flattened_list(self) -> list[int]:
+        """
+        Flatten the nested iterable of history objects into a single list of all contained timestamps.
+
+        Returns:
+            list[int]: List of timestamps in milliseconds.
+        """
+
+    def to_list(self) -> list[list[list[int]]]:
+        """
+        Collect timestamps for each history in each nested iterable into a list.
+
+        Returns:
+            list[list[list[int]]]: List of timestamps in milliseconds per nested history.
+        """
+
+class NestedIntervalsIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list[NDArray[np.int64]]]:
+        """
+        Collect intervals between each nested history's consecutive timestamps in milliseconds into a NumPy array.
+
+        Returns:
+            list[list[NDArray[np.int64]]]: NumPy NDArray of intervals per nested history.
+        """
+
+    def flatten(self) -> NDArray[np.int64]:
+        """
+        Collect intervals between each nested history's consecutive timestamps in milliseconds into a single NumPy array.
+
+        Returns:
+            NDArray[np.int64]: NumPy NDArray of intervals.
+        """
+
+    def flattened_list(self) -> list[int]:
+        """
+        Collect intervals between each nested history's consecutive timestamps in milliseconds into a single list.
+
+        Returns:
+            list[int]: List of intervals.
+        """
+
+    def to_list(self) -> list[list[list[int]]]:
+        """
+        Collect intervals between each nested history's consecutive timestamps in milliseconds into a list.
+
+        Returns:
+            list[list[list[int]]]: List of intervals per nested history.
+        """
+
+class NestedHistoryEventIdIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list[NDArray[np.uintp]]]:
+        """
+        Collect event ids for each history in each nested iterable into a NumPy array.
+
+        Returns:
+            list[list[NDArray[np.uintp]]]: NumPy NDArray of event ids per nested history.
+        """
+
+    def flatten(self) -> NDArray[np.uintp]:
+        """
+        Flatten the nested iterable of history objects into a single NumPy NDArray of all contained event ids.
+
+        Returns:
+            NDArray[np.uintp]: NumPy NDArray of event ids.
+        """
+
+    def flattened_list(self) -> list[int]:
+        """
+        Flatten the nested iterable of history objects into a single list of all contained event ids.
+
+        Returns:
+            list[int]: List of timestamps in milliseconds.
+        """
+
+    def to_list(self) -> list[list[list[int]]]:
+        """
+        Collect event ids for each history in each nested iterable into a list.
+
+        Returns:
+            list[list[list[int]]]: List of event ids per nested history.
+        """
+
+class NestedHistoryDateTimeIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list[list[datetime]]]:
+        """
+        Collect datetimes for each history in each nested iterable.
+
+        Returns:
+            list[list[list[datetime]]]: UTC datetimes per nested history.
+
+        Raises:
+            TimeError: If a timestamp cannot be converted to a datetime.
+        """
+
+    def flatten(self) -> list[datetime]:
+        """
+        Flatten the nested iterable of history objects into a single list of all contained datetimes.
+
+        Returns:
+            list[datetime]: List of UTC datetimes.
+
+        Raises:
+            TimeError: If a timestamp cannot be converted to a datetime.
+        """
+
+class NestedOptionUsizeIterable(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+    def max(self):
+        ...
+
+    def min(self):
+        ...
+
+class NestedResultOptionUtcDateTimeIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+class NestedI64Iterable(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self):
+        ...
+
+    def max(self):
+        ...
+
+    def mean(self):
+        ...
+
+    def min(self):
+        ...
+
+    def sum(self):
+        ...
+
+class NestedResultUtcDateTimeIterable(object): 
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
 
     def __repr__(self):
         """Return repr(self)."""

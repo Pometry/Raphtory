@@ -7,7 +7,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds,
     },
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
     Direction,
 };
 use std::{
@@ -109,7 +109,7 @@ impl<'a> NodePtr<'a> {
             .filter_map(|(id, col)| (!col.is_empty()).then_some(id))
     }
 
-    pub fn into_rows(self) -> impl Iterator<Item = (TimeIndexEntry, MemRow<'a>)> {
+    pub fn into_rows(self) -> impl Iterator<Item = (EventTime, MemRow<'a>)> {
         self.node
             .timestamps()
             .props_ts
@@ -117,7 +117,7 @@ impl<'a> NodePtr<'a> {
             .map(move |(t, &row)| (*t, MemRow::new(self.t_props_log, row)))
     }
 
-    pub fn last_before_row(self, t: TimeIndexEntry) -> Vec<(usize, Prop)> {
+    pub fn last_before_row(self, t: EventTime) -> Vec<(usize, Prop)> {
         self.t_props_log
             .iter()
             .enumerate()
@@ -130,8 +130,8 @@ impl<'a> NodePtr<'a> {
 
     pub fn into_rows_window(
         self,
-        w: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, MemRow<'a>)> + Send + Sync {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, MemRow<'a>)> + Send + Sync {
         let tcell = &self.node.timestamps().props_ts;
         tcell
             .iter_window(w)

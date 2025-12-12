@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::EID, storage::timeindex::TimeIndexEntry},
+    core::{entities::EID, storage::timeindex::EventTime},
     db::{api::view::IndexSpec, graph::edge::EdgeView},
     errors::GraphError,
     prelude::*,
@@ -238,7 +238,7 @@ impl EdgeIndex {
         &self,
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {

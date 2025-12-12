@@ -50,15 +50,15 @@ print(g)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=1560419400000, latest_time=1562756700000)"
+assert str(g) == "Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=EventTime(timestamp=1560419400000, event_id=0), latest_time=EventTime(timestamp=1562756700000, event_id=18446744073709551615))"
 ```
 
-You can print the state of the graph object to verify it exists.
+You can print the state of the graph object to verify it exists. Note that the `earliest_time` and `latest_time` are given in Raphtory's `EventTime` format.
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=1560419400000, latest_time=1562756700000)
+    Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=EventTime(timestamp=1560419400000, event_id=0), latest_time=EventTime(timestamp=1562756700000, event_id=18446744073709551615))
     ```
 
 For more details, see [Creating a graph](../ingestion/1_intro.md).

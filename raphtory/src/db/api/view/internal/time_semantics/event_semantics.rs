@@ -12,7 +12,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds, ELID,
     },
-    storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
@@ -28,51 +28,68 @@ impl NodeTimeSemanticsOps for EventSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
-        node.history(view).first_t()
+    ) -> Option<EventTime> {
+        node.history(view).first()
     }
 
     fn node_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
-        node.history(view).last_t()
+    ) -> Option<EventTime> {
+        node.history(view).last()
     }
 
     fn node_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
-    ) -> Option<i64> {
-        node.history(view).range_t(w).first_t()
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        node.history(view).range(w).first()
     }
 
     fn node_latest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
-    ) -> Option<i64> {
-        node.history(view).range_t(w).last_t()
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        node.history(view).range(w).last()
     }
 
     fn node_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
-        node.history(view).iter_t()
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
+        node.history(view).iter()
+    }
+
+    fn node_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
+        node.history(view).iter_rev()
     }
 
     fn node_history_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
-        node.history(view).range_t(w).iter_t()
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
+        node.history(view).range(w).iter()
+    }
+
+    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
+        node.history(view).range(w).iter_rev()
     }
 
     fn node_edge_history_count<'graph, G: GraphView + 'graph>(
@@ -87,16 +104,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> usize {
-        node.history(view).range_t(w).edge_history().len()
+        node.history(view).range(w).edge_history().len()
     }
 
     fn node_edge_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         node.edge_history(view).history()
     }
 
@@ -104,16 +121,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view).range_t(w).history()
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
+        node.edge_history(view).range(w).history()
     }
 
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         node.edge_history(view).history_rev()
     }
 
@@ -121,16 +138,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view).range_t(w).history_rev()
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
+        node.edge_history(view).range(w).history_rev()
     }
 
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         node.temp_prop_rows().map(|(t, row)| {
             (
                 t,
@@ -145,17 +162,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_window(TimeIndexEntry::range(w))
-            .map(|(t, row)| {
-                (
-                    t,
-                    row.into_iter()
-                        .filter_map(|(id, prop)| Some((id, prop?)))
-                        .collect(),
-                )
-            })
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+        node.temp_prop_rows_window(w).map(|(t, row)| {
+            (
+                t,
+                row.into_iter()
+                    .filter_map(|(id, prop)| Some((id, prop?)))
+                    .collect(),
+            )
+        })
     }
 
     fn node_valid<'graph, G: GraphView + 'graph>(
@@ -170,9 +186,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
-        node.history(view).active_t(w)
+        node.history(view).active(w)
     }
 
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
@@ -180,7 +196,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+    ) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         node.tprop(prop_id).iter()
     }
 
@@ -189,9 +205,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-        w: Range<i64>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id).iter_window(TimeIndexEntry::range(w))
+        w: Range<EventTime>,
+    ) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
+        node.tprop(prop_id).iter_window(w)
     }
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
@@ -199,8 +215,8 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+        t: EventTime,
+    ) -> Option<(EventTime, Prop)> {
         let prop = node.tprop(prop_id);
         prop.last_before(t.next())
     }
@@ -210,10 +226,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> Option<(TimeIndexEntry, Prop)> {
-        let w = TimeIndexEntry::range(w);
+        t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
             let prop = node.tprop(prop_id);
             prop.last_before(t.next()).filter(|(t, _)| w.contains(t))
@@ -226,10 +241,10 @@ impl NodeTimeSemanticsOps for EventSemantics {
 impl EdgeTimeSemanticsOps for EventSemantics {
     fn handle_edge_update_filter<G: GraphView>(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         eid: ELID,
         view: G,
-    ) -> Option<(TimeIndexEntry, ELID)> {
+    ) -> Option<(EventTime, ELID)> {
         view.filter_exploded_edge_inner(eid, t).then_some((t, eid))
     }
 
@@ -243,13 +258,13 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         edge: EdgeStorageRef,
         view: G,
         layer_id: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
-        edge.filtered_additions(layer_id, &view).active_t(w.clone())
-            || edge.filtered_deletions(layer_id, &view).active_t(w)
+        edge.filtered_additions(layer_id, &view).active(w.clone())
+            || edge.filtered_deletions(layer_id, &view).active(w)
     }
 
-    fn include_exploded_edge<G: GraphView>(&self, eid: ELID, t: TimeIndexEntry, view: G) -> bool {
+    fn include_exploded_edge<G: GraphView>(&self, eid: ELID, t: EventTime, view: G) -> bool {
         view.layer_ids().contains(&eid.layer())
             && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
             && (view.exploded_filter_independent() || {
@@ -266,11 +281,11 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     fn include_exploded_edge_window<G: GraphView>(
         &self,
         elid: ELID,
-        t: TimeIndexEntry,
+        t: EventTime,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
-        w.contains(&t.t()) && self.include_exploded_edge(elid, t, view)
+        w.contains(&t) && self.include_exploded_edge(elid, t, view)
     }
 
     fn edge_history<'graph, G: GraphView + 'graph>(
@@ -278,10 +293,21 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         edge.filtered_additions_iter(view, layer_ids)
             .map(|(layer_id, additions)| additions.iter().map(move |t| (t, layer_id)))
             .kmerge()
+    }
+
+    fn edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
+        edge.filtered_additions_iter(view, layer_ids)
+            .map(|(layer_id, additions)| additions.iter_rev().map(move |t| (t, layer_id)))
+            .kmerge_by(|a, b| a >= b)
     }
 
     fn edge_history_window<'graph, G: GraphView + 'graph>(
@@ -289,16 +315,33 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         edge.filtered_additions_iter(view, layer_ids)
             .map(move |(layer_id, additions)| {
                 additions
-                    .range_t(w.clone())
+                    .range(w.clone())
                     .iter()
                     .map(move |t| (t, layer_id))
             })
             .kmerge()
+    }
+
+    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
+        edge.filtered_additions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range(w.clone())
+                    .iter_rev()
+                    .map(move |t| (t, layer_id))
+            })
+            .kmerge_by(|a, b| a >= b)
     }
 
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(
@@ -315,10 +358,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> usize {
         edge.filtered_additions_iter(&view, view.layer_ids())
-            .map(|(_, additions)| additions.range_t(w.clone()).len())
+            .map(|(_, additions)| additions.range(w.clone()).len())
             .sum()
     }
 
@@ -327,7 +370,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         self.edge_history(e, view, layer_ids)
     }
 
@@ -357,8 +400,8 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         self.edge_history_window(e, view, layer_ids, w)
     }
 
@@ -367,11 +410,11 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'graph {
         e.filtered_updates_iter(view, layer_ids).filter_map(
             move |(layer_id, additions, deletions)| {
-                (additions.active_t(w.clone()) || deletions.active_t(w.clone())).then_some(layer_id)
+                (additions.active(w.clone()) || deletions.active(w.clone())).then_some(layer_id)
             },
         )
     }
@@ -380,12 +423,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<EventTime> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.first_t())
+            .filter_map(|(_, additions)| additions.first())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.first_t()),
+                    .filter_map(|(_, deletions)| deletions.first()),
             )
             .min()
     }
@@ -394,13 +437,13 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        w: Range<i64>,
-    ) -> Option<i64> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.range_t(w.clone()).first_t())
+            .filter_map(|(_, additions)| additions.range(w.clone()).first())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.range_t(w.clone()).first_t()),
+                    .filter_map(|(_, deletions)| deletions.range(w.clone()).first()),
             )
             .min()
     }
@@ -409,22 +452,22 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<EventTime> {
         view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
-            .then_some(t.t())
+            .then_some(t)
     }
 
     fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<i64>,
-    ) -> Option<i64> {
-        if !w.contains(&t.t()) {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        if !w.contains(&t) {
             return None;
         }
         self.edge_exploded_earliest_time(e, view, t, layer)
@@ -434,12 +477,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<EventTime> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.last_t())
+            .filter_map(|(_, additions)| additions.last())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.last_t()),
+                    .filter_map(|(_, deletions)| deletions.last()),
             )
             .max()
     }
@@ -448,13 +491,13 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        w: Range<i64>,
-    ) -> Option<i64> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.range_t(w.clone()).last_t())
+            .filter_map(|(_, additions)| additions.range(w.clone()).last())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.range_t(w.clone()).last_t()),
+                    .filter_map(|(_, deletions)| deletions.range(w.clone()).last()),
             )
             .max()
     }
@@ -463,9 +506,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<EventTime> {
         self.edge_exploded_earliest_time(e, view, t, layer)
     }
 
@@ -473,10 +516,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<i64>,
-    ) -> Option<i64> {
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
         self.edge_exploded_earliest_time_window(e, view, t, layer, w)
     }
 
@@ -485,10 +528,21 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         e.filtered_deletions_iter(view, layer_ids)
             .map(|(layer_id, t)| t.iter().map(move |t| (t, layer_id)))
             .kmerge()
+    }
+
+    fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
+        e.filtered_deletions_iter(view, layer_ids)
+            .map(|(layer_id, t)| t.iter_rev().map(move |t| (t, layer_id)))
+            .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
     fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
@@ -496,16 +550,33 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         edge: EdgeStorageRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
         edge.filtered_deletions_iter(view, layer_ids)
             .map(move |(layer_id, additions)| {
                 additions
-                    .range_t(w.clone())
+                    .range(w.clone())
                     .iter()
                     .map(move |t| (t, layer_id))
             })
             .kmerge()
+    }
+
+    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
+        edge.filtered_deletions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range(w.clone())
+                    .iter_rev()
+                    .map(move |t| (t, layer_id))
+            })
+            .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
     /// An edge is valid with event semantics if it has at least one addition event in the current view
@@ -523,10 +594,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .any(|(_, additions)| !additions.range_t(w.clone()).is_empty())
+            .any(|(_, additions)| !additions.range(w.clone()).is_empty())
     }
 
     /// An edge is deleted with event semantics if it has at least one deletion event in the current view
@@ -544,10 +615,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
         e.filtered_deletions_iter(&view, view.layer_ids())
-            .any(|(_, deletions)| !deletions.range_t(w.clone()).is_empty())
+            .any(|(_, deletions)| !deletions.range(w.clone()).is_empty())
     }
 
     /// An edge is valid with event semantics if it has at least one event in the current view
@@ -564,7 +635,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
         self.edge_is_valid_window(e, &view, w.clone()) || self.edge_is_deleted_window(e, &view, w)
     }
@@ -573,7 +644,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
     ) -> bool {
         view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
@@ -583,11 +654,11 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
-        w.contains(&t.t())
+        w.contains(&t)
             && view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
     }
 
@@ -597,7 +668,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
     ) -> bool {
         self.edge_is_active_exploded(e, view, t, layer)
@@ -609,9 +680,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
         self.edge_is_active_exploded_window(e, view, t, layer, w)
     }
@@ -620,9 +691,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         _e: EdgeStorageRef<'graph>,
         _view: G,
-        _t: TimeIndexEntry,
+        _t: EventTime,
         _layer: usize,
-    ) -> Option<TimeIndexEntry> {
+    ) -> Option<EventTime> {
         None
     }
 
@@ -630,10 +701,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         _e: EdgeStorageRef<'graph>,
         _view: G,
-        _t: TimeIndexEntry,
+        _t: EventTime,
         _layer: usize,
-        _w: Range<i64>,
-    ) -> Option<TimeIndexEntry> {
+        _w: Range<EventTime>,
+    ) -> Option<EventTime> {
         None
     }
 
@@ -642,7 +713,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef,
         view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer_id: usize,
     ) -> Option<Prop> {
         let eid = e.eid();
@@ -657,10 +728,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        edge_time: TimeIndexEntry,
+        edge_time: EventTime,
         layer_id: usize,
         prop_id: usize,
-        at: TimeIndexEntry,
+        at: EventTime,
     ) -> Option<Prop> {
         if at == edge_time {
             self.temporal_edge_prop_exploded(e, view, prop_id, edge_time, layer_id)
@@ -673,13 +744,13 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
-        edge_time: TimeIndexEntry,
+        edge_time: EventTime,
         layer_id: usize,
         prop_id: usize,
-        at: TimeIndexEntry,
-        w: Range<i64>,
+        at: EventTime,
+        w: Range<EventTime>,
     ) -> Option<Prop> {
-        if edge_time == at && w.contains(&edge_time.t()) {
+        if edge_time == at && w.contains(&edge_time) {
             self.temporal_edge_prop_exploded(e, view, prop_id, edge_time, layer_id)
         } else {
             None
@@ -691,7 +762,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
+        t: EventTime,
     ) -> Option<Prop> {
         e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
             .filter_map(|(_, prop)| prop.last_before(t.next()))
@@ -704,15 +775,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<i64>,
+        t: EventTime,
+        w: Range<EventTime>,
     ) -> Option<Prop> {
-        if w.contains(&t.t()) {
+        if w.contains(&t) {
             e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
-                .filter_map(|(_, prop)| {
-                    prop.last_before(t.next())
-                        .filter(|(t, _)| w.contains(&t.t()))
-                })
+                .filter_map(|(_, prop)| prop.last_before(t.next()).filter(|(t, _)| w.contains(&t)))
                 .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
                 .map(|(_, v)| v)
         } else {
@@ -726,7 +794,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
             .map(|(layer_id, prop)| prop.iter().map(move |(t, v)| (t, layer_id, v)))
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
@@ -738,7 +806,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
             .map(|(layer_id, prop)| prop.iter().rev().map(move |(t, v)| (t, layer_id, v)))
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
@@ -750,11 +818,11 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
             .map(move |(layer_id, prop)| {
-                prop.iter_window(TimeIndexEntry::range(w.clone()))
+                prop.iter_window(w.clone())
                     .map(move |(t, v)| (t, layer_id, v))
             })
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
@@ -766,11 +834,11 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
             .map(move |(layer_id, prop)| {
-                prop.iter_window(TimeIndexEntry::range(w.clone()))
+                prop.iter_window(w.clone())
                     .rev()
                     .map(move |(t, v)| (t, layer_id, v))
             })
@@ -795,11 +863,11 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> Option<Prop> {
         let layer_filter = |layer| {
             !e.filtered_additions(layer, &view)
-                .range_t(w.clone())
+                .range(w.clone())
                 .is_empty()
         };
         e.filtered_edge_metadata(&view, prop_id, layer_filter)

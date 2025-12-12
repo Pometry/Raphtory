@@ -62,7 +62,7 @@ fn test_exploded_edge_multilayer() {
             .add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
             .unwrap();
     }
-    // FIXME: Needs support for secondary time index in disk storage (Issue #30)
+    // FIXME: Needs support for event id from EventTime in disk storage (Issue #30)
     test_graph(&graph, |graph| {
         let prop_values: Vec<_> = graph
             .edge(1, 2)
@@ -126,17 +126,17 @@ fn test_exploded_edge_multilayer() {
 }
 
 #[test]
-fn test_sorting_by_secondary_index() {
+fn test_sorting_by_event_id() {
     let graph = Graph::new();
     graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
     graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     graph.add_edge(0, 1, 2, [("second", true)], None).unwrap();
     graph.add_edge(0, 2, 3, [("second", true)], None).unwrap();
 
-    //FIXME: DiskGraph does not preserve secondary index (see #1780)
+    //FIXME: DiskGraph does not preserve event id (see #1780)
     test_graph(&graph, |graph| {
         let mut exploded_edges: Vec<_> = graph.edges().explode().into_iter().collect();
-        exploded_edges.sort_by_key(|a| a.time_and_index().unwrap());
+        exploded_edges.sort_by_key(|a| a.time_and_event_id().unwrap());
 
         let res: Vec<_> = exploded_edges
             .into_iter()

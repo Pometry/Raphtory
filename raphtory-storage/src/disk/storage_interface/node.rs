@@ -14,7 +14,7 @@ use raphtory_api::{
             properties::{prop::Prop, tprop::TPropOps},
             LayerIds, LayerVariants, VID,
         },
-        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+        storage::timeindex::{EventTime, TimeIndexOps},
         Direction, DirectionVariants,
     },
     iter::BoxedLIter,
@@ -28,14 +28,14 @@ pub struct DiskNode<'a> {
 }
 
 impl<'a> DiskNode<'a> {
-    pub fn into_rows(self) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> {
+    pub fn into_rows(self) -> impl Iterator<Item = (EventTime, Row<'a>)> {
         self.graph
             .node_properties()
             .temporal_props()
             .iter()
             .enumerate()
             .flat_map(move |(layer, props)| {
-                let ts = props.timestamps::<TimeIndexEntry>(self.vid);
+                let ts = props.timestamps::<EventTime>(self.vid);
                 ts.into_iter().zip(0..ts.len()).map(move |(t, row)| {
                     let row = DiskRow::new(self.graph, ts, row, layer);
                     (t, Row::Disk(row))
@@ -45,15 +45,15 @@ impl<'a> DiskNode<'a> {
 
     pub fn into_rows_window(
         self,
-        window: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> {
+        window: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, Row<'a>)> {
         self.graph
             .node_properties()
             .temporal_props()
             .iter()
             .enumerate()
             .flat_map(move |(layer, props)| {
-                let ts = props.timestamps::<TimeIndexEntry>(self.vid);
+                let ts = props.timestamps::<EventTime>(self.vid);
                 let ts = ts.range(window.clone());
                 ts.iter().enumerate().map(move |(row, t)| {
                     let row = DiskRow::new(self.graph, ts, row, layer);
@@ -62,7 +62,7 @@ impl<'a> DiskNode<'a> {
             })
     }
 
-    pub fn last_before_row(self, t: TimeIndexEntry) -> Vec<(usize, Prop)> {
+    pub fn last_before_row(self, t: EventTime) -> Vec<(usize, Prop)> {
         self.graph
             .prop_mapping()
             .nodes()
@@ -71,7 +71,7 @@ impl<'a> DiskNode<'a> {
             .filter_map(|(prop_id, &location)| {
                 let (layer, local_prop_id) = location?;
                 let layer = self.graph().node_properties().temporal_props().get(layer)?;
-                let t_prop = layer.prop::<TimeIndexEntry>(self.vid, local_prop_id);
+                let t_prop = layer.prop::<EventTime>(self.vid, local_prop_id);
                 t_prop.last_before(t).map(|(_, p)| (prop_id, p))
             })
             .collect()

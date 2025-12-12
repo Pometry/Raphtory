@@ -4,7 +4,7 @@ use iter_enum::{
 };
 use raphtory_api::core::{
     entities::properties::{prop::Prop, tprop::TPropOps},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 use std::ops::Range;
 
@@ -69,22 +69,22 @@ impl<
         #[cfg(feature = "storage")] Disk: TPropOps<'a> + 'a,
     > TPropOps<'a> for SelfType!(Mem, Unlocked, Disk)
 {
-    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
         for_all!(self, props => props.last_before(t))
     }
 
-    fn iter(self) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+    fn iter(self) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         for_all_iter!(self, props => props.iter())
     }
 
     fn iter_window(
         self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        r: Range<EventTime>,
+    ) -> impl DoubleEndedIterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         for_all_iter!(self, props => props.iter_window(r))
     }
 
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &EventTime) -> Option<Prop> {
         for_all!(self, props => props.at(ti))
     }
 }
