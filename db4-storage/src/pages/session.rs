@@ -176,33 +176,31 @@ impl<
         let (_, src_pos) = self.graph.nodes().resolve_pos(src);
         let (_, dst_pos) = self.graph.nodes().resolve_pos(dst);
 
-        if let Some(e_id) = self
+        let existing_eid = self
             .node_writers
             .get_mut_src()
-            .get_out_edge(src_pos, dst, layer_id)
-        {
-            let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
+            .get_out_edge(src_pos, dst, layer_id);
 
-            self.edge_writer
-                .add_static_edge(Some(edge_pos), src, dst, true);
-
-            MaybeNew::Existing(e_id)
-        } else {
-            let edge_id = self
-                .edge_writer
-                .add_static_edge(None, src, dst, false);
-            let edge_id =
-                edge_id.as_eid(self.edge_writer.segment_id(), self.graph.edges().max_page_len());
-
-            self.node_writers
-                .get_mut_src()
-                .add_static_outbound_edge(src_pos, dst, edge_id);
-            self.node_writers
-                .get_mut_dst()
-                .add_static_inbound_edge(dst_pos, src, edge_id);
-
-            MaybeNew::New(edge_id)
+        // Edge already exists, so no need to add it again.
+        if let Some(eid) = existing_eid {
+            return MaybeNew::Existing(eid)
         }
+
+        let edge_pos = None;
+        let edge_exists_hint = false;
+        let edge_pos =
+            self.edge_writer.add_static_edge(edge_pos, src, dst, edge_exists_hint);
+        let edge_id =
+            edge_pos.as_eid(self.edge_writer.segment_id(), self.graph.edges().max_page_len());
+
+        self.node_writers
+            .get_mut_src()
+            .add_static_outbound_edge(src_pos, dst, edge_id);
+        self.node_writers
+            .get_mut_dst()
+            .add_static_inbound_edge(dst_pos, src, edge_id);
+
+        MaybeNew::New(edge_id)
     }
 
     pub fn node_writers(
