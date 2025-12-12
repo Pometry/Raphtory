@@ -5,6 +5,7 @@ import pandas as pd
 import polars as pl
 import pyarrow as pa
 import duckdb
+
 try:
     import fireducks.pandas as fpd
 except ModuleNotFoundError:
@@ -15,6 +16,7 @@ base_dir = Path(__file__).parent
 EDGES_FILE = os.path.join(base_dir, "data/network_traffic_edges.csv")
 NODES_FILE = os.path.join(base_dir, "data/network_traffic_nodes.csv")
 
+
 @pytest.fixture(scope="module")
 def dataframes():
     # Load Data using Pandas
@@ -23,17 +25,27 @@ def dataframes():
 
     data = {
         "pandas": {"edges": df_edges_pd, "nodes": df_nodes_pd},
-        "polars": {"edges": pl.from_pandas(df_edges_pd), "nodes": pl.from_pandas(df_nodes_pd)},
-        "arrow": {"edges": pa.Table.from_pandas(df_edges_pd), "nodes": pa.Table.from_pandas(df_nodes_pd)},
+        "polars": {
+            "edges": pl.from_pandas(df_edges_pd),
+            "nodes": pl.from_pandas(df_nodes_pd),
+        },
+        "arrow": {
+            "edges": pa.Table.from_pandas(df_edges_pd),
+            "nodes": pa.Table.from_pandas(df_nodes_pd),
+        },
         "duckdb": {
             "edges": duckdb.from_df(df_edges_pd),
-            "nodes": duckdb.from_df(df_nodes_pd)
+            "nodes": duckdb.from_df(df_nodes_pd),
         },
     }
     if fpd:
-        data["fireducks"] = {"edges": fpd.read_csv(EDGES_FILE), "nodes": fpd.read_csv(NODES_FILE)}
+        data["fireducks"] = {
+            "edges": fpd.read_csv(EDGES_FILE),
+            "nodes": fpd.read_csv(NODES_FILE),
+        }
 
     return data
+
 
 @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
 def test_edge_ingestion_equivalence(dataframes, graph_type):
@@ -45,7 +57,7 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
         src="source",
         dst="destination",
         properties=["data_size_MB", "transaction_type"],
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
 
     # Pandas streaming
@@ -56,9 +68,11 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
         src="source",
         dst="destination",
         properties=["data_size_MB", "transaction_type"],
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
-    assert g_pd == g_pd_stream, "Pandas streaming edge ingestion failed equivalence check"
+    assert (
+        g_pd == g_pd_stream
+    ), "Pandas streaming edge ingestion failed equivalence check"
 
     # Polars
     g_pl = graph_type()
@@ -68,7 +82,7 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
         src="source",
         dst="destination",
         properties=["data_size_MB", "transaction_type"],
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
     assert g_pd == g_pl, "Polars edge ingestion failed equivalence check"
 
@@ -80,7 +94,7 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
         src="source",
         dst="destination",
         properties=["data_size_MB", "transaction_type"],
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
     assert g_pd == g_arrow, "Arrow edge ingestion failed equivalence check"
 
@@ -92,7 +106,7 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
         src="source",
         dst="destination",
         properties=["data_size_MB", "transaction_type"],
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
     assert g_pd == g_duckdb, "DuckDB edge ingestion failed equivalence check"
 
@@ -105,7 +119,7 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
             src="source",
             dst="destination",
             properties=["data_size_MB", "transaction_type"],
-            metadata=["is_encrypted"]
+            metadata=["is_encrypted"],
         )
         assert g_pd == g_fd, "FireDucks edge ingestion failed equivalence check"
 
@@ -119,7 +133,7 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
 
     # Pandas streaming
@@ -129,9 +143,11 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
-    assert g_pd == g_pd_stream, "Pandas streaming node ingestion failed equivalence check"
+    assert (
+        g_pd == g_pd_stream
+    ), "Pandas streaming node ingestion failed equivalence check"
 
     # Polars
     g_pl = graph_type()
@@ -140,7 +156,7 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
     assert g_pd == g_pl, "Polars node ingestion failed equivalence check"
 
@@ -151,7 +167,7 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
     assert g_pd == g_arrow, "Arrow node ingestion failed equivalence check"
 
@@ -162,7 +178,7 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
     assert g_pd == g_duckdb, "DuckDB node ingestion failed equivalence check"
 
@@ -171,13 +187,14 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
         print("Testing fireducks...")
         g_fd = graph_type()
         g_fd.load_nodes_from_df(
-        data=dataframes["fireducks"]["nodes"],
-        time="timestamp",
-        id="server_id",
-        properties=["OS_version", "uptime_days"],
-        metadata=["primary_function", "server_name", "hardware_type"]
+            data=dataframes["fireducks"]["nodes"],
+            time="timestamp",
+            id="server_id",
+            properties=["OS_version", "uptime_days"],
+            metadata=["primary_function", "server_name", "hardware_type"],
         )
         assert g_pd == g_fd, "FireDucks node ingestion failed equivalence check"
+
 
 @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
 def test_metadata_update_equivalence(dataframes, graph_type):
@@ -198,13 +215,13 @@ def test_metadata_update_equivalence(dataframes, graph_type):
     g_pd.load_node_props_from_pandas(
         df=dataframes["pandas"]["nodes"],
         id="server_id",
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
     g_pd.load_edge_props_from_pandas(
         df=dataframes["pandas"]["edges"],
         src="source",
         dst="destination",
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
 
     # Pandas streaming
@@ -224,15 +241,17 @@ def test_metadata_update_equivalence(dataframes, graph_type):
     g_pd_stream.load_node_metadata_from_df(
         data=dataframes["pandas"]["nodes"],
         id="server_id",
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
     g_pd_stream.load_edge_metadata_from_df(
         data=dataframes["pandas"]["edges"],
         src="source",
         dst="destination",
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
-    assert g_pd == g_pd_stream, "Pandas streaming metadata ingestion failed equivalence check"
+    assert (
+        g_pd == g_pd_stream
+    ), "Pandas streaming metadata ingestion failed equivalence check"
 
     # Polars
     g_pl = graph_type()
@@ -251,13 +270,13 @@ def test_metadata_update_equivalence(dataframes, graph_type):
     g_pl.load_node_metadata_from_df(
         data=dataframes["polars"]["nodes"],
         id="server_id",
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
     g_pl.load_edge_metadata_from_df(
         data=dataframes["polars"]["edges"],
         src="source",
         dst="destination",
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
     assert g_pd == g_pl, "Polars metadata ingestion failed equivalence check"
 
@@ -278,13 +297,13 @@ def test_metadata_update_equivalence(dataframes, graph_type):
     g_arrow.load_node_metadata_from_df(
         data=dataframes["arrow"]["nodes"],
         id="server_id",
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
     g_arrow.load_edge_metadata_from_df(
         data=dataframes["arrow"]["edges"],
         src="source",
         dst="destination",
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
     assert g_pd == g_arrow, "Arrow metadata ingestion failed equivalence check"
 
@@ -305,13 +324,13 @@ def test_metadata_update_equivalence(dataframes, graph_type):
     g_duckdb.load_node_metadata_from_df(
         data=dataframes["duckdb"]["nodes"],
         id="server_id",
-        metadata=["primary_function", "server_name", "hardware_type"]
+        metadata=["primary_function", "server_name", "hardware_type"],
     )
     g_duckdb.load_edge_metadata_from_df(
         data=dataframes["duckdb"]["edges"],
         src="source",
         dst="destination",
-        metadata=["is_encrypted"]
+        metadata=["is_encrypted"],
     )
     assert g_pd == g_duckdb, "DuckDB metadata ingestion failed equivalence check"
 
@@ -333,12 +352,12 @@ def test_metadata_update_equivalence(dataframes, graph_type):
         g_fd.load_node_metadata_from_df(
             data=dataframes["fireducks"]["nodes"],
             id="server_id",
-            metadata=["primary_function", "server_name", "hardware_type"]
+            metadata=["primary_function", "server_name", "hardware_type"],
         )
         g_fd.load_edge_metadata_from_df(
             data=dataframes["fireducks"]["edges"],
             src="source",
             dst="destination",
-            metadata=["is_encrypted"]
+            metadata=["is_encrypted"],
         )
         assert g_pd == g_fd, "FireDucks metadata ingestion failed equivalence check"
