@@ -1519,18 +1519,30 @@ def test_load_date_dataframe():
         datetime.date(1970, 1, 3),
         datetime.date(1970, 1, 4),
     ]
-    df = pd.DataFrame({
-        "time": dates,
-        "src": [1, 2, 3, 4],
-        "dst": [5, 6, 7, 8],
-    })
+    df = pd.DataFrame(
+        {
+            "time": dates,
+            "src": [1, 2, 3, 4],
+            "dst": [5, 6, 7, 8],
+        }
+    )
     g = Graph()
     g.load_edges_from_pandas(df=df, time="time", src="src", dst="dst")
-    assert sorted(g.edges.history.flatten()) == ["1970-01-01 00:00:00", "1970-01-02 00:00:00", "1970-01-03 00:00:00", "1970-01-04 00:00:00"]
+    assert sorted(g.edges.history.flatten()) == [
+        "1970-01-01 00:00:00",
+        "1970-01-02 00:00:00",
+        "1970-01-03 00:00:00",
+        "1970-01-04 00:00:00",
+    ]
 
     g = Graph()
     g.load_nodes_from_pandas(df=df, time="time", id="src")
-    assert sorted(g.nodes.history.flatten()) == ["1970-01-01 00:00:00", "1970-01-02 00:00:00", "1970-01-03 00:00:00", "1970-01-04 00:00:00"]
+    assert sorted(g.nodes.history.flatten()) == [
+        "1970-01-01 00:00:00",
+        "1970-01-02 00:00:00",
+        "1970-01-03 00:00:00",
+        "1970-01-04 00:00:00",
+    ]
 
 
 def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):

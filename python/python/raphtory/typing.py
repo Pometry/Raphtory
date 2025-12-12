@@ -21,4 +21,6 @@ Direction = Literal["in", "out", "both"]
 
 NodeInput = Union[int, str, "Node"]
 
-TimeInput = Union[int, str, float, datetime, date, raphtory.EventTime, raphtory.OptionalEventTime]
+TimeInput = Union[
+    int, str, float, datetime, date, raphtory.EventTime, raphtory.OptionalEventTime
+]

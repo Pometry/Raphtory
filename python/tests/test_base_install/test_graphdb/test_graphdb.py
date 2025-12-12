@@ -1377,11 +1377,12 @@ def test_window_date():
     g.add_node("1970-01-03", 3)
     g.add_node("1970-01-04", 4)
     start = date(1970, 1, 1)  # start is inclusive
-    end = date(1970, 1, 3)    # end is exclusive
+    end = date(1970, 1, 3)  # end is exclusive
     windowed_g = g.window(start, end)
     windowed_nodes = [n.id for n in windowed_g.nodes]
     assert windowed_nodes == [1, 2]
     assert 4 not in windowed_nodes
+
 
 def test_date_in_ingestion_functions():
     dates = [
@@ -1399,7 +1400,7 @@ def test_date_in_ingestion_functions():
     e1.add_updates(dates[3])
     assert g.node(1).history == ["1970-01-01", "1970-01-03"]
     assert g.edge(2, 3).history == ["1970-01-02", "1970-01-04"]
-    windowed_g = g.window(dates[0], dates[2])   # start is inclusive and end is exclusive
+    windowed_g = g.window(dates[0], dates[2])  # start is inclusive and end is exclusive
     windowed_nodes = [n.id for n in windowed_g.nodes]
     assert windowed_nodes == [1, 2, 3]
 

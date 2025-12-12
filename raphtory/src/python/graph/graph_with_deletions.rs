@@ -29,7 +29,7 @@ use crate::{
             node::PyNode,
             views::graph_view::PyGraphView,
         },
-        utils::{PyNodeRef},
+        utils::PyNodeRef,
     },
     serialise::StableEncode,
 };
