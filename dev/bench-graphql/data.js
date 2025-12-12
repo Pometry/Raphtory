@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765387052239,
+  "lastUpdate": 1765539573202,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2699,6 +2699,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1277,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "378f872671a289fc5fa20720479aee43f63e05e5",
+          "message": "fix error with 14.1 python tests (#2414)\n\n* fix error with 14.1 python\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-12-12T11:04:08Z",
+          "tree_id": "156f728693ec4a83436dfab41d7113cf8d693b44",
+          "url": "https://github.com/Pometry/Raphtory/commit/378f872671a289fc5fa20720479aee43f63e05e5"
+        },
+        "date": 1765539567512,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1260,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 174,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 163,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1078,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 906,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1311,
             "unit": "req/s"
           }
         ]
