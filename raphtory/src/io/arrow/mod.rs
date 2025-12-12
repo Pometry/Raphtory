@@ -48,7 +48,7 @@ mod test {
                 }),
             ]
             .into_iter(),
-            num_rows: 3,
+            num_rows: Some(3),
         };
         let graph = Graph::new();
         let layer_name: Option<&str> = None;
@@ -145,7 +145,7 @@ mod test {
                 }),
             ]
             .into_iter(),
-            num_rows: 2,
+            num_rows: Some(2),
         };
         let graph = Graph::new();
 

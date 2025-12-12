@@ -11,11 +11,10 @@ Within each windowed graph we use the `NodeState` api to extract Gandalf's score
 # mkdocs: render
 import matplotlib.pyplot as plt
 import pandas as pd
-from raphtory import algorithms as rp
-from raphtory import Graph
+import raphtory as rp
 
 df = pd.read_csv("../data/lotr.csv")
-lotr_graph = Graph()
+lotr_graph = rp.Graph()
 lotr_graph.load_edges_from_pandas(
     df=df, src="src", dst="dst", time="time"
 )
@@ -24,7 +23,7 @@ importance = []
 time = []
 
 for windowed_graph in lotr_graph.rolling(window=2000):
-    result = rp.pagerank(windowed_graph)
+    result = rp.algorithms.pagerank(windowed_graph)
     importance.append(result.get("Gandalf"))
     time.append(windowed_graph.earliest_time.t)
 
@@ -35,5 +34,3 @@ plt.title("Gandalf's importance over time")
 plt.grid(True)
 ```
 ///
-
-![Gandalf's importance over time](../../assets/images/gandalf-importance.png)

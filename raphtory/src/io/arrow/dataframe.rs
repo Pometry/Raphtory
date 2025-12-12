@@ -16,14 +16,20 @@ use std::fmt::{Debug, Formatter};
 pub struct DFView<I> {
     pub names: Vec<String>,
     pub chunks: I,
-    pub num_rows: usize,
+    pub num_rows: Option<usize>,
 }
 
 impl<I> Debug for DFView<I> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DFView")
             .field("names", &self.names)
-            .field("num_rows", &self.num_rows)
+            .field(
+                "num_rows",
+                &self
+                    .num_rows
+                    .map(|x| x.to_string())
+                    .unwrap_or("Unknown".to_string()),
+            )
             .finish()
     }
 }
@@ -51,11 +57,12 @@ where
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.num_rows == 0
+    /// Returns Some(_) only if we know the total number of rows.
+    pub fn is_empty(&self) -> Option<bool> {
+        self.num_rows.map(|x| x == 0)
     }
 
-    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+    pub fn new(names: Vec<String>, chunks: I, num_rows: Option<usize>) -> Self {
         Self {
             names,
             chunks,

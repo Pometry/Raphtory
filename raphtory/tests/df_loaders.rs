@@ -295,7 +295,7 @@ mod io_tests {
                 "int_prop".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         }
     }
 
@@ -338,7 +338,7 @@ mod io_tests {
                 "int_prop".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         }
     }
 
