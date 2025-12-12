@@ -9,7 +9,7 @@ except ModuleNotFoundError:
 
 
 def _collect_edges(g: Graph):
-    return sorted((e.history()[0], e.src.id, e.dst.id, e["value"]) for e in g.edges)
+    return sorted((e.history.t[0], e.src.id, e.dst.id, e["value"]) for e in g.edges)
 
 
 @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
