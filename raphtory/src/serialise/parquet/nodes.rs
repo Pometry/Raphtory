@@ -5,7 +5,7 @@ use crate::{
     serialise::parquet::{
         model::{ParquetCNode, ParquetTNode},
         run_encode_indexed, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, NODE_VID_COL,
-        SECONDARY_INDEX_COL, TIME_COL, TYPE_COL,
+        SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
 };
 use arrow::datatypes::{DataType, Field};
@@ -24,13 +24,11 @@ pub(crate) fn encode_nodes_tprop(
         g.nodes().row_groups_par_iter(),
         path,
         NODES_T_PATH,
-        |id_type| {
+        |_| {
             vec![
-                Field::new(NODE_ID_COL, id_type.clone(), false),
                 Field::new(NODE_VID_COL, DataType::UInt64, false),
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(TYPE_COL, DataType::Utf8, true),
             ]
         },
         |nodes, g, decoder, writer| {
@@ -89,6 +87,7 @@ pub(crate) fn encode_nodes_cprop(
                 Field::new(NODE_ID_COL, id_type.clone(), false),
                 Field::new(NODE_VID_COL, DataType::UInt64, false),
                 Field::new(TYPE_COL, DataType::Utf8, true),
+                Field::new(TYPE_ID_COL, DataType::UInt64, true),
             ]
         },
         |nodes, g, decoder, writer| {

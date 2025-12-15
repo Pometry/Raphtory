@@ -7,7 +7,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
-    serialise::parquet::{DST_COL_ID, EDGE_COL_ID, NODE_VID_COL, SRC_COL_ID},
+    serialise::parquet::{DST_COL_ID, EDGE_COL_ID, NODE_VID_COL, SRC_COL_ID, TYPE_ID_COL},
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
@@ -134,11 +134,9 @@ impl<'a> Serialize for ParquetTNode<'a> {
     {
         let mut state = serializer.serialize_map(None)?;
 
-        state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
         state.serialize_entry(NODE_VID_COL, &self.node.node.0)?;
         state.serialize_entry(TIME_COL, &self.t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &self.t.1)?;
-        state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.props.iter() {
             state.serialize_entry(&self.cols[*name], &SerdeProp(prop))?;
@@ -162,6 +160,7 @@ impl<'a> Serialize for ParquetCNode<'a> {
         state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
         state.serialize_entry(NODE_VID_COL, &self.node.node.0)?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
+        state.serialize_entry(TYPE_ID_COL, &self.node.node_type_id())?;
 
         for (name, prop) in self.node.metadata().iter_filtered() {
             state.serialize_entry(&name, &SerdeProp(&prop))?;

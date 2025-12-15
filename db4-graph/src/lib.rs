@@ -396,14 +396,13 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
         self.graph
     }
 
-    pub fn resize_chunks_to_num_nodes(&mut self, num_nodes: usize) {
-        if num_nodes == 0 {
-            return;
+    pub fn resize_chunks_to_num_nodes(&mut self, max_vid: Option<VID>) {
+        if let Some(max_vid) = max_vid {
+            let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(max_vid);
+            self.graph.storage().nodes().grow(chunks_needed + 1);
+            std::mem::take(&mut self.nodes);
+            self.nodes = self.graph.storage.nodes().write_locked();
         }
-        let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(VID(num_nodes - 1));
-        self.graph.storage().nodes().grow(chunks_needed + 1);
-        std::mem::take(&mut self.nodes);
-        self.nodes = self.graph.storage.nodes().write_locked();
     }
 
     pub fn resize_chunks_to_num_edges(&mut self, num_edges: usize) {

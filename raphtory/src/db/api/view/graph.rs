@@ -326,15 +326,12 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             .storage()
             .set_event_id(storage.read_event_id());
 
-        let graph_storage = GraphStorage::from(temporal_graph);
+        let temporal_graph = Arc::new(temporal_graph);
+
+        let graph_storage = GraphStorage::from(temporal_graph.clone());
 
         {
             // scope for the write lock
-            let mut new_storage = graph_storage.write_lock()?;
-            new_storage.resize_chunks_to_num_nodes(self.count_nodes());
-            for layer_id in &layer_map {
-                new_storage.nodes.ensure_layer(*layer_id);
-            }
 
             let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
             let node_map_shared =
@@ -345,7 +342,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             self.nodes().par_iter().for_each(|node| {
                 let vid = node.node;
                 if let Some(pos) = index.index(&vid) {
-                    let new_vid = new_storage.graph().storage().nodes().reserve_vid(pos);
+                    let new_vid = temporal_graph.storage().nodes().reserve_vid(pos);
                     node_map_shared[pos].store(new_vid.index(), Ordering::Relaxed);
                 }
             });
@@ -356,6 +353,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     .expect("old_vid should exist in index");
                 node_map[pos]
             };
+            let mut new_storage = graph_storage.write_lock()?;
+
+            for layer_id in &layer_map {
+                new_storage.nodes.ensure_layer(*layer_id);
+            }
 
             new_storage.nodes.par_iter_mut().try_for_each(|shard| {
                 for node in self.nodes().iter() {

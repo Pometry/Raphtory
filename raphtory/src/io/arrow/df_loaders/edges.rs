@@ -1,10 +1,12 @@
 use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
-        dataframe::{DFChunk, DFView, SecondaryIndexCol},
-        df_loaders::{build_progress_bar, extract_secondary_index_col, process_shared_properties},
+        dataframe::{DFChunk, DFView},
+        df_loaders::{
+            build_progress_bar, extract_secondary_index_col, process_shared_properties,
+            resolve_nodes_with_cache, GidKey,
+        },
         layer_col::lift_layer_col,
         node_col::NodeCol,
         prop_handler::*,
@@ -24,8 +26,8 @@ use raphtory_api::{
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry, FxDashMap},
     },
 };
-use raphtory_core::entities::{GidRef, VID};
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+use raphtory_core::entities::VID;
+use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -144,7 +146,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             let dst_col = df.node_col(dst_index)?;
             dst_col.validate(graph, LoadError::MissingDstError)?;
             let layer = lift_layer_col(layer, layer_index, &df)?;
-            let layer_col_resolved = layer.resolve(graph)?;
+            let layer_col_resolved = layer.resolve_layer(graph)?;
 
             let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
                 graph,
@@ -201,6 +203,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     layer_col_resolved.iter()
                 );
 
+                // resolve_nodes=false
+                // assumes we are loading our own graph, via the parquet loaders,
+                // so previous calls have already stored the node ids and types
                 if resolve_nodes {
                     store_node_ids(&gid_str_cache, locked_page);
                 }
@@ -272,7 +277,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     Ok(())
 }
 
-fn get_or_resolve_node_vids<
+#[inline(never)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+pub fn get_or_resolve_node_vids<
     'a: 'c,
     'b: 'c,
     'c,
@@ -291,7 +298,7 @@ fn get_or_resolve_node_vids<
     (
         &'c [VID],
         &'c [VID],
-        FxDashMap<GidRef<'a>, (Prop, MaybeNew<VID>)>,
+        FxDashMap<GidKey<'a>, (Prop, MaybeNew<VID>)>,
     ),
     GraphError,
 > {
@@ -304,7 +311,8 @@ fn get_or_resolve_node_vids<
 
         let gid_str_cache = resolve_nodes_with_cache::<G>(
             graph,
-            [(src_col, atomic_src_col), (dst_col, atomic_dst_col)].as_ref(),
+            [(src_col), (dst_col)].as_ref(),
+            [atomic_src_col, atomic_dst_col].as_ref(),
         )?;
         (
             src_col_resolved.as_slice(),
@@ -449,8 +457,8 @@ fn add_and_resolve_outbound_edges<
 }
 
 #[inline(never)]
-fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
-    gid_str_cache: &FxDashMap<GidRef<'_>, (Prop, MaybeNew<VID>)>,
+pub fn store_node_ids<K: Eq + std::hash::Hash, NS: NodeSegmentOps<Extension = Extension>>(
+    gid_str_cache: &FxDashMap<K, (Prop, MaybeNew<VID>)>,
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
     for entry in gid_str_cache.iter() {
@@ -461,60 +469,4 @@ fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
             writer.store_node_id(src_pos, 0, src_gid.clone(), 0);
         }
     }
-}
-
-#[inline(never)]
-fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    graph: &G,
-    cols_to_resolve: &[(&'a NodeCol, &mut [AtomicUsize])],
-) -> Result<FxDashMap<GidRef<'a>, (Prop, MaybeNew<VID>)>, GraphError> {
-    let gid_str_cache: dashmap::DashMap<GidRef<'_>, (Prop, MaybeNew<VID>), _> =
-        FxDashMap::default();
-    let hasher_factory = gid_str_cache.hasher().clone();
-    gid_str_cache
-        .shards()
-        .par_iter()
-        .enumerate()
-        .try_for_each(|(shard_idx, shard)| {
-            let mut shard_guard = shard.write();
-            use dashmap::SharedValue;
-            use std::hash::BuildHasher;
-
-            // Create hasher function for this shard
-            let hash_key = |key: &GidRef<'_>| -> u64 { hasher_factory.hash_one(key) };
-
-            let hasher_fn = |tuple: &(GidRef<'_>, SharedValue<(Prop, MaybeNew<VID>)>)| -> u64 {
-                hasher_factory.hash_one(tuple.0)
-            };
-
-            for (col, atomic_col) in cols_to_resolve {
-                // Process src_col sequentially for this shard
-                for (idx, gid) in col.iter().enumerate() {
-                    // Check if this key belongs to this shard
-                    if gid_str_cache.determine_map(&gid) != shard_idx {
-                        continue; // Skip, not our shard
-                    }
-
-                    let hash = hash_key(&gid);
-
-                    // Check if exists in this shard
-                    if let Some((_, value)) = shard_guard.get(hash, |(g, _)| g == &gid) {
-                        let (_, vid) = value.get();
-                        atomic_col[idx].store(vid.inner().index(), Ordering::Relaxed);
-                    } else {
-                        let vid = graph
-                            .resolve_node(gid.as_node_ref())
-                            .map_err(|_| LoadError::FatalError)?;
-
-                        let data = (gid, SharedValue::new((Prop::from(gid), vid)));
-                        shard_guard.insert(hash, data, hasher_fn);
-
-                        atomic_col[idx].store(vid.inner().index(), Ordering::Relaxed);
-                    }
-                }
-            }
-
-            Ok::<(), LoadError>(())
-        })?;
-    Ok(gid_str_cache)
 }

@@ -4,37 +4,31 @@ use crate::{
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView, SecondaryIndexCol},
-        layer_col::{lift_layer_col, lift_node_type_col},
+        df_loaders::edges::ColumnNames,
+        layer_col::{lift_layer_col, LayerCol},
+        node_col::NodeCol,
         prop_handler::*,
     },
     prelude::*,
 };
 use bytemuck::checked::cast_slice_mut;
-use either::Either;
-use itertools::izip;
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::{
-            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
-            EID,
-        },
-        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+        entities::{properties::prop::PropType, EID},
+        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry, FxDashMap},
     },
 };
-use raphtory_core::{
-    entities::{graph::logical_to_physical::ResolverShardT, GidRef, VID},
-    storage::timeindex::AsTime,
-};
+use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use rayon::prelude::*;
 use std::{
-    borrow::{Borrow, Cow},
     collections::HashMap,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+pub mod edge_props;
 pub mod edges;
 pub mod nodes;
 
@@ -59,49 +53,6 @@ fn process_shared_properties(
             .map(|(key, prop)| Ok((resolver(key, prop.dtype())?.inner(), prop.clone())))
             .collect(),
     }
-}
-
-fn load_into_shard<Q, T>(
-    src_col_shared: &[AtomicUsize],
-    dst_col_shared: &[AtomicUsize],
-    src_col: &super::node_col::NodeCol,
-    dst_col: &super::node_col::NodeCol,
-    node_count: &AtomicUsize,
-    shard: &mut ResolverShardT<'_, T>,
-    mut mapper_fn: impl FnMut(GidRef<'_>) -> Cow<'_, Q>,
-    mut fallback_fn: impl FnMut(&Q) -> Option<VID>,
-) -> Result<(), LoadError>
-where
-    T: Clone + Eq + std::hash::Hash + Borrow<Q>,
-    Q: Eq + std::hash::Hash + ToOwned<Owned = T> + ?Sized,
-{
-    let src_iter = src_col.iter().map(&mut mapper_fn).enumerate();
-
-    for (id, gid) in src_iter {
-        if let Some(vid) = shard.resolve_node(&gid, |id| {
-            // fallback_fn(id).map(Either::Right).unwrap_or_else(|| {
-            //     // If the node does not exist, create a new VID
-            //     Either::Left(VID(node_count.fetch_add(1, Ordering::Relaxed)))
-            // })
-            Either::Left(VID(node_count.fetch_add(1, Ordering::Relaxed)))
-        }) {
-            src_col_shared[id].store(vid.0, Ordering::Relaxed);
-        }
-    }
-
-    let dst_iter = dst_col.iter().map(mapper_fn).enumerate();
-    for (id, gid) in dst_iter {
-        if let Some(vid) = shard.resolve_node(&gid, |id| {
-            // fallback_fn(id).map(Either::Right).unwrap_or_else(|| {
-            //     // If the node does not exist, create a new VID
-            //     Either::Left(VID(node_count.fetch_add(1, Ordering::Relaxed)))
-            // })
-            Either::Left(VID(node_count.fetch_add(1, Ordering::Relaxed)))
-        }) {
-            dst_col_shared[id].store(vid.0, Ordering::Relaxed);
-        }
-    }
-    Ok::<_, LoadError>(())
 }
 
 pub(crate) fn load_edge_deletions_from_df<
@@ -179,7 +130,7 @@ pub(crate) fn load_edge_deletions_from_df<
 pub(crate) fn load_edges_props_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     src: &str,
     dst: &str,
     metadata: &[&str],
@@ -187,140 +138,24 @@ pub(crate) fn load_edges_props_from_df<
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
+    resolve_nodes: bool,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
-    let metadata_indices = metadata
-        .iter()
-        .map(|name| df_view.get_index(name))
-        .collect::<Result<Vec<_>, GraphError>>()?;
-
-    let src_index = df_view.get_index(src)?;
-    let dst_index = df_view.get_index(dst)?;
-    let layer_index = if let Some(layer_col) = layer_col {
-        Some(df_view.get_index(layer_col.as_ref())?)
-    } else {
-        None
-    };
-    let session = graph.write_session().map_err(into_graph_err)?;
-    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-        session
-            .resolve_edge_property(key, dtype, true)
-            .map_err(into_graph_err)
-    })?;
-
-    #[cfg(feature = "python")]
-    let mut pb = build_progress_bar("Loading edge properties".to_string(), df_view.num_rows)?;
-    #[cfg(feature = "python")]
-    let _ = pb.update(0);
-
-    let mut src_col_resolved = vec![];
-    let mut dst_col_resolved = vec![];
-    let mut eid_col_resolved = vec![];
-
-    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
-    let g = write_locked_graph.graph;
-
-    for chunk in df_view.chunks {
-        let df = chunk?;
-        let metadata_cols =
-            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
-                    .resolve_edge_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            })?;
-        let layer = lift_layer_col(layer, layer_index, &df)?;
-        let layer_col_resolved = layer.resolve(graph)?;
-
-        let src_col = df.node_col(src_index)?;
-        src_col.validate(graph, LoadError::MissingSrcError)?;
-
-        let dst_col = df.node_col(dst_index)?;
-        dst_col.validate(graph, LoadError::MissingDstError)?;
-
-        // It's our graph, no one else can change it
-        src_col_resolved.resize_with(df.len(), Default::default);
-        src_col
-            .par_iter()
-            .zip(src_col_resolved.par_iter_mut())
-            .try_for_each(|(gid, resolved)| {
-                let gid = gid.ok_or(LoadError::FatalError)?;
-                let vid = g
-                    .resolve_node_ref(gid.as_node_ref())
-                    .ok_or(LoadError::MissingNodeError)?;
-                *resolved = vid;
-                Ok::<(), LoadError>(())
-            })?;
-
-        dst_col_resolved.resize_with(df.len(), Default::default);
-        dst_col
-            .par_iter()
-            .zip(dst_col_resolved.par_iter_mut())
-            .try_for_each(|(gid, resolved)| {
-                let gid = gid.ok_or(LoadError::FatalError)?;
-                let vid = g
-                    .resolve_node_ref(gid.as_node_ref())
-                    .ok_or(LoadError::MissingNodeError)?;
-                *resolved = vid;
-                Ok::<(), LoadError>(())
-            })?;
-
-        write_locked_graph
-            .resize_chunks_to_num_nodes(write_locked_graph.graph().internal_num_nodes());
-
-        // resolve all the edges
-        eid_col_resolved.resize_with(df.len(), Default::default);
-        let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
-
-        write_locked_graph
-            .nodes
-            .par_iter_mut()
-            .try_for_each(|shard| {
-                for (row, (src, dst)) in src_col_resolved
-                    .iter()
-                    .zip(dst_col_resolved.iter())
-                    .enumerate()
-                {
-                    if let Some(src_node) = shard.resolve_pos(*src) {
-                        let writer = shard.writer();
-                        let EID(eid) = writer
-                            .get_out_edge(src_node, *dst, 0)
-                            .ok_or(LoadError::MissingEdgeError(*src, *dst))?;
-                        eid_col_shared[row].store(eid, Ordering::Relaxed);
-                    }
-                }
-                Ok::<_, LoadError>(())
-            })?;
-
-        write_locked_graph
-            .edges
-            .par_iter_mut()
-            .try_for_each(|shard| {
-                let mut c_props = vec![];
-                for (idx, (((eid, layer), src), dst)) in eid_col_resolved
-                    .iter()
-                    .zip(layer_col_resolved.iter())
-                    .zip(&src_col_resolved)
-                    .zip(&dst_col_resolved)
-                    .enumerate()
-                {
-                    if let Some(eid_pos) = shard.resolve_pos(*eid) {
-                        let mut writer = shard.writer();
-                        c_props.clear();
-                        c_props.extend(metadata_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_metadata);
-                        writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
-                    }
-                }
-                Ok::<(), GraphError>(())
-            })?;
-
-        #[cfg(feature = "python")]
-        let _ = pb.update(df.len());
-    }
-    Ok(())
+    edge_props::load_edges_from_df(
+        df_view,
+        ColumnNames {
+            src,
+            dst,
+            layer_col,
+            time: "",
+            secondary_index: None,
+            edge_id: None,
+        },
+        resolve_nodes,
+        metadata,
+        shared_metadata,
+        layer,
+        graph,
+    )
 }
 
 pub(crate) fn load_graph_props_from_df<
@@ -448,4 +283,128 @@ pub(crate) fn extract_secondary_index_col<G: InternalAdditionOps + AdditionOps>(
         }
     };
     Ok(secondary_index_col)
+}
+
+#[inline(never)]
+fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    graph: &G,
+    cols_to_resolve: &[&'a NodeCol],
+    resolved_cols: &[&mut [AtomicUsize]],
+) -> Result<FxDashMap<GidKey<'a>, (Prop, MaybeNew<VID>)>, GraphError> {
+    let node_type_col = vec![None; cols_to_resolve.len()];
+    resolve_nodes_with_cache_generic(
+        &cols_to_resolve,
+        &node_type_col,
+        |v: &(Prop, MaybeNew<VID>), idx, col_idx| {
+            let (_, vid) = v;
+            resolved_cols[col_idx][idx].store(vid.inner().0, Ordering::Relaxed);
+        },
+        |gid, _idx| {
+            let GidKey { gid, .. } = gid;
+            let vid = graph
+                .resolve_node(gid.as_node_ref())
+                .map_err(|_| LoadError::FatalError)
+                .unwrap();
+            (Prop::from(gid), vid)
+        },
+    )
+}
+
+#[inline(never)]
+fn resolve_nodes_and_type_with_cache<
+    'a,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    graph: &G,
+    cols_to_resolve: &[&'a NodeCol],
+    resolved_cols: &[&mut [AtomicUsize]],
+    node_type_col: LayerCol<'a>,
+) -> Result<FxDashMap<GidKey<'a>, (VID, usize)>, GraphError> {
+    let node_type_cols = vec![Some(node_type_col); cols_to_resolve.len()];
+    resolve_nodes_with_cache_generic(
+        cols_to_resolve,
+        &node_type_cols,
+        |v: &(VID, usize), row, col_idx| {
+            let (vid, _) = v;
+            resolved_cols[col_idx][row].store(vid.index(), Ordering::Relaxed);
+        },
+        |gid, _| {
+            let GidKey { gid, node_type } = gid;
+            let (vid, node_type) = graph
+                .resolve_node_and_type(gid.as_node_ref(), node_type)
+                .map_err(|_| LoadError::FatalError)
+                .unwrap();
+            (vid, node_type)
+        },
+    )
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
+pub struct GidKey<'a> {
+    gid: GidRef<'a>,
+    node_type: Option<&'a str>,
+}
+
+impl<'a> GidKey<'a> {
+    pub fn new(gid: GidRef<'a>, node_type: Option<&'a str>) -> Self {
+        Self { gid, node_type }
+    }
+}
+
+#[inline(always)]
+fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
+    cols_to_resolve: &[&'a NodeCol],
+    node_type_cols: &[Option<LayerCol<'a>>],
+    update_fn: impl Fn(&V, usize, usize) + Send + Sync,
+    new_fn: impl Fn(GidKey<'a>, usize) -> V + Send + Sync,
+) -> Result<FxDashMap<GidKey<'a>, V>, GraphError> {
+    assert_eq!(cols_to_resolve.len(), node_type_cols.len());
+    let gid_str_cache: dashmap::DashMap<GidKey<'_>, V, _> = FxDashMap::default();
+    let hasher_factory = gid_str_cache.hasher().clone();
+    gid_str_cache
+        .shards()
+        .par_iter()
+        .enumerate()
+        .try_for_each(|(shard_idx, shard)| {
+            let mut shard_guard = shard.write();
+            use dashmap::SharedValue;
+            use std::hash::BuildHasher;
+
+            // Create hasher function for this shard
+            let hash_key = |key: &GidKey<'_>| -> u64 { hasher_factory.hash_one(key) };
+
+            let hasher_fn =
+                |tuple: &(GidKey<'_>, SharedValue<V>)| -> u64 { hasher_factory.hash_one(tuple.0) };
+
+            for (col_id, (node_col, layer_col)) in
+                cols_to_resolve.iter().zip(node_type_cols).enumerate()
+            {
+                // Process src_col sequentially for this shard
+                for (idx, gid) in node_col.iter().enumerate() {
+                    let node_type = layer_col.as_ref().and_then(|lc| lc.get(idx));
+                    let gid = GidKey::new(gid, node_type);
+                    // Check if this key belongs to this shard
+                    if gid_str_cache.determine_map(&gid) != shard_idx {
+                        continue; // Skip, not our shard
+                    }
+
+                    let hash = hash_key(&gid);
+
+                    // Check if exists in this shard
+                    if let Some((_, value)) = shard_guard.get(hash, |(g, _)| g == &gid) {
+                        let v = value.get();
+                        update_fn(&v, idx, col_id);
+                    } else {
+                        let v = new_fn(gid, idx);
+
+                        update_fn(&v, idx, col_id);
+                        let data = (gid, SharedValue::new(v));
+                        shard_guard.insert(hash, data, hasher_fn);
+                    }
+                }
+            }
+
+            Ok::<(), LoadError>(())
+        })?;
+    Ok(gid_str_cache)
 }

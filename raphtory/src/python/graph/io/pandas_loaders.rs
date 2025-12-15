@@ -67,6 +67,7 @@ pub(crate) fn load_nodes_from_pandas<
         node_type,
         node_type_col,
         graph,
+        true,
     )
 }
 
@@ -142,6 +143,8 @@ pub(crate) fn load_node_props_from_pandas<
         id,
         node_type,
         node_type_col,
+        None,
+        None,
         metadata,
         shared_metadata,
         graph,
@@ -177,6 +180,7 @@ pub(crate) fn load_edge_props_from_pandas<
         layer,
         layer_col,
         graph,
+        true,
     )
 }
 

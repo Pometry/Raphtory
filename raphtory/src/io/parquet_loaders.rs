@@ -34,6 +34,7 @@ pub fn load_nodes_from_parquet<
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     batch_size: Option<usize>,
+    resolve_nodes: bool,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
 
@@ -62,6 +63,7 @@ pub fn load_nodes_from_parquet<
             node_type,
             node_type_col,
             graph,
+            resolve_nodes,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
@@ -161,6 +163,8 @@ pub fn load_node_props_from_parquet<
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
+    node_id_col: Option<&str>,      // for inner parquet use only
+    node_type_id_col: Option<&str>, // for inner parquet use only
     metadata_properties: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     batch_size: Option<usize>,
@@ -181,6 +185,8 @@ pub fn load_node_props_from_parquet<
             id,
             node_type,
             node_type_col,
+            node_id_col,
+            node_type_id_col,
             metadata_properties,
             shared_metadata,
             graph,
@@ -201,6 +207,7 @@ pub fn load_edge_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps 
     layer: Option<&str>,
     layer_col: Option<&str>,
     batch_size: Option<usize>,
+    resolve_nodes: bool,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst];
     if let Some(ref layer_col) = layer_col {
@@ -221,6 +228,7 @@ pub fn load_edge_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps 
             layer,
             layer_col,
             graph,
+            resolve_nodes,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }

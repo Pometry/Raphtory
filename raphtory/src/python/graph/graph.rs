@@ -717,6 +717,7 @@ impl PyGraph {
             &metadata,
             shared_metadata.as_ref(),
             None,
+            true,
         )
     }
 
@@ -902,6 +903,8 @@ impl PyGraph {
             id,
             node_type,
             node_type_col,
+            None,
+            None,
             &metadata,
             shared_metadata.as_ref(),
             None,
@@ -990,6 +993,7 @@ impl PyGraph {
             layer,
             layer_col,
             None,
+            true,
         )
     }
 

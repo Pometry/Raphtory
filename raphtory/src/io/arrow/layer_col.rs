@@ -61,7 +61,34 @@ impl<'a> LayerCol<'a> {
         }
     }
 
-    pub fn resolve(
+    pub fn get(&self, row: usize) -> Option<&'a str> {
+        match self {
+            LayerCol::Name { name, .. } => *name,
+            LayerCol::Utf8 { col } => {
+                if col.is_valid(row) && row < col.len() {
+                    Some(col.value(row))
+                } else {
+                    None
+                }
+            }
+            LayerCol::LargeUtf8 { col } => {
+                if col.is_valid(row) && row < col.len() {
+                    Some(col.value(row))
+                } else {
+                    None
+                }
+            }
+            LayerCol::Utf8View { col } => {
+                if col.is_valid(row) && row < col.len() {
+                    Some(col.value(row))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub fn resolve_layer(
         self,
         graph: &(impl AdditionOps + Send + Sync),
     ) -> Result<Vec<usize>, GraphError> {

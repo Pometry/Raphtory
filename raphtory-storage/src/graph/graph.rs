@@ -29,6 +29,12 @@ pub enum Immutable {
     ReadLockedImmutable,
 }
 
+impl From<Arc<TemporalGraph>> for GraphStorage {
+    fn from(value: Arc<TemporalGraph>) -> Self {
+        Self::Unlocked(value)
+    }
+}
+
 impl From<TemporalGraph> for GraphStorage {
     fn from(value: TemporalGraph) -> Self {
         Self::Unlocked(Arc::new(value))
