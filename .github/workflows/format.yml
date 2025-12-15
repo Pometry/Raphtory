@@ -30,20 +30,16 @@ jobs:
         with:
           python-version: "3.14.0"
           cache: 'pip'
-      - name: Create VENV
-        run: |
-          python -m venv .venv
       - name: Install Python dependencies
         run: |
-          python -m pip install black mypy pandas-stubs maturin
+          python -m pip install black mypy pandas-stubs
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       - name: Install raphtory
         run: |
-          source .venv/bin/activate
-          cd python && maturin develop --extras=all --profile=build-fast
+          MATURIN_PEP517_ARGS="--profile=build-fast" pip install -e "./python[all]"
 
       - name: Run rust format
         run: |
@@ -51,30 +47,25 @@ jobs:
 
       - name: Run stubsgen
         run: |
-          source .venv/bin/activate
           python -m pip install -e stub_gen
           cd python/scripts && python gen-stubs.py
 
       - name: Update graphQL schema
         run: |
-          source .venv/bin/activate
           raphtory schema > raphtory-graphql/schema.graphql
       - name: Validate graphQL schema
         run: |
           npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql || true
       - name: Update docs from graphQL schema
         run: |
-          source .venv/bin/activate
           python docs/scripts/gen_docs_graphql_pages.py
 
       - name: Run python linter
         run: |
-          source .venv/bin/activate
           cd python && black .
 
       - name: Run mypy
         run: |
-          source .venv/bin/activate
           mypy -m raphtory
 
       - name: Check for uncommitted changes
