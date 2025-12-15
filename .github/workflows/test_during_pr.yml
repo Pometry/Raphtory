@@ -52,16 +52,16 @@ jobs:
     name: Formatting autofixes
     uses: ./.github/workflows/format.yml
     secrets: inherit
-    needs: [
-      call-test-rust-workflow-in-local-repo,
-      call-test-rust-storage-workflow-in-local-repo,
-      call-test-python-workflow-in-local-repo,
-      call-test-python-disk-storage-workflow-in-local-repo,
-      #      call-test-ui-in-local-repo,  # TODO: currently broken, re-enable when fixed
-      call-benchmark-workflow-in-local-repo,
-      call-graphql-bench-workflow-in-local-repo,
-      call-stress-test-workflow-in-local-repo
-    ]
+  #    needs: [
+  #      call-test-rust-workflow-in-local-repo,
+  #      call-test-rust-storage-workflow-in-local-repo,
+  #      call-test-python-workflow-in-local-repo,
+  #      call-test-python-disk-storage-workflow-in-local-repo,
+  #      #      call-test-ui-in-local-repo,  # TODO: currently broken, re-enable when fixed
+  #      call-benchmark-workflow-in-local-repo,
+  #      call-graphql-bench-workflow-in-local-repo,
+  #      call-stress-test-workflow-in-local-repo
+  #    ]
   # call-code-coverage:
   #   name: Code Coverage
   #   uses: ./.github/workflows/code_coverage.yml
