@@ -52,9 +52,6 @@ jobs:
       - name: Run stubsgen
         run: |
           source .venv/bin/activate
-          echo "Installing Raphtory from ./python"
-          python -m pip install -e ./python
-          echo "Installing stubsgen"
           python -m pip install -e stub_gen
           cd python/scripts && python gen-stubs.py
 
