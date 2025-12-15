@@ -21,7 +21,7 @@ use storage::{
         layer_counter::GraphStats,
         locked::{
             edges::WriteLockedEdgePages, graph_props::WriteLockedGraphPropPages,
-            nodes::WriteLockedNodePages,
+            nodes::WriteLockedNodeSegments,
         },
     },
     persist::strategy::{Config, PersistentStrategy},
@@ -374,7 +374,7 @@ pub struct WriteLockedGraph<'a, EXT>
 where
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
 {
-    pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
+    pub nodes: WriteLockedNodeSegments<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
     pub graph_props: WriteLockedGraphPropPages<'a, storage::GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,

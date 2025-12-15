@@ -20,10 +20,10 @@ use raphtory_core::{
 };
 use storage::{
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
-    persist::strategy::PersistentStrategy,
+    persist::strategy::{Config, PersistentStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Config, Extension, WalImpl, ES, GS, NS,
+    Extension, WalImpl, ES, GS, NS,
 };
 
 pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
