@@ -4,7 +4,7 @@ permissions:
 on:
   workflow_call:
 jobs:
-  python-fmt:
+  format:
     runs-on: ubuntu-latest
 
     steps:
@@ -32,24 +32,19 @@ jobs:
           cache: 'pip'
       - name: Install Python dependencies
         run: |
-          python -m pip install black mypy pandas-stubs
+          python -m pip install black mypy pandas-stubs maturin
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Install raphtory
+        run: |
+          cd python && maturin develop --profile=build-fast
 
       - name: Run rust format
         run: |
           cargo +nightly fmt --all
-      - name: Validate graphQL schema
-        run: |
-          npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql || true
-      - name: Update docs from graphQL schema
-        run: |
-          python docs/scripts/gen_docs_graphql_pages.py
-      - name: Run python linter
-        run: |
-          cd python && black .
+
       - name: Run stubsgen
         run: |
           echo "Installing Raphtory from ./python"
@@ -57,6 +52,21 @@ jobs:
           echo "Installing stubsgen"
           python -m pip install -e stub_gen
           cd python/scripts && python gen-stubs.py
+
+      - name: Update graphQL schema
+        run: |
+          raphtory schema > raphtory-graphql/schema.graphql
+      - name: Validate graphQL schema
+        run: |
+          npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql || true
+      - name: Update docs from graphQL schema
+        run: |
+          python docs/scripts/gen_docs_graphql_pages.py
+
+      - name: Run python linter
+        run: |
+          cd python && black .
+
       - name: Run mypy
         run: |
           mypy -m raphtory
