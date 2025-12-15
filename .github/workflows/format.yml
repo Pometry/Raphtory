@@ -1,0 +1,78 @@
+name: Format code and generate schemas
+permissions:
+  contents: write
+on:
+  workflow_call:
+jobs:
+  python-fmt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
+      - name: Setup nightly rust
+        run: |
+          rustup toolchain install nightly --allow-downgrade -c rustfmt
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@v2
+        name: Cargo cache
+        with:
+          cache-all-crates: true
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.14.0"
+          cache: 'pip'
+      - name: Install Python dependencies
+        run: |
+          python -m pip install black mypy pandas-stubs
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run rust format
+        run: |
+          cargo +nightly fmt --all
+      - name: Validate graphQL schema
+        run: |
+          npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql || true
+      - name: Update docs from graphQL schema
+        run: |
+          python docs/scripts/gen_docs_graphql_pages.py
+      - name: Run python linter
+        run: |
+          cd python && black .
+      - name: Run stubsgen
+        run: |
+          echo "Installing Raphtory from ./python"
+          pip install -e ./python
+          echo "Installing stubsgen"
+          python -m pip install -e stub_gen
+          cd python/scripts && python gen-stubs.py
+      - name: Run mypy
+        run: |
+          mypy -m raphtory
+
+      - name: Check for uncommitted changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes detected. Committing and pushing..."
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout ${{ github.head_ref }}
+            git add .
+            git commit -m "chore: apply tidy-public auto-fixes"
+            git push --force-with-lease origin HEAD:${{ github.head_ref }} 
+          else
+            echo "No changes to commit."
+          fi
