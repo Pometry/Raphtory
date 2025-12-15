@@ -57,6 +57,7 @@ jobs:
 
       - name: Update graphQL schema
         run: |
+          source .venv/bin/activate
           raphtory schema > raphtory-graphql/schema.graphql
       - name: Validate graphQL schema
         run: |
