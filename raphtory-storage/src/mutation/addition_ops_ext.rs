@@ -167,36 +167,6 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
             .edge_meta()
             .resolve_prop_id(prop, dtype, is_static)?)
     }
-
-    fn internal_add_node(
-        &self,
-        t: TimeIndexEntry,
-        v: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
-        todo!()
-    }
-
-    fn internal_add_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, Self::Error> {
-        todo!()
-    }
-
-    fn internal_add_edge_update(
-        &self,
-        t: TimeIndexEntry,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<(), Self::Error> {
-        todo!()
-    }
 }
 
 impl InternalAdditionOps for TemporalGraph {

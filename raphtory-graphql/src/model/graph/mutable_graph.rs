@@ -1,7 +1,6 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
     model::graph::{edge::GqlEdge, graph::GqlGraph, node::GqlNode, property::Value},
-    paths::ExistingGraphFolder,
     rayon::blocking_write,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};

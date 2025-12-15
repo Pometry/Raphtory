@@ -1148,12 +1148,12 @@ class Graph(GraphView):
         time: str,
         src: str,
         dst: str,
-        secondary_index: Optional[str] = None,
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
@@ -1163,12 +1163,12 @@ class Graph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
-            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1183,12 +1183,12 @@ class Graph(GraphView):
         time: str,
         src: str,
         dst: str,
-        secondary_index: Optional[str] = None,
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load edges from a Parquet file into the graph.
@@ -1198,12 +1198,12 @@ class Graph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
-            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1283,12 +1283,12 @@ class Graph(GraphView):
         df: DataFrame,
         time: str,
         id: str,
-        secondary_index: Optional[str] = None,
         node_type: Optional[str] = None,
         node_type_col: Optional[str] = None,
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
@@ -1297,12 +1297,12 @@ class Graph(GraphView):
             df (DataFrame): The Pandas DataFrame containing the nodes.
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
-            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
             node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1316,12 +1316,12 @@ class Graph(GraphView):
         parquet_path: str,
         time: str,
         id: str,
-        secondary_index: Optional[str] = None,
         node_type: Optional[str] = None,
         node_type_col: Optional[str] = None,
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load nodes from a Parquet file into the graph.
@@ -1330,12 +1330,12 @@ class Graph(GraphView):
             parquet_path (str): Parquet file or directory of Parquet files containing the nodes
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
-            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
             node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1763,9 +1763,9 @@ class PersistentGraph(GraphView):
         time: str,
         src: str,
         dst: str,
-        secondary_index: Optional[str] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load edges deletions from a Pandas DataFrame into the graph.
@@ -1775,10 +1775,10 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
-            secondary_index (str, optional): The column name for the secondary index.
                 NOTE: All values in this column must be unique. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1793,9 +1793,9 @@ class PersistentGraph(GraphView):
         time: str,
         src: str,
         dst: str,
-        secondary_index: Optional[str] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load edges deletions from a Parquet file into the graph.
@@ -1805,10 +1805,10 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
-            secondary_index (str, optional): The column name for the secondary index.
                 NOTE: All values in this column must be unique. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1881,12 +1881,12 @@ class PersistentGraph(GraphView):
         time: str,
         src: str,
         dst: str,
-        secondary_index: Optional[str] = None,
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
@@ -1896,13 +1896,13 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
-            secondary_index (str, optional): The column name for the secondary index.
                 NOTE: All values in this column must be unique. Defaults to None.
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1917,12 +1917,12 @@ class PersistentGraph(GraphView):
         time: str,
         src: str,
         dst: str,
-        secondary_index: Optional[str] = None,
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load edges from a Parquet file into the graph.
@@ -1932,13 +1932,13 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
-            secondary_index (str, optional): The column name for the secondary index.
                 NOTE: All values in this column must be unique. Defaults to None.
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -2018,12 +2018,12 @@ class PersistentGraph(GraphView):
         df: DataFrame,
         time: str,
         id: str,
-        secondary_index: Optional[str] = None,
         node_type: Optional[str] = None,
         node_type_col: Optional[str] = None,
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
@@ -2032,13 +2032,13 @@ class PersistentGraph(GraphView):
             df (DataFrame): The Pandas DataFrame containing the nodes.
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
-            secondary_index (str, optional): The column name for the secondary index.
                 NOTE: All values in this column must be unique. Defaults to None.
             node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -2052,12 +2052,12 @@ class PersistentGraph(GraphView):
         parquet_path: str,
         time: str,
         id: str,
-        secondary_index: Optional[str] = None,
         node_type: Optional[str] = None,
         node_type_col: Optional[str] = None,
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
+        secondary_index: Optional[str] = None,
     ) -> None:
         """
         Load nodes from a Parquet file into the graph.
@@ -2066,13 +2066,13 @@ class PersistentGraph(GraphView):
             parquet_path (str): Parquet file or directory of Parquet files containing the nodes
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
-            secondary_index (str, optional): The column name for the secondary index.
                 NOTE: All values in this column must be unique. Defaults to None.
             node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.

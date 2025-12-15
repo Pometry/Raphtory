@@ -7,17 +7,15 @@ use crate::{
         get_zip_graph_path,
         metadata::GraphMetadata,
         parquet::{ParquetDecoder, ParquetEncoder},
-        GraphFolder, GraphPaths, Metadata, RelativePath, DATA_PATH, DEFAULT_DATA_PATH,
-        DEFAULT_GRAPH_PATH, GRAPH_PATH, META_PATH,
+        GraphFolder, GraphPaths, Metadata, RelativePath, DEFAULT_DATA_PATH, DEFAULT_GRAPH_PATH,
+        META_PATH,
     },
 };
 use std::{
-    fs,
     fs::File,
     io::{Cursor, Read, Seek, Write},
     path::Path,
 };
-use tempfile;
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {

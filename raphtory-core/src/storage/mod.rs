@@ -19,7 +19,7 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 

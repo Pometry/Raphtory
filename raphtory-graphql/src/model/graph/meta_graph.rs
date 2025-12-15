@@ -3,11 +3,7 @@ use crate::{
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
-use raphtory::{
-    errors::GraphError,
-    io::parquet_loaders::load_graph_props_from_parquet,
-    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata, GraphPaths},
-};
+use raphtory::serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 

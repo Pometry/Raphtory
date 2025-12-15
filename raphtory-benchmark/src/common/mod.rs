@@ -373,7 +373,7 @@ pub fn run_analysis_benchmarks<F, G>(
         |b: &mut Bencher| {
             let mut rng = rand::rng();
             let v: u64 = loop {
-                let v: u64 = rng.gen();
+                let v: u64 = rng.random();
                 if !nodes.contains(&GID::U64(v)) {
                     break v;
                 }

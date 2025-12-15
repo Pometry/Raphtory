@@ -39,13 +39,12 @@ use raphtory::{
             },
         },
     },
-    errors::{GraphError, InvalidPathReason},
+    errors::GraphError,
     prelude::*,
 };
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
-    sync::Arc,
 };
 
 use crate::{

@@ -1,5 +1,3 @@
-use crate::errors::GraphError;
-
 /// Macro for implementing all the Cache methods on a python wrapper
 ///
 /// # Arguments

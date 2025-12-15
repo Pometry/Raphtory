@@ -15,7 +15,7 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 use thiserror::Error;
 

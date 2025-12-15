@@ -456,7 +456,7 @@ mod test {
             make_nodes,
         },
     };
-    use chrono::{DateTime, NaiveDateTime, Utc};
+    use chrono::DateTime;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
@@ -738,14 +738,11 @@ mod test {
                     ("857".to_owned(), Prop::F64(2.56)),
                     (
                         "296".to_owned(),
-                        Prop::NDTime(NaiveDateTime::from_timestamp(1334043671, 0)),
+                        Prop::NDTime(DateTime::from_timestamp(1334043671, 0).unwrap().naive_utc()),
                     ),
                     (
                         "92".to_owned(),
-                        Prop::DTime(DateTime::<Utc>::from_utc(
-                            NaiveDateTime::from_timestamp(994032315, 0),
-                            Utc,
-                        )),
+                        Prop::DTime(DateTime::from_timestamp(994032315, 0).unwrap()),
                     ),
                 ],
             )],

@@ -1,7 +1,6 @@
 use crate::{
     auth::ContextValidation,
-    data::{Data, DeletionError, InsertionError},
-    graph::GraphWithVectors,
+    data::{Data, DeletionError},
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
@@ -10,7 +9,7 @@ use crate::{
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
-    paths::{valid_path, ValidGraphFolder, ValidWriteableGraphFolder},
+    paths::ValidWriteableGraphFolder,
     rayon::blocking_compute,
     url_encode::{url_decode_graph, url_encode_graph},
 };
@@ -22,7 +21,7 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
-    errors::{GraphError, InvalidPathReason},
+    errors::GraphError,
     prelude::*,
     serialise::*,
     version,
@@ -30,9 +29,7 @@ use raphtory::{
 use std::{
     error::Error,
     fmt::{Display, Formatter},
-    sync::Arc,
 };
-use tempfile::env::override_temp_dir;
 
 pub(crate) mod graph;
 pub mod plugins;

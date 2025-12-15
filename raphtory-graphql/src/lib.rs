@@ -1,7 +1,7 @@
 pub use crate::server::GraphServer;
 use crate::{data::InsertionError, paths::PathValidationError};
 use raphtory::errors::GraphError;
-use std::{panic::Location, sync::Arc};
+use std::sync::Arc;
 
 mod auth;
 pub mod data;
@@ -37,12 +37,11 @@ pub enum GQLError {
 #[cfg(test)]
 mod graphql_test {
     use crate::{
-        config::app_config::{AppConfig, AppConfigBuilder},
+        config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
         url_encode::{url_decode_graph, url_encode_graph},
     };
-    use arrow_array::types::UInt8Type;
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     use raphtory::{

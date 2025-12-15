@@ -5,7 +5,7 @@ use crate::{
     },
     errors::GraphError,
     io::{
-        arrow::{df_loaders::load_graph_props_from_df, prop_handler::lift_property_col},
+        arrow::prop_handler::lift_property_col,
         parquet_loaders::{
             get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_props_from_parquet,
             load_edges_from_parquet, load_graph_props_from_parquet, load_node_props_from_parquet,
@@ -14,7 +14,6 @@ use crate::{
     },
     prelude::*,
     serialise::{
-        graph_folder::GRAPH_PATH,
         parquet::{
             edges::encode_edge_deletions,
             graph::{encode_graph_cprop, encode_graph_tprop},

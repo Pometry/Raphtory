@@ -4,21 +4,18 @@ use crate::{
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
-    prelude::{Graph, GraphViewOps, ParquetDecoder, ParquetEncoder, PropertiesOps, StableEncode},
-    serialise::{metadata::GraphMetadata, serialise::StableDecode},
+    prelude::{Graph, GraphViewOps, ParquetDecoder, ParquetEncoder},
+    serialise::metadata::GraphMetadata,
 };
 use raphtory_api::GraphType;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File},
     io::{self, ErrorKind, Read, Seek, Write},
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
-use zip::{
-    write::{FileOptions, SimpleFileOptions},
-    ZipArchive, ZipWriter,
-};
+use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 /// Stores graph data
 pub const GRAPH_PATH: &str = "graph";
@@ -128,10 +125,6 @@ pub fn get_zip_meta_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<Stri
     path.push('/');
     path.push_str(META_PATH);
     Ok(path)
-}
-
-fn file_opts() -> SimpleFileOptions {
-    SimpleFileOptions::default()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -378,7 +371,7 @@ impl GraphFolder {
         Ok(())
     }
 
-    fn is_disk_graph(&self) -> Result<bool, GraphError> {
+    pub fn is_disk_graph(&self) -> Result<bool, GraphError> {
         let meta = self.read_metadata()?;
         Ok(meta.is_diskgraph)
     }
@@ -641,12 +634,12 @@ mod tests {
     use crate::{
         db::graph::graph::assert_graph_equal,
         prelude::{AdditionOps, Graph, Prop, StableEncode, NO_PROPS},
+        serialise::serialise::StableDecode,
     };
-    use raphtory_api::{core::utils::logging::global_info_logger, GraphType};
 
-    /// Verify that the metadata is re-created if it does not exist.
-    #[test]
-    #[ignore = "Need to think about how to deal with reading old format"]
+    // /// Verify that the metadata is re-created if it does not exist.
+    // #[test]
+    // #[ignore = "Need to think about how to deal with reading old format"]
     // fn test_read_metadata_from_noninitialized_zip() {
     //     global_info_logger();
     //
@@ -764,7 +757,7 @@ mod tests {
 
         // Verify the output zip contains the same graph
         let zip_folder = GraphFolder::new_as_zip(&output_zip_path);
-        let decoded_graph = Graph::decode(&zip_folder, None::<&std::path::Path>).unwrap();
+        let decoded_graph = Graph::decode(&zip_folder, None::<&Path>).unwrap();
 
         assert_graph_equal(&graph, &decoded_graph);
     }

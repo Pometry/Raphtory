@@ -11,7 +11,7 @@ use itertools::Itertools;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
     ser::{SerializeMap, SerializeSeq},
-    Deserialize, Serialize,
+    Serialize,
 };
 use std::{
     cmp::Ordering,

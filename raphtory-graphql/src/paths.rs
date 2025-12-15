@@ -1,21 +1,14 @@
-use crate::{
-    data::DIRTY_PATH,
-    model::{blocking_io, GqlGraphError},
-    rayon::blocking_compute,
-    GQLError,
-};
+use crate::{data::DIRTY_PATH, model::blocking_io, rayon::blocking_compute};
 use futures_util::io;
 use raphtory::{
-    db::api::view::{internal::InternalStorageOps, MaterializedGraph},
+    db::api::view::{MaterializedGraph},
     errors::{GraphError, InvalidPathReason},
     prelude::ParquetEncoder,
     serialise::{
-        make_data_path, metadata::GraphMetadata, read_data_path, read_dirty_path,
-        read_path_pointer, GraphFolder, GraphPaths, InnerGraphFolder, Metadata, RelativePath,
-        WriteableGraphFolder, DATA_PATH, META_PATH,
+        metadata::GraphMetadata, read_dirty_path, GraphFolder, GraphPaths, RelativePath,
+        WriteableGraphFolder, META_PATH,
     },
 };
-use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     fs,
@@ -25,8 +18,7 @@ use std::{
     path::{Component, Path, PathBuf, StripPrefixError},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tokio::io::AsyncReadExt;
-use tracing::{error, metadata, warn};
+use tracing::{error, warn};
 
 pub trait ValidGraphPaths: GraphPaths {
     fn local_path(&self) -> &str;
@@ -279,7 +271,7 @@ impl CleanupPath {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ValidWriteableGraphFolder {
+pub struct ValidWriteableGraphFolder {
     global_path: WriteableGraphFolder,
     local_path: String,
     dirty_marker: Option<CleanupPath>,

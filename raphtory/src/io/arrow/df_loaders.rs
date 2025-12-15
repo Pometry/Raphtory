@@ -9,7 +9,6 @@ use crate::{
     },
     prelude::*,
 };
-use arrow::array::BooleanArray;
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use either::Either;
@@ -29,11 +28,7 @@ use raphtory_core::{
     entities::{graph::logical_to_physical::ResolverShardT, GidRef, VID},
     storage::timeindex::AsTime,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    layer_ops::InternalLayerOps,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
-};
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use rayon::prelude::*;
 use std::{
     borrow::{Borrow, Cow},
@@ -313,7 +308,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     // }
 
     let num_nodes = AtomicUsize::new(write_locked_graph.graph().internal_num_nodes());
-    let all_graph_layers = graph.edge_meta().layer_meta().all_ids().collect::<Vec<_>>();
 
     for chunk in chunks {
         let df = chunk?;

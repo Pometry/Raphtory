@@ -17,13 +17,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView,
-                filter::{
-                    model::{AsEdgeFilter, AsNodeFilter},
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
-                },
-                node_subgraph::NodeSubgraph,
-                valid_graph::ValidGraph,
+                cached_view::CachedView, filter::node_type_filtered_graph::NodeTypeFilteredGraph,
+                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
             },
         },
     },

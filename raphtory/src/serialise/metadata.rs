@@ -1,12 +1,5 @@
-use crate::{
-    db::api::view::internal::GraphView,
-    prelude::{GraphViewOps, PropertiesOps},
-    serialise::GraphFolder,
-};
-use raphtory_api::{
-    core::{entities::properties::prop::Prop, storage::arc_str::ArcStr},
-    GraphType,
-};
+use crate::{db::api::view::internal::GraphView, prelude::GraphViewOps, serialise::GraphFolder};
+use raphtory_api::GraphType;
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Serialize, Deserialize, Debug)]

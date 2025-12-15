@@ -32,7 +32,6 @@ use raphtory_storage::{
 };
 use std::{
     fmt::{Display, Formatter},
-    io::{Seek, Write},
     path::Path,
     sync::Arc,
 };
@@ -409,61 +408,6 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
             .resolve_edge_property(prop, dtype.clone(), is_static)?;
 
         Ok(id)
-    }
-
-    fn internal_add_node(
-        &self,
-        t: TimeIndexEntry,
-        v: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
-        self.session.internal_add_node(t, v, props)?;
-
-        #[cfg(feature = "search")]
-        self.storage
-            .if_index_mut(|index| index.add_node_update(t, v, props))?;
-
-        Ok(())
-    }
-
-    fn internal_add_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, Self::Error> {
-        let id = self.session.internal_add_edge(t, src, dst, props, layer)?;
-        #[cfg(feature = "search")]
-        self.storage.if_index_mut(|index| {
-            index.add_edge_update(&self.storage.graph, id, t, layer, props)
-        })?;
-
-        Ok(id)
-    }
-
-    fn internal_add_edge_update(
-        &self,
-        t: TimeIndexEntry,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<(), Self::Error> {
-        self.session
-            .internal_add_edge_update(t, edge, props, layer)?;
-
-        #[cfg(feature = "search")]
-        self.storage.if_index_mut(|index| {
-            index.add_edge_update(
-                &self.storage.graph,
-                MaybeNew::Existing(edge),
-                t,
-                layer,
-                props,
-            )
-        })?;
-        Ok(())
     }
 }
 

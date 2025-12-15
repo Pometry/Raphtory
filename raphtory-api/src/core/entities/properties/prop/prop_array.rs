@@ -8,7 +8,7 @@ use arrow_array::{
     cast::AsArray, types::*, Array, ArrayRef, ArrowPrimitiveType, OffsetSizeTrait, PrimitiveArray,
 };
 use arrow_schema::{DataType, Field, Fields, TimeUnit};
-use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
+use serde::{ser::SerializeSeq, Serialize, Serializer};
 use std::{
     hash::{Hash, Hasher},
     sync::Arc,
@@ -206,7 +206,6 @@ impl Serialize for PropArray {
         state.end()
     }
 }
-
 
 impl PartialEq for PropArray {
     fn eq(&self, other: &Self) -> bool {

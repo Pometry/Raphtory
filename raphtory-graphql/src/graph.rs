@@ -8,14 +8,12 @@ use raphtory::{
             },
             Base, InheritViewOps, MaterializedGraph,
         },
-        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
+        graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, Graph, StableDecode},
-    serialise::GraphFolder,
+    prelude::EdgeViewOps,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
-use raphtory_api::GraphType;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };

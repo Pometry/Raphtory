@@ -3,15 +3,11 @@ use crate::{
     model::graph::{
         collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
     },
-    paths::{
-        valid_path, valid_relative_graph_path, ExistingGraphFolder, InternalPathValidationError,
-        PathValidationError, ValidPath,
-    },
+    paths::{valid_path, ExistingGraphFolder, PathValidationError, ValidPath},
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::{join, Itertools};
-use raphtory::errors::InvalidPathReason;
+use itertools::Itertools;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 

@@ -3,22 +3,18 @@ use crate::{
     graph::GraphWithVectors,
     model::blocking_io,
     paths::{
-        mark_dirty, valid_path, valid_relative_graph_path, ExistingGraphFolder,
-        InternalPathValidationError, PathValidationError, ValidGraphFolder, ValidGraphPaths,
-        ValidWriteableGraphFolder, WithPath,
+        mark_dirty, ExistingGraphFolder, InternalPathValidationError, PathValidationError,
+        ValidGraphPaths, ValidWriteableGraphFolder,
     },
     rayon::blocking_compute,
     GQLError,
-    GQLError::Insertion,
 };
 use futures_util::FutureExt;
-use itertools::{fold, Itertools};
 use moka::future::Cache;
 use raphtory::{
-    db::api::view::{internal::InternalStorageOps, MaterializedGraph},
-    errors::{GraphError, InvalidPathReason},
-    prelude::StableEncode,
-    serialise::{GraphFolder, GraphPaths, META_PATH},
+    db::api::view::MaterializedGraph,
+    errors::GraphError,
+    serialise::GraphPaths,
     vectors::{
         cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
@@ -26,14 +22,11 @@ use raphtory::{
 };
 use std::{
     collections::HashMap,
-    fs,
-    fs::File,
-    io,
-    io::{ErrorKind, Read, Seek},
+    fs, io,
+    io::{Read, Seek},
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tempfile::{spooled_tempfile_in, tempfile_in, NamedTempFile};
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
@@ -47,7 +40,7 @@ pub struct EmbeddingConf {
 }
 
 #[derive(thiserror::Error, Debug)]
-enum MutationErrorInner {
+pub enum MutationErrorInner {
     #[error(transparent)]
     GraphError(#[from] GraphError),
     #[error(transparent)]
