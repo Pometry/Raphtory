@@ -39,7 +39,7 @@ jobs:
           node-version: '20'
       - name: Install raphtory
         run: |
-          cd python && maturin develop --profile=build-fast
+          cd python && maturin develop --extras=all --profile=build-fast
 
       - name: Run rust format
         run: |
