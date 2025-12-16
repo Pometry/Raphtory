@@ -48,7 +48,10 @@ use {
     parking_lot::RwLock,
     raphtory_core::entities::nodes::node_ref::AsNodeRef,
     raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
-    std::ops::{Deref, DerefMut},
+    std::{
+        io::{Seek, Write},
+        ops::{Deref, DerefMut},
+    },
     tracing::info,
     zip::ZipWriter,
 };

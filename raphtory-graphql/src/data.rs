@@ -379,6 +379,7 @@ pub(crate) mod data_tests {
 
     fn create_graph_folder(path: &Path) {
         // Use empty graph to create folder structure
+        fs::create_dir_all(path).unwrap();
         let graph = Graph::new();
         graph.encode(path).unwrap();
     }

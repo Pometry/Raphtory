@@ -7,7 +7,7 @@ use crate::{
     prelude::{Graph, GraphViewOps, ParquetDecoder, ParquetEncoder},
     serialise::metadata::GraphMetadata,
 };
-use raphtory_api::GraphType;
+use raphtory_api::{core::input::input_node::parse_u64_strict, GraphType};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File},
@@ -36,37 +36,53 @@ pub const INDEX_PATH: &str = "index";
 /// Directory that stores vector embeddings of the graph
 pub const VECTORS_PATH: &str = "vectors";
 
-fn read_path_from_file(mut file: impl Read) -> Result<String, GraphError> {
+pub(crate) fn valid_relative_graph_path(
+    relative_path: &str,
+    prefix: &str,
+) -> Result<(), GraphError> {
+    relative_path
+        .strip_prefix(prefix) // should have the prefix
+        .and_then(|id| parse_u64_strict(id)) // the remainder should be the id
+        .ok_or_else(|| GraphError::InvalidRelativePath(relative_path.to_string()))?;
+    Ok(())
+}
+
+fn read_path_from_file(mut file: impl Read, prefix: &str) -> Result<String, GraphError> {
     let mut value = String::new();
     file.read_to_string(&mut value)?;
     let path: RelativePath = serde_json::from_str(&value)?;
+    valid_relative_graph_path(&path.path, prefix)?;
     Ok(path.path)
 }
 
-pub fn read_path_pointer(base_path: &Path, file_name: &str) -> Result<Option<String>, io::Error> {
+pub fn read_path_pointer(
+    base_path: &Path,
+    file_name: &str,
+    prefix: &str,
+) -> Result<Option<String>, GraphError> {
     let file = match File::open(base_path.join(file_name)) {
         Ok(file) => file,
         Err(error) => {
             return match error.kind() {
                 ErrorKind::NotFound => Ok(None),
-                _ => Err(error),
+                _ => Err(error.into()),
             }
         }
     };
-    let path = read_path_from_file(file)?;
+    let path = read_path_from_file(file, prefix)?;
     Ok(Some(path))
 }
 
-pub fn read_data_path(base_path: &Path) -> Result<Option<String>, io::Error> {
-    read_path_pointer(base_path, META_PATH)
+pub fn read_data_path(base_path: &Path, prefix: &str) -> Result<Option<String>, GraphError> {
+    read_path_pointer(base_path, META_PATH, prefix)
 }
 
-pub fn read_dirty_path(base_path: &Path) -> Result<Option<String>, io::Error> {
-    read_path_pointer(base_path, DIRTY_PATH)
+pub fn read_dirty_path(base_path: &Path, prefix: &str) -> Result<Option<String>, GraphError> {
+    read_path_pointer(base_path, DIRTY_PATH, prefix)
 }
 
 pub fn make_data_path(base_path: &Path, prefix: &str) -> Result<String, io::Error> {
-    let mut id = read_data_path(base_path)?
+    let mut id = read_data_path(base_path, prefix)?
         .and_then(|path| {
             path.strip_prefix(prefix)
                 .and_then(|id| id.parse::<usize>().ok())
@@ -82,24 +98,12 @@ pub fn make_data_path(base_path: &Path, prefix: &str) -> Result<String, io::Erro
 }
 
 pub fn read_or_default_data_path(base_path: &Path, prefix: &str) -> Result<String, GraphError> {
-    match read_data_path(base_path)? {
-        None => Ok(prefix.to_owned() + "0"),
-        Some(path) => {
-            if path.starts_with(prefix) {
-                Ok(path)
-            } else {
-                Err(GraphError::InvalidPrefix {
-                    expected: prefix.to_owned(),
-                    actual: path,
-                })
-            }
-        }
-    }
+    Ok(read_data_path(base_path, prefix)?.unwrap_or_else(|| prefix.to_owned() + "0"))
 }
 
 pub fn get_zip_data_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
     let file = zip.by_name(META_PATH)?;
-    Ok(read_path_from_file(file)?)
+    Ok(read_path_from_file(file, DATA_PATH)?)
 }
 
 pub fn get_zip_graph_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
@@ -116,12 +120,12 @@ pub fn get_zip_graph_path_name<R: Read + Seek>(
 ) -> Result<String, GraphError> {
     data_path.push('/');
     data_path.push_str(META_PATH);
-    let graph_path = read_path_from_file(zip.by_name(&data_path)?)?;
+    let graph_path = read_path_from_file(zip.by_name(&data_path)?, GRAPH_PATH)?;
     Ok(graph_path)
 }
 
 pub fn get_zip_meta_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
-    let mut path = get_zip_graph_path(zip)?;
+    let mut path = get_zip_data_path(zip)?;
     path.push('/');
     path.push_str(META_PATH);
     Ok(path)
@@ -264,7 +268,7 @@ impl GraphFolder {
         if self.write_as_zip_format {
             return Err(GraphError::ZippedGraphCannotBeSwapped);
         }
-        let old_swap = match read_dirty_path(self.root()) {
+        let old_swap = match read_dirty_path(self.root(), DATA_PATH) {
             Ok(path) => path,
             Err(_) => {
                 fs::remove_file(self.root_folder.join(DIRTY_PATH))?; // dirty file is corrupted, clean it up
@@ -430,7 +434,7 @@ impl GraphPaths for WriteableGraphFolder {
     }
 
     fn relative_data_path(&self) -> Result<String, GraphError> {
-        let path = read_dirty_path(self.root())?.ok_or(GraphError::NoWriteInProgress)?;
+        let path = read_dirty_path(self.root(), DATA_PATH)?.ok_or(GraphError::NoWriteInProgress)?;
         Ok(path)
     }
 
@@ -446,7 +450,7 @@ impl WriteableGraphFolder {
     ///
     /// This operation returns an error if there is no write in progress.
     pub fn finish(self) -> Result<GraphFolder, GraphError> {
-        let old_data = read_data_path(self.root())?;
+        let old_data = read_data_path(self.root(), DATA_PATH)?;
         fs::rename(self.root().join(DIRTY_PATH), self.root().join(META_PATH))?;
         if let Some(old_data) = old_data {
             let old_data_path = self.root().join(old_data);
@@ -541,7 +545,8 @@ impl InnerGraphFolder {
     }
 
     pub fn relative_graph_path(&self) -> Result<String, GraphError> {
-        let relative = read_data_path(&self.path)?.unwrap_or_else(|| GRAPH_PATH.to_owned() + "0");
+        let relative =
+            read_data_path(&self.path, GRAPH_PATH)?.unwrap_or_else(|| GRAPH_PATH.to_owned() + "0");
         Ok(relative)
     }
 

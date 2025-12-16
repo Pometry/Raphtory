@@ -38,31 +38,28 @@ use zip::result::ZipError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
-    #[error("Backslash not allowed in path: {0}")]
-    BackslashError(PathBuf),
-    #[error("Double forward slashes are not allowed in path: {0}")]
-    DoubleForwardSlash(PathBuf),
-    #[error("Only relative paths are allowed to be used within the working_dir: {0}")]
-    RootNotAllowed(PathBuf),
-    #[error("References to the current dir are not allowed within the path: {0}")]
-    CurDirNotAllowed(PathBuf),
-    #[error("References to the parent dir are not allowed within the path: {0}")]
-    ParentDirNotAllowed(PathBuf),
-    #[error("A component of the given path was a symlink: {0}")]
-    SymlinkNotAllowed(PathBuf),
-    #[error("The give path does not exist: {0}")]
-    PathDoesNotExist(PathBuf),
-    #[error("Could not parse Path: {0}")]
-    PathNotParsable(PathBuf),
-    #[error("The path to the graph contains a subpath to an existing graph: {0}")]
-    ParentIsGraph(PathBuf),
+    #[error("Backslash not allowed in path")]
+    BackslashError,
+    #[error("Double forward slashes are not allowed in path")]
+    DoubleForwardSlash,
+    #[error("Only relative paths are allowed to be used within the working_dir")]
+    RootNotAllowed,
+    #[error("References to the current dir are not allowed within the path")]
+    CurDirNotAllowed,
+    #[error("References to the parent dir are not allowed within the path")]
+    ParentDirNotAllowed,
+    #[error("A component of the given path was a symlink")]
+    SymlinkNotAllowed,
+    #[error("Could not parse Path")]
+    PathNotParsable,
+    #[error("The path to the graph contains a subpath to an existing graph")]
+    ParentIsGraph,
     #[error("Graph name cannot start with _")]
     GraphNamePrefix,
-
-    #[error("The path provided already exists as a namespace: {0}")]
-    GraphIsNamespace(PathBuf),
-    #[error("The path provided already exists as a graph: {0}")]
-    NamespaceIsGraph(PathBuf),
+    #[error("The path provided already exists as a namespace")]
+    GraphIsNamespace,
+    #[error("The path provided already exists as a graph")]
+    NamespaceIsGraph,
     #[error("Failed to strip prefix: {source}")]
     StripPrefix { source: StripPrefixError },
 }
@@ -148,6 +145,9 @@ pub enum GraphError {
         #[from]
         source: LoadError,
     },
+
+    #[error("Path {0} does not exist")]
+    PathDoesNotExist(PathBuf),
 
     #[error("Storage feature not enabled")]
     DiskGraphNotFound,
@@ -434,14 +434,13 @@ pub enum GraphError {
     #[error("Cannot swap zipped graph data")]
     ZippedGraphCannotBeSwapped,
 
-    #[error("Invalid prefix, expected '{expected}', got '{actual}'")]
-    InvalidPrefix { expected: String, actual: String },
-
     #[error("{source} at {location}")]
     StripPrefixError {
         source: StripPrefixError,
         location: &'static Location<'static>,
     },
+    #[error("Path {0} is not a valid relative data path")]
+    InvalidRelativePath(String),
 }
 
 impl From<MetadataError> for GraphError {

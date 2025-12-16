@@ -33,10 +33,7 @@ use rayon::prelude::*;
 use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {

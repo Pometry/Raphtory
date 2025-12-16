@@ -269,7 +269,7 @@ pub fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String>
 mod search {
     use super::*;
 
-    pub struct SearchNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(F);
+    pub struct SearchNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(pub F);
 
     impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for SearchNodes<F> {
         fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
@@ -284,7 +284,7 @@ mod search {
         }
     }
 
-    pub struct SearchEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(F);
+    pub struct SearchEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(pub F);
 
     impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for SearchEdges<F> {
         fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {

@@ -28,8 +28,7 @@ use raphtory_storage::{
 };
 use std::{
     fmt::{Display, Formatter},
-    iter,
-    ops::{Deref, Range},
+    ops::Range,
     path::Path,
     sync::Arc,
 };

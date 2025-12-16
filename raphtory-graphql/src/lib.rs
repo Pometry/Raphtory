@@ -60,6 +60,9 @@ mod graphql_test {
     };
     use tempfile::tempdir;
 
+    #[cfg(feature = "search")]
+    use crate::config::app_config::AppConfigBuilder;
+
     #[tokio::test]
     async fn test_copy_graph() {
         let graph = Graph::new();

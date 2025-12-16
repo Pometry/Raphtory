@@ -12,7 +12,7 @@ use crate::{
 };
 use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
-use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
+use raphtory_core::entities::nodes::node_ref::NodeRef;
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{Extension, GraphPropEntry};
 use thiserror::Error;

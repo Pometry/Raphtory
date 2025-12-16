@@ -1,5 +1,3 @@
-#[cfg(feature = "search")]
-use crate::search::{fallback_filter_edges, fallback_filter_nodes};
 use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
@@ -56,6 +54,12 @@ use rustc_hash::FxHashSet;
 use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
+};
+
+#[cfg(feature = "search")]
+use crate::{
+    db::graph::views::filter::model::{AsEdgeFilter, AsNodeFilter},
+    search::{fallback_filter_edges, fallback_filter_nodes},
 };
 
 /// This trait GraphViewOps defines operations for accessing
