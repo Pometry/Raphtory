@@ -25,7 +25,6 @@ use pyo3::{
     prelude::*,
     types::{PyCapsule, PyDict},
 };
-use pyo3::{prelude::*, types::PyCapsule};
 use pyo3_arrow::PyRecordBatchReader;
 use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
