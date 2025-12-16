@@ -43,64 +43,78 @@ def test_load_edges_from_polars_df(graph_type):
     assert _collect_edges(g_from_df) == expected
 
 def test_different_data_sources():
-    num_nodes_ingested = []
+    nodes_list = []
 
     ######### PARQUET #########
-    parquet_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/parquet_subset"
-    parquet_file_path_str = parquet_dir_path_str + "/flattened_data_subset.parquet"
+    parquet_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/parquet_directory"
+    parquet_file_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/flattened_data_subset.parquet"
     # test path string for parquet file
     g = Graph()
     g.load_nodes(data=parquet_file_path_str, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
     # test Path object for parquet file
     file_path_obj = Path(parquet_file_path_str)
     g = Graph()
     g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
     # test path string for parquet directory
     g = Graph()
     g.load_nodes(data=parquet_dir_path_str, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
     # test Path object for parquet directory
     dir_path_obj = Path(parquet_dir_path_str)
     g = Graph()
     g.load_nodes(data=dir_path_obj, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
     ######### CSV #########
-    csv_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/csv_subset"
-    csv_file_path_str = csv_dir_path_str + "/flattened_data_subset.csv"
+    csv_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/csv_directory"
+    csv_file_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/flattened_data_subset.csv"
     # test path string for CSV file
     g = Graph()
     g.load_nodes(data=csv_file_path_str, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
     # test Path object for CSV file
     file_path_obj = Path(csv_file_path_str)
     g = Graph()
     g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
     # test path string for CSV directory
     g = Graph()
     g.load_nodes(data=csv_dir_path_str, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
     # test Path object for CSV directory
     dir_path_obj = Path(csv_dir_path_str)
     g = Graph()
     g.load_nodes(data=dir_path_obj, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    ######### mixed directory #########
+    mixed_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/mixed_directory"
+    # test path string
+    g = Graph()
+    g.load_nodes(data=mixed_dir_path_str, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object
+    g = Graph()
+    g.load_nodes(data=Path(mixed_dir_path_str), time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
     ######### arrow_c_stream #########
@@ -108,20 +122,20 @@ def test_different_data_sources():
     df_pd = pd.read_parquet(parquet_file_path_str)
     g = Graph()
     g.load_nodes(data=df_pd, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g, df_pd
 
     # test polars
     df_pl = pl.read_parquet(parquet_file_path_str)
     g = Graph()
     g.load_nodes(data=df_pl, time="block_timestamp", id="inputs_address")
-    num_nodes_ingested.append(len(g.nodes))
+    nodes_list.append(sorted(g.nodes.id.collect()))
     del g, df_pl
 
     # sanity check, make sure we ingested the same number of nodes each time
-    print(f"Number of tests ran: {len(num_nodes_ingested)}")
-    for i in range(len(num_nodes_ingested)-1):
-        assert num_nodes_ingested[0] == num_nodes_ingested[i+1]
+    print(f"Number of tests ran: {len(nodes_list)}")
+    for i in range(len(nodes_list)-1):
+        assert nodes_list[0] == nodes_list[i+1], f"Nodes list assertion failed at item i={i}"
 
 def test_schema_casting():
     # time/id as regular ints (I64), value column as explicit int32
