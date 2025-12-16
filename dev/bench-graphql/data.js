@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765563565576,
+  "lastUpdate": 1765880502203,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2915,6 +2915,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1307,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89c09575a68bf6c7b24530f3e3fdf378190f14c8",
+          "message": "bring back rust_fmt_check (#2424)",
+          "timestamp": "2025-12-16T09:45:54Z",
+          "tree_id": "cbf8bba1fcf1d7723b04493dc7ea8761947d69f9",
+          "url": "https://github.com/Pometry/Raphtory/commit/89c09575a68bf6c7b24530f3e3fdf378190f14c8"
+        },
+        "date": 1765880496859,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1256,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 186,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 138,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1079,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 899,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1301,
             "unit": "req/s"
           }
         ]
