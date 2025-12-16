@@ -183,8 +183,9 @@ impl VectorDb {
             writer.add_item(&mut wtxn, id as u32, embedding.as_ref())?;
         }
 
+        // FIXME: Arroy requires rand 0.8.x but we are using rand 0.9.x
         // let mut rng = StdRng::from_os_rng();
-        // FIXME: writer.builder(&mut rng).build(&mut wtxn)?;
+        // writer.builder(&mut rng).build(&mut wtxn)?;
 
         wtxn.commit()?;
         Ok(())

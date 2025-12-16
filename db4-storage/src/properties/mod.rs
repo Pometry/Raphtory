@@ -46,7 +46,7 @@ pub(crate) struct PropMutEntry<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct RowEntry<'a> {
+pub struct PropEntry<'a> {
     row: usize,
     properties: &'a Properties,
 }
@@ -63,8 +63,8 @@ impl Properties {
         }
     }
 
-    pub(crate) fn get_entry(&self, row: usize) -> RowEntry<'_> {
-        RowEntry {
+    pub(crate) fn get_entry(&self, row: usize) -> PropEntry<'_> {
+        PropEntry {
             row,
             properties: self,
         }
@@ -354,7 +354,7 @@ impl<'a> PropMutEntry<'a> {
     }
 }
 
-impl<'a> RowEntry<'a> {
+impl<'a> PropEntry<'a> {
     pub(crate) fn prop(self, prop_id: usize) -> Option<TPropCell<'a>> {
         let t_cell = self.t_cell();
         Some(TPropCell::new(t_cell, self.properties.t_column(prop_id)))
@@ -369,6 +369,7 @@ impl<'a> RowEntry<'a> {
             col.check(self.row, new_val)
                 .map_err(Into::<MetadataError>::into)?;
         }
+
         Ok(())
     }
 

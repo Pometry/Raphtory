@@ -3,8 +3,9 @@ use std::ops::DerefMut;
 use serde::{Deserialize, Serialize};
 
 use crate::segments::{
-    edge::{EdgeSegmentView, MemEdgeSegment},
-    node::{MemNodeSegment, NodeSegmentView},
+    edge::segment::{EdgeSegmentView, MemEdgeSegment},
+    graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
+    node::segment::{MemNodeSegment, NodeSegmentView},
 };
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
@@ -26,15 +27,25 @@ pub trait Config:
 pub trait PersistentStrategy: Config {
     type NS;
     type ES;
+    type GS;
+
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         node_page: &Self::NS,
         writer: MP,
     ) where
         Self: Sized;
+
     fn persist_edge_page<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         edge_page: &Self::ES,
+        writer: MP,
+    ) where
+        Self: Sized;
+
+    fn persist_graph_props<MP: DerefMut<Target = MemGraphPropSegment>>(
+        &self,
+        graph_segment: &Self::GS,
         writer: MP,
     ) where
         Self: Sized;
@@ -69,6 +80,7 @@ impl Config for NoOpStrategy {
         self.max_node_page_len
     }
 
+    #[inline(always)]
     fn max_edge_page_len(&self) -> u32 {
         self.max_edge_page_len
     }
@@ -93,6 +105,7 @@ impl Config for NoOpStrategy {
 impl PersistentStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
+    type GS = GraphPropSegmentView<Self>;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
@@ -105,6 +118,14 @@ impl PersistentStrategy for NoOpStrategy {
     fn persist_edge_page<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         _edge_page: &Self::ES,
+        _writer: MP,
+    ) {
+        // No operation
+    }
+
+    fn persist_graph_props<MP: DerefMut<Target = MemGraphPropSegment>>(
+        &self,
+        _graph_segment: &Self::GS,
         _writer: MP,
     ) {
         // No operation

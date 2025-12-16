@@ -12,27 +12,24 @@ use raphtory_api::core::{
     input::input_node::InputNode,
 };
 use raphtory_core::{
-    entities::{
-        graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta,
-        GidRef, LayerIds, EID, VID,
-    },
+    entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
-        locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
+        locked::{
+            edges::WriteLockedEdgePages, graph_props::WriteLockedGraphPropPages,
+            nodes::WriteLockedNodePages,
+        },
     },
     persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
     wal::{GraphWal, TransactionID, Wal},
-    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
+    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, GS, NS,
 };
 use tempfile::TempDir;
-
-pub mod entries;
-pub mod mutation;
 
 #[derive(Debug)]
 pub struct TemporalGraph<EXT: Config = Extension> {
@@ -40,7 +37,6 @@ pub struct TemporalGraph<EXT: Config = Extension> {
     pub logical_to_physical: Arc<GIDResolver>,
     pub node_count: AtomicUsize,
     storage: Arc<Layer<EXT>>,
-    pub graph_meta: Arc<GraphMeta>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
     pub wal: Arc<WalImpl>,
@@ -127,17 +123,27 @@ impl Default for TemporalGraph<Extension> {
     }
 }
 
-impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
+impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> TemporalGraph<EXT> {
     pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(None, node_meta, edge_meta, ext)
+        let graph_props_meta = Meta::new_for_graph_props();
+
+        Self::new_with_meta(None, node_meta, edge_meta, graph_props_meta, ext)
     }
 
     pub fn new_with_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta, ext)
+        let graph_props_meta = Meta::new_for_graph_props();
+
+        Self::new_with_meta(
+            Some(path.as_ref().into()),
+            node_meta,
+            edge_meta,
+            graph_props_meta,
+            ext,
+        )
     }
 
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
@@ -155,7 +161,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             logical_to_physical: resolver.into(),
             node_count,
             storage: Arc::new(storage),
-            graph_meta: Arc::new(GraphMeta::default()),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
         })
@@ -165,6 +170,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         graph_dir: Option<GraphDir>,
         node_meta: Meta,
         edge_meta: Meta,
+        graph_meta: Meta,
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let mut graph_dir = graph_dir;
@@ -189,6 +195,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             graph_dir.as_ref().map(|p| p.path()),
             node_meta,
             edge_meta,
+            graph_meta,
             ext,
         );
 
@@ -200,7 +207,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             logical_to_physical,
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
-            graph_meta: Arc::new(GraphMeta::default()),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
         })
@@ -210,6 +216,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         self.graph_dir()
             .filter(|_| Extension::disk_storage_enabled())
     }
+
     pub fn extension(&self) -> &EXT {
         self.storage().extension()
     }
@@ -220,10 +227,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     pub fn storage(&self) -> &Arc<Layer<EXT>> {
         &self.storage
-    }
-
-    pub fn graph_meta(&self) -> &Arc<GraphMeta> {
-        &self.graph_meta
     }
 
     pub fn num_layers(&self) -> usize {
@@ -262,6 +265,10 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     pub fn node_meta(&self) -> &Meta {
         self.storage().node_meta()
+    }
+
+    pub fn graph_props_meta(&self) -> &Meta {
+        self.storage.graph_props_meta()
     }
 
     pub fn graph_dir(&self) -> Option<&Path> {
@@ -365,17 +372,24 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 }
 
-pub struct WriteLockedGraph<'a, EXT: Config> {
+pub struct WriteLockedGraph<'a, EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+{
     pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
+    pub graph_props: WriteLockedGraphPropPages<'a, storage::GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'a, EXT> {
+impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
+    WriteLockedGraph<'a, EXT>
+{
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),
             edges: graph.storage.edges().write_locked(),
+            graph_props: graph.storage.graph_props().write_locked(),
             graph,
         }
     }

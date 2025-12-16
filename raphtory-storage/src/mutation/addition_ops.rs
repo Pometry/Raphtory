@@ -36,10 +36,12 @@ pub trait InternalAdditionOps {
 
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
+
     /// map external node id to internal id, allocating a new empty node if needed
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
 
-    /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
+    /// Resolve a node and corresponding type, outer MaybeNew tracks whether the type
+    /// assignment is new for the node even if both node and type already existed.
     /// updates the storage atomically to set the node type
     fn resolve_and_update_node_and_type(
         &self,
@@ -131,16 +133,6 @@ pub trait EdgeWriteLock: Send + Sync {
     fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
 }
 
-pub trait AtomicNodeAddition: Send + Sync {
-    /// add node update
-    fn internal_add_node(
-        &mut self,
-        t: TimeIndexEntry,
-        v: impl Into<VID>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> Result<(), MutationError>;
-}
-
 pub trait SessionAdditionOps: Send + Sync {
     type Error: From<MutationError>;
 
@@ -179,6 +171,7 @@ pub trait SessionAdditionOps: Send + Sync {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error>;
+
     fn resolve_edge_property(
         &self,
         prop: &str,

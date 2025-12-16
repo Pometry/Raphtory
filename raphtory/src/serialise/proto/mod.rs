@@ -1,6 +1,12 @@
 use crate::{
     core::entities::LayerIds,
-    db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{
+            properties::internal::{InternalMetadataOps, InternalTemporalPropertyViewOps},
+            view::MaterializedGraph,
+        },
+        graph::views::deletion_graph::PersistentGraph,
+    },
     errors::GraphError,
     prelude::Graph,
 };
@@ -54,27 +60,33 @@ impl ProtoEncoder for GraphStorage {
         let mut graph = proto_generated::Graph::default();
 
         // Graph Properties
-        let graph_meta = storage.graph_meta();
+        let graph_meta = storage.graph_props_meta();
         for (id, key) in graph_meta.metadata_mapper().read().iter_ids() {
             graph.new_graph_cprop(key, id);
         }
-        graph.update_graph_cprops(graph_meta.metadata());
+        graph.update_graph_cprops(
+            storage
+                .metadata_ids()
+                .filter_map(|id| Some((id, storage.get_metadata(id)?))),
+        );
 
-        for (id, key, dtype) in graph_meta.temporal_mapper().locked().iter_ids_and_types() {
+        for (id, key, dtype) in graph_meta
+            .temporal_prop_mapper()
+            .locked()
+            .iter_ids_and_types()
+        {
             graph.new_graph_tprop(key, id, dtype);
         }
-        for (t, group) in &graph_meta
-            .temporal_props()
-            .map(|(key, values)| {
-                values
-                    .deref()
-                    .iter()
-                    .map(move |(t, v)| (t, (key, v)))
-                    .collect::<Vec<_>>()
-            })
+
+        let t_props = graph_meta
+            .temporal_prop_mapper()
+            .locked()
+            .iter_ids_and_types()
+            .map(|(id, _, _)| storage.temporal_iter(id).map(move |(t, v)| (t, (id, v))))
             .kmerge_by(|(left_t, _), (right_t, _)| left_t <= right_t)
-            .chunk_by(|(t, _)| *t)
-        {
+            .chunk_by(|(t, _)| *t);
+
+        for (t, group) in t_props.into_iter() {
             graph.update_graph_tprops(t, group.map(|(_, v)| v));
         }
 

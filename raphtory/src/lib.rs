@@ -145,7 +145,12 @@ pub mod prelude {
                     TimeOps,
                 },
             },
-            graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
+            graph::{
+                graph::Graph,
+                views::{
+                    deletion_graph::PersistentGraph, filter::model::property_filter::PropertyFilter,
+                },
+            },
         },
     };
 
