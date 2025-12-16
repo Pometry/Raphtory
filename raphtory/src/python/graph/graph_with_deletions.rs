@@ -707,6 +707,7 @@ impl PyPersistentGraph {
             &metadata,
             shared_metadata.as_ref(),
             None,
+            None,
         )
     }
 
@@ -854,6 +855,7 @@ impl PyPersistentGraph {
             layer,
             layer_col,
             None,
+            None,
         )
     }
 
@@ -948,6 +950,7 @@ impl PyPersistentGraph {
             dst,
             layer,
             layer_col,
+            None,
             None,
         )
     }
@@ -1065,6 +1068,7 @@ impl PyPersistentGraph {
             node_type_col,
             &metadata,
             shared_metadata.as_ref(),
+            None,
             None,
         )
     }
@@ -1191,6 +1195,7 @@ impl PyPersistentGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            None,
             None,
         )
     }

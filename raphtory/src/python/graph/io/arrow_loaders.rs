@@ -290,7 +290,7 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
     Ok(DFView::new(names, chunks, len_from_python))
 }
 
-fn cast_columns(
+pub(crate) fn cast_columns(
     batch: RecordBatch,
     schema: &HashMap<String, PropType>,
 ) -> Result<RecordBatch, GraphError> {
@@ -432,6 +432,7 @@ pub(crate) fn load_nodes_from_csv_path<
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     csv_options: Option<&CsvReadOptions>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend_from_slice(properties);
@@ -462,7 +463,7 @@ pub(crate) fn load_nodes_from_csv_path<
         )));
     }
 
-    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options)?;
+    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_nodes_from_df(
         df_view,
@@ -579,18 +580,19 @@ fn process_csv_paths_df<'a>(
     paths: &'a [PathBuf],
     col_names: Vec<&'a str>,
     csv_options: Option<&'a CsvReadOptions>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>, GraphError> {
     if paths.is_empty() {
         return Err(GraphError::LoadFailure(
             "No CSV files found at the provided path".to_string(),
         ));
     }
+    // BoxedLIter couldn't be used because it has Send + Sync bound
+    type ChunkIter<'b> = Box<dyn Iterator<Item = Result<DFChunk, GraphError>> + 'b>;
 
-    // TODO: Add support for user provided schema
     let names = col_names.iter().map(|&name| name.to_string()).collect();
     let chunks = paths.iter().flat_map(move |path| {
-        // BoxedLIter couldn't be used because it has Send + Sync bound
-        type ChunkIter<'b> = Box<dyn Iterator<Item = Result<DFChunk, GraphError>> + 'b>;
+        let schema = schema.clone();
         let csv_reader = match build_csv_reader(path.as_path(), csv_options) {
             Ok(r) => r,
             Err(e) => return Box::new(iter::once(Err(e))) as ChunkIter<'a>,
@@ -617,9 +619,14 @@ fn process_csv_paths_df<'a>(
                 .into_iter()
                 .map(move |batch_res| match batch_res {
                     Ok(batch) => {
+                        let casted_batch = if let Some(schema) = schema.as_deref() {
+                            cast_columns(batch, schema)?
+                        } else {
+                            batch
+                        };
                         let arrays = indices
                             .iter()
-                            .map(|&idx| batch.column(idx).clone())
+                            .map(|&idx| casted_batch.column(idx).clone())
                             .collect::<Vec<_>>();
                         Ok(DFChunk::new(arrays))
                     }

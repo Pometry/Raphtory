@@ -48,6 +48,7 @@ use std::{
     fmt::{Debug, Formatter},
     fs,
     path::PathBuf,
+    sync::Arc,
 };
 
 /// A temporal graph with event semantics.
@@ -726,13 +727,16 @@ impl PyGraph {
                     || path_str.ends_with(".csv.bz2")
             };
 
-            // before loading anything, fail if CSV options were passed but no CSV files were detected
+            // fail before loading anything at all to avoid loading partial data
             if !is_csv && csv_options.is_some() {
                 return Err(GraphError::from(PyValueError::new_err(format!(
                     "CSV options were passed but no CSV files were detected at {}.",
                     path.display()
                 ))));
             }
+
+            // wrap in Arc to avoid cloning the entire schema for Parquet, CSV, and inner loops in CSV path
+            let arced_schema = column_schema.map(Arc::new);
 
             // support directories with mixed parquet and CSV files
             if is_parquet {
@@ -747,6 +751,7 @@ impl PyGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
+                    arced_schema.clone(),
                 )?;
             }
             if is_csv {
@@ -761,6 +766,7 @@ impl PyGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     csv_options.as_ref(),
+                    arced_schema,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -910,6 +916,7 @@ impl PyGraph {
             &properties,
             &metadata,
             shared_metadata.as_ref(),
+            None,
             None,
         )
     }
@@ -1062,6 +1069,7 @@ impl PyGraph {
             layer,
             layer_col,
             None,
+            None,
         )
     }
 
@@ -1182,6 +1190,7 @@ impl PyGraph {
             node_type_col,
             &metadata,
             shared_metadata.as_ref(),
+            None,
             None,
         )
     }
@@ -1312,6 +1321,7 @@ impl PyGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            None,
             None,
         )
     }
