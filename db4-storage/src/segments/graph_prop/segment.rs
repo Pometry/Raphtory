@@ -1,7 +1,5 @@
 use crate::{
-    LocalPOS,
-    error::StorageError,
-    segments::{HasRow, SegmentContainer},
+    error::StorageError, segments::{HasRow, SegmentContainer}, wal::LSN, LocalPOS
 };
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
 use raphtory_core::{
@@ -15,6 +13,7 @@ use std::sync::Arc;
 pub struct MemGraphPropSegment {
     /// Layers containing graph properties and metadata.
     layers: Vec<SegmentContainer<UnitEntry>>,
+    lsn: LSN,
 }
 
 /// A unit-like struct for use with `SegmentContainer`.
@@ -49,11 +48,8 @@ impl MemGraphPropSegment {
 
         Self {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            lsn: 0,
         }
-    }
-
-    pub fn lsn(&self) -> u64 {
-        self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
     }
 
     pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<UnitEntry> {
@@ -87,7 +83,15 @@ impl MemGraphPropSegment {
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
 
-        Self { layers }
+        Self { layers, lsn: self.lsn }
+    }
+
+    pub fn lsn(&self) -> LSN {
+        self.lsn
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.lsn = lsn;
     }
 
     pub fn add_properties<T: AsTime>(

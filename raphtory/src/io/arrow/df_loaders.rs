@@ -203,19 +203,18 @@ pub fn load_nodes_from_df<
                         let mut writer = shard.writer();
                         let t = TimeIndexEntry(time, secondary_index);
                         let layer_id = STATIC_GRAPH_LAYER_ID;
-                        let lsn = 0;
 
                         update_time(t);
                         writer
-                            .store_node_id_and_node_type(mut_node, layer_id, gid, *node_type, lsn);
+                            .store_node_id_and_node_type(mut_node, layer_id, gid, *node_type);
 
                         let t_props = prop_cols.iter_row(row);
                         let c_props = metadata_cols
                             .iter_row(row)
                             .chain(shared_metadata.iter().cloned());
 
-                        writer.add_props(t, mut_node, layer_id, t_props, lsn);
-                        writer.update_c_props(mut_node, layer_id, c_props, lsn);
+                        writer.add_props(t, mut_node, layer_id, t_props);
+                        writer.update_c_props(mut_node, layer_id, c_props);
                     };
                 }
 
@@ -415,10 +414,10 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     if let Some(src_pos) = locked_page.resolve_pos(*src) {
                         let mut writer = locked_page.writer();
                         let t = TimeIndexEntry(time, secondary_index);
-                        writer.store_node_id(src_pos, 0, src_gid, 0);
+                        writer.store_node_id(src_pos, 0, src_gid);
+
                         // find the original EID in the static graph if it exists
                         // otherwise create a new one
-
                         let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                             eids_exist[row].store(true, Ordering::Relaxed);
@@ -426,7 +425,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         } else {
                             let edge_id = next_edge_id(row);
 
-                            writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
+                            writer.add_static_outbound_edge(src_pos, *dst, edge_id);
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                             eids_exist[row].store(false, Ordering::Relaxed);
                             edge_id.with_layer(*layer)
@@ -437,11 +436,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         {
                             layer_eids_exist[row].store(true, Ordering::Relaxed);
                             // node additions
-                            writer.update_timestamp(t, src_pos, edge_id, 0);
+                            writer.update_timestamp(t, src_pos, edge_id);
                         } else {
                             layer_eids_exist[row].store(false, Ordering::Relaxed);
                             // actually adds the edge
-                            writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id, 0);
+                            writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id);
                         }
 
                         per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
@@ -460,7 +459,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     .nodes
                     .par_iter_mut()
                     .enumerate()
-                    .for_each(|(page_id, shard)| {
+                    .for_each(|(page_id, locked_page)| {
                         let zip = izip!(
                             src_col_resolved.iter(),
                             dst_col_resolved.iter(),
@@ -485,14 +484,14 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                             edge_exists_in_static_graph,
                         ) in zip
                         {
-                            if let Some(dst_pos) = shard.resolve_pos(*dst) {
+                            if let Some(dst_pos) = locked_page.resolve_pos(*dst) {
                                 let t = TimeIndexEntry(time, secondary_index);
-                                let mut writer = shard.writer();
+                                let mut writer = locked_page.writer();
 
-                                writer.store_node_id(dst_pos, 0, dst_gid, 0);
+                                writer.store_node_id(dst_pos, 0, dst_gid);
 
                                 if !edge_exists_in_static_graph {
-                                    writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
+                                    writer.add_static_inbound_edge(dst_pos, *src, *eid);
                                 }
 
                                 if !edge_exists_in_layer {
@@ -501,10 +500,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                                         dst_pos,
                                         *src,
                                         eid.with_layer(*layer),
-                                        0,
                                     );
                                 } else {
-                                    writer.update_timestamp(t, dst_pos, eid.with_layer(*layer), 0);
+                                    writer.update_timestamp(t, dst_pos, eid.with_layer(*layer));
                                 }
 
                                 per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
@@ -515,7 +513,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             // Add temporal & constant properties to edges
             sc.spawn(|_| {
-                write_locked_graph.edges.par_iter_mut().for_each(|shard| {
+                write_locked_graph.edges.par_iter_mut().for_each(|locked_page| {
                     let zip = izip!(
                         src_col_resolved.iter(),
                         dst_col_resolved.iter(),
@@ -533,9 +531,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
                         zip.enumerate()
                     {
-                        if let Some(eid_pos) = shard.resolve_pos(*eid) {
+                        if let Some(eid_pos) = locked_page.resolve_pos(*eid) {
                             let t = TimeIndexEntry(time, secondary_index);
-                            let mut writer = shard.writer();
+                            let mut writer = locked_page.writer();
 
                             t_props.clear();
                             t_props.extend(prop_cols.iter_row(row));
@@ -553,7 +551,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                                 *layer,
                                 c_props.drain(..),
                                 t_props.drain(..),
-                                0,
                             );
                         }
                     }
@@ -767,12 +764,12 @@ pub(crate) fn load_node_props_from_df<
             {
                 if let Some(mut_node) = shard.resolve_pos(*vid) {
                     let mut writer = shard.writer();
-                    writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type, 0);
+                    writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type);
 
                     c_props.clear();
                     c_props.extend(metadata_cols.iter_row(idx));
                     c_props.extend_from_slice(&shared_metadata);
-                    writer.update_c_props(mut_node, 0, c_props.drain(..), 0);
+                    writer.update_c_props(mut_node, 0, c_props.drain(..));
                 };
             }
 

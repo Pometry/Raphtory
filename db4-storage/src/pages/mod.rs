@@ -9,8 +9,8 @@ use crate::{
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
+use node_page::writer::{NodeWriter, NodeWriters};
 use graph_prop_store::GraphPropStorageInner;
-use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
@@ -247,10 +247,11 @@ impl<
         let src = src.into();
         let dst = dst.into();
         let mut session = self.write_session(src, dst, None);
+        session.set_lsn(lsn);
         let elid = session
-            .add_static_edge(src, dst, lsn)
+            .add_static_edge(src, dst)
             .map(|eid| eid.with_layer(0));
-        session.add_edge_into_layer(t, src, dst, elid, lsn, props);
+        session.add_edge_into_layer(t, src, dst, elid, props);
         Ok(elid)
     }
 
@@ -318,7 +319,7 @@ impl<
         let (segment, node_pos) = self.nodes.resolve_pos(node);
         let mut node_writer = self.nodes.writer(segment);
         let prop_writer = PropsMetaWriter::constant(self.node_meta(), props.into_iter())?;
-        node_writer.update_c_props(node_pos, layer_id, prop_writer.into_props_const()?, 0); // TODO: LSN
+        node_writer.update_c_props(node_pos, layer_id, prop_writer.into_props_const()?);
         Ok(())
     }
 
@@ -336,7 +337,7 @@ impl<
 
         let mut node_writer = self.nodes.writer(segment);
         let prop_writer = PropsMetaWriter::temporal(self.node_meta(), props.into_iter())?;
-        node_writer.add_props(t, node_pos, layer_id, prop_writer.into_props_temporal()?, 0); // TODO: LSN
+        node_writer.add_props(t, node_pos, layer_id, prop_writer.into_props_temporal()?);
         Ok(())
     }
 
@@ -349,26 +350,30 @@ impl<
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
+        // Acquire locks in consistent order (lower chunk ID first) to prevent deadlocks.
         let node_writers = if src_chunk < dst_chunk {
-            let src_writer = self.node_writer(src_chunk);
-            let dst_writer = self.node_writer(dst_chunk);
-            WriterPair::Different {
-                src_writer,
-                dst_writer,
-            }
+            let src = self.node_writer(src_chunk);
+            let dst = self.node_writer(dst_chunk);
+
+            NodeWriters { src, dst: Some(dst) }
         } else if src_chunk > dst_chunk {
-            let dst_writer = self.node_writer(dst_chunk);
-            let src_writer = self.node_writer(src_chunk);
-            WriterPair::Different {
-                src_writer,
-                dst_writer,
-            }
+            let dst = self.node_writer(dst_chunk);
+            let src = self.node_writer(src_chunk);
+
+            NodeWriters { src, dst: Some(dst) }
         } else {
-            let writer = self.node_writer(src_chunk);
-            WriterPair::Same { writer }
+            let src = self.node_writer(src_chunk);
+
+            NodeWriters { src, dst: None }
         };
 
-        let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
+        let (_, src_pos) = self.nodes.resolve_pos(src);
+        let existing_eid = node_writers.src.get_out_edge(src_pos, dst, 0);
+
+        let edge_writer = match e_id.or(existing_eid) {
+            Some(e_id) => self.edge_writer(e_id),
+            None => self.get_free_writer(),
+        };
 
         WriteSession::new(node_writers, edge_writer, self)
     }
@@ -386,22 +391,29 @@ impl<
             self.nodes().get_or_create_segment(src_chunk);
             self.nodes().get_or_create_segment(dst_chunk);
 
+            // FIXME: This can livelock due to inconsistent lock acquisition order.
             loop {
                 if let Some(src_writer) = self.nodes().try_writer(src_chunk) {
                     if let Some(dst_writer) = self.nodes().try_writer(dst_chunk) {
-                        break WriterPair::Different {
-                            src_writer,
-                            dst_writer,
+                        break NodeWriters {
+                            src: src_writer,
+                            dst: Some(dst_writer),
                         };
                     }
                 }
             }
         } else {
             let writer = self.node_writer(src_chunk);
-            WriterPair::Same { writer }
+            NodeWriters { src: writer, dst: None }
         };
 
-        let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
+        let (_, src_pos) = self.nodes.resolve_pos(src);
+        let existing_eid = node_writers.src.get_out_edge(src_pos, dst, 0);
+
+        let edge_writer = match e_id.or(existing_eid) {
+            Some(e_id) => self.edge_writer(e_id),
+            None => self.get_free_writer(),
+        };
 
         WriteSession::new(node_writers, edge_writer, self)
     }

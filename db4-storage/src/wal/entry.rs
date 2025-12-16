@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
@@ -8,84 +8,24 @@ use raphtory_core::{
 
 use crate::{
     error::StorageError,
-    wal::{GraphReplayer, GraphWal, LSN, TransactionID, no_wal::NoWal},
+    wal::{GraphReplay, GraphWal, LSN, TransactionID, no_wal::NoWal},
 };
 
 impl GraphWal for NoWal {
     type ReplayEntry = ();
 
-    fn log_begin_transaction(&self, _transaction_id: TransactionID) -> Result<LSN, StorageError> {
-        Ok(0)
-    }
-
-    fn log_end_transaction(&self, _transaction_id: TransactionID) -> Result<LSN, StorageError> {
-        Ok(0)
-    }
-
-    fn log_add_static_edge(
-        &self,
-        _transaction_id: TransactionID,
-        _t: TimeIndexEntry,
-        _src: VID,
-        _dst: VID,
-    ) -> Result<LSN, StorageError> {
-        Ok(0)
-    }
-
     fn log_add_edge(
         &self,
         _transaction_id: TransactionID,
         _t: TimeIndexEntry,
-        _src: VID,
-        _dst: VID,
+        _src_name: GID,
+        _src_id: VID,
+        _dst_name: GID,
+        _dst_id: VID,
         _eid: EID,
+        _layer_name: Option<&str>,
         _layer_id: usize,
-        _props: &[(usize, Prop)],
-    ) -> Result<LSN, StorageError> {
-        Ok(0)
-    }
-
-    fn log_node_id(
-        &self,
-        _transaction_id: TransactionID,
-        _gid: GID,
-        _vid: VID,
-    ) -> Result<LSN, StorageError> {
-        Ok(0)
-    }
-
-    fn log_edge_id(
-        &self,
-        _transaction_id: TransactionID,
-        _src: VID,
-        _dst: VID,
-        _eid: EID,
-        _layer_id: usize,
-    ) -> Result<LSN, StorageError> {
-        Ok(0)
-    }
-
-    fn log_const_prop_ids<PN: AsRef<str>>(
-        &self,
-        _transaction_id: TransactionID,
-        _props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<LSN, StorageError> {
-        Ok(0)
-    }
-
-    fn log_temporal_prop_ids<PN: AsRef<str>>(
-        &self,
-        _transaction_id: TransactionID,
-        _props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<LSN, StorageError> {
-        Ok(0)
-    }
-
-    fn log_layer_id(
-        &self,
-        _transaction_id: TransactionID,
-        _name: &str,
-        _id: usize,
+        _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
         Ok(0)
     }
@@ -100,7 +40,7 @@ impl GraphWal for NoWal {
         std::iter::once(Ok((0, ())))
     }
 
-    fn replay_to_graph<G: GraphReplayer>(
+    fn replay_to_graph<G: GraphReplay>(
         _dir: impl AsRef<Path>,
         _graph: &mut G,
     ) -> Result<(), StorageError> {

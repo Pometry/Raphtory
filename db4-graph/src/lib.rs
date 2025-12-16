@@ -1,10 +1,7 @@
 use std::{
     io,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{self, AtomicU64, AtomicUsize},
-        Arc,
-    },
+    sync::{atomic::AtomicUsize, Arc},
 };
 
 use raphtory_api::core::{
@@ -26,10 +23,12 @@ use storage::{
     },
     persist::strategy::{Config, PersistentStrategy},
     resolver::GIDResolverOps,
-    wal::{GraphWal, TransactionID, Wal},
-    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, GS, NS,
+    Extension, GIDResolver, Layer, ReadLockedLayer, transaction::TransactionManager,
+    WalImpl, ES, NS, GS, wal::Wal,
 };
 use tempfile::TempDir;
+
+mod replay;
 
 #[derive(Debug)]
 pub struct TemporalGraph<EXT: Config = Extension> {
@@ -83,40 +82,6 @@ impl<'a> From<&'a Path> for GraphDir {
     }
 }
 
-#[derive(Debug)]
-pub struct TransactionManager {
-    last_transaction_id: AtomicU64,
-    wal: Arc<WalImpl>,
-}
-
-impl TransactionManager {
-    const STARTING_TRANSACTION_ID: TransactionID = 1;
-
-    pub fn new(wal: Arc<WalImpl>) -> Self {
-        Self {
-            last_transaction_id: AtomicU64::new(Self::STARTING_TRANSACTION_ID),
-            wal,
-        }
-    }
-
-    pub fn load(self, last_transaction_id: TransactionID) {
-        self.last_transaction_id
-            .store(last_transaction_id, atomic::Ordering::SeqCst)
-    }
-
-    pub fn begin_transaction(&self) -> TransactionID {
-        let transaction_id = self
-            .last_transaction_id
-            .fetch_add(1, atomic::Ordering::SeqCst);
-        self.wal.log_begin_transaction(transaction_id).unwrap();
-        transaction_id
-    }
-
-    pub fn end_transaction(&self, transaction_id: TransactionID) {
-        self.wal.log_end_transaction(transaction_id).unwrap();
-    }
-}
-
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
         Self::new(Extension::default()).unwrap()
@@ -161,7 +126,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
             logical_to_physical: resolver.into(),
             node_count,
             storage: Arc::new(storage),
-            transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            transaction_manager: Arc::new(TransactionManager::new()),
             wal,
         })
     }
@@ -207,7 +172,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
             logical_to_physical,
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
-            transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            transaction_manager: Arc::new(TransactionManager::new()),
             wal,
         })
     }
@@ -371,6 +336,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
     }
 }
 
+/// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
 where
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,

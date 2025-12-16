@@ -1,13 +1,7 @@
 use crate::{
-    LocalPOS,
-    api::nodes::{LockedNSSegment, NodeSegmentOps},
-    error::StorageError,
-    loop_lock_write,
-    persist::strategy::PersistentStrategy,
-    segments::{
-        HasRow, SegmentContainer,
-        node::entry::{MemNodeEntry, MemNodeRef},
-    },
+    api::nodes::{LockedNSSegment, NodeSegmentOps}, error::StorageError, loop_lock_write, persist::strategy::PersistentStrategy, segments::{
+        node::entry::{MemNodeEntry, MemNodeRef}, HasRow, SegmentContainer
+    }, wal::LSN, LocalPOS
 };
 use either::Either;
 use parking_lot::lock_api::ArcRwLockReadGuard;
@@ -36,6 +30,7 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
+    lsn: LSN,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
@@ -51,6 +46,7 @@ impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegm
             segment_id,
             max_page_len,
             layers,
+            lsn: 0,
         }
     }
 }
@@ -141,8 +137,14 @@ impl MemNodeSegment {
         self.get_adj(n, layer_id).map_or(0, |adj| adj.degree(dir))
     }
 
-    pub fn lsn(&self) -> u64 {
-        self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
+    pub fn lsn(&self) -> LSN {
+        self.lsn
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        if lsn > self.lsn {
+            self.lsn = lsn;
+        }
     }
 
     pub fn to_vid(&self, pos: LocalPOS) -> VID {
@@ -190,6 +192,7 @@ impl MemNodeSegment {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            lsn: 0,
         }
     }
 
@@ -199,14 +202,12 @@ impl MemNodeSegment {
         src_pos: LocalPOS,
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
-        lsn: u64,
     ) -> (bool, usize) {
         let dst = dst.into();
         let e_id = e_id.into();
         let layer_id = e_id.layer();
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
-        layer.set_lsn(lsn);
 
         let add_out = layer.reserve_local_row(src_pos);
         let new_entry = add_out.is_new();
@@ -228,7 +229,6 @@ impl MemNodeSegment {
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
-        lsn: u64,
     ) -> (bool, usize) {
         let src = src.into();
         let e_id = e_id.into();
@@ -237,7 +237,6 @@ impl MemNodeSegment {
 
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
-        layer.set_lsn(lsn);
 
         let add_in = layer.reserve_local_row(dst_pos);
         let new_entry = add_in.is_new();
@@ -268,12 +267,10 @@ impl MemNodeSegment {
         t: T,
         node_pos: LocalPOS,
         e_id: ELID,
-        lsn: u64,
     ) -> usize {
         let layer_id = e_id.layer();
         let (est_size, row) = {
             let segment_container = self.get_or_create_layer(layer_id); //&mut self.layers[e_id.layer()];
-            segment_container.set_lsn(lsn);
             let est_size = segment_container.est_size();
             let row = segment_container.reserve_local_row(node_pos).inner().row();
             (est_size, row)
@@ -483,7 +480,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         Ok(())
     }
 
-    fn mark_dirty(&self) {}
+    fn set_dirty(&self, _dirty: bool) {}
 
     fn check_node(&self, _pos: LocalPOS, _layer_id: usize) -> bool {
         false
@@ -586,7 +583,7 @@ mod test {
         let est_size1 = segment.est_size();
         assert_eq!(est_size1, 0);
 
-        writer.add_outbound_edge(Some(1), LocalPOS(1), VID(3), EID(7).with_layer(0), 0);
+        writer.add_outbound_edge(Some(1), LocalPOS(1), VID(3), EID(7).with_layer(0));
 
         let est_size2 = segment.est_size();
         assert!(
@@ -594,7 +591,7 @@ mod test {
             "Estimated size should be greater than 0 after adding an edge"
         );
 
-        writer.add_inbound_edge(Some(1), LocalPOS(2), VID(4), EID(8).with_layer(0), 0);
+        writer.add_inbound_edge(Some(1), LocalPOS(2), VID(4), EID(8).with_layer(0));
 
         let est_size3 = segment.est_size();
         assert!(
@@ -604,7 +601,7 @@ mod test {
 
         // no change when adding the same edge again
 
-        writer.add_outbound_edge::<i64>(None, LocalPOS(1), VID(3), EID(7).with_layer(0), 0);
+        writer.add_outbound_edge::<i64>(None, LocalPOS(1), VID(3), EID(7).with_layer(0));
         let est_size4 = segment.est_size();
         assert_eq!(
             est_size4, est_size3,
@@ -619,7 +616,7 @@ mod test {
             .unwrap()
             .inner();
 
-        writer.update_c_props(LocalPOS(1), 0, [(prop_id, Prop::U64(73))], 0);
+        writer.update_c_props(LocalPOS(1), 0, [(prop_id, Prop::U64(73))]);
 
         let est_size5 = segment.est_size();
         assert!(
@@ -627,7 +624,7 @@ mod test {
             "Estimated size should increase after adding constant properties"
         );
 
-        writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), 0), 0);
+        writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), 0));
 
         let est_size6 = segment.est_size();
         assert!(
@@ -642,7 +639,7 @@ mod test {
             .unwrap()
             .inner();
 
-        writer.add_props(42, LocalPOS(1), 0, [(prop_id, Prop::F64(4.13))], 0);
+        writer.add_props(42, LocalPOS(1), 0, [(prop_id, Prop::F64(4.13))]);
 
         let est_size7 = segment.est_size();
         assert!(
@@ -650,7 +647,7 @@ mod test {
             "Estimated size should increase after adding temporal properties"
         );
 
-        writer.add_props(72, LocalPOS(1), 0, [(prop_id, Prop::F64(5.41))], 0);
+        writer.add_props(72, LocalPOS(1), 0, [(prop_id, Prop::F64(5.41))]);
         let est_size8 = segment.est_size();
         assert!(
             est_size8 > est_size7,

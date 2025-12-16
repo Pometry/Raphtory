@@ -79,6 +79,11 @@ impl<'a, ES: EdgeSegmentOps> WriteLockedEdgePages<'a, ES> {
         Self { writers }
     }
 
+    #[inline]
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedEdgePage<'a, ES>> {
+        self.writers.get_mut(segment_id)
+    }
+
     pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedEdgePage<'a, ES>> {
         self.writers.par_iter_mut()
     }

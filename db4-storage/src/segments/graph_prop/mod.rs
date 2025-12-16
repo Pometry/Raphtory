@@ -79,8 +79,8 @@ impl<P: Config> GraphPropSegmentOps for GraphPropSegmentView<P> {
         self.est_size.load(Ordering::Relaxed)
     }
 
-    fn mark_dirty(&self) {
-        self.is_dirty.store(true, Ordering::Relaxed);
+    fn set_dirty(&self, dirty: bool) {
+        self.is_dirty.store(dirty, Ordering::Release);
     }
 
     fn notify_write(

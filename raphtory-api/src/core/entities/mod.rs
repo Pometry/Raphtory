@@ -64,6 +64,10 @@ impl Default for EID {
 }
 
 impl EID {
+    pub fn index(&self) -> usize {
+        self.0
+    }
+
     pub fn as_u64(self) -> u64 {
         self.0 as u64
     }

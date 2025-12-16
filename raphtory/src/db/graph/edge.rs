@@ -40,6 +40,7 @@ use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps},
+        durability_ops::DurabilityOps,
         deletion_ops::InternalDeletionOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
@@ -176,7 +177,8 @@ impl<
         G: StaticGraphViewOps
             + InternalAdditionOps<Error = GraphError>
             + InternalPropertyAdditionOps<Error = GraphError>
-            + InternalDeletionOps<Error = GraphError>,
+            + InternalDeletionOps<Error = GraphError>
+            + DurabilityOps,
     > EdgeView<G, G>
 {
     pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
@@ -444,7 +446,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
             src,
             dst,
             MaybeNew::New(e_id.with_layer(layer_id)),
-            0,
             props,
         );
 

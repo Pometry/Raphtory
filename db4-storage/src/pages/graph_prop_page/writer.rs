@@ -31,10 +31,9 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
         lsn: u64,
     ) {
         let add = self.mem_segment.add_properties(t, props);
-        self.mem_segment.layers_mut()[MemGraphPropSegment::DEFAULT_LAYER].set_lsn(lsn);
 
         self.graph_props.increment_est_size(add);
-        self.graph_props.mark_dirty();
+        self.graph_props.set_dirty(true);
     }
 
     pub fn check_metadata(&self, props: &[(usize, Prop)]) -> Result<(), StorageError> {
@@ -43,10 +42,9 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
 
     pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
         let add = self.mem_segment.update_metadata(props);
-        self.mem_segment.layers_mut()[MemGraphPropSegment::DEFAULT_LAYER].set_lsn(lsn);
 
         self.graph_props.increment_est_size(add);
-        self.graph_props.mark_dirty();
+        self.graph_props.set_dirty(true);
     }
 }
 

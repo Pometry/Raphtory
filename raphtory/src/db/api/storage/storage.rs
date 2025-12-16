@@ -6,7 +6,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -24,6 +24,7 @@ use raphtory_storage::{
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+        durability_ops::DurabilityOps,
         addition_ops_ext::{UnlockedSession, WriteS},
         deletion_ops::InternalDeletionOps,
         property_addition_ops::InternalPropertyAdditionOps,
@@ -35,7 +36,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{Extension, WalImpl};
+use storage::{Extension, transaction::TransactionManager, WalImpl, wal::LSN};
 
 #[cfg(feature = "search")]
 use {
@@ -301,9 +302,8 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         &mut self,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
     ) -> MaybeNew<EID> {
-        self.session.internal_add_static_edge(src, dst, lsn)
+        self.session.internal_add_static_edge(src, dst)
     }
 
     fn internal_add_edge(
@@ -312,11 +312,10 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         e_id: MaybeNew<ELID>,
-        lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
         self.session
-            .internal_add_edge(t, src, dst, e_id, lsn, props)
+            .internal_add_edge(t, src, dst, e_id, props)
     }
 
     fn internal_delete_edge(
@@ -324,10 +323,9 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
         layer: usize,
     ) -> MaybeNew<ELID> {
-        self.session.internal_delete_edge(t, src, dst, lsn, layer)
+        self.session.internal_delete_edge(t, src, dst, layer)
     }
 
     fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
@@ -336,6 +334,10 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
 
     fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
         self.session.store_dst_node_info(id, node_id);
+    }
+
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.session.set_lsn(lsn);
     }
 }
 
@@ -575,20 +577,22 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.validate_gids(gids)?)
     }
 
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.graph.mutable().unwrap().transaction_manager.as_ref()
-    }
-
-    fn wal(&self) -> &WalImpl {
-        self.graph.mutable().unwrap().wal.as_ref()
-    }
-
     fn resolve_node_and_type(
         &self,
         id: NodeRef,
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error> {
         Ok(self.graph.resolve_node_and_type(id, node_type)?)
+    }
+}
+
+impl DurabilityOps for Storage {
+    fn transaction_manager(&self) -> &TransactionManager {
+        self.graph.mutable().unwrap().transaction_manager.as_ref()
+    }
+
+    fn wal(&self) -> &WalImpl {
+        self.graph.mutable().unwrap().wal.as_ref()
     }
 }
 
