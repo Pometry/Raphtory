@@ -72,14 +72,14 @@ pub trait GraphWal {
     /// Replays and applies all the wal entries in the given directory to the given graph.
     fn replay_to_graph<G: GraphReplay>(
         dir: impl AsRef<Path>,
-        graph: &G,
+        graph: &mut G,
     ) -> Result<(), StorageError>;
 }
 
 /// Trait for defining callbacks for replaying from wal.
 pub trait GraphReplay {
     fn replay_add_edge(
-        &self,
+        &mut self,
         lsn: LSN,
         transaction_id: TransactionID,
         t: TimeIndexEntry,

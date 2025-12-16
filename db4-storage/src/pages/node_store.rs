@@ -354,19 +354,21 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         if let Some(segment) = self.pages.get(segment_id) {
             return segment;
         }
+
         let count = self.pages.count();
+
         if count > segment_id {
-            // something has allocated the segment, wait for it to be added
+            // Something has allocated the segment, wait for it to be added.
             loop {
                 if let Some(segment) = self.pages.get(segment_id) {
                     return segment;
                 } else {
-                    // wait for the segment to be created
+                    // Wait for the segment to be created.
                     std::thread::yield_now();
                 }
             }
         } else {
-            // we need to create the segment
+            // We need to create the segment.
             self.pages.reserve(segment_id + 1 - count);
 
             loop {
@@ -385,7 +387,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
                         if let Some(segment) = self.pages.get(segment_id) {
                             return segment;
                         } else {
-                            // wait for the segment to be created
+                            // Wait for the segment to be created.
                             std::thread::yield_now();
                         }
                     }

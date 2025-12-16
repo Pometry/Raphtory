@@ -80,7 +80,7 @@ impl<'a, ES: EdgeSegmentOps> WriteLockedEdgePages<'a, ES> {
     }
 
     #[inline]
-    pub fn get(&mut self, segment_id: usize) -> Option<&mut LockedEdgePage<'a, ES>> {
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedEdgePage<'a, ES>> {
         self.writers.get_mut(segment_id)
     }
 

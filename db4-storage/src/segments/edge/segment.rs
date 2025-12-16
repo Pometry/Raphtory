@@ -228,8 +228,10 @@ impl MemEdgeSegment {
         let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
             .properties_mut()
             .get_mut_entry(local_row);
+
         let ts = TimeIndexEntry::new(t.t(), t.i());
         prop_entry.append_t_props(ts, props);
+
         let layer_est_size = self.layers[layer_id].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
@@ -276,7 +278,7 @@ impl MemEdgeSegment {
 
     fn ensure_layer(&mut self, layer_id: usize) {
         if layer_id >= self.layers.len() {
-            // Get details from first layer to create consistent new layers
+            // Get details from first layer to create consistent new layers.
             if let Some(first_layer) = self.layers.first() {
                 let segment_id = first_layer.segment_id();
                 let max_page_len = first_layer.max_page_len();

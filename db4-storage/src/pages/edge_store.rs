@@ -17,7 +17,7 @@ use crate::{
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
+use raphtory_api::core::entities::{properties::meta::{Meta, STATIC_GRAPH_LAYER_ID}, EID, VID};
 use raphtory_core::{
     entities::{ELID, LayerIds},
     storage::timeindex::{AsTime, TimeIndexEntry},
@@ -134,20 +134,24 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         let layer_mapper = empty.edge_meta().layer_meta();
         let prop_mapper = empty.edge_meta().temporal_prop_mapper();
         let metadata_mapper = empty.edge_meta().metadata_mapper();
+
         if layer_mapper.num_fields() > 0
             || prop_mapper.num_fields() > 0
             || metadata_mapper.num_fields() > 0
         {
-            let segment = empty.get_or_create_segment(0);
+            let segment = empty.get_or_create_segment(STATIC_GRAPH_LAYER_ID);
             let mut head = segment.head_mut();
+
             for layer in layer_mapper.ids() {
                 head.get_or_create_layer(layer);
             }
+
             if prop_mapper.num_fields() > 0 {
                 head.get_or_create_layer(0)
                     .properties_mut()
                     .set_has_properties()
             }
+
             segment.set_dirty(true);
         }
         empty
@@ -334,9 +338,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
         }
+
         let count = self.segments.count();
+
         if count > segment_id {
-            // something has allocated the segment, wait for it to be added
+            // Something has allocated the segment, wait for it to be added.
             loop {
                 if let Some(segment) = self.segments.get(segment_id) {
                     return segment;
@@ -346,7 +352,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                 }
             }
         } else {
-            // we need to create the segment
+            // We need to create the segment.
             self.segments.reserve(segment_id + 1 - count);
 
             loop {
@@ -364,7 +370,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                         if let Some(segment) = self.segments.get(segment_id) {
                             return segment;
                         } else {
-                            // wait for the segment to be created
+                            // Wait for the segment to be created.
                             std::thread::yield_now();
                         }
                     }

@@ -299,7 +299,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
 
         // All names, ids and values have been generated for this operation.
         // Create a wal entry to mark it as durable.
-
         let props_for_wal = props_with_status
             .iter()
             .map(|maybe_new| {

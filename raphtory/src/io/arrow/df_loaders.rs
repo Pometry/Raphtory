@@ -459,7 +459,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     .nodes
                     .par_iter_mut()
                     .enumerate()
-                    .for_each(|(page_id, shard)| {
+                    .for_each(|(page_id, locked_page)| {
                         let zip = izip!(
                             src_col_resolved.iter(),
                             dst_col_resolved.iter(),
@@ -484,9 +484,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                             edge_exists_in_static_graph,
                         ) in zip
                         {
-                            if let Some(dst_pos) = shard.resolve_pos(*dst) {
+                            if let Some(dst_pos) = locked_page.resolve_pos(*dst) {
                                 let t = TimeIndexEntry(time, secondary_index);
-                                let mut writer = shard.writer();
+                                let mut writer = locked_page.writer();
 
                                 writer.store_node_id(dst_pos, 0, dst_gid);
 
@@ -513,7 +513,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             // Add temporal & constant properties to edges
             sc.spawn(|_| {
-                write_locked_graph.edges.par_iter_mut().for_each(|shard| {
+                write_locked_graph.edges.par_iter_mut().for_each(|locked_page| {
                     let zip = izip!(
                         src_col_resolved.iter(),
                         dst_col_resolved.iter(),
@@ -531,9 +531,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
                         zip.enumerate()
                     {
-                        if let Some(eid_pos) = shard.resolve_pos(*eid) {
+                        if let Some(eid_pos) = locked_page.resolve_pos(*eid) {
                             let t = TimeIndexEntry(time, secondary_index);
-                            let mut writer = shard.writer();
+                            let mut writer = locked_page.writer();
 
                             t_props.clear();
                             t_props.extend(prop_cols.iter_row(row));

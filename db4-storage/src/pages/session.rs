@@ -9,7 +9,7 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{entities::properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop}, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
     entities::{EID, ELID, VID},
     storage::timeindex::AsTime,
@@ -171,7 +171,6 @@ impl<
     ) -> MaybeNew<EID> {
         let src = src.into();
         let dst = dst.into();
-        let layer_id = 0; // static graph goes to layer 0
 
         let (_, src_pos) = self.graph.nodes().resolve_pos(src);
         let (_, dst_pos) = self.graph.nodes().resolve_pos(dst);
@@ -179,7 +178,7 @@ impl<
         let existing_eid = self
             .node_writers
             .get_mut_src()
-            .get_out_edge(src_pos, dst, layer_id);
+            .get_out_edge(src_pos, dst, STATIC_GRAPH_LAYER_ID);
 
         // Edge already exists, so no need to add it again.
         if let Some(eid) = existing_eid {
@@ -187,9 +186,9 @@ impl<
         }
 
         let edge_pos = None;
-        let edge_exists_hint = false;
+        let already_counted = false;
         let edge_pos =
-            self.edge_writer.add_static_edge(edge_pos, src, dst, edge_exists_hint);
+            self.edge_writer.add_static_edge(edge_pos, src, dst, already_counted);
         let edge_id =
             edge_pos.as_eid(self.edge_writer.segment_id(), self.graph.edges().max_page_len());
 
