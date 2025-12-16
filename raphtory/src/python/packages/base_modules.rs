@@ -5,15 +5,25 @@ use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     add_classes, add_functions,
     python::{
-        algorithm::max_weight_matching::PyMatching,
+        algorithm::{epidemics::PyInfected, max_weight_matching::PyMatching},
+        filter::node_filter_builders::PyNodeFilterBuilder,
         graph::{
             edge::{PyEdge, PyMutableEdge},
             edges::{PyEdges, PyNestedEdges},
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
+            history::{
+                HistoryDateTimeIterable, HistoryEventIdIterable, HistoryIterable,
+                HistoryTimestampIterable, IntervalsIterable, NestedHistoryDateTimeIterable,
+                NestedHistoryEventIdIterable, NestedHistoryIterable,
+                NestedHistoryTimestampIterable, NestedIntervalsIterable, PyHistory,
+                PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals,
+            },
+            index::{PyIndexSpec, PyIndexSpecBuilder},
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
-                PyMetadata, PyPropValueList, PyProperties, PyTemporalProp, PyTemporalProperties,
+                MetadataView, PropertiesView, PyMetadata, PyPropValueList, PyProperties,
+                PyTemporalProp, PyTemporalProperties,
             },
             views::graph_view::PyGraphView,
         },
@@ -23,23 +33,33 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::{
-            document::PyDocument,
-            iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, GIDIterable,
-                NestedArcStringVecIterable, NestedBoolIterable, NestedGIDGIDIterable,
-                NestedGIDIterable, NestedI64VecIterable, NestedOptionArcStringIterable,
-                NestedOptionI64Iterable, NestedStringIterable, NestedUsizeIterable,
-                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionArcStringIterable,
-                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
-                StringIterable, U64Iterable, UsizeIterable,
+        types::{
+            result_iterable::{
+                NestedResultOptionUtcDateTimeIterable, NestedResultUtcDateTimeIterable,
+                ResultOptionUtcDateTimeIterable, ResultUtcDateTimeIterable,
+            },
+            wrappers::{
+                document::{PyDocument, PyEmbedding},
+                iterables::{
+                    ArcStringIterable, ArcStringVecIterable, BoolIterable, EventTimeIterable,
+                    GIDGIDIterable, GIDIterable, I64Iterable, NestedArcStringIterable,
+                    NestedArcStringVecIterable, NestedBoolIterable, NestedEventTimeIterable,
+                    NestedGIDGIDIterable, NestedGIDIterable, NestedI64Iterable,
+                    NestedI64VecIterable, NestedOptionArcStringIterable,
+                    NestedOptionEventTimeIterable, NestedOptionI64Iterable,
+                    NestedOptionUsizeIterable, NestedStringIterable, NestedUsizeIterable,
+                    NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
+                    OptionArcStringIterable, OptionEventTimeIterable, OptionI64Iterable,
+                    OptionUsizeIterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                    StringIterable, U64Iterable, UsizeIterable,
+                },
             },
         },
         utils::PyWindowSet,
     },
 };
 use pyo3::prelude::*;
-use raphtory_api::python::prop::PyPropType;
+use raphtory_api::python::{timeindex::{PyEventTime, PyOptionalEventTime}, prop::PyPropType};
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -50,6 +70,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPersistentGraph,
         PyGraphEncoder,
         PyNode,
+        PyNodeFilterBuilder,
         PyNodes,
         PyPathFromNode,
         PyPathFromGraph,
@@ -62,9 +83,17 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPropValueList,
         PyPropType,
         PyMetadata,
+        MetadataView,
         PyTemporalProperties,
         PropertiesView,
         PyTemporalProp,
+        PyEventTime,
+        PyOptionalEventTime,
+        PyHistory,
+        PyHistoryTimestamp,
+        PyHistoryDateTime,
+        PyHistoryEventId,
+        PyIntervals,
         PyWindowSet,
         PyIndexSpecBuilder,
         PyIndexSpec
@@ -113,6 +142,29 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         OptionUtcDateTimeIterable,
         ArcStringVecIterable,
         NestedArcStringVecIterable,
+        NestedEventTimeIterable,
+        NestedArcStringIterable,
+        NestedOptionEventTimeIterable,
+        NestedHistoryIterable,
+        EventTimeIterable,
+        OptionEventTimeIterable,
+        HistoryIterable,
+        HistoryTimestampIterable,
+        IntervalsIterable,
+        HistoryEventIdIterable,
+        HistoryDateTimeIterable,
+        OptionUsizeIterable,
+        ResultOptionUtcDateTimeIterable,
+        I64Iterable,
+        ResultUtcDateTimeIterable,
+        NestedHistoryTimestampIterable,
+        NestedIntervalsIterable,
+        NestedHistoryEventIdIterable,
+        NestedHistoryDateTimeIterable,
+        NestedOptionUsizeIterable,
+        NestedResultOptionUtcDateTimeIterable,
+        NestedI64Iterable,
+        NestedResultUtcDateTimeIterable,
     );
     Ok(iterables_module)
 }
@@ -205,11 +257,3 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
-use crate::python::{
-    algorithm::epidemics::PyInfected,
-    graph::{
-        index::{PyIndexSpec, PyIndexSpecBuilder},
-        properties::PropertiesView,
-    },
-    types::wrappers::document::PyEmbedding,
-};

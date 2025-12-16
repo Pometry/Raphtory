@@ -906,7 +906,7 @@ def test_load_nodes_from_parquet_date32(tmp_path):
         2: _utc_midnight(dates[1]),
         3: _utc_midnight(dates[2]),
     }
-    actual = {v.id: v.history_date_time()[0] for v in g.nodes}
+    actual = {v.id: v.history.dt[0] for v in g.nodes}
     assert actual == expected
 
 
@@ -953,7 +953,7 @@ def test_load_edges_from_parquet_timestamp_ms_utc(tmp_path):
     g = Graph()
     g.load_edges_from_parquet(parquet_path=str(path), time="time", src="src", dst="dst")
 
-    actual = sorted(e.history_date_time()[0] for e in g.edges)
+    actual = sorted(e.history.dt[0] for e in g.edges)
     assert actual == times
 
 
@@ -973,7 +973,7 @@ def test_load_nodes_from_parquet_timestamp_ms_utc(tmp_path):
     g = Graph()
     g.load_nodes_from_parquet(parquet_path=str(path), time="time", id="id")
 
-    actual = sorted(v.history_date_time()[0] for v in g.nodes)
+    actual = sorted(v.history.dt[0] for v in g.nodes)
     assert actual == times
 
 
@@ -1005,7 +1005,7 @@ def test_load_edges_from_parquet_timestamp_ns_no_tz(tmp_path):
         datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
         datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
     ]
-    actual = sorted(e.history_date_time()[0] for e in g.edges)
+    actual = sorted(e.history.dt[0] for e in g.edges)
     assert actual == expected
 
 
@@ -1026,5 +1026,5 @@ def test_load_nodes_from_parquet_timestamp_ns_no_tz(tmp_path):
         datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
         datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
     ]
-    actual = sorted(v.history_date_time()[0] for v in g.nodes)
+    actual = sorted(v.history.dt[0] for v in g.nodes)
     assert actual == expected

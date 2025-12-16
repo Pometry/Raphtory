@@ -25,6 +25,7 @@ use pyo3::{
     prelude::*,
     types::{PyCapsule, PyDict},
 };
+use pyo3::{prelude::*, types::PyCapsule};
 use pyo3_arrow::PyRecordBatchReader;
 use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
@@ -225,7 +226,6 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
     let stream_capsule_any: Bound<'a, PyAny> = data.call_method0("__arrow_c_stream__")?;
     let stream_capsule: &Bound<'a, PyCapsule> = stream_capsule_any.downcast::<PyCapsule>()?;
 
-    // We need to use the pointer to build an ArrowArrayStreamReader
     if !stream_capsule.is_valid() {
         return Err(PyErr::from(GraphError::LoadFailure(
             "Stream capsule is not valid".to_string(),

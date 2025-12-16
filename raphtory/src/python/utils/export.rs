@@ -60,16 +60,17 @@ pub(crate) fn extract_properties<P>(
             .temporal()
             .histories()
             .iter()
-            .for_each(|(prop_name, (time, prop_val))| {
+            .for_each(|(prop_name, (t, prop_val))| {
+                let time = t.t();
                 let column_name = if is_prop_both_temp_and_const.contains(prop_name.as_ref()) {
                     format!("{}_temporal", prop_name)
                 } else {
                     prop_name.to_string()
                 };
-                if !prop_time_dict.contains_key(time) {
-                    prop_time_dict.insert(*time, empty_dict.clone());
+                if !prop_time_dict.contains_key(&time) {
+                    prop_time_dict.insert(time, empty_dict.clone());
                 }
-                let data_dict = prop_time_dict.get_mut(time).unwrap();
+                let data_dict = prop_time_dict.get_mut(&time).unwrap();
                 let _ = data_dict.insert(column_name.clone(), prop_val.clone());
             });
     } else if include_property_history {
@@ -90,7 +91,7 @@ pub(crate) fn extract_properties<P>(
             } else {
                 let vec_props = prop_view
                     .iter()
-                    .map(|(k, v)| Prop::from(vec![Prop::from(k), v]))
+                    .map(|(k, v)| Prop::from(vec![Prop::from(k.t()), v]))
                     .collect_vec();
                 let wrapped = Prop::List(Arc::from(vec_props));
                 let _ = properties_map.insert(column_name, wrapped);

@@ -572,7 +572,11 @@ function randomPropertyQuery(rates: PropertyRates): PropertyGenqlSelection {
           values: {
             key: true,
             values: true,
-            history: true,
+            history: {
+              list: {
+                timestamp: true,
+              },
+            },
           }
         }
       }

@@ -6,7 +6,7 @@ use crate::{
 use itertools::Itertools;
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{entities::EID, storage::timeindex::EventTime};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -22,8 +22,8 @@ use std::{
 pub struct EdgeShard {
     edge_ids: Vec<EdgeStore>,
     props: Vec<Vec<EdgeLayer>>,
-    additions: Vec<Vec<TimeIndex<TimeIndexEntry>>>,
-    deletions: Vec<Vec<TimeIndex<TimeIndexEntry>>>,
+    additions: Vec<Vec<TimeIndex<EventTime>>>,
+    deletions: Vec<Vec<TimeIndex<EventTime>>>,
 }
 
 #[must_use]
@@ -67,11 +67,11 @@ impl EdgeShard {
         self.additions.len().max(self.deletions.len())
     }
 
-    pub fn additions(&self, index: usize, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>> {
+    pub fn additions(&self, index: usize, layer_id: usize) -> Option<&TimeIndex<EventTime>> {
         self.additions.get(layer_id).and_then(|add| add.get(index))
     }
 
-    pub fn deletions(&self, index: usize, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>> {
+    pub fn deletions(&self, index: usize, layer_id: usize) -> Option<&TimeIndex<EventTime>> {
         self.deletions.get(layer_id).and_then(|del| del.get(index))
     }
 
@@ -245,7 +245,7 @@ impl<'a> MutEdge<'a> {
         &mut self.guard.edge_ids[self.i]
     }
 
-    pub fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
+    pub fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<EventTime> {
         if layer_id >= self.guard.deletions.len() {
             self.guard
                 .deletions
@@ -270,7 +270,7 @@ impl<'a> MutEdge<'a> {
         }
         false
     }
-    pub fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
+    pub fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<EventTime> {
         if layer_id >= self.guard.additions.len() {
             self.guard
                 .additions
