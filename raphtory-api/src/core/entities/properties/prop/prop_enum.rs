@@ -11,7 +11,7 @@ use itertools::Itertools;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
     ser::{SerializeMap, SerializeSeq},
-    Serialize,
+    Deserialize, Serialize,
 };
 use std::{
     cmp::Ordering,
@@ -34,7 +34,7 @@ pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equ
 pub struct InvalidBigDecimal(BigDecimal);
 
 /// Denotes the types of properties allowed to be stored in the graph.
-#[derive(Debug, Serialize, PartialEq, Clone, derive_more::From)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, derive_more::From)]
 pub enum Prop {
     Str(ArcStr),
     U8(u8),
@@ -462,7 +462,7 @@ impl From<FxHashMap<ArcStr, Prop>> for Prop {
 
 impl From<Vec<Prop>> for Prop {
     fn from(value: Vec<Prop>) -> Self {
-        Prop::List(Arc::new(value).into())
+        Prop::List(value.into())
     }
 }
 
@@ -499,7 +499,7 @@ pub trait IntoPropList {
 impl<I: IntoIterator<Item = K>, K: Into<Prop>> IntoPropList for I {
     fn into_prop_list(self) -> Prop {
         let vec = self.into_iter().map(|v| v.into()).collect::<Vec<_>>();
-        Prop::List(Arc::new(vec).into())
+        Prop::List(vec.into())
     }
 }
 
