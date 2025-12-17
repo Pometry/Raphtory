@@ -34,7 +34,7 @@ use arrow_array::{
         Int64Type, TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
         TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
     },
-    Array, ArrayRef, LargeListArray, StructArray,
+    Array, ArrayRef, ArrowPrimitiveType, LargeListArray, StructArray,
 };
 use arrow_schema::{DataType, Field, FieldRef, TimeUnit};
 use serde::ser::Error;
@@ -243,178 +243,141 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
         let mut state = serializer.serialize_seq(Some(len))?;
         match dtype {
             DataType::Boolean => {
-                for v in self.0.as_boolean().values().iter() {
+                for v in self.0.as_boolean().iter() {
                     state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Int32 => {
-                for v in self.0.as_primitive::<Int32Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<Int32Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Int64 => {
-                for v in self.0.as_primitive::<Int64Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<Int64Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::UInt8 => {
-                for v in self.0.as_primitive::<UInt8Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<UInt8Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::UInt16 => {
-                for v in self.0.as_primitive::<UInt16Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<UInt16Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::UInt32 => {
-                for v in self.0.as_primitive::<UInt32Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<UInt32Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::UInt64 => {
-                for v in self.0.as_primitive::<UInt64Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<UInt64Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Float32 => {
-                for v in self.0.as_primitive::<Float32Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<Float32Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Float64 => {
-                for v in self.0.as_primitive::<Float64Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<Float64Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Timestamp(unit, _) => match unit {
                 TimeUnit::Second => {
-                    for v in self.0.as_primitive::<TimestampSecondType>().values().iter() {
-                        state.serialize_element(v)?;
+                    for v in self.0.as_primitive::<TimestampSecondType>().iter() {
+                        state.serialize_element(&v)?;
                     }
-                    state.end()
                 }
                 TimeUnit::Millisecond => {
-                    for v in self
-                        .0
-                        .as_primitive::<TimestampMillisecondType>()
-                        .values()
-                        .iter()
-                    {
-                        state.serialize_element(v)?;
+                    for v in self.0.as_primitive::<TimestampMillisecondType>().iter() {
+                        state.serialize_element(&v)?;
                     }
-                    state.end()
                 }
                 TimeUnit::Microsecond => {
-                    for v in self
-                        .0
-                        .as_primitive::<TimestampMicrosecondType>()
-                        .values()
-                        .iter()
-                    {
-                        state.serialize_element(v)?;
+                    for v in self.0.as_primitive::<TimestampMicrosecondType>().iter() {
+                        state.serialize_element(&v)?;
                     }
-                    state.end()
                 }
                 TimeUnit::Nanosecond => {
-                    for v in self
-                        .0
-                        .as_primitive::<TimestampNanosecondType>()
-                        .values()
-                        .iter()
-                    {
-                        state.serialize_element(v)?;
+                    for v in self.0.as_primitive::<TimestampNanosecondType>().iter() {
+                        state.serialize_element(&v)?;
                     }
-                    state.end()
                 }
             },
             DataType::Date32 => {
-                for v in self.0.as_primitive::<Date32Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<Date32Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Date64 => {
-                for v in self.0.as_primitive::<Date64Type>().values().iter() {
-                    state.serialize_element(v)?;
+                for v in self.0.as_primitive::<Date64Type>().iter() {
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Utf8 => {
                 for v in self.0.as_string::<i32>().iter() {
-                    state.serialize_element(
-                        v.ok_or_else(|| S::Error::custom("options not supported in array"))?,
-                    )?;
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::LargeUtf8 => {
                 for v in self.0.as_string::<i64>().iter() {
-                    state.serialize_element(
-                        v.ok_or_else(|| S::Error::custom("options not supported in array"))?,
-                    )?;
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Utf8View => {
                 for v in self.0.as_string_view().iter() {
-                    state.serialize_element(
-                        v.ok_or_else(|| S::Error::custom("options not supported in array"))?,
-                    )?;
+                    state.serialize_element(&v)?;
                 }
-                state.end()
             }
             DataType::Decimal128(precision, scale) => {
                 for v in self.0.as_primitive::<Decimal128Type>().iter() {
-                    let v = v.ok_or_else(|| S::Error::custom("options not supported in array"))?;
-                    state
-                        .serialize_element(&Decimal128Type::format_decimal(v, *precision, *scale))?
+                    let element = v.map(|v| Decimal128Type::format_decimal(v, *precision, *scale));
+                    state.serialize_element(&element)?
                     // i128 not supported by serde_arrow!
                 }
-                state.end()
             }
             DataType::Struct(_) => {
                 let struct_array = self.0.as_struct();
-                for i in 0..struct_array.len() {
-                    state.serialize_element(&ArrowRow::new(struct_array, i))?;
+                match struct_array.nulls() {
+                    None => {
+                        for i in 0..struct_array.len() {
+                            state.serialize_element(&ArrowRow::new(struct_array, i))?;
+                        }
+                    }
+                    Some(nulls) => {
+                        for (i, is_valid) in nulls.iter().enumerate() {
+                            state.serialize_element(
+                                &is_valid.then_some(ArrowRow::new(struct_array, i)),
+                            )?;
+                        }
+                    }
                 }
-                state.end()
             }
             DataType::List(_) => {
                 let list = self.0.as_list::<i32>();
                 for array in list.iter() {
-                    state.serialize_element(&SerdeArrowArray(
-                        &array.ok_or_else(|| S::Error::custom("options not supported in array"))?,
-                    ))?;
+                    state.serialize_element(&array.as_ref().map(SerdeArrowArray))?;
                 }
-                state.end()
             }
             DataType::LargeList(_) => {
                 let list = self.0.as_list::<i64>();
                 for array in list.iter() {
-                    state.serialize_element(&SerdeArrowArray(
-                        &array.ok_or_else(|| S::Error::custom("options not supported in array"))?,
-                    ))?;
+                    state.serialize_element(&array.as_ref().map(SerdeArrowArray))?;
                 }
-                state.end()
             }
             DataType::Null => {
                 for _ in 0..self.0.len() {
                     state.serialize_element(&None::<()>)?;
                 }
-                state.end()
             }
-            dtype => Err(S::Error::custom(format!("unsuported data type {dtype:?}"))),
+            dtype => Err(Error::custom(format!("unsuported data type {dtype:?}")))?,
         }
+        state.end()
     }
 }
 
