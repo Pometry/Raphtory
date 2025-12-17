@@ -757,14 +757,7 @@ impl PyPersistentGraph {
         load_edges_from_parquet(
             &self.graph,
             parquet_path.as_path(),
-            ColumnNames {
-                time,
-                secondary_index,
-                src,
-                dst,
-                layer_col,
-                edge_id: None,
-            },
+            ColumnNames::new(time, secondary_index, src, dst, layer_col),
             true,
             &properties,
             &metadata,

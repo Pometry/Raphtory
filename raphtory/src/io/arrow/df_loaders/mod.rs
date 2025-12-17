@@ -142,14 +142,7 @@ pub(crate) fn load_edges_props_from_df<
 ) -> Result<(), GraphError> {
     edge_props::load_edges_from_df(
         df_view,
-        ColumnNames {
-            src,
-            dst,
-            layer_col,
-            time: "",
-            secondary_index: None,
-            edge_id: None,
-        },
+        ColumnNames::new("", None, src, dst, layer_col),
         resolve_nodes,
         metadata,
         shared_metadata,
@@ -303,9 +296,8 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
             let GidKey { gid, .. } = gid;
             let vid = graph
                 .resolve_node(gid.as_node_ref())
-                .map_err(|_| LoadError::FatalError)
-                .unwrap();
-            (Prop::from(gid), vid)
+                .map_err(into_graph_err)?;
+            Ok((Prop::from(gid), vid))
         },
     )
 }
@@ -332,9 +324,8 @@ fn resolve_nodes_and_type_with_cache<
             let GidKey { gid, node_type } = gid;
             let (vid, node_type) = graph
                 .resolve_node_and_type(gid.as_node_ref(), node_type)
-                .map_err(|_| LoadError::FatalError)
-                .unwrap();
-            (vid, node_type)
+                .map_err(into_graph_err)?;
+            Ok((vid, node_type))
         },
     )
 }
@@ -356,7 +347,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
     cols_to_resolve: &[&'a NodeCol],
     node_type_cols: &[Option<LayerCol<'a>>],
     update_fn: impl Fn(&V, usize, usize) + Send + Sync,
-    new_fn: impl Fn(GidKey<'a>, usize) -> V + Send + Sync,
+    new_fn: impl Fn(GidKey<'a>, usize) -> Result<V, GraphError> + Send + Sync,
 ) -> Result<FxDashMap<GidKey<'a>, V>, GraphError> {
     assert_eq!(cols_to_resolve.len(), node_type_cols.len());
     let gid_str_cache: dashmap::DashMap<GidKey<'_>, V, _> = FxDashMap::default();
@@ -395,7 +386,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
                         let v = value.get();
                         update_fn(&v, idx, col_id);
                     } else {
-                        let v = new_fn(gid, idx);
+                        let v = new_fn(gid, idx)?;
 
                         update_fn(&v, idx, col_id);
                         let data = (gid, SharedValue::new(v));
@@ -404,7 +395,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
                 }
             }
 
-            Ok::<(), LoadError>(())
+            Ok::<(), GraphError>(())
         })?;
     Ok(gid_str_cache)
 }

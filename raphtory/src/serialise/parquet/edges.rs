@@ -30,6 +30,7 @@ pub(crate) fn encode_edge_tprop(
                 Field::new(DST_COL_ID, DataType::UInt64, false),
                 Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
+                Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
         |edges, g, decoder, writer| {

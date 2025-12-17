@@ -169,12 +169,13 @@ pub fn load_node_props_from_parquet<
     shared_metadata: Option<&HashMap<String, Prop>>,
     batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![id];
-    cols_to_check.extend_from_slice(metadata_properties);
+    let mut cols_to_check = std::iter::once(id)
+        .chain(node_type_id_col)
+        .chain(node_type_col)
+        .chain(node_id_col)
+        .collect::<Vec<_>>();
 
-    if let Some(ref node_type_col) = node_type_col {
-        cols_to_check.push(node_type_col.as_ref());
-    }
+    cols_to_check.extend_from_slice(metadata_properties);
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;

@@ -178,6 +178,10 @@ impl DFChunk {
         self.chunk.first().map(|c| c.len()).unwrap_or(0)
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn node_col(&self, index: usize) -> Result<NodeCol, LoadError> {
         lift_node_col(index, self)
     }

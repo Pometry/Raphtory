@@ -109,6 +109,7 @@ pub(crate) fn load_edges_from_pandas<
             dst,
             layer_col,
             edge_id: None,
+            layer_id_col: None,
         },
         true,
         properties,

@@ -20,9 +20,8 @@ use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;
 use kdam::BarExt;
-use raphtory_api::atomic_extra::atomic_vid_from_mut_slice;
 use raphtory_api::{
-    atomic_extra::atomic_usize_from_mut_slice,
+    atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
         entities::EID,
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry, FxDashMap},
@@ -62,6 +61,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         src,
         dst,
         layer_col,
+        layer_id_col,
         ..
     } = column_names;
 
@@ -72,11 +72,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
-    let layer_index = if let Some(layer_col) = layer_col {
-        Some(df_view.get_index(layer_col.as_ref())?)
-    } else {
-        None
-    };
+    let layer_id_index = layer_id_col.and_then(|name| df_view.get_index_opt(name));
+    let layer_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
+
     let session = graph.write_session().map_err(into_graph_err)?;
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
         session
@@ -115,7 +113,17 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             let dst_col = df.node_col(dst_index)?;
             dst_col.validate(graph, LoadError::MissingDstError)?;
             let layer = lift_layer_col(layer, layer_index, &df)?;
-            let layer_col_resolved = layer.resolve_layer(graph)?;
+            let layer_id_values = layer_id_index
+                .map(|idx| {
+                    df.chunk[idx]
+                        .as_primitive_opt::<UInt64Type>()
+                        .ok_or_else(|| {
+                            LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
+                        })
+                        .map(|array| array.values().as_ref())
+                })
+                .transpose()?;
+            let layer_col_resolved = layer.resolve_layer(layer_id_values, graph)?;
 
             let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
                 graph,

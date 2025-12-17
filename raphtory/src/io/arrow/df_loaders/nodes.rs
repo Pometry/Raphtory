@@ -32,7 +32,6 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::collections::HashMap;
 use storage::{api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension};
-use zip::unstable::write;
 
 pub fn load_nodes_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -217,6 +216,9 @@ pub(crate) fn load_node_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
+        if df.is_empty() {
+            continue;
+        }
         let metadata_cols =
             combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
                 session
@@ -228,6 +230,7 @@ pub(crate) fn load_node_props_from_df<
 
         let (node_col_resolved, node_type_col_resolved) = get_or_resolve_node_vids_no_events::<G>(
             graph,
+            &session,
             &mut node_col_resolved,
             &mut node_type_resolved,
             node_type_ids_col,
@@ -319,6 +322,7 @@ fn get_or_resolve_node_vids_no_events<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
+    session: &<G as InternalAdditionOps>::WS<'_>,
     node_col_resolved: &'a mut Vec<VID>,
     node_type_resolved: &'a mut Vec<usize>,
     node_type_ids_col: Option<usize>,
@@ -329,55 +333,115 @@ fn get_or_resolve_node_vids_no_events<
 ) -> Result<(&'c [VID], &'c [usize]), GraphError> {
     assert!(!(node_type_ids_col.is_none() ^ node_id_col.is_none())); // both some or both none
     if let Some((node_type_index, node_id_col)) = node_type_ids_col.zip(node_id_col) {
-        let srcs = df.chunk[node_id_col]
-            .as_primitive_opt::<UInt64Type>()
-            .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[node_id_col].data_type().clone()))?
-            .values()
-            .as_ref();
-
-        let node_types = df.chunk[node_type_index]
-            .as_primitive_opt::<UInt64Type>()
-            .ok_or_else(|| {
-                LoadError::InvalidNodeType(df.chunk[node_type_index].data_type().clone())
-            })?
-            .values()
-            .as_ref();
-
-        let mut locked_mapper = graph.node_meta().node_type_meta().write();
-
-        for (row, node_type) in node_types.iter().enumerate() {
-            if let Some(name) = node_type_col.get(row) {
-                locked_mapper.set_id(name, *node_type as usize);
-            }
-        }
-
-        Ok((bytemuck::cast_slice(srcs), bytemuck::cast_slice(node_types)))
+        set_meta_for_pre_resolved_nodes_and_node_ids(
+            graph,
+            session,
+            df,
+            src_col,
+            node_type_col,
+            node_type_index,
+            node_id_col,
+        )
     } else {
-        node_col_resolved.resize_with(df.len(), Default::default);
-        node_type_resolved.resize_with(df.len(), Default::default);
+        resolve_node_and_meta_for_node_col(
+            graph,
+            node_col_resolved,
+            node_type_resolved,
+            df,
+            src_col,
+            node_type_col,
+        )
+    }
+}
 
-        let mut locked_mapper = graph.node_meta().node_type_meta().write();
+fn resolve_node_and_meta_for_node_col<
+    'a,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    graph: &G,
+    node_col_resolved: &'a mut Vec<VID>,
+    node_type_resolved: &'a mut Vec<usize>,
+    df: &DFChunk,
+    src_col: &NodeCol,
+    node_type_col: LayerCol<'a>,
+) -> Result<(&'a [VID], &'a [usize]), GraphError> {
+    node_col_resolved.resize_with(df.len(), Default::default);
+    node_type_resolved.resize_with(df.len(), Default::default);
 
-        let zip = izip!(
-            src_col.iter(),
-            node_type_col.iter(),
-            node_col_resolved.iter_mut(),
-            node_type_resolved.iter_mut()
-        );
+    let mut locked_mapper = graph.node_meta().node_type_meta().write();
 
-        for (gid, node_type, vid, node_type_id) in zip {
+    let zip = izip!(
+        src_col.iter(),
+        node_type_col.iter(),
+        node_col_resolved.iter_mut(),
+        node_type_resolved.iter_mut()
+    );
+
+    let mut last_node_type: Option<&str> = None;
+    for (gid, node_type, vid, node_type_id) in zip {
+        if last_node_type != node_type {
             if let Some(name) = node_type {
                 *node_type_id = locked_mapper.get_or_create_id(name).inner();
             }
-
-            let res_vid = graph
-                .resolve_node(gid.as_node_ref())
-                .map_err(|_| LoadError::FatalError)?;
-            *vid = res_vid.inner();
         }
 
-        Ok((node_col_resolved.as_slice(), node_type_resolved.as_slice()))
+        let res_vid = graph
+            .resolve_node(gid.as_node_ref())
+            .map_err(into_graph_err)?;
+        *vid = res_vid.inner();
+        last_node_type = node_type;
     }
+
+    Ok((node_col_resolved.as_slice(), node_type_resolved.as_slice()))
+}
+
+fn set_meta_for_pre_resolved_nodes_and_node_ids<
+    'b,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    graph: &G,
+    session: &<G as InternalAdditionOps>::WS<'_>,
+    df: &'b DFChunk,
+    src_col: &NodeCol,
+    node_type_col: LayerCol<'_>,
+    node_type_index: usize,
+    node_id_col: usize,
+) -> Result<(&'b [VID], &'b [usize]), GraphError> {
+    let srcs = df.chunk[node_id_col]
+        .as_primitive_opt::<UInt64Type>()
+        .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[node_id_col].data_type().clone()))?
+        .values()
+        .as_ref();
+
+    let node_types = df.chunk[node_type_index]
+        .as_primitive_opt::<UInt64Type>()
+        .ok_or_else(|| LoadError::InvalidNodeType(df.chunk[node_type_index].data_type().clone()))?
+        .values()
+        .as_ref();
+
+    let mut locked_mapper = graph.node_meta().node_type_meta().write();
+
+    let zip = izip!(
+        src_col.iter(),
+        srcs.iter(),
+        node_type_col.iter(),
+        node_types.iter()
+    );
+
+    let mut last_node_type: Option<&str> = None;
+
+    for (gid, node_id, node_type, node_type_id) in zip {
+        if last_node_type != node_type {
+            let node_type_name = node_type.unwrap_or("_default");
+            locked_mapper.set_id(node_type_name, *node_type_id as usize);
+        }
+        last_node_type = node_type;
+        session
+            .set_node(gid, VID(*node_id as usize))
+            .map_err(into_graph_err)?;
+    }
+
+    Ok((bytemuck::cast_slice(srcs), bytemuck::cast_slice(node_types)))
 }
 
 #[inline(never)]

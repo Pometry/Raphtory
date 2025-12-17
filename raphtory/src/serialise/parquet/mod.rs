@@ -190,12 +190,11 @@ const TYPE_COL: &str = "rap_node_type";
 const TYPE_ID_COL: &str = "rap_node_type_id";
 const TIME_COL: &str = "rap_time";
 const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
-const SRC_COL: &str = "rap_src";
-const DST_COL: &str = "rap_dst";
 const SRC_COL_ID: &str = "rap_src_id";
 const DST_COL_ID: &str = "rap_dst_id";
 const EDGE_COL_ID: &str = "rap_edge_id";
 const LAYER_COL: &str = "rap_layer";
+const LAYER_ID_COL: &str = "rap_layer_id";
 const EDGES_T_PATH: &str = "edges_t";
 const EDGES_D_PATH: &str = "edges_d"; // deletions
 const EDGES_C_PATH: &str = "edges_c";
@@ -528,7 +527,7 @@ fn decode_graph_storage(
             Some(SECONDARY_INDEX_COL),
             NODE_VID_COL,
             None,
-            Some(TYPE_COL),
+            None,
             &t_prop_columns,
             &[],
             None,
@@ -556,35 +555,20 @@ fn decode_graph_storage(
         load_edges_from_parquet(
             &graph,
             &t_edge_path,
-            ColumnNames {
-                time: TIME_COL,
-                secondary_index: Some(SECONDARY_INDEX_COL),
-                src: SRC_COL_ID,
-                dst: DST_COL_ID,
-                layer_col: Some(LAYER_COL),
-                edge_id: None,
-            },
+            ColumnNames::new(
+                TIME_COL,
+                Some(SECONDARY_INDEX_COL),
+                SRC_COL_ID,
+                DST_COL_ID,
+                Some(LAYER_COL),
+            )
+            .with_layer_id_col(LAYER_ID_COL)
+            .with_edge_id_col(EDGE_COL_ID),
             false,
             &t_prop_columns,
             &[],
             None,
             None,
-            batch_size,
-        )?;
-    }
-
-    let d_edge_path = path.as_ref().join(EDGES_D_PATH);
-
-    if std::fs::exists(&d_edge_path)? {
-        load_edge_deletions_from_parquet(
-            graph.core_graph(),
-            &d_edge_path,
-            TIME_COL,
-            Some(SECONDARY_INDEX_COL),
-            SRC_COL,
-            DST_COL,
-            None,
-            Some(LAYER_COL),
             batch_size,
         )?;
     }
@@ -602,14 +586,30 @@ fn decode_graph_storage(
         load_edge_props_from_parquet(
             &graph,
             &c_edge_path,
-            SRC_COL,
-            DST_COL,
+            SRC_COL_ID,
+            DST_COL_ID,
             &metadata,
             None,
             None,
             Some(LAYER_COL),
             batch_size,
             false,
+        )?;
+    }
+
+    let d_edge_path = path.as_ref().join(EDGES_D_PATH);
+
+    if std::fs::exists(&d_edge_path)? {
+        load_edge_deletions_from_parquet(
+            graph.core_graph(),
+            &d_edge_path,
+            TIME_COL,
+            Some(SECONDARY_INDEX_COL),
+            SRC_COL_ID,
+            DST_COL_ID,
+            None,
+            Some(LAYER_COL),
+            batch_size,
         )?;
     }
 

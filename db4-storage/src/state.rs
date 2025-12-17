@@ -1,5 +1,7 @@
-use rayon::iter::plumbing::{Producer, ProducerCallback, UnindexedConsumer, bridge};
-use rayon::prelude::*;
+use rayon::{
+    iter::plumbing::{Producer, ProducerCallback, UnindexedConsumer, bridge},
+    prelude::*,
+};
 use std::{
     ops::{Index, IndexMut},
     sync::Arc,

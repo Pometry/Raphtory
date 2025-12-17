@@ -18,9 +18,8 @@ use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;
 use kdam::BarExt;
-use raphtory_api::atomic_extra::atomic_vid_from_mut_slice;
 use raphtory_api::{
-    atomic_extra::atomic_usize_from_mut_slice,
+    atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
         entities::EID,
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry, FxDashMap},
@@ -53,13 +52,46 @@ pub struct ColumnNames<'a> {
     pub dst: &'a str,
     pub edge_id: Option<&'a str>,
     pub layer_col: Option<&'a str>,
+    pub layer_id_col: Option<&'a str>,
+}
+
+impl<'a> ColumnNames<'a> {
+    pub fn new(
+        time: &'a str,
+        secondary_index: Option<&'a str>,
+
+        src: &'a str,
+        dst: &'a str,
+
+        layer_col: Option<&'a str>,
+    ) -> Self {
+        Self {
+            time,
+            secondary_index,
+            src,
+            dst,
+            layer_col,
+            edge_id: None,
+            layer_id_col: None,
+        }
+    }
+
+    pub fn with_layer_id_col(mut self, layer_id_col: &'a str) -> Self {
+        self.layer_id_col = Some(layer_id_col);
+        self
+    }
+
+    pub fn with_edge_id_col(mut self, edge_id: &'a str) -> Self {
+        self.edge_id = Some(edge_id);
+        self
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     column_names: ColumnNames,
-    resolve_nodes: bool,
+    resolve_nodes: bool, // this is reserved for internal parquet encoders, this cannot be exposed to users
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
@@ -77,6 +109,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         dst,
         edge_id,
         layer_col,
+        layer_id_col,
     } = column_names;
 
     let properties_indices = properties
@@ -91,21 +124,24 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
-    let edge_id_col = edge_id.and_then(|name| df_view.get_index_opt(name));
+    let edge_index = edge_id.and_then(|name| df_view.get_index_opt(name));
+    let layer_id_index = layer_id_col.and_then(|name| df_view.get_index_opt(name));
     let secondary_index_index = secondary_index
         .map(|col| df_view.get_index(col))
         .transpose()?;
-    let layer_index = if let Some(layer_col) = layer_col {
-        Some(df_view.get_index(layer_col.as_ref())?)
-    } else {
-        None
-    };
+    let layer_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
+
     let session = graph.write_session().map_err(into_graph_err)?;
     let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
         session
             .resolve_edge_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
+
+    assert!(
+        (resolve_nodes ^ edge_index.is_some()),
+        "resolve_nodes must be false when edge_id is provided or true when edge_id is None, {{resolve_nodes:{resolve_nodes:?}, edge_id:{edge_index:?}}}"
+    );
 
     // #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
@@ -146,7 +182,17 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             let dst_col = df.node_col(dst_index)?;
             dst_col.validate(graph, LoadError::MissingDstError)?;
             let layer = lift_layer_col(layer, layer_index, &df)?;
-            let layer_col_resolved = layer.resolve_layer(graph)?;
+            let layer_id_values = layer_id_index
+                .map(|idx| {
+                    df.chunk[idx]
+                        .as_primitive_opt::<UInt64Type>()
+                        .ok_or_else(|| {
+                            LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
+                        })
+                        .map(|array| array.values().as_ref())
+                })
+                .transpose()?;
+            let layer_col_resolved = layer.resolve_layer(layer_id_values, graph)?;
 
             let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
                 graph,
@@ -183,7 +229,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 nodes, ref edges, ..
             } = &mut write_locked_graph;
 
-            let eids = edge_id_col.and_then(|edge_id_col| {
+            let eids = edge_index.and_then(|edge_id_col| {
                 Some(
                     df.chunk[edge_id_col]
                         .as_primitive_opt::<UInt64Type>()?

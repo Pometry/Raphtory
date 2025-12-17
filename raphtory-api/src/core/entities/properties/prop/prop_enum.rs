@@ -23,10 +23,9 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::core::entities::properties::prop::prop_array::*;
+use crate::core::entities::{properties::prop::prop_array::*, GID};
 use arrow_array::{cast::AsArray, ArrayRef, LargeListArray, StructArray};
 use arrow_schema::{DataType, Field, FieldRef};
-use crate::core::entities::GID;
 
 pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
 

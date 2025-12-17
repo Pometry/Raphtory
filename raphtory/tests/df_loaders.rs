@@ -12,7 +12,7 @@ mod io_tests {
             dataframe::{DFChunk, DFView},
             df_loaders::{
                 edges::{load_edges_from_df, ColumnNames},
-                load_nodes_from_df,
+                nodes::load_nodes_from_df,
             },
         },
         prelude::*,
@@ -212,14 +212,7 @@ mod io_tests {
             let props = ["str_prop", "int_prop"];
             let secondary_index = None;
             load_edges_from_df(df_view,
-                ColumnNames {
-                    time: "time",
-                    secondary_index,
-                    src: "src",
-                    dst: "dst",
-                    edge_id: None,
-                    layer_col: None,
-                },
+                ColumnNames::new("time", secondary_index, "src", "dst", None),
                 true,
                 &props, &[], None, None, &g).unwrap();
 
@@ -256,14 +249,7 @@ mod io_tests {
 
         load_edges_from_df(
             df_view,
-            ColumnNames {
-                time: "time",
-                secondary_index,
-                src: "src",
-                dst: "dst",
-                edge_id: None,
-                layer_col: None,
-            },
+            ColumnNames::new("time", secondary_index, "src", "dst", None),
             true,
             &props,
             &[],
@@ -302,8 +288,7 @@ mod io_tests {
             let df_view = build_df_str(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
-            let secondary_index = None;
-            load_edges_from_df(df_view, ColumnNames {time: "time", secondary_index, src: "src", dst: "dst", edge_id: None, layer_col:None},true, &props, &[], None, None, &g).unwrap();
+            load_edges_from_df(df_view, ColumnNames::new("time", None, "src", "dst", None), true, &props, &[], None, None, &g).unwrap();
 
             let g2 = Graph::new();
 
@@ -323,18 +308,9 @@ mod io_tests {
         let df_view = build_df_str(1, &edges);
         let g = Graph::new();
         let props = ["str_prop", "int_prop"];
-        let secondary_index = None;
-
         load_edges_from_df(
             df_view,
-            ColumnNames {
-                time: "time",
-                secondary_index,
-                src: "src",
-                dst: "dst",
-                edge_id: None,
-                layer_col: None,
-            },
+            ColumnNames::new("time", None, "src", "dst", None),
             true,
             &props,
             &[],
@@ -372,14 +348,7 @@ mod io_tests {
         // Load edges from DataFrame with secondary_index
         load_edges_from_df(
             df_view,
-            ColumnNames {
-                time: "time",
-                secondary_index,
-                src: "src",
-                dst: "dst",
-                edge_id: None,
-                layer_col: None,
-            },
+            ColumnNames::new("time", secondary_index, "src", "dst", None),
             true,
             &props,
             &[],
@@ -437,14 +406,7 @@ mod io_tests {
 
             load_edges_from_df(
                 df_view,
-                ColumnNames {
-                    time: "time",
-                    secondary_index,
-                    src: "src",
-                    dst: "dst",
-                    edge_id: None,
-                    layer_col: None,
-                },
+                ColumnNames::new("time", secondary_index, "src", "dst", None),
                 true,
                 &props,
                 &[],
@@ -529,6 +491,7 @@ mod io_tests {
             None,
             None,
             &g,
+            true,
         )
         .unwrap();
 
@@ -591,14 +554,7 @@ mod io_tests {
             let secondary_index = None;
             load_edges_from_df(
                 df_view,
-                ColumnNames {
-                    time: "time",
-                    secondary_index,
-                    src: "src",
-                    dst: "dst",
-                    edge_id: None,
-                    layer_col: None,
-                },
+                ColumnNames::new("time", secondary_index, "src", "dst", None),
                 true,
                 &props,
                 &[],

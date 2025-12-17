@@ -34,7 +34,6 @@ pub(crate) fn encode_nodes_tprop(
         |nodes, g, decoder, writer| {
             let row_group_size = 100_000;
             let nodes = nodes.collect::<Vec<_>>();
-            dbg!(&nodes);
 
             let nodes = nodes.into_iter();
 
@@ -45,14 +44,11 @@ pub(crate) fn encode_nodes_tprop(
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
                         node.rows()
-                            .map(|(t, props)| {
-                                dbg!(&t, &props);
-                                ParquetTNode {
-                                    node: *node,
-                                    cols,
-                                    t,
-                                    props,
-                                }
+                            .map(|(t, props)| ParquetTNode {
+                                node: *node,
+                                cols,
+                                t,
+                                props,
                             })
                             .into_dyn_boxed()
                     })

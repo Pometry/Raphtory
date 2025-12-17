@@ -1,13 +1,13 @@
-use super::{
-    Prop, DST_COL, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, SRC_COL, TIME_COL, TYPE_COL,
-};
+use super::{Prop, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL};
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
-    serialise::parquet::{DST_COL_ID, EDGE_COL_ID, NODE_VID_COL, SRC_COL_ID, TYPE_ID_COL},
+    serialise::parquet::{
+        DST_COL_ID, EDGE_COL_ID, LAYER_ID_COL, NODE_VID_COL, SRC_COL_ID, TYPE_ID_COL,
+    },
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
@@ -53,12 +53,18 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetTEdge<'a, G> {
             .layer_name()
             .map_err(|_| S::Error::custom("Edge has no layer"))?;
 
+        let layer_id = edge
+            .edge
+            .layer()
+            .ok_or_else(|| S::Error::custom("Edge has no layer"))?;
+
         state.serialize_entry(TIME_COL, &t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &t.1)?;
         state.serialize_entry(SRC_COL_ID, &edge.src().node.0)?;
         state.serialize_entry(DST_COL_ID, &edge.dst().node.0)?;
         state.serialize_entry(EDGE_COL_ID, &edge.edge.pid())?;
         state.serialize_entry(LAYER_COL, &layer)?;
+        state.serialize_entry(LAYER_ID_COL, &layer_id)?;
 
         for (name, prop) in edge.properties().temporal().iter_latest() {
             state.serialize_entry(&name, &SerdeProp(&prop))?;

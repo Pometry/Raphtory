@@ -11,7 +11,7 @@ mod test {
             dataframe::{DFChunk, DFView},
             df_loaders::{
                 edges::{load_edges_from_df, ColumnNames},
-                *,
+                nodes::load_nodes_from_df,
             },
         },
         prelude::*,
@@ -57,14 +57,7 @@ mod test {
 
         load_edges_from_df(
             df,
-            ColumnNames {
-                time: "time",
-                secondary_index,
-                src: "src",
-                dst: "dst",
-                edge_id: None,
-                layer_col,
-            },
+            ColumnNames::new("time", secondary_index, "src", "dst", layer_col),
             true,
             &["prop1", "prop2"],
             &[],
@@ -168,6 +161,7 @@ mod test {
             Some("node_type"),
             None,
             &graph,
+            true,
         )
         .expect("failed to load nodes from pretend df");
 
