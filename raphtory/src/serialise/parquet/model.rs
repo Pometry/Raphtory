@@ -10,7 +10,7 @@ use crate::{
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
-    entities::{properties::prop::SerdeProp, GidType},
+    entities::{properties::prop::SerdeArrowProp, GidType},
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::graph::GraphStorage;
@@ -59,7 +59,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetTEdge<'a, G> {
         state.serialize_entry(LAYER_COL, &layer)?;
 
         for (name, prop) in edge.properties().temporal().iter_latest() {
-            state.serialize_entry(&name, &SerdeProp(&prop))?;
+            state.serialize_entry(&name, &SerdeArrowProp(&prop))?;
         }
 
         state.end()
@@ -85,7 +85,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetCEdge<'a, G> {
         state.serialize_entry(LAYER_COL, &layer)?;
 
         for (name, prop) in edge.metadata().iter_filtered() {
-            state.serialize_entry(&name, &SerdeProp(&prop))?;
+            state.serialize_entry(&name, &SerdeArrowProp(&prop))?;
         }
 
         state.end()
@@ -136,7 +136,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.props.iter() {
-            state.serialize_entry(&self.cols[*name], &SerdeProp(prop))?;
+            state.serialize_entry(&self.cols[*name], &SerdeArrowProp(prop))?;
         }
 
         state.end()
@@ -158,7 +158,7 @@ impl<'a> Serialize for ParquetCNode<'a> {
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.node.metadata().iter_filtered() {
-            state.serialize_entry(&name, &SerdeProp(&prop))?;
+            state.serialize_entry(&name, &SerdeArrowProp(&prop))?;
         }
 
         state.end()

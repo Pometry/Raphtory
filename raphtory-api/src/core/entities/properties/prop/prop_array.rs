@@ -1,6 +1,6 @@
 use crate::{
     core::entities::properties::prop::{
-        unify_types, ArrowRow, DirectConvert, Prop, PropType, SerdeProp,
+        unify_types, ArrowRow, DirectConvert, Prop, PropType, SerdeArrowProp,
     },
     iter::{BoxedLIter, IntoDynBoxed},
 };
