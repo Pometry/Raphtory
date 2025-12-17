@@ -15,15 +15,16 @@ use crate::{
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    App, Enum, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
+    App, Enum, InputObject, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
     ResolvedObjectFields, Result, Upload,
 };
 use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
-    errors::{GraphError, InvalidPathReason},
+    errors::{GraphError, GraphResult, InvalidPathReason},
     prelude::*,
     serialise::InternalStableDecode,
     vectors::{
+        cache::CachedEmbeddingModel,
         storage::OpenAIEmbeddings,
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
     },
@@ -43,6 +44,46 @@ pub(crate) mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+
+// TODO: move somewhere else
+#[derive(InputObject, Debug, Clone, Default)]
+struct OpenAIConfig {
+    model: Option<String>,
+    api_base: Option<String>,
+    api_key_env: Option<String>,
+    org_id: Option<String>,
+    project_id: Option<String>,
+}
+
+#[derive(OneOfInput, Clone, Debug)]
+pub enum EmbeddingModel {
+    /// OpenAI embedding models or compatible providers
+    OpenAI(OpenAIConfig),
+}
+
+impl EmbeddingModel {
+    async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
+        let data = ctx.data_unchecked::<Data>();
+        match self {
+            Self::OpenAI(OpenAIConfig {
+                model,
+                api_base,
+                api_key_env,
+                org_id,
+                project_id,
+            }) => {
+                let embeddings = OpenAIEmbeddings {
+                    model: model.unwrap_or("text-embedding-3-small".to_owned()),
+                    api_base,
+                    api_key_env,
+                    org_id,
+                    project_id,
+                };
+                data.vector_cache.openai(embeddings).await
+            }
+        }
+    }
+}
 
 /// a thin wrapper around spawn_blocking that unwraps the join handle
 pub(crate) async fn blocking_io<F, R>(f: F) -> R
@@ -143,8 +184,7 @@ impl QueryRoot {
     async fn vectorise_graph<'a>(
         ctx: &Context<'a>,
         path: String,
-        model: Option<String>,
-        api_base: Option<String>,
+        model: Option<EmbeddingModel>, // TODO: review if we really want to default to openai???
         nodes: Option<Template>,
         edges: Option<Template>,
     ) -> Result<bool> {
@@ -154,14 +194,13 @@ impl QueryRoot {
             node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
             edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
         };
-        let embeddings = OpenAIEmbeddings {
-            model: model.unwrap_or("text-embedding-3-small".to_owned()),
-            api_base,
-            ..Default::default()
-        };
-        let model = data.vector_cache.openai(embeddings).await?;
+        let cached_model = model
+            .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
+            .cache(ctx)
+            .await?;
         let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)?;
-        data.vectorise_folder(&folder, &template, model).await?;
+        data.vectorise_folder(&folder, &template, cached_model)
+            .await?;
         Ok(true)
     }
 

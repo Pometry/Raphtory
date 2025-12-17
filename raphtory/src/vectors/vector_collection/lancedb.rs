@@ -2,8 +2,7 @@ use std::{ops::Deref, path::Path, sync::Arc};
 
 use arrow_array::{
     types::{Float32Type, UInt64Type},
-    ArrayAccessor, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
-    RecordBatchIterator, UInt64Array,
+    ArrayRef, FixedSizeListArray, PrimitiveArray, RecordBatch, RecordBatchIterator, UInt64Array,
 };
 use futures_util::TryStreamExt;
 use itertools::Itertools;
@@ -11,9 +10,10 @@ use lancedb::{
     arrow::arrow_schema::{DataType, Field, Schema},
     index::{
         vector::{IvfFlatIndexBuilder, IvfPqIndexBuilder},
-        Index,
+        Index, IndexType,
     },
     query::{ExecutableQuery, QueryBase},
+    table::{OptimizeAction, OptimizeOptions},
     Connection, DistanceType, Table,
 };
 
@@ -179,24 +179,50 @@ impl VectorCollection for LanceDbCollection {
         Ok(downcasted)
     }
 
-    async fn create_index(&self) {
-        let count = self.table.count_rows(None).await.unwrap(); // FIXME: remove unwrap
+    async fn create_or_update_index(&self) -> GraphResult<()> {
+        let count = self.table.count_rows(None).await.unwrap();
         if count > 0 {
-            // we check the count because indexing with no rows errors out
-            self.table
-                .create_index(
-                    &[VECTOR_COL_NAME],
+            // TODO: save the index name when creating it instead of doing this
+            let indices = self.table.list_indices().await.unwrap();
+            let vector_index = indices
+                .iter()
+                .find(|index| index.columns == vec![VECTOR_COL_NAME]);
+
+            let target_index_type = if count > 256 {
+                IndexType::IvfPq
+            } else {
+                IndexType::IvfFlat
+            };
+
+            let ideal_type_already_exists = vector_index
+                .map(|index| index.index_type == target_index_type)
+                .unwrap_or(false);
+
+            if ideal_type_already_exists {
+                self.table
+                    .optimize(OptimizeAction::Index(OptimizeOptions::default()))
+                    .await
+                    .unwrap();
+            } else {
+                if let Some(vector_index) = vector_index {
+                    self.table.drop_index(&vector_index.name).await.unwrap();
+                }
+                let index_builder = if target_index_type == IndexType::IvfFlat {
                     Index::IvfFlat(
                         IvfFlatIndexBuilder::default().distance_type(DistanceType::Cosine),
-                    ),
-                    // Index::IvfPq(IvfPqIndexBuilder::default().distance_type(DistanceType::Cosine)), // TODO: bring this back for over 256 rows, or a greater value
-                )
-                // .create_index(&[VECTOR_COL_NAME], Index::Auto)
-                .execute()
-                .await
-                .unwrap() // FIXME: remove unwrap
+                    )
+                } else {
+                    // FIXME: this else is a bit loose
+                    Index::IvfPq(IvfPqIndexBuilder::default().distance_type(DistanceType::Cosine))
+                };
+                self.table
+                    .create_index(&[VECTOR_COL_NAME], index_builder)
+                    .execute()
+                    .await
+                    .unwrap(); // FIXME: remove unwrap
+            }
         }
-        // FIXME: what happens if the rows are added later on???
+        Ok(())
     }
 }
 
@@ -224,12 +250,15 @@ mod lancedb_tests {
     use std::sync::Arc;
 
     use crate::vectors::{
-        vector_collection::{lancedb::LanceDb, VectorCollection, VectorCollectionFactory},
+        vector_collection::{
+            lancedb::{LanceDb, LanceDbCollection},
+            VectorCollection, VectorCollectionFactory,
+        },
         Embedding,
     };
 
     #[tokio::test]
-    async fn test_search() {
+    async fn test_search_with_candidates() {
         let factory = LanceDb;
         let tempdir = tempfile::tempdir().unwrap();
         let path = Arc::new(tempdir);
@@ -255,5 +284,95 @@ mod lancedb_tests {
             .collect::<Vec<_>>();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], (1, 2.0));
+    }
+
+    const EMBEDDING_DIM: usize = 4096;
+
+    #[tokio::test]
+    async fn test_index_lifecycle() {
+        let factory = LanceDb;
+        let tempdir = tempfile::tempdir().unwrap();
+        let path = Arc::new(tempdir);
+        let collection = factory
+            .new_collection(path, "vectors", EMBEDDING_DIM)
+            .await
+            .unwrap();
+
+        assert_empty_search(&collection).await;
+
+        collection.create_or_update_index().await.unwrap();
+
+        assert_empty_search(&collection).await;
+
+        collection
+            .insert_vectors(vec![0, 1], vec![embedding(0), embedding(1)].into_iter())
+            .await
+            .unwrap();
+
+        assert_vector_is_searchable(&collection, 0, embedding(0)).await;
+        assert_vector_is_searchable(&collection, 1, embedding(1)).await;
+
+        collection.create_or_update_index().await.unwrap();
+
+        assert_vector_is_searchable(&collection, 0, embedding(0)).await;
+        assert_vector_is_searchable(&collection, 1, embedding(1)).await;
+
+        // VERY IMPORTANT: we create only 300 vectors out of the 4094 posible ones so that the tails nof the vectors
+        // are irrelevant and quantization remove that instead os messing up the head of the vector
+        for index in 2..300 {
+            collection
+                .insert_vectors(vec![index as u64], vec![embedding(index)].into_iter())
+                .await
+                .unwrap();
+        }
+
+        assert_vector_is_searchable(&collection, 0, embedding(0)).await;
+        assert_vector_is_searchable(&collection, 1, embedding(1)).await;
+        assert_vector_is_searchable(&collection, 10, embedding(10)).await;
+        assert_vector_is_searchable(&collection, 100, embedding(100)).await;
+        assert_vector_is_searchable(&collection, 299, embedding(299)).await;
+
+        collection.create_or_update_index().await.unwrap();
+
+        assert_vector_is_searchable(&collection, 0, embedding(0)).await;
+        assert_vector_is_searchable(&collection, 1, embedding(1)).await;
+        assert_vector_is_searchable(&collection, 10, embedding(10)).await;
+        assert_vector_is_searchable(&collection, 100, embedding(100)).await;
+        assert_vector_is_searchable(&collection, 299, embedding(299)).await;
+    }
+
+    fn embedding(index: usize) -> Embedding {
+        assert!(index < EMBEDDING_DIM);
+        let mut vector: Vec<f32> = vec![0.0; EMBEDDING_DIM];
+        vector[index] = 1.0;
+        vector.into()
+    }
+
+    async fn assert_empty_search(collection: &LanceDbCollection) {
+        let result = collection
+            .top_k_with_distances(&embedding(0), 1, None::<Vec<_>>)
+            .await
+            .unwrap()
+            .collect::<Vec<_>>();
+        assert_eq!(result, vec![]);
+    }
+
+    async fn assert_vector_is_searchable(
+        collection: &LanceDbCollection,
+        id: u64,
+        vector: Embedding,
+    ) {
+        let result = collection
+            .top_k_with_distances(&vector, 1, None::<Vec<_>>)
+            .await
+            .unwrap()
+            .collect::<Vec<_>>();
+        assert_eq!(result.len(), 1);
+        let (returned_id, distance) = result[0];
+        assert_eq!(returned_id, id);
+        assert!(
+            distance < 0.000001,
+            "distance has to be close to 0, instead is {distance}"
+        )
     }
 }

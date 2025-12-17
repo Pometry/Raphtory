@@ -36,5 +36,5 @@ pub(super) trait VectorCollection: Sized {
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64>>,
     ) -> GraphResult<impl Iterator<Item = (u64, f32)> + Send>;
-    async fn create_index(&self);
+    async fn create_or_update_index(&self) -> GraphResult<()>;
 }

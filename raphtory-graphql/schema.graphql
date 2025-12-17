@@ -947,8 +947,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -2303,6 +2303,12 @@ type QueryRoot {
 	"""
 	updateGraph(path: String!): MutableGraph!
 	"""
+	Update graph query, has side effects to update graph state
+	
+	Returns:: GqlMutableGraph
+	"""
+	vectoriseGraph(path: String!, model: String, apiBase: String, nodes: Template, edges: Template): Boolean!
+	"""
 	Create vectorised graph in the format used for queries
 	
 	Returns:: GqlVectorisedGraph
@@ -2367,6 +2373,17 @@ enum SortByTime {
 	Earliest time
 	"""
 	EARLIEST
+}
+
+input Template @oneOf {
+	"""
+	The default template.
+	"""
+	enabled: Boolean
+	"""
+	A custom template.
+	"""
+	custom: String
 }
 
 type TemporalProperties {
