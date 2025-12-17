@@ -401,7 +401,14 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 Ok::<(), MutationError>(())
             })?;
 
-            new_storage.resize_chunks_to_num_edges(self.count_edges());
+            let mut new_eids = vec![];
+            let mut max_eid = 0usize;
+            for (row, _) in self.edges().iter().enumerate() {
+                let new_eid = new_storage.graph().storage().edges().reserve_new_eid(row);
+                new_eids.push(new_eid);
+                max_eid = new_eid.0.max(max_eid);
+            }
+            new_storage.resize_chunks_to_num_edges(EID(max_eid));
 
             for layer_id in &layer_map {
                 new_storage.edges.ensure_layer(*layer_id);

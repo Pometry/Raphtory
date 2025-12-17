@@ -162,6 +162,13 @@ impl SecondaryIndexCol {
     pub fn max(&self) -> usize {
         self.iter().max().unwrap_or(0)
     }
+
+    pub fn len(&self) -> usize {
+        match self {
+            SecondaryIndexCol::DataFrame(arr) => arr.len(),
+            SecondaryIndexCol::Range(range) => range.len(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

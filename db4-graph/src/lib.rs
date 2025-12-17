@@ -405,11 +405,8 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
         }
     }
 
-    pub fn resize_chunks_to_num_edges(&mut self, num_edges: usize) {
-        if num_edges == 0 {
-            return;
-        }
-        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(EID(num_edges - 1));
+    pub fn resize_chunks_to_num_edges(&mut self, max_eid: EID) {
+        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(max_eid);
         self.graph.storage().edges().grow(chunks_needed + 1);
         std::mem::take(&mut self.edges);
         self.edges = self.graph.storage.edges().write_locked();

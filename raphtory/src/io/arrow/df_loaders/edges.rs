@@ -43,6 +43,7 @@ use storage::{
     },
     Extension,
 };
+use zip::unstable::write;
 
 #[derive(Debug, Copy, Clone)]
 pub struct ColumnNames<'a> {
@@ -162,6 +163,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             }
         });
 
+        let max_edge_id = AtomicUsize::new(0);
+
         for chunk in rx.iter() {
             let df = chunk?;
             let prop_cols =
@@ -271,7 +274,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         &eids_exist,
                         &layer_eids_exist,
                         &eid_col_shared,
-                        |row| EID(edge_ids[row] as usize),
+                        |row| {
+                            let eid = EID(edge_ids[row] as usize);
+                            max_edge_id.fetch_max(eid.0, Ordering::Relaxed);
+                            eid
+                        },
                         edges,
                         locked_page,
                         zip,
@@ -297,6 +304,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             drop(write_locked_graph);
 
             let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
+            if !resolve_nodes {
+                write_locked_graph
+                    .resize_chunks_to_num_edges(EID(max_edge_id.load(Ordering::Relaxed)));
+            }
 
             write_locked_graph.edges.par_iter_mut().for_each(|shard| {
                 let zip = izip!(
@@ -396,7 +408,7 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     let mut t_props: Vec<(usize, Prop)> = vec![];
     let mut c_props: Vec<(usize, Prop)> = vec![];
 
-    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
+    for item @ (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
         if let Some(eid_pos) = shard.resolve_pos(*eid) {
             let t = TimeIndexEntry(time, secondary_index);
             let mut writer = shard.writer();
