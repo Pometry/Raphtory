@@ -46,8 +46,8 @@ def test_different_data_sources():
     nodes_list = []
 
     ######### PARQUET #########
-    parquet_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/parquet_directory"
-    parquet_file_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/flattened_data_subset.parquet"
+    parquet_dir_path_str = str(Path(__file__).parent) + "/data/btc_dataset/parquet_directory"
+    parquet_file_path_str = str(Path(__file__).parent) + "/data/btc_dataset/flattened_data.parquet"
     # test path string for parquet file
     g = Graph()
     g.load_nodes(data=parquet_file_path_str, time="block_timestamp", id="inputs_address")
@@ -75,8 +75,8 @@ def test_different_data_sources():
     del g
 
     ######### CSV #########
-    csv_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/csv_directory"
-    csv_file_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/flattened_data_subset.csv"
+    csv_dir_path_str = str(Path(__file__).parent) + "/data/btc_dataset/csv_directory"
+    csv_file_path_str = str(Path(__file__).parent) + "/data/btc_dataset/flattened_data.csv"
     # test path string for CSV file
     g = Graph()
     g.load_nodes(data=csv_file_path_str, time="block_timestamp", id="inputs_address")
@@ -104,7 +104,7 @@ def test_different_data_sources():
     del g
 
     ######### mixed directory #########
-    mixed_dir_path_str = "/Users/arien/RustroverProjects/Raphtory/dataset_tests/mixed_directory"
+    mixed_dir_path_str = str(Path(__file__).parent) + "/data/btc_dataset/mixed_directory"
     # test path string
     g = Graph()
     g.load_nodes(data=mixed_dir_path_str, time="block_timestamp", id="inputs_address")
@@ -388,6 +388,161 @@ def test_nested_schema_casting():
     assert dtype_pyarrow == PropType.map({"a": PropType.i64(), "b": PropType.i64()})
     # also check PropType.map of pyarrow types, mix and match
     assert dtype_pyarrow == PropType.map({"a": pa.int64(), "b": pa.int64()})
+
+def _btc_root() -> Path:
+    return Path(__file__).parent / "data" / "btc_dataset"
+
+def _csv_expected_earliest_dt(paths: list[Path]):
+    df = pd.concat([pd.read_csv(p) for p in paths], ignore_index=True)
+    return pd.to_datetime(df["block_timestamp"], utc=True).min().to_pydatetime()
+
+def _parquet_expected_earliest_dt(paths: list[Path]):
+    df = pd.concat([pd.read_parquet(p) for p in paths], ignore_index=True)
+    return pd.to_datetime(df["block_timestamp"], utc=True).min().to_pydatetime()
+
+@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+def test_casting_btc_csv_file(schema_value):
+    csv_path = _btc_root() / "flattened_data.csv"
+    expected_earliest = _csv_expected_earliest_dt([csv_path])
+
+    # Pick a node id from the file
+    df = pd.read_csv(csv_path)
+    some_node_id = df["inputs_address"].iloc[0]
+
+    g = Graph()
+    g.load_nodes(
+        data=str(csv_path),
+        time="block_timestamp",
+        id="inputs_address",
+        properties=["block_timestamp"],
+        schema={"block_timestamp": schema_value},
+    )
+
+    dtype = g.node(some_node_id).properties.get_dtype_of("block_timestamp")
+    assert dtype == PropType.datetime()
+    assert dtype == pa.timestamp("ms", tz="UTC")
+    assert g.earliest_time.dt == expected_earliest
+
+@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+def test_casting_btc_csv_directory(schema_value):
+    csv_dir = _btc_root() / "csv_directory"
+    csv_paths = sorted(p for p in csv_dir.iterdir() if p.suffix == ".csv")
+    expected_earliest = _csv_expected_earliest_dt(csv_paths)
+
+    df0 = pd.read_csv(csv_paths[0])
+    some_node_id = df0["inputs_address"].iloc[0]
+
+    g = Graph()
+    g.load_nodes(
+        data=str(csv_dir),
+        time="block_timestamp",
+        id="inputs_address",
+        properties=["block_timestamp"],
+        schema={"block_timestamp": schema_value},
+    )
+
+    dtype = g.node(some_node_id).properties.get_dtype_of("block_timestamp")
+    assert dtype == PropType.datetime()
+    assert dtype == pa.timestamp("ms", tz="UTC")
+    assert g.earliest_time.dt == expected_earliest
+
+@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+def test_casting_btc_parquet_file(schema_value):
+    pq_path = _btc_root() / "flattened_data.parquet"
+    expected_earliest = _parquet_expected_earliest_dt([pq_path])
+
+    df = pd.read_parquet(pq_path)
+    some_node_id = df["inputs_address"].iloc[0]
+
+    g = Graph()
+    g.load_nodes(
+        data=str(pq_path),
+        time="block_timestamp",
+        id="inputs_address",
+        properties=["block_timestamp"],
+        schema={"block_timestamp": schema_value},
+    )
+
+    dtype = g.node(some_node_id).properties.get_dtype_of("block_timestamp")
+    assert dtype == PropType.datetime()
+    assert dtype == pa.timestamp("ms", tz="UTC")
+    assert g.earliest_time.dt == expected_earliest
+
+@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+def test_casting_btc_parquet_directory(schema_value):
+    pq_dir = _btc_root() / "parquet_directory"
+    pq_paths = sorted(p for p in pq_dir.iterdir() if p.suffix == ".parquet")
+    expected_earliest = _parquet_expected_earliest_dt(pq_paths)
+
+    df0 = pd.read_parquet(pq_paths[0])
+    some_node_id = df0["inputs_address"].iloc[0]
+
+    g = Graph()
+    g.load_nodes(
+        data=str(pq_dir),
+        time="block_timestamp",
+        id="inputs_address",
+        properties=["block_timestamp"],
+        schema={"block_timestamp": schema_value},
+    )
+
+    dtype = g.node(some_node_id).properties.get_dtype_of("block_timestamp")
+    assert dtype == PropType.datetime()
+    assert dtype == pa.timestamp("ms", tz="UTC")
+    assert g.earliest_time.dt == expected_earliest
+
+@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+def test_casting_btc_mixed_directory(schema_value):
+    mixed_dir = _btc_root() / "mixed_directory"
+    csv_paths = sorted(p for p in mixed_dir.iterdir() if p.suffix == ".csv")
+    pq_paths = sorted(p for p in mixed_dir.iterdir() if p.suffix == ".parquet")
+
+    # Compute expected earliest across both formats
+    expected_csv = _csv_expected_earliest_dt(csv_paths)
+    expected_pq = _parquet_expected_earliest_dt(pq_paths)
+    expected_earliest = min(expected_csv, expected_pq)
+
+    # Use an id from one of the files
+    some_node_id = pd.read_csv(csv_paths[0])["inputs_address"].iloc[0]
+
+    g = Graph()
+    g.load_nodes(
+        data=str(mixed_dir),
+        time="block_timestamp",
+        id="inputs_address",
+        properties=["block_timestamp"],
+        schema={"block_timestamp": schema_value},
+    )
+
+    dtype = g.node(some_node_id).properties.get_dtype_of("block_timestamp")
+    assert dtype == PropType.datetime()
+    assert dtype == pa.timestamp("ms", tz="UTC")
+    assert g.earliest_time.dt == expected_earliest
+
+def test_malformed_files():
+    malformed_dir = _btc_root() / "malformed_files"
+
+    with pytest.raises(Exception) as missing_col_error:
+        g = Graph()
+        g.load_nodes(
+            data=malformed_dir / "missing_col.parquet",
+            time="block_timestamp",
+            id="inputs_address",
+            properties=["block_timestamp"],
+        )
+    assert "columns are not present" in str(missing_col_error.value)
+    assert "block_timestamp" in str(missing_col_error.value)
+
+    with pytest.raises(Exception) as malformed_timestamp_error:
+        g = Graph()
+        g.load_nodes(
+            data=malformed_dir / "timestamp_malformed.parquet",
+            time="block_timestamp",
+            id="inputs_address",
+            properties=["block_timestamp"],
+            schema={"block_timestamp": pa.timestamp("ms", tz="UTC")}
+        )
+    print(f"Error: {malformed_timestamp_error.value}")
 
 if fpd:
     import pandas
