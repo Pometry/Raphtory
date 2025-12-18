@@ -37,9 +37,9 @@ use std::{iter, marker::PhantomData, sync::Arc};
 /// Trait declaring the operations needed so that a type's History can be accessed using the `History` object
 pub trait InternalHistoryOps: Send + Sync {
     /// Iterate over temporal entries in chronological order.
-    fn iter(&self) -> BoxedLIter<EventTime>;
+    fn iter(&self) -> BoxedLIter<'_, EventTime>;
     /// Iterate over temporal entries in reverse chronological order.
-    fn iter_rev(&self) -> BoxedLIter<EventTime>;
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime>;
     /// Get the earliest time entry for this item.
     fn earliest_time(&self) -> Option<EventTime>;
     /// Get the latest time entry for this item.
@@ -109,12 +109,12 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     }
 
     /// Iterate over `EventTime` entries in chronological order.
-    pub fn iter(&self) -> BoxedLIter<EventTime> {
+    pub fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.0.iter()
     }
 
     /// Iterate over `EventTime` entries in reverse chronological order.
-    pub fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    pub fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         self.0.iter_rev()
     }
 
@@ -159,7 +159,7 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     }
 
     /// Borrow this history as a `History` of a reference to the underlying item.
-    pub fn as_ref(&self) -> History<&T> {
+    pub fn as_ref(&self) -> History<'_, &T> {
         History::new(&self.0)
     }
 
@@ -218,11 +218,11 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for History<'a, T> {
 impl<'a, T: InternalHistoryOps + 'a> Eq for History<'a, T> {}
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         T::iter(self)
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         T::iter_rev(self)
     }
 
@@ -260,11 +260,11 @@ impl IntoArcDynHistoryOps for Box<dyn InternalHistoryOps> {
 }
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         T::iter(self)
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         T::iter_rev(self)
     }
 
@@ -302,11 +302,11 @@ impl IntoArcDynHistoryOps for Arc<dyn InternalHistoryOps> {
 }
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for &T {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         T::iter(self)
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         T::iter_rev(self)
     }
 
@@ -347,11 +347,11 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> MergedHistory<L, R> {
 }
 
 impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for MergedHistory<L, R> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.left.iter().merge(self.right.iter()).into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         self.left
             .iter_rev()
             .merge_by(self.right.iter_rev(), |a, b| a >= b)
@@ -410,7 +410,7 @@ pub fn compose_history_from_items<'a, T: InternalHistoryOps + 'a>(
 }
 
 impl<'a, T: InternalHistoryOps + 'a> InternalHistoryOps for CompositeHistory<'a, T> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.history_objects
             .iter()
             .map(|object| object.iter())
@@ -418,7 +418,7 @@ impl<'a, T: InternalHistoryOps + 'a> InternalHistoryOps for CompositeHistory<'a,
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         self.history_objects
             .iter()
             .map(|object| object.iter_rev())
@@ -447,11 +447,11 @@ impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for CompositeHistory<
 pub struct EmptyHistory;
 
 impl InternalHistoryOps for EmptyHistory {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         iter::empty().into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         iter::empty().into_dyn_boxed()
     }
 
@@ -481,7 +481,7 @@ impl IntoArcDynHistoryOps for EmptyHistory {}
 impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + Send + Sync>
     InternalHistoryOps for NodeView<'graph, G, GH>
 {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
@@ -492,7 +492,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + S
         .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
@@ -524,7 +524,7 @@ impl<G: GraphViewOps<'static> + Send + Sync, GH: GraphViewOps<'static> + Send + 
 }
 
 impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -559,7 +559,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(&g, e) {
@@ -629,7 +629,7 @@ impl<G: BoxableGraphView + Clone + 'static> IntoArcDynHistoryOps for EdgeView<G>
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
 {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         // consuming the history objects is fine here because they get recreated on subsequent iter() calls
         NodeStateOps::iter_values(self)
             .map(|history| history.into_iter())
@@ -637,7 +637,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         // consuming the history objects is fine here because they get recreated on subsequent iter_rev() calls
         NodeStateOps::iter_values(self)
             .map(|history| history.into_iter_rev())
@@ -664,14 +664,14 @@ impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
 }
 
 impl<P: InternalPropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.props
             .temporal_iter(self.id)
             .map(|(t, _)| t)
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         self.props
             .temporal_iter_rev(self.id)
             .map(|(t, _)| t)
@@ -692,14 +692,14 @@ impl<P: InternalPropertiesOps + 'static> IntoArcDynHistoryOps for TemporalProper
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for PathFromNode<'graph, G, GH>
 {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.iter()
             .map(|nodeview| GenLockedIter::from(nodeview, move |node| node.iter()))
             .kmerge()
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         self.iter()
             .map(|nodeview| GenLockedIter::from(nodeview, move |node| node.iter_rev()))
             .kmerge_by(|a, b| a >= b)
@@ -727,7 +727,7 @@ impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for PathFromGraph<'graph, G, GH>
 {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.iter()
             .map(|path_from_node| {
                 GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter(item))
@@ -736,7 +736,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
             .into_dyn_boxed()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         self.iter()
             .map(|path_from_node| {
                 GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter_rev(item))
@@ -774,11 +774,11 @@ impl<T: InternalHistoryOps> ReversedHistoryOps<T> {
 }
 
 impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.0.iter_rev()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         self.0.iter()
     }
     // no need to override first() and last() because the iterators are reversed
@@ -807,11 +807,11 @@ impl<T: InternalHistoryOps> HistoryTimestamp<T> {
         Self(item)
     }
 
-    pub fn iter(&self) -> BoxedLIter<i64> {
+    pub fn iter(&self) -> BoxedLIter<'_, i64> {
         self.0.iter().map(|t| t.0).into_dyn_boxed()
     }
 
-    pub fn iter_rev(&self) -> BoxedLIter<i64> {
+    pub fn iter_rev(&self) -> BoxedLIter<'_, i64> {
         self.0.iter_rev().map(|t| t.0).into_dyn_boxed()
     }
 
@@ -861,11 +861,11 @@ impl<T: InternalHistoryOps> HistoryDateTime<T> {
         Self(item)
     }
 
-    pub fn iter(&self) -> BoxedLIter<Result<DateTime<Utc>, TimeError>> {
+    pub fn iter(&self) -> BoxedLIter<'_, Result<DateTime<Utc>, TimeError>> {
         self.0.iter().map(|t| t.dt()).into_dyn_boxed()
     }
 
-    pub fn iter_rev(&self) -> BoxedLIter<Result<DateTime<Utc>, TimeError>> {
+    pub fn iter_rev(&self) -> BoxedLIter<'_, Result<DateTime<Utc>, TimeError>> {
         self.0.iter_rev().map(|t| t.dt()).into_dyn_boxed()
     }
 
@@ -920,11 +920,11 @@ impl<T: InternalHistoryOps> HistoryEventId<T> {
         Self(item)
     }
 
-    pub fn iter(&self) -> BoxedLIter<usize> {
+    pub fn iter(&self) -> BoxedLIter<'_, usize> {
         self.0.iter().map(|t| t.1).into_dyn_boxed()
     }
 
-    pub fn iter_rev(&self) -> BoxedLIter<usize> {
+    pub fn iter_rev(&self) -> BoxedLIter<'_, usize> {
         self.0.iter_rev().map(|t| t.1).into_dyn_boxed()
     }
 
@@ -981,7 +981,7 @@ impl<T: InternalHistoryOps> Intervals<T> {
         self.iter_rev().collect()
     }
 
-    pub fn iter(&self) -> BoxedLIter<i64> {
+    pub fn iter(&self) -> BoxedLIter<'_, i64> {
         self.0
             .iter()
             .map(|t| t.0)
@@ -990,7 +990,7 @@ impl<T: InternalHistoryOps> Intervals<T> {
             .into_dyn_boxed()
     }
 
-    pub fn iter_rev(&self) -> BoxedLIter<i64> {
+    pub fn iter_rev(&self) -> BoxedLIter<'_, i64> {
         self.0
             .iter_rev()
             .map(|t| t.0)
@@ -1074,9 +1074,9 @@ impl<'a, T: InternalHistoryOps + 'a> Eq for Intervals<T> {}
 /// Trait declaring the operations needed so that a type's deletion history can be accessed using the `History` object
 pub trait InternalDeletionOps: Send + Sync {
     /// Iterate over deletion time entries in chronological order.
-    fn iter(&self) -> BoxedLIter<EventTime>;
+    fn iter(&self) -> BoxedLIter<'_, EventTime>;
     /// Iterate over deletion time entries in reverse chronological order.
-    fn iter_rev(&self) -> BoxedLIter<EventTime>;
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime>;
     /// Get the earliest deletion's time entry for this item.
     fn earliest_time(&self) -> Option<EventTime>;
     /// Get the latest deletion's time entry for this item.
@@ -1107,11 +1107,11 @@ impl<T: InternalDeletionOps> DeletionHistory<T> {
 
 // this way, we can use all the History object functionality (converting to timestamps, dt, intervals)
 impl<T: InternalDeletionOps> InternalHistoryOps for DeletionHistory<T> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.0.iter()
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         self.0.iter_rev()
     }
 
@@ -1127,7 +1127,7 @@ impl<T: InternalDeletionOps> InternalHistoryOps for DeletionHistory<T> {
 impl<T: InternalDeletionOps + 'static> IntoArcDynHistoryOps for DeletionHistory<T> {}
 
 impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
-    fn iter(&self) -> BoxedLIter<EventTime> {
+    fn iter(&self) -> BoxedLIter<'_, EventTime> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -1170,7 +1170,7 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         }
     }
 
-    fn iter_rev(&self) -> BoxedLIter<EventTime> {
+    fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
