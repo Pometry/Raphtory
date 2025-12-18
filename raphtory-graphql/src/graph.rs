@@ -80,7 +80,7 @@ impl GraphWithVectors {
 
     pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
-        cache: &VectorCache, // TODO: make this mandatory!!
+        cache: &VectorCache,
         create_index: bool,
     ) -> Result<Self, GraphError> {
         let graph_path = &folder.get_graph_path();

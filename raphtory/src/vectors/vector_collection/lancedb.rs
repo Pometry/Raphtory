@@ -38,10 +38,14 @@ impl VectorCollectionFactory for LanceDb {
         name: &str,
         dim: usize,
     ) -> GraphResult<Self::DbType> {
-        let db = connect(path.deref().as_ref()).await;
+        let db = connect(path.deref().as_ref()).await?;
         let schema = get_schema(dim);
-        let table = db.create_empty_table(name, schema).execute().await.unwrap(); // TODO: remove unwrap
-        Ok(Self::DbType { table, dim, path })
+        let table = db.create_empty_table(name, schema).execute().await?;
+        Ok(Self::DbType {
+            table,
+            dim,
+            _path: path,
+        })
     }
 
     async fn from_path(
@@ -50,8 +54,8 @@ impl VectorCollectionFactory for LanceDb {
         name: &str,
         dim: usize,
     ) -> GraphResult<Self::DbType> {
-        let db = connect(path.deref().as_ref()).await;
-        let table = db.open_table(name).execute().await.unwrap(); // TODO: remove unwrap
+        let db = connect(path.deref().as_ref()).await?;
+        let table = db.open_table(name).execute().await?;
 
         // FIXME: if dim is wrong, bail from here with something like the following!!!
         // let vector_field = table
@@ -60,7 +64,11 @@ impl VectorCollectionFactory for LanceDb {
         //     .unwrap()
         //     .field_with_name("vectors")
         //     .unwrap(); // and get the array size
-        Ok(Self::DbType { table, dim, path })
+        Ok(Self::DbType {
+            table,
+            dim,
+            _path: path,
+        })
     }
 }
 
@@ -68,7 +76,7 @@ impl VectorCollectionFactory for LanceDb {
 pub(crate) struct LanceDbCollection {
     table: Table, // maybe this should be built in every call to the collection from path?
     dim: usize,
-    path: CollectionPath, // this is only necessary to avoid dropping temp dirs
+    _path: CollectionPath, // this is only necessary to avoid dropping temp dirs
 }
 
 impl LanceDbCollection {
@@ -106,13 +114,13 @@ impl VectorCollection for LanceDbCollection {
             )],
             self.schema(),
         );
-        self.table.add(batches).execute().await.unwrap(); // TODO: remove unwrap
+        self.table.add(batches).execute().await?;
         Ok(())
     }
 
     async fn get_id(&self, id: u64) -> GraphResult<Option<crate::vectors::Embedding>> {
         let query = self.table.query().only_if(format!("id = {id}"));
-        let result = query.execute().await.unwrap();
+        let result = query.execute().await?;
         let batches: Vec<_> = result.try_collect().await.unwrap();
         if let Some(batch) = batches.get(0) {
             let col: &ArrayRef = batch.column_by_name("vector").unwrap();
@@ -150,7 +158,7 @@ impl VectorCollection for LanceDbCollection {
         } else {
             limited
         };
-        let stream = filtered.execute().await.unwrap();
+        let stream = filtered.execute().await?;
         let result = stream.try_collect::<Vec<_>>().await.unwrap();
 
         let downcasted = result.into_iter().flat_map(|record| {
@@ -180,10 +188,10 @@ impl VectorCollection for LanceDbCollection {
     }
 
     async fn create_or_update_index(&self) -> GraphResult<()> {
-        let count = self.table.count_rows(None).await.unwrap();
+        let count = self.table.count_rows(None).await?;
         if count > 0 {
             // TODO: save the index name when creating it instead of doing this
-            let indices = self.table.list_indices().await.unwrap();
+            let indices = self.table.list_indices().await?;
             let vector_index = indices
                 .iter()
                 .find(|index| index.columns == vec![VECTOR_COL_NAME]);
@@ -201,11 +209,10 @@ impl VectorCollection for LanceDbCollection {
             if ideal_type_already_exists {
                 self.table
                     .optimize(OptimizeAction::Index(OptimizeOptions::default()))
-                    .await
-                    .unwrap();
+                    .await?;
             } else {
                 if let Some(vector_index) = vector_index {
-                    self.table.drop_index(&vector_index.name).await.unwrap();
+                    self.table.drop_index(&vector_index.name).await?;
                 }
                 let index_builder = if target_index_type == IndexType::IvfFlat {
                     Index::IvfFlat(
@@ -218,17 +225,16 @@ impl VectorCollection for LanceDbCollection {
                 self.table
                     .create_index(&[VECTOR_COL_NAME], index_builder)
                     .execute()
-                    .await
-                    .unwrap(); // FIXME: remove unwrap
+                    .await?;
             }
         }
         Ok(())
     }
 }
 
-async fn connect(path: &Path) -> Connection {
+async fn connect(path: &Path) -> lancedb::Result<Connection> {
     let url = path.display().to_string();
-    lancedb::connect(&url).execute().await.unwrap() // TODO: remove unwrap
+    lancedb::connect(&url).execute().await
 }
 
 fn get_schema(dim: usize) -> Arc<Schema> {

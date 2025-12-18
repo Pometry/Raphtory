@@ -47,8 +47,8 @@ pub(crate) mod sorting;
 
 // TODO: move somewhere else
 #[derive(InputObject, Debug, Clone, Default)]
-struct OpenAIConfig {
-    model: Option<String>,
+pub struct OpenAIConfig {
+    model: String,
     api_base: Option<String>,
     api_key_env: Option<String>,
     org_id: Option<String>,
@@ -73,7 +73,7 @@ impl EmbeddingModel {
                 project_id,
             }) => {
                 let embeddings = OpenAIEmbeddings {
-                    model: model.unwrap_or("text-embedding-3-small".to_owned()),
+                    model,
                     api_base,
                     api_key_env,
                     org_id,
@@ -184,7 +184,7 @@ impl QueryRoot {
     async fn vectorise_graph<'a>(
         ctx: &Context<'a>,
         path: String,
-        model: Option<EmbeddingModel>, // TODO: review if we really want to default to openai???
+        model: Option<EmbeddingModel>,
         nodes: Option<Template>,
         edges: Option<Template>,
     ) -> Result<bool> {

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::Deref, path::Path};
+use std::{collections::HashSet, ops::Deref};
 
 use futures_util::StreamExt;
 
@@ -10,8 +10,6 @@ use crate::{
     db::api::view::StaticGraphViewOps, errors::GraphResult, prelude::GraphViewOps,
     vectors::vector_collection::VectorCollection,
 };
-
-const LMDB_MAX_SIZE: usize = 1024 * 1024 * 1024 * 1024; // 1TB
 
 #[derive(Clone)]
 pub(super) struct NodeDb<D: VectorCollection>(pub(super) D);
@@ -83,23 +81,6 @@ pub(super) trait EntityDb: Sized {
         view: G,
     ) -> impl Iterator<Item = u64> + Send + 'static;
 
-    // async fn from_vectors(
-    //     vectors: impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send,
-    //     path: Option<PathBuf>,
-    // ) -> GraphResult<Self> {
-    //     let db = VectorDb::from_vectors(vectors, path).await?;
-    //     Ok(Self::from_vector_db(db))
-    // }
-
-    // fn from_path(path: &Path) -> GraphResult<Self> {
-    //     VectorDb::from_path(path).map(Self::from_vector_db)
-    // }
-
-    // fn from_path(path: &Path) -> GraphResult<Self> {
-    //     todo!() // TODO: remove this function, only here for compilation
-    // }
-
-    // maybe use this if the parallel version doesn't really improve things
     async fn insert_vector_stream(
         &self,
         vectors: impl futures_util::Stream<Item = GraphResult<(u64, Embedding)>> + Send,
@@ -119,7 +100,6 @@ pub(super) trait EntityDb: Sized {
         Ok(())
     }
 
-    // TODO: return here the cosine instead of the distance?
     async fn top_k<G: StaticGraphViewOps>(
         &self,
         query: &Embedding,

@@ -39,8 +39,6 @@ pub struct PyOpenAIEmbeddings {
     project_id: Option<String>,
 }
 
-// TODO text-embedding-3-small as default is duplicated, try to make it only in one place
-
 #[pymethods]
 impl PyOpenAIEmbeddings {
     #[new]
@@ -77,10 +75,7 @@ impl EmbeddingFunction for Arc<Py<PyFunction>> {
     fn call(&self, text: &str) -> Vec<f32> {
         Python::with_gil(|py| {
             // TODO: remove unwraps?
-            let any = self
-                .call1(py, (text,))
-                .inspect_err(|e| println!("{e:?}")) // TODO: remove
-                .unwrap();
+            let any = self.call1(py, (text,)).unwrap();
             let list = any.downcast_bound::<PyList>(py).unwrap();
             list.iter().map(|value| value.extract().unwrap()).collect()
         })

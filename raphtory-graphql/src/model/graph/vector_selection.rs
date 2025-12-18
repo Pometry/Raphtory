@@ -9,7 +9,7 @@ use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::api::view::MaterializedGraph,
     errors::GraphResult,
-    vectors::{vector_selection::VectorSelection, vectorised_graph::VectorisedGraph, Embedding},
+    vectors::{vector_selection::VectorSelection, Embedding},
 };
 
 #[derive(InputObject)]
@@ -54,7 +54,6 @@ impl GqlVectorSelection {
                 score,
             })
             .collect())
-        // TODO: there was a blocking_compute here before...?
     }
 
     /// Adds all the documents associated with the specified nodes to the current selection.

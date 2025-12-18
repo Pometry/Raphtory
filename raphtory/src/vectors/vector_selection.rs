@@ -38,7 +38,7 @@ impl ExpansionPath {
 }
 
 #[derive(Debug, Clone)]
-struct Selected(Vec<(EntityRef, f32)>); // TODO: add here the text/embedding use to calculate the distance
+struct Selected(Vec<(EntityRef, f32)>);
 
 impl From<Vec<(EntityRef, f32)>> for Selected {
     fn from(value: Vec<(EntityRef, f32)>) -> Self {

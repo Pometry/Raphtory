@@ -25,13 +25,6 @@ use tokio::fs;
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
-// #[derive(Clone)]
-// pub struct EmbeddingConf {
-//     pub(crate) cache: VectorCache,
-//     // pub(crate) global_template: Option<DocumentTemplate>,
-//     // pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
-// }
-
 pub(crate) fn get_relative_path(
     work_dir: PathBuf,
     path: &Path,
@@ -47,7 +40,6 @@ pub(crate) fn get_relative_path(
                 .ok_or(InvalidPathReason::NonUTFCharacters)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    //a safe unwrap as checking above
     let path_str = components.into_iter().join("/");
     valid_path(work_dir, &path_str, namespace)?;
     Ok(path_str)
@@ -119,7 +111,6 @@ impl Data {
                 let folder_clone = folder.clone();
                 let graph_clone = graph.clone();
                 blocking_io(move || graph_clone.cache(folder_clone)).await?;
-                // let vectors = self.vectorise(graph.clone(), &folder).await;
                 let graph = GraphWithVectors::new(graph, None);
                 graph
                     .folder

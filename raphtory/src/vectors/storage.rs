@@ -29,18 +29,6 @@ pub struct OpenAIEmbeddings {
     pub project_id: Option<String>,
 }
 
-impl Default for OpenAIEmbeddings {
-    fn default() -> Self {
-        Self {
-            model: "text-embedding-3-small".to_owned(), // TODO: double-check where am I really using this
-            api_base: Default::default(),
-            api_key_env: Default::default(),
-            org_id: Default::default(),
-            project_id: Default::default(),
-        }
-    }
-}
-
 impl OpenAIEmbeddings {
     pub(super) fn resolve_config(&self) -> OpenAIConfig {
         let api_key_env = self

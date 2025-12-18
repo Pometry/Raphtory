@@ -199,11 +199,7 @@ impl PyGraphServer {
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
         if let Some(_server_handler) = &server.server_handler {
             let url = format!("http://localhost:{port}");
-            // we need to release the GIL, otherwise the server will deadlock when trying to use python function as the embedding function
-            // and wait_for_server_online will never return
-            // FIXME: this does not apply anymore, can remove?
-            let result =
-                py.allow_threads(|| PyRunningGraphServer::wait_for_server_online(&url, timeout_ms));
+            let result = PyRunningGraphServer::wait_for_server_online(&url, timeout_ms);
             match result {
                 Ok(_) => return Ok(server),
                 Err(e) => {
@@ -229,6 +225,6 @@ impl PyGraphServer {
     )]
     pub fn run(&self, py: Python, port: u16, timeout_ms: u64) -> PyResult<()> {
         let mut server = self.start(py, port, timeout_ms)?.server_handler;
-        py.allow_threads(|| wait_server(&mut server)) // TODO: remove allow_threads, should not be necessary anymore
+        py.allow_threads(|| wait_server(&mut server))
     }
 }

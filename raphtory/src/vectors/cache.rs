@@ -174,7 +174,10 @@ impl VectorCache {
                 cache: self.clone(),
             })
         } else {
-            panic!("") // TODO: turn this into an error
+            Err(crate::errors::GraphError::InvalidModelSample(
+                expected_model.sample,
+                model.sample,
+            ))
         }
     }
 

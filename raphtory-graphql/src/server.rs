@@ -132,20 +132,6 @@ impl GraphServer {
         self.data.create_index = false; // FIXME: why does this exist yet?
     }
 
-    // FIXME: this should be config!!!!!!!!!!!!!!!! or nothing at all since its per graph
-    // pub async fn enable_embeddings<F: EmbeddingFunction + Clone + 'static>(
-    //     &mut self,
-    //     embedding: F,
-    //     cache: &Path,
-    //     // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
-    //     // global_template: Option<DocumentTemplate>,
-    // ) -> GraphResult<()> {
-    //     self.data.vector_cache = Some(VectorCache::on_disk(cache, embedding).await?);
-    //     Ok(())
-    // }
-
-    // FIXME: this function should fails if embeddings were not enabled,
-    // and if they were it should grab the vector cache and pass it down
     /// Vectorise all the graphs in the server working directory.
     ///
     /// Arguments:
@@ -168,8 +154,6 @@ impl GraphServer {
         Ok(())
     }
 
-    // FIXME: this function should fails if embeddings were not enabled,
-    // and if they were it should grab the vector cache and pass it down
     /// Vectorise the graph 'name'in the server working directory.
     ///
     /// Arguments:
@@ -216,7 +200,6 @@ impl GraphServer {
             }
         };
 
-        // self.data.vectorise_all_graphs_that_are_not().await?;
         let work_dir = self.data.work_dir.clone();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable

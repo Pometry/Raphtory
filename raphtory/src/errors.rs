@@ -1,5 +1,5 @@
 #[cfg(feature = "vectors")]
-use crate::vectors::embeddings::EmbeddingError;
+use crate::vectors::{embeddings::EmbeddingError, Embedding};
 use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
@@ -244,6 +244,10 @@ pub enum GraphError {
     HeedError(#[from] heed::Error),
 
     #[cfg(feature = "vectors")]
+    #[error("Heed error: {0}")]
+    LanceDbError(#[from] lancedb::Error),
+
+    #[cfg(feature = "vectors")]
     #[error("The path {0} does not contain a vector DB")]
     VectorDbDoesntExist(String),
 
@@ -285,6 +289,10 @@ pub enum GraphError {
         #[from]
         source: EmbeddingError,
     },
+
+    #[cfg(feature = "vectors")]
+    #[error("Embedding model sample changed from {0:?} to {1:?}")]
+    InvalidModelSample(Embedding, Embedding),
 
     #[cfg(feature = "search")]
     #[error("Index operation failed")]

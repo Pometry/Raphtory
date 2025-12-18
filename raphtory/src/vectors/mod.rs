@@ -36,22 +36,18 @@ pub struct Document<G: StaticGraphViewOps> {
 
 #[cfg(test)]
 mod vector_tests {
-    use super::embeddings::EmbeddingResult;
     use crate::{
         prelude::*,
         vectors::{
             cache::{CachedEmbeddingModel, VectorCache},
             custom::serve_custom_embedding,
-            embeddings::EmbeddingModel,
             storage::OpenAIEmbeddings,
             template::DocumentTemplate,
             vectorisable::Vectorisable,
-            Embedding,
         },
     };
-    use itertools::Itertools;
     use raphtory_api::core::entities::properties::prop::Prop;
-    use std::{fs::remove_dir_all, path::PathBuf, sync::Arc, time::Duration};
+    use std::time::Duration;
     use tokio;
 
     const NO_PROPS: [(&str, Prop); 0] = [];
@@ -69,8 +65,11 @@ mod vector_tests {
         tokio::time::sleep(Duration::from_secs(1)).await;
         VectorCache::in_memory()
             .openai(OpenAIEmbeddings {
-                api_base: Some("http://localhost:3070".to_owned()), // FIXME: the fact that I need to write /v1 is not ideal?
-                ..Default::default()
+                api_base: Some("http://localhost:3070".to_owned()),
+                model: "whatever".to_owned(),
+                api_key_env: None,
+                project_id: None,
+                org_id: None,
             })
             .await
             .unwrap()
@@ -85,8 +84,11 @@ mod vector_tests {
             serve_custom_embedding("0.0.0.0:3071", panicking_embedding).await;
         });
         OpenAIEmbeddings {
-            api_base: Some("http://localhost:3071/v1".to_owned()), // FIXME: the fact that I need to write /v1 is not ideal?
-            ..Default::default()
+            api_base: Some("http://localhost:3071".to_owned()),
+            model: "whatever".to_owned(),
+            api_key_env: None,
+            project_id: None,
+            org_id: None,
         }
     }
 
@@ -236,7 +238,10 @@ mod vector_tests {
         let model = VectorCache::in_memory()
             .openai(OpenAIEmbeddings {
                 model: "text-embedding-3-small".to_owned(),
-                ..Default::default()
+                api_base: None,
+                api_key_env: None,
+                org_id: None,
+                project_id: None,
             })
             .await
             .unwrap();

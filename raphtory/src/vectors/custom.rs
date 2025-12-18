@@ -70,7 +70,6 @@ pub async fn serve_custom_embedding(
     let execution = tokio::spawn(async {
         axum::serve(listener, app)
             .with_graceful_shutdown(async move {
-                dbg!();
                 #[cfg(unix)]
                 let terminate = async {
                     signal::unix::signal(signal::unix::SignalKind::terminate())
@@ -89,7 +88,6 @@ pub async fn serve_custom_embedding(
             })
             .await
             .unwrap();
-        dbg!();
     });
     EmbeddingServer {
         execution,

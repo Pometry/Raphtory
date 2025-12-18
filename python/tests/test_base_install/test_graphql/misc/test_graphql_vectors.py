@@ -3,18 +3,10 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory import Graph
 from raphtory.vectors import OpenAIEmbeddings, embedding_server
 
-print(">>>>>>>>>>>>>")
-
 
 @embedding_server(address="0.0.0.0:7340")
 def embeddings(text: str):
     return [text.count("a"), text.count("b")]
-
-
-# def test_embedding():
-#     result = embedding(texts=["aaa", "b", "ab", "ba"])
-#     assert result == [[3, 0], [0, 1], [1, 1], [1, 1]]
-
 
 def setup_graph(g):
     g.add_node(1, "aab")
@@ -62,21 +54,10 @@ def assert_correct_documents(client):
     }
 
 
-def setup_server(work_dir):
-    server = GraphServer(work_dir)
-    # server = server.set_embeddings(
-    #     cache="/tmp/graph-cache",
-    #     embedding=embedding,
-    #     nodes="{{ name }}",
-    #     edges=False,
-    # )
-    return server
-
-
 def test_new_graph():
     print("test_new_graph")
     work_dir = tempfile.TemporaryDirectory()
-    server = setup_server(work_dir.name)
+    server = GraphServer(work_dir.name)
     with embeddings.start():
         with server.start():
             client = RaphtoryClient("http://localhost:1736")
@@ -93,15 +74,15 @@ def test_new_graph():
 
 def test_upload_graph():
     print("test_upload_graph")
-    work_dir = tempfile.mkdtemp()
-    temp_dir = tempfile.mkdtemp()
-    server = setup_server(work_dir)
+    work_dir = tempfile.TemporaryDirectory()
+    temp_dir = tempfile.TemporaryDirectory()
+    server = GraphServer(work_dir.name)
     with embeddings.start():
         with server.start():
             client = RaphtoryClient("http://localhost:1736")
             g = Graph()
             setup_graph(g)
-            g_path = temp_dir + "/abb"
+            g_path = temp_dir.name + "/abb"
             g.save_to_zip(g_path)
             client.upload_graph(path="abb", file_path=g_path, overwrite=True)
             client.query("""
@@ -114,12 +95,12 @@ def test_upload_graph():
 GRAPH_NAME = "abb"
 
 def test_include_graph():
-    work_dir = tempfile.mkdtemp()
-    g_path = work_dir + "/" + GRAPH_NAME
+    work_dir = tempfile.TemporaryDirectory()
+    g_path = work_dir.name + "/" + GRAPH_NAME
     g = Graph()
     setup_graph(g)
     g.save_to_file(g_path)
-    server = setup_server(work_dir)
+    server = GraphServer(work_dir.name)
     with embeddings.start():
         embedding_client = OpenAIEmbeddings(api_base="http://localhost:7340")
         server.vectorise_graph(
