@@ -118,10 +118,12 @@ impl MemNodeSegment {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
             let meta = self.layers[0].meta().clone();
+
             self.layers.resize_with(layer_id + 1, || {
                 SegmentContainer::new(segment_id, max_page_len, meta.clone())
             });
         }
+
         &mut self.layers[layer_id]
     }
 

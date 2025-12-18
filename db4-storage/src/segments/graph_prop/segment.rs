@@ -1,5 +1,5 @@
 use crate::{
-    error::StorageError, segments::{HasRow, SegmentContainer}, wal::LSN, LocalPOS
+    error::StorageError, segments::{HasRow, SegmentContainer}, wal::LSN,
 };
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
 use raphtory_core::{
@@ -22,7 +22,7 @@ pub struct MemGraphPropSegment {
 #[derive(Debug, Default)]
 pub struct UnitEntry(usize);
 
-// `UnitEntry` does not store data, but `HasRow has to be implemented
+// UnitEntry does not store data, but HasRow has to be implemented
 // for SegmentContainer to work.
 impl HasRow for UnitEntry {
     fn row(&self) -> usize {
