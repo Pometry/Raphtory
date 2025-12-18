@@ -22,7 +22,7 @@ use rayon::prelude::*;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, atomic::AtomicU32},
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
@@ -251,20 +251,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
     fn reserve_segment_row(&self, segment: &Arc<NS>) -> Option<u32> {
         // TODO: if this becomes a hotspot, we can switch to a fetch_add followed by a fetch_min
         // this means when we read the counter we need to clamp it to max_page_len so the iterators don't break
-        segment
-            .nodes_counter()
-            .fetch_update(
-                std::sync::atomic::Ordering::Relaxed,
-                std::sync::atomic::Ordering::Relaxed,
-                |current| {
-                    if current < self.max_segment_len() {
-                        Some(current + 1)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .ok()
+        increment_and_clamp(segment.nodes_counter(), self.max_segment_len())
     }
 
     fn push_new_segment(&self) -> usize {
@@ -519,4 +506,20 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
             self.segments().iter().map(|(_, seg)| seg.num_nodes()),
         )
     }
+}
+
+pub fn increment_and_clamp(counter: &AtomicU32, max_segment_len: u32) -> Option<u32> {
+    counter
+        .fetch_update(
+            std::sync::atomic::Ordering::Relaxed,
+            std::sync::atomic::Ordering::Relaxed,
+            |current| {
+                if current < max_segment_len {
+                    Some(current + 1)
+                } else {
+                    None
+                }
+            },
+        )
+        .ok()
 }

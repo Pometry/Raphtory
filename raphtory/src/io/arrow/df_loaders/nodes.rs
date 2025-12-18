@@ -208,6 +208,8 @@ pub(crate) fn load_node_props_from_df<
             .map_err(into_graph_err)
     })?;
 
+    let resolve_nodes = node_type_ids_col.is_some() && node_id_index.is_some();
+
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
 
@@ -257,6 +259,11 @@ pub(crate) fn load_node_props_from_df<
                 if let Some(mut_node) = shard.resolve_pos(*vid) {
                     let mut writer = shard.writer();
                     writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type, 0);
+
+                    if resolve_nodes {
+                        // because we don't call resolve_node above
+                        writer.increment_seg_num_nodes()
+                    }
 
                     c_props.clear();
                     c_props.extend(metadata_cols.iter_row(idx));

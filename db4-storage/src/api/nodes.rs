@@ -30,6 +30,7 @@ use crate::{
     LocalPOS,
     error::StorageError,
     gen_ts::LayerIter,
+    pages::node_store::increment_and_clamp,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
 };
@@ -118,6 +119,10 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     ) -> Result<(), StorageError>;
 
     fn nodes_counter(&self) -> &AtomicU32;
+
+    fn increment_num_nodes(&self, max_page_len: u32) {
+        increment_and_clamp(self.nodes_counter(), max_page_len);
+    }
 
     fn num_nodes(&self) -> u32 {
         self.nodes_counter()

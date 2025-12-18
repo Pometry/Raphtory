@@ -88,11 +88,17 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
         src,
         dst,
         layer_col,
-        ..
+        layer_id_col,
+        edge_id,
     } = column_names;
 
     let parquet_path = parquet_path.as_ref();
-    let mut cols_to_check = vec![src, dst, time];
+    let mut cols_to_check = [src, dst, time]
+        .into_iter()
+        .chain(layer_id_col)
+        .chain(edge_id)
+        .collect::<Vec<_>>();
+
     cols_to_check.extend_from_slice(properties);
     cols_to_check.extend_from_slice(metadata);
 

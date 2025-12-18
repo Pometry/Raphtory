@@ -208,6 +208,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn update_deletion_time<T: AsTime>(&mut self, t: T, node: LocalPOS, e_id: ELID, lsn: u64) {
         self.update_timestamp(t, node, e_id, lsn);
     }
+
+    pub fn increment_seg_num_nodes(&mut self) {
+        self.page
+            .increment_num_nodes(self.mut_segment.max_page_len());
+    }
 }
 
 pub fn node_info_as_props(

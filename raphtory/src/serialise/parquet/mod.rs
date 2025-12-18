@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::{storage::storage::Storage, view::MaterializedGraph},
+        api::{
+            storage::storage::Storage,
+            view::{internal::InternalStorageOps, MaterializedGraph},
+        },
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
@@ -545,6 +548,8 @@ fn decode_graph_storage(
             SRC_COL_ID,
             DST_COL_ID,
             LAYER_COL,
+            LAYER_ID_COL,
+            EDGE_COL_ID,
         ];
         let (t_prop_columns, _) = collect_prop_columns(&t_edge_path, &exclude)?;
         let t_prop_columns = t_prop_columns

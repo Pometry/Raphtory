@@ -3,6 +3,7 @@ use crate::{
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
+    pages::node_store::increment_and_clamp,
     persist::strategy::PersistentStrategy,
     segments::{
         HasRow, SegmentContainer,
@@ -359,6 +360,10 @@ impl MemNodeSegment {
     pub fn node_ref(&self, pos: LocalPOS) -> MemNodeRef<'_> {
         MemNodeRef::new(pos, self)
     }
+
+    pub fn max_page_len(&self) -> u32 {
+        self.max_page_len
+    }
 }
 
 #[derive(Debug)]
@@ -545,6 +550,10 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
     fn nodes_counter(&self) -> &AtomicU32 {
         &self.max_num_node
+    }
+
+    fn increment_num_nodes(&self, max_page_len: u32) {
+        increment_and_clamp(self.nodes_counter(), max_page_len);
     }
 }
 
