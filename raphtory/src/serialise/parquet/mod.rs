@@ -576,7 +576,7 @@ fn decode_graph_storage(
     let c_edge_path = path.as_ref().join(EDGES_C_PATH);
 
     if std::fs::exists(&c_edge_path)? {
-        let exclude = vec![SRC_COL_ID, DST_COL_ID, LAYER_COL];
+        let exclude = vec![SRC_COL_ID, DST_COL_ID, LAYER_COL, EDGE_COL_ID];
         let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
         let metadata = c_prop_columns
             .iter()

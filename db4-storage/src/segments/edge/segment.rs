@@ -374,6 +374,7 @@ impl LockedESegment for ArcLockedSegmentView {
         &'a self,
         layer_ids: &'b LayerIds,
     ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + 'a {
+        dbg!(layer_ids);
         match layer_ids {
             LayerIds::None => Iter4::I(rayon::iter::empty()),
             LayerIds::All => Iter4::J(self.edge_par_iter_layer(0)),

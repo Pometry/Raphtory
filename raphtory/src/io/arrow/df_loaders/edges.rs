@@ -408,7 +408,7 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     let mut t_props: Vec<(usize, Prop)> = vec![];
     let mut c_props: Vec<(usize, Prop)> = vec![];
 
-    for item @ (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
+    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
         if let Some(eid_pos) = shard.resolve_pos(*eid) {
             let t = TimeIndexEntry(time, secondary_index);
             let mut writer = shard.writer();

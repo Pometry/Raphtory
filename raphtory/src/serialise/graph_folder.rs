@@ -317,6 +317,7 @@ mod tests {
         prelude::{AdditionOps, Graph, Prop, StableEncode, NO_PROPS},
     };
     use raphtory_api::{core::utils::logging::global_info_logger, GraphType};
+    use raphtory_storage::core_ops::CoreGraphOps;
 
     /// Verify that the metadata is re-created if it does not exist.
     #[test]

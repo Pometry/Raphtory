@@ -111,6 +111,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         if !exists {
             self.increment_layer_num_edges(0);
             self.increment_layer_num_edges(layer_id);
+            self.page.increment_num_edges();
         }
 
         self.writer
