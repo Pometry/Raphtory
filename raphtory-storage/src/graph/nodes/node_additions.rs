@@ -1,7 +1,7 @@
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_api::core::{
     entities::ELID,
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_core::{
     entities::nodes::node_store::NodeTimestamps,
@@ -15,7 +15,7 @@ use {itertools::Itertools, pometry_storage::timestamps::LayerAdditions};
 #[derive(Clone, Debug)]
 pub enum NodeAdditions<'a> {
     Mem(&'a NodeTimestamps),
-    Range(TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>),
+    Range(TimeIndexWindow<'a, EventTime, NodeTimestamps>),
     #[cfg(feature = "storage")]
     Col(LayerAdditions<'a>),
 }
@@ -30,7 +30,7 @@ pub enum AdditionVariants<Mem, Range, #[cfg(feature = "storage")] Col> {
 
 impl<'a> NodeAdditions<'a> {
     #[inline]
-    pub fn prop_events(&self) -> impl Iterator<Item = TimeIndexEntry> + use<'a> {
+    pub fn prop_events(&self) -> impl Iterator<Item = EventTime> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => {
                 AdditionVariants::Mem(index.props_ts.iter().map(|(t, _)| *t))
@@ -55,7 +55,7 @@ impl<'a> NodeAdditions<'a> {
     }
 
     #[inline]
-    pub fn prop_events_rev(&self) -> impl Iterator<Item = TimeIndexEntry> + use<'a> {
+    pub fn prop_events_rev(&self) -> impl Iterator<Item = EventTime> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => {
                 AdditionVariants::Mem(index.props_ts.iter().map(|(t, _)| *t).rev())
@@ -85,7 +85,7 @@ impl<'a> NodeAdditions<'a> {
     }
 
     #[inline]
-    pub fn edge_events(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a> {
+    pub fn edge_events(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => {
                 AdditionVariants::Mem(index.edge_ts.iter().map(|(t, e)| (*t, *e)))
@@ -108,7 +108,7 @@ impl<'a> NodeAdditions<'a> {
     }
 
     #[inline]
-    pub fn edge_events_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a> {
+    pub fn edge_events_rev(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a> {
         match self {
             NodeAdditions::Mem(index) => {
                 AdditionVariants::Mem(index.edge_ts.iter().map(|(t, e)| (*t, *e)).rev())
@@ -133,11 +133,11 @@ impl<'a> NodeAdditions<'a> {
 }
 
 impl<'b> TimeIndexOps<'b> for NodeAdditions<'b> {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     #[inline]
-    fn active(&self, w: Range<TimeIndexEntry>) -> bool {
+    fn active(&self, w: Range<EventTime>) -> bool {
         match self {
             NodeAdditions::Mem(index) => index.active(w),
             NodeAdditions::Range(index) => index.active(w),
@@ -146,7 +146,7 @@ impl<'b> TimeIndexOps<'b> for NodeAdditions<'b> {
         }
     }
 
-    fn range(&self, w: Range<TimeIndexEntry>) -> Self {
+    fn range(&self, w: Range<EventTime>) -> Self {
         match self {
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
             NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),

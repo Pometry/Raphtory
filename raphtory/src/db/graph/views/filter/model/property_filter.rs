@@ -20,7 +20,7 @@ use raphtory_api::core::{
         },
         EID,
     },
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
@@ -465,7 +465,7 @@ impl PropertyFilter {
         graph: &G,
         prop_id: Option<usize>,
         e: EID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
     ) -> bool {
         let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t).at_layer(layer));

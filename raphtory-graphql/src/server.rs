@@ -235,8 +235,11 @@ impl GraphServer {
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data.clone());
         let schema_builder = schema_builder.extension(MutationAuth);
+        let trace_level = self.config.tracing.tracing_level.clone();
         let schema = if let Some(t) = tracer {
-            schema_builder.extension(OpenTelemetry::new(t)).finish()
+            schema_builder
+                .extension(OpenTelemetry::new(t, trace_level))
+                .finish()
         } else {
             schema_builder.finish()
         }

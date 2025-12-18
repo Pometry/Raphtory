@@ -1,17 +1,20 @@
+use futures_util::future::join;
 use poem::{
     endpoint::{EmbeddedFileEndpoint, EmbeddedFilesEndpoint, StaticFilesEndpoint},
     handler,
     http::{Method, StatusCode},
-    web::Json,
+    web::{Json, Query},
     Endpoint, IntoResponse, Request, Response,
 };
 use rust_embed::Embed;
-use serde::Serialize;
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
+use std::{path::PathBuf, time::Duration};
 
-#[derive(Serialize)]
-struct Health {
-    healthy: bool,
+use crate::rayon::{blocking_compute, blocking_write};
+
+#[derive(Serialize, Deserialize)]
+pub(super) struct Health {
+    pub(super) healthy: bool,
 }
 
 #[derive(Serialize)]
@@ -19,10 +22,26 @@ struct Version {
     version: String,
 }
 
+#[derive(Deserialize)]
+struct HealthQuery {
+    timeout: Option<u64>, // seconds
+}
+
 #[handler]
-pub(crate) async fn health() -> impl IntoResponse {
-    let health = Health { healthy: true };
-    (StatusCode::OK, Json(health))
+pub(crate) async fn health(Query(params): Query<HealthQuery>) -> impl IntoResponse {
+    // using blocking_compute and blocking_write to identify deadlocks on any of the two rayon pools
+    let result = tokio::time::timeout(
+        Duration::from_secs(params.timeout.unwrap_or(10)),
+        join(blocking_compute(|| {}), blocking_write(|| {})),
+    )
+    .await;
+    match result {
+        Ok(_) => (StatusCode::OK, Json(Health { healthy: true })),
+        Err(_) => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(Health { healthy: false }),
+        ),
+    }
 }
 
 #[handler]
@@ -64,8 +83,14 @@ where
                 .await
         } else {
             let path = req.uri().path().trim_start_matches('/');
+            let file_name = req.uri().path().split('/').last().unwrap_or("");
 
-            if !path.is_empty()
+            if file_name.contains("worker") && file_name.ends_with("js") {
+                // Always return the worker from root
+                EmbeddedFileEndpoint::<PublicFolder>::new(file_name)
+                    .call(req)
+                    .await
+            } else if !path.is_empty()
                 && PublicFolder::get(path).is_none()
                 && PublicFolder::get(&format!("{path}/index.html")).is_none()
             {

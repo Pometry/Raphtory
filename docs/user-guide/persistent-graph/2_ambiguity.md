@@ -1,6 +1,6 @@
 # Handling of ambiguous updates
 
-For a *link-stream* graph there is a natural way to construct the graph regardless of the order the updates come in. However, for a *PersistentGraph* where deletions are possible this becomes more difficult. The following examples illustrate this.
+For a link-stream graph there is a natural way to construct the graph regardless of the order the updates come in. However, for a `PersistentGraph `where deletions are possible this becomes more difficult. The following examples illustrate this.
 
 ## Order of resolving additions and deletions
 
@@ -20,22 +20,22 @@ print(G.edges.explode())
 
 
 ```{.python continuation hide}
-assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=3, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=5, layer(s)=[_default]))"
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=1, event_id=0), latest_time=EventTime(timestamp=3, event_id=2), layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=2), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))"
 ```
 
-Here two edges between Alice and Bob overlap in time: one starting at time 1 and ending at time 5, another starting at time 3 and ending at time 7. 
+Here two edges between Alice and Bob overlap in time: one starting at time 1 and ending at time 5, another starting at time 3 and ending at time 7.
 
-For *link-stream* graphs in Raphtory are allowed to have edges between the same pair of nodes happening at the same instant. However, when we look at the exploded edges of this *PersistentGraph* graph, the following is returned:
+For link-stream graphs in Raphtory are allowed to have edges between the same pair of nodes happening at the same instant. However, when we look at the exploded edges of this `PersistentGraph` graph, the following is returned:
 
 !!! Output
 
     ```output
-    Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=3, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=5, layer(s)=[_default]))
+    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=1, event_id=0), latest_time=EventTime(timestamp=3, event_id=2), layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=2), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
     ```
 
-Two edges are created, one that exists from time 1 to time 3 and another that exists from time 3 to time 5. The second deletion at time 7 is ignored. 
+Two edges are created, one that exists from time 1 to time 3 and another that exists from time 3 to time 5. The second deletion at time 7 is ignored.
 
-The reason for this is that Raphtory's graph updates are inserted in chronological order, so that the same graph is constructed regardless of the order in which the updates are made. With an exception for events which have the same timestamp, which will be covered shortly. 
+The reason for this is that Raphtory's graph updates are inserted in chronological order, so that the same graph is constructed regardless of the order in which the updates are made. With an exception for events which have the same timestamp, which will be covered shortly.
 
 In this example, the order is: edge addition at time 1, edge addition at time 3, edge deletion at time 5 and edge deletion at time 7. This second edge deletion is now redundant.
 
@@ -56,7 +56,7 @@ print(f"G's edges are {G.edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"G's edges are {G.edges.explode()}") == "G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[_default]))"
+assert str(f"G's edges are {G.edges.explode()}") == "G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=1, event_id=1), latest_time=EventTime(timestamp=5, event_id=0), layer(s)=[_default]))"
 ```
 
 Which results in the following:
@@ -64,7 +64,7 @@ Which results in the following:
 
     ```output
     G's edges are Edges()
-    G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[_default]))
+    G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=1, event_id=1), latest_time=EventTime(timestamp=5, event_id=0), layer(s)=[_default]))
     ```
 
 ## Additions and deletions in the same instant
@@ -86,20 +86,20 @@ print(f"G1's edges are {G1.edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"G1's edges are {G1.edges.explode()}") == "G1's edges are Edges(Edge(source=1, target=2, earliest_time=1, latest_time=1, properties={message: hi}, layer(s)=[_default]))"
+assert str(f"G1's edges are {G1.edges.explode()}") == "G1's edges are Edges(Edge(source=1, target=2, earliest_time=EventTime(timestamp=1, event_id=0), latest_time=EventTime(timestamp=1, event_id=1), properties={message: hi}, layer(s)=[_default]))"
 ```
 
 !!! Output
 
     ```output
-    G1's edges are Edges(Edge(source=1, target=2, earliest_time=1, latest_time=1, properties={message: hi}, layer(s)=[_default]))
+    G1's edges are Edges(Edge(source=1, target=2, earliest_time=EventTime(timestamp=1, event_id=0), latest_time=EventTime(timestamp=1, event_id=1), properties={message: hi}, layer(s)=[_default]))
     ```
 
 This graph has an edge which instantaneously appears and disappears at time 1 and therefore the order of its history is determined by the execution order.
 
 ## Interaction with layers
 
-Layering allows different types of interaction to exist, and edges on different layers can have overlapping times in a way that doesn't make sense for edges in the same layer or for edges with no layer. 
+Layering allows different types of interaction to exist, and edges on different layers can have overlapping times in a way that doesn't make sense for edges in the same layer or for edges with no layer.
 
 Consider an example without layers:
 
@@ -118,13 +118,13 @@ print(G.edges.explode())
 ///
 
 ```{.python continuation hide}
-assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=3, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=5, layer(s)=[_default]))"
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=1, event_id=0), latest_time=EventTime(timestamp=3, event_id=2), layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=2), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))"
 ```
 
 !!! Output
 
     ```output
-    Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=3, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=5, layer(s)=[_default]))
+    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=1, event_id=0), latest_time=EventTime(timestamp=3, event_id=2), layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=2), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
     ```
 
 Now take a look at a  modified example with layers:
@@ -144,15 +144,15 @@ print(G.edges.explode())
 ///
 
 ```{.python continuation hide}
-assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=7, layer(s)=[friends]))"
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=1, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=2), latest_time=EventTime(timestamp=7, event_id=3), layer(s)=[friends]))"
 ```
 
 !!! Output
 
     ```output
-    Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=7, layer(s)=[friends]))
+    Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=1, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=2), latest_time=EventTime(timestamp=7, event_id=3), layer(s)=[friends]))
     ```
 
 By adding layer names to the different edge instances we produce a different result.
 
-Here we have two edges, one starting and ending at 1 and 5 respectively with the 'colleague' layer, the other starting and ending at 3 and 7 on the 'friends' layer. 
+Here we have two edges, one starting and ending at 1 and 5 respectively with the 'colleague' layer, the other starting and ending at 3 and 7 on the 'friends' layer.

@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::VID,
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::{AsTime, EventTime},
     },
     db::{api::view::IndexSpec, graph::node::NodeView},
     errors::GraphError,
@@ -254,7 +254,7 @@ impl NodeIndex {
     pub(crate) fn add_node_update(
         &self,
         graph: &GraphStorage,
-        t: TimeIndexEntry,
+        t: EventTime,
         node_id: MaybeNew<VID>,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {

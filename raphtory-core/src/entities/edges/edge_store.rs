@@ -5,7 +5,7 @@ use crate::{
     },
     storage::{
         raw_edges::EdgeShard,
-        timeindex::{TimeIndex, TimeIndexEntry},
+        timeindex::{EventTime, TimeIndex},
     },
     utils::iter::GenLockedIter,
 };
@@ -67,12 +67,7 @@ impl EdgeLayer {
         self.props
     }
 
-    pub fn add_prop(
-        &mut self,
-        t: TimeIndexEntry,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), TPropError> {
+    pub fn add_prop(&mut self, t: EventTime, prop_id: usize, prop: Prop) -> Result<(), TPropError> {
         let props = self.props.get_or_insert_with(Props::new);
         props.add_prop(t, prop_id, prop)
     }
@@ -163,11 +158,11 @@ impl<'a> MemEdge<'a> {
         self.edges.internal_num_layers()
     }
 
-    pub fn get_additions(self, layer_id: usize) -> Option<&'a TimeIndex<TimeIndexEntry>> {
+    pub fn get_additions(self, layer_id: usize) -> Option<&'a TimeIndex<EventTime>> {
         self.edges.additions(self.offset, layer_id)
     }
 
-    pub fn get_deletions(self, layer_id: usize) -> Option<&'a TimeIndex<TimeIndexEntry>> {
+    pub fn get_deletions(self, layer_id: usize) -> Option<&'a TimeIndex<EventTime>> {
         self.edges.deletions(self.offset, layer_id)
     }
 

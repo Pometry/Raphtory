@@ -1,5 +1,8 @@
 use crate::{
-    config::{app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG},
+    config::{
+        app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG,
+        otlp_config::TracingLevel,
+    },
     python::server::{running_server::PyRunningGraphServer, wait_server, BridgeCommand},
     GraphServer,
 };
@@ -59,7 +62,7 @@ fn template_from_python(nodes: TemplateConfig, edges: TemplateConfig) -> Option<
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, tracing_level=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None)
     )]
     fn py_new(
         work_dir: PathBuf,
@@ -67,6 +70,7 @@ impl PyGraphServer {
         cache_tti_seconds: Option<u64>,
         log_level: Option<String>,
         tracing: Option<bool>,
+        tracing_level: Option<String>,
         otlp_agent_host: Option<String>,
         otlp_agent_port: Option<String>,
         otlp_tracing_service_name: Option<String>,
@@ -81,6 +85,16 @@ impl PyGraphServer {
         }
         if let Some(tracing) = tracing {
             app_config_builder = app_config_builder.with_tracing(tracing);
+        }
+        if let Some(tracing_level) = tracing_level {
+            let json = format!("\"{}\"", tracing_level).to_uppercase();
+            let tl: TracingLevel = serde_json::from_str(json.as_str()).map_err(|_| {
+                PyValueError::new_err(format!(
+                    "Invalid tracing level. Allowed levels {} ",
+                    TracingLevel::all_levels_string()
+                ))
+            })?;
+            app_config_builder = app_config_builder.with_tracing_level(tl);
         }
         if let Some(otlp_agent_host) = otlp_agent_host {
             app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);
@@ -199,7 +213,7 @@ impl PyGraphServer {
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
         if let Some(_server_handler) = &server.server_handler {
             let url = format!("http://localhost:{port}");
-            let result = PyRunningGraphServer::wait_for_server_online(&url, timeout_ms);
+            let result = server.wait_for_server_online(&url, timeout_ms);
             match result {
                 Ok(_) => return Ok(server),
                 Err(e) => {

@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 import pyarrow as pa
@@ -867,3 +868,163 @@ def test_node_both_option_failures_parquet(parquet_files):
         nodes_parquet_file_path, "id", node_type_col="node_type"
     )
     assert g.nodes.node_type.sorted_by_id() == ["p1", "p2", "p3", "p4", "p5", "p6"]
+
+
+def _utc_midnight(dt: datetime.date) -> datetime.datetime:
+    return datetime.datetime(dt.year, dt.month, dt.day, tzinfo=datetime.timezone.utc)
+
+
+def _ms_from_date(d: datetime.date) -> int:
+    return int(
+        datetime.datetime(
+            d.year, d.month, d.day, tzinfo=datetime.timezone.utc
+        ).timestamp()
+        * 1000
+    )
+
+
+def test_load_nodes_from_parquet_date32(tmp_path):
+    dates = [
+        datetime.date(1970, 1, 1),
+        datetime.date(1970, 1, 2),
+        datetime.date(1970, 1, 3),
+    ]
+    table = pa.table(
+        {
+            "id": pa.array([1, 2, 3], type=pa.int64()),
+            "time": pa.array(dates, type=pa.date32()),
+        }
+    )
+    path = tmp_path / "nodes_date32.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_nodes_from_parquet(parquet_path=str(path), time="time", id="id")
+
+    expected = {
+        1: _utc_midnight(dates[0]),
+        2: _utc_midnight(dates[1]),
+        3: _utc_midnight(dates[2]),
+    }
+    actual = {v.id: v.history.dt[0] for v in g.nodes}
+    assert actual == expected
+
+
+def test_load_edges_from_parquet_date32(tmp_path):
+    dates = [
+        datetime.date(1970, 1, 1),
+        datetime.date(1970, 1, 2),
+        datetime.date(1970, 1, 3),
+    ]
+    table = pa.table(
+        {
+            "src": pa.array([1, 2, 3], type=pa.int64()),
+            "dst": pa.array([2, 3, 4], type=pa.int64()),
+            "time": pa.array(dates, type=pa.date32()),
+        }
+    )
+    path = tmp_path / "edges_date32.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_edges_from_parquet(parquet_path=str(path), time="time", src="src", dst="dst")
+
+    expected_times = sorted([_ms_from_date(d) for d in dates])
+    actual_times = sorted([e.time for e in g.edges.explode()])
+    assert actual_times == expected_times
+
+
+def test_load_edges_from_parquet_timestamp_ms_utc(tmp_path):
+    # Arrow Timestamp(ms, tz='UTC') should ingest as millisecond epoch UTC
+    times = [
+        datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 12, 0, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc),
+    ]
+    ts_arr = pa.array(
+        [int(t.timestamp() * 1000) for t in times], type=pa.timestamp("ms", tz="UTC")
+    )
+    table = pa.table(
+        {"src": pa.array([1, 2, 3]), "dst": pa.array([2, 3, 4]), "time": ts_arr}
+    )
+    path = tmp_path / "edges_ts_ms_tz.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_edges_from_parquet(parquet_path=str(path), time="time", src="src", dst="dst")
+
+    actual = sorted(e.history.dt[0] for e in g.edges)
+    assert actual == times
+
+
+def test_load_nodes_from_parquet_timestamp_ms_utc(tmp_path):
+    times = [
+        datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 12, 0, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc),
+    ]
+    ts_arr = pa.array(
+        [int(t.timestamp() * 1000) for t in times], type=pa.timestamp("ms", tz="UTC")
+    )
+    table = pa.table({"id": pa.array([1, 2, 3], type=pa.int64()), "time": ts_arr})
+    path = tmp_path / "nodes_ts_ms_tz.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_nodes_from_parquet(parquet_path=str(path), time="time", id="id")
+
+    actual = sorted(v.history.dt[0] for v in g.nodes)
+    assert actual == times
+
+
+# needed to avoid floating point errors
+def to_ns(dt: datetime.datetime) -> int:
+    delta = dt - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    return (
+        delta.days * 86_400 + delta.seconds
+    ) * 1_000_000_000 + delta.microseconds * 1000
+
+
+def test_load_edges_from_parquet_timestamp_ns_no_tz(tmp_path):
+    # Arrow Timestamp(ns, tz=None) casts to milliseconds (UTC)
+    base = [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
+    ]
+    # convert to ns, then to Timestamp(ns)
+    ts_arr = pa.array([to_ns(t) for t in base], type=pa.timestamp("ns"))
+    table = pa.table({"src": pa.array([1, 2]), "dst": pa.array([2, 3]), "time": ts_arr})
+    path = tmp_path / "edges_ts_ns_no_tz.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_edges_from_parquet(parquet_path=str(path), time="time", src="src", dst="dst")
+
+    # Expect millisecond precision, rest is truncated
+    expected = [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
+    ]
+    actual = sorted(e.history.dt[0] for e in g.edges)
+    assert actual == expected
+
+
+def test_load_nodes_from_parquet_timestamp_ns_no_tz(tmp_path):
+    base = [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
+    ]
+    ts_arr = pa.array([to_ns(t) for t in base], type=pa.timestamp("ns"))
+    table = pa.table({"id": pa.array([1, 2], type=pa.int64()), "time": ts_arr})
+    path = tmp_path / "nodes_ts_ns_no_tz.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_nodes_from_parquet(parquet_path=str(path), time="time", id="id")
+
+    expected = [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
+    ]
+    actual = sorted(v.history.dt[0] for v in g.nodes)
+    assert actual == expected

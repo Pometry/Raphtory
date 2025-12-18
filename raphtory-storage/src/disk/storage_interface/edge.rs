@@ -5,7 +5,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds, LayerVariants, EID, VID,
     },
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_core::storage::timeindex::TimeIndex;
 use rayon::prelude::*;
@@ -95,7 +95,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     }
 
     fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {
-        TimeIndexRef::External(self.get_additions::<TimeIndexEntry>(layer_id))
+        TimeIndexRef::External(self.get_additions::<EventTime>(layer_id))
     }
 
     fn deletions(self, _layer_id: usize) -> TimeIndexRef<'a> {

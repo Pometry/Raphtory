@@ -2,7 +2,10 @@ use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
 use chrono::{DateTime, Utc};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::GID,
+    storage::{arc_str::ArcStr, timeindex::EventTime},
+};
 use std::iter::Sum;
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
@@ -91,6 +94,36 @@ py_iterable_comp!(
     NestedOptionI64IterableCmp
 );
 
+py_ordered_iterable!(EventTimeIterable, EventTime);
+py_iterable_comp!(EventTimeIterable, EventTime, EventTimeIterableCmp);
+py_nested_ordered_iterable!(NestedEventTimeIterable, EventTime, OptionEventTimeIterable);
+py_iterable_comp!(
+    NestedEventTimeIterable,
+    EventTimeIterableCmp,
+    NestedEventTimeIterableCmp
+);
+py_ordered_iterable!(OptionEventTimeIterable, Option<EventTime>);
+py_iterable_comp!(
+    OptionEventTimeIterable,
+    Option<EventTime>,
+    OptionEventTimeIterableCmp
+);
+py_ordered_iterable!(OptionOptionEventTimeIterable, Option<Option<EventTime>>);
+py_iterable_comp!(
+    OptionOptionEventTimeIterable,
+    Option<Option<EventTime>>,
+    OptionOptionEventTimeIterableCmp
+);
+py_nested_ordered_iterable!(
+    NestedOptionEventTimeIterable,
+    Option<EventTime>,
+    OptionOptionEventTimeIterable
+);
+py_iterable_comp!(
+    NestedOptionEventTimeIterable,
+    OptionEventTimeIterableCmp,
+    NestedOptionEventTimeIterableCmp
+);
 py_numeric_iterable!(UsizeIterable, usize);
 py_iterable_comp!(UsizeIterable, usize, UsizeIterableCmp);
 
@@ -106,6 +139,23 @@ py_iterable_comp!(
     NestedUsizeIterable,
     UsizeIterableCmp,
     NestedUsizeIterableCmp
+);
+py_iterable!(OptionOptionUsizeIterable, Option<Option<usize>>);
+_py_ord_max_min_methods!(OptionOptionUsizeIterable, Option<Option<usize>>);
+py_iterable_comp!(
+    OptionOptionUsizeIterable,
+    Option<Option<usize>>,
+    OptionOptionUsizeIterableCmp
+);
+py_nested_ordered_iterable!(
+    NestedOptionUsizeIterable,
+    Option<usize>,
+    OptionOptionUsizeIterable
+);
+py_iterable_comp!(
+    NestedOptionUsizeIterable,
+    OptionUsizeIterableCmp,
+    NestedOptionUsizeIterableCmp
 );
 
 py_iterable!(BoolIterable, bool);

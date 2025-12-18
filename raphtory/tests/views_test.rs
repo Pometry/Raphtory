@@ -5,7 +5,9 @@ use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
     db::graph::graph::assert_graph_equal, prelude::*, test_storage, test_utils::test_graph,
 };
-use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+use raphtory_api::core::{
+    entities::GID, storage::timeindex::AsTime, utils::logging::global_info_logger,
+};
 use rayon::prelude::*;
 use std::ops::Range;
 #[cfg(feature = "storage")]
@@ -513,7 +515,7 @@ fn test_view_resetting() {
             .edges()
             .window(1, 9)
             .earliest_time()
-            .map(|it| it.collect_vec())
+            .map(|it| it.map(|t_opt| t_opt.map(|t| t.t())).collect_vec())
             .collect_vec();
         assert_eq!(
             res,

@@ -16,7 +16,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.16.3"
+version = "0.17.0"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -53,11 +53,11 @@ incremental = false
 pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 #[private-storage]
 # pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
-raphtory = { path = "raphtory", version = "0.16.3" }
-raphtory-api = { path = "raphtory-api", version = "0.16.3" }
-raphtory-core = { path = "raphtory-core", version = "0.16.3" }
-raphtory-storage = { path = "raphtory-storage", version = "0.16.3" }
-raphtory-graphql = { path = "raphtory-graphql", version = "0.16.3" }
+raphtory = { path = "raphtory", version = "0.17.0" }
+raphtory-api = { path = "raphtory-api", version = "0.17.0" }
+raphtory-core = { path = "raphtory-core", version = "0.17.0" }
+raphtory-storage = { path = "raphtory-storage", version = "0.17.0" }
+raphtory-graphql = { path = "raphtory-graphql", version = "0.17.0" }
 async-graphql = { version = "7.0.16", features = ["dynamic-schema"] }
 bincode = "1.3.3"
 async-graphql-poem = "7.0.16"
@@ -170,3 +170,5 @@ indexmap = { version = "2.7.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
+strum = "0.27.2"
+strum_macros = "0.27.2"

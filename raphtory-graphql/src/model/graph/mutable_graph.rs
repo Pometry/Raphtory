@@ -196,7 +196,7 @@ impl GqlMutableGraph {
         Ok(node.into())
     }
 
-    /// Add a batch of nodes
+    /// Add a batch of nodes.
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, BatchFailures> {
         let self_clone = self.clone();
 
@@ -265,7 +265,7 @@ impl GqlMutableGraph {
         Ok(edge.into())
     }
 
-    /// Add a batch of edges
+    /// Add a batch of edges.
     async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, BatchFailures> {
         let self_clone = self.clone();
 
