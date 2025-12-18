@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 pub mod props_meta_writer;
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default)]
 pub struct Properties {
     c_properties: Vec<PropColumn>,
 

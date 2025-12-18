@@ -295,8 +295,9 @@ mod state_test {
 
         let mut actual = part1_state
             .clone()
-            .finalize(&sum, 0, &g, |c| c)
+            .finalize_vec(&sum, 0, &g, |c| c)
             .into_iter()
+            .enumerate()
             .collect_vec();
 
         actual.sort();
@@ -305,8 +306,9 @@ mod state_test {
 
         let mut actual = part1_state
             .clone()
-            .finalize(&min, 0, &g, |c| c)
+            .finalize_vec(&min, 0, &g, |c| c)
             .into_iter()
+            .enumerate()
             .collect_vec();
 
         actual.sort();
@@ -318,8 +320,9 @@ mod state_test {
 
         let mut actual = part2_state
             .clone()
-            .finalize(&sum, 0, &g, |c| c)
+            .finalize_vec(&sum, 0, &g, |c| c)
             .into_iter()
+            .enumerate()
             .collect_vec();
 
         actual.sort();
@@ -328,8 +331,9 @@ mod state_test {
 
         let mut actual = part2_state
             .clone()
-            .finalize(&min, 0, &g, |c| c)
+            .finalize_vec(&min, 0, &g, |c| c)
             .into_iter()
+            .enumerate()
             .collect_vec();
 
         actual.sort();
@@ -342,8 +346,9 @@ mod state_test {
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, sum, 0);
         let mut actual = part1_state
             .clone()
-            .finalize(&sum, 0, &g, |c| c)
+            .finalize_vec(&sum, 0, &g, |c| c)
             .into_iter()
+            .enumerate()
             .collect_vec();
 
         actual.sort();
@@ -360,8 +365,9 @@ mod state_test {
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, min, 0);
         let mut actual = part1_state
             .clone()
-            .finalize(&min, 0, &g, |c| c)
+            .finalize_vec(&min, 0, &g, |c| c)
             .into_iter()
+            .enumerate()
             .collect_vec();
 
         actual.sort();

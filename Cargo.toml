@@ -57,7 +57,7 @@ raphtory-core = { version = "0.16.2", path = "raphtory-core", default-features =
 raphtory-graphql = { version = "0.16.2", path = "raphtory-graphql", default-features = false }
 raphtory-storage = { version = "0.16.2", path = "raphtory-storage", default-features = false }
 async-graphql = { version = "7.0.16", features = ["dynamic-schema"] }
-bincode = "1.3.3"
+bincode = {version = "2", features = ["serde"]}
 async-graphql-poem = "7.0.16"
 dynamic-graphql = "0.10.1"
 derive_more = "2.0.1"
@@ -100,6 +100,7 @@ num-integer = "0.1"
 rand_distr = "0.5.1"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
+tinyvec = { version = "1.10", features = ["serde", "alloc"] }
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
 dashmap = { version = "6.0.1", features = ["serde", "rayon"] }
 glam = "0.29.0"

@@ -317,6 +317,7 @@ mod tests {
         prelude::{AdditionOps, Graph, Prop, StableEncode, NO_PROPS},
     };
     use raphtory_api::{core::utils::logging::global_info_logger, GraphType};
+    use raphtory_storage::core_ops::CoreGraphOps;
 
     /// Verify that the metadata is re-created if it does not exist.
     #[test]
@@ -498,6 +499,12 @@ mod tests {
             .unwrap();
         graph
             .add_edge(4, 1, 3, [("test prop 4", true)], None)
+            .unwrap();
+
+        graph
+            .node(1)
+            .unwrap()
+            .add_updates(5, [("test node prop", 5i32)])
             .unwrap();
 
         let temp_folder = tempfile::TempDir::new().unwrap();

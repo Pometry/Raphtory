@@ -1,7 +1,10 @@
 use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::{
+            state::Index,
+            view::{NodeViewOps, StaticGraphViewOps},
+        },
         graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
@@ -78,10 +81,10 @@ where
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _, local| {
+        |_, _, _, local, index| {
             g.nodes()
                 .iter()
-                .filter(|node| local[node.node.0].alive)
+                .filter(|node| local[index.index(&node.node).unwrap()].alive)
                 .map(|node| node.node)
                 .collect()
         },

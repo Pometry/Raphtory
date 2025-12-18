@@ -1,4 +1,9 @@
-use crate::core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState};
+use raphtory_core::entities::VID;
+
+use crate::{
+    core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
+    db::api::state::Index,
+};
 use std::{borrow::Cow, sync::Arc};
 
 // this only contains the global state and it is synchronized after each task run

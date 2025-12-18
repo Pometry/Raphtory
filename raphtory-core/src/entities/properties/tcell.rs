@@ -23,7 +23,7 @@ enum TCellVariants<Empty, TCell1, TCellCap, TCellN> {
     TCellN(TCellN),
 }
 
-const BTREE_CUTOFF: usize = 128;
+const BTREE_CUTOFF: usize = 32;
 
 impl<A: PartialEq> TCell<A> {
     pub fn new(t: TimeIndexEntry, value: A) -> Self {

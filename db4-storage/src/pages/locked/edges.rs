@@ -119,4 +119,12 @@ impl<'a, ES: EdgeSegmentOps> WriteLockedEdgePages<'a, ES> {
         }
         Ok(())
     }
+
+    pub fn len(&self) -> usize {
+        self.writers.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.writers.is_empty()
+    }
 }

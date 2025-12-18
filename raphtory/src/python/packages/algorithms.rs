@@ -69,6 +69,7 @@ use crate::{
         utils::{PyNodeRef, PyTime},
     },
 };
+use either::Either;
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::Direction;
@@ -772,9 +773,9 @@ pub fn k_core(
 ) -> Nodes<'static, DynamicGraph> {
     let v_set = k_core_set(&graph.graph, k, iter_count, threads);
     let index = if v_set.len() == graph.graph.unfiltered_num_nodes() {
-        None
+        Index::for_graph(graph.graph.clone())
     } else {
-        Some(Index::from_iter(v_set))
+        Index::from_iter(v_set)
     };
     Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), index, None)
 }

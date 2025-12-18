@@ -5,6 +5,7 @@ use crate::{
         view::*,
     },
 };
+use either::Either;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -47,6 +48,10 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
             ))
         })
         .unzip();
-    let result: Option<_> = Some(Index::new(index));
-    NodeState::new(graph.clone(), graph.clone(), values.into(), result)
+    NodeState::new(
+        graph.clone(),
+        graph.clone(),
+        values.into(),
+        Index::Partial(index.into()),
+    )
 }

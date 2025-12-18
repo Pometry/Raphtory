@@ -47,10 +47,12 @@ where
     }
 
     pub(crate) fn get_index(&self, name: &str) -> Result<usize, GraphError> {
-        self.names
-            .iter()
-            .position(|n| n == name)
+        self.get_index_opt(name)
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
+    }
+
+    pub(crate) fn get_index_opt(&self, name: &str) -> Option<usize> {
+        self.names.iter().position(|n| n == name)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -160,6 +162,13 @@ impl SecondaryIndexCol {
     pub fn max(&self) -> usize {
         self.iter().max().unwrap_or(0)
     }
+
+    pub fn len(&self) -> usize {
+        match self {
+            SecondaryIndexCol::DataFrame(arr) => arr.len(),
+            SecondaryIndexCol::Range(range) => range.len(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -174,6 +183,10 @@ impl DFChunk {
 
     pub fn len(&self) -> usize {
         self.chunk.first().map(|c| c.len()).unwrap_or(0)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn node_col(&self, index: usize) -> Result<NodeCol, LoadError> {

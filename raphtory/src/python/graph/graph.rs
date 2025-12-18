@@ -10,7 +10,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     errors::GraphError,
-    io::parquet_loaders::*,
+    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
     prelude::*,
     python::{
         graph::{
@@ -717,6 +717,7 @@ impl PyGraph {
             &metadata,
             shared_metadata.as_ref(),
             None,
+            true,
         )
     }
 
@@ -812,15 +813,12 @@ impl PyGraph {
         load_edges_from_parquet(
             &self.graph,
             parquet_path.as_path(),
-            time,
-            secondary_index,
-            src,
-            dst,
+            ColumnNames::new(time, secondary_index, src, dst, layer_col),
+            true,
             &properties,
             &metadata,
             shared_metadata.as_ref(),
             layer,
-            layer_col,
             None,
         )
     }
@@ -898,6 +896,8 @@ impl PyGraph {
             id,
             node_type,
             node_type_col,
+            None,
+            None,
             &metadata,
             shared_metadata.as_ref(),
             None,
@@ -986,6 +986,7 @@ impl PyGraph {
             layer,
             layer_col,
             None,
+            true,
         )
     }
 

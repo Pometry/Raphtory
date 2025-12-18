@@ -81,6 +81,12 @@ pub fn hits<G: StaticGraphViewOps>(
     let step2 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
         let hub_score = evv.get().hub_score;
         let auth_score = evv.get().auth_score;
+        if evv.graph().base_graph.unfiltered_num_nodes() <= 10 {
+            println!(
+                "DEBUG step2: node={:?}, state_pos={}, hub_score={}, auth_score={}",
+                evv.node, evv.state_pos, hub_score, auth_score
+            );
+        }
         for t in evv.out_neighbours() {
             t.update(&recv_hub_score, hub_score)
         }
@@ -107,6 +113,16 @@ pub fn hits<G: StaticGraphViewOps>(
             recv_hub_score / evv.read_global_state(&total_hub_score).unwrap();
         evv.get_mut().hub_score =
             recv_auth_score / evv.read_global_state(&total_auth_score).unwrap();
+
+        if evv.graph().base_graph.unfiltered_num_nodes() <= 10 {
+            println!(
+                "DEBUG step4: node={:?}, state_pos={}, new_hub={}, new_auth={}",
+                evv.node,
+                evv.state_pos,
+                evv.get().hub_score,
+                evv.get().auth_score
+            );
+        }
 
         let prev_hub_score = evv.prev().hub_score;
         let curr_hub_score = evv.get().hub_score;
@@ -141,8 +157,16 @@ pub fn hits<G: StaticGraphViewOps>(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
-        |_, _, _, local| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |h| (h.hub_score, h.auth_score))
+        |_, _, _, local, index| {
+            if g.unfiltered_num_nodes() <= 10 {
+                println!("\nDEBUG Final local state (index -> (hub, auth)):");
+                for (i, h) in local.iter().enumerate() {
+                    println!("  local[{}] = ({}, {})", i, h.hub_score, h.auth_score);
+                }
+            }
+            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |h| {
+                (h.hub_score, h.auth_score)
+            })
         },
         threads,
         iter_count,
