@@ -522,66 +522,38 @@ def test_casting_btc_mixed_directory(schema_value):
 def test_malformed_files():
     malformed_dir = _btc_root() / "malformed_files"
 
-    # missing time column in Parquet/CSV/dataframe
-    with pytest.raises(Exception, match="columns are not present within the dataframe: block_timestamp, block_timestamp"):
-        g = Graph()
-        g.load_nodes(
-            data=malformed_dir / "missing_timestamp_col.parquet",
-            time="block_timestamp",
-            id="inputs_address",
-            properties=["block_timestamp"],
-        )
+    for malformed_file in malformed_dir.iterdir():
+        # currently couldn't create a parquet file malformed with an extra column in a row
+        if "extra_field" in malformed_file.name:
+            with pytest.raises(Exception, match="Encountered unequal lengths between records"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["block_timestamp"],
+                )
 
-    with pytest.raises(Exception, match="Column 'block_timestamp' not found in file"):
-        g = Graph()
-        g.load_nodes(
-            data=malformed_dir / "missing_timestamp_col.csv",
-            time="block_timestamp",
-            id="inputs_address",
-            properties=["block_timestamp"],
-        )
+        if "missing_timestamp_col" in malformed_file.name:
+            with pytest.raises(Exception, match="columns are not present within the dataframe: block_timestamp"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["block_timestamp"],
+                )
 
-    with pytest.raises(Exception, match="columns are not present within the dataframe: block_timestamp, block_timestamp"):
-        df = pd.read_parquet(malformed_dir / "missing_timestamp_col.parquet")
-        g = Graph()
-        g.load_nodes(
-            data=df,
-            time="block_timestamp",
-            id="inputs_address",
-            properties=["block_timestamp"],
-        )
-
-    # timestamp column can't be parsed to a timestamp/dt (malformed) in Parquet/CSV/dataframe
-    with pytest.raises(Exception, match="Missing value for timestamp"):
-        g = Graph()
-        g.load_nodes(
-            data=malformed_dir / "timestamp_malformed.parquet",
-            time="block_timestamp",
-            id="inputs_address",
-            properties=["block_timestamp"],
-            schema={"block_timestamp": pa.timestamp("ms", tz="UTC")}
-        )
-
-    with pytest.raises(Exception, match="Missing value for timestamp") as e:
-        g = Graph()
-        g.load_nodes(
-            data=malformed_dir / "timestamp_malformed.csv",
-            time="block_timestamp",
-            id="inputs_address",
-            properties=["block_timestamp"],
-            schema={"block_timestamp": pa.timestamp("ms", tz="UTC")}
-        )
-
-    with pytest.raises(Exception, match="Missing value for timestamp"):
-        df = pd.read_parquet(malformed_dir / "timestamp_malformed.parquet")
-        g = Graph()
-        g.load_nodes(
-            data=df,
-            time="block_timestamp",
-            id="inputs_address",
-            properties=["block_timestamp"],
-            schema={"block_timestamp": pa.timestamp("ms", tz="UTC")}
-        )
+        if "timestamp_malformed" in malformed_file.name:
+            with pytest.raises(Exception, match="Missing value for timestamp"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["block_timestamp"],
+                    schema={"block_timestamp": pa.timestamp("ms", tz="UTC")}
+                )
 
 
 

@@ -10,12 +10,12 @@ use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMa
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{
     collections::HashMap,
+    error::Error,
     fs,
     fs::File,
     path::{Path, PathBuf},
     sync::Arc,
 };
-use std::error::Error;
 #[cfg(feature = "storage")]
 use {arrow::array::StructArray, pometry_storage::RAError};
 

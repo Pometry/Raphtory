@@ -607,10 +607,9 @@ fn process_csv_paths_df<'a>(
             {
                 indices.push(idx);
             } else {
-                return Box::new(iter::once(Err(GraphError::LoadFailure(format!(
-                    "Column '{required_col}' not found in file {}",
-                    path.display()
-                ))))) as ChunkIter<'a>;
+                return Box::new(iter::once(Err(GraphError::ColumnDoesNotExist(
+                    required_col.to_string(),
+                )))) as ChunkIter<'a>;
             }
         }
         Box::new(
