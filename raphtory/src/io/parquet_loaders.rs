@@ -15,6 +15,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use std::error::Error;
 #[cfg(feature = "storage")]
 use {arrow::array::StructArray, pometry_storage::RAError};
 
@@ -59,7 +60,7 @@ pub fn load_nodes_from_parquet<
             node_type_col,
             graph,
         )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
 
     Ok(())
@@ -143,7 +144,7 @@ pub fn load_edges_from_parquet<
         layer_col,
         graph,
     )
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
 
     Ok(())
 }
@@ -186,7 +187,7 @@ pub fn load_node_props_from_parquet<
             shared_metadata,
             graph,
         )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
 
     Ok(())
@@ -231,7 +232,7 @@ pub fn load_edge_props_from_parquet<
             layer_col,
             graph,
         )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
 
     Ok(())
@@ -264,7 +265,7 @@ pub fn load_edge_deletions_from_parquet<
         )?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+            .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
     Ok(())
 }
@@ -291,7 +292,7 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
         )?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_graph_props_from_df(df_view, time, Some(properties), Some(metadata), graph)
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+            .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
 
     Ok(())
