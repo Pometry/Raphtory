@@ -20,7 +20,13 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{
+            storage::storage::{Extension, PersistentStrategy},
+            view::MaterializedGraph,
+        },
+        graph::views::deletion_graph::PersistentGraph,
+    },
     errors::GraphError,
     prelude::*,
     serialise::*,
@@ -302,9 +308,12 @@ impl Mut {
         let parent_graph = data.get_graph(parent_path).await?.graph;
         let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {
-            parent_graph
-                .subgraph(nodes)
-                .materialize_at(folder_clone.graph_folder())
+            let subgraph = parent_graph.subgraph(nodes);
+            if Extension::disk_storage_enabled() {
+                subgraph.materialize_at(folder_clone.graph_folder())
+            } else {
+                subgraph.materialize()
+            }
         })
         .await?;
 
