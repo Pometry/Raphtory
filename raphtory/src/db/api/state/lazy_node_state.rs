@@ -286,8 +286,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
 
     pub fn intervals(
         &self,
-    ) -> LazyNodeState<'graph, ops::Map<HistoryOp<'graph, GH>, Intervals<NodeView<GH, GH>>>, G, GH>
-    {
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<HistoryOp<'graph, GH>, Intervals<NodeView<'_, GH, GH>>>,
+        G,
+        GH,
+    > {
         let op = self.op.clone().map(|hist| hist.intervals());
         LazyNodeState::new(op, self.nodes.clone())
     }
@@ -296,7 +300,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<HistoryOp<'graph, GH>, HistoryTimestamp<NodeView<GH, GH>>>,
+        ops::Map<HistoryOp<'graph, GH>, HistoryTimestamp<NodeView<'_, GH, GH>>>,
         G,
         GH,
     > {
@@ -308,7 +312,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<HistoryOp<'graph, GH>, HistoryDateTime<NodeView<GH, GH>>>,
+        ops::Map<HistoryOp<'graph, GH>, HistoryDateTime<NodeView<'_, GH, GH>>>,
         G,
         GH,
     > {
@@ -320,7 +324,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<HistoryOp<'graph, GH>, HistoryEventId<NodeView<GH, GH>>>,
+        ops::Map<HistoryOp<'graph, GH>, HistoryEventId<NodeView<'_, GH, GH>>>,
         G,
         GH,
     > {
