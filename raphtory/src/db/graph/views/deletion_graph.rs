@@ -1,3 +1,5 @@
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
     core::{
         entities::LayerIds,
@@ -32,10 +34,11 @@ use std::{
     ops::Range,
     sync::Arc,
 };
-use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
-
-#[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
+use storage::{
+    api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
+    persist::strategy::PersistentStrategy,
+    Extension,
+};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -114,6 +117,9 @@ impl PersistentGraph {
     /// ```
     #[cfg(feature = "io")]
     pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
         path.init()?;
         let graph = Self(Arc::new(Storage::new_at_path(path.graph_path()?)?));
         path.write_metadata(&graph)?;

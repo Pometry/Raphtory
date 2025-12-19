@@ -16,6 +16,8 @@
 //! ```
 //!
 use super::views::deletion_graph::PersistentGraph;
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
     db::{
         api::{
@@ -46,9 +48,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-
-#[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
+use storage::{persist::strategy::PersistentStrategy, Extension};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]
@@ -583,6 +583,9 @@ impl Graph {
     /// ```
     #[cfg(feature = "io")]
     pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
         path.init()?;
         let graph = Self {
             inner: Arc::new(Storage::new_at_path(path.graph_path()?)?),

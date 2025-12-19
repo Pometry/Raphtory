@@ -210,9 +210,16 @@ impl Mut {
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
-        let graph: MaterializedGraph = match graph_type {
-            GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path)?.into(),
-            GqlGraphType::Event => Graph::new_at_path(graph_path)?.into(),
+        let graph: MaterializedGraph = if Extension::disk_storage_enabled() {
+            match graph_type {
+                GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path)?.into(),
+                GqlGraphType::Event => Graph::new_at_path(graph_path)?.into(),
+            }
+        } else {
+            match graph_type {
+                GqlGraphType::Persistent => PersistentGraph::new().into(),
+                GqlGraphType::Event => Graph::new().into(),
+            }
         };
 
         data.insert_graph(folder, graph).await?;
