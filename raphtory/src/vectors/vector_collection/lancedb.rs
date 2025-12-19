@@ -2,7 +2,8 @@ use std::{ops::Deref, path::Path, sync::Arc};
 
 use arrow_array::{
     types::{Float32Type, UInt64Type},
-    ArrayRef, FixedSizeListArray, PrimitiveArray, RecordBatch, RecordBatchIterator, UInt64Array,
+    ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
+    RecordBatchIterator, UInt64Array,
 };
 use futures_util::TryStreamExt;
 use itertools::Itertools;
@@ -18,7 +19,7 @@ use lancedb::{
 };
 
 use crate::{
-    errors::GraphResult,
+    errors::{GraphError, GraphResult},
     vectors::{
         vector_collection::{CollectionPath, VectorCollection, VectorCollectionFactory},
         Embedding,
@@ -56,14 +57,6 @@ impl VectorCollectionFactory for LanceDb {
     ) -> GraphResult<Self::DbType> {
         let db = connect(path.deref().as_ref()).await?;
         let table = db.open_table(name).execute().await?;
-
-        // FIXME: if dim is wrong, bail from here with something like the following!!!
-        // let vector_field = table
-        //     .schema()
-        //     .await
-        //     .unwrap()
-        //     .field_with_name("vectors")
-        //     .unwrap(); // and get the array size
         Ok(Self::DbType {
             table,
             dim,
@@ -91,7 +84,6 @@ impl VectorCollection for LanceDbCollection {
         ids: Vec<u64>,
         vectors: impl IntoIterator<Item = Embedding>,
     ) -> crate::errors::GraphResult<()> {
-        let size = ids.len(); // TODO: remove? don't remember what was this for
         let batches = RecordBatchIterator::new(
             vec![RecordBatch::try_new(
                 self.schema(),
@@ -121,31 +113,27 @@ impl VectorCollection for LanceDbCollection {
     async fn get_id(&self, id: u64) -> GraphResult<Option<crate::vectors::Embedding>> {
         let query = self.table.query().only_if(format!("id = {id}"));
         let result = query.execute().await?;
-        let batches: Vec<_> = result.try_collect().await.unwrap();
+        let batches: Vec<_> = result.try_collect().await?;
         if let Some(batch) = batches.get(0) {
-            let col: &ArrayRef = batch.column_by_name("vector").unwrap();
-            let array_list = col.as_any().downcast_ref::<FixedSizeListArray>();
-            let array = array_list.unwrap().value(0);
-            let downcasted = array.as_any().downcast_ref::<PrimitiveArray<Float32Type>>();
-            let vector = downcasted.unwrap().values().iter().copied().collect();
+            let array = get_vector_array_from_simple_batch(batch)
+                .ok_or(GraphError::InvalidVectorDbSchema)?;
+            let vector = array.values().iter().copied().collect();
             Ok(Some(vector))
         } else {
             Ok(None)
         }
     }
 
-    // TODO: make this return everything, the embedding itself, so that we don't
+    // TODO: might make this return everything, the embedding itself, so that we don't
     // need to go back to the vector collection to retrieve the embedding by id
-    // with get_id()
-    // I need get_id anyways for entities that are forced into the selection
+    // with get_id(), although we need this anyways for entities that are forced into the selection
     async fn top_k_with_distances(
         &self,
         query: &crate::vectors::Embedding,
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64>>,
     ) -> GraphResult<impl Iterator<Item = (u64, f32)> + Send> {
-        // TODO: return IntoIter?
-        let vector_query = self.table.query().nearest_to(query.as_ref()).unwrap();
+        let vector_query = self.table.query().nearest_to(query.as_ref())?;
         let limited = vector_query.limit(k);
         let filtered = if let Some(candidates) = candidates {
             let mut iter = candidates.into_iter().peekable();
@@ -159,38 +147,27 @@ impl VectorCollection for LanceDbCollection {
             limited
         };
         let stream = filtered.execute().await?;
-        let result = stream.try_collect::<Vec<_>>().await.unwrap();
+        let result = stream.try_collect::<Vec<_>>().await?;
 
-        let downcasted = result.into_iter().flat_map(|record| {
-            // TODO: merge both things
-            let ids = record
-                .column_by_name("id")
-                .unwrap()
-                .as_any()
-                .downcast_ref::<PrimitiveArray<UInt64Type>>()
-                .unwrap()
-                .values()
-                .iter()
-                .copied();
-            let scores = record
-                .column_by_name("_distance")
-                .unwrap()
-                .as_any()
-                .downcast_ref::<PrimitiveArray<Float32Type>>()
-                .unwrap()
-                .values()
-                .iter()
-                .copied();
-            // TODO: try to avoid colect maybe using record.columns() instead of getting them independently
-            ids.zip(scores).collect::<Vec<_>>()
-        });
+        let downcasted = result
+            .into_iter()
+            .map(|record| {
+                let ids = primitive_column_iter::<UInt64Type>(&record, "id")?;
+                let scores = primitive_column_iter::<Float32Type>(&record, "_distance")?;
+                // TODO: try using record.columns() instead of getting them independently?
+                Some(ids.zip(scores).collect::<Vec<_>>())
+            })
+            .collect::<Option<Vec<_>>>()
+            .ok_or(GraphError::InvalidVectorDbSchema)?
+            .into_iter()
+            .flatten();
         Ok(downcasted)
     }
 
     async fn create_or_update_index(&self) -> GraphResult<()> {
         let count = self.table.count_rows(None).await?;
         if count > 0 {
-            // TODO: save the index name when creating it instead of doing this
+            // TODO: could we save the index name when creating it instead of having to do this?
             let indices = self.table.list_indices().await?;
             let vector_index = indices
                 .iter()
@@ -219,7 +196,6 @@ impl VectorCollection for LanceDbCollection {
                         IvfFlatIndexBuilder::default().distance_type(DistanceType::Cosine),
                     )
                 } else {
-                    // FIXME: this else is a bit loose
                     Index::IvfPq(IvfPqIndexBuilder::default().distance_type(DistanceType::Cosine))
                 };
                 self.table
@@ -230,6 +206,31 @@ impl VectorCollection for LanceDbCollection {
         }
         Ok(())
     }
+}
+
+fn primitive_column_iter<'a, T>(
+    record: &'a arrow_array::RecordBatch,
+    name: &str,
+) -> Option<impl Iterator<Item = T::Native> + 'a>
+where
+    T: ArrowPrimitiveType,
+{
+    Some(
+        record
+            .column_by_name(name)?
+            .as_any()
+            .downcast_ref::<PrimitiveArray<T>>()?
+            .values()
+            .iter()
+            .copied(),
+    )
+}
+
+fn get_vector_array_from_simple_batch(batch: &RecordBatch) -> Option<PrimitiveArray<Float32Type>> {
+    let col: &ArrayRef = batch.column_by_name("vector")?;
+    let array_list = col.as_any().downcast_ref::<FixedSizeListArray>();
+    let array = array_list?.value(0);
+    array.as_any().downcast_ref().cloned()
 }
 
 async fn connect(path: &Path) -> lancedb::Result<Connection> {

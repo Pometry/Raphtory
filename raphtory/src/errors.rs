@@ -261,6 +261,10 @@ pub enum GraphError {
     #[error("The path {0} does not contain a vector DB")]
     VectorDbDoesntExist(String),
 
+    #[cfg(feature = "vectors")]
+    #[error("The schema of the vector DB is invalid")]
+    InvalidVectorDbSchema,
+
     #[cfg(feature = "proto")]
     #[error("zip operation failed")]
     ZipError {
