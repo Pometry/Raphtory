@@ -238,7 +238,7 @@ pub trait GraphPaths {
 
     /// Returns true if folder is occupied by a graph.
     fn is_reserved(&self) -> bool {
-        self.is_zip() || self.meta_path().map_or(false, |path| path.exists())
+        self.meta_path().map_or(false, |path| path.exists())
     }
 
     /// Initialise the data folder and metadata pointer
