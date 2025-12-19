@@ -287,7 +287,6 @@ impl Mut {
             ValidWriteableGraphFolder::try_new(data.work_dir.clone(), path)?
         };
         let g: MaterializedGraph = url_decode_graph_at(graph, folder.graph_folder())?;
-
         data.insert_graph(folder, g).await?;
         Ok(path.to_owned())
     }

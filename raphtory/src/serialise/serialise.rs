@@ -1,7 +1,9 @@
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    db::api::{mutation::AdditionOps, view::StaticGraphViewOps},
+    db::api::{
+        mutation::AdditionOps, storage::storage::PersistentStrategy, view::StaticGraphViewOps,
+    },
     errors::GraphError,
     serialise::{
         get_zip_graph_path,
@@ -15,6 +17,7 @@ use std::{
     fs::File,
     io::{Cursor, Read, Seek, Write},
 };
+use storage::Extension;
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
@@ -127,6 +130,9 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         mut reader: ZipArchive<R>,
         target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError> {
+        if Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
         target.init()?;
         let graph_prefix = get_zip_graph_path(&mut reader)?;
         let graph = Self::decode_parquet_from_zip(

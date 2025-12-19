@@ -440,6 +440,7 @@ pub enum InternalPathValidationError {
 }
 
 impl From<io::Error> for InternalPathValidationError {
+    #[track_caller]
     fn from(value: io::Error) -> Self {
         error!("Unexpected IO failure: {}", value);
         InternalPathValidationError::IOError(value)

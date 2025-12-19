@@ -1,6 +1,9 @@
 use base64::{prelude::BASE64_URL_SAFE, DecodeError, Engine};
 use raphtory::{
-    db::api::view::MaterializedGraph,
+    db::api::{
+        storage::storage::{Extension, PersistentStrategy},
+        view::MaterializedGraph,
+    },
     errors::GraphError,
     prelude::{StableDecode, StableEncode},
     serialise::GraphPaths,
@@ -37,7 +40,11 @@ pub fn url_decode_graph_at<T: AsRef<[u8]>>(
     storage_path: &(impl GraphPaths + ?Sized),
 ) -> Result<MaterializedGraph, GraphError> {
     let bytes = BASE64_URL_SAFE.decode(graph.as_ref()).unwrap();
-    MaterializedGraph::decode_from_bytes_at(&bytes, storage_path)
+    if Extension::disk_storage_enabled() {
+        MaterializedGraph::decode_from_bytes_at(&bytes, storage_path)
+    } else {
+        MaterializedGraph::decode_from_bytes(&bytes)
+    }
 }
 
 #[cfg(test)]
