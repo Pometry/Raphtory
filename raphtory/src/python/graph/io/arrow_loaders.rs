@@ -416,6 +416,30 @@ impl<'a> FromPyObject<'a> for CsvReadOptions {
     }
 }
 
+fn collect_csv_paths(path: &PathBuf) -> Result<Vec<PathBuf>, GraphError> {
+    let mut csv_paths = Vec::new();
+    if path.is_dir() {
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            let p = entry.path();
+            let s = p.to_string_lossy();
+            if s.ends_with(".csv") || s.ends_with(".csv.gz") || s.ends_with(".csv.bz2") {
+                csv_paths.push(p);
+            }
+        }
+    } else {
+        csv_paths.push(path.clone());
+    }
+
+    if csv_paths.is_empty() {
+        return Err(GraphError::LoadFailure(format!(
+            "No CSV files found at path '{}'",
+            path.display()
+        )));
+    }
+    Ok(csv_paths)
+}
+
 // Load from CSV files using arrow-csv
 pub(crate) fn load_nodes_from_csv_path<
     'py,
@@ -441,26 +465,7 @@ pub(crate) fn load_nodes_from_csv_path<
     }
 
     // get the CSV file paths
-    let mut csv_paths = Vec::new();
-    if path.is_dir() {
-        for entry in fs::read_dir(path)? {
-            let entry = entry?;
-            let p = entry.path();
-            let s = p.to_string_lossy();
-            if s.ends_with(".csv") || s.ends_with(".csv.gz") || s.ends_with(".csv.bz2") {
-                csv_paths.push(p);
-            }
-        }
-    } else {
-        csv_paths.push(path.clone());
-    }
-
-    if csv_paths.is_empty() {
-        return Err(GraphError::LoadFailure(format!(
-            "No CSV files found at path '{}'",
-            path.display()
-        )));
-    }
+    let csv_paths = collect_csv_paths(path)?;
 
     let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
@@ -474,6 +479,157 @@ pub(crate) fn load_nodes_from_csv_path<
         node_type,
         node_type_col,
         graph,
+    )
+}
+
+pub(crate) fn load_edges_from_csv_path<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+>(
+    graph: &G,
+    path: &PathBuf,
+    time: &str,
+    src: &str,
+    dst: &str,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
+    csv_options: Option<&CsvReadOptions>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst, time];
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(metadata);
+    if let Some(layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
+
+    // get the CSV file paths
+    let csv_paths = collect_csv_paths(path)?;
+
+    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edges_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        properties,
+        metadata,
+        shared_metadata,
+        layer,
+        layer_col,
+        graph,
+    )
+}
+
+pub(crate) fn load_node_metadata_from_csv_path<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+>(
+    graph: &G,
+    path: &PathBuf,
+    id: &str,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    csv_options: Option<&CsvReadOptions>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![id];
+    cols_to_check.extend_from_slice(metadata);
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
+    }
+
+    // get the CSV file paths
+    let csv_paths = collect_csv_paths(path)?;
+
+    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_node_props_from_df(
+        df_view,
+        id,
+        node_type,
+        node_type_col,
+        metadata,
+        shared_metadata,
+        graph,
+    )
+}
+
+pub(crate) fn load_edge_metadata_from_csv_path<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+>(
+    graph: &G,
+    path: &PathBuf,
+    src: &str,
+    dst: &str,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
+    csv_options: Option<&CsvReadOptions>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst];
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
+    cols_to_check.extend_from_slice(metadata);
+
+    // get the CSV file paths
+    let csv_paths = collect_csv_paths(path)?;
+
+    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edges_props_from_df(
+        df_view,
+        src,
+        dst,
+        metadata,
+        shared_metadata,
+        layer,
+        layer_col,
+        graph,
+    )
+}
+
+pub(crate) fn load_edge_deletions_from_csv_path<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    graph: &G,
+    path: &PathBuf,
+    time: &str,
+    src: &str,
+    dst: &str,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
+    csv_options: Option<&CsvReadOptions>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst, time];
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
+
+    // get the CSV file paths
+    let csv_paths = collect_csv_paths(path)?;
+
+    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, None)?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edge_deletions_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        layer,
+        layer_col,
+        graph.core_graph(),
     )
 }
 
