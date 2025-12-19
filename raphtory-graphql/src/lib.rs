@@ -40,7 +40,7 @@ mod graphql_test {
         config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
-        url_encode::{url_decode_graph, url_encode_graph},
+        url_encode::{url_decode_graph_at, url_encode_graph},
     };
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
@@ -1062,8 +1062,7 @@ mod graphql_test {
         let res_json = res.data.into_json().unwrap();
         let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
         let temp_dir = tempdir().unwrap();
-        let path_for_decoded_graph = Some(temp_dir.path());
-        let graph_roundtrip = url_decode_graph(graph_encoded, path_for_decoded_graph)
+        let graph_roundtrip = url_decode_graph_at(graph_encoded, temp_dir.path())
             .unwrap()
             .into_dynamic();
         assert_eq!(g, graph_roundtrip);

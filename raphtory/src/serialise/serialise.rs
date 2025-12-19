@@ -14,7 +14,6 @@ use crate::{
 use std::{
     fs::File,
     io::{Cursor, Read, Seek, Write},
-    path::Path,
 };
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
@@ -77,60 +76,93 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array.
     // `path_for_decoded_graph` gets passed to the newly created graph.
-    fn decode_from_bytes(
+    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError>;
+
+    fn decode_from_bytes_at(
         bytes: &[u8],
-        path_for_decoded_graph: Option<&Path>,
+        target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError>;
 
-    fn decode_from_zip<R: Read + Seek>(
+    fn decode_from_zip<R: Read + Seek>(reader: ZipArchive<R>) -> Result<Self, GraphError>;
+
+    fn decode_from_zip_at<R: Read + Seek>(
         reader: ZipArchive<R>,
-        path_for_decoded_graph: Option<&Path>,
+        target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError>;
 
     // Decode the graph from the given path.
     // `path_for_decoded_graph` gets passed to the newly created graph.
-    fn decode(
-        path: impl Into<GraphFolder>,
-        path_for_decoded_graph: Option<&Path>,
+    fn decode(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError>;
+
+    fn decode_at(
+        path: &(impl GraphPaths + ?Sized),
+        target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError>;
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
-    fn decode_from_bytes(
-        bytes: &[u8],
-        path_for_decoded_graph: Option<&Path>,
-    ) -> Result<Self, GraphError> {
+    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
         let cursor = Cursor::new(bytes);
-        Self::decode_from_zip(ZipArchive::new(cursor)?, path_for_decoded_graph)
+        Self::decode_from_zip(ZipArchive::new(cursor)?)
     }
 
-    fn decode_from_zip<R: Read + Seek>(
-        mut reader: ZipArchive<R>,
-        path_for_decoded_graph: Option<&Path>,
+    fn decode_from_bytes_at(
+        bytes: &[u8],
+        target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError> {
+        let cursor = Cursor::new(bytes);
+        Self::decode_from_zip_at(ZipArchive::new(cursor)?, target)
+    }
+
+    fn decode_from_zip<R: Read + Seek>(mut reader: ZipArchive<R>) -> Result<Self, GraphError> {
         let graph_prefix = get_zip_graph_path(&mut reader)?;
-        let graph =
-            Self::decode_parquet_from_zip(&mut reader, path_for_decoded_graph, graph_prefix)?;
+        let graph = Self::decode_parquet_from_zip(&mut reader, None, graph_prefix)?;
 
         //TODO: graph.load_index_from_zip(&mut reader, prefix)
 
         Ok(graph)
     }
 
-    fn decode(
-        path: impl Into<GraphFolder>,
-        path_for_decoded_graph: Option<&Path>,
+    fn decode_from_zip_at<R: Read + Seek>(
+        mut reader: ZipArchive<R>,
+        target: &(impl GraphPaths + ?Sized),
+    ) -> Result<Self, GraphError> {
+        let graph_prefix = get_zip_graph_path(&mut reader)?;
+        let graph = Self::decode_parquet_from_zip(
+            &mut reader,
+            Some(target.graph_path()?.as_path()),
+            graph_prefix,
+        )?;
+
+        //TODO: graph.load_index_from_zip(&mut reader, prefix)
+
+        Ok(graph)
+    }
+
+    fn decode(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        let graph;
+        if path.is_zip() {
+            let reader = path.read_zip()?;
+            graph = Self::decode_from_zip(reader)?;
+        } else {
+            graph = Self::decode_parquet(&path.graph_path()?, None)?;
+            // TODO: Fix index loading:
+            // #[cfg(feature = "search")]
+            // graph.load_index(&path)?;
+        }
+        Ok(graph)
+    }
+
+    fn decode_at(
+        path: &(impl GraphPaths + ?Sized),
+        target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError> {
         let graph;
-        let folder: GraphFolder = path.into();
-
-        if folder.is_zip() {
-            let reader = ZipArchive::new(File::open(&folder.root())?)?;
-            graph = Self::decode_from_zip(reader, path_for_decoded_graph)?;
+        if path.is_zip() {
+            let reader = path.read_zip()?;
+            graph = Self::decode_from_zip_at(reader, target)?;
         } else {
-            graph = Self::decode_parquet(&folder.graph_path()?, path_for_decoded_graph)?;
-            #[cfg(feature = "search")]
-            graph.load_index(&folder)?;
+            graph = Self::decode_parquet(path.graph_path()?, Some(target.graph_path()?.as_path()))?;
         }
         Ok(graph)
     }

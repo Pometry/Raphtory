@@ -101,22 +101,22 @@ impl PyPersistentGraph {
 impl PyPersistentGraph {
     #[new]
     #[pyo3(signature = (path = None))]
-    pub fn py_new(path: Option<PathBuf>) -> (Self, PyGraphView) {
+    pub fn py_new(path: Option<PathBuf>) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
-            Some(path) => PersistentGraph::new_at_path(path),
+            Some(path) => PersistentGraph::new_at_path(&path)?,
             None => PersistentGraph::new(),
         };
-        (
+        Ok((
             Self {
                 graph: graph.clone(),
             },
             PyGraphView::from(graph),
-        )
+        ))
     }
 
     #[staticmethod]
-    pub fn load(path: PathBuf) -> PersistentGraph {
-        PersistentGraph::load_from_path(path)
+    pub fn load(path: PathBuf) -> Result<PersistentGraph, GraphError> {
+        PersistentGraph::load_from_path(&path)
     }
 
     fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {

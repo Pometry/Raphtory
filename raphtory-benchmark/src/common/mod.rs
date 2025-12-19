@@ -587,9 +587,8 @@ pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: G
 pub fn run_proto_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
     let f = TempDir::new().unwrap();
     graph.encode(f.path()).unwrap();
-    let path_for_decoded_graph = None;
     bench(group, "proto_decode", None, |b| {
-        b.iter(|| Graph::decode(f.path(), path_for_decoded_graph).unwrap())
+        b.iter(|| Graph::decode(f.path()).unwrap())
     })
 }
 

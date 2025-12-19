@@ -9,9 +9,9 @@ use crate::{
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
-    paths::ValidWriteableGraphFolder,
+    paths::{ValidGraphPaths, ValidWriteableGraphFolder},
     rayon::blocking_compute,
-    url_encode::{url_decode_graph, url_encode_graph},
+    url_encode::{url_decode_graph_at, url_encode_graph},
 };
 use async_graphql::Context;
 use dynamic_graphql::{
@@ -203,10 +203,10 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
-        let graph_path = folder.graph_path()?;
+        let graph_path = folder.graph_folder();
         let graph: MaterializedGraph = match graph_type {
-            GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path).into(),
-            GqlGraphType::Event => Graph::new_at_path(graph_path).into(),
+            GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path)?.into(),
+            GqlGraphType::Event => Graph::new_at_path(graph_path)?.into(),
         };
 
         data.insert_graph(folder, graph).await?;
@@ -280,7 +280,7 @@ impl Mut {
         } else {
             ValidWriteableGraphFolder::try_new(data.work_dir.clone(), path)?
         };
-        let g: MaterializedGraph = url_decode_graph(graph, Some(&folder.graph_path()?))?;
+        let g: MaterializedGraph = url_decode_graph_at(graph, folder.graph_folder())?;
 
         data.insert_graph(folder, g).await?;
         Ok(path.to_owned())
@@ -300,11 +300,11 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
         let parent_graph = data.get_graph(parent_path).await?.graph;
-        let graph_path = folder.graph_path()?;
+        let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {
             parent_graph
                 .subgraph(nodes)
-                .materialize_at(Some(&graph_path))
+                .materialize_at(folder_clone.graph_folder())
         })
         .await?;
 

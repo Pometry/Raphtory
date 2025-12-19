@@ -35,8 +35,11 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{Extension, WalImpl};
 
+pub use storage::{
+    persist::strategy::{Config, PersistentStrategy},
+    Extension, WalImpl,
+};
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -99,33 +102,35 @@ impl Storage {
         }
     }
 
-    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Self {
-        Self {
-            graph: GraphStorage::Unlocked(Arc::new(
-                TemporalGraph::new_with_path(path, Extension::default()).unwrap(),
-            )),
+    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(
+                path,
+                Extension::default(),
+            )?)),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
-        }
+        })
     }
 
-    pub(crate) fn new_with_path_and_ext(path: impl AsRef<Path>, ext: Extension) -> Self {
-        Self {
-            graph: GraphStorage::Unlocked(Arc::new(
-                TemporalGraph::new_with_path(path, ext).unwrap(),
-            )),
+    pub(crate) fn new_with_path_and_ext(
+        path: impl AsRef<Path>,
+        ext: Extension,
+    ) -> Result<Self, GraphError> {
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(path, ext)?)),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
-        }
+        })
     }
 
-    pub(crate) fn load_from(path: impl AsRef<Path>) -> Self {
-        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path).unwrap()));
-        Self {
+    pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path)?));
+        Ok(Self {
             graph,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
-        }
+        })
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {

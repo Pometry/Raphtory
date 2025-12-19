@@ -93,7 +93,7 @@ impl MetaGraph {
 
     /// Returns the metadata of the graph.
     async fn metadata(&self) -> Result<Vec<GqlProperty>> {
-        let res = decode_graph_metadata(&self.folder)?;
+        let res = decode_graph_metadata(self.folder.graph_folder())?;
         Ok(res
             .into_iter()
             .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))

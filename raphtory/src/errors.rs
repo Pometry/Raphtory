@@ -33,6 +33,7 @@ use pyo3::PyErr;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
+use storage::error::StorageError;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
@@ -150,7 +151,7 @@ pub enum GraphError {
     PathDoesNotExist(PathBuf),
 
     #[error("Storage feature not enabled")]
-    DiskGraphNotFound,
+    DiskGraphNotEnabled,
 
     #[error("Missing graph index. You need to create an index first.")]
     IndexNotCreated,
@@ -259,6 +260,9 @@ pub enum GraphError {
 
     #[error("Not a zip archive")]
     NotAZip,
+
+    #[error("Not a disk graph")]
+    NotADiskGraph,
 
     #[error("Graph folder is not initialised for writing")]
     NoWriteInProgress,
@@ -441,6 +445,9 @@ pub enum GraphError {
     },
     #[error("Path {0} is not a valid relative data path")]
     InvalidRelativePath(String),
+
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
 }
 
 impl From<MetadataError> for GraphError {

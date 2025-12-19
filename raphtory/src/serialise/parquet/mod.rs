@@ -435,7 +435,7 @@ fn decode_graph_storage(
     path_for_decoded_graph: Option<&Path>,
 ) -> Result<Arc<Storage>, GraphError> {
     let graph = if let Some(storage_path) = path_for_decoded_graph {
-        Arc::new(Storage::new_at_path(storage_path))
+        Arc::new(Storage::new_at_path(storage_path)?)
     } else {
         Arc::new(Storage::default())
     };

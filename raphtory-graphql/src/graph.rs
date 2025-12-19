@@ -25,7 +25,7 @@ use tracing::info;
 
 #[cfg(feature = "search")]
 use raphtory::prelude::IndexMutationOps;
-use raphtory::serialise::GraphPaths;
+use raphtory::serialise::{GraphPaths, StableDecode};
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
@@ -86,7 +86,12 @@ impl GraphWithVectors {
         cache: Option<VectorCache>,
         create_index: bool,
     ) -> Result<Self, GraphError> {
-        let graph = folder.data_path()?.read_graph()?;
+        let graph_folder = folder.graph_folder();
+        let graph = if graph_folder.read_metadata()?.is_diskgraph {
+            MaterializedGraph::load_from_path(graph_folder)?
+        } else {
+            MaterializedGraph::decode(graph_folder)?
+        };
         let vectors = cache.and_then(|cache| {
             VectorisedGraph::read_from_path(&folder.vectors_path().ok()?, graph.clone(), cache).ok()
         });

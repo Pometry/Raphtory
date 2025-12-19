@@ -1,7 +1,5 @@
 use crate::{
-    core::entities::properties::prop::{
-        unify_types, ArrowRow, DirectConvert, Prop, PropType, SerdeArrowProp,
-    },
+    core::entities::properties::prop::{unify_types, ArrowRow, DirectConvert, Prop, PropType},
     iter::{BoxedLIter, IntoDynBoxed},
 };
 use arrow_array::{

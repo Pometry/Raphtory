@@ -1,4 +1,8 @@
-use crate::{db::api::view::internal::GraphView, prelude::GraphViewOps, serialise::GraphFolder};
+use crate::{
+    db::api::view::internal::GraphView,
+    prelude::GraphViewOps,
+    serialise::{GraphFolder, GraphPaths},
+};
 use raphtory_api::GraphType;
 use serde::{Deserialize, Serialize};
 

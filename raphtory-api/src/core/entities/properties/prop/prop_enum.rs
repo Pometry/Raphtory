@@ -1,16 +1,26 @@
 use crate::core::{
     entities::{
-        properties::prop::{prop_ref_enum::PropRef, PropNum, PropType},
+        properties::prop::{prop_array::*, prop_ref_enum::PropRef, ArrowRow, PropNum, PropType},
         GidRef,
     },
     storage::arc_str::ArcStr,
 };
+use arrow_array::{
+    cast::AsArray,
+    types::{
+        Date32Type, Date64Type, Decimal128Type, DecimalType, Float32Type, Float64Type, Int32Type,
+        Int64Type, TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
+        TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+    },
+    Array, ArrayRef, LargeListArray, StructArray,
+};
+use arrow_schema::{DataType, Field, FieldRef, TimeUnit};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
-    ser::{SerializeMap, SerializeSeq},
+    ser::{Error, SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
 use std::{
@@ -22,22 +32,6 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-
-use crate::{
-    core::entities::properties::prop::{prop_array::*, ArrowRow},
-    iter::IntoDynBoxed,
-};
-use arrow_array::{
-    cast::AsArray,
-    types::{
-        Date32Type, Date64Type, Decimal128Type, DecimalType, Float32Type, Float64Type, Int32Type,
-        Int64Type, TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
-        TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
-    },
-    Array, ArrayRef, ArrowPrimitiveType, LargeListArray, StructArray,
-};
-use arrow_schema::{DataType, Field, FieldRef, TimeUnit};
-use serde::ser::Error;
 
 pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
 

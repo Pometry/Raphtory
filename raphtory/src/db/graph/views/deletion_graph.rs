@@ -10,6 +10,7 @@ use crate::{
         },
         graph::graph::graph_equal,
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::{
@@ -29,10 +30,12 @@ use raphtory_storage::{
 use std::{
     fmt::{Display, Formatter},
     ops::Range,
-    path::Path,
     sync::Arc,
 };
 use storage::api::graph_props::{GraphPropEntryOps, GraphPropRefOps};
+
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -109,8 +112,12 @@ impl PersistentGraph {
     /// use raphtory::prelude::PersistentGraph;
     /// let g = Graph::new_at_path("/path/to/storage");
     /// ```
-    pub fn new_at_path(path: impl AsRef<Path>) -> Self {
-        Self(Arc::new(Storage::new_at_path(path)))
+    #[cfg(feature = "io")]
+    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        path.init()?;
+        let graph = Self(Arc::new(Storage::new_at_path(path.graph_path()?)?));
+        path.write_metadata(&graph)?;
+        Ok(graph)
     }
 
     /// Load a graph from a specific path
@@ -123,8 +130,9 @@ impl PersistentGraph {
     /// use raphtory::prelude::Graph;
     /// let g = Graph::load_from_path("/path/to/storage");
     ///
-    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
-        Self(Arc::new(Storage::load_from(path)))
+    #[cfg(feature = "io")]
+    pub fn load_from_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::load_from(path.graph_path()?)?)))
     }
 
     pub fn from_storage(storage: Arc<Storage>) -> Self {

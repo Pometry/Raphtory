@@ -13,7 +13,6 @@ use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use either::Either;
 use itertools::izip;
-use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -36,6 +35,10 @@ use std::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
+#[cfg(feature = "python")]
+use kdam::{Bar, BarBuilder, BarExt};
+
+#[cfg(feature = "python")]
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
         .desc(des)

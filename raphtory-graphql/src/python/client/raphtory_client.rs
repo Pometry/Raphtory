@@ -5,7 +5,7 @@ use crate::{
         server::is_online,
         translate_from_python, translate_map_to_python,
     },
-    url_encode::url_decode_graph,
+    url_encode::{url_decode_graph, url_decode_graph_at},
 };
 use pyo3::{
     exceptions::{PyException, PyValueError},
@@ -418,8 +418,7 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
         match data.get("receiveGraph") {
             Some(JsonValue::String(graph)) => {
-                let path_for_decoded_graph = None;
-                let mat_graph = url_decode_graph(graph, path_for_decoded_graph)?;
+                let mat_graph = url_decode_graph(graph)?;
                 Ok(mat_graph)
             }
             _ => Err(PyException::new_err(format!(

@@ -30,6 +30,7 @@ use crate::{
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::inherit::Base;
@@ -43,9 +44,11 @@ use std::{
     fmt::{Display, Formatter},
     hint::black_box,
     ops::Deref,
-    path::Path,
     sync::Arc,
 };
+
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]
@@ -578,10 +581,14 @@ impl Graph {
     /// use raphtory::prelude::Graph;
     /// let g = Graph::new_at_path("/path/to/storage");
     /// ```
-    pub fn new_at_path(path: impl AsRef<Path>) -> Self {
-        Self {
-            inner: Arc::new(Storage::new_at_path(path)),
-        }
+    #[cfg(feature = "io")]
+    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        path.init()?;
+        let graph = Self {
+            inner: Arc::new(Storage::new_at_path(path.graph_path()?)?),
+        };
+        path.write_metadata(&graph)?;
+        Ok(graph)
     }
 
     /// Load a graph from a specific path
@@ -594,10 +601,12 @@ impl Graph {
     /// use raphtory::prelude::Graph;
     /// let g = Graph::load_from_path("/path/to/storage");
     ///
-    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
-        Self {
-            inner: Arc::new(Storage::load_from(path)),
-        }
+    #[cfg(feature = "io")]
+    pub fn load_from_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        //TODO: add support for loading indexes and vectors
+        Ok(Self {
+            inner: Arc::new(Storage::load_from(path.graph_path()?)?),
+        })
     }
 
     pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {

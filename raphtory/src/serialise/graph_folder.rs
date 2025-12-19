@@ -1,13 +1,8 @@
 use crate::{
-    db::{
-        api::view::{internal::GraphView, MaterializedGraph},
-        graph::views::deletion_graph::PersistentGraph,
-    },
-    errors::GraphError,
-    prelude::{Graph, GraphViewOps, ParquetDecoder, ParquetEncoder},
+    db::api::view::internal::GraphView, errors::GraphError, prelude::ParquetEncoder,
     serialise::metadata::GraphMetadata,
 };
-use raphtory_api::{core::input::input_node::parse_u64_strict, GraphType};
+use raphtory_api::core::input::input_node::parse_u64_strict;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File},
@@ -155,7 +150,6 @@ pub trait GraphPaths {
         })
     }
 
-    fn relative_data_path(&self) -> Result<String, GraphError>;
     fn vectors_path(&self) -> Result<PathBuf, GraphError> {
         let mut path = self.data_path()?.path;
         path.push(VECTORS_PATH);
@@ -174,12 +168,102 @@ pub trait GraphPaths {
         Ok(path)
     }
 
-    fn relative_graph_path(&self) -> Result<String, GraphError>;
-
     fn meta_path(&self) -> Result<PathBuf, GraphError> {
         let mut path = self.data_path()?.path;
         path.push(META_PATH);
         Ok(path)
+    }
+
+    fn is_zip(&self) -> bool {
+        self.root().is_file()
+    }
+
+    fn read_zip(&self) -> Result<ZipArchive<File>, GraphError> {
+        if self.is_zip() {
+            let file = File::open(self.root())?;
+            let archive = ZipArchive::new(file)?;
+            Ok(archive)
+        } else {
+            Err(GraphError::NotAZip)
+        }
+    }
+
+    fn relative_data_path(&self) -> Result<String, GraphError> {
+        let path = if self.is_zip() {
+            let mut zip = self.read_zip()?;
+            get_zip_data_path(&mut zip)?
+        } else {
+            read_or_default_data_path(self.root(), DATA_PATH)?
+        };
+        Ok(path)
+    }
+
+    fn relative_graph_path(&self) -> Result<String, GraphError> {
+        if self.is_zip() {
+            let mut zip = self.read_zip()?;
+            let data_path = get_zip_data_path(&mut zip)?;
+            get_zip_graph_path_name(&mut zip, data_path)
+        } else {
+            let data_path = self.data_path()?;
+            read_or_default_data_path(data_path.as_ref(), GRAPH_PATH)
+        }
+    }
+
+    fn read_metadata(&self) -> Result<GraphMetadata, GraphError> {
+        let mut json = String::new();
+        if self.is_zip() {
+            let mut zip = self.read_zip()?;
+            let path = get_zip_meta_path(&mut zip)?;
+            let mut zip_file = zip.by_name(&path)?;
+            zip_file.read_to_string(&mut json)?;
+        } else {
+            let mut file = File::open(self.meta_path()?)?;
+            file.read_to_string(&mut json)?;
+        }
+        let metadata: Metadata = serde_json::from_str(&json)?;
+        Ok(metadata.meta)
+    }
+
+    fn write_metadata(&self, graph: impl GraphView) -> Result<(), GraphError> {
+        let graph_path = self.relative_graph_path()?;
+        let metadata = GraphMetadata::from_graph(graph);
+        let meta = Metadata {
+            path: graph_path,
+            meta: metadata,
+        };
+        let path = self.meta_path()?;
+        let file = File::create(&path)?;
+        Ok(serde_json::to_writer(file, &meta)?)
+    }
+
+    /// Returns true if folder is occupied by a graph.
+    fn is_reserved(&self) -> bool {
+        self.is_zip() || self.meta_path().map_or(false, |path| path.exists())
+    }
+
+    /// Initialise the data folder and metadata pointer
+    fn init(&self) -> Result<(), GraphError> {
+        if self.root().is_dir() {
+            let non_empty = self.root().read_dir()?.next().is_some();
+            if non_empty {
+                return Err(GraphError::NonEmptyGraphFolder(self.root().into()));
+            }
+        } else {
+            fs::create_dir(self.root())?
+        }
+        let meta_path = self.relative_data_path()?;
+        fs::create_dir(self.root().join(&meta_path))?;
+        fs::write(
+            self.root_meta_path(),
+            serde_json::to_string(&RelativePath { path: meta_path })?,
+        )?;
+        Ok(())
+    }
+}
+
+impl<P: AsRef<Path> + ?Sized> GraphPaths for P {
+    fn root(&self) -> &Path {
+        self.as_ref()
     }
 }
 
@@ -206,27 +290,6 @@ pub struct GraphFolder {
 impl GraphPaths for GraphFolder {
     fn root(&self) -> &Path {
         &self.root_folder
-    }
-
-    fn relative_data_path(&self) -> Result<String, GraphError> {
-        let path = if self.is_zip() {
-            let mut zip = self.read_zip()?;
-            get_zip_data_path(&mut zip)?
-        } else {
-            read_or_default_data_path(self.root(), DATA_PATH)?
-        };
-        Ok(path)
-    }
-
-    fn relative_graph_path(&self) -> Result<String, GraphError> {
-        if self.is_zip() {
-            let mut zip = self.read_zip()?;
-            let data_path = get_zip_data_path(&mut zip)?;
-            get_zip_graph_path_name(&mut zip, data_path)
-        } else {
-            let data_path = self.data_path()?;
-            read_or_default_data_path(data_path.as_ref(), GRAPH_PATH)
-        }
     }
 }
 
@@ -304,11 +367,6 @@ impl GraphFolder {
         })
     }
 
-    /// Returns true if folder is occupied by a graph.
-    pub fn is_reserved(&self) -> bool {
-        self.meta_path().map_or(false, |path| path.exists())
-    }
-
     /// Clears the folder of any contents.
     pub fn clear(&self) -> Result<(), GraphError> {
         if self.is_zip() {
@@ -331,35 +389,6 @@ impl GraphFolder {
             let graph_path = read_or_default_data_path(&self.root().join(&data_path), GRAPH_PATH)?;
             Ok([data_path, graph_path].join("/"))
         }
-    }
-
-    pub fn is_zip(&self) -> bool {
-        self.root_folder.is_file()
-    }
-
-    fn read_zip(&self) -> Result<ZipArchive<File>, GraphError> {
-        if self.is_zip() {
-            let file = File::open(&self.root_folder)?;
-            let archive = ZipArchive::new(file)?;
-            Ok(archive)
-        } else {
-            Err(GraphError::NotAZip)
-        }
-    }
-
-    pub fn read_metadata(&self) -> Result<GraphMetadata, GraphError> {
-        let mut json = String::new();
-        if self.is_zip() {
-            let mut zip = self.read_zip()?;
-            let path = get_zip_meta_path(&mut zip)?;
-            let mut zip_file = zip.by_name(&path)?;
-            zip_file.read_to_string(&mut json)?;
-        } else {
-            let mut file = File::open(self.meta_path()?)?;
-            file.read_to_string(&mut json)?;
-        }
-        let metadata: Metadata = serde_json::from_str(&json)?;
-        Ok(metadata.meta)
     }
 
     fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
@@ -442,6 +471,10 @@ impl GraphPaths for WriteableGraphFolder {
         let path = read_or_default_data_path(&self.data_path()?.as_ref(), GRAPH_PATH)?;
         Ok(path)
     }
+
+    fn init(&self) -> Result<(), GraphError> {
+        Ok(())
+    }
 }
 
 impl WriteableGraphFolder {
@@ -501,23 +534,10 @@ impl InnerGraphFolder {
         let data_path = self.as_ref();
         let old_relative_graph_path = self.relative_graph_path()?;
         let old_graph_path = self.path.join(&old_relative_graph_path);
-        let new_relative_graph_path = match graph.disk_storage_enabled() {
-            None => {
-                let new_graph_path = make_data_path(&data_path, GRAPH_PATH)?;
-                graph.encode_parquet(&data_path.join(&new_graph_path))?;
-                new_graph_path
-            }
-            Some(path) => {
-                if path != old_graph_path {
-                    let new_graph_path = make_data_path(&data_path, GRAPH_PATH)?;
-                    graph.materialize_at(Some(&data_path.join(&new_graph_path)))?;
-                    new_graph_path
-                } else {
-                    old_relative_graph_path.clone()
-                }
-            }
-        };
         let meta = GraphMetadata::from_graph(&graph);
+        let new_relative_graph_path = make_data_path(&data_path, GRAPH_PATH)?;
+        graph.encode_parquet(&data_path.join(&new_relative_graph_path))?;
+
         let dirty_path = data_path.join(DIRTY_PATH);
         fs::write(
             &dirty_path,
@@ -596,24 +616,6 @@ impl InnerGraphFolder {
         }
 
         Ok(())
-    }
-
-    pub fn read_graph(&self) -> Result<MaterializedGraph, GraphError> {
-        let meta = self.read_metadata()?;
-        let graph = if meta.is_diskgraph {
-            match meta.graph_type {
-                GraphType::EventGraph => {
-                    MaterializedGraph::EventGraph(Graph::load_from_path(self.graph_path()?))
-                }
-                GraphType::PersistentGraph => MaterializedGraph::PersistentGraph(
-                    PersistentGraph::load_from_path(self.graph_path()?),
-                ),
-            }
-        } else {
-            MaterializedGraph::decode_parquet(self.graph_path()?, None)?
-        };
-        // FIXME: load index
-        Ok(graph)
     }
 }
 
@@ -762,7 +764,7 @@ mod tests {
 
         // Verify the output zip contains the same graph
         let zip_folder = GraphFolder::new_as_zip(&output_zip_path);
-        let decoded_graph = Graph::decode(&zip_folder, None::<&Path>).unwrap();
+        let decoded_graph = Graph::decode(&zip_folder).unwrap();
 
         assert_graph_equal(&graph, &decoded_graph);
     }
@@ -796,7 +798,7 @@ mod tests {
 
         // Verify the output zip contains the same graph
         let zip_folder = GraphFolder::new_as_zip(&output_zip_path);
-        let decoded_graph = Graph::decode(&zip_folder, None::<&std::path::Path>).unwrap();
+        let decoded_graph = Graph::decode(&zip_folder).unwrap();
 
         assert_graph_equal(&graph, &decoded_graph);
     }
@@ -850,7 +852,7 @@ mod tests {
         assert!(unzip_folder.meta_path().unwrap().exists());
 
         // Verify the extracted graph is the same as the original
-        let extracted_graph = Graph::decode(&unzip_folder, None::<&std::path::Path>).unwrap();
+        let extracted_graph = Graph::decode(&unzip_folder).unwrap();
         assert_graph_equal(&graph, &extracted_graph);
     }
 }

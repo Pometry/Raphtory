@@ -139,9 +139,7 @@ impl PyGraphEncoder {
     }
 
     fn __call__(&self, bytes: Vec<u8>) -> Result<MaterializedGraph, GraphError> {
-        let path_for_decoded_graph: Option<&std::path::Path> = None;
-
-        MaterializedGraph::decode_from_bytes(&bytes, path_for_decoded_graph)
+        MaterializedGraph::decode_from_bytes(&bytes)
     }
     fn __setstate__(&self) {}
     fn __getstate__(&self) {}
@@ -152,22 +150,22 @@ impl PyGraphEncoder {
 impl PyGraph {
     #[new]
     #[pyo3(signature = (path = None))]
-    pub fn py_new(path: Option<PathBuf>) -> (Self, PyGraphView) {
+    pub fn py_new(path: Option<PathBuf>) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
             None => Graph::new(),
-            Some(path) => Graph::new_at_path(path),
+            Some(path) => Graph::new_at_path(&path)?,
         };
-        (
+        Ok((
             Self {
                 graph: graph.clone(),
             },
             PyGraphView::from(graph),
-        )
+        ))
     }
 
     #[staticmethod]
-    pub fn load(path: PathBuf) -> Graph {
-        Graph::load_from_path(path)
+    pub fn load(path: PathBuf) -> Result<Graph, GraphError> {
+        Graph::load_from_path(&path)
     }
 
     fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {

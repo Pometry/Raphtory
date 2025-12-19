@@ -1,11 +1,15 @@
 use crate::{data::DIRTY_PATH, model::blocking_io, rayon::blocking_compute};
 use futures_util::io;
 use raphtory::{
-    db::api::view::MaterializedGraph,
+    db::api::{
+        storage::storage::{Extension, PersistentStrategy},
+        view::{internal::InternalStorageOps, MaterializedGraph},
+    },
     errors::{GraphError, InvalidPathReason},
+    prelude::GraphViewOps,
     serialise::{
-        metadata::GraphMetadata, GraphFolder, GraphPaths, RelativePath, WriteableGraphFolder,
-        META_PATH,
+        metadata::GraphMetadata, GraphFolder, GraphPaths, RelativePath, StableDecode,
+        WriteableGraphFolder, META_PATH,
     },
 };
 use std::{
@@ -19,9 +23,12 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tracing::{error, warn};
+use zip::ZipArchive;
 
-pub trait ValidGraphPaths: GraphPaths {
+pub trait ValidGraphPaths {
     fn local_path(&self) -> &str;
+
+    fn graph_folder(&self) -> &impl GraphPaths;
 
     fn local_path_string(&self) -> String {
         self.local_path().to_owned()
@@ -56,23 +63,13 @@ impl ValidPath {
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ExistingGraphFolder(pub(crate) ValidGraphFolder);
 
-impl GraphPaths for ExistingGraphFolder {
-    fn root(&self) -> &Path {
-        self.0.root()
-    }
-
-    fn relative_data_path(&self) -> Result<String, GraphError> {
-        self.0.relative_data_path()
-    }
-
-    fn relative_graph_path(&self) -> Result<String, GraphError> {
-        self.0.relative_graph_path()
-    }
-}
-
 impl ValidGraphPaths for ExistingGraphFolder {
     fn local_path(&self) -> &str {
         self.0.local_path()
+    }
+
+    fn graph_folder(&self) -> &impl GraphPaths {
+        self.0.graph_folder()
     }
 }
 
@@ -279,23 +276,13 @@ pub struct ValidWriteableGraphFolder {
     dirty_marker: Option<CleanupPath>,
 }
 
-impl GraphPaths for ValidWriteableGraphFolder {
-    fn root(&self) -> &Path {
-        self.global_path.root()
-    }
-
-    fn relative_data_path(&self) -> Result<String, GraphError> {
-        self.global_path.relative_data_path()
-    }
-
-    fn relative_graph_path(&self) -> Result<String, GraphError> {
-        self.global_path.relative_data_path()
-    }
-}
-
 impl ValidGraphPaths for ValidWriteableGraphFolder {
     fn local_path(&self) -> &str {
         &self.local_path
+    }
+
+    fn graph_folder(&self) -> &impl GraphPaths {
+        &self.global_path
     }
 }
 
@@ -362,7 +349,19 @@ impl ValidWriteableGraphFolder {
         &self,
         graph: MaterializedGraph,
     ) -> Result<(), InternalPathValidationError> {
-        self.global_path.data_path()?.replace_graph(graph)?;
+        if Extension::disk_storage_enabled() {
+            let graph_path = self.graph_folder().graph_path()?;
+            if graph
+                .disk_storage_enabled()
+                .is_some_and(|path| path == &graph_path)
+            {
+                self.global_path.write_metadata(&graph)?;
+            } else {
+                graph.materialize_at(self.graph_folder())?;
+            }
+        } else {
+            self.global_path.data_path()?.replace_graph(graph)?;
+        }
         Ok(())
     }
     pub fn write_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
@@ -371,18 +370,30 @@ impl ValidWriteableGraphFolder {
     }
 
     pub fn read_graph(&self) -> Result<MaterializedGraph, PathValidationError> {
-        self.with_internal_errors(|| self.data_path()?.read_graph())
+        self.with_internal_errors(|| {
+            if self.graph_folder().read_metadata()?.is_diskgraph {
+                MaterializedGraph::load_from_path(self.graph_folder())
+            } else {
+                MaterializedGraph::decode(self.graph_folder())
+            }
+        })
     }
 
     pub fn write_graph_bytes<R: Read + Seek + Send + 'static>(
         &self,
         bytes: R,
     ) -> Result<(), PathValidationError> {
-        self.global_path
-            .data_path()
-            .with_path(&self.local_path)?
-            .unzip_to_folder(bytes)
-            .with_path(&self.local_path)
+        self.with_internal_errors(|| {
+            if Extension::disk_storage_enabled() {
+                MaterializedGraph::decode_from_zip_at(
+                    ZipArchive::new(bytes)?,
+                    self.graph_folder(),
+                )?;
+            } else {
+                self.global_path.data_path()?.unzip_to_folder(bytes)?;
+            }
+            Ok::<(), GraphError>(())
+        })
     }
 
     /// Swap old and new data and delete the old graph
@@ -566,6 +577,10 @@ impl GraphPaths for ValidGraphFolder {
 impl ValidGraphPaths for ValidGraphFolder {
     fn local_path(&self) -> &str {
         &self.local_path
+    }
+
+    fn graph_folder(&self) -> &impl GraphPaths {
+        &self.global_path
     }
 }
 

@@ -426,18 +426,16 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def materialize(self, path=None) -> GraphView:
+    def materialize(self) -> GraphView:
         """
         Returns a 'materialized' clone of the graph view - i.e. a new graph with a
         copy of the data seen within the view instead of just a mask over the original graph.
-        If a path is provided, the new graph will be stored at that path
-        (assuming the storage feature is enabled).
 
         Returns:
            GraphView: Returns a graph clone
         """
 
-    def materialize_to_graph_folder(self, path):
+    def materialize_at(self, path):
         """Materializes the graph view into a graphql compatible folder."""
 
     @property

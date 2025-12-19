@@ -32,7 +32,7 @@ mod serialise_test {
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -45,7 +45,7 @@ mod serialise_test {
         g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
             .unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -61,7 +61,7 @@ mod serialise_test {
         let temp_file = TempDir::new().unwrap();
 
         g.encode(&temp_file).unwrap();
-        let g2 = MaterializedGraph::decode(&temp_file, None).unwrap();
+        let g2 = MaterializedGraph::decode(&temp_file).unwrap();
         assert_eq!(g2.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
         let node_names: Vec<_> = g2.nodes().iter().map(|n| n.name()).collect();
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
@@ -77,7 +77,7 @@ mod serialise_test {
 
         let temp_file = TempDir::new().unwrap();
         g3.encode(&temp_file).unwrap();
-        let g4 = MaterializedGraph::decode(&temp_file, None).unwrap();
+        let g4 = MaterializedGraph::decode(&temp_file).unwrap();
         assert_eq!(g4.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
         let node_names: Vec<_> = g4.nodes().iter().map(|n| n.name()).collect();
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
@@ -97,7 +97,7 @@ mod serialise_test {
             .expect("Failed to update metadata");
 
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -110,7 +110,7 @@ mod serialise_test {
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -122,7 +122,7 @@ mod serialise_test {
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.delete_edge(19, "Alice", "Bob", None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = PersistentGraph::decode(&temp_file, None).unwrap();
+        let g2 = PersistentGraph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
@@ -150,7 +150,7 @@ mod serialise_test {
         .unwrap();
 
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -163,7 +163,7 @@ mod serialise_test {
         e1.update_metadata([("friends", true)], None)
             .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -177,7 +177,7 @@ mod serialise_test {
         g1.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
 
@@ -191,7 +191,7 @@ mod serialise_test {
         let g1 = Graph::new();
         g1.add_node(1, "Alice", props.clone(), None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let node = g2.node("Alice").expect("Failed to get node");
@@ -218,7 +218,7 @@ mod serialise_test {
         let g1 = Graph::new();
         g1.add_edge(1, "Alice", "Bob", props.clone(), None).unwrap();
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
@@ -247,7 +247,7 @@ mod serialise_test {
         e.update_metadata(props.clone(), Some("a"))
             .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let edge = g2
@@ -274,7 +274,7 @@ mod serialise_test {
         n.update_metadata(props.clone())
             .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
         let node = g2.node("Alice").expect("Failed to get node");
@@ -299,7 +299,7 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
         props.into_iter().for_each(|(name, prop)| {
@@ -322,7 +322,7 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         g1.encode(&temp_file).unwrap();
-        let g2 = Graph::decode(&temp_file, None).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
         props
@@ -378,7 +378,7 @@ mod serialise_test {
         g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
 
-        let g2 = Graph::decode(&temp_cache_file, None).unwrap();
+        let g2 = Graph::decode(&temp_cache_file).unwrap();
 
         assert_graph_equal(&g, &g2);
         assert_metadata_correct(&folder, &g);
@@ -421,7 +421,7 @@ mod serialise_test {
         g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
 
-        let g2 = PersistentGraph::decode(&temp_cache_file, None).unwrap();
+        let g2 = PersistentGraph::decode(&temp_cache_file).unwrap();
 
         assert_graph_equal(&g, &g2);
         assert_metadata_correct(&folder, &g);
@@ -432,7 +432,7 @@ mod serialise_test {
         proptest!(|(edges in build_edge_list(100, 100))| {
             let g = build_graph_from_edge_list(&edges);
             let bytes = g.encode_to_bytes().unwrap();
-            let g2 = Graph::decode_from_bytes(&bytes, None).unwrap();
+            let g2 = Graph::decode_from_bytes(&bytes).unwrap();
             assert_graph_equal(&g, &g2);
         })
     }

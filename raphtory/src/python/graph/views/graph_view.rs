@@ -465,25 +465,16 @@ impl PyGraphView {
 
     /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a
     /// copy of the data seen within the view instead of just a mask over the original graph.
-    /// If a path is provided, the new graph will be stored at that path
-    /// (assuming the storage feature is enabled).
     ///
     /// Returns:
     ///    GraphView: Returns a graph clone
-    #[pyo3(signature = (path = None))]
-    fn materialize(&self, path: Option<PathBuf>) -> Result<MaterializedGraph, GraphError> {
-        self.graph.materialize_at(path.as_deref())
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize()
     }
 
     /// Materializes the graph view into a graphql compatible folder.
-    fn materialize_to_graph_folder(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
-        let folder: GraphFolder = path.into();
-        let write = folder.init_write()?;
-
-        let graph = self.graph.materialize_at(Some(&write.graph_path()?))?;
-        write.data_path()?.write_metadata(&graph)?;
-        write.finish()?;
-        Ok(graph)
+    fn materialize_at(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize_at(&path)
     }
 
     /// Displays the graph

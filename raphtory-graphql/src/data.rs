@@ -275,7 +275,7 @@ impl Data {
             .vectorise(
                 conf.cache.clone(),
                 template.clone(),
-                Some(&folder.vectors_path().ok()?),
+                Some(&folder.graph_folder().vectors_path().ok()?),
                 true, // verbose
             )
             .await;
