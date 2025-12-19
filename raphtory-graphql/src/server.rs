@@ -389,7 +389,10 @@ mod server_tests {
         };
         let model = OpenAIEmbeddings {
             api_base: Some("wrong-api-base".to_owned()),
-            ..Default::default()
+            model: "whatever".to_owned(),
+            api_key_env: None,
+            project_id: None,
+            org_id: None,
         };
         server.vectorise_all_graphs(&template, model).await.unwrap();
         let handler = server.start_with_port(0);

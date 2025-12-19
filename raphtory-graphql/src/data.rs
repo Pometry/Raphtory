@@ -339,9 +339,13 @@ pub(crate) mod data_tests {
         #[cfg(feature = "storage")]
         graphs.insert("test_dg".to_string(), graph2);
 
-        save_graphs_to_work_dir(tmp_work_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_work_dir.path(), &graphs)
+            .await
+            .unwrap();
 
-        let data = Data::new(tmp_work_dir.path(), &Default::default());
+        let data = Data::new(tmp_work_dir.path(), &Default::default())
+            .await
+            .unwrap();
 
         for graph in graphs.keys() {
             assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
@@ -368,7 +372,7 @@ pub(crate) mod data_tests {
             .with_cache_tti_seconds(2)
             .build();
 
-        let data = Data::new(tmp_work_dir.path(), &configs);
+        let data = Data::new(tmp_work_dir.path(), &configs).await.unwrap();
 
         assert!(!data.cache.contains_key(Path::new("test_g")));
         assert!(!data.cache.contains_key(Path::new("test_g2")));
@@ -418,7 +422,7 @@ pub(crate) mod data_tests {
             .with_cache_tti_seconds(2)
             .build();
 
-        let data = Data::new(work_dir, &configs);
+        let data = Data::new(work_dir, &configs).await.unwrap();
 
         let paths = data
             .get_all_graph_folders()

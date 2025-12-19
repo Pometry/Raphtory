@@ -633,7 +633,7 @@ mod tests {
         let tmp_dir = tempdir().unwrap();
 
         let config = AppConfig::default();
-        let mut data = Data::new(tmp_dir.path(), &config);
+        let mut data = Data::new(tmp_dir.path(), &config).await.unwrap();
 
         // Override the embedding function with a mock for testing.
         data.embedding_conf = Some(EmbeddingConf {
