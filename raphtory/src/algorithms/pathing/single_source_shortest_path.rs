@@ -45,7 +45,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
             nextlevel.clear();
             for v in thislevel.iter() {
                 let node = NodeView::new_internal(g, *v);
-                for w in node.neighbours() {
+                for w in node.out_neighbours() {
                     if !paths.contains_key(&w.node) {
                         let mut new_path = paths.get(v).unwrap().clone();
                         new_path.push(w.node);
