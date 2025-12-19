@@ -336,12 +336,7 @@ impl ValidWriteableGraphFolder {
         base_path: PathBuf,
         relative_path: &str,
     ) -> Result<Self, PathValidationError> {
-        let path = create_valid_path(base_path, relative_path).map_err(|error| {
-            PathValidationError::InternalError {
-                graph: relative_path.to_string(),
-                error,
-            }
-        })?;
+        let path = create_valid_path(base_path, relative_path).with_path(relative_path)?;
         Self::new(path, relative_path)
     }
 
@@ -411,7 +406,7 @@ impl ValidWriteableGraphFolder {
 
 #[derive(thiserror::Error, Debug)]
 pub enum InternalPathValidationError {
-    #[error("Path from metadata is invalid: {0}")]
+    #[error(transparent)]
     InvalidPath(#[from] InvalidPathReason),
     #[error(transparent)]
     IOError(io::Error),
@@ -455,6 +450,11 @@ pub enum PathValidationError {
     GraphNotExistsError(String),
     #[error("'{0}' does not exist as a namespace")]
     NamespaceDoesNotExist(String),
+    #[error("Invalid path '{graph}': {reason}")]
+    InvalidPath {
+        graph: String,
+        reason: InvalidPathReason,
+    },
     #[error("Graph '{graph}' is corrupted: {error}")]
     InternalError {
         graph: String,
@@ -472,9 +472,15 @@ pub trait WithPath {
 impl<V, E: Into<InternalPathValidationError>> WithPath for Result<V, E> {
     type Value = V;
     fn with_path<S: Into<String>>(self, graph: S) -> Result<V, PathValidationError> {
-        self.map_err(move |error| PathValidationError::InternalError {
-            graph: graph.into(),
-            error: error.into(),
+        self.map_err(move |error| {
+            let error = error.into();
+            let graph = graph.into();
+            match error {
+                InternalPathValidationError::InvalidPath(reason) => {
+                    PathValidationError::InvalidPath { graph, reason }
+                }
+                _ => PathValidationError::InternalError { graph, error },
+            }
         })
     }
 }
