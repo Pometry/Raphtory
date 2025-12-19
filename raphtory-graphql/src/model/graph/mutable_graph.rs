@@ -633,14 +633,14 @@ mod tests {
         let tmp_dir = tempdir().unwrap();
 
         let config = AppConfig::default();
-        let mut data = Data::new(tmp_dir.path(), &config).await.unwrap();
+        let data = Data::new(tmp_dir.path(), &config).await.unwrap();
 
         // Override the embedding function with a mock for testing.
-        data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::in_memory(fake_embedding),
-            global_template: Some(custom_template()),
-            individual_templates: HashMap::new(),
-        });
+        // data.embedding_conf = Some(EmbeddingConf { // FIXME: now need to vectorise before starting the server
+        //     cache: VectorCache::in_memory(fake_embedding),
+        //     global_template: Some(custom_template()),
+        //     individual_templates: HashMap::new(),
+        // });
 
         data.insert_graph("test_graph", graph).await.unwrap();
 
@@ -698,10 +698,11 @@ mod tests {
             .graph
             .vectors
             .unwrap()
-            .nodes_by_similarity(embedding, limit, None);
+            .nodes_by_similarity(embedding, limit, None)
+            .await;
 
         assert!(result.is_ok());
-        assert!(result.unwrap().get_documents().unwrap().len() == 2);
+        assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
     }
 
     #[tokio::test]
@@ -768,10 +769,11 @@ mod tests {
             .graph
             .vectors
             .unwrap()
-            .nodes_by_similarity(embedding, limit, None);
+            .nodes_by_similarity(embedding, limit, None)
+            .await;
 
         assert!(result.is_ok());
-        assert!(result.unwrap().get_documents().unwrap().len() == 3);
+        assert!(result.unwrap().get_documents().await.unwrap().len() == 3);
     }
 
     #[tokio::test]
@@ -843,9 +845,10 @@ mod tests {
             .graph
             .vectors
             .unwrap()
-            .edges_by_similarity(embedding, limit, None);
+            .edges_by_similarity(embedding, limit, None)
+            .await;
 
         assert!(result.is_ok());
-        assert!(result.unwrap().get_documents().unwrap().len() == 2);
+        assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
     }
 }

@@ -1534,7 +1534,9 @@ mod graphql_test {
         fs::File::create(disk_graph_path.join(".raph")).unwrap();
         let _ = DiskGraphStorage::from_graph(&graph, disk_graph_path.join("graph")).unwrap();
 
-        let data = Data::new(&tmp_work_dir, &AppConfig::default());
+        let data = Data::new(&tmp_work_dir, &AppConfig::default())
+            .await
+            .unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"

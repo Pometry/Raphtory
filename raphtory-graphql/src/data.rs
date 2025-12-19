@@ -289,7 +289,7 @@ pub(crate) mod data_tests {
         File::create(graph_path.join(".raph")).unwrap();
         let _ = DiskGraphStorage::from_graph(&graph, &graph_path.join("graph")).unwrap();
 
-        let data = Data::new(&base_path, &Default::default());
+        let data = Data::new(&base_path, &Default::default()).await.unwrap();
         let res = data.get_graph("test_dg").await.unwrap().0;
         assert_eq!(res.graph.into_events().unwrap().count_edges(), 2);
 
