@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765880502203,
+  "lastUpdate": 1766153744499,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -2969,6 +2969,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1301,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "102a9fefbe8bdfa045c11d1a4537da6ccefcc293",
+          "message": "Make graphql schema output stable (#2427)\n\n* register plugins in stable order to avoid churn in the docs\n\n* clean up warnings",
+          "timestamp": "2025-12-19T14:39:26+01:00",
+          "tree_id": "a2a6baa98c20e9445d6f5bfd020a5e38afe38082",
+          "url": "https://github.com/Pometry/Raphtory/commit/102a9fefbe8bdfa045c11d1a4537da6ccefcc293"
+        },
+        "date": 1766153741257,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1443,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 174,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 159,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1134,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 765,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1472,
             "unit": "req/s"
           }
         ]
