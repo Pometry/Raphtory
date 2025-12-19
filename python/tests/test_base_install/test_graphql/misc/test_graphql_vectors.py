@@ -66,7 +66,7 @@ def test_new_graph():
             setup_graph(rg)
             client.query("""
                 {
-                    vectoriseGraph(path: "abb", apiBase: "http://localhost:7340", nodes: { custom: "{{ name }}" }, edges: { enabled: false })
+                    vectoriseGraph(path: "abb", model: { openAI: { model: "whatever", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
                 """)
             assert_correct_documents(client)
@@ -87,7 +87,7 @@ def test_upload_graph():
             client.upload_graph(path="abb", file_path=g_path, overwrite=True)
             client.query("""
                 {
-                    vectoriseGraph(path: "abb", apiBase: "http://localhost:7340", nodes: { custom: "{{ name }}" }, edges: { enabled: false })
+                vectoriseGraph(path: "abb", model: { openAI: { model: "whatever", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
                 """)
             assert_correct_documents(client)
