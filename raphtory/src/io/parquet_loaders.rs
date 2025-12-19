@@ -11,6 +11,7 @@ use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{
     collections::HashMap,
     error::Error,
+    ffi::OsStr,
     fs,
     fs::File,
     path::{Path, PathBuf},
@@ -18,6 +19,18 @@ use std::{
 };
 #[cfg(feature = "storage")]
 use {arrow::array::StructArray, pometry_storage::RAError};
+
+pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
+    if path.is_dir() {
+        Ok(fs::read_dir(&path)?.any(|entry| {
+            entry.map_or(false, |e| {
+                e.path().extension().and_then(OsStr::to_str) == Some("parquet")
+            })
+        }))
+    } else {
+        Ok(path.extension().and_then(OsStr::to_str) == Some("parquet"))
+    }
+}
 
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,

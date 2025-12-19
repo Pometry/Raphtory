@@ -24,6 +24,7 @@ import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
+from pyarrow import DataType
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore

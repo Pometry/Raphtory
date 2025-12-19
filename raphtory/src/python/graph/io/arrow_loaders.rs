@@ -39,6 +39,20 @@ use std::{
 
 const CHUNK_SIZE: usize = 1_000_000; // split large chunks so progress bar updates reasonably
 
+pub(crate) fn convert_py_schema(
+    schema: Option<Bound<PyAny>>,
+) -> Result<Option<HashMap<String, PropType>>, GraphError> {
+    schema.map(|s| {
+        if let Ok(list) = s.extract::<Vec<(String, PropType)>>() {
+            Ok(list.into_iter().collect::<HashMap<String, PropType>>())
+        } else if let Ok(map) = s.extract::<HashMap<String, PropType>>() {
+            Ok(map)
+        } else {
+            Err(GraphError::from(PyValueError::new_err("Argument 'schema' must either be a list of (column_name, column_type) tuples or a dict mapping {'column_name' : column_type}")))
+        }
+    }).transpose()
+}
+
 pub(crate) fn load_nodes_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
@@ -359,6 +373,23 @@ fn split_into_chunks(batch: &RecordBatch, indices: &[usize]) -> Vec<Result<DFChu
             .map(|&idx| batch.column(idx).clone())
             .collect::<Vec<_>>();
         vec![Ok(DFChunk::new(chunk_arrays))]
+    }
+}
+
+pub(crate) fn is_csv_path(path: &PathBuf) -> Result<bool, std::io::Error> {
+    if path.is_dir() {
+        Ok(fs::read_dir(&path)?.any(|entry| {
+            entry.map_or(false, |e| {
+                let p = e.path();
+                let s = p.to_string_lossy();
+                s.ends_with(".csv") || s.ends_with(".csv.gz") || s.ends_with(".csv.bz2")
+            })
+        }))
+    } else {
+        let path_str = path.to_string_lossy();
+        Ok(path_str.ends_with(".csv")
+            || path_str.ends_with(".csv.gz")
+            || path_str.ends_with(".csv.bz2"))
     }
 }
 

@@ -19,9 +19,9 @@ use crate::{
             index::PyIndexSpec,
             io::{
                 arrow_loaders::{
-                    load_edge_metadata_from_arrow_c_stream, load_edges_from_arrow_c_stream,
-                    load_node_metadata_from_arrow_c_stream, load_nodes_from_arrow_c_stream,
-                    load_nodes_from_csv_path, CsvReadOptions,
+                    convert_py_schema, is_csv_path, load_edge_metadata_from_arrow_c_stream,
+                    load_edges_from_arrow_c_stream, load_node_metadata_from_arrow_c_stream,
+                    load_nodes_from_arrow_c_stream, load_nodes_from_csv_path, CsvReadOptions,
                 },
                 pandas_loaders::*,
             },
@@ -638,7 +638,6 @@ impl PyGraph {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
-    // TODO: Fix DataType in schema argument below
     /// Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
     /// a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
     /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
@@ -654,6 +653,7 @@ impl PyGraph {
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]], optional): A list of (column_name, column_type) tuples to cast column types to. Defaults to None.
+    ///     csv_options (dict[str, str | bool], optional): Allows specifying delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -678,15 +678,7 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        let column_schema = schema.map(|s| {
-            if let Ok(list) = s.extract::<Vec<(String, PropType)>>() {
-                Ok(list.into_iter().collect::<HashMap<String, PropType>>())
-            } else if let Ok(map) = s.extract::<HashMap<String, PropType>>() {
-                Ok(map)
-            } else {
-                Err(GraphError::from(PyValueError::new_err("Argument 'schema' must either be a list of (column_name, column_type) tuples or a dict mapping {'column_name' : column_type}")))
-            }
-        }).transpose()?;
+        let column_schema = convert_py_schema(schema)?;
         if data.hasattr("__arrow_c_stream__")? {
             load_nodes_from_arrow_c_stream(
                 &self.graph,
@@ -701,31 +693,9 @@ impl PyGraph {
                 column_schema,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
-            // handles Strings too
-            let is_parquet = if path.is_dir() {
-                fs::read_dir(&path)?.any(|entry| {
-                    entry.map_or(false, |e| {
-                        e.path().extension().and_then(OsStr::to_str) == Some("parquet")
-                    })
-                })
-            } else {
-                path.extension().and_then(OsStr::to_str) == Some("parquet")
-            };
-
-            let is_csv = if path.is_dir() {
-                fs::read_dir(&path)?.any(|entry| {
-                    entry.map_or(false, |e| {
-                        let p = e.path();
-                        let s = p.to_string_lossy();
-                        s.ends_with(".csv") || s.ends_with(".csv.gz") || s.ends_with(".csv.bz2")
-                    })
-                })
-            } else {
-                let path_str = path.to_string_lossy();
-                path_str.ends_with(".csv")
-                    || path_str.ends_with(".csv.gz")
-                    || path_str.ends_with(".csv.bz2")
-            };
+            // extracting PathBuf handles Strings too
+            let is_parquet = is_parquet_path(&path)?;
+            let is_csv = is_csv_path(&path)?;
 
             // fail before loading anything at all to avoid loading partial data
             if !is_csv && csv_options.is_some() {

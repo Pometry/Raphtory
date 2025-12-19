@@ -23,6 +23,7 @@ import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
+from pyarrow import DataType
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
@@ -1256,7 +1257,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes(self, data: Any, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, schema: Any = None, csv_options=None) -> None:
+    def load_nodes(self, data: Any, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, schema: Optional[list[tuple[str, DataType | PropType | str]]] = None, csv_options: Optional[dict[str, str | bool]] = None) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
         a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
@@ -1273,6 +1274,7 @@ class Graph(GraphView):
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]], optional): A list of (column_name, column_type) tuples to cast column types to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): Allows specifying delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags.
 
         Returns:
             None: This function does not return a value if the operation is successful.
