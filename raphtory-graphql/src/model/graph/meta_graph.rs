@@ -1,9 +1,16 @@
 use crate::{
+    data::Data,
+    graph::GraphWithVectors,
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };
+use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
-use raphtory::serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata};
+use raphtory::{
+    db::api::storage::storage::{Extension, PersistentStrategy},
+    prelude::{GraphViewOps, PropertiesOps},
+    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata},
+};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 
@@ -92,11 +99,26 @@ impl MetaGraph {
     }
 
     /// Returns the metadata of the graph.
-    async fn metadata(&self) -> Result<Vec<GqlProperty>> {
-        let res = decode_graph_metadata(self.folder.graph_folder())?;
-        Ok(res
-            .into_iter()
-            .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
-            .collect())
+    async fn metadata(&self, ctx: &Context<'_>) -> Result<Vec<GqlProperty>> {
+        let data: &Data = ctx.data_unchecked();
+        let maybe_cached = if Extension::disk_storage_enabled() {
+            let graph = data.get_graph(self.folder.local_path()).await?;
+            Some(graph)
+        } else {
+            data.get_cached_graph(self.folder.local_path()).await
+        };
+        let res = match maybe_cached {
+            None => decode_graph_metadata(self.folder.graph_folder())?
+                .into_iter()
+                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
+                .collect(),
+            Some(graph) => graph
+                .graph
+                .metadata()
+                .iter()
+                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key.into(), prop)))
+                .collect(),
+        };
+        Ok(res)
     }
 }

@@ -39,7 +39,6 @@ use crate::{
         types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },
-    serialise::{GraphFolder, GraphPaths},
 };
 use chrono::prelude::*;
 use pyo3::prelude::*;

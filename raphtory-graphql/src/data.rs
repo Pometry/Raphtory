@@ -192,6 +192,10 @@ impl Data {
             .await
     }
 
+    pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
+        self.cache.get(path).await
+    }
+
     pub fn has_graph(&self, path: &str) -> bool {
         self.cache.contains_key(path)
             || ExistingGraphFolder::try_from(self.work_dir.clone(), path).is_ok()
