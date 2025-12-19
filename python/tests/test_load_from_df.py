@@ -46,8 +46,8 @@ def test_different_data_sources():
     nodes_list = []
 
     ######### PARQUET #########
-    parquet_dir_path_str = str(Path(__file__).parent) + "/data/btc_dataset/parquet_directory"
-    parquet_file_path_str = str(Path(__file__).parent) + "/data/btc_dataset/flattened_data.parquet"
+    parquet_dir_path_str = str(_btc_root() / "parquet_directory")
+    parquet_file_path_str = str(_btc_root() / "flattened_data.parquet")
     # test path string for parquet file
     g = Graph()
     g.load_nodes(data=parquet_file_path_str, time="block_timestamp", id="inputs_address")
@@ -75,8 +75,8 @@ def test_different_data_sources():
     del g
 
     ######### CSV #########
-    csv_dir_path_str = str(Path(__file__).parent) + "/data/btc_dataset/csv_directory"
-    csv_file_path_str = str(Path(__file__).parent) + "/data/btc_dataset/flattened_data.csv"
+    csv_dir_path_str = str(_btc_root() / "csv_directory")
+    csv_file_path_str = str(_btc_root() / "flattened_data.csv")
     # test path string for CSV file
     g = Graph()
     g.load_nodes(data=csv_file_path_str, time="block_timestamp", id="inputs_address")
@@ -85,6 +85,34 @@ def test_different_data_sources():
 
     # test Path object for CSV file
     file_path_obj = Path(csv_file_path_str)
+    g = Graph()
+    g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test path string for bz2 compressed CSV file
+    g = Graph()
+    compressed_file_path = csv_file_path_str + ".bz2"
+    g.load_nodes(data=compressed_file_path, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object for bz2 compressed CSV file
+    file_path_obj = Path(compressed_file_path)
+    g = Graph()
+    g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test path string for gzip compressed CSV file
+    g = Graph()
+    compressed_file_path = csv_file_path_str + ".gz"
+    g.load_nodes(data=compressed_file_path, time="block_timestamp", id="inputs_address")
+    nodes_list.append(sorted(g.nodes.id.collect()))
+    del g
+
+    # test Path object for gzip compressed CSV file
+    file_path_obj = Path(compressed_file_path)
     g = Graph()
     g.load_nodes(data=file_path_obj, time="block_timestamp", id="inputs_address")
     nodes_list.append(sorted(g.nodes.id.collect()))
@@ -132,7 +160,7 @@ def test_different_data_sources():
     nodes_list.append(sorted(g.nodes.id.collect()))
     del g, df_pl
 
-    # sanity check, make sure we ingested the same number of nodes each time
+    # sanity check, make sure we ingested the same nodes each time
     print(f"Number of tests ran: {len(nodes_list)}")
     for i in range(len(nodes_list)-1):
         assert nodes_list[0] == nodes_list[i+1], f"Nodes list assertion failed at item i={i}"
