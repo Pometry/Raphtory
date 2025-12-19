@@ -1,5 +1,6 @@
 use crate::db::api::{storage::storage::Storage, view::internal::InternalStorageOps};
 use raphtory_storage::graph::graph::GraphStorage;
+use std::path::Path;
 
 pub mod edge_filter;
 pub mod list_ops;
@@ -14,7 +15,7 @@ impl InternalStorageOps for GraphStorage {
         None
     }
 
-    fn disk_storage_enabled(&self) -> bool {
+    fn disk_storage_enabled(&self) -> Option<&Path> {
         self.disk_storage_enabled()
     }
 }

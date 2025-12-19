@@ -1,11 +1,8 @@
 use super::GraphStorage;
 use crate::{
     core::{entities::LayerIds, storage::timeindex::TimeIndexOps},
-    db::api::{
-        storage::graph,
-        view::internal::{
-            EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
-        },
+    db::api::view::internal::{
+        EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
     },
     prelude::Prop,
 };
@@ -25,7 +22,7 @@ use raphtory_storage::{
     },
 };
 use rayon::iter::ParallelIterator;
-use std::ops::{Deref, Range};
+use std::ops::Range;
 use storage::{
     api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
     gen_ts::ALL_LAYERS,

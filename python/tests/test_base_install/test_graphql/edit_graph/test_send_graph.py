@@ -31,7 +31,7 @@ def test_send_graph_fails_if_graph_already_exists():
         client = RaphtoryClient("http://localhost:1736")
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path="g", graph=g)
-        assert "Graph already exists by name = g" in str(excinfo.value)
+        assert "Graph 'g' already exists" in str(excinfo.value)
 
 
 def test_send_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
@@ -94,7 +94,7 @@ def test_send_graph_fails_if_graph_already_exists_at_namespace():
         client = RaphtoryClient("http://localhost:1736")
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path="shivam/g", graph=g)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'shivam/g' already exists" in str(excinfo.value)
 
 
 def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():

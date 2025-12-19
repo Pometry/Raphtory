@@ -15,7 +15,7 @@ use fake::{
     },
     Fake,
 };
-use rand::{prelude::SliceRandom, rng, seq::IndexedRandom, Rng};
+use rand::{rng, seq::IndexedRandom, Rng};
 use raphtory::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt::Debug};
@@ -173,7 +173,7 @@ pub fn generate_data_write_to_csv(
             post_id: format!("post_{}", i),
             forum_id: format!("forum_{}", rng.random_range(1..=num_forums)),
             creation_date, // Use post's creation date
-            is_featured: rng.gen_bool(0.2),
+            is_featured: rng.random_bool(0.2),
             likes_count: rng.random_range(0..500),
             comments_count: rng.random_range(0..200),
         })?;
@@ -200,7 +200,7 @@ pub fn generate_data_write_to_csv(
             comment_id: format!("comment_{}", i),
             post_id: format!("post_{}", rng.random_range(1..=num_posts)),
             creation_date, // Use comment's creation date
-            is_edited: rng.gen_bool(0.1),
+            is_edited: rng.random_bool(0.1),
             upvotes: rng.random_range(0..200),
             reply_count: rng.random_range(0..20),
         })?;
@@ -421,7 +421,7 @@ pub fn generate_graph(
                 ),
                 (
                     "gender",
-                    Prop::Str(ArcStr::from(if rng.gen_bool(0.5) {
+                    Prop::Str(ArcStr::from(if rng.random_bool(0.5) {
                         "male"
                     } else {
                         "female"
@@ -465,7 +465,7 @@ pub fn generate_graph(
                     forum_id.clone(),
                     [
                         ("activity_score", Prop::F64(rng.random_range(0.0..100.0))),
-                        ("is_moderator", Prop::Bool(rng.gen_bool(0.1))),
+                        ("is_moderator", Prop::Bool(rng.random_bool(0.1))),
                     ],
                     None,
                 )
@@ -516,7 +516,7 @@ pub fn generate_graph(
                 post_id.clone(),
                 forum_id.clone(),
                 [
-                    ("is_featured", Prop::Bool(rng.gen_bool(0.2))),
+                    ("is_featured", Prop::Bool(rng.random_bool(0.2))),
                     ("likes_count", Prop::U64(rng.random_range(0..500))),
                     ("comments_count", Prop::U64(rng.random_range(0..200))),
                 ],
@@ -568,7 +568,7 @@ pub fn generate_graph(
                 comment_id.clone(),
                 post_id.clone(),
                 [
-                    ("is_edited", Prop::Bool(rng.gen_bool(0.1))),
+                    ("is_edited", Prop::Bool(rng.random_bool(0.1))),
                     ("upvotes", Prop::U64(rng.random_range(0..200))),
                     ("reply_count", Prop::U64(rng.random_range(0..20))),
                 ],

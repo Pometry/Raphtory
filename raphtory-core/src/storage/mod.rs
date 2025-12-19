@@ -19,7 +19,7 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
@@ -29,7 +29,7 @@ pub mod lazy_vec;
 pub mod locked_view;
 pub mod timeindex;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Serialize, PartialEq, Default)]
 pub struct TColumns {
     t_props_log: Vec<PropColumn>,
     num_rows: usize,
@@ -128,7 +128,7 @@ impl TColumns {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub enum PropColumn {
     Empty(usize),
     Bool(LazyVec<bool>),

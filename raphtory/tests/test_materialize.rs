@@ -1,6 +1,6 @@
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
-    db::{api::view::MaterializedGraph, graph::graph::assert_graph_equal},
+    db::graph::graph::assert_graph_equal,
     prelude::*,
     test_storage,
     test_utils::{build_edge_list, build_graph_from_edge_list},

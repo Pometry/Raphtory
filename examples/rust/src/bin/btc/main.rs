@@ -64,7 +64,7 @@ fn main() {
 
     let graph = if encoded_data_dir.exists() {
         let now = Instant::now();
-        let g = Graph::decode(encoded_data_dir.as_path(), None)
+        let g = Graph::decode(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
 
         info!(

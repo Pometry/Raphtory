@@ -1,13 +1,13 @@
 mod graph_folder;
 pub mod metadata;
 
-pub(crate) mod parquet;
+pub mod parquet;
 
 #[cfg(feature = "proto")]
 pub mod proto;
 mod serialise;
 
-pub use graph_folder::{GraphFolder, GRAPH_PATH, INDEX_PATH, META_PATH, VECTORS_PATH};
+pub use graph_folder::*;
 pub use serialise::{StableDecode, StableEncode};
 
 #[cfg(feature = "proto")]

@@ -23,9 +23,42 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['NodeGroups', 'DegreeView', 'NodeStateUsize', 'NodeStateU64', 'NodeStateOptionI64', 'IdView', 'NodeStateGID', 'EarliestTimeView', 'LatestTimeView', 'NameView', 'NodeStateString', 'EarliestDateTimeView', 'LatestDateTimeView', 'NodeStateOptionDateTime', 'HistoryView', 'EdgeHistoryCountView', 'NodeStateListI64', 'HistoryDateTimeView', 'NodeStateOptionListDateTime', 'NodeTypeView', 'NodeStateOptionStr', 'NodeStateListDateTime', 'NodeStateWeightedSP', 'NodeStateF64', 'NodeStateNodes', 'NodeStateReachability', 'NodeStateListF64', 'NodeStateMotifs', 'NodeStateHits', 'NodeStateSEIR', 'NodeLayout', 'NodeStateF64String']
-class NodeGroups(object): 
+__all__ = [
+    "NodeGroups",
+    "DegreeView",
+    "NodeStateUsize",
+    "NodeStateU64",
+    "NodeStateOptionI64",
+    "IdView",
+    "NodeStateGID",
+    "EarliestTimeView",
+    "LatestTimeView",
+    "NameView",
+    "NodeStateString",
+    "EarliestDateTimeView",
+    "LatestDateTimeView",
+    "NodeStateOptionDateTime",
+    "HistoryView",
+    "EdgeHistoryCountView",
+    "NodeStateListI64",
+    "HistoryDateTimeView",
+    "NodeStateOptionListDateTime",
+    "NodeTypeView",
+    "NodeStateOptionStr",
+    "NodeStateListDateTime",
+    "NodeStateWeightedSP",
+    "NodeStateF64",
+    "NodeStateNodes",
+    "NodeStateReachability",
+    "NodeStateListF64",
+    "NodeStateMotifs",
+    "NodeStateHits",
+    "NodeStateSEIR",
+    "NodeLayout",
+    "NodeStateF64String",
+]
 
+class NodeGroups(object):
     def __bool__(self):
         """True if self else False"""
 
@@ -68,7 +101,7 @@ class NodeGroups(object):
             Iterator[Tuple[Any, GraphView]]: Iterator over subgraphs with corresponding value
         """
 
-class DegreeView(object): 
+class DegreeView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -230,7 +263,9 @@ class DegreeView(object):
              DegreeView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -385,7 +420,12 @@ class DegreeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -574,8 +614,7 @@ class DegreeView(object):
             Optional[int]:
         """
 
-class NodeStateUsize(object): 
-
+class NodeStateUsize(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -768,8 +807,7 @@ class NodeStateUsize(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateU64(object): 
-
+class NodeStateU64(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -954,8 +992,7 @@ class NodeStateU64(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateOptionI64(object): 
-
+class NodeStateOptionI64(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -997,7 +1034,9 @@ class NodeStateOptionI64(object):
              NodeStateOptionI64: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[int]] = None
+    ) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -1131,7 +1170,7 @@ class NodeStateOptionI64(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class IdView(object): 
+class IdView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1317,8 +1356,7 @@ class IdView(object):
              Iterator[GID]: Iterator over values
         """
 
-class NodeStateGID(object): 
-
+class NodeStateGID(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1486,7 +1524,7 @@ class NodeStateGID(object):
              Iterator[GID]: Iterator over values
         """
 
-class EarliestTimeView(object): 
+class EarliestTimeView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1648,7 +1686,9 @@ class EarliestTimeView(object):
              EarliestTimeView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -1667,7 +1707,9 @@ class EarliestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[int]] = None
+    ) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -1795,7 +1837,12 @@ class EarliestTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -1975,7 +2022,7 @@ class EarliestTimeView(object):
             Optional[int]:
         """
 
-class LatestTimeView(object): 
+class LatestTimeView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2137,7 +2184,9 @@ class LatestTimeView(object):
              LatestTimeView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2156,7 +2205,9 @@ class LatestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[int]] = None
+    ) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -2284,7 +2335,12 @@ class LatestTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -2464,7 +2520,7 @@ class LatestTimeView(object):
             Optional[int]:
         """
 
-class NameView(object): 
+class NameView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2658,8 +2714,7 @@ class NameView(object):
              Iterator[str]: Iterator over values
         """
 
-class NodeStateString(object): 
-
+class NodeStateString(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -2835,7 +2890,7 @@ class NodeStateString(object):
              Iterator[str]: Iterator over values
         """
 
-class EarliestDateTimeView(object): 
+class EarliestDateTimeView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2997,7 +3052,9 @@ class EarliestDateTimeView(object):
              EarliestDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3016,7 +3073,9 @@ class EarliestDateTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[datetime]] = None) -> Optional[Optional[datetime]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[datetime]] = None
+    ) -> Optional[Optional[datetime]]:
         """
         Get value for node
 
@@ -3144,7 +3203,12 @@ class EarliestDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -3324,7 +3388,7 @@ class EarliestDateTimeView(object):
             Optional[int]:
         """
 
-class LatestDateTimeView(object): 
+class LatestDateTimeView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -3486,7 +3550,9 @@ class LatestDateTimeView(object):
              LatestDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3505,7 +3571,9 @@ class LatestDateTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[datetime]] = None) -> Optional[Optional[datetime]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[datetime]] = None
+    ) -> Optional[Optional[datetime]]:
         """
         Get value for node
 
@@ -3633,7 +3701,12 @@ class LatestDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -3813,8 +3886,7 @@ class LatestDateTimeView(object):
             Optional[int]:
         """
 
-class NodeStateOptionDateTime(object): 
-
+class NodeStateOptionDateTime(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -3856,7 +3928,9 @@ class NodeStateOptionDateTime(object):
              NodeStateOptionDateTime: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[datetime]] = None) -> Optional[Optional[datetime]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[datetime]] = None
+    ) -> Optional[Optional[datetime]]:
         """
         Get value for node
 
@@ -3990,7 +4064,7 @@ class NodeStateOptionDateTime(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-class HistoryView(object): 
+class HistoryView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4152,7 +4226,9 @@ class HistoryView(object):
              HistoryView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4171,7 +4247,9 @@ class HistoryView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(self, node: NodeInput, default: Optional[list[int]] = None) -> Optional[list[int]]:
+    def get(
+        self, node: NodeInput, default: Optional[list[int]] = None
+    ) -> Optional[list[int]]:
         """
         Get value for node
 
@@ -4291,7 +4369,12 @@ class HistoryView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -4471,7 +4554,7 @@ class HistoryView(object):
             Optional[int]:
         """
 
-class EdgeHistoryCountView(object): 
+class EdgeHistoryCountView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4633,7 +4716,9 @@ class EdgeHistoryCountView(object):
              EdgeHistoryCountView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4780,7 +4865,12 @@ class EdgeHistoryCountView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -4969,8 +5059,7 @@ class EdgeHistoryCountView(object):
             Optional[int]:
         """
 
-class NodeStateListI64(object): 
-
+class NodeStateListI64(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5012,7 +5101,9 @@ class NodeStateListI64(object):
              NodeStateListI64: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[list[int]] = None) -> Optional[list[int]]:
+    def get(
+        self, node: NodeInput, default: Optional[list[int]] = None
+    ) -> Optional[list[int]]:
         """
         Get value for node
 
@@ -5138,7 +5229,7 @@ class NodeStateListI64(object):
              Iterator[list[int]]: Iterator over values
         """
 
-class HistoryDateTimeView(object): 
+class HistoryDateTimeView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -5300,7 +5391,9 @@ class HistoryDateTimeView(object):
              HistoryDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str, alignment_unit: str | None = None) -> WindowSet:
+    def expanding(
+        self, step: int | str, alignment_unit: str | None = None
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -5319,7 +5412,9 @@ class HistoryDateTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None) -> Optional[Optional[list[datetime]]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
+    ) -> Optional[Optional[list[datetime]]]:
         """
         Get value for node
 
@@ -5439,7 +5534,12 @@ class HistoryDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None, alignment_unit: str | None = None) -> WindowSet:
+    def rolling(
+        self,
+        window: int | str,
+        step: int | str | None = None,
+        alignment_unit: str | None = None,
+    ) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
         If `alignment_unit` is not "unaligned" and a `step` larger than `window` is provided, some time entries
@@ -5619,8 +5719,7 @@ class HistoryDateTimeView(object):
             Optional[int]:
         """
 
-class NodeStateOptionListDateTime(object): 
-
+class NodeStateOptionListDateTime(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5662,7 +5761,9 @@ class NodeStateOptionListDateTime(object):
              NodeStateOptionListDateTime: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None) -> Optional[Optional[list[datetime]]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
+    ) -> Optional[Optional[list[datetime]]]:
         """
         Get value for node
 
@@ -5788,7 +5889,7 @@ class NodeStateOptionListDateTime(object):
              Iterator[Optional[list[datetime]]]: Iterator over values
         """
 
-class NodeTypeView(object): 
+class NodeTypeView(object):
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -5848,7 +5949,9 @@ class NodeTypeView(object):
              NodeStateOptionStr: the computed `NodeState`
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[str]] = None) -> Optional[Optional[str]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[str]] = None
+    ) -> Optional[Optional[str]]:
         """
         Get value for node
 
@@ -5982,8 +6085,7 @@ class NodeTypeView(object):
              Iterator[Optional[str]]: Iterator over values
         """
 
-class NodeStateOptionStr(object): 
-
+class NodeStateOptionStr(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6025,7 +6127,9 @@ class NodeStateOptionStr(object):
              NodeStateOptionStr: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[Optional[str]] = None) -> Optional[Optional[str]]:
+    def get(
+        self, node: NodeInput, default: Optional[Optional[str]] = None
+    ) -> Optional[Optional[str]]:
         """
         Get value for node
 
@@ -6159,8 +6263,7 @@ class NodeStateOptionStr(object):
              Iterator[Optional[str]]: Iterator over values
         """
 
-class NodeStateListDateTime(object): 
-
+class NodeStateListDateTime(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6202,7 +6305,9 @@ class NodeStateListDateTime(object):
              NodeStateListDateTime: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[list[datetime]] = None) -> Optional[list[datetime]]:
+    def get(
+        self, node: NodeInput, default: Optional[list[datetime]] = None
+    ) -> Optional[list[datetime]]:
         """
         Get value for node
 
@@ -6328,8 +6433,7 @@ class NodeStateListDateTime(object):
              Iterator[list[datetime]]: Iterator over values
         """
 
-class NodeStateWeightedSP(object): 
-
+class NodeStateWeightedSP(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6360,7 +6464,9 @@ class NodeStateWeightedSP(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Optional[Tuple[float, Nodes]] = None) -> Optional[Tuple[float, Nodes]]:
+    def get(
+        self, node: NodeInput, default: Optional[Tuple[float, Nodes]] = None
+    ) -> Optional[Tuple[float, Nodes]]:
         """
         Get value for node
 
@@ -6415,8 +6521,7 @@ class NodeStateWeightedSP(object):
              Iterator[Tuple[float, Nodes]]: Iterator over values
         """
 
-class NodeStateF64(object): 
-
+class NodeStateF64(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6601,8 +6706,7 @@ class NodeStateF64(object):
              Iterator[float]: Iterator over values
         """
 
-class NodeStateNodes(object): 
-
+class NodeStateNodes(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6688,8 +6792,7 @@ class NodeStateNodes(object):
              Iterator[Nodes]: Iterator over values
         """
 
-class NodeStateReachability(object): 
-
+class NodeStateReachability(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6720,7 +6823,9 @@ class NodeStateReachability(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Optional[list[Tuple[int, str]]] = None) -> Optional[list[Tuple[int, str]]]:
+    def get(
+        self, node: NodeInput, default: Optional[list[Tuple[int, str]]] = None
+    ) -> Optional[list[Tuple[int, str]]]:
         """
         Get value for node
 
@@ -6775,8 +6880,7 @@ class NodeStateReachability(object):
              Iterator[list[Tuple[int, str]]]: Iterator over values
         """
 
-class NodeStateListF64(object): 
-
+class NodeStateListF64(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6807,7 +6911,9 @@ class NodeStateListF64(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Optional[list[float]] = None) -> Optional[list[float]]:
+    def get(
+        self, node: NodeInput, default: Optional[list[float]] = None
+    ) -> Optional[list[float]]:
         """
         Get value for node
 
@@ -6862,8 +6968,7 @@ class NodeStateListF64(object):
              Iterator[list[float]]: Iterator over values
         """
 
-class NodeStateMotifs(object): 
-
+class NodeStateMotifs(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6905,7 +7010,9 @@ class NodeStateMotifs(object):
              NodeStateMotifs: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[list[int]] = None) -> Optional[list[int]]:
+    def get(
+        self, node: NodeInput, default: Optional[list[int]] = None
+    ) -> Optional[list[int]]:
         """
         Get value for node
 
@@ -7031,8 +7138,7 @@ class NodeStateMotifs(object):
              Iterator[list[int]]: Iterator over values
         """
 
-class NodeStateHits(object): 
-
+class NodeStateHits(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7074,7 +7180,9 @@ class NodeStateHits(object):
              NodeStateHits: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[Tuple[float, float]] = None) -> Optional[Tuple[float, float]]:
+    def get(
+        self, node: NodeInput, default: Optional[Tuple[float, float]] = None
+    ) -> Optional[Tuple[float, float]]:
         """
         Get value for node
 
@@ -7200,8 +7308,7 @@ class NodeStateHits(object):
              Iterator[Tuple[float, float]]: Iterator over values
         """
 
-class NodeStateSEIR(object): 
-
+class NodeStateSEIR(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7243,7 +7350,9 @@ class NodeStateSEIR(object):
              NodeStateSEIR: The k smallest values as a node state
         """
 
-    def get(self, node: NodeInput, default: Optional[Infected] = None) -> Optional[Infected]:
+    def get(
+        self, node: NodeInput, default: Optional[Infected] = None
+    ) -> Optional[Infected]:
         """
         Get value for node
 
@@ -7369,8 +7478,7 @@ class NodeStateSEIR(object):
              Iterator[Infected]: Iterator over values
         """
 
-class NodeLayout(object): 
-
+class NodeLayout(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7401,7 +7509,9 @@ class NodeLayout(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Optional[list[float]] = None) -> Optional[list[float]]:
+    def get(
+        self, node: NodeInput, default: Optional[list[float]] = None
+    ) -> Optional[list[float]]:
         """
         Get value for node
 
@@ -7456,8 +7566,7 @@ class NodeLayout(object):
              Iterator[list[float]]: Iterator over values
         """
 
-class NodeStateF64String(object): 
-
+class NodeStateF64String(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7488,7 +7597,9 @@ class NodeStateF64String(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Optional[Tuple[float, str]] = None) -> Optional[Tuple[float, str]]:
+    def get(
+        self, node: NodeInput, default: Optional[Tuple[float, str]] = None
+    ) -> Optional[Tuple[float, str]]:
         """
         Get value for node
 

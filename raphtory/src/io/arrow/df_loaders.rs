@@ -9,12 +9,10 @@ use crate::{
     },
     prelude::*,
 };
-use arrow::array::BooleanArray;
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use either::Either;
 use itertools::izip;
-use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -29,21 +27,18 @@ use raphtory_core::{
     entities::{graph::logical_to_physical::ResolverShardT, GidRef, VID},
     storage::timeindex::AsTime,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    layer_ops::InternalLayerOps,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
-};
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use rayon::prelude::*;
 use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
+#[cfg(feature = "python")]
+use kdam::{Bar, BarBuilder, BarExt};
+
+#[cfg(feature = "python")]
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
         .desc(des)

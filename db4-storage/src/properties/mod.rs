@@ -8,8 +8,8 @@ use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
     prop::{
-        Prop, PropType, SerdeList, SerdeMap, arrow_dtype_from_prop_type, list_array_from_props,
-        struct_array_from_props,
+        Prop, PropType, SerdeArrowList, SerdeArrowMap, arrow_dtype_from_prop_type,
+        list_array_from_props, struct_array_from_props,
     },
 };
 use raphtory_core::{
@@ -206,7 +206,7 @@ impl Properties {
                     .unwrap();
                 let array_iter = indices
                     .map(|i| lazy_vec.get_opt(i))
-                    .map(|e| e.map(|m| SerdeMap(m)));
+                    .map(|e| e.map(|m| SerdeArrowMap(m)));
 
                 let struct_array = struct_array_from_props(&dt, array_iter);
 
@@ -221,7 +221,7 @@ impl Properties {
 
                 let array_iter = indices
                     .map(|i| lazy_vec.get_opt(i))
-                    .map(|opt_list| opt_list.map(SerdeList));
+                    .map(|opt_list| opt_list.map(SerdeArrowList));
 
                 let list_array = list_array_from_props(&dt, array_iter);
 

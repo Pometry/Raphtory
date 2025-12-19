@@ -3,7 +3,6 @@ use crate::{
     errors::GraphError,
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::{AdditionOps, PropertyAdditionOps},
-    python::graph::io::*,
 };
 use arrow::array::ArrayRef;
 use pyo3::{

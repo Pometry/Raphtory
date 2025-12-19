@@ -2,12 +2,8 @@ use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::edge::segment::MemEdgeSegment,
 };
-use arrow_array::{ArrayRef, BooleanArray};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
-use raphtory_core::{
-    entities::EID,
-    storage::timeindex::{AsTime, TimeIndexEntry},
-};
+use raphtory_core::storage::timeindex::{AsTime, TimeIndexEntry};
 use std::ops::DerefMut;
 
 pub struct EdgeWriter<

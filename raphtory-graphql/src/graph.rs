@@ -1,9 +1,4 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-
-use crate::paths::ExistingGraphFolder;
+use crate::paths::{ExistingGraphFolder, ValidGraphPaths};
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -13,27 +8,30 @@ use raphtory::{
             },
             Base, InheritViewOps, MaterializedGraph,
         },
-        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
+        graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{EdgeViewOps, Graph, StableDecode},
-    serialise::GraphFolder,
+    prelude::EdgeViewOps,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
-use raphtory_api::GraphType;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
+};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 use tracing::info;
 
 #[cfg(feature = "search")]
 use raphtory::prelude::IndexMutationOps;
+use raphtory::serialise::{GraphPaths, StableDecode};
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub(crate) folder: GraphFolder,
+    pub(crate) folder: ExistingGraphFolder,
     pub(crate) is_dirty: Arc<AtomicBool>,
 }
 
@@ -41,12 +39,12 @@ impl GraphWithVectors {
     pub(crate) fn new(
         graph: MaterializedGraph,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
-        folder: GraphFolder,
+        folder: ExistingGraphFolder,
     ) -> Self {
         Self {
             graph,
             vectors,
-            folder: folder,
+            folder,
             is_dirty: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -88,36 +86,17 @@ impl GraphWithVectors {
         cache: Option<VectorCache>,
         create_index: bool,
     ) -> Result<Self, GraphError> {
-        let graph = {
-            // Either decode a graph serialized using encode or load using underlying storage.
-            if MaterializedGraph::is_decodable(folder.get_graph_path()) {
-                let path_for_decoded_graph = None;
-                MaterializedGraph::decode(folder.clone(), path_for_decoded_graph)?
-            } else {
-                let metadata = folder.read_metadata()?;
-                let graph = match metadata.graph_type {
-                    GraphType::EventGraph => {
-                        let graph = Graph::load_from_path(folder.get_graph_path());
-                        MaterializedGraph::EventGraph(graph)
-                    }
-                    GraphType::PersistentGraph => {
-                        let graph = PersistentGraph::load_from_path(folder.get_graph_path());
-                        MaterializedGraph::PersistentGraph(graph)
-                    }
-                };
-
-                #[cfg(feature = "search")]
-                graph.load_index(&folder)?;
-
-                graph
-            }
+        let graph_folder = folder.graph_folder();
+        let graph = if graph_folder.read_metadata()?.is_diskgraph {
+            MaterializedGraph::load_from_path(graph_folder)?
+        } else {
+            MaterializedGraph::decode(graph_folder)?
         };
-
         let vectors = cache.and_then(|cache| {
-            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
+            VectorisedGraph::read_from_path(&folder.vectors_path().ok()?, graph.clone(), cache).ok()
         });
 
-        info!("Graph loaded = {}", folder.get_original_path_str());
+        info!("Graph loaded = {}", folder.local_path());
 
         #[cfg(feature = "search")]
         if create_index {

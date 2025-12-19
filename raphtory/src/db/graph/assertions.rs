@@ -96,26 +96,6 @@ impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNeighbour
     }
 }
 
-pub struct SearchNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(F);
-
-impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for SearchNodes<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-        #[cfg(feature = "search")]
-        {
-            let mut results = graph
-                .search_nodes(self.0.clone(), 20, 0)
-                .unwrap()
-                .into_iter()
-                .map(|nv| nv.name())
-                .collect::<Vec<_>>();
-            results.sort();
-            return results;
-        }
-        #[cfg(not(feature = "search"))]
-        Vec::<String>::new()
-    }
-}
-
 pub struct FilterEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(F);
 
 impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for FilterEdges<F> {
@@ -129,26 +109,6 @@ impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for FilterEdges<F> 
             .collect::<Vec<_>>();
         results.sort();
         results
-    }
-}
-
-pub struct SearchEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(F);
-
-impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for SearchEdges<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-        #[cfg(feature = "search")]
-        {
-            let mut results = graph
-                .search_edges(self.0.clone(), 20, 0)
-                .unwrap()
-                .into_iter()
-                .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
-                .collect::<Vec<_>>();
-            results.sort();
-            return results;
-        }
-        #[cfg(not(feature = "search"))]
-        Vec::<String>::new()
     }
 }
 
@@ -293,18 +253,6 @@ pub fn filter_nodes(graph: &Graph, filter: impl CreateNodeFilter) -> Vec<String>
     results
 }
 
-#[cfg(feature = "search")]
-pub fn search_nodes(graph: &Graph, filter: impl AsNodeFilter) -> Vec<String> {
-    let mut results = graph
-        .search_nodes(filter, 10, 0)
-        .expect("Failed to search nodes")
-        .into_iter()
-        .map(|v| v.name())
-        .collect::<Vec<_>>();
-    results.sort();
-    results
-}
-
 pub fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String> {
     let mut results = graph
         .filter_edges(filter)
@@ -318,13 +266,61 @@ pub fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String>
 }
 
 #[cfg(feature = "search")]
-pub fn search_edges(graph: &Graph, filter: impl AsEdgeFilter) -> Vec<String> {
-    let mut results = graph
-        .search_edges(filter, 10, 0)
-        .expect("Failed to filter edges")
-        .into_iter()
-        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-        .collect::<Vec<_>>();
-    results.sort();
-    results
+mod search {
+    use super::*;
+
+    pub struct SearchNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(pub F);
+
+    impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for SearchNodes<F> {
+        fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+            let mut results = graph
+                .search_nodes(self.0.clone(), 20, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+    }
+
+    pub struct SearchEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(pub F);
+
+    impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for SearchEdges<F> {
+        fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+            let mut results = graph
+                .search_edges(self.0.clone(), 20, 0)
+                .unwrap()
+                .into_iter()
+                .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            results
+        }
+    }
+
+    pub fn search_nodes(graph: &Graph, filter: impl AsNodeFilter) -> Vec<String> {
+        let mut results = graph
+            .search_nodes(filter, 10, 0)
+            .expect("Failed to search nodes")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        results.sort();
+        results
+    }
+
+    pub fn search_edges(graph: &Graph, filter: impl AsEdgeFilter) -> Vec<String> {
+        let mut results = graph
+            .search_edges(filter, 10, 0)
+            .expect("Failed to filter edges")
+            .into_iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        results.sort();
+        results
+    }
 }
+
+#[cfg(feature = "search")]
+pub use search::*;

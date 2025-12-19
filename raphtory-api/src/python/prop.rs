@@ -59,7 +59,39 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::List(PropArray::Array(arr_ref)) => {
                 PyArray::from_array_ref(arr_ref).into_pyarrow(py)?
             }
-            Prop::List(PropArray::Vec(v)) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::List(PropArray::Vec(v)) => v.into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
+            Prop::Decimal(d) => {
+                let decl_cls = get_decimal_cls(py)?;
+                decl_cls.call1((d.to_string(),))?
+            }
+        })
+    }
+}
+
+impl<'a, 'py: 'a> IntoPyObject<'py> for &'a Prop {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(match self {
+            Prop::Str(s) => s.into_pyobject(py)?.into_any(),
+            Prop::Bool(bool) => bool.into_bound_py_any(py)?,
+            Prop::U8(u8) => u8.into_pyobject(py)?.into_any(),
+            Prop::U16(u16) => u16.into_pyobject(py)?.into_any(),
+            Prop::I64(i64) => i64.into_pyobject(py)?.into_any(),
+            Prop::U64(u64) => u64.into_pyobject(py)?.into_any(),
+            Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
+            Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
+            Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
+            Prop::I32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::U32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::F32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::List(PropArray::Array(arr_ref)) => {
+                PyArray::from_array_ref(arr_ref.clone()).into_pyarrow(py)?
+            }
+            Prop::List(PropArray::Vec(v)) => v.into_pyobject(py)?.into_any(),
             Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
             Prop::Decimal(d) => {
                 let decl_cls = get_decimal_cls(py)?;
@@ -108,8 +140,8 @@ impl<'source> FromPyObject<'source> for Prop {
             let (arr, _) = arrow.into_inner();
             return Ok(Prop::List(PropArray::Array(arr)));
         }
-        if let Ok(list) = ob.extract() {
-            return Ok(Prop::List(PropArray::Vec(Arc::new(list))));
+        if let Ok(list) = ob.extract::<Vec<Prop>>() {
+            return Ok(Prop::List(PropArray::Vec(list.into())));
         }
         if let Ok(map) = ob.extract() {
             return Ok(Prop::Map(Arc::new(map)));

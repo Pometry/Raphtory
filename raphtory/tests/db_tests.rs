@@ -709,7 +709,7 @@ fn graph_save_to_load_from_file() {
     g.encode(&graph_path).unwrap();
 
     // Load from files
-    let g2 = Graph::decode(&graph_path, None).unwrap();
+    let g2 = Graph::decode(&graph_path).unwrap();
 
     assert_eq!(g, g2);
 }
@@ -2947,7 +2947,7 @@ fn save_load_serial() {
     let dir = tempfile::tempdir().unwrap();
     let file_path = dir.path().join("abcd11");
     g.encode(&file_path).unwrap();
-    let gg = Graph::decode(file_path, None).unwrap();
+    let gg = Graph::decode(&file_path).unwrap();
     assert_graph_equal(&g, &gg);
 }
 

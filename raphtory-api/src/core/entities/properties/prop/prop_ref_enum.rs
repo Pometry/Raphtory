@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::properties::prop::{Prop, SerdeList, SerdeMap},
+    entities::properties::prop::{Prop, SerdeArrowList, SerdeArrowMap},
     storage::arc_str::ArcStr,
 };
 use bigdecimal::BigDecimal;
@@ -124,7 +124,7 @@ impl<'a> Serialize for PropMapRef<'a> {
         S: serde::Serializer,
     {
         match self {
-            PropMapRef::Mem(map) => SerdeMap(map).serialize(serializer),
+            PropMapRef::Mem(map) => SerdeArrowMap(map).serialize(serializer),
             PropMapRef::Arrow(row) => row.serialize(serializer),
         }
     }
@@ -148,7 +148,7 @@ impl<'a> Serialize for PropRef<'a> {
                 PropNum::F64(v) => serializer.serialize_f64(*v),
             },
             PropRef::Bool(b) => serializer.serialize_bool(*b),
-            PropRef::List(lst) => SerdeList(lst).serialize(serializer),
+            PropRef::List(lst) => SerdeArrowList(lst).serialize(serializer),
             PropRef::Map(map_ref) => map_ref.serialize(serializer),
             PropRef::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
             PropRef::DTime(dt) => serializer.serialize_i64(dt.timestamp_millis()),

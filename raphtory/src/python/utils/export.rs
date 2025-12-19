@@ -8,10 +8,7 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::AsTime},
 };
 use rayon::{iter::IntoParallelRefIterator, prelude::*};
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 
 pub(crate) fn extract_properties<P>(
     include_property_history: bool,

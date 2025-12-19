@@ -12,6 +12,7 @@ use crate::{
 };
 use std::{
     fmt::{Debug, Formatter},
+    path::Path,
     sync::Arc,
 };
 
@@ -106,7 +107,7 @@ pub trait InternalStorageOps {
 
     /// Returns `true` if the underlying storage saves data to disk,
     /// or `false` if the storage is in-memory only.
-    fn disk_storage_enabled(&self) -> bool;
+    fn disk_storage_enabled(&self) -> Option<&Path>;
 }
 
 impl<G: InheritStorageOps> InternalStorageOps for G
@@ -117,7 +118,7 @@ where
         self.base().get_storage()
     }
 
-    fn disk_storage_enabled(&self) -> bool {
+    fn disk_storage_enabled(&self) -> Option<&Path> {
         self.base().disk_storage_enabled()
     }
 }
