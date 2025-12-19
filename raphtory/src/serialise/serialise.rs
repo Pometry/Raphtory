@@ -127,6 +127,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         mut reader: ZipArchive<R>,
         target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError> {
+        target.init()?;
         let graph_prefix = get_zip_graph_path(&mut reader)?;
         let graph = Self::decode_parquet_from_zip(
             &mut reader,
@@ -135,7 +136,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         )?;
 
         //TODO: graph.load_index_from_zip(&mut reader, prefix)
-
+        target.write_metadata(&graph)?;
         Ok(graph)
     }
 
@@ -157,6 +158,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         path: &(impl GraphPaths + ?Sized),
         target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError> {
+        target.init()?;
         let graph;
         if path.is_zip() {
             let reader = path.read_zip()?;
@@ -164,6 +166,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         } else {
             graph = Self::decode_parquet(path.graph_path()?, Some(target.graph_path()?.as_path()))?;
         }
+        target.write_metadata(&graph)?;
         Ok(graph)
     }
 }

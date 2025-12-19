@@ -996,7 +996,7 @@ mod graphql_test {
 
         let req = Request::new(list_nodes);
         let res = schema.execute(req).await;
-        assert_eq!(res.errors.len(), 0);
+        assert_eq!(res.errors, []);
         let res_json = res.data.into_json().unwrap();
         assert_eq!(
             res_json,
