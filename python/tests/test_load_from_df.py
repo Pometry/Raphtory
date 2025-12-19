@@ -547,9 +547,18 @@ def test_casting_btc_mixed_directory(schema_value):
     assert dtype == pa.timestamp("ms", tz="UTC")
     assert g.earliest_time.dt == expected_earliest
 
-def test_malformed_files():
-    malformed_dir = _btc_root() / "malformed_files"
+def test_malformed_files_and_directory():
+    empty_dir = _btc_root() / "empty_directory"
+    with pytest.raises(Exception, match="Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files"):
+        g = Graph()
+        g.load_nodes(
+            data=empty_dir,
+            time="block_timestamp",
+            id="inputs_address",
+            properties=["outputs_address"],
+        )
 
+    malformed_dir = _btc_root() / "malformed_files"
     for malformed_file in malformed_dir.iterdir():
         # couldn't create a parquet file malformed with an extra column in a row
         if "extra_field" in malformed_file.name:
