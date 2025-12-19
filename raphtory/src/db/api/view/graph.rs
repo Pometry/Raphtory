@@ -1,3 +1,5 @@
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
@@ -55,9 +57,7 @@ use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
 };
-
-#[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
+use storage::{persist::strategy::PersistentStrategy, Extension};
 
 #[cfg(feature = "search")]
 use crate::{
@@ -583,11 +583,15 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         &self,
         path: &(impl GraphPaths + ?Sized),
     ) -> Result<MaterializedGraph, GraphError> {
-        path.init()?;
-        let graph_path = path.graph_path()?;
-        let graph = materialize_impl(self, Some(graph_path.as_ref()))?;
-        path.write_metadata(&graph)?;
-        Ok(graph)
+        if Extension::disk_storage_enabled() {
+            path.init()?;
+            let graph_path = path.graph_path()?;
+            let graph = materialize_impl(self, Some(graph_path.as_ref()))?;
+            path.write_metadata(&graph)?;
+            Ok(graph)
+        } else {
+            Err(GraphError::DiskGraphNotEnabled)
+        }
     }
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
