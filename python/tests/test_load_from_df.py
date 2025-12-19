@@ -523,7 +523,7 @@ def test_malformed_files():
     malformed_dir = _btc_root() / "malformed_files"
 
     for malformed_file in malformed_dir.iterdir():
-        # currently couldn't create a parquet file malformed with an extra column in a row
+        # couldn't create a parquet file malformed with an extra column in a row
         if "extra_field" in malformed_file.name:
             with pytest.raises(Exception, match="Encountered unequal lengths between records"):
                 g = Graph()
@@ -531,7 +531,61 @@ def test_malformed_files():
                     data=malformed_file,
                     time="block_timestamp",
                     id="inputs_address",
-                    properties=["block_timestamp"],
+                    properties=["outputs_address"],
+                )
+
+        if "impossible_date" in malformed_file.name:
+            with pytest.raises(Exception) as e:
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+            assert ("Error during parsing of time string" in str(e.value)) or ("Error parsing timestamp from '2025-99-99 99:99:99'" in str(e.value))
+
+        # csv file raises exception but parquet file doesn't
+        if "missing_field.csv" in malformed_file.name:
+            with pytest.raises(Exception, match="Encountered unequal lengths between records on CSV file"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+
+        if "missing_field.parquet" in malformed_file.name:
+            g = Graph()
+            g.load_nodes(
+                data=malformed_file,
+                time="block_timestamp",
+                id="inputs_address",
+                properties=["outputs_address"],
+            )
+            n = g.node("bc1qabc")
+            assert n.history[0] == "2025-11-10 00:28:09"
+            assert n.properties.get("outputs_address") is None
+
+        if "missing_id_col" in malformed_file.name:
+            with pytest.raises(Exception, match="columns are not present within the dataframe: inputs_address"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+
+        if "missing_prop_col" in malformed_file.name:
+            with pytest.raises(Exception, match="columns are not present within the dataframe: outputs_address"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
                 )
 
         if "missing_timestamp_col" in malformed_file.name:
@@ -541,8 +595,80 @@ def test_malformed_files():
                     data=malformed_file,
                     time="block_timestamp",
                     id="inputs_address",
-                    properties=["block_timestamp"],
+                    properties=["outputs_address"],
                 )
+
+        if "null_id.csv" in malformed_file.name:
+            with pytest.raises(Exception, match="Null not supported as node id"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+
+        # in parquet, null value gets interpreted as Float64
+        if "null_id.parquet" in malformed_file.name:
+            with pytest.raises(Exception, match="Float64 not supported as node id type"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+
+        if "null_timestamp.csv" in malformed_file.name:
+            with pytest.raises(Exception, match="Null not supported for time column"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+
+        if "null_timestamp.parquet" in malformed_file.name:
+            with pytest.raises(Exception, match="Missing value for timestamp"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+
+        if "out_of_range_timestamp" in malformed_file.name:
+            with pytest.raises(Exception, match="'999999999999999999999' is not a valid datetime"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+
+        # not applicable to csv
+        if "semicolon_delimiter" in malformed_file.name:
+            with pytest.raises(Exception, match="the following columns are not present within the dataframe"):
+                g = Graph()
+                g.load_nodes(
+                    data=malformed_file,
+                    time="block_timestamp",
+                    id="inputs_address",
+                    properties=["outputs_address"],
+                )
+            g = Graph()
+
+            g.load_nodes(
+                data=malformed_file,
+                time="block_timestamp",
+                id="inputs_address",
+                properties=["outputs_address"],
+                csv_options={"delimiter": ';'}
+            )
+            assert g.node("bc1qabc").history[0] == "2025-11-10 00:28:09"
 
         if "timestamp_malformed" in malformed_file.name:
             with pytest.raises(Exception, match="Missing value for timestamp"):
