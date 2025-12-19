@@ -301,6 +301,16 @@ mod cache_tests {
 
     use super::VectorCache;
 
+    fn placeholder_config() -> OpenAIEmbeddings {
+        OpenAIEmbeddings {
+            model: "whatever".to_owned(),
+            api_base: None,
+            api_key_env: None,
+            org_id: None,
+            project_id: None,
+        }
+    }
+
     #[test]
     fn test_vector_sample_remains_unchanged() {
         assert_eq!(CONTENT_SAMPLE, "raphtory");
@@ -314,7 +324,10 @@ mod cache_tests {
                 // this model will definetely error out if called, as the api base is invalid
                 model: ModelConfig::OpenAI(OpenAIEmbeddings {
                     api_base: Some("invalid-api-base".to_owned()),
-                    ..Default::default()
+                    model: "whatever".to_owned(),
+                    api_key_env: None,
+                    project_id: None,
+                    org_id: None,
                 }),
                 sample: vec![1.0].into(),
             },
@@ -330,11 +343,11 @@ mod cache_tests {
 
         // TOOD: try to do this using VectorCache::in_memory().openai()
         let model_a = EmbeddingModel {
-            model: ModelConfig::OpenAI(Default::default()),
+            model: ModelConfig::OpenAI(placeholder_config()),
             sample: vec![1.0].into(),
         };
         let model_b = EmbeddingModel {
-            model: ModelConfig::OpenAI(Default::default()),
+            model: ModelConfig::OpenAI(placeholder_config()),
             sample: vec![0.0, 1.0].into(),
         };
 
@@ -379,7 +392,7 @@ mod cache_tests {
     #[tokio::test]
     async fn test_on_disk_cache_loading() {
         let model = EmbeddingModel {
-            model: ModelConfig::OpenAI(Default::default()),
+            model: ModelConfig::OpenAI(placeholder_config()),
             sample: vec![1.0].into(),
         };
         let vector: Embedding = [1.0].into();
