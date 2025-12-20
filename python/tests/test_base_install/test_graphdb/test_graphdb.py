@@ -2941,7 +2941,7 @@ def test_NaN_NaT_as_properties():
 
     df = pd.DataFrame(data)
     g = Graph()
-    g.load_nodes_from_pandas(time="time", id="id", df=df, properties=["floats"])
+    g.load_nodes(time="time", id="id", data=df, properties=["floats"])
 
     @with_disk_graph
     def check(g):

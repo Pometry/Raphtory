@@ -51,18 +51,7 @@ def dataframes():
 def test_edge_ingestion_equivalence(dataframes, graph_type):
     # reference graph
     g_pd = graph_type()
-    g_pd.load_edges_from_pandas(
-        df=dataframes["pandas"]["edges"],
-        time="timestamp",
-        src="source",
-        dst="destination",
-        properties=["data_size_MB", "transaction_type"],
-        metadata=["is_encrypted"],
-    )
-
-    # Pandas streaming
-    g_pd_stream = graph_type()
-    g_pd_stream.load_edges_from_df(
+    g_pd.load_edges(
         data=dataframes["pandas"]["edges"],
         time="timestamp",
         src="source",
@@ -70,13 +59,10 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
         properties=["data_size_MB", "transaction_type"],
         metadata=["is_encrypted"],
     )
-    assert (
-        g_pd == g_pd_stream
-    ), "Pandas streaming edge ingestion failed equivalence check"
 
     # Polars
     g_pl = graph_type()
-    g_pl.load_edges_from_df(
+    g_pl.load_edges(
         data=dataframes["polars"]["edges"],
         time="timestamp",
         src="source",
@@ -88,7 +74,7 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
 
     # Arrow
     g_arrow = graph_type()
-    g_arrow.load_edges_from_df(
+    g_arrow.load_edges(
         data=dataframes["arrow"]["edges"],
         time="timestamp",
         src="source",
@@ -100,7 +86,7 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
 
     # DuckDB
     g_duckdb = graph_type()
-    g_duckdb.load_edges_from_df(
+    g_duckdb.load_edges(
         data=dataframes["duckdb"]["edges"],
         time="timestamp",
         src="source",
@@ -113,7 +99,7 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
     if fpd:
         # FireDucks
         g_fd = graph_type()
-        g_fd.load_edges_from_df(
+        g_fd.load_edges(
             data=dataframes["fireducks"]["edges"],
             time="timestamp",
             src="source",
@@ -128,30 +114,17 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
 def test_node_ingestion_equivalence(dataframes, graph_type):
     # reference graph
     g_pd = graph_type()
-    g_pd.load_nodes_from_pandas(
-        df=dataframes["pandas"]["nodes"],
-        time="timestamp",
-        id="server_id",
-        properties=["OS_version", "uptime_days"],
-        metadata=["primary_function", "server_name", "hardware_type"],
-    )
-
-    # Pandas streaming
-    g_pd_stream = graph_type()
-    g_pd_stream.load_nodes_from_df(
+    g_pd.load_nodes(
         data=dataframes["pandas"]["nodes"],
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
         metadata=["primary_function", "server_name", "hardware_type"],
     )
-    assert (
-        g_pd == g_pd_stream
-    ), "Pandas streaming node ingestion failed equivalence check"
 
     # Polars
     g_pl = graph_type()
-    g_pl.load_nodes_from_df(
+    g_pl.load_nodes(
         data=dataframes["polars"]["nodes"],
         time="timestamp",
         id="server_id",
@@ -162,7 +135,7 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
 
     # Arrow
     g_arrow = graph_type()
-    g_arrow.load_nodes_from_df(
+    g_arrow.load_nodes(
         data=dataframes["arrow"]["nodes"],
         time="timestamp",
         id="server_id",
@@ -173,7 +146,7 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
 
     # DuckDB
     g_duckdb = graph_type()
-    g_duckdb.load_nodes_from_df(
+    g_duckdb.load_nodes(
         data=dataframes["duckdb"]["nodes"],
         time="timestamp",
         id="server_id",
@@ -186,7 +159,7 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
         # FireDucks
         print("Testing fireducks...")
         g_fd = graph_type()
-        g_fd.load_nodes_from_df(
+        g_fd.load_nodes(
             data=dataframes["fireducks"]["nodes"],
             time="timestamp",
             id="server_id",
@@ -200,79 +173,50 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
 def test_metadata_update_equivalence(dataframes, graph_type):
     # reference graph
     g_pd = graph_type()
-    g_pd.load_edges_from_pandas(
-        df=dataframes["pandas"]["edges"],
-        time="timestamp",
-        src="source",
-        dst="destination",
-    )
-    g_pd.load_nodes_from_pandas(
-        df=dataframes["pandas"]["nodes"],
-        time="timestamp",
-        id="server_id",
-    )
-    # update metadata
-    g_pd.load_node_props_from_pandas(
-        df=dataframes["pandas"]["nodes"],
-        id="server_id",
-        metadata=["primary_function", "server_name", "hardware_type"],
-    )
-    g_pd.load_edge_props_from_pandas(
-        df=dataframes["pandas"]["edges"],
-        src="source",
-        dst="destination",
-        metadata=["is_encrypted"],
-    )
-
-    # Pandas streaming
-    g_pd_stream = graph_type()
-    g_pd_stream.load_edges_from_df(
+    g_pd.load_edges(
         data=dataframes["pandas"]["edges"],
         time="timestamp",
         src="source",
         dst="destination",
     )
-    g_pd_stream.load_nodes_from_df(
+    g_pd.load_nodes(
         data=dataframes["pandas"]["nodes"],
         time="timestamp",
         id="server_id",
     )
     # update metadata
-    g_pd_stream.load_node_metadata_from_df(
+    g_pd.load_node_metadata(
         data=dataframes["pandas"]["nodes"],
         id="server_id",
         metadata=["primary_function", "server_name", "hardware_type"],
     )
-    g_pd_stream.load_edge_metadata_from_df(
+    g_pd.load_edge_metadata(
         data=dataframes["pandas"]["edges"],
         src="source",
         dst="destination",
         metadata=["is_encrypted"],
     )
-    assert (
-        g_pd == g_pd_stream
-    ), "Pandas streaming metadata ingestion failed equivalence check"
 
     # Polars
     g_pl = graph_type()
-    g_pl.load_edges_from_df(
+    g_pl.load_edges(
         data=dataframes["polars"]["edges"],
         time="timestamp",
         src="source",
         dst="destination",
     )
-    g_pl.load_nodes_from_df(
+    g_pl.load_nodes(
         data=dataframes["polars"]["nodes"],
         time="timestamp",
         id="server_id",
     )
     # update metadata
-    g_pl.load_node_metadata_from_df(
+    g_pl.load_node_metadata(
         data=dataframes["polars"]["nodes"],
         id="server_id",
         metadata=["primary_function", "server_name", "hardware_type"],
     )
-    g_pl.load_edge_metadata_from_df(
+    g_pl.load_edge_metadata(
         data=dataframes["polars"]["edges"],
         src="source",
         dst="destination",
@@ -282,24 +226,24 @@ def test_metadata_update_equivalence(dataframes, graph_type):
 
     # Arrow
     g_arrow = graph_type()
-    g_arrow.load_edges_from_df(
+    g_arrow.load_edges(
         data=dataframes["arrow"]["edges"],
         time="timestamp",
         src="source",
         dst="destination",
     )
-    g_arrow.load_nodes_from_df(
+    g_arrow.load_nodes(
         data=dataframes["arrow"]["nodes"],
         time="timestamp",
         id="server_id",
     )
     # update metadata
-    g_arrow.load_node_metadata_from_df(
+    g_arrow.load_node_metadata(
         data=dataframes["arrow"]["nodes"],
         id="server_id",
         metadata=["primary_function", "server_name", "hardware_type"],
     )
-    g_arrow.load_edge_metadata_from_df(
+    g_arrow.load_edge_metadata(
         data=dataframes["arrow"]["edges"],
         src="source",
         dst="destination",
@@ -309,24 +253,24 @@ def test_metadata_update_equivalence(dataframes, graph_type):
 
     # DuckDB
     g_duckdb = graph_type()
-    g_duckdb.load_edges_from_df(
+    g_duckdb.load_edges(
         data=dataframes["duckdb"]["edges"],
         time="timestamp",
         src="source",
         dst="destination",
     )
-    g_duckdb.load_nodes_from_df(
+    g_duckdb.load_nodes(
         data=dataframes["duckdb"]["nodes"],
         time="timestamp",
         id="server_id",
     )
     # update metadata
-    g_duckdb.load_node_metadata_from_df(
+    g_duckdb.load_node_metadata(
         data=dataframes["duckdb"]["nodes"],
         id="server_id",
         metadata=["primary_function", "server_name", "hardware_type"],
     )
-    g_duckdb.load_edge_metadata_from_df(
+    g_duckdb.load_edge_metadata(
         data=dataframes["duckdb"]["edges"],
         src="source",
         dst="destination",
@@ -337,24 +281,24 @@ def test_metadata_update_equivalence(dataframes, graph_type):
     if fpd:
         # FireDucks
         g_fd = graph_type()
-        g_fd.load_edges_from_df(
+        g_fd.load_edges(
             data=dataframes["fireducks"]["edges"],
             time="timestamp",
             src="source",
             dst="destination",
         )
-        g_fd.load_nodes_from_df(
+        g_fd.load_nodes(
             data=dataframes["fireducks"]["nodes"],
             time="timestamp",
             id="server_id",
         )
         # update metadata
-        g_fd.load_node_metadata_from_df(
+        g_fd.load_node_metadata(
             data=dataframes["fireducks"]["nodes"],
             id="server_id",
             metadata=["primary_function", "server_name", "hardware_type"],
         )
-        g_fd.load_edge_metadata_from_df(
+        g_fd.load_edge_metadata(
             data=dataframes["fireducks"]["edges"],
             src="source",
             dst="destination",

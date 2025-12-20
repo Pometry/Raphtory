@@ -5,8 +5,8 @@ use crate::{
     },
     errors::GraphError,
     io::parquet_loaders::{
-        load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
-        load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
+        load_edge_deletions_from_parquet, load_edge_metadata_from_parquet, load_edges_from_parquet,
+        load_graph_props_from_parquet, load_node_metadata_from_parquet, load_nodes_from_parquet,
     },
     prelude::*,
     serialise::parquet::{
@@ -260,7 +260,15 @@ fn decode_graph_storage(
         let exclude = vec![TIME_COL];
         let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
         let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, &[], &c_props, batch_size)?;
+        load_graph_props_from_parquet(
+            &g,
+            &c_graph_path,
+            TIME_COL,
+            &[],
+            &c_props,
+            batch_size,
+            None,
+        )?;
 
         g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))?
     };
@@ -278,7 +286,15 @@ fn decode_graph_storage(
         let exclude = vec![TIME_COL];
         let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
         let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, &t_props, &[], batch_size)?;
+        load_graph_props_from_parquet(
+            &g,
+            &t_graph_path,
+            TIME_COL,
+            &t_props,
+            &[],
+            batch_size,
+            None,
+        )?;
     }
 
     let t_node_path = path.as_ref().join(NODES_T_PATH);
@@ -301,6 +317,7 @@ fn decode_graph_storage(
             &[],
             None,
             batch_size,
+            None,
         )?;
     }
 
@@ -313,7 +330,7 @@ fn decode_graph_storage(
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
 
-        load_node_props_from_parquet(
+        load_node_metadata_from_parquet(
             &g,
             &c_node_path,
             NODE_ID,
@@ -322,6 +339,7 @@ fn decode_graph_storage(
             &c_prop_columns,
             None,
             batch_size,
+            None,
         )?;
     }
 
@@ -346,6 +364,7 @@ fn decode_graph_storage(
             None,
             Some(LAYER_COL),
             batch_size,
+            None,
         )?;
     }
 
@@ -360,6 +379,7 @@ fn decode_graph_storage(
             None,
             Some(LAYER_COL),
             batch_size,
+            None,
         )?;
     }
 
@@ -371,7 +391,7 @@ fn decode_graph_storage(
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
 
-        load_edge_props_from_parquet(
+        load_edge_metadata_from_parquet(
             &g,
             &c_edge_path,
             SRC_COL,
@@ -381,6 +401,7 @@ fn decode_graph_storage(
             None,
             Some(LAYER_COL),
             batch_size,
+            None,
         )?;
     }
 
