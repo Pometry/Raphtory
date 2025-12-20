@@ -28,12 +28,12 @@ def test_load_edges_from_polars_df(graph_type):
     )
 
     g_to_pandas = graph_type()
-    g_to_pandas.load_edges_from_pandas(
-        df=df.to_pandas(), time="time", src="src", dst="dst", properties=["value"]
+    g_to_pandas.load_edges(
+        data=df.to_pandas(), time="time", src="src", dst="dst", properties=["value"]
     )
 
     g_from_df = graph_type()
-    g_from_df.load_edges_from_df(
+    g_from_df.load_edges(
         data=df, time="time", src="src", dst="dst", properties=["value"]
     )
 
@@ -736,7 +736,7 @@ if fpd:
         )
 
         g = graph_type()
-        g.load_edges_from_df(
+        g.load_edges(
             data=df, time="time", src="src", dst="dst", properties=["value"]
         )
         assert [(1, 1, 2, 10.0), (2, 2, 3, 20.0), (3, 3, 4, 30.0)] == _collect_edges(g)
@@ -761,13 +761,13 @@ if fpd:
         )
 
         g_fireducks = graph_type()
-        g_fireducks.load_edges_from_df(
+        g_fireducks.load_edges(
             data=df_fireducks, time="time", src="src", dst="dst", properties=["value"]
         )
 
         g_pandas = graph_type()
-        g_pandas.load_edges_from_pandas(
-            df=df_pandas, time="time", src="src", dst="dst", properties=["value"]
+        g_pandas.load_edges(
+            data=df_pandas, time="time", src="src", dst="dst", properties=["value"]
         )
 
         expected = [(1, 1, 2, 10.0), (2, 2, 3, 20.0), (3, 3, 4, 30.0)]
