@@ -1,6 +1,5 @@
 //! A columnar temporal graph.
 //!
-use super::io::pandas_loaders::*;
 use crate::{
     db::{
         api::storage::graph::storage_ops::disk_storage::IntoGraph,
@@ -9,7 +8,10 @@ use crate::{
     errors::GraphError,
     io::parquet_loaders::read_struct_arrays,
     prelude::Graph,
-    python::{graph::graph::PyGraph, types::repr::StructReprBuilder},
+    python::{
+        graph::{graph::PyGraph, io::arrow_loaders::convert_py_prop_args},
+        types::repr::StructReprBuilder,
+    },
 };
 use arrow::{array::StructArray, datatypes::Field};
 use itertools::Itertools;

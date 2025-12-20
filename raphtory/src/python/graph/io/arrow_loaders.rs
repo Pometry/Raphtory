@@ -9,7 +9,6 @@ use crate::{
         },
     },
     prelude::{AdditionOps, PropertyAdditionOps},
-    python::graph::io::pandas_loaders::is_jupyter,
     serialise::incremental::InternalCache,
 };
 use arrow::{
@@ -22,7 +21,9 @@ use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use pyo3::{
     exceptions::PyValueError,
+    ffi::c_str,
     prelude::*,
+    pybacked::PyBackedStr,
     types::{PyCapsule, PyDict},
 };
 use pyo3_arrow::PyRecordBatchReader;
@@ -33,11 +34,17 @@ use std::{
     fs,
     fs::File,
     iter,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tracing::error;
 
 const CHUNK_SIZE: usize = 1_000_000; // split large chunks so progress bar updates reasonably
+
+pub(crate) fn convert_py_prop_args(properties: Option<&[PyBackedStr]>) -> Option<Vec<&str>> {
+    properties.map(|p| p.iter().map(|p| p.deref()).collect())
+}
 
 pub(crate) fn convert_py_schema(
     schema: Option<Bound<PyAny>>,
@@ -202,13 +209,14 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     dst: &str,
     layer: Option<&str>,
     layer_col: Option<&str>,
+    schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
 
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), None)?;
+    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edge_deletions_from_df(
         df_view,
@@ -642,6 +650,7 @@ pub(crate) fn load_edge_deletions_from_csv_path<
     layer: Option<&str>,
     layer_col: Option<&str>,
     csv_options: Option<&CsvReadOptions>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     if let Some(ref layer_col) = layer_col {
@@ -651,7 +660,7 @@ pub(crate) fn load_edge_deletions_from_csv_path<
     // get the CSV file paths
     let csv_paths = collect_csv_paths(path)?;
 
-    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, None)?;
+    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edge_deletions_from_df(
         df_view,
@@ -825,4 +834,37 @@ fn process_csv_paths_df<'a>(
 
     // we don't know the total number of rows until we read all files
     Ok(DFView::new(names, chunks, None))
+}
+
+pub(crate) fn is_jupyter(py: Python) {
+    let code = c_str!(
+        r#"
+try:
+    shell = get_ipython().__class__.__name__
+    if shell == 'ZMQInteractiveShell':
+        result = True   # Jupyter notebook or qtconsole
+    elif shell == 'TerminalInteractiveShell':
+        result = False  # Terminal running IPython
+    else:
+        result = False  # Other type, assuming not a Jupyter environment
+except NameError:
+    result = False      # Probably standard Python interpreter
+"#
+    );
+
+    if let Err(e) = py.run(code, None, None) {
+        error!("Error checking if running in a jupyter notebook: {}", e);
+        return;
+    }
+
+    match py.eval(c_str!("result"), None, None) {
+        Ok(x) => {
+            if let Ok(x) = x.extract() {
+                kdam::set_notebook(x);
+            }
+        }
+        Err(e) => {
+            error!("Error checking if running in a jupyter notebook: {}", e);
+        }
+    };
 }
