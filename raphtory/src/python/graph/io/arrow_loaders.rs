@@ -1,20 +1,22 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::GraphError,
-    io::arrow::{
-        dataframe::{DFChunk, DFView},
-        df_loaders::{
-            load_edge_deletions_from_df, load_edges_from_df, load_edges_props_from_df,
-            load_node_props_from_df, load_nodes_from_df,
+    io::{
+        arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::{
+                load_edge_deletions_from_df, load_edges_from_df, load_edges_props_from_df,
+                load_node_props_from_df, load_nodes_from_df,
+            },
         },
+        parquet_loaders::cast_columns,
     },
     prelude::{AdditionOps, PropertyAdditionOps},
     serialise::incremental::InternalCache,
 };
 use arrow::{
-    array::{Array, RecordBatch, RecordBatchReader, StructArray},
-    compute::cast,
-    datatypes::{DataType, Field, Fields, SchemaRef},
+    array::{RecordBatch, RecordBatchReader},
+    datatypes::SchemaRef,
 };
 use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
@@ -27,7 +29,7 @@ use pyo3::{
     types::{PyCapsule, PyDict},
 };
 use pyo3_arrow::PyRecordBatchReader;
-use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::{
     cmp::min,
     collections::HashMap,
@@ -309,50 +311,6 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
         });
 
     Ok(DFView::new(names, chunks, len_from_python))
-}
-
-pub(crate) fn cast_columns(
-    batch: RecordBatch,
-    schema: &HashMap<String, PropType>,
-) -> Result<RecordBatch, GraphError> {
-    let old_schema_ref = batch.schema();
-    let old_fields = old_schema_ref.fields();
-
-    let mut target_fields: Vec<Field> = Vec::with_capacity(old_fields.len());
-
-    for field in old_fields.iter() {
-        if let Some(target_prop_type) = schema.get(field.name()) {
-            let target_dtype = arrow_dtype_from_prop_type(target_prop_type);
-            target_fields.push(
-                Field::new(field.name(), target_dtype, field.is_nullable())
-                    .with_metadata(field.metadata().clone()),
-            );
-        } else {
-            // schema doesn't say anything about this column
-            target_fields.push(field.as_ref().clone());
-        }
-    }
-    let struct_array = StructArray::from(batch);
-    let target_struct_type = DataType::Struct(Fields::from(target_fields));
-
-    // cast whole RecordBatch at once
-    let casted = cast(&struct_array, &target_struct_type).map_err(|e| {
-        GraphError::LoadFailure(format!(
-            "Failed to cast RecordBatch to target schema {:?}: {e}",
-            target_struct_type
-        ))
-    })?;
-
-    let casted_struct = casted
-        .as_any()
-        .downcast_ref::<StructArray>()
-        .ok_or_else(|| {
-            GraphError::LoadFailure(
-                "Internal error: casting RecordBatch did not return StructArray".to_string(),
-            )
-        })?;
-
-    Ok(RecordBatch::from(casted_struct))
 }
 
 /// Splits a RecordBatch into chunks of CHUNK_SIZE owned by DFChunk objects

@@ -3,11 +3,17 @@ use crate::{
     errors::{GraphError, InvalidPathReason::PathDoesNotExist},
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
-    python::graph::io::arrow_loaders::cast_columns,
     serialise::incremental::InternalCache,
 };
+use arrow::{
+    array::{Array, RecordBatch, StructArray},
+    compute::cast,
+    datatypes::{DataType, Field, Fields},
+};
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
+use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
     collections::HashMap,
     ffi::OsStr,
@@ -16,8 +22,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-#[cfg(feature = "storage")]
-use {arrow::array::StructArray, pometry_storage::RAError};
 
 pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     if path.is_dir() {
@@ -392,6 +396,50 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     parquet_files.sort();
 
     Ok(parquet_files)
+}
+
+pub(crate) fn cast_columns(
+    batch: RecordBatch,
+    schema: &HashMap<String, PropType>,
+) -> Result<RecordBatch, GraphError> {
+    let old_schema_ref = batch.schema();
+    let old_fields = old_schema_ref.fields();
+
+    let mut target_fields: Vec<Field> = Vec::with_capacity(old_fields.len());
+
+    for field in old_fields.iter() {
+        if let Some(target_prop_type) = schema.get(field.name()) {
+            let target_dtype = arrow_dtype_from_prop_type(target_prop_type);
+            target_fields.push(
+                Field::new(field.name(), target_dtype, field.is_nullable())
+                    .with_metadata(field.metadata().clone()),
+            );
+        } else {
+            // schema doesn't say anything about this column
+            target_fields.push(field.as_ref().clone());
+        }
+    }
+    let struct_array = StructArray::from(batch);
+    let target_struct_type = DataType::Struct(Fields::from(target_fields));
+
+    // cast whole RecordBatch at once
+    let casted = cast(&struct_array, &target_struct_type).map_err(|e| {
+        GraphError::LoadFailure(format!(
+            "Failed to cast RecordBatch to target schema {:?}: {e}",
+            target_struct_type
+        ))
+    })?;
+
+    let casted_struct = casted
+        .as_any()
+        .downcast_ref::<StructArray>()
+        .ok_or_else(|| {
+            GraphError::LoadFailure(
+                "Internal error: casting RecordBatch did not return StructArray".to_string(),
+            )
+        })?;
+
+    Ok(RecordBatch::from(casted_struct))
 }
 
 #[cfg(feature = "storage")]
