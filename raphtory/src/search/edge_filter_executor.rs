@@ -13,7 +13,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, NodeViewOps, PropertyFilter, TimeOps},
+    prelude::{GraphViewOps, LayerOps, NodeViewOps, PropertyFilter, TimeOps},
     search::{
         collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
         fallback_filter_edges, fields, get_reader, graph_index::Index,
@@ -250,6 +250,16 @@ impl<'a> EdgeFilterExecutor<'a> {
                 let end = filter.end.t();
                 let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
                 let dyn_graph = dyn_graph.window(start, end);
+                let res = self.filter_edges(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
+            }
+            CompositeEdgeFilter::Layered(filter) => {
+                let layer = filter.layer.clone();
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.layers(layer)?;
                 let res = self.filter_edges(&dyn_graph, &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()

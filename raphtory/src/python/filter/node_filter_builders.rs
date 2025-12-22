@@ -383,4 +383,9 @@ impl PyNodeFilter {
     fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
         PyPropertyFilterFactory::wrap(NodeFilter::window(start, end))
     }
+
+    #[staticmethod]
+    fn layer(layers: Vec<String>) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(NodeFilter::layer(layers))
+    }
 }
