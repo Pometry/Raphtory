@@ -1767,7 +1767,7 @@ def test_layer():
         with pytest.raises(
             Exception,
             match=re.escape(
-                "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
+                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
             ),
         ):
             g.layers(["test_layer"])
@@ -1775,7 +1775,7 @@ def test_layer():
         with pytest.raises(
             Exception,
             match=re.escape(
-                "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
+                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
             ),
         ):
             g.edge(1, 2).layers(["test_layer"])

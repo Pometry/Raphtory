@@ -286,4 +286,14 @@ impl PyEdgeFilter {
     fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
         PyPropertyFilterFactory::wrap(EdgeFilter::window(start, end))
     }
+
+    #[staticmethod]
+    fn layer(layer: String) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(EdgeFilter::layer(layer))
+    }
+
+    #[staticmethod]
+    fn layers(layers: Vec<String>) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(EdgeFilter::layer(layers))
+    }
 }

@@ -15,9 +15,9 @@ use pyo3::{
     Bound, PyErr, Python,
 };
 
-mod create_filter;
+pub mod create_filter;
 pub mod edge_filter_builders;
-mod exploded_edge_filter_builder;
+pub mod exploded_edge_filter_builder;
 pub mod filter_expr;
 pub mod node_filter_builders;
 pub mod property_filter_builders;

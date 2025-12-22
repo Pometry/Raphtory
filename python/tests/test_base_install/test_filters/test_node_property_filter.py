@@ -1139,3 +1139,24 @@ def test_filter_nodes_window_out_of_range_is_empty():
         assert list(graph.filter(expr).nodes.id) == []
 
     return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_temporal_layer_sum_ge():
+    def check(graph):
+        expr = (
+            filter.Node.layers(["fire_nation"])
+            .property("prop5")
+            .temporal()
+            .last()
+            .sum()
+            >= 12
+        )
+        msg = """Invalid layer: fire_nation. Valid layers: ["_default"]"""
+        with pytest.raises(
+            Exception,
+            match=re.escape(msg),
+        ):
+            graph.filter(expr).nodes.id
+
+    return check

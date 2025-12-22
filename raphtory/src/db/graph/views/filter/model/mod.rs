@@ -40,6 +40,7 @@ pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;
 pub mod filter_operator;
+pub mod layered_filter;
 pub mod node_filter;
 pub mod not_filter;
 pub mod or_filter;

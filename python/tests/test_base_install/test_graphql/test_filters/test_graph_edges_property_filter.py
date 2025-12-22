@@ -1,7 +1,12 @@
 import pytest
 from raphtory import Graph, PersistentGraph
 from filters_setup import create_test_graph, init_graph2
-from utils import run_graphql_test, run_graphql_error_test
+from utils import (
+    run_graphql_test,
+    run_graphql_error_test,
+    run_graphql_error_test_contains,
+    run_graphql_compare_test,
+)
 
 EVENT_GRAPH = create_test_graph(Graph())
 PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
@@ -715,3 +720,149 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
         }
     }
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edge_temporal_property_filter_empty_layers_is_error(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "prop5"
+            layers: []
+            where: { any: { avg: { lt: { f64: 10.0 } } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    run_graphql_error_test_contains(
+        query,
+        [
+            "EdgeFilter.temporalProperty",
+            "'layers' must be non-empty",
+        ],
+        graph,
+    )
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edge_temporal_property_filter_layer_and_layers_is_error(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "prop5"
+            layer: "air_nomads"
+            layers: ["water_tribe"]
+            where: { any: { avg: { lt: { f64: 10.0 } } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    run_graphql_error_test_contains(
+        query,
+        [
+            "EdgeFilter.temporalProperty",
+            "either 'layer' or 'layers'",
+            "not both",
+        ],
+        graph,
+    )
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_temporal_property_last_with_single_layer(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "p10"
+            layer: "air_nomads"
+            where: { last: { eq: { str: "Paper_ship" } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    # Edge (2 -> 3) in air_nomads has p10 Paper_ship at time 2
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "2"}, "dst": {"name": "3"}}]}
+            }
+        }
+    }
+
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_temporal_property_last_with_multiple_layers(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "p10"
+            layers: ["fire_nation", "air_nomads"]
+            where: { last: { eq: { str: "Paper_airplane" } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    # fire_nation edge (1 -> 2) has p10 Paper_airplane at time 1
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "1"}, "dst": {"name": "2"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_temporal_property_last_with_default_layer(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "p10"
+            layer: "_default"
+            where: { last: { eq: { str: "Paper_airplane" } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    # default-layer edge (2 -> 1) has p10 Paper_airplane at time 3 (edge_type is None)
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "2"}, "dst": {"name": "1"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)

@@ -14,7 +14,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter, TimeOps},
+    prelude::{GraphViewOps, LayerOps, PropertyFilter, TimeOps},
     search::{
         collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
         fallback_filter_nodes, fields, get_reader, graph_index::Index,
@@ -254,6 +254,16 @@ impl<'a> NodeFilterExecutor<'a> {
                 let end = filter.end.t();
                 let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
                 let dyn_graph = dyn_graph.window(start, end);
+                let res = self.filter_nodes(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| NodeView::new_internal(graph.clone(), x.node))
+                    .collect())
+            }
+            CompositeNodeFilter::Layered(filter) => {
+                let layer = filter.layer.clone();
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.layers(layer)?;
                 let res = self.filter_nodes(&dyn_graph, &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()

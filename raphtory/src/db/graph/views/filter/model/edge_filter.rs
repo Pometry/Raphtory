@@ -8,6 +8,7 @@ use crate::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             model::{
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
+                layered_filter::Layered,
                 node_filter::{
                     builders::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
@@ -30,6 +31,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use raphtory_api::core::entities::Layer;
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
 
@@ -51,6 +53,11 @@ impl EdgeFilter {
     #[inline]
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<EdgeFilter> {
         Windowed::from_times(start, end, EdgeFilter)
+    }
+
+    #[inline]
+    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<EdgeFilter> {
+        Layered::from_layers(layer, EdgeFilter)
     }
 }
 
@@ -281,6 +288,7 @@ pub enum CompositeEdgeFilter {
     Dst(CompositeNodeFilter),
     Property(PropertyFilter<EdgeFilter>),
     Windowed(Box<Windowed<CompositeEdgeFilter>>),
+    Layered(Box<Layered<CompositeEdgeFilter>>),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Not(Box<CompositeEdgeFilter>),
@@ -293,6 +301,7 @@ impl Display for CompositeEdgeFilter {
             CompositeEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
             CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::Windowed(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
             CompositeEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
@@ -325,6 +334,10 @@ impl CreateFilter for CompositeEdgeFilter {
             }
             CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeEdgeFilter::Windowed(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_filter(dyn_graph)
+            }
+            CompositeEdgeFilter::Layered(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_filter(dyn_graph)
             }

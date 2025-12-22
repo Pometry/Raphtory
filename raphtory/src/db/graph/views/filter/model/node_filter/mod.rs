@@ -13,6 +13,7 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter::Filter,
+                layered_filter::Layered,
                 node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
@@ -29,6 +30,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
+use raphtory_api::core::entities::Layer;
 use raphtory_core::utils::time::IntoTime;
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{fmt, fmt::Display, sync::Arc};
@@ -41,20 +43,29 @@ mod validate;
 pub struct NodeFilter;
 
 impl NodeFilter {
+    #[inline]
     pub fn id() -> NodeIdFilterBuilder {
         NodeIdFilterBuilder
     }
 
+    #[inline]
     pub fn name() -> NodeNameFilterBuilder {
         NodeNameFilterBuilder
     }
 
+    #[inline]
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
     }
 
+    #[inline]
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<NodeFilter> {
         Windowed::from_times(start, end, NodeFilter)
+    }
+
+    #[inline]
+    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<NodeFilter> {
+        Layered::from_layers(layer, NodeFilter)
     }
 }
 
@@ -271,6 +282,7 @@ pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter<NodeFilter>),
     Windowed(Box<Windowed<CompositeNodeFilter>>),
+    Layered(Box<Layered<CompositeNodeFilter>>),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Not(Box<CompositeNodeFilter>),
@@ -281,6 +293,7 @@ impl Display for CompositeNodeFilter {
         match self {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -318,6 +331,10 @@ impl CreateFilter for CompositeNodeFilter {
             },
             CompositeNodeFilter::Property(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
             CompositeNodeFilter::Windowed(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::Layered(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_node_filter(dyn_graph)
             }
