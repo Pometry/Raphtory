@@ -35,6 +35,12 @@ impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
 
 #[ResolvedObjectFields]
 impl GqlVectorisedGraph {
+    /// Optmize the vector index
+    async fn optimize_index(&self) -> GraphResult<bool> {
+        self.0.optimize_index().await?;
+        Ok(true)
+    }
+
     /// Returns an empty selection of documents.
     async fn empty_selection(&self) -> GqlVectorSelection {
         self.0.empty_selection().into()

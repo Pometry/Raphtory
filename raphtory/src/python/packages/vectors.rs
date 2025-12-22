@@ -366,6 +366,11 @@ impl<'py> IntoPyObject<'py> for DynamicVectorSelection {
 /// of those documents using a query and similarity scores.
 #[pymethods]
 impl PyVectorisedGraph {
+    /// Optmize the vector index
+    fn optimize_index(&self) -> PyResult<()> {
+        Ok(block_on(self.0.optimize_index())?)
+    }
+
     /// Return an empty selection of entities.
     fn empty_selection(&self) -> DynamicVectorSelection {
         self.0.empty_selection()

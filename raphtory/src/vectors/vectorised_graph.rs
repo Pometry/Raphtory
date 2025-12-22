@@ -71,6 +71,14 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         Ok(())
     }
 
+    /// Optmize the vector index
+    pub async fn optimize_index(&self) -> GraphResult<()> {
+        self.node_db.create_or_update_index().await?;
+        self.edge_db.create_or_update_index().await?;
+        Ok(())
+    }
+
+    /// Generates and stores embeddings for a batch of edges
     /// Return an empty selection of documents
     pub fn empty_selection(&self) -> VectorSelection<G> {
         VectorSelection::empty(self.clone())
