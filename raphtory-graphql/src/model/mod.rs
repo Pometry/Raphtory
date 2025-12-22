@@ -79,7 +79,8 @@ impl EmbeddingModel {
                     org_id,
                     project_id,
                 };
-                data.vector_cache.openai(embeddings).await
+                let vector_cache = data.get_vector_cache().await?;
+                vector_cache.openai(embeddings).await
             }
         }
     }

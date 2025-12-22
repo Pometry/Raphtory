@@ -123,7 +123,7 @@ impl GraphServer {
             create_dir_all(&work_dir)?;
         }
         let config = load_config(app_config, config_path).map_err(ServerError::ConfigError)?;
-        let data = Data::new(work_dir.as_path(), &config).await?;
+        let data = Data::new(work_dir.as_path(), &config);
         Ok(Self { data, config })
     }
 
@@ -145,7 +145,8 @@ impl GraphServer {
         template: &DocumentTemplate,
         embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
-        let model = self.data.vector_cache.openai(embeddings).await?;
+        let vector_cache = self.data.get_vector_cache().await?;
+        let model = vector_cache.openai(embeddings).await?;
         for folder in self.data.get_all_graph_folders() {
             self.data
                 .vectorise_folder(&folder, template, model.clone()) // TODO: avoid clone, just ask for a ref
@@ -165,7 +166,8 @@ impl GraphServer {
         template: DocumentTemplate,
         embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
-        let model = self.data.vector_cache.openai(embeddings).await?;
+        let vector_cache = self.data.get_vector_cache().await?;
+        let model = vector_cache.openai(embeddings).await?;
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), path)?;
         self.data.vectorise_folder(&folder, &template, model).await
     }

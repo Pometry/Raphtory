@@ -633,7 +633,7 @@ mod tests {
         let tmp_dir = tempdir().unwrap();
 
         let config = AppConfig::default();
-        let data = Data::new(tmp_dir.path(), &config).await.unwrap();
+        let data = Data::new(tmp_dir.path(), &config);
 
         // Override the embedding function with a mock for testing.
         // data.embedding_conf = Some(EmbeddingConf { // FIXME: now need to vectorise before starting the server

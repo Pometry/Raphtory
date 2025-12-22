@@ -21,7 +21,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::fs;
+use tokio::{fs, sync::OnceCell};
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
@@ -50,11 +50,11 @@ pub struct Data {
     pub(crate) work_dir: PathBuf, // TODO: move this to config?
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool, // TODO: move this to config?
-    pub(crate) vector_cache: VectorCache,
+    pub(crate) vector_cache: OnceCell<VectorCache>,
 }
 
 impl Data {
-    pub async fn new(work_dir: &Path, configs: &AppConfig) -> GraphResult<Self> {
+    pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
         let cache_configs = &configs.cache;
 
         let cache = Cache::<PathBuf, GraphWithVectors>::builder()
@@ -75,12 +75,12 @@ impl Data {
 
         // TODO: make vector feature optional?
 
-        Ok(Self {
+        Self {
             work_dir: work_dir.to_path_buf(),
             cache,
             create_index,
-            vector_cache: VectorCache::on_disk(&work_dir.join(".vector-cache")).await?, // FIXME: need to disable graph names starting with a dot
-        })
+            vector_cache: OnceCell::new(),
+        }
     }
 
     pub async fn get_graph(
@@ -168,6 +168,14 @@ impl Data {
         Ok(())
     }
 
+    pub(crate) async fn get_vector_cache(&self) -> GraphResult<&VectorCache> {
+        self.vector_cache
+            .get_or_try_init(|| async {
+                VectorCache::on_disk(&self.work_dir.join(".vector-cache")).await
+            })
+            .await
+    }
+
     // TODO: return iter
     pub fn get_all_graph_folders(&self) -> Vec<ExistingGraphFolder> {
         let base_path = self.work_dir.clone();
@@ -187,8 +195,8 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let create_index = self.create_index;
-        GraphWithVectors::read_from_folder(&folder, &self.vector_cache, create_index).await
+        let vector_cache = self.get_vector_cache().await?;
+        GraphWithVectors::read_from_folder(&folder, vector_cache, self.create_index).await
         // FIXME: I need some blocking_io inside of GraphWithVectors::read_from_folder
     }
 }
@@ -252,7 +260,7 @@ pub(crate) mod data_tests {
         graphs: &HashMap<String, MaterializedGraph>,
     ) -> Result<(), GraphError> {
         for (name, graph) in graphs.into_iter() {
-            let data = Data::new(work_dir, &AppConfig::default()).await?;
+            let data = Data::new(work_dir, &AppConfig::default());
             let folder = ValidGraphFolder::try_from(data.work_dir, name)?;
 
             #[cfg(feature = "storage")]
@@ -343,9 +351,7 @@ pub(crate) mod data_tests {
             .await
             .unwrap();
 
-        let data = Data::new(tmp_work_dir.path(), &Default::default())
-            .await
-            .unwrap();
+        let data = Data::new(tmp_work_dir.path(), &Default::default());
 
         for graph in graphs.keys() {
             assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
@@ -372,7 +378,7 @@ pub(crate) mod data_tests {
             .with_cache_tti_seconds(2)
             .build();
 
-        let data = Data::new(tmp_work_dir.path(), &configs).await.unwrap();
+        let data = Data::new(tmp_work_dir.path(), &configs);
 
         assert!(!data.cache.contains_key(Path::new("test_g")));
         assert!(!data.cache.contains_key(Path::new("test_g2")));
@@ -422,7 +428,7 @@ pub(crate) mod data_tests {
             .with_cache_tti_seconds(2)
             .build();
 
-        let data = Data::new(work_dir, &configs).await.unwrap();
+        let data = Data::new(work_dir, &configs);
 
         let paths = data
             .get_all_graph_folders()
