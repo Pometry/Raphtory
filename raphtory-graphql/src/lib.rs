@@ -1,7 +1,6 @@
 pub use crate::server::GraphServer;
 mod auth;
 pub mod data;
-mod embeddings;
 mod graph;
 pub mod model;
 pub mod observability;
@@ -99,7 +98,9 @@ mod graphql_test {
 
         let graphs = HashMap::from([("master".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let config = AppConfigBuilder::new().with_create_index(true).build();
         let data = Data::new(tmp_dir.path(), &config);
@@ -199,7 +200,9 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
 
@@ -310,7 +313,9 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -413,7 +418,9 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -478,7 +485,9 @@ mod graphql_test {
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let expected = json!({
             "graph": {
@@ -629,7 +638,9 @@ mod graphql_test {
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -956,7 +967,9 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1131,7 +1144,9 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1272,7 +1287,9 @@ mod graphql_test {
             ("graph6".to_string(), graph6.into()),
         ]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1569,7 +1586,9 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();

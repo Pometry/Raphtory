@@ -24,7 +24,7 @@ readme = "README.md"
 homepage = "https://github.com/Raphtory/raphtory/"
 keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
-rust-version = "1.86.0"
+rust-version = "1.88.0"
 edition = "2021"
 
 # debug symbols are using a lot of resources
@@ -87,7 +87,7 @@ parking_lot = { version = "0.12.1", features = [
     "send_guard",
 ] }
 ordered-float = "4.2.0"
-chrono = { version = "0.4.42", features = ["serde"] }
+chrono = { version = "0.4.41", features = ["serde"] }
 tempfile = "3.10.0"
 futures-util = "0.3.30"
 thiserror = "2.0.0"
@@ -153,7 +153,7 @@ pest_derive = "2.7.8"
 minijinja = "2.2.0"
 minijinja-contrib = { version = "2.2.0", features = ["datetime"] }
 datafusion = { version = "50.0.0" }
-arroy = "0.6.1"
+lancedb = "0.22.2" # this is the latest and asks for chrono 0.4.41
 heed = "0.22.0"
 sqlparser = "0.58.0"
 futures = "0.3"
@@ -172,4 +172,3 @@ strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
 strum = "0.27.2"
 strum_macros = "0.27.2"
-

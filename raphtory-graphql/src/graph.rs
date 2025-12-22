@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::paths::ExistingGraphFolder;
 use once_cell::sync::OnceCell;
 use raphtory::{
@@ -76,9 +78,9 @@ impl GraphWithVectors {
         }
     }
 
-    pub(crate) fn read_from_folder(
+    pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
-        cache: Option<VectorCache>,
+        cache: &VectorCache,
         create_index: bool,
     ) -> Result<Self, GraphError> {
         let graph_path = &folder.get_graph_path();
@@ -87,9 +89,11 @@ impl GraphWithVectors {
         } else {
             MaterializedGraph::load_cached(folder.clone())?
         };
-        let vectors = cache.and_then(|cache| {
-            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
-        });
+        let vectors =
+            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache)
+                .await
+                .ok();
+
         println!("Graph loaded = {}", folder.get_original_path_str());
         if create_index {
             graph.create_index()?;

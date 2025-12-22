@@ -105,7 +105,8 @@ async fn main() -> IoResult<()> {
 
         let app_config = Some(builder.build());
 
-        GraphServer::new(args.working_dir, app_config, None)?
+        GraphServer::new(args.working_dir, app_config, None)
+            .await?
             .run_with_port(args.port)
             .await?;
     }
