@@ -17,7 +17,6 @@ use raphtory_core::entities::{
     properties::props::{MetadataError, TPropError},
 };
 use raphtory_storage::mutation::MutationError;
-#[cfg(feature = "vectors")]
 use std::{
     fmt::Debug,
     io,
