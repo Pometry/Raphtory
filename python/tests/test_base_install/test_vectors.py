@@ -1,4 +1,3 @@
-from time import sleep
 import pytest
 import requests
 from raphtory import Graph
@@ -23,6 +22,20 @@ def test_server():
 
     with custom_embeddings.start():
         yield
+
+def test_failing_python_embeddings():
+    @embedding_server(address="0.0.0.0:7342")
+    def failing_embeddings(text: str):
+        assert(False)
+
+    with failing_embeddings.start():
+        headers = { "Content-Type": "application/json" }
+        payload = { "model": "whatever", "input": ["Hello world"] }
+        response = requests.post("http://localhost:7342/embeddings", headers=headers, json=payload)
+        assert(response.status_code == 500)
+        response = requests.post("http://localhost:7342/embeddings", headers=headers, json=payload)
+        assert(response.status_code == 500)
+
 
 
 def floats_are_equals(float1: float, float2: float) -> bool:
