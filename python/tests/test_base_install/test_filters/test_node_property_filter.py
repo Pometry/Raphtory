@@ -1145,7 +1145,11 @@ def test_filter_nodes_window_out_of_range_is_empty():
 def test_filter_nodes_temporal_layer_sum_ge():
     def check(graph):
         expr = (
-            filter.Node.layer(["fire_nation"]).property("prop5").temporal().last().sum()
+            filter.Node.layers(["fire_nation"])
+            .property("prop5")
+            .temporal()
+            .last()
+            .sum()
             >= 12
         )
         msg = """Invalid layer: fire_nation. Valid layers: ["_default"]"""

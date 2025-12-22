@@ -385,7 +385,12 @@ impl PyNodeFilter {
     }
 
     #[staticmethod]
-    fn layer(layers: Vec<String>) -> PyPropertyFilterFactory {
+    fn layer(layer: String) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(NodeFilter::layer(layer))
+    }
+
+    #[staticmethod]
+    fn layers(layers: Vec<String>) -> PyPropertyFilterFactory {
         PyPropertyFilterFactory::wrap(NodeFilter::layer(layers))
     }
 }

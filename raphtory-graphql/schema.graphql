@@ -2236,6 +2236,8 @@ type Property {
 input PropertyFilterNew {
 	name: String!
 	window: Window
+	layer: String
+	layers: [String!]
 	where: PropCondition!
 }
 

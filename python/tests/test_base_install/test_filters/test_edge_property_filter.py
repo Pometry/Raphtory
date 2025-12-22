@@ -1442,7 +1442,7 @@ def test_edge_property_temporal_len():
 def test_filter_edges_temporal_layer_eq():
     def check(graph):
         expr = (
-            filter.Edge.layer(["air_nomads"]).property("p10").temporal().last()
+            filter.Edge.layers(["air_nomads"]).property("p10").temporal().last()
             == "Paper_ship"
         )
         assert _pairs(graph.filter(expr).edges) == {("2", "3")}
@@ -1454,7 +1454,7 @@ def test_filter_edges_temporal_layer_eq():
 def test_filter_edges_temporal_layer_eq_is_empty():
     def check(graph):
         expr = (
-            filter.Edge.layer(["air_nomads"]).property("p10").temporal().last()
+            filter.Edge.layer("air_nomads").property("p10").temporal().last()
             == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == set()

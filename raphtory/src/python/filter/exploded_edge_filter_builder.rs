@@ -42,7 +42,12 @@ impl PyExplodedEdgeFilter {
     }
 
     #[staticmethod]
-    fn layer(layer: Vec<String>) -> PyPropertyFilterFactory {
+    fn layer(layer: String) -> PyPropertyFilterFactory {
         PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::layer(layer))
+    }
+
+    #[staticmethod]
+    fn layers(layers: Vec<String>) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::layer(layers))
     }
 }
