@@ -47,8 +47,8 @@ def test_wrong_url():
     with pytest.raises(Exception) as excinfo:
         client = RaphtoryClient("http://broken_url.com")
     assert (
-            str(excinfo.value)
-            == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
+        str(excinfo.value)
+        == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
     )
 
 
@@ -156,35 +156,42 @@ def test_namespaces():
         path = "../shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path '../shivam/g': References to the parent dir are not allowed within the path" in str(
-            excinfo.value
+        assert (
+            "Invalid path '../shivam/g': References to the parent dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "./shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path './shivam/g': References to the current dir are not allowed within the path" in str(
-            excinfo.value
+        assert (
+            "Invalid path './shivam/g': References to the current dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path" in str(
-            excinfo.value
+        assert (
+            "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "//shivam/investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path" in str(
-            excinfo.value)
+        assert (
+            "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path"
+            in str(excinfo.value)
+        )
 
         path = "shivam/investigation//2024-12-12/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path" in str(
-            excinfo.value)
+        assert (
+            "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path"
+            in str(excinfo.value)
+        )
 
         path = r"shivam/investigation\2024-12-12"
         with pytest.raises(Exception) as excinfo:
@@ -200,8 +207,10 @@ def test_namespaces():
         path = "shivam/graphs/not_a_symlink_i_promise/escaped"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink" in str(
-            excinfo.value)
+        assert (
+            "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink"
+            in str(excinfo.value)
+        )
 
 
 def test_graph_windows_and_layers_query():
@@ -643,6 +652,7 @@ def test_edge_id():
                 }
             }
         }
+
 
 # def test_disk_graph_name():
 #     import pandas as pd
