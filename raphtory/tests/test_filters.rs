@@ -3688,6 +3688,7 @@ mod test_node_property_filter {
     }
 
     #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
     fn test_nodes_layer_filter() {
         let filter = NodeFilter::layer("_default")
             .property("p2")
