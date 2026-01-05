@@ -3686,6 +3686,32 @@ mod test_node_property_filter {
             TestVariants::All,
         );
     }
+
+    #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
+    fn test_nodes_layer_filter() {
+        let filter = NodeFilter::layer("_default")
+            .property("p2")
+            .temporal()
+            .sum()
+            .ge(2u64);
+
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
 }
 
 #[cfg(test)]
@@ -10188,6 +10214,31 @@ mod test_edge_property_filter {
             init_edges_graph,
             IdentityGraphTransformer,
             filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_edges_layer_filter() {
+        let filter = EdgeFilter::layer("fire_nation")
+            .property("p2")
+            .temporal()
+            .sum()
+            .ge(2u64);
+
+        let expected_results = vec!["1->2", "3->1"];
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
             &expected_results,
             TestVariants::All,
         );

@@ -204,8 +204,6 @@ impl GqlEdge {
                 EdgeViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
                 }
-                EdgeViewCollection::Layer(layer) => return_view.layer(layer).await,
-
                 EdgeViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
 
                 EdgeViewCollection::Latest(apply) => {

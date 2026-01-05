@@ -8,6 +8,7 @@ use crate::{
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
+                layered_filter::Layered,
                 node_filter::{
                     builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
                     CompositeNodeFilter, NodeFilter,
@@ -26,6 +27,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use raphtory_api::core::entities::Layer;
 use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
 
@@ -46,6 +48,11 @@ impl ExplodedEdgeFilter {
     #[inline]
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
         Windowed::from_times(start, end, ExplodedEdgeFilter)
+    }
+
+    #[inline]
+    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<ExplodedEdgeFilter> {
+        Layered::from_layers(layer, ExplodedEdgeFilter)
     }
 }
 
@@ -262,7 +269,7 @@ pub enum CompositeExplodedEdgeFilter {
     Dst(CompositeNodeFilter),
     Property(PropertyFilter<ExplodedEdgeFilter>),
     Windowed(Box<Windowed<CompositeExplodedEdgeFilter>>),
-
+    Layered(Box<Layered<CompositeExplodedEdgeFilter>>),
     And(
         Box<CompositeExplodedEdgeFilter>,
         Box<CompositeExplodedEdgeFilter>,
@@ -281,6 +288,7 @@ impl Display for CompositeExplodedEdgeFilter {
             CompositeExplodedEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
             CompositeExplodedEdgeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::Windowed(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeExplodedEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
             CompositeExplodedEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
@@ -313,6 +321,10 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
             }
             Self::Property(p) => Ok(Arc::new(p.create_filter(graph)?)),
             Self::Windowed(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::Layered(pw) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 pw.create_filter(dyn_graph)
             }

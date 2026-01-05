@@ -238,8 +238,6 @@ impl GqlPathFromNode {
                 PathFromNodeViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
                 }
-                PathFromNodeViewCollection::Layer(layer) => return_view.layer(layer).await,
-
                 PathFromNodeViewCollection::ExcludeLayer(layer) => {
                     return_view.exclude_layer(layer).await
                 }

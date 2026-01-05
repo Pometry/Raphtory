@@ -20,7 +20,7 @@ use crate::{
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::entities::GID;
+use raphtory_api::core::entities::{Layer, GID};
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "NodeIdFilterBuilder", module = "raphtory.filter")]
@@ -382,5 +382,15 @@ impl PyNodeFilter {
     #[staticmethod]
     fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
         PyPropertyFilterFactory::wrap(NodeFilter::window(start, end))
+    }
+
+    #[staticmethod]
+    fn layer(layer: String) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(NodeFilter::layer(layer))
+    }
+
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(NodeFilter::layer::<Layer>(layers.into()))
     }
 }

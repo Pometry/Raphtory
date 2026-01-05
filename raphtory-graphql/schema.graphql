@@ -459,10 +459,6 @@ input EdgeViewCollection @oneOf {
 	"""
 	excludeLayers: [String!]
 	"""
-	Single included layer.
-	"""
-	layer: String
-	"""
 	Single excluded layer.
 	"""
 	excludeLayer: String
@@ -673,10 +669,6 @@ input EdgesViewCollection @oneOf {
 	List of excluded layers.
 	"""
 	excludeLayers: [String!]
-	"""
-	Single included layer.
-	"""
-	layer: String
 	"""
 	Single excluded layer.
 	"""
@@ -997,10 +989,6 @@ input GraphViewCollection @oneOf {
 	List of excluded layers.
 	"""
 	excludeLayers: [String!]
-	"""
-	Single included layer.
-	"""
-	layer: String
 	"""
 	Single excluded layer.
 	"""
@@ -1709,10 +1697,6 @@ input NodeViewCollection @oneOf {
 	"""
 	excludeLayers: [String!]
 	"""
-	Single included layer.
-	"""
-	layer: String
-	"""
 	Single excluded layer.
 	"""
 	excludeLayer: String
@@ -1905,10 +1889,6 @@ input NodesViewCollection @oneOf {
 	List of excluded layers.
 	"""
 	excludeLayers: [String!]
-	"""
-	Single included layer.
-	"""
-	layer: String
 	"""
 	Single excluded layer.
 	"""
@@ -2128,10 +2108,6 @@ input PathFromNodeViewCollection @oneOf {
 	"""
 	excludeLayers: [String!]
 	"""
-	Single layer.
-	"""
-	layer: String
-	"""
 	Single layer to exclude.
 	"""
 	excludeLayer: String
@@ -2236,6 +2212,7 @@ type Property {
 input PropertyFilterNew {
 	name: String!
 	window: Window
+	layers: [String!]
 	where: PropCondition!
 }
 
@@ -2568,4 +2545,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

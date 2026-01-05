@@ -7,7 +7,11 @@ from filters_setup import (
     init_graph,
     init_graph2,
 )
-from utils import run_graphql_test, run_graphql_error_test
+from utils import (
+    run_graphql_test,
+    run_graphql_error_test,
+    run_graphql_error_test_contains,
+)
 
 EVENT_GRAPH = create_test_graph(Graph())
 PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
@@ -1051,3 +1055,31 @@ def test_nodes_temporal_property_filter_any_avg_with_window(graph):
         "graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
     }
     run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_node_property_layer_filter_not_supported(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+           temporalProperty: {
+            name: "prop5"
+            layers: ["air_nomads"]
+            where: { any: { avg: { lt: { f64: 10.0 } } } }
+          }
+        }) {
+          nodes {
+            list { name }
+          }
+        }
+      }
+    }
+    """
+
+    expected_needles = [
+        "Invalid layer: air_nomads",
+        "Valid layers:",
+    ]
+
+    run_graphql_error_test_contains(query, expected_needles, graph)

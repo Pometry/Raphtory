@@ -202,7 +202,6 @@ impl GqlNodes {
                         return_view
                     }
                 }
-                NodesViewCollection::Layer(layer) => return_view.layer(layer).await,
                 NodesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 NodesViewCollection::Layers(layers) => return_view.layers(layers).await,
                 NodesViewCollection::ExcludeLayers(layers) => {

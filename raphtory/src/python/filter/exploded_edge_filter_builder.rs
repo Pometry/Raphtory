@@ -8,10 +8,12 @@ use crate::{
         filter::property_filter_builders::{
             PyPropertyExprBuilder, PyPropertyFilterBuilder, PyPropertyFilterFactory,
         },
+        types::iterable::FromIterable,
         utils::PyTime,
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
+use raphtory_api::core::entities::Layer;
 
 #[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
 #[derive(Clone)]
@@ -39,5 +41,15 @@ impl PyExplodedEdgeFilter {
     #[staticmethod]
     fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
         PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::window(start, end))
+    }
+
+    #[staticmethod]
+    fn layer(layer: String) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::layer(layer))
+    }
+
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::layer::<Layer>(layers.into()))
     }
 }

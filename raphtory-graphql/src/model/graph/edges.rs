@@ -214,7 +214,6 @@ impl GqlEdges {
                 EdgesViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
                 }
-                EdgesViewCollection::Layer(layer) => return_view.layer(layer).await,
                 EdgesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 EdgesViewCollection::Window(window) => {
                     return_view.window(window.start, window.end).await

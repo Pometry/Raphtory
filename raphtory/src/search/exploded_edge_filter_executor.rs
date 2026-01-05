@@ -13,7 +13,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{EdgeViewOps, PropertyFilter, TimeOps},
+    prelude::{EdgeViewOps, LayerOps, PropertyFilter, TimeOps},
     search::{
         collectors::{
             exploded_edge_property_filter_collector::ExplodedEdgePropertyFilterCollector,
@@ -235,6 +235,17 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
 
                 let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
                 let dyn_graph = dyn_graph.window(start, end);
+                let res = self.filter_exploded_edges(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
+            }
+            CompositeExplodedEdgeFilter::Layered(filter) => {
+                let layer = filter.layer.clone();
+
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.layers(layer)?;
                 let res = self.filter_exploded_edges(&dyn_graph, &filter.inner, limit, offset)?;
                 Ok(res
                     .into_iter()

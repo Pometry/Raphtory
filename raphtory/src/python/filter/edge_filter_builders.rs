@@ -22,7 +22,7 @@ use crate::{
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::entities::GID;
+use raphtory_api::core::entities::{Layer, GID};
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "EdgeEndpointIdFilter", module = "raphtory.filter")]
@@ -285,5 +285,15 @@ impl PyEdgeFilter {
     #[staticmethod]
     fn window(start: PyTime, end: PyTime) -> PyPropertyFilterFactory {
         PyPropertyFilterFactory::wrap(EdgeFilter::window(start, end))
+    }
+
+    #[staticmethod]
+    fn layer(layer: String) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(EdgeFilter::layer(layer))
+    }
+
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyPropertyFilterFactory {
+        PyPropertyFilterFactory::wrap(EdgeFilter::layer::<Layer>(layers.into()))
     }
 }
