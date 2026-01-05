@@ -2,6 +2,7 @@ use crate::{
     db::api::view::internal::GraphView, errors::GraphError, prelude::ParquetEncoder,
     serialise::metadata::GraphMetadata,
 };
+use itertools::Itertools;
 use raphtory_api::core::input::input_node::parse_u64_strict;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -9,7 +10,6 @@ use std::{
     io::{self, ErrorKind, Read, Seek, Write},
     path::{Path, PathBuf},
 };
-use itertools::Itertools;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
@@ -426,7 +426,10 @@ impl GraphFolder {
                     GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
                 })?;
 
-                let zip_entry_name = rel_path.components().map(|name| name.as_os_str().to_string_lossy()).join("/");
+                let zip_entry_name = rel_path
+                    .components()
+                    .map(|name| name.as_os_str().to_string_lossy())
+                    .join("/");
 
                 if path.is_file() {
                     zip.start_file::<_, ()>(zip_entry_name, FileOptions::default())?;
