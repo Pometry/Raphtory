@@ -44,8 +44,6 @@ pub enum GraphViewCollection {
     Layers(Vec<String>),
     /// List of excluded layers.
     ExcludeLayers(Vec<String>),
-    /// Single included layer.
-    Layer(String),
     /// Single excluded layer.
     ExcludeLayer(String),
     /// Subgraph nodes.
@@ -94,8 +92,6 @@ pub enum NodesViewCollection {
     Layers(Vec<String>),
     /// List of excluded layers.
     ExcludeLayers(Vec<String>),
-    /// Single included layer.
-    Layer(String),
     /// Single excluded layer.
     ExcludeLayer(String),
     /// Window between a start and end time.
@@ -134,8 +130,6 @@ pub enum NodeViewCollection {
     Layers(Vec<String>),
     /// List of excluded layers.
     ExcludeLayers(Vec<String>),
-    /// Single included layer.
-    Layer(String),
     /// Single excluded layer.
     ExcludeLayer(String),
     /// Window between a start and end time.
@@ -170,8 +164,6 @@ pub enum EdgesViewCollection {
     Layers(Vec<String>),
     /// List of excluded layers.
     ExcludeLayers(Vec<String>),
-    /// Single included layer.
-    Layer(String),
     /// Single excluded layer.
     ExcludeLayer(String),
     /// Window between a start and end time.
@@ -206,8 +198,6 @@ pub enum EdgeViewCollection {
     Layers(Vec<String>),
     /// List of excluded layers.
     ExcludeLayers(Vec<String>),
-    /// Single included layer.
-    Layer(String),
     /// Single excluded layer.
     ExcludeLayer(String),
     /// Window between a start and end time.
@@ -240,8 +230,6 @@ pub enum PathFromNodeViewCollection {
     Layers(Vec<String>),
     /// List of excluded layers.
     ExcludeLayers(Vec<String>),
-    /// Single layer.
-    Layer(String),
     /// Single layer to exclude.
     ExcludeLayer(String),
     /// Window between a start and end time.
@@ -288,10 +276,7 @@ impl Display for NodeField {
 pub struct PropertyFilterNew {
     pub name: String,
     pub window: Option<Window>,
-
-    pub layer: Option<String>,
     pub layers: Option<Vec<String>>,
-
     #[graphql(name = "where")]
     pub where_: PropCondition,
 }
@@ -529,7 +514,6 @@ fn peel_prop_wrappers_and_collect_ops<'a>(
             ops.push(Op::Len);
             Some(inner.deref())
         }
-
         _ => None,
     }
 }
@@ -918,15 +902,13 @@ fn build_node_filter_from_prop_condition(
     }
 }
 
-fn normalise_layers_to_layer(
-    layer: &Option<String>,
+fn validate_layers(
     layers: &Option<Vec<String>>,
     name_for_errors: &str,
 ) -> Result<Option<Layer>, GraphError> {
-    match (layer, layers) {
-        (None, None) => Ok(None),
-        (Some(l), None) => Ok(Some(Layer::from(l.as_str()))),
-        (None, Some(ls)) => {
+    match layers {
+        None => Ok(None),
+        Some(ls) => {
             if ls.is_empty() {
                 return Err(GraphError::InvalidGqlFilter(format!(
                     "{name_for_errors}: 'layers' must be non-empty"
@@ -934,9 +916,6 @@ fn normalise_layers_to_layer(
             }
             Ok(Some(Layer::from(ls.clone())))
         }
-        (Some(_), Some(_)) => Err(GraphError::InvalidGqlFilter(format!(
-            "{name_for_errors}: provide either 'layer' or 'layers', not both"
-        ))),
     }
 }
 
@@ -968,25 +947,19 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                 }))
             }
             GqlNodeFilter::Property(prop) => {
-                let layers =
-                    normalise_layers_to_layer(&prop.layer, &prop.layers, "NodeFilter.property")?;
+                let layers = validate_layers(&prop.layers, "NodeFilter.property")?;
                 let prop_ref = PropertyRef::Property(prop.name);
                 let filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
                 Ok(maybe_wrap_node_layer(filter, layers))
             }
             GqlNodeFilter::Metadata(prop) => {
-                let layers =
-                    normalise_layers_to_layer(&prop.layer, &prop.layers, "NodeFilter.metadata")?;
+                let layers = validate_layers(&prop.layers, "NodeFilter.metadata")?;
                 let prop_ref = PropertyRef::Metadata(prop.name);
                 let filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
                 Ok(maybe_wrap_node_layer(filter, layers))
             }
             GqlNodeFilter::TemporalProperty(prop) => {
-                let layers = normalise_layers_to_layer(
-                    &prop.layer,
-                    &prop.layers,
-                    "NodeFilter.temporalProperty",
-                )?;
+                let layers = validate_layers(&prop.layers, "NodeFilter.temporalProperty")?;
                 let prop_ref = PropertyRef::TemporalProperty(prop.name);
 
                 let mut filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
@@ -1084,23 +1057,19 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                 Ok(CompositeEdgeFilter::Dst(nf))
             }
             GqlEdgeFilter::Property(p) => {
-                let layers = normalise_layers_to_layer(&p.layer, &p.layers, "EdgeFilter.property")?;
+                let layers = validate_layers(&p.layers, "EdgeFilter.property")?;
                 let prop_ref = PropertyRef::Property(p.name);
                 let filter = build_edge_filter_from_prop_condition(prop_ref, &p.where_)?;
                 Ok(maybe_wrap_edge_layer(filter, layers))
             }
             GqlEdgeFilter::Metadata(p) => {
-                let layers = normalise_layers_to_layer(&p.layer, &p.layers, "EdgeFilter.metadata")?;
+                let layers = validate_layers(&p.layers, "EdgeFilter.metadata")?;
                 let prop_ref = PropertyRef::Metadata(p.name);
                 let filter = build_edge_filter_from_prop_condition(prop_ref, &p.where_)?;
                 Ok(maybe_wrap_edge_layer(filter, layers))
             }
             GqlEdgeFilter::TemporalProperty(prop) => {
-                let layers = normalise_layers_to_layer(
-                    &prop.layer,
-                    &prop.layers,
-                    "EdgeFilter.temporalProperty",
-                )?;
+                let layers = validate_layers(&prop.layers, "EdgeFilter.temporalProperty")?;
                 let prop_ref = PropertyRef::TemporalProperty(prop.name);
 
                 let mut filter = build_edge_filter_from_prop_condition(prop_ref, &prop.where_)?;

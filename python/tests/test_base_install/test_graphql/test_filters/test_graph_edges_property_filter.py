@@ -751,36 +751,6 @@ def test_edge_temporal_property_filter_empty_layers_is_error(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_edge_temporal_property_filter_layer_and_layers_is_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        filterEdges(expr: {
-          temporalProperty: {
-            name: "prop5"
-            layer: "air_nomads"
-            layers: ["water_tribe"]
-            where: { any: { avg: { lt: { f64: 10.0 } } } }
-          }
-        }) {
-          edges { list { src { name } dst { name } } }
-        }
-      }
-    }
-    """
-
-    run_graphql_error_test_contains(
-        query,
-        [
-            "EdgeFilter.temporalProperty",
-            "either 'layer' or 'layers'",
-            "not both",
-        ],
-        graph,
-    )
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_edges_temporal_property_last_with_single_layer(graph):
     query = """
     query {
@@ -788,7 +758,7 @@ def test_edges_temporal_property_last_with_single_layer(graph):
         filterEdges(expr: {
           temporalProperty: {
             name: "p10"
-            layer: "air_nomads"
+            layers: ["air_nomads"]
             where: { last: { eq: { str: "Paper_ship" } } }
           }
         }) {
@@ -847,7 +817,7 @@ def test_edges_temporal_property_last_with_default_layer(graph):
         filterEdges(expr: {
           temporalProperty: {
             name: "p10"
-            layer: "_default"
+            layers: ["_default"]
             where: { last: { eq: { str: "Paper_airplane" } } }
           }
         }) {

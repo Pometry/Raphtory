@@ -1023,7 +1023,7 @@ def test_apply_view_layer():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{layer: "Person"}]) {
+    applyViews(views: [{layers: ["Person"]}]) {
       earliestTime
     }
     nodes {
@@ -1035,12 +1035,12 @@ def test_apply_view_layer():
       }
     }
     node(name: "1") {
-      applyViews(views: [{layer: "finds"}]) {
+      applyViews(views: [{layers: ["finds"]}]) {
         history
       }
     }
     edges {
-      applyViews(views: [{layer: "finds"}]) {
+      applyViews(views: [{layers: ["finds"]}]) {
         list {
         history
           src {
@@ -1053,7 +1053,7 @@ def test_apply_view_layer():
       }
     }
     edge(src: "1", dst: "2") {
-  applyViews(views: [{layer: "met"}]) {
+  applyViews(views: [{layers: ["met"]}]) {
   history
         src {
           name
@@ -1558,7 +1558,7 @@ def test_apply_view_nodes_multiple_views():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layer: "Person"}]) {
+    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layers: ["Person"]}]) {
       nodes {
         list {
           name
@@ -1591,7 +1591,7 @@ def test_apply_view_edges_multiple_views():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layer: "met"}]) {
+    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layers: ["met"]}]) {
       edges {
         list {
           src {
@@ -1633,7 +1633,7 @@ def test_apply_view_a_lot_of_views():
         nodes {
           applyViews(views: [
             { window: { start: 1735689600000, end: 1735862400000 } },
-            { layer: "follows" },
+            { layers: ["follows"] },
             { nodeFilter: { property: { name: "where", where: { eq: { str: "Berlin" } } } } }
           ]) {
             list {
@@ -1774,7 +1774,7 @@ def test_apply_view_neighbours_layer():
   graph(path: "g") {
       node(name: "6") {
           neighbours {
-            applyViews(views: [{layer: "finds"}]) {
+            applyViews(views: [{layers: ["finds"]}]) {
               list {
               name
               history}

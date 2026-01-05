@@ -638,7 +638,6 @@ impl GqlGraph {
                 GraphViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
                 }
-                GraphViewCollection::Layer(layer) => return_view.layer(layer).await,
                 GraphViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 GraphViewCollection::Subgraph(nodes) => return_view.subgraph(nodes).await,
                 GraphViewCollection::SubgraphNodeTypes(node_types) => {

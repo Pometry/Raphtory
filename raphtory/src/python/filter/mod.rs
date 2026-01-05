@@ -1,19 +1,23 @@
-use crate::python::filter::{
-    edge_filter_builders::{
-        PyEdgeEndpoint, PyEdgeEndpointIdFilterBuilder, PyEdgeEndpointNameFilterBuilder,
-        PyEdgeEndpointTypeFilterBuilder, PyEdgeFilter,
+use crate::python::{
+    filter::{
+        edge_filter_builders::{
+            PyEdgeEndpoint, PyEdgeEndpointIdFilterBuilder, PyEdgeEndpointNameFilterBuilder,
+            PyEdgeEndpointTypeFilterBuilder, PyEdgeFilter,
+        },
+        exploded_edge_filter_builder::PyExplodedEdgeFilter,
+        filter_expr::PyFilterExpr,
+        node_filter_builders::{
+            PyNodeFilter, PyNodeIdFilterBuilder, PyNodeNameFilterBuilder, PyNodeTypeFilterBuilder,
+        },
+        property_filter_builders::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
     },
-    exploded_edge_filter_builder::PyExplodedEdgeFilter,
-    filter_expr::PyFilterExpr,
-    node_filter_builders::{
-        PyNodeFilter, PyNodeIdFilterBuilder, PyNodeNameFilterBuilder, PyNodeTypeFilterBuilder,
-    },
-    property_filter_builders::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
+    types::iterable::FromIterable,
 };
 use pyo3::{
     prelude::{PyModule, PyModuleMethods},
     Bound, PyErr, Python,
 };
+use raphtory_api::core::entities::Layer;
 
 pub mod create_filter;
 pub mod edge_filter_builders;
@@ -21,6 +25,12 @@ pub mod exploded_edge_filter_builder;
 pub mod filter_expr;
 pub mod node_filter_builders;
 pub mod property_filter_builders;
+
+impl From<FromIterable<String>> for Layer {
+    fn from(iter: FromIterable<String>) -> Self {
+        iter.into_iter().collect::<Vec<_>>().into()
+    }
+}
 
 pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let filter_module = PyModule::new(py, "filter")?;

@@ -1065,7 +1065,7 @@ def test_node_property_layer_filter_not_supported(graph):
         filterNodes(expr: {
            temporalProperty: {
             name: "prop5"
-            layer: "air_nomads"
+            layers: ["air_nomads"]
             where: { any: { avg: { lt: { f64: 10.0 } } } }
           }
         }) {

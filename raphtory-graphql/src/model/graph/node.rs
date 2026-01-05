@@ -219,7 +219,6 @@ impl GqlNode {
                 NodeViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
                 }
-                NodeViewCollection::Layer(layer) => return_view.layer(layer).await,
                 NodeViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 NodeViewCollection::Window(window) => {
                     return_view.window(window.start, window.end).await
