@@ -9,6 +9,7 @@ use std::{
     io::{self, ErrorKind, Read, Seek, Write},
     path::{Path, PathBuf},
 };
+use itertools::Itertools;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
@@ -425,7 +426,7 @@ impl GraphFolder {
                     GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
                 })?;
 
-                let zip_entry_name = rel_path.to_string_lossy().into_owned();
+                let zip_entry_name = rel_path.components().map(|name| name.as_os_str().to_string_lossy()).join("/");
 
                 if path.is_file() {
                     zip.start_file::<_, ()>(zip_entry_name, FileOptions::default())?;
