@@ -514,7 +514,7 @@ def test_label_propagation_algorithm():
     ]
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
-    seed = [5] * 32
+    seed = [7] * 32
     result_node = algorithms.label_propagation(g, seed)
     result = []
     for group in result_node:
