@@ -130,7 +130,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         mut reader: ZipArchive<R>,
         target: &(impl GraphPaths + ?Sized),
     ) -> Result<Self, GraphError> {
-        if Extension::disk_storage_enabled() {
+        if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
         }
         target.init()?;
