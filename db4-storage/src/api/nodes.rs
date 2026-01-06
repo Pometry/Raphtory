@@ -25,11 +25,7 @@ use std::{
 };
 
 use crate::{
-    LocalPOS,
-    error::StorageError,
-    gen_ts::LayerIter,
-    segments::node::segment::MemNodeSegment,
-    utils::{Iter2, Iter3, Iter4},
+    error::StorageError, gen_ts::LayerIter, segments::node::segment::MemNodeSegment, utils::{Iter2, Iter3, Iter4}, wal::LSN, LocalPOS
 };
 
 pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
@@ -128,6 +124,9 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &self,
         locked_head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
+
+    /// Returns the latest lsn for the immutable part of this segment.
+    fn immut_lsn(&self) -> LSN;
 }
 
 pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {

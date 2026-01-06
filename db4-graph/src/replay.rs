@@ -11,6 +11,8 @@ use raphtory_api::core::{
 };
 use raphtory_core::entities::GidRef;
 use storage::{
+    api::nodes::NodeSegmentOps,
+    api::edges::EdgeSegmentOps,
     persist::strategy::PersistentStrategy,
     NS, ES, GS,
     error::StorageError,
@@ -36,8 +38,6 @@ where
         layer_id: usize,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
-        // TODO: Check max lsn on disk to see if this record should be replayed.
-
         let temporal_graph = self.graph();
         let node_max_page_len = temporal_graph.storage().nodes().max_page_len();
         let edge_max_page_len = temporal_graph.storage().edges().max_page_len();
@@ -70,61 +70,85 @@ where
         let num_nodes = src_id.index() + 1;
         self.resize_chunks_to_num_nodes(num_nodes); // Create enough segments.
 
-        let mut src_writer = self.nodes.get_mut(src_segment_id).unwrap().writer();
-        src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, GidRef::from(&src_name));
+        let segment = self.graph().storage().nodes().get_or_create_segment(src_segment_id);
+        let immut_lsn = segment.immut_lsn();
 
-        let is_new_edge_static = src_writer.get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID).is_none();
-        let is_new_edge_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
+        // Replay this entry only if it doesn't exist in immut.
+        if immut_lsn < lsn {
+            let mut src_writer = self.nodes.get_mut(src_segment_id).unwrap().writer();
+            src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, GidRef::from(&src_name));
 
-        // Add the edge to the static graph if it doesn't already exist.
-        if is_new_edge_static {
-            src_writer.add_static_outbound_edge(src_pos, dst_id, eid);
+            let is_new_edge_static = src_writer.get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID).is_none();
+            let is_new_edge_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
+
+            // Add the edge to the static graph if it doesn't already exist.
+            if is_new_edge_static {
+                src_writer.add_static_outbound_edge(src_pos, dst_id, eid);
+            }
+
+            // Add the edge to the layer if it doesn't already exist, else just record the timestamp.
+            if is_new_edge_layer {
+                src_writer.add_outbound_edge(Some(t), src_pos, dst_id, eid.with_layer(layer_id));
+            } else {
+                src_writer.update_timestamp(t, src_pos, eid.with_layer(layer_id));
+            }
+
+            // Release the writer for mutable access to dst_writer.
+            drop(src_writer);
         }
-
-        // Add the edge to the layer if it doesn't already exist, else just record the timestamp.
-        if is_new_edge_layer {
-            src_writer.add_outbound_edge(Some(t), src_pos, dst_id, eid.with_layer(layer_id));
-        } else {
-            src_writer.update_timestamp(t, src_pos, eid.with_layer(layer_id));
-        }
-
-        // Release the writer for mutable access to dst_writer.
-        drop(src_writer);
 
         // 5. Grab dst writer and add edge data.
         let (dst_segment_id, dst_pos) = resolve_pos(dst_id, node_max_page_len);
         let num_nodes = dst_id.index() + 1;
         self.resize_chunks_to_num_nodes(num_nodes);
 
-        let mut dst_writer = self.nodes.get_mut(dst_segment_id).unwrap().writer();
-        dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, GidRef::from(&dst_name));
+        let segment = self.graph().storage().nodes().get_or_create_segment(dst_segment_id);
+        let immut_lsn = segment.immut_lsn();
 
-        if is_new_edge_static {
-            dst_writer.add_static_inbound_edge(dst_pos, src_id, eid);
+        // Replay this entry only if it doesn't exist in immut.
+        if immut_lsn < lsn {
+            let mut dst_writer = self.nodes.get_mut(dst_segment_id).unwrap().writer();
+            dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, GidRef::from(&dst_name));
+
+            let is_new_edge_static = dst_writer.get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID).is_none();
+            let is_new_edge_layer = dst_writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
+
+            if is_new_edge_static {
+                dst_writer.add_static_inbound_edge(dst_pos, src_id, eid);
+            }
+
+            if is_new_edge_layer {
+                dst_writer.add_inbound_edge(Some(t), dst_pos, src_id, eid.with_layer(layer_id));
+            } else {
+                dst_writer.update_timestamp(t, dst_pos, eid.with_layer(layer_id));
+            }
+
+            drop(dst_writer);
         }
-
-        if is_new_edge_layer {
-            dst_writer.add_inbound_edge(Some(t), dst_pos, src_id, eid.with_layer(layer_id));
-        } else {
-            dst_writer.update_timestamp(t, dst_pos, eid.with_layer(layer_id));
-        }
-
-        drop(dst_writer);
 
         // 6. Grab edge writer and add temporal props & metadata.
         let (edge_segment_id, edge_pos) = resolve_pos(eid, edge_max_page_len);
         let num_edges = eid.index() + 1;
         self.resize_chunks_to_num_edges(num_edges);
-        let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
 
-        // Add edge into the static graph if it doesn't already exist.
-        if is_new_edge_static {
-            let already_counted = false;
-            edge_writer.add_static_edge(Some(edge_pos), src_id, dst_id, already_counted);
+        let segment = self.graph().storage().edges().get_or_create_segment(edge_segment_id);
+        let immut_lsn = segment.immut_lsn();
+
+        // Replay this entry only if it doesn't exist in immut.
+        if immut_lsn < lsn {
+            let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
+
+            let is_new_edge_static = edge_writer.get_edge(STATIC_GRAPH_LAYER_ID, edge_pos).is_none();
+
+            // Add edge into the static graph if it doesn't already exist.
+            if is_new_edge_static {
+                let already_counted = false;
+                edge_writer.add_static_edge(Some(edge_pos), src_id, dst_id, already_counted);
+            }
+
+            // Add edge into the specified layer with timestamp and props.
+            edge_writer.add_edge(t, edge_pos, src_id, dst_id, prop_ids_and_values, layer_id);
         }
-
-        // Add edge into the specified layer with timestamp and props.
-        edge_writer.add_edge(t, edge_pos, src_id, dst_id, prop_ids_and_values, layer_id);
 
         Ok(())
     }

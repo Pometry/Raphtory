@@ -166,10 +166,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.graph_stats.increment(layer_id);
     }
 
-    pub fn contains_edge(&self, pos: LocalPOS, layer_id: usize) -> bool {
-        self.page.contains_edge(pos, layer_id, self.writer.deref())
-    }
-
     pub fn get_edge(&self, layer_id: usize, edge_pos: LocalPOS) -> Option<(VID, VID)> {
         self.page.get_edge(edge_pos, layer_id, self.writer.deref())
     }

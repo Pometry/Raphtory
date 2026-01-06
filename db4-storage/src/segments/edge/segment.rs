@@ -588,6 +588,10 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
     }
 
     fn set_dirty(&self, _dirty: bool) {}
+
+    fn immut_lsn(&self) -> LSN {
+        panic!("immut_lsn not supported for EdgeSegmentView");
+    }
 }
 
 #[cfg(test)]

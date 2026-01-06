@@ -545,6 +545,10 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     ) -> Result<(), StorageError> {
         Ok(())
     }
+
+    fn immut_lsn(&self) -> LSN {
+        panic!("immut_lsn not supported for NodeSegmentView");
+    }
 }
 
 #[cfg(test)]
