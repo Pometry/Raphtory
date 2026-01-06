@@ -19,6 +19,7 @@ use std::{
     fs::File,
     io::{ErrorKind, Read, Seek, Write},
     ops::Deref,
+    panic::Location,
     path::{Component, Path, PathBuf, StripPrefixError},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -429,7 +430,8 @@ pub enum InternalPathValidationError {
 impl From<io::Error> for InternalPathValidationError {
     #[track_caller]
     fn from(value: io::Error) -> Self {
-        error!("Unexpected IO failure: {}", value);
+        let location = Location::caller();
+        error!("Unexpected IO failure at {location}: {}", value);
         InternalPathValidationError::IOError(value)
     }
 }
