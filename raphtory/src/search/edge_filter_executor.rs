@@ -256,6 +256,33 @@ impl<'a> EdgeFilterExecutor<'a> {
                     .map(|x| EdgeView::new(graph.clone(), x.edge))
                     .collect())
             }
+            CompositeEdgeFilter::Latest(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.latest();
+                let res = self.filter_edges(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
+            }
+            CompositeEdgeFilter::SnapshotAt(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.snapshot_at(filter.time);
+                let res = self.filter_edges(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
+            }
+            CompositeEdgeFilter::SnapshotLatest(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.snapshot_latest();
+                let res = self.filter_edges(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
+            }
             CompositeEdgeFilter::Layered(filter) => {
                 let layer = filter.layer.clone();
                 let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());

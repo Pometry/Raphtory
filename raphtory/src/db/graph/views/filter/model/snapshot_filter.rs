@@ -80,13 +80,21 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotAt<T> {
     }
 
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeEdgeFilter::SnapshotAt(Box::new(SnapshotAt::new(
+            self.time,
+            self.inner.try_as_composite_edge_filter()?,
+        ))))
     }
 
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeExplodedEdgeFilter::SnapshotAt(Box::new(
+            SnapshotAt::new(
+                self.time,
+                self.inner.try_as_composite_exploded_edge_filter()?,
+            ),
+        )))
     }
 }
 
@@ -211,12 +219,16 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotLatest<T> {
         )))
     }
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeEdgeFilter::SnapshotLatest(Box::new(
+            SnapshotLatest::new(self.inner.try_as_composite_edge_filter()?),
+        )))
     }
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeExplodedEdgeFilter::SnapshotLatest(Box::new(
+            SnapshotLatest::new(self.inner.try_as_composite_exploded_edge_filter()?),
+        )))
     }
 }
 

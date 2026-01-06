@@ -90,13 +90,17 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
     }
 
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeEdgeFilter::Latest(Box::new(Latest::new(
+            self.inner.try_as_composite_edge_filter()?,
+        ))))
     }
 
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeExplodedEdgeFilter::Latest(Box::new(Latest::new(
+            self.inner.try_as_composite_exploded_edge_filter()?,
+        ))))
     }
 }
 

@@ -330,6 +330,9 @@ pub enum CompositeEdgeFilter {
     Dst(CompositeNodeFilter),
     Property(PropertyFilter<EdgeFilter>),
     Windowed(Box<Windowed<CompositeEdgeFilter>>),
+    Latest(Box<Latest<CompositeEdgeFilter>>),
+    SnapshotAt(Box<SnapshotAt<CompositeEdgeFilter>>),
+    SnapshotLatest(Box<SnapshotLatest<CompositeEdgeFilter>>),
     Layered(Box<Layered<CompositeEdgeFilter>>),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
@@ -343,6 +346,9 @@ impl Display for CompositeEdgeFilter {
             CompositeEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
             CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::Windowed(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::Latest(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -376,6 +382,18 @@ impl CreateFilter for CompositeEdgeFilter {
             }
             CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeEdgeFilter::Windowed(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_filter(dyn_graph)
+            }
+            CompositeEdgeFilter::Latest(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_filter(dyn_graph)
+            }
+            CompositeEdgeFilter::SnapshotAt(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_filter(dyn_graph)
+            }
+            CompositeEdgeFilter::SnapshotLatest(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_filter(dyn_graph)
             }

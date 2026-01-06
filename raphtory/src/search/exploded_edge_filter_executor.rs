@@ -241,6 +241,33 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                     .map(|x| EdgeView::new(graph.clone(), x.edge))
                     .collect())
             }
+            CompositeExplodedEdgeFilter::Latest(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.latest();
+                let res = self.filter_exploded_edges(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
+            }
+            CompositeExplodedEdgeFilter::SnapshotAt(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.snapshot_at(filter.time);
+                let res = self.filter_exploded_edges(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
+            }
+            CompositeExplodedEdgeFilter::SnapshotLatest(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.snapshot_latest();
+                let res = self.filter_exploded_edges(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| EdgeView::new(graph.clone(), x.edge))
+                    .collect())
+            }
             CompositeExplodedEdgeFilter::Layered(filter) => {
                 let layer = filter.layer.clone();
 
