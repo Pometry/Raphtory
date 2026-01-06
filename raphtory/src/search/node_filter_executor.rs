@@ -270,6 +270,35 @@ impl<'a> NodeFilterExecutor<'a> {
                     .map(|x| NodeView::new_internal(graph.clone(), x.node))
                     .collect())
             }
+            CompositeNodeFilter::Latest(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.latest();
+                let res = self.filter_nodes(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| NodeView::new_internal(graph.clone(), x.node))
+                    .collect())
+            }
+
+            CompositeNodeFilter::SnapshotAt(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.snapshot_at(filter.time);
+                let res = self.filter_nodes(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| NodeView::new_internal(graph.clone(), x.node))
+                    .collect())
+            }
+
+            CompositeNodeFilter::SnapshotLatest(filter) => {
+                let dyn_graph: Arc<dyn BoxableGraphView> = Arc::new((*graph).clone());
+                let dyn_graph = dyn_graph.snapshot_latest();
+                let res = self.filter_nodes(&dyn_graph, &filter.inner, limit, offset)?;
+                Ok(res
+                    .into_iter()
+                    .map(|x| NodeView::new_internal(graph.clone(), x.node))
+                    .collect())
+            }
             CompositeNodeFilter::Node(filter) => {
                 self.filter_node_index(graph, filter, limit, offset)
             }

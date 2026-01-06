@@ -40,11 +40,13 @@ pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;
 pub mod filter_operator;
+pub mod latest_filter;
 pub mod layered_filter;
 pub mod node_filter;
 pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
+pub mod snapshot_filter;
 pub mod windowed_filter;
 
 pub trait Wrap {

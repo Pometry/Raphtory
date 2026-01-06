@@ -35,6 +35,7 @@ pub(crate) mod internal {
             end: Option<i64>,
         ) -> Self::InternalWindowedView;
     }
+
     impl<'graph, E: InternalFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
         type InternalWindowedView = E::Filtered<WindowedGraph<E::Graph>>;
 

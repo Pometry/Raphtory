@@ -217,10 +217,6 @@ impl NodeIndex {
         let node_type = node.node_type();
 
         let node_doc = self.create_document(node_id, node_name.clone(), node_type.clone());
-        println!(
-            "Indexing Node Document: {}",
-            node_doc.to_json(&self.entity_index.index.schema()) // assumes `self.index` has `schema() -> &Schema`
-        );
         writer.add_document(node_doc)?;
 
         Ok(())

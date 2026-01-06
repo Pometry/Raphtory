@@ -2293,14 +2293,17 @@ mod test_node_filter {
 #[cfg(test)]
 mod test_node_property_filter {
     use crate::{init_nodes_graph, IdentityGraphTransformer};
-    use raphtory::db::graph::{
-        assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
-        views::filter::model::{
-            node_filter::NodeFilter,
-            not_filter::NotFilter,
-            property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-            ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+    use raphtory::{
+        db::graph::{
+            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
+            views::filter::model::{
+                node_filter::NodeFilter,
+                not_filter::NotFilter,
+                property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+                ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+            },
         },
+        prelude::{GraphViewOps, NodeViewOps, TimeOps},
     };
     use raphtory_api::core::entities::properties::prop::Prop;
     use std::vec;
@@ -3684,6 +3687,320 @@ mod test_node_property_filter {
             filter,
             &expected_results,
             TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_at_filter() {
+        // Only time=2 contributes; node 2 has p2=2 at t=2
+        let filter = NodeFilter::at(2).property("p2").temporal().sum().eq(2u64);
+
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+
+        // Only time=3 contributes; node 3 has p2=6 at t=3
+        let filter = NodeFilter::at(3).property("p2").temporal().sum().eq(6u64);
+
+        let expected_results = vec!["3"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_after_filter() {
+        // after(2) means t >= 3
+        let filter = NodeFilter::after(2)
+            .property("p2")
+            .temporal()
+            .sum()
+            .ge(6u64);
+
+        let expected_results = vec!["3"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_before_filter() {
+        // before(3) means t <= 2
+        let filter = NodeFilter::before(3)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(2u64);
+
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+
+        // And node 3 shouldn't match, because its p2=6 lives at t=3.
+        let filter = NodeFilter::before(3)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(6u64);
+
+        let expected_results = vec![];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_latest_filter() {
+        // At latest time (currently t=4), only node 4 has p5=12
+        let filter = NodeFilter::latest().property("p5").eq(12u64);
+
+        let expected_results = vec!["4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_snapshot_at_semantics_event_graph() {
+        let t = 2;
+
+        let filter_snapshot = NodeFilter::snapshot_at(t).property("p2").eq(2u64);
+
+        let filter_before = NodeFilter::before(t + 1).property("p2").eq(2u64);
+
+        let expected_results = vec!["2"];
+
+        // snapshot_at
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        // before(t+1)
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_before.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_before,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+    }
+
+    #[test]
+    fn test_nodes_snapshot_at_semantics_persistent_graph() {
+        let t = 2;
+
+        let filter_snapshot = NodeFilter::snapshot_at(t).property("p2").eq(2u64);
+
+        let filter_at = NodeFilter::at(t).property("p2").eq(2u64);
+
+        let expected_results = vec!["2"];
+
+        // snapshot_at
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+
+        // at(t)
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_at.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_at,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_nodes_snapshot_latest_semantics_event_graph() {
+        let filter_snapshot_latest = NodeFilter::snapshot_latest()
+            .property("p2")
+            .temporal()
+            .sum()
+            .ge(2u64);
+
+        let filter_noop = NodeFilter.property("p2").temporal().sum().ge(2u64);
+
+        // From your earlier window test, "2" and "3" are the ones with p2 values across time.
+        // If your underlying dataset changes, adjust this accordingly.
+        let expected_results = vec!["2", "3"];
+
+        // snapshot_latest
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        // no-op baseline
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_noop.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_noop,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+    }
+
+    #[test]
+    fn test_nodes_snapshot_latest_semantics_persistent_graph() {
+        let filter_snapshot_latest = NodeFilter::snapshot_latest()
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let filter_latest = NodeFilter::latest().property("p1").eq("shivam_kapoor");
+
+        let expected_results = vec!["1"];
+
+        // snapshot_latest
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+
+        // latest
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_latest.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_latest,
+            &expected_results,
+            TestVariants::PersistentOnly,
         );
     }
 

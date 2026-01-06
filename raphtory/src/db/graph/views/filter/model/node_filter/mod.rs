@@ -13,12 +13,14 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter::Filter,
+                latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
                 },
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 ComposableFilter, CompositeExplodedEdgeFilter, InternalPropertyFilterFactory,
                 TryAsCompositeFilter, Wrap,
@@ -28,9 +30,9 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::{GraphViewOps, PropertyFilter, TimeOps},
 };
-use raphtory_api::core::entities::Layer;
+use raphtory_api::core::{entities::Layer, storage::timeindex::TimeIndexEntry};
 use raphtory_core::utils::time::IntoTime;
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{fmt, fmt::Display, sync::Arc};
@@ -61,6 +63,46 @@ impl NodeFilter {
     #[inline]
     pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<NodeFilter> {
         Windowed::from_times(start, end, NodeFilter)
+    }
+
+    #[inline]
+    pub fn at<T: IntoTime>(time: T) -> Windowed<NodeFilter> {
+        let t = time.into_time();
+        Windowed::from_times(t, t.saturating_add(1), NodeFilter)
+    }
+
+    #[inline]
+    pub fn after<T: IntoTime>(time: T) -> Windowed<NodeFilter> {
+        let start = time.into_time().saturating_add(1);
+        Windowed::new(
+            TimeIndexEntry::start(start),
+            TimeIndexEntry::end(i64::MAX),
+            NodeFilter,
+        )
+    }
+
+    #[inline]
+    pub fn before<T: IntoTime>(time: T) -> Windowed<NodeFilter> {
+        Windowed::new(
+            TimeIndexEntry::start(i64::MIN),
+            TimeIndexEntry::end(time.into_time()),
+            NodeFilter,
+        )
+    }
+
+    #[inline]
+    pub fn latest() -> Latest<NodeFilter> {
+        Latest::new(NodeFilter)
+    }
+
+    #[inline]
+    pub fn snapshot_at<T: IntoTime>(time: T) -> SnapshotAt<NodeFilter> {
+        SnapshotAt::new(time, NodeFilter)
+    }
+
+    #[inline]
+    pub fn snapshot_latest() -> SnapshotLatest<NodeFilter> {
+        SnapshotLatest::new(NodeFilter)
     }
 
     #[inline]
@@ -282,6 +324,9 @@ pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter<NodeFilter>),
     Windowed(Box<Windowed<CompositeNodeFilter>>),
+    Latest(Box<Latest<CompositeNodeFilter>>),
+    SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
+    SnapshotLatest(Box<SnapshotLatest<CompositeNodeFilter>>),
     Layered(Box<Layered<CompositeNodeFilter>>),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
@@ -294,6 +339,9 @@ impl Display for CompositeNodeFilter {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Layered(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Latest(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -335,6 +383,18 @@ impl CreateFilter for CompositeNodeFilter {
                 i.create_node_filter(dyn_graph)
             }
             CompositeNodeFilter::Layered(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::Latest(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::SnapshotAt(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::SnapshotLatest(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_node_filter(dyn_graph)
             }
