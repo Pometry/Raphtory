@@ -148,6 +148,7 @@ fn valid_path_inner(
     base_path: PathBuf,
     relative_path: &str,
 ) -> Result<PathBuf, InternalPathValidationError> {
+    ensure_clean_folder(&base_path)?;
     let mut full_path = base_path.clone();
     let user_facing_path: &Path = relative_path.as_ref();
 
@@ -203,6 +204,7 @@ pub(crate) fn create_valid_path(
     base_path: PathBuf,
     relative_path: &str,
 ) -> Result<NewPath, InternalPathValidationError> {
+    ensure_clean_folder(&base_path)?;
     let user_facing_path = PathBuf::from(relative_path);
 
     if relative_path.contains(r"//") {
@@ -494,7 +496,7 @@ fn valid_relative_path(relative_path: &Path) -> Result<(), InternalPathValidatio
 
 fn read_dirty_relative_path(
     base_path: &Path,
-) -> Result<Option<PathBuf>, InternalPathValidationError> {
+) -> Result<Option<String>, InternalPathValidationError> {
     let mut file = match File::open(base_path.join(DIRTY_PATH)) {
         Ok(file) => file,
         Err(error) => {
@@ -508,7 +510,7 @@ fn read_dirty_relative_path(
     file.read_to_string(&mut json_string)?;
     let path: RelativePath = serde_json::from_str(&json_string)?;
     valid_relative_path(path.path.as_ref())?;
-    Ok(Some(base_path.join(path.path)))
+    Ok(Some(path.path))
 }
 
 pub(crate) fn ensure_clean_folder(base_path: &Path) -> Result<(), InternalPathValidationError> {
@@ -516,8 +518,9 @@ pub(crate) fn ensure_clean_folder(base_path: &Path) -> Result<(), InternalPathVa
         match read_dirty_relative_path(base_path) {
             Ok(path) => {
                 if let Some(path) = path {
-                    warn!("Found dirty path {}, cleaning...", path.display());
-                    fs::remove_dir_all(base_path.join(path))?;
+                    let full_path = base_path.join(path);
+                    warn!("Found dirty path {}, cleaning...", full_path.display());
+                    fs::remove_dir_all(full_path)?;
                 }
             }
             Err(error) => {
