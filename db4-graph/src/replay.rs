@@ -93,6 +93,8 @@ where
                 src_writer.update_timestamp(t, src_pos, eid.with_layer(layer_id));
             }
 
+            src_writer.mut_segment.set_lsn(lsn);
+
             // Release the writer for mutable access to dst_writer.
             drop(src_writer);
         }
@@ -123,6 +125,8 @@ where
                 dst_writer.update_timestamp(t, dst_pos, eid.with_layer(layer_id));
             }
 
+            dst_writer.mut_segment.set_lsn(lsn);
+
             drop(dst_writer);
         }
 
@@ -148,6 +152,8 @@ where
 
             // Add edge into the specified layer with timestamp and props.
             edge_writer.add_edge(t, edge_pos, src_id, dst_id, prop_ids_and_values, layer_id);
+
+            edge_writer.writer.set_lsn(lsn);
         }
 
         Ok(())
