@@ -32,7 +32,6 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter, TimeOps},
 };
-use raphtory_api::core::{entities::Layer, storage::timeindex::TimeIndexEntry};
 use raphtory_core::utils::time::IntoTime;
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{fmt, fmt::Display, sync::Arc};
@@ -59,56 +58,6 @@ impl NodeFilter {
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
     }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<NodeFilter> {
-        Windowed::from_times(start, end, NodeFilter)
-    }
-
-    #[inline]
-    pub fn at<T: IntoTime>(time: T) -> Windowed<NodeFilter> {
-        let t = time.into_time();
-        Windowed::from_times(t, t.saturating_add(1), NodeFilter)
-    }
-
-    #[inline]
-    pub fn after<T: IntoTime>(time: T) -> Windowed<NodeFilter> {
-        let start = time.into_time().saturating_add(1);
-        Windowed::new(
-            TimeIndexEntry::start(start),
-            TimeIndexEntry::end(i64::MAX),
-            NodeFilter,
-        )
-    }
-
-    #[inline]
-    pub fn before<T: IntoTime>(time: T) -> Windowed<NodeFilter> {
-        Windowed::new(
-            TimeIndexEntry::start(i64::MIN),
-            TimeIndexEntry::end(time.into_time()),
-            NodeFilter,
-        )
-    }
-
-    #[inline]
-    pub fn latest() -> Latest<NodeFilter> {
-        Latest::new(NodeFilter)
-    }
-
-    #[inline]
-    pub fn snapshot_at<T: IntoTime>(time: T) -> SnapshotAt<NodeFilter> {
-        SnapshotAt::new(time, NodeFilter)
-    }
-
-    #[inline]
-    pub fn snapshot_latest() -> SnapshotLatest<NodeFilter> {
-        SnapshotLatest::new(NodeFilter)
-    }
-
-    #[inline]
-    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<NodeFilter> {
-        Layered::from_layers(layer, NodeFilter)
-    }
 }
 
 impl Wrap for NodeFilter {
@@ -118,6 +67,8 @@ impl Wrap for NodeFilter {
         value
     }
 }
+
+impl ComposableFilter for NodeFilter {}
 
 impl InternalPropertyFilterFactory for NodeFilter {
     type Entity = NodeFilter;

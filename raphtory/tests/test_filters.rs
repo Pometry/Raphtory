@@ -2307,6 +2307,7 @@ mod test_node_property_filter {
     };
     use raphtory_api::core::entities::properties::prop::Prop;
     use std::vec;
+    use raphtory::db::graph::views::filter::model::ViewWrapOps;
 
     #[test]
     fn test_exact_match() {
@@ -3502,7 +3503,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_nodes_window_filter() {
-        let filter = NodeFilter::window(1, 3)
+        let filter = NodeFilter.window(1, 3)
             .property("p2")
             .temporal()
             .sum()
@@ -3525,7 +3526,7 @@ mod test_node_property_filter {
         );
 
         // Wider window includes node 3
-        let filter = NodeFilter::window(1, 5)
+        let filter = NodeFilter.window(1, 5)
             .property("p2")
             .temporal()
             .sum()
@@ -3550,8 +3551,8 @@ mod test_node_property_filter {
 
     #[test]
     fn test_nodes_window_filter_on_non_temporal_property() {
-        let filter1 = NodeFilter::window(1, 2).property("p1").eq("shivam_kapoor");
-        let filter2 = NodeFilter::window(100, 200)
+        let filter1 = NodeFilter.window(1, 2).property("p1").eq("shivam_kapoor");
+        let filter2 = NodeFilter.window(100, 200)
             .property("p1")
             .eq("shivam_kapoor");
 
@@ -3587,7 +3588,7 @@ mod test_node_property_filter {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter::window(100, 200)
+        let filter = NodeFilter.window(100, 200)
             .property("p1")
             .eq("shivam_kapoor");
 
@@ -3610,7 +3611,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_nodes_window_filter_any_all_over_window() {
-        let filter = NodeFilter::window(3, 5)
+        let filter = NodeFilter.window(3, 5)
             .property("p20")
             .temporal()
             .any()
@@ -3632,7 +3633,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::window(3, 5)
+        let filter = NodeFilter.window(3, 5)
             .property("p20")
             .temporal()
             .all()
@@ -3658,14 +3659,14 @@ mod test_node_property_filter {
     #[test]
     fn test_nodes_window_filter_and() {
         // Filters both node 1 and 3
-        let filter1 = NodeFilter::window(1, 4)
+        let filter1 = NodeFilter.window(1, 4)
             .property("p10")
             .temporal()
             .any()
             .eq("Paper_airplane");
 
         // Filters only node 3
-        let filter2 = NodeFilter::window(3, 6)
+        let filter2 = NodeFilter.window(3, 6)
             .property("p2")
             .temporal()
             .sum()
@@ -3693,7 +3694,7 @@ mod test_node_property_filter {
     #[test]
     fn test_nodes_at_filter() {
         // Only time=2 contributes; node 2 has p2=2 at t=2
-        let filter = NodeFilter::at(2).property("p2").temporal().sum().eq(2u64);
+        let filter = NodeFilter.at(2).property("p2").temporal().sum().eq(2u64);
 
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
@@ -3712,7 +3713,7 @@ mod test_node_property_filter {
         );
 
         // Only time=3 contributes; node 3 has p2=6 at t=3
-        let filter = NodeFilter::at(3).property("p2").temporal().sum().eq(6u64);
+        let filter = NodeFilter.at(3).property("p2").temporal().sum().eq(6u64);
 
         let expected_results = vec!["3"];
         assert_filter_nodes_results(
@@ -3734,7 +3735,7 @@ mod test_node_property_filter {
     #[test]
     fn test_nodes_after_filter() {
         // after(2) means t >= 3
-        let filter = NodeFilter::after(2)
+        let filter = NodeFilter.after(2)
             .property("p2")
             .temporal()
             .sum()
@@ -3760,7 +3761,7 @@ mod test_node_property_filter {
     #[test]
     fn test_nodes_before_filter() {
         // before(3) means t <= 2
-        let filter = NodeFilter::before(3)
+        let filter = NodeFilter.before(3)
             .property("p2")
             .temporal()
             .sum()
@@ -3783,7 +3784,7 @@ mod test_node_property_filter {
         );
 
         // And node 3 shouldn't match, because its p2=6 lives at t=3.
-        let filter = NodeFilter::before(3)
+        let filter = NodeFilter.before(3)
             .property("p2")
             .temporal()
             .sum()
@@ -3809,7 +3810,7 @@ mod test_node_property_filter {
     #[test]
     fn test_nodes_latest_filter() {
         // At latest time (currently t=4), only node 4 has p5=12
-        let filter = NodeFilter::latest().property("p5").eq(12u64);
+        let filter = NodeFilter.latest().property("p5").eq(12u64);
 
         let expected_results = vec!["4"];
         assert_filter_nodes_results(
@@ -3832,9 +3833,9 @@ mod test_node_property_filter {
     fn test_nodes_snapshot_at_semantics_event_graph() {
         let t = 2;
 
-        let filter_snapshot = NodeFilter::snapshot_at(t).property("p2").eq(2u64);
+        let filter_snapshot = NodeFilter.snapshot_at(t).property("p2").eq(2u64);
 
-        let filter_before = NodeFilter::before(t + 1).property("p2").eq(2u64);
+        let filter_before = NodeFilter.before(t + 1).property("p2").eq(2u64);
 
         let expected_results = vec!["2"];
 
@@ -3875,9 +3876,9 @@ mod test_node_property_filter {
     fn test_nodes_snapshot_at_semantics_persistent_graph() {
         let t = 2;
 
-        let filter_snapshot = NodeFilter::snapshot_at(t).property("p2").eq(2u64);
+        let filter_snapshot = NodeFilter.snapshot_at(t).property("p2").eq(2u64);
 
-        let filter_at = NodeFilter::at(t).property("p2").eq(2u64);
+        let filter_at = NodeFilter.at(t).property("p2").eq(2u64);
 
         let expected_results = vec!["2"];
 
@@ -3916,7 +3917,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_nodes_snapshot_latest_semantics_event_graph() {
-        let filter_snapshot_latest = NodeFilter::snapshot_latest()
+        let filter_snapshot_latest = NodeFilter.snapshot_latest()
             .property("p2")
             .temporal()
             .sum()
@@ -3963,11 +3964,11 @@ mod test_node_property_filter {
 
     #[test]
     fn test_nodes_snapshot_latest_semantics_persistent_graph() {
-        let filter_snapshot_latest = NodeFilter::snapshot_latest()
+        let filter_snapshot_latest = NodeFilter.snapshot_latest()
             .property("p1")
             .eq("shivam_kapoor");
 
-        let filter_latest = NodeFilter::latest().property("p1").eq("shivam_kapoor");
+        let filter_latest = NodeFilter.latest().property("p1").eq("shivam_kapoor");
 
         let expected_results = vec!["1"];
 
@@ -4007,13 +4008,69 @@ mod test_node_property_filter {
     #[test]
     #[ignore] // TODO: Enable this when node layer is supported
     fn test_nodes_layer_filter() {
-        let filter = NodeFilter::layer("_default")
+        let filter = NodeFilter.layer("_default")
             .property("p2")
             .temporal()
             .sum()
             .ge(2u64);
 
         let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
+    fn test_nodes_layer_then_window_ordering() {
+        // In layer "fire_nation" within window [1,4), node "1" matches p1 == "shivam_kapoor".
+        let filter = NodeFilter
+            .layer("fire_nation")
+            .window(1, 4)
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let expected_results = vec!["1"];
+
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
+    fn test_nodes_window_then_layer_ordering() {
+        // Same semantics as above, but reversed chaining order.
+        let filter = NodeFilter
+            .window(1, 4)
+            .layer("fire_nation")
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let expected_results = vec!["1"];
+
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
