@@ -52,7 +52,7 @@ pub trait NodeOpFilter<'graph>: NodeOp + 'graph {
 #[derive(Debug, Clone, Copy)]
 pub struct Name;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NameStruct {
     name: String,
 }
@@ -75,7 +75,7 @@ impl NodeOp for Name {
 #[derive(Debug, Copy, Clone)]
 pub struct Id;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdStruct {
     id: GID,
 }
@@ -98,7 +98,7 @@ impl NodeOp for Id {
 #[derive(Debug, Copy, Clone)]
 pub struct Type;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TypeStruct {
     node_type: Option<ArcStr>,
 }
@@ -121,7 +121,7 @@ impl NodeOp for Type {
 #[derive(Debug, Copy, Clone)]
 pub struct TypeId;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TypeIdStruct {
     type_id: usize,
 }
@@ -147,7 +147,7 @@ pub struct Degree<G> {
     pub(crate) dir: Direction,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DegreeStruct {
     degree: usize,
 }

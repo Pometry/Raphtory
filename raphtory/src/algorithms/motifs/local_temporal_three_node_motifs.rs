@@ -392,6 +392,7 @@ where
                     counts.extend_from_slice(triangles);
                     counts
                 })
+                .map(|value| MotifState { motif_counter: value })
                 .collect();
             TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values, None))
         },

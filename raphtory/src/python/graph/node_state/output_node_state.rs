@@ -20,6 +20,7 @@ use crate::{
         utils::PyNodeRef,
     },
 };
+use indexmap::IndexMap;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     pyclass, pymethods,
@@ -63,7 +64,7 @@ impl PyOutputNodeState {
         let res = if let Ok(other) = other.downcast::<Self>() {
             let other = Bound::get(other);
             self.inner == other.inner
-        } else if let Ok(other) = other.extract::<Vec<HashMap<String, Option<Prop>>>>() {
+        } else if let Ok(other) = other.extract::<Vec<IndexMap<String, Option<Prop>>>>() {
             self.inner == other
         } else if let Ok(other) =
             other.extract::<HashMap<PyNodeRef, HashMap<String, Option<Prop>>>>()

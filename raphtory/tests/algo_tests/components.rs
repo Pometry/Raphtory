@@ -400,12 +400,12 @@ mod components_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = out_components(graph, None).transform();
+            let results = out_components(graph, None);
             println!(
                 "results: {:?}",
                 (results.converter)(&results.state, results.get_by_node(VID(0)).unwrap())
             );
-            /*
+
             let mut correct = HashMap::new();
             correct.insert("1".to_string(), vec![2, 3, 4, 5, 6, 7, 8]);
             correct.insert("2".to_string(), vec![4, 5, 6, 7, 8]);
@@ -416,7 +416,7 @@ mod components_test {
             correct.insert("7".to_string(), vec![]);
             correct.insert("8".to_string(), vec![]);
             let map: HashMap<String, Vec<u64>> = results
-                .into_iter()
+                .iter()
                 .map(|(k, v)| {
                     (
                         k.name(),
@@ -429,7 +429,6 @@ mod components_test {
                 })
                 .collect();
             assert_eq!(map, correct);
-            */
         });
     }
 }

@@ -2,10 +2,10 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{GenericNodeState, Index, TypedNodeState},
+            state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
-        graph::node::NodeView,
+        graph::{node::NodeView, nodes::Nodes},
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -28,6 +28,34 @@ pub struct InState {
     pub in_components: Vec<VID>,
 }
 
+#[derive(Clone, Debug)]
+pub struct TransformedInState<'graph, G, GH = G>
+where
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
+{
+    pub in_components: Nodes<'graph, G, GH>,
+}
+
+impl InState {
+    pub fn node_transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
+        value: Self,
+    ) -> TransformedInState<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        TransformedInState {
+            in_components: Nodes::new_filtered(
+                state.base_graph.clone(),
+                state.graph.clone(),
+                Some(Index::from_iter(value.in_components)),
+                None,
+            ),
+        }
+    }
+}
+
 /// Computes the in components of each node in the graph
 ///
 /// # Arguments
@@ -39,7 +67,7 @@ pub struct InState {
 ///
 /// An [AlgorithmResult] containing the mapping from each node to a vector of node ids (the nodes in component)
 ///
-pub fn in_components<G>(g: &G, threads: Option<usize>) -> TypedNodeState<'static, InState, G>
+pub fn in_components<G>(g: &G, threads: Option<usize>) -> TypedNodeState<'static, InState, G, G, TransformedInState<'static, G>>
 where
     G: StaticGraphViewOps,
 {
@@ -76,7 +104,17 @@ where
         vec![],
         None,
         |_, _, _, local: Vec<InState>| {
-            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
+            TypedNodeState::new_mapped(
+                GenericNodeState::new_from_eval(
+                    g.clone(),
+                    local,
+                    Some(HashMap::from([(
+                        "in_components".to_string(),
+                        (NodeStateOutputType::Nodes, None, None),
+                    )])),
+                ),
+                InState::node_transform,
+            )
         },
         threads,
         1,

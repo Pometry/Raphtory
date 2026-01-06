@@ -15,7 +15,7 @@ pub struct EarliestTime<G> {
     pub(crate) graph: G,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct EarliestTimeStruct {
     earliest_time: Option<i64>,
 }
@@ -60,7 +60,7 @@ pub struct LatestTime<G> {
     pub(crate) graph: G,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LatestTimeStruct {
     latest_time: Option<i64>,
 }
@@ -105,7 +105,7 @@ pub struct History<G> {
     pub(crate) graph: G,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HistoryStruct {
     history: Vec<i64>,
 }
@@ -153,7 +153,7 @@ pub struct EdgeHistoryCount<G> {
     pub(crate) graph: G,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct EdgeHistoryCountStruct {
     edge_history_count: usize,
 }

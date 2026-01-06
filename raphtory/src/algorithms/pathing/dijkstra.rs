@@ -1,3 +1,5 @@
+use crate::db::api::state::NodeStateOutputType;
+use crate::db::graph::nodes::Nodes;
 /// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
@@ -24,6 +26,36 @@ use std::{
 pub struct DistanceState {
     pub distance: f64,
     pub path: Vec<VID>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TransformedDistanceState<'graph, G, GH = G>
+where
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
+{
+    pub distance: f64,
+    pub path: Nodes<'graph, G, GH>,
+}
+
+impl DistanceState {
+    pub fn node_transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
+        value: Self,
+    ) -> TransformedDistanceState<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        TransformedDistanceState {
+            distance: value.distance,
+            path: Nodes::new_filtered(
+                state.base_graph.clone(),
+                state.graph.clone(),
+                Some(Index::from_iter(value.path)),
+                None,
+            ),
+        }
+    }
 }
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
@@ -68,7 +100,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     targets: Vec<T>,
     weight: Option<&str>,
     direction: Direction,
-) -> Result<TypedNodeState<'static, DistanceState, G>, GraphError> {
+) -> Result<TypedNodeState<'static, DistanceState, G, G, TransformedDistanceState<'static, G>>, GraphError> {
     let source_ref = source.as_node_ref();
     let source_node = match g.node(source_ref) {
         Some(src) => src,
@@ -194,16 +226,20 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         .into_iter()
         .map(|(id, (cost, path))| {
             let nodes: Vec<VID> = path.into_iter().collect();
-            (id, (cost, nodes))
+            (id, DistanceState { distance: cost, path: nodes})
         })
         .unzip();
-    Ok(TypedNodeState::new(
+    Ok(TypedNodeState::new_mapped(
         GenericNodeState::new_from_eval_with_index(
             g.clone(),
             g.clone(),
             values,
             Some(Index::new(index)),
-            None,
+            Some(HashMap::from([(
+                "path".to_string(),
+                (NodeStateOutputType::Nodes, None, None),
+            )])),
         ),
+        DistanceState::node_transform
     ))
 }

@@ -30,7 +30,7 @@ mod fast_rp_test {
 
         let baseline: HashMap<String, Vec<f64>> = HashMap::from([
             (
-                String::from("4"),
+                String::from("5"),
                 vec![
                     0.0,
                     1.9620916355920008,
@@ -51,7 +51,7 @@ mod fast_rp_test {
                 ],
             ),
             (
-                String::from("0"),
+                String::from("1"),
                 vec![
                     1.6817928305074292,
                     0.4204482076268573,
@@ -72,7 +72,7 @@ mod fast_rp_test {
                 ],
             ),
             (
-                String::from("3"),
+                String::from("4"),
                 vec![
                     -1.4014940254228576,
                     0.560597610169143,
@@ -93,7 +93,7 @@ mod fast_rp_test {
                 ],
             ),
             (
-                String::from("5"),
+                String::from("6"),
                 vec![
                     -0.21022410381342865,
                     0.6306723114402859,
@@ -114,7 +114,7 @@ mod fast_rp_test {
                 ],
             ),
             (
-                String::from("6"),
+                String::from("7"),
                 vec![
                     1.4014940254228576,
                     1.9620916355920008,
@@ -135,7 +135,7 @@ mod fast_rp_test {
                 ],
             ),
             (
-                String::from("1"),
+                String::from("2"),
                 vec![
                     0.4204482076268573,
                     1.6817928305074292,
@@ -156,7 +156,7 @@ mod fast_rp_test {
                 ],
             ),
             (
-                String::from("7"),
+                String::from("8"),
                 vec![
                     -1.6817928305074292,
                     1.6817928305074292,
@@ -177,7 +177,7 @@ mod fast_rp_test {
                 ],
             ),
             (
-                String::from("2"),
+                String::from("3"),
                 vec![
                     0.4204482076268573,
                     0.4204482076268573,

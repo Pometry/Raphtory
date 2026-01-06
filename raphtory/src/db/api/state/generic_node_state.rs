@@ -14,7 +14,7 @@ use arrow::compute::{cast_with_options, CastOptions};
 
 use arrow_array::{Array, ArrayRef, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
@@ -47,9 +47,9 @@ impl<T> NodeStateValue for T where
 {
 }
 
-pub trait InputNodeStateValue: Clone + Serialize + DeserializeOwned {}
+pub trait InputNodeStateValue: Clone + Serialize + DeserializeOwned + Debug {}
 
-impl<T> InputNodeStateValue for T where T: Clone + Serialize + DeserializeOwned {}
+impl<T> InputNodeStateValue for T where T: Clone + Serialize + DeserializeOwned + Debug {}
 
 #[derive(Clone, PartialEq)]
 pub enum MergePriority {
@@ -72,9 +72,9 @@ pub enum NodeStateOutputType {
     Prop,
 }
 
-pub type PropMap = HashMap<String, Option<Prop>>;
+pub type PropMap = IndexMap<String, Option<Prop>>;
 
-pub type TransformedPropMap<'graph, G, GH = G> = HashMap<String, NodeStateOutput<'graph, G, GH>>;
+pub type TransformedPropMap<'graph, G, GH = G> = IndexMap<String, NodeStateOutput<'graph, G, GH>>;
 
 /*
 pub type PropMapConverter<'graph, G, GH> =
@@ -954,17 +954,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>>,
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
-        /*match &index {
-            None => values.into_iter().map(map).collect(),
-            Some(index) => index
-                .iter()
-                .enumerate()
-                .map(|vid| map(values[index.index.get_index_of(&vid).unwrap()].clone()))
-                .collect(),
-        };*/
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
-
         Self::new(graph, filtered_graph, values, index, node_cols)
     }
 }

@@ -3,10 +3,10 @@
 //! This module provides an implementation of the Single Source Shortest Path algorithm.
 //! It finds the shortest paths from a given source node to all other nodes in a graph.
 use crate::{
-    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    core::entities::{VID, nodes::node_ref::AsNodeRef},
     db::{
-        api::state::{GenericNodeState, Index, TypedNodeState},
-        graph::node::NodeView,
+        api::state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+        graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
 };
@@ -16,6 +16,34 @@ use std::{collections::HashMap, mem};
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct PathState {
     pub path: Vec<VID>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TransformedPathState<'graph, G, GH = G>
+where
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
+{
+    pub path: Nodes<'graph, G, GH>,
+}
+
+impl PathState {
+    pub fn node_transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
+        value: Self,
+    ) -> TransformedPathState<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        TransformedPathState {
+            path: Nodes::new_filtered(
+                state.base_graph.clone(),
+                state.graph.clone(),
+                Some(Index::from_iter(value.path)),
+                None,
+            ),
+        }
+    }
 }
 
 /// Calculates the single source shortest paths from a given source node.
@@ -34,7 +62,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
     g: &G,
     source: T,
     cutoff: Option<usize>,
-) -> TypedNodeState<'graph, PathState, G> {
+) -> TypedNodeState<'graph, PathState, G, G, TransformedPathState<'graph, G>> {
     let mut paths: HashMap<VID, Vec<VID>> = HashMap::new();
     if let Some(source_node) = g.node(source) {
         let node_internal_id = source_node.node;
@@ -64,12 +92,20 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
         }
     }
     let (targets, paths): (Vec<_>, Vec<_>) = paths.into_iter().unzip();
-    TypedNodeState::new(GenericNodeState::new_from_eval_with_index_mapped(
-        g.clone(),
-        g.clone(),
-        paths,
-        Some(Index::from_iter(targets)),
-        |value| PathState { path: value },
-        None,
-    ))
+    TypedNodeState::new_mapped(
+        GenericNodeState::new_from_eval_with_index_mapped(
+            g.clone(),
+            g.clone(),
+            paths,
+            Some(Index::from_iter(targets)),
+            |value| PathState { path: value },
+            Some(HashMap::from([(
+                "path".to_string(),
+                (NodeStateOutputType::Nodes, None, None),
+            )])),
+        ),
+        PathState::node_transform
+    )
 }
+
+

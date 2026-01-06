@@ -40,7 +40,7 @@ rayon = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 bigdecimal = { workspace = true }
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
 dashmap = { workspace = true }

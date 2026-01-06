@@ -5,6 +5,7 @@ use crate::{
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, TimeZone};
+use indexmap::IndexMap;
 use itertools::Itertools;
 use pyo3::{prelude::PyAnyMethods, Bound, PyAny, PyObject, Python};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
@@ -245,6 +246,16 @@ impl<T: Repr> Repr for Arc<[T]> {
 }
 
 impl<K: Repr, V: Repr, S> Repr for HashMap<K, V, S> {
+    fn repr(&self) -> String {
+        let repr = self
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.repr(), v.repr()))
+            .join(", ");
+        format!("{{{}}}", repr)
+    }
+}
+
+impl<K: Repr, V: Repr, S> Repr for IndexMap<K, V, S> {
     fn repr(&self) -> String {
         let repr = self
             .iter()

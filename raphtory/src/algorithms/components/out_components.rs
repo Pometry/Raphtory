@@ -37,7 +37,7 @@ where
 impl OutState {
     pub fn node_transform<'graph, G>(
         state: &GenericNodeState<'graph, G>,
-        value: OutState,
+        value: Self,
     ) -> TransformedOutState<'graph, G>
     where
         G: GraphViewOps<'graph>,
