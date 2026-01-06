@@ -1,10 +1,11 @@
-use crate::db::api::state::NodeStateOutputType;
-use crate::db::graph::nodes::Nodes;
 /// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
-    db::api::state::{GenericNodeState, Index, TypedNodeState},
+    db::{
+        api::state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+        graph::nodes::Nodes,
+    },
     errors::GraphError,
     prelude::*,
 };
@@ -100,7 +101,10 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     targets: Vec<T>,
     weight: Option<&str>,
     direction: Direction,
-) -> Result<TypedNodeState<'static, DistanceState, G, G, TransformedDistanceState<'static, G>>, GraphError> {
+) -> Result<
+    TypedNodeState<'static, DistanceState, G, G, TransformedDistanceState<'static, G>>,
+    GraphError,
+> {
     let source_ref = source.as_node_ref();
     let source_node = match g.node(source_ref) {
         Some(src) => src,
@@ -226,7 +230,13 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         .into_iter()
         .map(|(id, (cost, path))| {
             let nodes: Vec<VID> = path.into_iter().collect();
-            (id, DistanceState { distance: cost, path: nodes})
+            (
+                id,
+                DistanceState {
+                    distance: cost,
+                    path: nodes,
+                },
+            )
         })
         .unzip();
     Ok(TypedNodeState::new_mapped(
@@ -240,6 +250,6 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
                 (NodeStateOutputType::Nodes, None, None),
             )])),
         ),
-        DistanceState::node_transform
+        DistanceState::node_transform,
     ))
 }

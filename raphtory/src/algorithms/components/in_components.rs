@@ -67,7 +67,10 @@ impl InState {
 ///
 /// An [AlgorithmResult] containing the mapping from each node to a vector of node ids (the nodes in component)
 ///
-pub fn in_components<G>(g: &G, threads: Option<usize>) -> TypedNodeState<'static, InState, G, G, TransformedInState<'static, G>>
+pub fn in_components<G>(
+    g: &G,
+    threads: Option<usize>,
+) -> TypedNodeState<'static, InState, G, G, TransformedInState<'static, G>>
 where
     G: StaticGraphViewOps,
 {

@@ -50,9 +50,9 @@ incremental = false
 
 [workspace.dependencies]
 #[public-storage]
-# pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
+pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 #[private-storage]
-pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
+# pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 raphtory = { path = "raphtory", version = "0.16.3" }
 raphtory-api = { path = "raphtory-api", version = "0.16.3" }
 raphtory-core = { path = "raphtory-core", version = "0.16.3" }

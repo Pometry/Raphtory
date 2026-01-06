@@ -124,7 +124,9 @@ pub fn all_local_reciprocity<G: StaticGraphViewOps>(
         .par_iter()
         .map(|n| {
             let (out_count, in_count, intersect_count) = get_reciprocal_edge_count(&n);
-            ReciprocityState {reciprocity: 2.0 * intersect_count as f64 / (out_count + in_count) as f64 }
+            ReciprocityState {
+                reciprocity: 2.0 * intersect_count as f64 / (out_count + in_count) as f64,
+            }
         })
         .collect();
     TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values, None))
