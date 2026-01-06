@@ -106,7 +106,17 @@ impl ExistingGraphFolder {
     }
 
     pub fn replace_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
-        self.with_internal_errors(|| self.global_path.data_path()?.replace_graph(graph))
+        self.with_internal_errors(|| {
+            if let Some(path) = graph.disk_storage_enabled() {
+                if path != self.global_path.graph_path()? {
+                    return Err(InternalPathValidationError::MismatchedGraphPath);
+                }
+                self.global_path.write_metadata(&graph)?;
+            } else {
+                self.global_path.data_path()?.replace_graph(graph)?;
+            }
+            Ok(())
+        })
     }
 }
 
@@ -427,6 +437,8 @@ pub enum InternalPathValidationError {
     EmptyRelativePath,
     #[error("Relative path from metadata has more than one component")]
     RelativePathMultipleComponents,
+    #[error("Mismatched graph paths when updating metadata")]
+    MismatchedGraphPath,
 }
 
 impl From<io::Error> for InternalPathValidationError {

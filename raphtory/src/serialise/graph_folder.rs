@@ -232,9 +232,12 @@ pub trait GraphPaths {
             path: graph_path,
             meta: metadata,
         };
+        let tmp_path = self.data_path()?.path.join(".tmp");
+        let tmp_file = File::create(&tmp_path)?;
+        serde_json::to_writer(tmp_file, &meta)?;
         let path = self.meta_path()?;
-        let file = File::create(&path)?;
-        Ok(serde_json::to_writer(file, &meta)?)
+        fs::rename(tmp_path, path)?;
+        Ok(())
     }
 
     /// Returns true if folder is occupied by a graph.
