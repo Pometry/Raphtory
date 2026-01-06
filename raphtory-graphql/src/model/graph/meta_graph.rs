@@ -1,6 +1,5 @@
 use crate::{
     data::Data,
-    graph::GraphWithVectors,
     model::graph::property::GqlProperty,
     paths::{ExistingGraphFolder, ValidGraphPaths},
 };

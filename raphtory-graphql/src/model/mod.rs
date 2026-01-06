@@ -29,7 +29,6 @@ use raphtory::{
     },
     errors::GraphError,
     prelude::*,
-    serialise::*,
     version,
 };
 use std::{

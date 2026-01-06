@@ -91,12 +91,6 @@ impl Namespace {
         }
     }
 
-    pub fn new_child_namespace(&self, relative_path: &str) -> Result<Self, PathValidationError> {
-        let current_dir = valid_path(self.current_dir.clone(), relative_path)?;
-        let relative_path = [&self.relative_path, relative_path].join("/");
-        Self::try_from_valid(current_dir, relative_path)
-    }
-
     pub fn try_new_child(&self, file_name: &str) -> Result<NamespacedItem, PathValidationError> {
         let current_dir = valid_path(self.current_dir.clone(), file_name)?;
         let relative_path = if self.relative_path.is_empty() {

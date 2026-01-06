@@ -104,16 +104,8 @@ impl ExistingGraphFolder {
         }
     }
 
-    fn replace_graph_data_inner(
-        &self,
-        graph: MaterializedGraph,
-    ) -> Result<(), InternalPathValidationError> {
-        self.global_path.data_path()?.replace_graph(graph)?;
-        Ok(())
-    }
     pub fn replace_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
-        self.replace_graph_data_inner(graph)
-            .with_path(self.local_path())
+        self.with_internal_errors(|| self.global_path.data_path()?.replace_graph(graph))
     }
 }
 
@@ -483,10 +475,6 @@ impl<V, E: Into<InternalPathValidationError>> WithPath for Result<V, E> {
             }
         })
     }
-}
-
-fn is_graph(path: &Path) -> bool {
-    path.join(META_PATH).is_file()
 }
 
 fn valid_relative_path(relative_path: &Path) -> Result<(), InternalPathValidationError> {
