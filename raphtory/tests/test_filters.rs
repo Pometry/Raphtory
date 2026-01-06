@@ -2303,7 +2303,7 @@ mod test_node_property_filter {
                 ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
             },
         },
-        prelude::{GraphViewOps, NodeViewOps, TimeOps},
+        prelude::{GraphViewOps, NodeViewOps},
     };
     use raphtory_api::core::entities::properties::prop::Prop;
     use std::vec;
@@ -9238,6 +9238,7 @@ mod test_edge_property_filter {
             },
         },
     };
+    use raphtory::db::graph::views::filter::model::ViewWrapOps;
     use raphtory_api::core::entities::properties::prop::Prop;
 
     #[test]
@@ -10402,7 +10403,7 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_window_filter() {
-        let filter = EdgeFilter::window(1, 3)
+        let filter = EdgeFilter.window(1, 3)
             .property("p2")
             .temporal()
             .sum()
@@ -10424,7 +10425,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter::window(1, 5)
+        let filter = EdgeFilter.window(1, 5)
             .property("p2")
             .temporal()
             .sum()
@@ -10456,8 +10457,8 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_window_filter_on_non_temporal_property() {
-        let filter1 = EdgeFilter::window(1, 2).property("p1").eq("shivam_kapoor");
-        let filter2 = EdgeFilter::window(100, 200)
+        let filter1 = EdgeFilter.window(1, 2).property("p1").eq("shivam_kapoor");
+        let filter2 = EdgeFilter.window(100, 200)
             .property("p1")
             .eq("shivam_kapoor");
 
@@ -10493,7 +10494,7 @@ mod test_edge_property_filter {
             TestVariants::EventOnly,
         );
 
-        let filter2 = EdgeFilter::window(100, 200)
+        let filter2 = EdgeFilter.window(100, 200)
             .property("p1")
             .eq("shivam_kapoor");
         let expected_results = vec!["1->2"];
@@ -10515,7 +10516,7 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_window_filter_any_all_over_window() {
-        let filter_any = EdgeFilter::window(2, 4)
+        let filter_any = EdgeFilter.window(2, 4)
             .property("p20")
             .temporal()
             .any()
@@ -10537,7 +10538,7 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter_all = EdgeFilter::window(2, 4)
+        let filter_all = EdgeFilter.window(2, 4)
             .property("p20")
             .temporal()
             .all()
@@ -10562,13 +10563,13 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_window_filter_and() {
-        let filter1 = EdgeFilter::window(3, 6)
+        let filter1 = EdgeFilter.window(3, 6)
             .property("p10")
             .temporal()
             .any()
             .eq("Paper_airplane");
 
-        let filter2 = EdgeFilter::window(3, 6)
+        let filter2 = EdgeFilter.window(3, 6)
             .property("p2")
             .temporal()
             .sum()
@@ -10595,7 +10596,7 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_layer_filter() {
-        let filter = EdgeFilter::layer("fire_nation")
+        let filter = EdgeFilter.layer("fire_nation")
             .property("p2")
             .temporal()
             .sum()
@@ -10621,7 +10622,7 @@ mod test_edge_property_filter {
     #[test]
     fn test_edges_at_filter() {
         // Only time=2 contributes; edge 2->3 has p2=2 at t=2
-        let filter = EdgeFilter::at(2).property("p2").temporal().sum().eq(2u64);
+        let filter = EdgeFilter.at(2).property("p2").temporal().sum().eq(2u64);
 
         let expected_results = vec!["2->3"];
         assert_filter_edges_results(
@@ -10640,7 +10641,7 @@ mod test_edge_property_filter {
         );
 
         // Only time=3 contributes; edge 3->1 has p2=6 at t=3
-        let filter = EdgeFilter::at(3).property("p2").temporal().sum().eq(6u64);
+        let filter = EdgeFilter.at(3).property("p2").temporal().sum().eq(6u64);
 
         let expected_results = vec!["3->1", "2->1"];
         assert_filter_edges_results(
@@ -10662,7 +10663,7 @@ mod test_edge_property_filter {
     #[test]
     fn test_edges_after_filter() {
         // after(2) means t >= 3
-        let filter = EdgeFilter::after(2)
+        let filter = EdgeFilter.after(2)
             .property("p2")
             .temporal()
             .sum()
@@ -10695,7 +10696,7 @@ mod test_edge_property_filter {
     #[test]
     fn test_edges_before_filter() {
         // before(3) means t <= 2
-        let filter = EdgeFilter::before(3)
+        let filter = EdgeFilter.before(3)
             .property("p2")
             .temporal()
             .sum()
@@ -10719,7 +10720,7 @@ mod test_edge_property_filter {
         );
 
         // And p2=6 edges shouldn't match, because their p2=6 lives at t=3+.
-        let filter = EdgeFilter::before(3)
+        let filter = EdgeFilter.before(3)
             .property("p2")
             .temporal()
             .sum()
@@ -10746,7 +10747,7 @@ mod test_edge_property_filter {
     fn test_edges_latest_filter() {
         // At latest time (currently t=4), only the t=4 edges exist in the Event graph.
         // Use EventOnly so the expectation is stable and matches node-style.
-        let filter = EdgeFilter::latest().property("p2").eq(6u64);
+        let filter = EdgeFilter.latest().property("p2").eq(6u64);
 
         let expected_results = vec!["David Gilmour->John Mayer", "John Mayer->Jimmy Page"];
         assert_filter_edges_results(
@@ -10769,13 +10770,13 @@ mod test_edge_property_filter {
     fn test_edges_snapshot_at_semantics_event_graph() {
         let t = 2;
 
-        let filter_snapshot = EdgeFilter::snapshot_at(t)
+        let filter_snapshot = EdgeFilter.snapshot_at(t)
             .property("p2")
             .temporal()
             .sum()
             .eq(2u64);
 
-        let filter_before = EdgeFilter::before(t + 1)
+        let filter_before = EdgeFilter.before(t + 1)
             .property("p2")
             .temporal()
             .sum()
@@ -10820,13 +10821,13 @@ mod test_edge_property_filter {
     fn test_edges_snapshot_at_semantics_persistent_graph() {
         let t = 2;
 
-        let filter_snapshot = EdgeFilter::snapshot_at(t)
+        let filter_snapshot = EdgeFilter.snapshot_at(t)
             .property("p2")
             .temporal()
             .sum()
             .eq(2u64);
 
-        let filter_at = EdgeFilter::at(t).property("p2").temporal().sum().eq(2u64);
+        let filter_at = EdgeFilter.at(t).property("p2").temporal().sum().eq(2u64);
 
         let expected_results = vec!["2->3"];
 
@@ -10865,7 +10866,7 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_snapshot_latest_semantics_event_graph() {
-        let filter_snapshot_latest = EdgeFilter::snapshot_latest()
+        let filter_snapshot_latest = EdgeFilter.snapshot_latest()
             .property("p2")
             .temporal()
             .sum()
@@ -10916,9 +10917,9 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_snapshot_latest_semantics_persistent_graph() {
-        let filter_snapshot_latest = EdgeFilter::snapshot_latest().property("p2").eq(6u64);
+        let filter_snapshot_latest = EdgeFilter.snapshot_latest().property("p2").eq(6u64);
 
-        let filter_latest = EdgeFilter::latest().property("p2").eq(6u64);
+        let filter_latest = EdgeFilter.latest().property("p2").eq(6u64);
 
         // In persistent latest state at t=4, these edges have p2=6:
         // - t=3 edges: 3->1, 2->1
@@ -10960,6 +10961,60 @@ mod test_edge_property_filter {
             filter_latest,
             &expected_results,
             TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_edges_layer_then_window_ordering() {
+        // In layer "fire_nation" within window [1,3), edge 1->2 matches p1 == "shivam_kapoor".
+        let filter = EdgeFilter
+            .layer("fire_nation")
+            .window(1, 3)
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let expected_results = vec!["1->2"];
+
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_edges_window_then_layer_ordering() {
+        // Same semantics, reversed chaining order.
+        let filter = EdgeFilter
+            .window(1, 3)
+            .layer("fire_nation")
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let expected_results = vec!["1->2"];
+
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
         );
     }
 }

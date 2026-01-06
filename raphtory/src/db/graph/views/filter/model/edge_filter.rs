@@ -33,8 +33,6 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::Layer, storage::timeindex::TimeIndexEntry};
-use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
 
 // User facing entry for building edge filters.
@@ -51,56 +49,6 @@ impl EdgeFilter {
     pub fn dst() -> EdgeEndpointWrapper<NodeFilter> {
         EdgeEndpointWrapper::new(NodeFilter, Endpoint::Dst)
     }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<EdgeFilter> {
-        Windowed::from_times(start, end, EdgeFilter)
-    }
-
-    #[inline]
-    pub fn at<T: IntoTime>(time: T) -> Windowed<EdgeFilter> {
-        let t = time.into_time();
-        Windowed::from_times(t, t.saturating_add(1), EdgeFilter)
-    }
-
-    #[inline]
-    pub fn after<T: IntoTime>(time: T) -> Windowed<EdgeFilter> {
-        let start = time.into_time().saturating_add(1);
-        Windowed::new(
-            TimeIndexEntry::start(start),
-            TimeIndexEntry::end(i64::MAX),
-            EdgeFilter,
-        )
-    }
-
-    #[inline]
-    pub fn before<T: IntoTime>(time: T) -> Windowed<EdgeFilter> {
-        Windowed::new(
-            TimeIndexEntry::start(i64::MIN),
-            TimeIndexEntry::end(time.into_time()),
-            EdgeFilter,
-        )
-    }
-
-    #[inline]
-    pub fn latest() -> Latest<EdgeFilter> {
-        Latest::new(EdgeFilter)
-    }
-
-    #[inline]
-    pub fn snapshot_at<T: IntoTime>(time: T) -> SnapshotAt<EdgeFilter> {
-        SnapshotAt::new(time, EdgeFilter)
-    }
-
-    #[inline]
-    pub fn snapshot_latest() -> SnapshotLatest<EdgeFilter> {
-        SnapshotLatest::new(EdgeFilter)
-    }
-
-    #[inline]
-    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<EdgeFilter> {
-        Layered::from_layers(layer, EdgeFilter)
-    }
 }
 
 impl Wrap for EdgeFilter {
@@ -110,6 +58,8 @@ impl Wrap for EdgeFilter {
         value
     }
 }
+
+impl ComposableFilter for EdgeFilter {}
 
 impl InternalPropertyFilterFactory for EdgeFilter {
     type Entity = EdgeFilter;

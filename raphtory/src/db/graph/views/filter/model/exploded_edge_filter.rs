@@ -29,9 +29,8 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::Layer, storage::timeindex::TimeIndexEntry};
-use raphtory_core::utils::time::IntoTime;
 use std::{fmt, fmt::Display, sync::Arc};
+use crate::db::graph::views::filter::model::ComposableFilter;
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
@@ -46,56 +45,6 @@ impl ExplodedEdgeFilter {
     pub fn dst() -> ExplodedEdgeEndpointWrapper<NodeFilter> {
         ExplodedEdgeEndpointWrapper::new(NodeFilter, Endpoint::Dst)
     }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
-        Windowed::from_times(start, end, ExplodedEdgeFilter)
-    }
-
-    #[inline]
-    pub fn at<T: IntoTime>(time: T) -> Windowed<ExplodedEdgeFilter> {
-        let t = time.into_time();
-        Windowed::from_times(t, t.saturating_add(1), ExplodedEdgeFilter)
-    }
-
-    #[inline]
-    pub fn after<T: IntoTime>(time: T) -> Windowed<ExplodedEdgeFilter> {
-        let start = time.into_time().saturating_add(1);
-        Windowed::new(
-            TimeIndexEntry::start(start),
-            TimeIndexEntry::end(i64::MAX),
-            ExplodedEdgeFilter,
-        )
-    }
-
-    #[inline]
-    pub fn before<T: IntoTime>(time: T) -> Windowed<ExplodedEdgeFilter> {
-        Windowed::new(
-            TimeIndexEntry::start(i64::MIN),
-            TimeIndexEntry::end(time.into_time()),
-            ExplodedEdgeFilter,
-        )
-    }
-
-    #[inline]
-    pub fn latest() -> Latest<ExplodedEdgeFilter> {
-        Latest::new(ExplodedEdgeFilter)
-    }
-
-    #[inline]
-    pub fn snapshot_at<T: IntoTime>(time: T) -> SnapshotAt<ExplodedEdgeFilter> {
-        SnapshotAt::new(time, ExplodedEdgeFilter)
-    }
-
-    #[inline]
-    pub fn snapshot_latest() -> SnapshotLatest<ExplodedEdgeFilter> {
-        SnapshotLatest::new(ExplodedEdgeFilter)
-    }
-
-    #[inline]
-    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<ExplodedEdgeFilter> {
-        Layered::from_layers(layer, ExplodedEdgeFilter)
-    }
 }
 
 impl Wrap for ExplodedEdgeFilter {
@@ -105,6 +54,8 @@ impl Wrap for ExplodedEdgeFilter {
         value
     }
 }
+
+impl ComposableFilter for ExplodedEdgeFilter {}
 
 impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
     type Entity = ExplodedEdgeFilter;
