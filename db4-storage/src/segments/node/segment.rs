@@ -149,6 +149,21 @@ impl MemNodeSegment {
         }
     }
 
+    /// Replaces this segment with an empty instance, returning the old segment
+    /// with its data.
+    ///
+    /// The new segment will have the same number of layers as the original.
+    pub fn take(&mut self) -> Self {
+        let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
+
+        Self {
+            segment_id: self.segment_id,
+            max_page_len: self.max_page_len,
+            layers,
+            lsn: self.lsn,
+        }
+    }
+
     pub fn to_vid(&self, pos: LocalPOS) -> VID {
         pos.as_vid(self.segment_id, self.max_page_len)
     }

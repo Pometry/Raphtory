@@ -144,6 +144,20 @@ impl MemEdgeSegment {
         self.lsn = lsn;
     }
 
+    /// Replaces this segment with an empty instance, returning the old segment
+    /// with its data.
+    ///
+    /// The new segment will have the same number of layers as the original.
+    pub fn take(&mut self) -> Self {
+        let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
+
+        Self {
+            layers,
+            est_size: 0,
+            lsn: self.lsn,
+        }
+    }
+
     pub fn max_page_len(&self) -> u32 {
         self.layers[0].max_page_len()
     }
