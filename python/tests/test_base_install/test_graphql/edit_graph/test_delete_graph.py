@@ -30,8 +30,7 @@ def test_delete_graph_succeeds_if_graph_found():
         g.add_edge(1, "ben", "hamza")
         g.add_edge(2, "haaroon", "hamza")
         g.add_edge(3, "ben", "haaroon")
-
-        g.save_to_file(os.path.join(work_dir, "g1"))
+        client.send_graph("g1", g)
 
         query = """mutation {
           deleteGraph(
