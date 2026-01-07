@@ -233,9 +233,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
             .metadata_mapper()
             .d_types()
             .first()
-            .and_then(|dtype| {
-                GidType::from_prop_type(dtype)
-            })
+            .and_then(|dtype| GidType::from_prop_type(dtype))
     }
 
     pub fn load(
