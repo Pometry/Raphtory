@@ -242,8 +242,11 @@ impl Data {
         &self,
         graph_folder: ExistingGraphFolder,
     ) -> Result<(), MutationErrorInner> {
+        let dirty_file = mark_dirty(graph_folder.root())?;
+        if let Some(graph) = self.cache.remove(graph_folder.local_path()).await {
+            //TODO: disable drop handling
+        }
         blocking_io(move || {
-            let dirty_file = mark_dirty(graph_folder.root())?;
             fs::remove_dir_all(graph_folder.root())?;
             fs::remove_file(dirty_file)?;
             Ok::<_, MutationErrorInner>(())
