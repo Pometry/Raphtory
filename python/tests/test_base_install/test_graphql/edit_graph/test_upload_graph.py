@@ -135,6 +135,8 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
                 }
             }
         }
+        g2 = client.receive_graph("shivam/g")
+    assert g2.has_node("ben")
 
 
 def test_upload_graph_fails_if_graph_already_exists_at_namespace():

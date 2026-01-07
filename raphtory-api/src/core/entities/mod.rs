@@ -14,6 +14,7 @@ pub mod edges;
 pub mod layers;
 pub mod properties;
 
+use crate::core::entities::properties::prop::PropType;
 pub use layers::*;
 
 // The only reason this is public is because the physical IDs of the nodes don’t move.
@@ -315,6 +316,16 @@ impl Display for GidType {
             GidType::Str => {
                 write!(f, "String")
             }
+        }
+    }
+}
+
+impl GidType {
+    pub fn from_prop_type(prop_type: &PropType) -> Option<Self> {
+        match prop_type {
+            PropType::Str => Some(GidType::Str),
+            PropType::U64 | PropType::U32 | PropType::I64 | PropType::I32 => Some(GidType::U64),
+            _ => None,
         }
     }
 }
