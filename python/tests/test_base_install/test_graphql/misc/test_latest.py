@@ -13,19 +13,34 @@ def test_latest_and_active():
               name
               isActive
               latest {
-                history
+                history {
+                  list {
+                    timestamp
+                    eventId
+                  }
+                }
               }
             }
             e12: edge(src: "1", dst: "2") {
               isActive
               latest {
-                history
+                history {
+                  list {
+                    timestamp
+                    eventId
+                  }
+                }
               }
             }
             e13: edge(src: "1", dst: "3") {
               latest {
                 isActive
-                history
+                history {
+                  list {
+                    timestamp
+                    eventId
+                  }
+                }
               }
             }
             nodes {
@@ -34,7 +49,12 @@ def test_latest_and_active():
                 edges {
                   latest {
                     list {
-                      history
+                      history {
+                        list {
+                          timestamp
+                          eventId
+                        }
+                      }
                     }
                   }
                 }
@@ -42,14 +62,24 @@ def test_latest_and_active():
               latest {
                 list {
                   name
-                  history
+                  history {
+                    list {
+                      timestamp
+                      eventId
+                    }
+                  }
                 }
               }
             }
             edges {
               latest {
                 list {
-                  history
+                  history {
+                    list {
+                      timestamp
+                      eventId
+                    }
+                  }
                 }
               }
             }
@@ -59,9 +89,23 @@ def test_latest_and_active():
 
     result = {
         "graph": {
-            "node": {"name": "1", "isActive": True, "latest": {"history": [3]}},
-            "e12": {"isActive": True, "latest": {"history": [3]}},
-            "e13": {"latest": {"isActive": False, "history": []}},
+            "node": {
+                "name": "1",
+                "isActive": True,
+                "latest": {
+                    "history": {
+                        "list": [
+                            {"timestamp": 3, "eventId": 2},
+                            {"timestamp": 3, "eventId": 5},
+                        ]
+                    }
+                },
+            },
+            "e12": {
+                "isActive": True,
+                "latest": {"history": {"list": [{"timestamp": 3, "eventId": 2}]}},
+            },
+            "e13": {"latest": {"isActive": False, "history": {"list": []}}},
             "nodes": {
                 "list": [
                     {
@@ -69,29 +113,83 @@ def test_latest_and_active():
                         "edges": {
                             "latest": {
                                 "list": [
-                                    {"history": [3]},
-                                    {"history": []},
-                                    {"history": [3]},
+                                    {
+                                        "history": {
+                                            "list": [{"timestamp": 3, "eventId": 2}]
+                                        }
+                                    },
+                                    {"history": {"list": []}},
+                                    {
+                                        "history": {
+                                            "list": [{"timestamp": 3, "eventId": 5}]
+                                        }
+                                    },
                                 ]
                             }
                         },
                     },
-                    {"name": "2", "edges": {"latest": {"list": [{"history": [3]}]}}},
-                    {"name": "3", "edges": {"latest": {"list": [{"history": []}]}}},
-                    {"name": "4", "edges": {"latest": {"list": [{"history": [3]}]}}},
+                    {
+                        "name": "2",
+                        "edges": {
+                            "latest": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "list": [{"timestamp": 3, "eventId": 2}]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                    },
+                    {
+                        "name": "3",
+                        "edges": {"latest": {"list": [{"history": {"list": []}}]}},
+                    },
+                    {
+                        "name": "4",
+                        "edges": {
+                            "latest": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "list": [{"timestamp": 3, "eventId": 5}]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                    },
                 ],
                 "latest": {
                     "list": [
-                        {"name": "1", "history": [3]},
-                        {"name": "2", "history": [3]},
-                        {"name": "3", "history": []},
-                        {"name": "4", "history": [3]},
+                        {
+                            "name": "1",
+                            "history": {
+                                "list": [
+                                    {"timestamp": 3, "eventId": 2},
+                                    {"timestamp": 3, "eventId": 5},
+                                ]
+                            },
+                        },
+                        {
+                            "name": "2",
+                            "history": {"list": [{"timestamp": 3, "eventId": 2}]},
+                        },
+                        {
+                            "name": "4",
+                            "history": {"list": [{"timestamp": 3, "eventId": 5}]},
+                        },
                     ]
                 },
             },
             "edges": {
                 "latest": {
-                    "list": [{"history": [3]}, {"history": []}, {"history": [3]}]
+                    "list": [
+                        {"history": {"list": [{"timestamp": 3, "eventId": 2}]}},
+                        {"history": {"list": []}},
+                        {"history": {"list": [{"timestamp": 3, "eventId": 5}]}},
+                    ]
                 }
             },
         }

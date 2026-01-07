@@ -8,19 +8,16 @@ use crate::{
         graph::{
             edge::EdgeView,
             node::NodeView,
-            views::{
-                filter::{
-                    edge_property_filtered_graph::EdgePropertyFilteredGraph,
-                    exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    model::{
-                        edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
-                        ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                        ExplodedEdgeFilter, FilterOperator, TryAsCompositeFilter,
-                    },
-                    node_filtered_graph::NodeFilteredGraph,
-                    CreateFilter,
+            views::filter::{
+                edge_property_filtered_graph::EdgePropertyFilteredGraph,
+                exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
+                model::{
+                    edge_filter::CompositeEdgeFilter, ComposableFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter, ExplodedEdgeFilter,
+                    FilterOperator, TryAsCompositeFilter,
                 },
-                window_graph::WindowedGraph,
+                node_filtered_graph::NodeFilteredGraph,
+                CreateFilter,
             },
         },
     },
@@ -39,7 +36,7 @@ use raphtory_api::core::{
         },
         EID,
     },
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
@@ -344,7 +341,7 @@ impl<M> PropertyFilter<M> {
         graph: &G,
         prop_id: usize,
         e: EID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
     ) -> bool {
         let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t).at_layer(layer));

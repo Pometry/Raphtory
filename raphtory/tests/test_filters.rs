@@ -202,7 +202,7 @@ mod test_property_semantics {
             graph
         }
 
-        fn init_graph_for_secondary_indexes<
+        fn init_graph_for_event_ids<
             G: StaticGraphViewOps
                 + AdditionOps
                 + InternalAdditionOps
@@ -267,19 +267,19 @@ mod test_property_semantics {
         }
 
         #[test]
-        fn test_temporal_any_semantics_for_secondary_indexes() {
+        fn test_temporal_any_semantics_for_event_ids() {
             let filter = NodeFilter.property("p1").temporal().any().eq(1u64);
             let expected_results =
                 vec!["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"];
             assert_filter_nodes_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
@@ -308,18 +308,18 @@ mod test_property_semantics {
         }
 
         #[test]
-        fn test_temporal_latest_semantics_for_secondary_indexes() {
+        fn test_temporal_latest_semantics_for_event_ids() {
             let filter = NodeFilter.property("p1").temporal().last().eq(1u64);
             let expected_results = vec!["N1", "N16", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
@@ -349,18 +349,18 @@ mod test_property_semantics {
         }
 
         #[test]
-        fn test_property_semantics_for_secondary_indexes() {
+        fn test_property_semantics_for_event_ids() {
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N16", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
@@ -553,7 +553,7 @@ mod test_property_semantics {
             graph
         }
 
-        fn init_graph_for_secondary_indexes<
+        fn init_graph_for_event_ids<
             G: StaticGraphViewOps
                 + AdditionOps
                 + InternalAdditionOps
@@ -804,7 +804,7 @@ mod test_property_semantics {
         }
 
         #[test]
-        fn test_temporal_any_semantics_for_secondary_indexes() {
+        fn test_temporal_any_semantics_for_event_ids() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter.property("p1").temporal().any().lt(2u64);
             let expected_results = vec![
@@ -812,14 +812,14 @@ mod test_property_semantics {
                 "N7->N8", "N8->N9",
             ];
             assert_filter_edges_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::EventOnly,
             );
             assert_search_edges_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -849,20 +849,20 @@ mod test_property_semantics {
         }
 
         #[test]
-        fn test_temporal_latest_semantics_for_secondary_indexes() {
+        fn test_temporal_latest_semantics_for_event_ids() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter.property("p1").temporal().last().eq(1u64);
             let expected_results =
                 vec!["N1->N2", "N16->N15", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::EventOnly,
             );
             assert_search_edges_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -895,21 +895,21 @@ mod test_property_semantics {
         }
 
         #[test]
-        fn test_property_semantics_for_secondary_indexes() {
+        fn test_property_semantics_for_event_ids() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             // TODO: Const properties not supported for disk_graph.
             let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results =
                 vec!["N1->N2", "N16->N15", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 vec![TestGraphVariants::Graph],
             );
             assert_search_edges_results(
-                init_graph_for_secondary_indexes,
+                init_graph_for_event_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,

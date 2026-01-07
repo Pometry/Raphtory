@@ -1,16 +1,18 @@
 use crate::{
-    core::{
-        storage::timeindex::AsTime,
-        utils::time::{Interval, IntoTime},
-    },
+    core::{storage::timeindex::AsTime, utils::time::Interval},
     db::api::view::{
         internal::{GraphTimeSemanticsOps, InternalFilter, InternalMaterialize},
         time::internal::InternalTimeOps,
     },
 };
-use chrono::{DateTime, Utc};
-use raphtory_api::GraphType;
-use raphtory_core::utils::time::{AlignmentUnit, IntervalSize, ParseTimeError};
+use raphtory_api::{
+    core::{
+        storage::timeindex::EventTime,
+        utils::time::{IntoTime, ParseTimeError},
+    },
+    GraphType,
+};
+use raphtory_core::utils::time::{AlignmentUnit, IntervalSize};
 use std::{
     cmp::{max, min},
     marker::PhantomData,
@@ -21,45 +23,46 @@ pub(crate) mod internal {
         db::{api::view::internal::InternalFilter, graph::views::window_graph::WindowedGraph},
         prelude::{GraphViewOps, TimeOps},
     };
+    use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::cmp::{max, min};
 
     pub trait InternalTimeOps<'graph> {
         type InternalWindowedView: TimeOps<'graph> + 'graph;
-        fn timeline_start(&self) -> Option<i64>;
-        fn timeline_end(&self) -> Option<i64>;
+        fn timeline_start(&self) -> Option<EventTime>;
+        fn timeline_end(&self) -> Option<EventTime>;
         fn latest_t(&self) -> Option<i64>;
         fn internal_window(
             &self,
-            start: Option<i64>,
-            end: Option<i64>,
+            start: Option<EventTime>,
+            end: Option<EventTime>,
         ) -> Self::InternalWindowedView;
     }
     impl<'graph, E: InternalFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
         type InternalWindowedView = E::Filtered<WindowedGraph<E::Graph>>;
 
-        fn timeline_start(&self) -> Option<i64> {
+        fn timeline_start(&self) -> Option<EventTime> {
             self.start()
                 .or_else(|| self.base_graph().core_graph().earliest_time())
         }
 
-        fn timeline_end(&self) -> Option<i64> {
+        fn timeline_end(&self) -> Option<EventTime> {
             self.end().or_else(|| {
                 self.base_graph()
                     .core_graph()
                     .latest_time()
-                    .map(|v| v.saturating_add(1))
+                    .map(|v| EventTime::from(v.0.saturating_add(1)))
             })
         }
 
         fn latest_t(&self) -> Option<i64> {
-            self.base_graph().latest_time()
+            self.base_graph().latest_time().map(|t| t.t())
         }
 
         fn internal_window(
             &self,
-            start: Option<i64>,
-            end: Option<i64>,
+            start: Option<EventTime>,
+            end: Option<EventTime>,
         ) -> Self::InternalWindowedView {
             let base_start = self.base_graph().start();
             let base_end = self.base_graph().end();
@@ -91,15 +94,11 @@ pub trait TimeOps<'graph>:
     InternalTimeOps<'graph, InternalWindowedView = Self::WindowedViewType>
 {
     type WindowedViewType: TimeOps<'graph> + 'graph;
-    /// Return the timestamp of the start of the view or None if the view start is unbounded.
-    fn start(&self) -> Option<i64>;
+    /// Return the time entry of the start of the view or None if the view start is unbounded.
+    fn start(&self) -> Option<EventTime>;
 
-    fn start_date_time(&self) -> Option<DateTime<Utc>>;
-
-    /// Return the timestamp of the view or None if the view end is unbounded.
-    fn end(&self) -> Option<i64>;
-
-    fn end_date_time(&self) -> Option<DateTime<Utc>>;
+    /// Return the time entry of the view or None if the view end is unbounded.
+    fn end(&self) -> Option<EventTime>;
 
     /// set the start of the window to the larger of `start` and `self.start()`
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
@@ -209,41 +208,36 @@ pub trait TimeOps<'graph>:
 impl<'graph, V: InternalFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'graph> for V {
     type WindowedViewType = V::InternalWindowedView;
 
-    fn start(&self) -> Option<i64> {
+    fn start(&self) -> Option<EventTime> {
         self.base_graph().view_start()
     }
 
-    fn end(&self) -> Option<i64> {
+    fn end(&self) -> Option<EventTime> {
         self.base_graph().view_end()
     }
 
-    fn start_date_time(&self) -> Option<DateTime<Utc>> {
-        self.start()?.dt()
-    }
-
-    fn end_date_time(&self) -> Option<DateTime<Utc>> {
-        self.end()?.dt()
-    }
-
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
-        let start = Some(max(start.into_time(), self.start().unwrap_or(i64::MIN)));
+        let start = Some(max(
+            start.into_time(),
+            self.start().unwrap_or(EventTime::MIN),
+        ));
         self.internal_window(start, self.end())
     }
 
     fn shrink_end<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
-        let end = Some(min(end.into_time(), self.end().unwrap_or(i64::MAX)));
+        let end = Some(min(end.into_time(), self.end().unwrap_or(EventTime::MAX)));
         self.internal_window(self.start(), end)
     }
 
     fn shrink_window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
-        let start = max(start.into_time(), self.start().unwrap_or(i64::MIN));
-        let end = min(end.into_time(), self.end().unwrap_or(i64::MAX));
+        let start = max(start.into_time(), self.start().unwrap_or(EventTime::MIN));
+        let end = min(end.into_time(), self.end().unwrap_or(EventTime::MAX));
         self.internal_window(Some(start), Some(end))
     }
 
     fn window_size(&self) -> Option<u64> {
         match (self.start(), self.end()) {
-            (Some(start), Some(end)) => Some((end - start) as u64),
+            (Some(start), Some(end)) => Some((end.t() - start.t()) as u64),
             _ => None,
         }
     }
@@ -254,17 +248,23 @@ impl<'graph, V: InternalFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeO
 
     fn at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
         let start = time.into_time();
-        self.internal_window(Some(start), Some(start.saturating_add(1)))
+        self.internal_window(
+            Some(EventTime::start(start.t())),
+            Some(EventTime::start(start.t().saturating_add(1))),
+        )
     }
 
     fn latest(&self) -> Self::WindowedViewType {
         let time = self.latest_t();
-        self.internal_window(time, time.map(|t| t.saturating_add(1)))
+        self.internal_window(
+            time.map(EventTime::start),
+            time.map(|t| EventTime::start(t.saturating_add(1))),
+        )
     }
 
     fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
         match self.base_graph().graph_type() {
-            GraphType::EventGraph => self.before(time.into_time() + 1),
+            GraphType::EventGraph => self.before(time.into_time().t().saturating_add(1)),
             GraphType::PersistentGraph => self.at(time),
         }
     }
@@ -277,12 +277,13 @@ impl<'graph, V: InternalFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeO
     }
 
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
-        let start = start.into_time().saturating_add(1);
+        let start_time = start.into_time();
+        let start = EventTime::start(start_time.t().saturating_add(1));
         self.internal_window(Some(start), None)
     }
 
     fn before<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
-        let end = end.into_time();
+        let end = EventTime::start(end.into_time().t());
         self.internal_window(None, Some(end))
     }
 
@@ -317,8 +318,8 @@ impl<'graph, V: InternalFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeO
         match (self.timeline_start(), self.timeline_end()) {
             (Some(start), Some(end)) => {
                 let step: Interval = step.try_into()?;
-                let start_time = alignment_unit.align_timestamp(start);
-                WindowSet::new(parent, start_time, end, step, None)
+                let start_time = alignment_unit.align_timestamp(start.t());
+                WindowSet::new(parent, start_time, end.t(), step, None)
             }
             _ => WindowSet::empty(parent),
         }
@@ -371,8 +372,8 @@ impl<'graph, V: InternalFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeO
                     Some(step) => step.try_into()?,
                     None => window,
                 };
-                let start_time = alignment_unit.align_timestamp(start);
-                WindowSet::new(parent, start_time, end, step, Some(window))
+                let start_time = alignment_unit.align_timestamp(start.t());
+                WindowSet::new(parent, start_time, end.t(), step, Some(window))
             }
             _ => WindowSet::empty(parent),
         }
@@ -456,9 +457,10 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for TimeIndex<'graph,
         let center = self.center;
         self.windowset.next().map(move |view| {
             if center {
-                view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
+                view.start().unwrap().t()
+                    + ((view.end().unwrap().t() - view.start().unwrap().t()) / 2)
             } else {
-                view.end().unwrap() - 1
+                view.end().unwrap().t() - 1
             }
         })
     }
@@ -479,7 +481,10 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
                     return None;
                 }
             }
-            let window = self.view.internal_window(window_start, Some(window_end));
+            let window = self.view.internal_window(
+                window_start.map(EventTime::start),
+                Some(EventTime::start(window_end)),
+            );
             self.counter += 1;
             Some(window)
         } else {

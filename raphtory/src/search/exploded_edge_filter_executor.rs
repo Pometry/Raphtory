@@ -28,7 +28,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::EID,
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
 };
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{collections::HashSet, sync::Arc};
@@ -81,7 +81,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
-        C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,
+        C: Collector<Fruit = HashSet<(EventTime, EID, usize)>>,
     {
         let searcher = reader.searcher();
         let collector = collector_fn(fields::EDGE_ID.to_string());
@@ -124,7 +124,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         collector_fn: impl Fn(String) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
-        C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,
+        C: Collector<Fruit = HashSet<(EventTime, EID, usize)>>,
     {
         let query = self.query_builder.build_property_query(pi, filter)?;
         let reader = get_reader(&pi.index)?;
@@ -173,7 +173,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         collector_fn: impl Fn(String) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
-        C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,
+        C: Collector<Fruit = HashSet<(EventTime, EID, usize)>>,
     {
         if let Some((tpi, _)) = self
             .index
@@ -296,7 +296,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         &self,
         filter: impl CreateFilter,
         graph: &G,
-        exploded_edge_ids: HashSet<(TimeIndexEntry, EID, usize)>,
+        exploded_edge_ids: HashSet<(EventTime, EID, usize)>,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let filtered_graph = graph.filter(filter)?;
         let edges = exploded_edge_ids

@@ -27,8 +27,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::Layer;
-use raphtory_core::utils::time::IntoTime;
+use raphtory_api::core::{entities::Layer, utils::time::IntoTime};
 use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]

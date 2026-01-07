@@ -10,13 +10,15 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input, CollectProperties},
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
             state::ops::NodeOp,
             view::{
-                internal::{GraphTimeSemanticsOps, InternalFilter, NodeTimeSemanticsOps, Static},
+                internal::{
+                    GraphTimeSemanticsOps, GraphView, InternalFilter, NodeTimeSemanticsOps, Static,
+                },
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -28,9 +30,10 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
+    utils::time::TryIntoInputTime,
 };
-use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
+use raphtory_core::entities::ELID;
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     fmt,
@@ -143,7 +146,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         }
     }
 
-    pub fn edge_history(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+    pub fn edge_history(&self) -> impl Iterator<Item = (EventTime, ELID)> + '_ {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
@@ -153,7 +156,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         })
     }
 
-    pub fn edge_history_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+    pub fn edge_history_rev(&self) -> impl Iterator<Item = (EventTime, ELID)> + '_ {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
@@ -163,12 +166,12 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         })
     }
 
-    pub fn earliest_edge_time(&self) -> Option<i64> {
-        self.edge_history().next().map(|(t, _)| t.t())
+    pub fn earliest_edge_time(&self) -> Option<EventTime> {
+        self.edge_history().next().map(|(t, _)| t)
     }
 
-    pub fn latest_edge_time(&self) -> Option<i64> {
-        self.edge_history_rev().next().map(|(t, _)| t.t())
+    pub fn latest_edge_time(&self) -> Option<EventTime> {
+        self.edge_history_rev().next().map(|(t, _)| t)
     }
 }
 
@@ -244,7 +247,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
         res
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
@@ -255,7 +258,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
         .into_dyn_boxed()
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
@@ -267,17 +270,17 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
         .into_dyn_boxed()
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         semantics
-            .node_tprop_last_at(node.as_ref(), &self.graph, id, TimeIndexEntry::end(t))
+            .node_tprop_last_at(node.as_ref(), &self.graph, id, t)
             .map(|(_, v)| v)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
-    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (TimeIndexEntry, Vec<(usize, Prop)>)>
+impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
+    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, Vec<(usize, Prop)>)>
     where
         'graph: 'a,
     {

@@ -2,9 +2,11 @@ use crate::{
     model::graph::{
         edges::GqlEdges,
         filtering::{GqlEdgeFilter, GqlNodeFilter, NodeViewCollection},
+        history::GqlHistory,
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
         property::{GqlMetadata, GqlProperties},
+        timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlNodeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
@@ -29,6 +31,7 @@ use raphtory::{
     errors::GraphError,
     prelude::NodeStateOps,
 };
+use raphtory_api::core::utils::time::IntoTime;
 
 /// Raphtory graph node.
 #[derive(ResolvedObject, Clone)]
@@ -138,13 +141,13 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
-    async fn window(&self, start: i64, end: i64) -> GqlNode {
-        self.vv.window(start, end).into()
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> GqlNode {
+        self.vv.window(start.into_time(), end.into_time()).into()
     }
 
     /// Create a view of the node including all events at a specified time.
-    async fn at(&self, time: i64) -> GqlNode {
-        self.vv.at(time).into()
+    async fn at(&self, time: GqlTimeInput) -> GqlNode {
+        self.vv.at(time.into_time()).into()
     }
 
     /// Create a view of the node including all events at the latest time.
@@ -154,8 +157,8 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: i64) -> GqlNode {
-        self.vv.snapshot_at(time).into()
+    async fn snapshot_at(&self, time: GqlTimeInput) -> GqlNode {
+        self.vv.snapshot_at(time.into_time()).into()
     }
 
     /// Create a view of the node including all events that are valid at the latest time.
@@ -165,28 +168,30 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events before specified end time (exclusive).
-    async fn before(&self, time: i64) -> GqlNode {
-        self.vv.before(time).into()
+    async fn before(&self, time: GqlTimeInput) -> GqlNode {
+        self.vv.before(time.into_time()).into()
     }
 
     /// Create a view of the node including all events after the specified start time (exclusive).
-    async fn after(&self, time: i64) -> GqlNode {
-        self.vv.after(time).into()
+    async fn after(&self, time: GqlTimeInput) -> GqlNode {
+        self.vv.after(time.into_time()).into()
     }
 
     /// Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.vv.shrink_window(start, end).into()
+    async fn shrink_window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.vv
+            .shrink_window(start.into_time(), end.into_time())
+            .into()
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.vv.shrink_start(start).into()
+    async fn shrink_start(&self, start: GqlTimeInput) -> Self {
+        self.vv.shrink_start(start.into_time()).into()
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.vv.shrink_end(end).into()
+    async fn shrink_end(&self, end: GqlTimeInput) -> Self {
+        self.vv.shrink_end(end.into_time()).into()
     }
 
     async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
@@ -242,43 +247,43 @@ impl GqlNode {
     ////////////////////////
 
     /// Returns the earliest time that the node exists.
-    async fn earliest_time(&self) -> Option<i64> {
+    async fn earliest_time(&self) -> GqlEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.earliest_time()).await
+        blocking_compute(move || self_clone.vv.earliest_time().into()).await
     }
 
     /// Returns the time of the first update made to the node.
-    async fn first_update(&self) -> Option<i64> {
+    async fn first_update(&self) -> GqlEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().first().cloned()).await
+        blocking_compute(move || self_clone.vv.history().earliest_time().into()).await
     }
 
     /// Returns the latest time that the node exists.
-    async fn latest_time(&self) -> Option<i64> {
+    async fn latest_time(&self) -> GqlEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.latest_time()).await
+        blocking_compute(move || self_clone.vv.latest_time().into()).await
     }
 
     /// Returns the time of the last update made to the node.
-    async fn last_update(&self) -> Option<i64> {
+    async fn last_update(&self) -> GqlEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().last().cloned()).await
+        blocking_compute(move || self_clone.vv.history().latest_time().into()).await
     }
 
     /// Gets the start time for the window. Errors if there is no window.
-    async fn start(&self) -> Option<i64> {
-        self.vv.start()
+    async fn start(&self) -> GqlEventTime {
+        self.vv.start().into()
     }
 
     /// Gets the end time for the window. Errors if there is no window.
-    async fn end(&self) -> Option<i64> {
-        self.vv.end()
+    async fn end(&self) -> GqlEventTime {
+        self.vv.end().into()
     }
 
-    /// Returns the history of a node, including node additions and changes made to node.
-    async fn history(&self) -> Vec<i64> {
+    /// Returns a history object for the node, with time entries for node additions and changes made to node.
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history()).await
+        blocking_compute(move || self_clone.vv.history().into()).await
     }
 
     /// Get the number of edge events for this node.

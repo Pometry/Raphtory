@@ -244,7 +244,7 @@ pub(crate) fn process_pandas_py_df<'a>(
     Ok(DFView {
         names,
         chunks,
-        num_rows,
+        num_rows: Some(num_rows),
     })
 }
 
@@ -253,7 +253,7 @@ pub fn array_to_rust(obj: &Bound<PyAny>) -> PyResult<ArrayRef> {
     Ok(array)
 }
 
-fn is_jupyter(py: Python) {
+pub(crate) fn is_jupyter(py: Python) {
     let code = c_str!(
         r#"
 try:

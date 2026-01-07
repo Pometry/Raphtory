@@ -3,6 +3,7 @@
 mod edge;
 pub mod filter_ops;
 pub(crate) mod graph;
+pub mod history;
 pub mod internal;
 mod layer;
 pub(crate) mod node;

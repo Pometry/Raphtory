@@ -1,20 +1,16 @@
-use crate::{
+pub(crate) use crate::{
     algorithms::dynamics::temporal::epidemics::Infected,
+    api::core::storage::timeindex::EventTime,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             state::{
-                ops,
-                ops::{DynNodeFilter, IntoDynNodeOp, NodeOp},
-                LazyNodeState, NodeGroups, NodeState, NodeStateGroupBy, NodeStateOps,
-                OrderedNodeStateOps,
+                ops, ops::IntoDynNodeOp, LazyNodeState, NodeGroups, NodeOp, NodeState,
+                NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
             },
             view::{DynamicGraph, GraphViewOps},
         },
-        graph::{
-            node::NodeView,
-            nodes::{IntoDynNodes, Nodes},
-        },
+        graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
     py_borrowing_iter,
@@ -34,6 +30,9 @@ use pyo3::{
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::collections::HashMap;
 
+use crate::db::{api::state::ops::DynNodeFilter, graph::nodes::IntoDynNodes};
+
+#[macro_export]
 macro_rules! impl_node_state_ops {
     ($name:ident, $value:ty, $inner_t:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
         impl $name {
@@ -184,6 +183,7 @@ macro_rules! impl_node_state_ops {
     };
 }
 
+#[macro_export]
 macro_rules! impl_node_state_group_by_ops {
     ($name:ident, $value:ty) => {
         #[pymethods]
@@ -199,6 +199,7 @@ macro_rules! impl_node_state_group_by_ops {
     };
 }
 
+#[macro_export]
 macro_rules! impl_node_state_ord_ops {
     ($name:ident, $value:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
         #[pymethods]
@@ -320,6 +321,7 @@ macro_rules! impl_node_state_num_ops {
     };
 }
 
+#[macro_export]
 macro_rules! impl_lazy_node_state {
     ($name:ident<$op:ty>, $computed:literal, $py_value:literal) => {
         /// A lazy view over node values
@@ -396,6 +398,7 @@ macro_rules! impl_lazy_node_state {
     };
 }
 
+#[macro_export]
 macro_rules! impl_node_state {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         #[pyclass(module = "raphtory.node_state", frozen)]
@@ -442,6 +445,7 @@ macro_rules! impl_node_state {
     };
 }
 
+#[macro_export]
 macro_rules! impl_lazy_node_state_ord {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         impl_lazy_node_state!($name<$value>, $computed, $py_value);
@@ -455,6 +459,7 @@ macro_rules! impl_lazy_node_state_ord {
     };
 }
 
+#[macro_export]
 macro_rules! impl_node_state_ord {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         impl_node_state!($name<$value>, $computed, $py_value);
@@ -487,70 +492,43 @@ impl_node_state_group_by_ops!(NodeStateUsize, usize);
 impl_node_state_num!(NodeStateU64<u64>, "NodeStateU64", "int");
 impl_lazy_node_state_ord!(IdView<ops::Id>, "NodeStateGID", "GID");
 impl_node_state_ord!(NodeStateGID<GID>, "NodeStateGID", "GID");
-impl_lazy_node_state_ord!(
-    EarliestTimeView<ops::EarliestTime<DynamicGraph>>,
-    "NodeStateOptionI64",
-    "Optional[int]"
+
+impl_node_state_ord!(
+    NodeStateOptionEventTime<Option<EventTime>>,
+    "NodeStateOptionEventTime",
+    "Optional[EventTime]"
 );
-impl_node_state_group_by_ops!(EarliestTimeView, Option<i64>);
-impl_lazy_node_state_ord!(
-    LatestTimeView<ops::LatestTime<DynamicGraph>>,
-    "NodeStateOptionI64",
-    "Optional[int]"
-);
-impl_node_state_group_by_ops!(LatestTimeView, Option<i64>);
+impl_node_state_group_by_ops!(NodeStateOptionEventTime, Option<EventTime>);
+
 impl_node_state_ord!(
     NodeStateOptionI64<Option<i64>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
 impl_node_state_group_by_ops!(NodeStateOptionI64, Option<i64>);
+impl_node_state_ord!(
+    NodeStateOptionUsize<Option<usize>>,
+    "NodeStateOptionUsize",
+    "Optional[int]"
+); // usize gets converted to int in python
+impl_node_state_group_by_ops!(NodeStateOptionUsize, Option<usize>);
+
 impl_lazy_node_state_ord!(NameView<ops::Name>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NodeStateString, String);
 
-type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Option<DateTime<Utc>>>;
-impl_lazy_node_state_ord!(
-    EarliestDateTimeView<EarliestDateTime<DynamicGraph>>,
-    "NodeStateOptionDateTime",
-    "Optional[datetime]"
-);
-impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
-impl_lazy_node_state_ord!(
-    LatestDateTimeView<ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>>,
-    "NodeStateOptionDateTime",
-    "Optional[datetime]"
-);
-impl_node_state_group_by_ops!(LatestDateTimeView, Option<DateTime<Utc>>);
 impl_node_state_ord!(
     NodeStateOptionDateTime<Option<DateTime<Utc>>>,
     "NodeStateOptionDateTime",
     "Optional[datetime]"
 );
 impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
-impl_lazy_node_state_ord!(
-    HistoryView<ops::History<DynamicGraph>>,
-    "NodeStateListI64",
-    "list[int]"
-);
-impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
+
 impl_lazy_node_state_num!(
     EdgeHistoryCountView<ops::EdgeHistoryCount<DynamicGraph>>,
     "EdgeHistoryCountView",
     "int"
-);
-
-type HistoryDateTime<G> = ops::Map<ops::History<G>, Option<Vec<DateTime<Utc>>>>;
-impl_lazy_node_state_ord!(
-    HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,
-    "NodeStateOptionListDateTime",
-    "Optional[list[datetime]]"
-);
-impl_node_state_ord!(
-    NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>,
-    "NodeStateOptionListDateTime",
-    "Optional[list[datetime]]"
 );
 impl_lazy_node_state_ord!(
     NodeTypeView<ops::Type>,
@@ -570,6 +548,12 @@ impl_node_state_ord!(
     "list[datetime]"
 );
 impl_node_state_num!(NodeStateF64<f64>, "NodeStateF64", "float");
+impl_node_state_ord!(
+    NodeStateOptionF64<Option<f64>>,
+    "NodeStateOptionF64",
+    "Optional[float]"
+);
+
 impl_node_state_ord!(NodeStateSEIR<Infected>, "NodeStateSEIR", "Infected");
 impl_node_state!(
     NodeStateNodes<Nodes<'static, DynamicGraph>>,

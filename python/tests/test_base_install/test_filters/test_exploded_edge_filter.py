@@ -1,4 +1,5 @@
 from raphtory import Graph, PersistentGraph
+from raphtory import EventTime
 from raphtory import filter
 import pytest
 from datetime import datetime
@@ -25,57 +26,65 @@ def test_graph(GraphClass):
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [1, 2]
-        assert e2.deletions() == [1, 2]
+        assert e1.deletions.t == [1, 2]
+        assert e2.deletions.t == [1, 2]
+        assert e1.deletions == [(1, 0), (2, 1)]
+        assert e2.deletions == [(1, 3), (2, 4)]
 
-    assert list(e1.history()) == [3]
-    assert list(e2.history()) == [3]
+    assert e1.history.t.collect() == [3]
+    assert e2.history.t.collect() == [3]
 
     # assert e2.layer_names == ["red"] returning red blue for PersistentGraph which feels wrong?
 
-    assert e1.properties.temporal.get("weight").items() == [(3, 3)]
-    assert e2.properties.temporal.get("weight").items() == [(3, 3)]
+    assert e1.properties.temporal.get("weight").items() == [(EventTime(3, 2), 3)]
+    assert e2.properties.temporal.get("weight").items() == [(EventTime(3, 5), 3)]
 
     f_g = g.filter(filter=weight_lt3 & name_bob)
     e1 = f_g.edge(1, 2)
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [2, 3]
-        assert e2.deletions() == [2, 3]
+        assert e1.deletions.t == [2, 3]
+        assert e2.deletions.t == [2, 3]
 
-    assert list(e1.history()) == [1]
-    assert list(e2.history()) == [1]
+    assert e1.history.t.collect() == [1]
+    assert e2.history.t.collect() == [1]
 
     # assert e2.layer_names == ["blue"] returning red blue for PersistentGraph which feels wrong?
 
-    assert e1.properties.temporal.get("weight").items() == [(1, 1)]
-    assert e2.properties.temporal.get("weight").items() == [(1, 1)]
+    assert e1.properties.temporal.get("weight").items() == [(EventTime(1, 0), 1)]
+    assert e2.properties.temporal.get("weight").items() == [(EventTime(1, 3), 1)]
 
     f_g = g.filter(filter=weight_e3 | name_bob)
     e1 = f_g.edge(1, 2)
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [2]
-        assert e2.deletions() == [2]
+        assert e1.deletions == [(2, 1)]
+        assert e2.deletions == [(2, 4)]
 
-    assert list(e1.history()) == [1, 3]
-    assert list(e2.history()) == [1, 3]
+    assert list(e1.history.t) == [1, 3]
+    assert list(e2.history.t) == [1, 3]
 
     assert e2.layer_names == ["blue", "red"]
 
-    assert e1.properties.temporal.get("weight").items() == [(1, 1), (3, 3)]
-    assert e2.properties.temporal.get("weight").items() == [(1, 1), (3, 3)]
+    assert e1.properties.temporal.get("weight").items() == [
+        (EventTime(1, 0), 1),
+        (EventTime(3, 2), 3),
+    ]
+    assert e2.properties.temporal.get("weight").items() == [
+        (EventTime(1, 3), 1),
+        (EventTime(3, 5), 3),
+    ]
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
@@ -98,38 +107,44 @@ def test_same_time_event(GraphClass):
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [1, 1]
-        assert e2.deletions() == [1, 1]
+        assert e1.deletions == [(1, 1), (1, 2)]
+        assert e2.deletions == [(1, 4), (1, 5)]
 
-    assert list(e1.history()) == [1]
-    assert list(e2.history()) == [1]
+    assert list(e1.history.t) == [1]
+    assert list(e2.history.t) == [1]
 
     # assert e2.layer_names == ["blue"] returning red blue which seems wrong
 
-    assert e1.properties.temporal.get("weight").items() == [(1, 1)]
-    assert e2.properties.temporal.get("weight").items() == [(1, 1)]
+    assert e1.properties.temporal.get("weight").items() == [(EventTime(1, 0), 1)]
+    assert e2.properties.temporal.get("weight").items() == [(EventTime(1, 3), 1)]
 
     f_g = g.filter(filter=weight_e3 | name_bob)
     e1 = f_g.edge(1, 2)
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [1]
-        assert e2.deletions() == [1]
+        assert e1.deletions.t == [1]
+        assert e2.deletions.t == [1]
 
-    assert list(e1.history()) == [1, 1]
-    assert list(e2.history()) == [1, 1]
+    assert list(e1.history.t) == [1, 1]
+    assert list(e2.history.t) == [1, 1]
 
     assert e2.layer_names == ["blue", "red"]
 
-    assert e1.properties.temporal.get("weight").items() == [(1, 1), (1, 3)]
-    assert e2.properties.temporal.get("weight").items() == [(1, 1), (1, 3)]
+    assert e1.properties.temporal.get("weight").items() == [
+        (EventTime(1, 0), 1),
+        (EventTime(1, 2), 3),
+    ]
+    assert e2.properties.temporal.get("weight").items() == [
+        (EventTime(1, 3), 1),
+        (EventTime(1, 5), 3),
+    ]
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])

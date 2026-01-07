@@ -7,7 +7,7 @@ use {
         graph::TemporalGraph, properties::TemporalProps, timestamps::TimeStamps, tprops::DiskTProp,
         tprops::PropCol,
     },
-    raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry},
+    raphtory_api::core::{entities::VID, storage::timeindex::EventTime},
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -35,7 +35,7 @@ impl<'a> IntoIterator for Row<'a> {
 #[derive(Debug, Copy, Clone)]
 pub struct DiskRow<'a> {
     graph: &'a TemporalGraph,
-    ts: TimeStamps<'a, TimeIndexEntry>,
+    ts: TimeStamps<'a, EventTime>,
     layer: usize,
     row: usize,
 }
@@ -44,7 +44,7 @@ pub struct DiskRow<'a> {
 impl<'a> DiskRow<'a> {
     pub fn new(
         graph: &'a TemporalGraph,
-        ts: TimeStamps<'a, TimeIndexEntry>,
+        ts: TimeStamps<'a, EventTime>,
         row: usize,
         layer: usize,
     ) -> Self {
@@ -77,10 +77,7 @@ impl<'a> IntoIterator for DiskRow<'a> {
             let props = self.temporal_props();
             Some((
                 global_prop,
-                get(
-                    &props.prop_for_ts::<TimeIndexEntry>(self.ts, prop_id),
-                    self.row,
-                ),
+                get(&props.prop_for_ts::<EventTime>(self.ts, prop_id), self.row),
             ))
         });
         Box::new(iter)
@@ -88,6 +85,6 @@ impl<'a> IntoIterator for DiskRow<'a> {
 }
 
 #[cfg(feature = "storage")]
-fn get<'a>(disk_col: &DiskTProp<'a, TimeIndexEntry>, row: usize) -> Option<Prop> {
+fn get<'a>(disk_col: &DiskTProp<'a, EventTime>, row: usize) -> Option<Prop> {
     disk_col.get_prop_row(row)
 }

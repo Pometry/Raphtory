@@ -59,7 +59,7 @@ def test_node_latest():
     assert not g.node(2).latest().is_active()
 
     wg = g.window(5, 12)
-    assert wg.node(1).latest().history() == [10]
+    assert wg.node(1).latest().history.collect() == [10]
 
     assert g.nodes.latest().id.collect() == [1, 2, 3]
     assert wg.nodes.latest().id.collect() == [1, 2]
@@ -170,7 +170,7 @@ def test_persistent_node_latest():
     wg = g.window(5, 12)
     assert wg.latest_time == 10
     assert wg.earliest_time == 5
-    check_arr(wg.node(1).latest().history(), [10])
+    check_arr(wg.node(1).latest().history.t.collect(), [10])
 
     check_arr(g.nodes.latest().id.collect(), [1, 2, 3])
     check_arr(wg.nodes.latest().id.collect(), [1, 2])

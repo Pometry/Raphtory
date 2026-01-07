@@ -4,6 +4,7 @@ use crate::{
         api::{
             state::ops::{NodeFilterOp, NodeOp},
             view::{
+                history::History,
                 internal::{
                     FilterOps, InternalEdgeSelect, InternalFilter, InternalNodeSelect, Static,
                 },
@@ -119,6 +120,10 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
 
     pub fn collect(&self) -> Vec<Vec<NodeView<'graph, G>>> {
         self.iter().map(|path| path.collect()).collect()
+    }
+
+    pub fn combined_history(&self) -> History<'graph, Self> {
+        History::new(self.clone())
     }
 }
 
@@ -354,6 +359,10 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromNode<'graph, G> {
     ///     list[NodeView]: the list of nodes
     pub fn collect(&self) -> Vec<NodeView<'graph, G>> {
         self.iter().collect()
+    }
+
+    pub fn combined_history(&self) -> History<'graph, Self> {
+        History::new(self.clone())
     }
 }
 

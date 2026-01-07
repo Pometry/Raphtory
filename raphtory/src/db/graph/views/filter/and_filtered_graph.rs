@@ -12,7 +12,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{LayerIds, ELID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     inherit::Base,
 };
@@ -123,12 +123,7 @@ impl<G, L: InternalExplodedEdgeFilterOps, R: InternalExplodedEdgeFilterOps>
             && self.right.internal_exploded_filter_edge_list_trusted()
     }
 
-    fn internal_filter_exploded_edge(
-        &self,
-        eid: ELID,
-        t: TimeIndexEntry,
-        layer_ids: &LayerIds,
-    ) -> bool {
+    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
         self.left.internal_filter_exploded_edge(eid, t, layer_ids)
             && self.right.internal_filter_exploded_edge(eid, t, layer_ids)
     }

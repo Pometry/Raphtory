@@ -1,9 +1,13 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
-use crate::db::graph::views::filter::model::{
-    edge_filter::CompositeEdgeFilter,
-    property_filter::builders::{
-        MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
+use crate::{
+    db::graph::views::filter::model::{
+        edge_filter::CompositeEdgeFilter,
+        property_filter::{
+            builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
+            Op, PropertyRef,
+        },
     },
+    prelude::PropertyFilter,
 };
 pub use crate::{
     db::{
@@ -30,9 +34,7 @@ pub use crate::{
     prelude::{GraphViewOps, TimeOps},
 };
 pub use node_filter::CompositeNodeFilter;
-pub use property_filter::{Op, PropertyFilter, PropertyRef};
 use raphtory_api::core::storage::timeindex::AsTime;
-use raphtory_core::utils::time::IntoTime;
 use std::{fmt::Display, ops::Deref, sync::Arc};
 
 pub mod and_filter;

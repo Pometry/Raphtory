@@ -5,10 +5,7 @@ use crate::{
     prelude::Prop,
 };
 use raphtory_api::{
-    core::{
-        entities::properties::tprop::TPropOps,
-        storage::timeindex::{AsTime, TimeIndexEntry},
-    },
+    core::{entities::properties::tprop::TPropOps, storage::timeindex::EventTime},
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
 use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
@@ -24,11 +21,11 @@ impl GraphTimeSemanticsOps for GraphStorage {
         TimeSemantics::event()
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<EventTime> {
         None
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<EventTime> {
         None
     }
 
@@ -52,17 +49,17 @@ impl GraphTimeSemanticsOps for GraphStorage {
         }
     }
 
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).first_t())
+            .flat_map(|node| node.additions().range(start..end).first_t())
             .min()
     }
 
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).last_t())
+            .flat_map(|node| node.additions().range(start..end).last_t())
             .max()
     }
 
@@ -70,7 +67,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id < self.graph_meta().temporal_mapper().len()
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
@@ -80,37 +77,31 @@ impl GraphTimeSemanticsOps for GraphStorage {
             .into_dyn_dboxed()
     }
 
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
         self.graph_meta()
             .get_temporal_prop(prop_id)
-            .filter(|p| p.deref().iter_window_t(w).next().is_some())
+            .filter(|p| p.deref().iter_window(w).next().is_some())
             .is_some()
     }
 
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+        start: EventTime,
+        end: EventTime,
+    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
             .flat_map(move |prop| {
                 GenLockedDIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_dboxed()
+                    prop.deref().iter_window(start..end).into_dyn_dboxed()
                 })
             })
             .into_dyn_dboxed()
     }
 
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: TimeIndexEntry,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .and_then(|p| p.deref().last_before(t.next()))
@@ -119,10 +110,9 @@ impl GraphTimeSemanticsOps for GraphStorage {
     fn temporal_prop_last_at_window(
         &self,
         prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> Option<(TimeIndexEntry, Prop)> {
-        let w = TimeIndexEntry::range(w);
+        t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
             self.graph_meta().get_temporal_prop(prop_id).and_then(|p| {
                 p.deref()
@@ -181,7 +171,7 @@ mod test_graph_storage {
             (5, "N7", "N8", vec![("p1", Prop::U64(1u64))], Some("layer2")),
             (3, "N8", "N1", vec![("p1", Prop::U64(1u64))], Some("layer1")),
             (4, "N8", "N1", vec![("p1", Prop::U64(2u64))], Some("layer2")),
-            // Tests secondary indexes
+            // Tests event ids
             (3, "N9", "N2", vec![("p1", Prop::U64(1u64))], Some("layer1")),
             (3, "N9", "N2", vec![("p1", Prop::U64(2u64))], Some("layer2")),
         ];

@@ -1,4 +1,4 @@
-use crate::model::graph::property::Value;
+use crate::model::graph::{property::Value, timeindex::GqlTimeInput};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -31,9 +31,9 @@ use std::{
 #[derive(InputObject, Clone, Debug)]
 pub struct Window {
     /// Window start time.
-    pub start: i64,
+    pub start: GqlTimeInput,
     /// Window end time.
-    pub end: i64,
+    pub end: GqlTimeInput,
 }
 
 #[derive(OneOfInput, Clone, Debug)]
@@ -57,23 +57,23 @@ pub enum GraphViewCollection {
     /// Window between a start and end time.
     Window(Window),
     /// View at a specified time.
-    At(i64),
+    At(GqlTimeInput),
     /// View at the latest time.
     Latest(bool),
     /// Snapshot at specified time.
-    SnapshotAt(i64),
+    SnapshotAt(GqlTimeInput),
     /// Snapshot at latest time.
     SnapshotLatest(bool),
     /// View before a specified time (end exclusive).
-    Before(i64),
+    Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
-    After(i64),
+    After(GqlTimeInput),
     /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
     /// Set the window start to a specified time.
-    ShrinkStart(i64),
+    ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
-    ShrinkEnd(i64),
+    ShrinkEnd(GqlTimeInput),
     /// Node filter.
     NodeFilter(GqlNodeFilter),
     /// Edge filter.
@@ -97,19 +97,19 @@ pub enum NodesViewCollection {
     /// Window between a start and end time.
     Window(Window),
     /// View at a specified time.
-    At(i64),
+    At(GqlTimeInput),
     /// Snapshot at specified time.
-    SnapshotAt(i64),
+    SnapshotAt(GqlTimeInput),
     /// View before a specified time (end exclusive).
-    Before(i64),
+    Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
-    After(i64),
+    After(GqlTimeInput),
     /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
     /// Set the window start to a specified time.
-    ShrinkStart(i64),
+    ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
-    ShrinkEnd(i64),
+    ShrinkEnd(GqlTimeInput),
     /// Node filter.
     NodeFilter(GqlNodeFilter),
     /// List of types.
@@ -125,7 +125,7 @@ pub enum NodeViewCollection {
     /// Snapshot at latest time.
     SnapshotLatest(bool),
     /// Snapshot at specified time.
-    SnapshotAt(i64),
+    SnapshotAt(GqlTimeInput),
     /// List of included layers.
     Layers(Vec<String>),
     /// List of excluded layers.
@@ -135,17 +135,17 @@ pub enum NodeViewCollection {
     /// Window between a start and end time.
     Window(Window),
     /// View at a specified time.
-    At(i64),
+    At(GqlTimeInput),
     /// View before a specified time (end exclusive).
-    Before(i64),
+    Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
-    After(i64),
+    After(GqlTimeInput),
     /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
     /// Set the window start to a specified time.
-    ShrinkStart(i64),
+    ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
-    ShrinkEnd(i64),
+    ShrinkEnd(GqlTimeInput),
     /// Node filter.
     NodeFilter(GqlNodeFilter),
 }
@@ -159,7 +159,7 @@ pub enum EdgesViewCollection {
     /// Snapshot at latest time.
     SnapshotLatest(bool),
     /// Snapshot at specified time.
-    SnapshotAt(i64),
+    SnapshotAt(GqlTimeInput),
     /// List of included layers.
     Layers(Vec<String>),
     /// List of excluded layers.
@@ -169,17 +169,17 @@ pub enum EdgesViewCollection {
     /// Window between a start and end time.
     Window(Window),
     /// View at a specified time.
-    At(i64),
+    At(GqlTimeInput),
     /// View before a specified time (end exclusive).
-    Before(i64),
+    Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
-    After(i64),
+    After(GqlTimeInput),
     /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
     /// Set the window start to a specified time.
-    ShrinkStart(i64),
+    ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
-    ShrinkEnd(i64),
+    ShrinkEnd(GqlTimeInput),
     /// Edge filter
     EdgeFilter(GqlEdgeFilter),
 }
@@ -193,7 +193,7 @@ pub enum EdgeViewCollection {
     /// Snapshot at latest time.
     SnapshotLatest(bool),
     /// Snapshot at specified time.
-    SnapshotAt(i64),
+    SnapshotAt(GqlTimeInput),
     /// List of included layers.
     Layers(Vec<String>),
     /// List of excluded layers.
@@ -203,17 +203,17 @@ pub enum EdgeViewCollection {
     /// Window between a start and end time.
     Window(Window),
     /// View at a specified time.
-    At(i64),
+    At(GqlTimeInput),
     /// View before a specified time (end exclusive).
-    Before(i64),
+    Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
-    After(i64),
+    After(GqlTimeInput),
     /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
     /// Set the window start to a specified time.
-    ShrinkStart(i64),
+    ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
-    ShrinkEnd(i64),
+    ShrinkEnd(GqlTimeInput),
     /// Edge filter
     EdgeFilter(GqlEdgeFilter),
 }
@@ -225,7 +225,7 @@ pub enum PathFromNodeViewCollection {
     /// Latest snapshot.
     SnapshotLatest(bool),
     /// Time.
-    SnapshotAt(i64),
+    SnapshotAt(GqlTimeInput),
     /// List of layers.
     Layers(Vec<String>),
     /// List of excluded layers.
@@ -235,17 +235,17 @@ pub enum PathFromNodeViewCollection {
     /// Window between a start and end time.
     Window(Window),
     /// View at a specified time.
-    At(i64),
+    At(GqlTimeInput),
     /// View before a specified time (end exclusive).
-    Before(i64),
+    Before(GqlTimeInput),
     /// View after a specified time (start exclusive).
-    After(i64),
+    After(GqlTimeInput),
     /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
     /// Set the window start to a specified time.
-    ShrinkStart(i64),
+    ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
-    ShrinkEnd(i64),
+    ShrinkEnd(GqlTimeInput),
 }
 
 #[derive(Enum, Copy, Clone, Debug)]

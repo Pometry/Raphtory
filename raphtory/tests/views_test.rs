@@ -9,7 +9,11 @@ use raphtory::{
     test_storage,
     test_utils::test_graph,
 };
-use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+use raphtory_api::core::{
+    entities::GID,
+    storage::timeindex::AsTime,
+    utils::{logging::global_info_logger, time::IntoTime},
+};
 use rayon::prelude::*;
 use std::ops::Range;
 #[cfg(feature = "storage")]
@@ -501,9 +505,9 @@ fn test_reference() {
     graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
     test_storage!(&graph, |graph| {
-        let mut w = WindowedGraph::new(&graph, Some(0), Some(1));
+        let mut w = WindowedGraph::new(&graph, Some(0.into_time()), Some(1.into_time()));
         assert_eq!(w, graph);
-        w = WindowedGraph::new(&graph, Some(1), Some(2));
+        w = WindowedGraph::new(&graph, Some(1.into_time()), Some(2.into_time()));
         assert_eq!(w, Graph::new());
     });
 }
@@ -540,7 +544,7 @@ fn test_view_resetting() {
             .edges()
             .window(1, 9)
             .earliest_time()
-            .map(|it| it.collect_vec())
+            .map(|it| it.map(|t_opt| t_opt.map(|t| t.t())).collect_vec())
             .collect_vec();
         assert_eq!(
             res,

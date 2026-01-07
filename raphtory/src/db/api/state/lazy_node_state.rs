@@ -3,10 +3,18 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::{Const, DynNodeFilter, IntoDynNodeOp, NodeFilterOp, NodeOp},
+                ops,
+                ops::{
+                    Const, DynNodeFilter, EarliestTime, HistoryOp, IntoDynNodeOp, LatestTime,
+                    NodeFilterOp, NodeOp,
+                },
                 Index, NodeState, NodeStateOps,
             },
-            view::{internal::NodeList, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic},
+            view::{
+                history::{History, HistoryDateTime, HistoryEventId, HistoryTimestamp, Intervals},
+                internal::NodeList,
+                BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+            },
         },
         graph::{
             node::NodeView,
@@ -15,7 +23,9 @@ use crate::{
     },
     prelude::*,
 };
+use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
+use raphtory_api::core::storage::timeindex::{AsTime, EventTime, TimeError};
 use rayon::prelude::*;
 use std::{
     borrow::Borrow,
@@ -180,6 +190,201 @@ impl<
             let values = self.collect_vec();
             NodeState::new(self.nodes.graph.clone(), values.into(), None)
         }
+    }
+
+    /// Computes a NodeState where the output values are results. Instead of keeping error values,
+    /// the function fails if an error is encountered, and only Ok values are kept in the NodeState
+    pub fn compute_result_type<T: Send, E: Send>(&self) -> Result<NodeState<'graph, T, G>, E>
+    where
+        O: NodeOp<Output = Result<T, E>>,
+    {
+        if self.nodes.is_filtered() {
+            let (keys, values): (IndexSet<_, ahash::RandomState>, Result<Vec<T>, E>) = self
+                .par_iter()
+                .map(|(node, value)| (node.node, value))
+                .collect();
+            Ok(NodeState::new(
+                self.nodes.base_graph.clone(),
+                values?.into(),
+                Some(Index::new(keys)),
+            ))
+        } else {
+            let values: Result<Vec<T>, E> = self.collect::<Result<Vec<T>, E>>();
+            Ok(NodeState::new(
+                self.nodes.base_graph.clone(),
+                values?.into(),
+                None,
+            ))
+        }
+    }
+
+    /// Computes a NodeState where only the Ok values of the Results are kept. Errors are discarded.
+    pub fn compute_valid_results<T: Send, E: Send>(&self) -> NodeState<'graph, T, G>
+    where
+        O: NodeOp<Output = Result<T, E>>,
+    {
+        if self.nodes.is_filtered() {
+            let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<T>) = self
+                .par_iter()
+                .filter_map(|(node, value)| value.ok().map(|value| (node.node, value)))
+                .unzip();
+            NodeState::new(
+                self.nodes.base_graph.clone(),
+                values.into(),
+                Some(Index::new(keys)),
+            )
+        } else {
+            let values: Vec<T> = self
+                .par_iter_values()
+                .filter_map(|value| value.ok())
+                .collect();
+            NodeState::new(self.nodes.base_graph.clone(), values.into(), None)
+        }
+    }
+}
+
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        F: NodeFilterOp + Clone + 'graph,
+    > LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH, F>
+{
+    pub fn earliest_time(&self) -> LazyNodeState<'graph, EarliestTime<GH>, G, GH, F> {
+        self.nodes.earliest_time()
+    }
+
+    pub fn latest_time(&self) -> LazyNodeState<'graph, LatestTime<GH>, G, GH, F> {
+        self.nodes.latest_time()
+    }
+
+    pub fn flatten(
+        &self,
+    ) -> History<'graph, LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH, F>> {
+        History::new(self.clone())
+    }
+
+    pub fn intervals(
+        &self,
+    ) -> LazyNodeState<'graph, ops::Map<HistoryOp<'graph, GH>, Intervals<NodeView<'_, GH>>>, G, GH, F>
+    {
+        let op = self.op.clone().map(|hist| hist.intervals());
+        LazyNodeState::new(op, self.nodes.clone())
+    }
+
+    pub fn t(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<HistoryOp<'graph, GH>, HistoryTimestamp<NodeView<'_, GH>>>,
+        G,
+        GH,
+        F,
+    > {
+        let op = self.op.clone().map(|hist| hist.t());
+        LazyNodeState::new(op, self.nodes.clone())
+    }
+
+    pub fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<HistoryOp<'graph, GH>, HistoryDateTime<NodeView<'_, GH>>>,
+        G,
+        GH,
+        F,
+    > {
+        let op = self.op.clone().map(|hist| hist.dt());
+        LazyNodeState::new(op, self.nodes.clone())
+    }
+
+    pub fn event_id(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<HistoryOp<'graph, GH>, HistoryEventId<NodeView<'_, GH>>>,
+        G,
+        GH,
+        F,
+    > {
+        let op = self.op.clone().map(|hist| hist.event_id());
+        LazyNodeState::new(op, self.nodes.clone())
+    }
+
+    pub fn collect_time_entries(&self) -> Vec<EventTime> {
+        self.flatten().collect()
+    }
+}
+
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        F: NodeFilterOp + Clone + 'graph,
+    > LazyNodeState<'graph, EarliestTime<GH>, G, GH, F>
+{
+    pub fn t(&self) -> LazyNodeState<'graph, ops::Map<EarliestTime<GH>, Option<i64>>, G, GH, F> {
+        let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
+        LazyNodeState::new(op, self.nodes())
+    }
+
+    pub fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<EarliestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>,
+        G,
+        GH,
+        F,
+    > {
+        let op = self
+            .op
+            .clone()
+            .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
+        LazyNodeState::new(op, self.nodes())
+    }
+
+    pub fn event_id(
+        &self,
+    ) -> LazyNodeState<'graph, ops::Map<EarliestTime<GH>, Option<usize>>, G, GH, F> {
+        let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
+        LazyNodeState::new(op, self.nodes())
+    }
+}
+
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        F: NodeFilterOp + Clone + 'graph,
+    > LazyNodeState<'graph, LatestTime<GH>, G, GH, F>
+{
+    pub fn t(&self) -> LazyNodeState<'graph, ops::Map<LatestTime<GH>, Option<i64>>, G, GH, F> {
+        let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
+        LazyNodeState::new(op, self.nodes())
+    }
+
+    pub fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<LatestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>,
+        G,
+        GH,
+        F,
+    > {
+        let op = self
+            .op
+            .clone()
+            .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
+        LazyNodeState::new(op, self.nodes())
+    }
+
+    pub fn event_id(
+        &self,
+    ) -> LazyNodeState<'graph, ops::Map<LatestTime<GH>, Option<usize>>, G, GH, F> {
+        let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
+        LazyNodeState::new(op, self.nodes())
     }
 }
 

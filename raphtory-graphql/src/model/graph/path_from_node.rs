@@ -2,6 +2,7 @@ use crate::{
     model::graph::{
         filtering::{GqlNodeFilter, PathFromNodeViewCollection},
         node::GqlNode,
+        timeindex::{GqlEventTime, GqlTimeInput},
         windowset::GqlPathFromNodeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
@@ -11,12 +12,13 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::view::{filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter},
-        graph::{path::PathFromNode, views::filter::model::node_filter::CompositeNodeFilter},
+        api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
+        graph::{path::PathFromNode, views::filter::model::CompositeNodeFilter},
     },
     errors::GraphError,
     prelude::*,
 };
+use raphtory_api::core::utils::time::IntoTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
@@ -116,13 +118,13 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
-    async fn window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.window(start, end))
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.update(self.nn.window(start.into_time(), end.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events at time.
-    async fn at(&self, time: i64) -> Self {
-        self.update(self.nn.at(time))
+    async fn at(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.at(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the latest time.
@@ -132,8 +134,8 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: i64) -> Self {
-        self.update(self.nn.snapshot_at(time))
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.snapshot_at(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events at the latest time.
@@ -143,28 +145,28 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events before the specified end (exclusive).
-    async fn before(&self, time: i64) -> Self {
-        self.update(self.nn.before(time))
+    async fn before(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.before(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events after the specified start (exclusive).
-    async fn after(&self, time: i64) -> Self {
-        self.update(self.nn.after(time))
+    async fn after(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.after(time.into_time()))
     }
 
     /// Shrink both the start and end of the window.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.shrink_window(start, end))
+    async fn shrink_window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_window(start.into_time(), end.into_time()))
     }
 
     /// Set the start of the window to the larger of the specified start and self.start().
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.update(self.nn.shrink_start(start))
+    async fn shrink_start(&self, start: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_start(start.into_time()))
     }
 
     /// Set the end of the window to the smaller of the specified end and self.end().
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.update(self.nn.shrink_end(end))
+    async fn shrink_end(&self, end: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_end(end.into_time()))
     }
 
     /// Filter nodes by type.
@@ -178,13 +180,13 @@ impl GqlPathFromNode {
     ////////////////////////
 
     /// Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-    async fn start(&self) -> Option<i64> {
-        self.nn.start()
+    async fn start(&self) -> GqlEventTime {
+        self.nn.start().into()
     }
 
     /// Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-    async fn end(&self) -> Option<i64> {
-        self.nn.end()
+    async fn end(&self) -> GqlEventTime {
+        self.nn.end().into()
     }
 
     /////////////////

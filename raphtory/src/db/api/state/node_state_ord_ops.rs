@@ -45,6 +45,14 @@ impl<T: IsFloat> AsOrd for &(T, T) {
     }
 }
 
+impl<T: IsFloat> AsOrd for &Option<T> {
+    type Ordered = Option<OrderedFloat<T>>;
+    fn as_ord(&self) -> &Option<OrderedFloat<T>> {
+        // Safety: OrderedFloat is #[repr(transparent)] over T; Option<OrderedFloat<T>> has the same layout as Option<T> for the same T.
+        unsafe { &*(*self as *const Option<T> as *const Option<OrderedFloat<T>>) }
+    }
+}
+
 pub trait OrderedNodeStateOps<'graph>: NodeStateOps<'graph>
 where
     Self::OwnedValue: Ord,
@@ -70,7 +78,7 @@ where
     ///
     /// Returns:
     ///
-    /// An `a vector of tuples with keys of type `H` and values of type `Y`.
+    /// A vector of tuples with keys of type `H` and values of type `Y`.
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.

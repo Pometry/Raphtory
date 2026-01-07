@@ -17,7 +17,7 @@ def test_hanging_edges():
     assert G.at(6).count_edges() == 0
     assert G.latest_time == 5
     assert G.at(G.latest_time).count_edges() == 0
-    assert G.at(G.latest_time - 1).count_edges() == 0
+    assert G.at(G.latest_time.t - 1).count_edges() == 0
 
 
 def test_overlapping_times():

@@ -1,4 +1,10 @@
-use crate::rayon::blocking_compute;
+use crate::{
+    model::graph::{
+        history::GqlHistory,
+        timeindex::{GqlEventTime, GqlTimeInput},
+    },
+    rayon::blocking_compute,
+};
 use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{
     InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
@@ -14,7 +20,8 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::EventTime},
+    utils::time::IntoTime,
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
@@ -235,26 +242,26 @@ impl GqlProperty {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PropertyTuple")]
 pub(crate) struct GqlPropertyTuple {
-    time: i64,
+    time: EventTime,
     prop: Prop,
 }
 
 impl GqlPropertyTuple {
-    pub(crate) fn new(time: i64, prop: Prop) -> Self {
+    pub(crate) fn new(time: EventTime, prop: Prop) -> Self {
         Self { time, prop }
     }
 }
 
-impl From<(i64, Prop)> for GqlPropertyTuple {
-    fn from(value: (i64, Prop)) -> Self {
+impl From<(EventTime, Prop)> for GqlPropertyTuple {
+    fn from(value: (EventTime, Prop)) -> Self {
         GqlPropertyTuple::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlPropertyTuple {
-    async fn time(&self) -> i64 {
-        self.time
+    async fn time(&self) -> GqlEventTime {
+        self.time.into()
     }
 
     async fn as_string(&self) -> String {
@@ -293,9 +300,9 @@ impl GqlTemporalProperty {
         self.key.clone()
     }
 
-    async fn history(&self) -> Vec<i64> {
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.history().collect()).await
+        blocking_compute(move || self_clone.prop.history().into()).await
     }
 
     /// Return the values of the properties.
@@ -304,9 +311,9 @@ impl GqlTemporalProperty {
         blocking_compute(move || self_clone.prop.values().map(|x| x.to_string()).collect()).await
     }
 
-    async fn at(&self, t: i64) -> Option<String> {
+    async fn at(&self, t: GqlTimeInput) -> Option<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.at(t).map(|x| x.to_string())).await
+        blocking_compute(move || self_clone.prop.at(t.into_time()).map(|x| x.to_string())).await
     }
 
     async fn latest(&self) -> Option<String> {

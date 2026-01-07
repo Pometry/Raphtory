@@ -1,21 +1,14 @@
 pub mod filter;
 pub mod history;
 pub mod node;
-mod properties;
+pub mod properties;
 
-use crate::db::api::{
-    state::ops::filter::{AndOp, NotOp, OrOp},
-    view::internal::{filtered_node::FilteredNodeStorageOps, FilterOps, GraphView},
-};
+use crate::db::api::state::ops::filter::{AndOp, NotOp, OrOp};
 pub use history::*;
 pub use node::*;
 pub use properties::*;
 use raphtory_api::core::entities::VID;
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
-    layer_ops::InternalLayerOps,
-};
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{ops::Deref, sync::Arc};
 
 pub trait NodeOp: Send + Sync {

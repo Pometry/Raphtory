@@ -2,7 +2,6 @@ use crate::db::graph::views::filter::model::{
     property_filter::{Op, PropertyFilter, PropertyRef},
     CombinedFilter, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory, Wrap,
 };
-use std::{ops::Deref, sync::Arc};
 
 #[derive(Clone)]
 pub struct PropertyFilterBuilder<M>(String, pub M);

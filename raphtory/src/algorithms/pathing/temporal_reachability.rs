@@ -118,7 +118,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
             );
             for eev in evv.window(start_time, i64::MAX).out_edges() {
                 let dst = eev.dst();
-                eev.history().into_iter().for_each(|t| {
+                eev.history().t().collect().into_iter().for_each(|t| {
                     dst.update(&earliest_taint_time, t);
                     dst.update(
                         &recv_tainted_msgs,
@@ -150,7 +150,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
                 let earliest = evv.read(&earliest_taint_time);
                 for eev in evv.window(earliest, i64::MAX).out_edges() {
                     let dst = eev.dst();
-                    for t in eev.history() {
+                    for t in eev.history().t().collect() {
                         dst.update(&earliest_taint_time, t);
                         dst.update(
                             &recv_tainted_msgs,

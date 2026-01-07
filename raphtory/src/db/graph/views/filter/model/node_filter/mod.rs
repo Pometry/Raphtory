@@ -30,8 +30,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::entities::Layer;
-use raphtory_core::utils::time::IntoTime;
+use raphtory_api::core::{entities::Layer, utils::time::IntoTime};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{fmt, fmt::Display, sync::Arc};
 

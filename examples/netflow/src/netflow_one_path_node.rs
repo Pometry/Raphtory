@@ -1,7 +1,10 @@
 use raphtory::{
-    core::state::{
-        accumulator_id::accumulators::sum,
-        compute_state::{ComputeState, ComputeStateVec},
+    core::{
+        state::{
+            accumulator_id::accumulators::sum,
+            compute_state::{ComputeState, ComputeStateVec},
+        },
+        storage::timeindex::AsTime,
     },
     db::{
         api::view::{GraphViewOps, NodeViewOps, StaticGraphViewOps},
@@ -64,7 +67,7 @@ fn one_path_algorithm<'graph, G: GraphViewOps<'graph>, CS: ComputeState>(
     }
 
     // Now we save the time of nf1
-    let nf1_time = nf_e_edge_expl.time().unwrap_or_default();
+    let nf1_time = nf_e_edge_expl.time().map(|t| t.t()).unwrap_or_default();
     let mut time_bound = nf1_time.saturating_sub(30);
     if no_time {
         time_bound = 0;
@@ -85,7 +88,7 @@ fn one_path_algorithm<'graph, G: GraphViewOps<'graph>, CS: ComputeState>(
         .flat_map(|login_exp| {
             login_exp
                 .dst()
-                .window(login_exp.time().unwrap().saturating_add(1), nf1_time)
+                .window(login_exp.time().unwrap().t().saturating_add(1), nf1_time)
                 .layers("Events1v4688")
         })
         .flat_map(|v| {

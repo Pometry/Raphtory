@@ -1,5 +1,5 @@
 use crate::{
-    core::storage::timeindex::TimeIndexEntry,
+    core::storage::timeindex::EventTime,
     db::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
@@ -108,11 +108,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.edge_time_semantics())
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<EventTime> {
         for_all!(self, g => g.view_start())
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<EventTime> {
         for_all!(self, g => g.view_end())
     }
 
@@ -124,11 +124,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.latest_time_global())
     }
 
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         for_all!(self, g => g.earliest_time_window(start, end))
     }
 
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         for_all!(self, g => g.latest_time_window(start, end))
     }
 
@@ -136,37 +136,33 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.has_temporal_prop(prop_id))
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter(prop_id))
     }
 
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
         for_all!(self, g => g.has_temporal_prop_window(prop_id, w))
     }
 
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> BoxedLDIter<'_, (TimeIndexEntry, Prop)> {
+        start: EventTime,
+        end: EventTime,
+    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window(prop_id, start, end))
     }
 
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: TimeIndexEntry,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at(prop_id, t))
     }
 
     fn temporal_prop_last_at_window(
         &self,
         prop_id: usize,
-        t: TimeIndexEntry,
-        w: Range<i64>,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+        t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at_window(prop_id, t, w))
     }
 }

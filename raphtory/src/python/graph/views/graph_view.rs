@@ -41,9 +41,8 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use chrono::prelude::*;
 use pyo3::prelude::*;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -183,40 +182,22 @@ impl PyGraphView {
 
     //******  Metrics APIs ******//
 
-    /// Timestamp of earliest activity in the graph
+    /// Time entry of the earliest activity in the graph
     ///
     /// Returns:
-    ///     Optional[int]: the timestamp of the earliest activity in the graph
+    ///     OptionalEventTime: the time entry of the earliest activity in the graph
     #[getter]
-    pub fn earliest_time(&self) -> Option<i64> {
-        self.graph.earliest_time()
+    pub fn earliest_time(&self) -> PyOptionalEventTime {
+        self.graph.earliest_time().into()
     }
 
-    /// DateTime of earliest activity in the graph
+    /// Time entry of the latest activity in the graph
     ///
     /// Returns:
-    ///     Optional[datetime]: the datetime of the earliest activity in the graph
+    ///     OptionalEventTime: the time entry of the latest activity in the graph
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.graph.earliest_date_time()
-    }
-
-    /// Timestamp of latest activity in the graph
-    ///
-    /// Returns:
-    ///     Optional[int]: the timestamp of the latest activity in the graph
-    #[getter]
-    pub fn latest_time(&self) -> Option<i64> {
-        self.graph.latest_time()
-    }
-
-    /// DateTime of latest activity in the graph
-    ///
-    /// Returns:
-    ///     Optional[datetime]: the datetime of the latest activity in the graph
-    #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.graph.latest_date_time()
+    pub fn latest_time(&self) -> PyOptionalEventTime {
+        self.graph.latest_time().into()
     }
 
     /// Number of edges in the graph
@@ -468,8 +449,8 @@ impl Repr for PyGraphView {
                     "number_of_temporal_edges",
                     self.graph.count_temporal_edges(),
                 )
-                .add_field("earliest_time", self.earliest_time())
-                .add_field("latest_time", self.latest_time())
+                .add_field("earliest_time", self.earliest_time().repr())
+                .add_field("latest_time", self.latest_time().repr())
                 .finish()
         } else {
             StructReprBuilder::new("Graph")
@@ -479,8 +460,8 @@ impl Repr for PyGraphView {
                     "number_of_temporal_edges",
                     self.graph.count_temporal_edges(),
                 )
-                .add_field("earliest_time", self.earliest_time())
-                .add_field("latest_time", self.latest_time())
+                .add_field("earliest_time", self.earliest_time().repr())
+                .add_field("latest_time", self.latest_time().repr())
                 .add_field("properties", self.properties())
                 .finish()
         }

@@ -14,7 +14,7 @@ from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
 from math import isclose
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import string
 from pathlib import Path
 from pytest import fixture
@@ -134,8 +134,8 @@ def test_nodes_time_iterable():
 
     @with_disk_graph
     def check(g):
-        assert g.nodes.earliest_time.min() == -1
-        assert g.nodes.latest_time.max() == 7
+        assert g.nodes.earliest_time.min().t == -1
+        assert g.nodes.latest_time.max().t == 7
 
     check(g)
 
@@ -367,10 +367,20 @@ def test_entity_history_date_time():
     g.add_edge(2, 1, 2)
     e = g.add_edge(3, 1, 2)
 
-    full_history_1 = [
+    full_edge_history_1 = [
         datetime(1970, 1, 1, tzinfo=utc),
         datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
         datetime(1970, 1, 1, 0, 0, 0, 2000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+    ]
+    full_node_history_1 = [
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 2000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 2000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
         datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
     ]
 
@@ -381,40 +391,71 @@ def test_entity_history_date_time():
         datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
     ]
 
-    windowed_history = [
+    windowed_edge_history = [
         datetime(1970, 1, 1, tzinfo=utc),
         datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
     ]
 
-    assert v.history_date_time() == full_history_1
-    assert v.window(0, 2).history_date_time() == windowed_history
-    assert e.history_date_time() == full_history_1
-    assert e.window(0, 2).history_date_time() == windowed_history
+    windowed_node_history = [
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
+    ]
+
+    check_arr(v.history.dt.collect(), full_node_history_1)
+    assert v.window(0, 2).history.dt.collect() == windowed_node_history
+    assert e.history.dt.collect() == full_edge_history_1
+    assert e.window(0, 2).history.dt.collect() == windowed_edge_history
 
     g.add_edge(4, 1, 3)
     g.add_edge(5, 1, 3)
     g.add_edge(6, 1, 3)
     g.add_edge(7, 1, 3)
 
-    assert g.edges.history_date_time() == [full_history_1, full_history_2]
-    assert g.nodes.in_edges.history_date_time() == [
+    assert g.edges.history.dt.collect() == [full_edge_history_1, full_history_2]
+    assert g.nodes.in_edges.history.dt.collect() == [
         [],
-        [full_history_1],
+        [full_edge_history_1],
         [full_history_2],
     ]
 
-    assert g.nodes.earliest_date_time == [
+    expected_earliest_dt_1 = [
         datetime(1970, 1, 1, tzinfo=utc),
         datetime(1970, 1, 1, tzinfo=utc),
         datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
     ]
-    assert g.nodes.latest_date_time == [
+
+    check_arr(g.nodes.earliest_time.collect(), expected_earliest_dt_1)
+    assert g.nodes.earliest_time.dt == [
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
+    ]
+
+    expected_latest_dt_1 = [
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+    ]
+    check_arr(g.nodes.latest_time.collect(), expected_latest_dt_1)
+    assert g.nodes.latest_time.dt == [
         datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
         datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
         datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
     ]
 
-    assert g.nodes.neighbours.latest_date_time.collect() == [
+    expected_latest_neighbours_dt_1 = [
+        [
+            datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+        ],
+        [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
+        [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
+    ]
+    check_arr(g.nodes.neighbours.latest_time.collect(), expected_latest_neighbours_dt_1)
+
+    assert g.nodes.neighbours.latest_time.dt.collect() == [
         [
             datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
             datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
@@ -423,7 +464,19 @@ def test_entity_history_date_time():
         [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
     ]
 
-    assert g.nodes.neighbours.earliest_date_time.collect() == [
+    expected_earliest_neighbours_dt_1 = [
+        [
+            datetime(1970, 1, 1, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
+        ],
+        [datetime(1970, 1, 1, tzinfo=utc)],
+        [datetime(1970, 1, 1, tzinfo=utc)],
+    ]
+    check_arr(
+        g.nodes.neighbours.earliest_time.collect(), expected_earliest_neighbours_dt_1
+    )
+
+    assert g.nodes.neighbours.earliest_time.dt.collect() == [
         [
             datetime(1970, 1, 1, tzinfo=utc),
             datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
@@ -580,10 +633,11 @@ def test_node_properties():
                     [value]
                 ]
 
-        history_test("prop 1", [(1, 1), (2, 2)])
-        history_test("prop 2", [(2, 0.6), (3, 0.9)])
-        history_test("prop 3", [(1, "hi"), (3, "hello")])
-        history_test("prop 4", [(1, True), (2, False), (3, True)])
+        # we're comparing EventTime values so we need to pass the event id, here as a tuple
+        history_test("prop 1", [((1, 1), 1), ((2, 2), 2)])
+        history_test("prop 2", [((2, 2), 0.6), ((3, 3), 0.9)])
+        history_test("prop 3", [((1, 1), "hi"), ((3, 3), "hello")])
+        history_test("prop 4", [((1, 1), True), ((2, 2), False), ((3, 3), True)])
         history_test("undefined", None)
 
         def time_history_test(time, key, value):
@@ -600,7 +654,7 @@ def test_node_properties():
                     key
                 ).items() == [[value]]
 
-        time_history_test(1, "prop 4", [(1, True)])
+        time_history_test(1, "prop 4", [((1, 1), True)])
         time_history_test(1, "static prop", None)
 
         def time_static_property_test(time, key, value):
@@ -1134,7 +1188,7 @@ def test_exploded_edge_time():
     @with_disk_graph
     def check(g):
         e = g.edge("Frodo", "Gandalf")
-        his = e.history()
+        his = e.history.t.collect()
         exploded_his = []
         for ee in e.explode():
             exploded_his.append(ee.time)
@@ -1186,8 +1240,8 @@ def test_graph_time_api():
 
     @with_disk_graph
     def check(g):
-        earliest_time = g.earliest_time
-        latest_time = g.latest_time
+        earliest_time = g.earliest_time.t
+        latest_time = g.latest_time.t
         assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
         assert len(list(g.expanding(2))) == math.ceil(
             (latest_time + 1 - earliest_time) / 2
@@ -1314,6 +1368,41 @@ def test_add_edge_num():
     assert g.has_node(2)
 
     assert g.has_edge(1, 2)
+
+
+def test_window_date():
+    g = Graph()
+    g.add_node("1970-01-01", 1)
+    g.add_node("1970-01-02", 2)
+    g.add_node("1970-01-03", 3)
+    g.add_node("1970-01-04", 4)
+    start = date(1970, 1, 1)  # start is inclusive
+    end = date(1970, 1, 3)  # end is exclusive
+    windowed_g = g.window(start, end)
+    windowed_nodes = [n.id for n in windowed_g.nodes]
+    assert windowed_nodes == [1, 2]
+    assert 4 not in windowed_nodes
+
+
+def test_date_in_ingestion_functions():
+    dates = [
+        date(1970, 1, 1),
+        date(1970, 1, 2),
+        date(1970, 1, 3),
+        date(1970, 1, 4),
+    ]
+    g = Graph()
+    g.add_node(dates[0], 1)
+    g.add_edge(dates[1], 2, 3)
+    n1 = g.node(1)
+    n1.add_updates(dates[2])
+    e1 = g.edge(2, 3)
+    e1.add_updates(dates[3])
+    assert g.node(1).history == ["1970-01-01", "1970-01-03"]
+    assert g.edge(2, 3).history == ["1970-01-02", "1970-01-04"]
+    windowed_g = g.window(dates[0], dates[2])  # start is inclusive and end is exclusive
+    windowed_nodes = [n.id for n in windowed_g.nodes]
+    assert windowed_nodes == [1, 2, 3]
 
 
 def test_all_neighbours_window():
@@ -1575,9 +1664,9 @@ def test_node_history():
 
     # @with_disk_graph FIXME: need special handling for nodes additions from Graph
     def check(g):
-        check_arr(g.node(1).history(), [1, 2, 3, 4, 8])
+        check_arr(g.node(1).history.t.collect(), [1, 2, 3, 4, 8])
         view = g.window(1, 8)
-        check_arr(view.node(1).history(), [1, 2, 3, 4])
+        check_arr(view.node(1).history.t.collect(), [1, 2, 3, 4])
 
     check(g)
 
@@ -1590,9 +1679,9 @@ def test_node_history():
 
     # @with_disk_graph FIXME: need special handling for nodes additions from Graph
     def check(g):
-        check_arr(g.node("Lord Farquaad").history(), [4, 6, 7, 8])
+        check_arr(g.node("Lord Farquaad").history.t.collect(), [4, 6, 7, 8])
         view = g.window(1, 8)
-        check_arr(view.node("Lord Farquaad").history(), [4, 6, 7])
+        check_arr(view.node("Lord Farquaad").history.t.collect(), [4, 6, 7])
 
     check(g)
 
@@ -1610,18 +1699,18 @@ def test_edge_history():
         view = g.window(1, 5)
         view2 = g.window(1, 4)
 
-        check_arr(g.edge(1, 2).history(), [1, 3])
-        check_arr(view.edge(1, 4).history(), [4])
-        check_arr(list(g.edges.history()), [[1, 3], [2], [4]])
-        check_arr(list(view2.edges.history()), [[1, 3], [2]])
+        check_arr(g.edge(1, 2).history.t.collect(), [1, 3])
+        check_arr(view.edge(1, 4).history.t.collect(), [4])
+        check_arr(g.edges.history.t.collect(), [[1, 3], [2], [4]])
+        check_arr(view2.edges.history.t.collect(), [[1, 3], [2]])
 
         old_way = []
         for e in g.edges:
-            old_way.append(e.history())
-        check_arr(list(g.edges.history()), old_way)
+            old_way.append(e.history.collect())
+        check_arr(g.edges.history.collect(), old_way)
 
         check_arr(
-            g.nodes.edges.history().collect(),
+            g.nodes.edges.history.t.collect(),
             [
                 [[1, 3], [2], [4]],
                 [[1, 3]],
@@ -1633,8 +1722,8 @@ def test_edge_history():
         old_way2 = []
         for edges in g.nodes.edges:
             for edge in edges:
-                old_way2.append(edge.history())
-        new_way = g.nodes.edges.history().collect()
+                old_way2.append(edge.history.collect())
+        new_way = g.nodes.edges.history.collect()
         check_arr([np.array(item) for sublist in new_way for item in sublist], old_way2)
 
     check(g)
@@ -1646,7 +1735,7 @@ def test_lotr_edge_history():
     @with_disk_graph
     def check(g):
         check_arr(
-            g.edge("Frodo", "Gandalf").history(),
+            g.edge("Frodo", "Gandalf").history.t.collect(),
             [
                 329,
                 555,
@@ -1713,13 +1802,19 @@ def test_lotr_edge_history():
                 32656,
             ],
         )
-        check_arr(g.before(1000).edge("Frodo", "Gandalf").history(), [329, 555, 861])
-        check_arr(g.edge("Frodo", "Gandalf").before(1000).history(), [329, 555, 861])
         check_arr(
-            g.window(100, 1000).edge("Frodo", "Gandalf").history(), [329, 555, 861]
+            g.before(1000).edge("Frodo", "Gandalf").history.t.collect(), [329, 555, 861]
         )
         check_arr(
-            g.edge("Frodo", "Gandalf").window(100, 1000).history(), [329, 555, 861]
+            g.edge("Frodo", "Gandalf").before(1000).history.t.collect(), [329, 555, 861]
+        )
+        check_arr(
+            g.window(100, 1000).edge("Frodo", "Gandalf").history.t.collect(),
+            [329, 555, 861],
+        )
+        check_arr(
+            g.edge("Frodo", "Gandalf").window(100, 1000).history.t.collect(),
+            [329, 555, 861],
         )
 
     check(g)
@@ -1975,19 +2070,19 @@ def test_date_time():
 
     @with_disk_graph
     def check(g):
-        assert g.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert g.latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        assert g.earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert g.latest_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
         e = g.edge(1, 3)
         exploded_edges = []
         for edge in e.explode():
-            exploded_edges.append(edge.date_time)
+            exploded_edges.append(edge.time.dt)
         assert exploded_edges == [datetime(2014, 2, 3, tzinfo=utc)]
-        assert g.edge(1, 2).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert g.edge(1, 2).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        assert g.edge(1, 2).earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert g.edge(1, 2).latest_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-        assert g.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert g.node(1).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        assert g.node(1).earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert g.node(1).latest_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
     check(g)
 
@@ -2022,24 +2117,22 @@ def test_date_time_window():
         view = g.window("2014-02-02", "2014-02-04")
         view2 = g.window("2014-02-02", "2014-02-05")
 
-        assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
+        assert view.start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view.end == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-        assert view.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view.latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+        assert view.earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view.latest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
-        assert view2.edge(1, 2).start_date_time == datetime(
-            2014, 2, 2, 0, 0, tzinfo=utc
-        )
-        assert view2.edge(1, 2).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        assert view2.edge(1, 2).start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view2.edge(1, 2).end == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-        assert view.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view.node(1).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+        assert view.node(1).earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view.node(1).latest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
         e = view.edge(1, 2)
         exploded_edges = []
         for edge in e.explode():
-            exploded_edges.append(edge.date_time)
+            exploded_edges.append(edge.time.dt)
         assert exploded_edges == [datetime(2014, 2, 2, tzinfo=utc)]
 
     check(g)
@@ -2058,17 +2151,17 @@ def test_datetime_add_node():
         view = g.window("2014-02-02", "2014-02-04")
         view2 = g.window("2014-02-02", "2014-02-05")
 
-        assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
+        assert view.start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view.end == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-        assert view2.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view2.latest_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
+        assert view2.earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view2.latest_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-        assert view2.node(1).start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view2.node(1).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        assert view2.node(1).start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view2.node(1).end == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-        assert view.node(2).earliest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
-        assert view.node(2).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+        assert view.node(2).earliest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+        assert view.node(2).latest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
     check(g)
 
@@ -2104,7 +2197,7 @@ def test_datetime_with_timezone():
 
     # @with_disk_graph FIXME: need special handling for nodes additions from Graph
     def check(g):
-        assert g.node(1).history_date_time() == results
+        assert g.node(1).history.dt.collect() == results
 
     check(g)
 
@@ -2215,8 +2308,8 @@ def test_materialize_graph():
             assert mg.node(1).properties.get("type") == "wallet"
             assert mg.node(4).metadata == {"abc": "xyz"}
             assert mg.node(4).metadata.get("abc") == "xyz"
-            check_arr(mg.node(1).history(), [-1, 0, 1, 2])
-            check_arr(mg.node(4).history(), [6, 8])
+            check_arr(mg.node(1).history.t.collect(), [-1, 0, 0, 1, 1, 2])
+            check_arr(mg.node(4).history.t.collect(), [6, 8])
             assert mg.nodes.id.collect() == [1, 2, 3, 4]
             assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
             assert g.nodes.id.collect() == mg.nodes.id.collect()
@@ -2261,14 +2354,14 @@ def test_deletions():
         # deleted at window start
         assert deleted_edge.window(10, 20).is_deleted()
         assert not deleted_edge.window(10, 20).is_valid()
-        assert deleted_edge.window(10, 20).earliest_time is None
-        assert deleted_edge.window(10, 20).latest_time is None
+        assert deleted_edge.window(10, 20).earliest_time.is_none()
+        assert deleted_edge.window(10, 20).latest_time.is_none()
 
         # deleted before window start
         assert deleted_edge.window(15, 20).is_deleted()
         assert not deleted_edge.window(15, 20).is_valid()
-        assert deleted_edge.window(15, 20).earliest_time is None
-        assert deleted_edge.window(15, 20).latest_time is None
+        assert deleted_edge.window(15, 20).earliest_time.is_none()
+        assert deleted_edge.window(15, 20).latest_time.is_none()
 
         # deleted in window
         assert deleted_edge.window(5, 20).is_deleted()
@@ -2412,18 +2505,20 @@ def test_date_time_edges():
     @with_disk_graph
     def check(g):
         old_date_way = []
-        for edges in g.nodes.edges:
+        for edges in g.nodes.edges.explode():
             for edge in edges:
-                old_date_way.append(edge.date_time)
+                old_date_way.append(edge.time.dt)
 
         assert old_date_way == [
-            item for sublist in g.nodes.edges.date_time.collect() for item in sublist
+            item
+            for sublist in g.nodes.edges.explode().time.dt.collect()
+            for item in sublist
         ]
         gw = g.window("2014-02-02", "2014-02-05")
-        assert gw.edges.start_date_time == gw.start_date_time
-        assert gw.edges.end_date_time == gw.end_date_time
-        assert gw.nodes.edges.start_date_time == gw.start_date_time
-        assert gw.nodes.edges.end_date_time == gw.end_date_time
+        assert gw.edges.start == gw.start
+        assert gw.edges.end == gw.end
+        assert gw.nodes.edges.start == gw.start
+        assert gw.nodes.edges.end == gw.end
 
     check(g)
 
@@ -2735,8 +2830,8 @@ def test_time_exploded_edges():
 
         date_time = []
         for e in g.edges.explode():
-            date_time.append(e.date_time)
-        assert list(g.edges.explode().date_time) == date_time
+            date_time.append(e.time.dt)
+        assert list(g.edges.explode().time.dt) == date_time
 
         time_nested = []
         for edges in g.nodes.edges.explode():
@@ -2751,10 +2846,10 @@ def test_time_exploded_edges():
         date_time_nested = []
         for edges in g.nodes.edges.explode():
             for edge in edges:
-                date_time_nested.append(edge.date_time)
+                date_time_nested.append(edge.time.dt)
         assert [
             item
-            for sublist in g.nodes.edges.explode().date_time.collect()
+            for sublist in g.nodes.edges.explode().time.dt.collect()
             for item in sublist
         ] == date_time_nested
 
@@ -2781,8 +2876,8 @@ def test_leading_zeroes_ids():
 
     # @with_disk_graph # FIXME: need special handling for nodes additions from Graph
     def check(g):
-        check_arr(g.node(0).history(), [0, 1])
-        check_arr(g.node("0").history(), [0, 1])
+        check_arr(g.node(0).history.t.collect(), [0, 1])
+        check_arr(g.node("0").history.t.collect(), [0, 1])
         assert g.nodes.name.collect() == ["0"]
 
     check(g)
@@ -3038,11 +3133,11 @@ def test_edge_layer_properties():
     assert g.edge("A", "B").properties == {"greeting": "namaste"}
 
 
-def test_add_node_properties_ordered_by_secondary_index():
+def test_add_node_properties_ordered_by_event_id():
     g = Graph()
-    g.add_node(1, "A", properties={"prop": 1}, secondary_index=3)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 1}, event_id=3)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=2)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3051,27 +3146,27 @@ def test_add_node_properties_ordered_by_secondary_index():
     ]
 
 
-def test_add_node_properties_overwritten_for_same_secondary_index():
+def test_add_node_properties_overwritten_for_same_event_id():
     g = Graph()
-    g.add_node(1, "A", properties={"prop": 1}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 1}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
-    g.add_node(1, "A", properties={"prop": 1}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=2)
+    g.add_node(1, "A", properties={"prop": 1}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=2)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=2)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_create_node_properties_ordered_by_secondary_index():
+def test_create_node_properties_ordered_by_event_id():
     g = Graph()
-    g.create_node(1, "A", properties={"prop": 1}, secondary_index=3)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+    g.create_node(1, "A", properties={"prop": 1}, event_id=3)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=2)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3080,27 +3175,27 @@ def test_create_node_properties_ordered_by_secondary_index():
     ]
 
 
-def test_create_node_properties_overwritten_for_same_secondary_index():
+def test_create_node_properties_overwritten_for_same_event_id():
     g = Graph()
-    g.create_node(1, "A", properties={"prop": 1}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+    g.create_node(1, "A", properties={"prop": 1}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
-    g.create_node(1, "A", properties={"prop": 1}, secondary_index=1)
-    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
-    g.add_node(1, "A", properties={"prop": 3}, secondary_index=2)
+    g.create_node(1, "A", properties={"prop": 1}, event_id=1)
+    g.add_node(1, "A", properties={"prop": 2}, event_id=2)
+    g.add_node(1, "A", properties={"prop": 3}, event_id=2)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_add_edge_properties_ordered_by_secondary_index():
+def test_add_edge_properties_ordered_by_event_id():
     g = Graph()
-    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=3)
-    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=2)
-    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=1)
+    g.add_edge(1, "A", "B", properties={"prop": 1}, event_id=3)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, event_id=2)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, event_id=1)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3109,53 +3204,53 @@ def test_add_edge_properties_ordered_by_secondary_index():
     ]
 
 
-def test_add_edge_properties_overwritten_for_same_secondary_index():
+def test_add_edge_properties_overwritten_for_same_event_id():
     g = Graph()
-    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=1)
-    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=1)
-    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=1)
+    g.add_edge(1, "A", "B", properties={"prop": 1}, event_id=1)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, event_id=1)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, event_id=1)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
-    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=1)
-    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=2)
-    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=2)
+    g.add_edge(1, "A", "B", properties={"prop": 1}, event_id=1)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, event_id=2)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, event_id=2)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_add_properties_properties_ordered_by_secondary_index():
+def test_add_properties_properties_ordered_by_event_id():
     g = Graph()
-    g.add_properties(1, properties={"prop": 1}, secondary_index=3)
-    g.add_properties(1, properties={"prop": 2}, secondary_index=2)
-    g.add_properties(1, properties={"prop": 3}, secondary_index=1)
+    g.add_properties(1, properties={"prop": 1}, event_id=3)
+    g.add_properties(1, properties={"prop": 2}, event_id=2)
+    g.add_properties(1, properties={"prop": 3}, event_id=1)
 
     assert g.properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
 
 
-def test_add_properties_properties_overwritten_for_same_secondary_index():
+def test_add_properties_properties_overwritten_for_same_event_id():
     g = Graph()
-    g.add_properties(1, properties={"prop": 1}, secondary_index=1)
-    g.add_properties(1, properties={"prop": 2}, secondary_index=1)
-    g.add_properties(1, properties={"prop": 3}, secondary_index=1)
+    g.add_properties(1, properties={"prop": 1}, event_id=1)
+    g.add_properties(1, properties={"prop": 2}, event_id=1)
+    g.add_properties(1, properties={"prop": 3}, event_id=1)
 
     assert g.properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
-    g.add_properties(1, properties={"prop": 1}, secondary_index=1)
-    g.add_properties(1, properties={"prop": 2}, secondary_index=2)
-    g.add_properties(1, properties={"prop": 3}, secondary_index=2)
+    g.add_properties(1, properties={"prop": 1}, event_id=1)
+    g.add_properties(1, properties={"prop": 2}, event_id=2)
+    g.add_properties(1, properties={"prop": 3}, event_id=2)
 
     assert g.properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_node_add_updates_properties_ordered_by_secondary_index():
+def test_node_add_updates_properties_ordered_by_event_id():
     g = Graph()
     g.add_node(1, "A")
-    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=3)
-    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=2)
-    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=1)
+    g.node("A").add_updates(1, properties={"prop": 1}, event_id=3)
+    g.node("A").add_updates(1, properties={"prop": 2}, event_id=2)
+    g.node("A").add_updates(1, properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3164,30 +3259,30 @@ def test_node_add_updates_properties_ordered_by_secondary_index():
     ]
 
 
-def test_node_add_updates_properties_overwritten_for_same_secondary_index():
+def test_node_add_updates_properties_overwritten_for_same_event_id():
     g = Graph()
     g.add_node(1, "A")
-    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=1)
-    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=1)
-    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=1)
+    g.node("A").add_updates(1, properties={"prop": 1}, event_id=1)
+    g.node("A").add_updates(1, properties={"prop": 2}, event_id=1)
+    g.node("A").add_updates(1, properties={"prop": 3}, event_id=1)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
     g.add_node(1, "A")
-    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=1)
-    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=2)
-    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=2)
+    g.node("A").add_updates(1, properties={"prop": 1}, event_id=1)
+    g.node("A").add_updates(1, properties={"prop": 2}, event_id=2)
+    g.node("A").add_updates(1, properties={"prop": 3}, event_id=2)
 
     assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
-def test_edge_add_updates_properties_ordered_by_secondary_index():
+def test_edge_add_updates_properties_ordered_by_event_id():
     g = Graph()
     g.add_edge(1, "A", "B")
-    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=3)
-    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=2)
-    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, event_id=3)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, event_id=2)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, event_id=1)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [
         (1, 3),
@@ -3196,20 +3291,20 @@ def test_edge_add_updates_properties_ordered_by_secondary_index():
     ]
 
 
-def test_edge_add_updates_properties_overwritten_for_same_secondary_index():
+def test_edge_add_updates_properties_overwritten_for_same_event_id():
     g = Graph()
     g.add_edge(1, "A", "B")
-    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=1)
-    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=1)
-    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, event_id=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, event_id=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, event_id=1)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3)]
 
     g = Graph()
     g.add_edge(1, "A", "B")
-    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=1)
-    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=2)
-    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=2)
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, event_id=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, event_id=2)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, event_id=2)
 
     assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 

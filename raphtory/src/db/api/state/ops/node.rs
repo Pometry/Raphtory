@@ -1,4 +1,4 @@
-use crate::db::api::{
+pub(crate) use crate::db::api::{
     state::{ops::IntoDynNodeOp, NodeOp},
     view::internal::{filtered_node::FilteredNodeStorageOps, FilterOps, FilterState, GraphView},
 };

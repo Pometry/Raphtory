@@ -23,14 +23,16 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter, TimeOps},
 };
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
-use raphtory_core::utils::time::IntoTime;
+use raphtory_api::core::{
+    storage::timeindex::{AsTime, EventTime},
+    utils::time::IntoTime,
+};
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {
-    pub start: TimeIndexEntry,
-    pub end: TimeIndexEntry,
+    pub start: EventTime,
+    pub end: EventTime,
     pub inner: M,
 }
 
@@ -48,7 +50,7 @@ impl<M: Display> Display for Windowed<M> {
 
 impl<M> Windowed<M> {
     #[inline]
-    pub fn new(start: TimeIndexEntry, end: TimeIndexEntry, entity: M) -> Self {
+    pub fn new(start: EventTime, end: EventTime, entity: M) -> Self {
         Self {
             start,
             end,
@@ -58,8 +60,8 @@ impl<M> Windowed<M> {
 
     #[inline]
     pub fn from_times<S: IntoTime, E: IntoTime>(start: S, end: E, entity: M) -> Self {
-        let s = TimeIndexEntry::start(start.into_time());
-        let e = TimeIndexEntry::end(end.into_time());
+        let s = start.into_time();
+        let e = end.into_time();
         Self::new(s, e, entity)
     }
 }

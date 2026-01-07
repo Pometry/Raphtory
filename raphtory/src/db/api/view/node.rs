@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::AsTime,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, VID},
     db::api::{
         properties::internal::InternalPropertiesOps,
         state::{ops, ops::NodeOp},
@@ -10,10 +7,10 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::Direction;
 use raphtory_storage::graph::graph::GraphStorage;
+use std::marker::PhantomData;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type Graph: GraphViewOps<'graph>;
@@ -71,33 +68,20 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn node_type_id(&self) -> Self::ValueType<ops::TypeId>;
 
-    /// Get the timestamp for the earliest activity of the node
+    /// Get the time entry for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>>;
 
-    fn earliest_date_time(
-        &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>>;
-
-    /// Get the timestamp for the latest activity of the node
+    /// Get the time entry for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>>;
 
-    fn latest_date_time(
-        &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>>;
-
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
-    fn history(&self) -> Self::ValueType<ops::History<Self::Graph>>;
+    fn history(&self) -> Self::ValueType<ops::HistoryOp<'graph, Self::Graph>>;
 
     /// Gets a count of edge history events.
     fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>>;
 
-    /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
-    fn history_date_time(
-        &self,
-    ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>>;
-
     /// Returns true if the node has any updates within the current window, otherwise false.
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>>;
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>>;
 
     /// Get a view of the temporal properties of this node.
     ///
@@ -210,40 +194,14 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn earliest_date_time(
-        &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>> {
-        let op = ops::EarliestTime {
-            view: self.graph().clone(),
-        }
-        .map(|t| t.and_then(|t| t.dt()));
-        self.map(op)
-    }
-
-    #[inline]
     fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>> {
         let op = ops::LatestTime {
             view: self.graph().clone(),
         };
         self.map(op)
     }
-
-    #[inline]
-    fn latest_date_time(
-        &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>> {
-        let op = ops::LatestTime {
-            view: self.graph().clone(),
-        }
-        .map(|t| t.and_then(|t| t.dt()));
-        self.map(op)
-    }
-
-    #[inline]
-    fn history(&self) -> Self::ValueType<ops::History<Self::Graph>> {
-        let op = ops::History {
-            view: self.graph().clone(),
-        };
+    fn history(&self) -> Self::ValueType<ops::HistoryOp<'graph, Self::Graph>> {
+        let op = ops::HistoryOp::new(self.graph().clone());
         self.map(op)
     }
 
@@ -255,23 +213,9 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         self.map(op)
     }
 
-    #[inline]
-    fn history_date_time(
-        &self,
-    ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>> {
-        let op = ops::History {
-            view: self.graph().clone(),
-        }
-        .map(|h| h.into_iter().map(|t| t.dt()).collect());
-        self.map(op)
-    }
-
     /// Returns true if the node has any updates within the current window, otherwise false.
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>> {
-        let op = ops::History {
-            view: self.graph().clone(),
-        }
-        .map(|h| !h.is_empty());
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>> {
+        let op = ops::HistoryOp::new(self.graph().clone()).map(|h| !h.is_empty());
         self.map(op)
     }
 
