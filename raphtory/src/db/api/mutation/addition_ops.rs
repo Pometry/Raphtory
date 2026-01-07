@@ -349,7 +349,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
         // drop(add_edge_op);
 
         // Flush the wal entry to disk.
-        self.wal().flush().unwrap();
+        self.wal().flush(lsn).unwrap();
 
         Ok(EdgeView::new(
             self.clone(),

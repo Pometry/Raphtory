@@ -27,8 +27,8 @@ pub trait Wal {
     /// Appends data to the WAL and returns the assigned LSN.
     fn append(&self, data: &[u8]) -> Result<LSN, StorageError>;
 
-    /// Immediately flushes in-memory WAL entries to disk.
-    fn flush(&self) -> Result<(), StorageError>;
+    /// Flushes in-memory WAL entries up to the given LSN to disk.
+    fn flush(&self, lsn: LSN) -> Result<(), StorageError>;
 
     /// Blocks until the WAL has flushed the given LSN to disk.
     fn wait_for_flush(&self, lsn: LSN);

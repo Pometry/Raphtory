@@ -19,7 +19,7 @@ impl Wal for NoWal {
         Ok(0)
     }
 
-    fn flush(&self) -> Result<(), StorageError> {
+    fn flush(&self, _lsn: LSN) -> Result<(), StorageError> {
         Ok(())
     }
 
