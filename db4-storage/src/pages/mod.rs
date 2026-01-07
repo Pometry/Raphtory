@@ -450,7 +450,8 @@ fn write_graph_config<EXT: Config>(
     config: &EXT,
 ) -> Result<(), StorageError> {
     let config_file = graph_dir.as_ref().join("graph_config.json");
-    let config_file = std::fs::File::create(config_file).unwrap();
+    let config_file = std::fs::File::create(&config_file)?;
+
     serde_json::to_writer_pretty(config_file, config)?;
     Ok(())
 }
@@ -459,7 +460,7 @@ fn read_graph_config<EXT: PersistentStrategy>(
     graph_dir: impl AsRef<Path>,
 ) -> Result<EXT, StorageError> {
     let config_file = graph_dir.as_ref().join("graph_config.json");
-    let config_file = std::fs::File::open(config_file).unwrap();
+    let config_file = std::fs::File::open(config_file)?;
     let config = serde_json::from_reader(config_file)?;
     Ok(config)
 }
@@ -498,10 +499,7 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(
-                Some(graph_dir),
-                crate::Extension::new(chunk_size, chunk_size),
-            )
+            Layer::new(Some(graph_dir), Extension::new(chunk_size, chunk_size))
         })
     }
 
@@ -511,10 +509,7 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(
-                Some(graph_dir),
-                crate::Extension::new(chunk_size, chunk_size),
-            )
+            Layer::new(Some(graph_dir), Extension::new(chunk_size, chunk_size))
         })
     }
 
