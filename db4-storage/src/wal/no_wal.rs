@@ -19,11 +19,11 @@ impl Wal for NoWal {
         Ok(0)
     }
 
-    fn sync(&self) -> Result<(), StorageError> {
+    fn flush(&self) -> Result<(), StorageError> {
         Ok(())
     }
 
-    fn wait_for_sync(&self, _lsn: LSN) {}
+    fn wait_for_flush(&self, _lsn: LSN) {}
 
     fn rotate(&self, _cutoff_lsn: LSN) -> Result<(), StorageError> {
         Ok(())

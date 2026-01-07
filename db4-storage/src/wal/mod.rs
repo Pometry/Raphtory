@@ -28,10 +28,10 @@ pub trait Wal {
     fn append(&self, data: &[u8]) -> Result<LSN, StorageError>;
 
     /// Immediately flushes in-memory WAL entries to disk.
-    fn sync(&self) -> Result<(), StorageError>;
+    fn flush(&self) -> Result<(), StorageError>;
 
-    /// Blocks until the WAL has fsynced the given LSN to disk.
-    fn wait_for_sync(&self, lsn: LSN);
+    /// Blocks until the WAL has flushed the given LSN to disk.
+    fn wait_for_flush(&self, lsn: LSN);
 
     /// Rotates the underlying WAL file.
     /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
