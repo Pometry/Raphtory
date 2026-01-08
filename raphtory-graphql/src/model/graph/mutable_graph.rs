@@ -621,7 +621,9 @@ mod tests {
         graph.into()
     }
 
-    async fn create_mutable_graph() -> (GqlMutableGraph, tempfile::TempDir, EmbeddingServer) {
+    async fn create_mutable_graph(
+        port: u16,
+    ) -> (GqlMutableGraph, tempfile::TempDir, EmbeddingServer) {
         let graph = create_test_graph();
         let tmp_dir = tempdir().unwrap();
 
@@ -637,11 +639,13 @@ mod tests {
             edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
         };
 
-        let embedding_server = serve_custom_embedding("0.0.0.0:1745", fake_embedding).await;
+        let address = format!("0.0.0.0:{port}");
+        let embedding_server = serve_custom_embedding(&address, fake_embedding).await;
 
+        let api_base = format!("http://localhost:{port}");
         let config = OpenAIEmbeddings {
             model: "whatever".to_owned(),
-            api_base: Some("http://localhost:1745".to_owned()),
+            api_base: Some(api_base),
             api_key_env: None,
             project_id: None,
             org_id: None,
@@ -664,18 +668,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_nodes_empty_list() {
-        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph().await;
+        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph(1745).await;
 
         let nodes = vec![];
         let result = mutable_graph.add_nodes(nodes).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap());
+        _embedding_server.stop();
     }
 
     #[tokio::test]
     async fn test_add_nodes_simple() {
-        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph().await;
+        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph(1746).await;
 
         let nodes = vec![
             NodeAddition {
@@ -718,7 +723,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_nodes_with_properties() {
-        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph().await;
+        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph(1747).await;
 
         let nodes = vec![
             NodeAddition {
@@ -788,7 +793,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_edges_simple() {
-        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph().await;
+        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph(1748).await;
 
         // First add some nodes.
         let nodes = vec![
