@@ -422,7 +422,7 @@ function randomView(rate: ViewRate) {
   const [start, end] = [randomTime(), randomTime()].sort()
   const views: PathFromNodeViewCollection[] = [
     ...randomAppend(rate.latest, { latest: true }),
-    ...randomAppend(rate.layer, { layer: randomLayer() }),
+    ...randomAppend(rate.layer, { layers: [randomLayer()] }),
     ...randomAppend(rate.window, { window: { start, end } }),
   ]
   // TODO: add more kind of filters
