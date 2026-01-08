@@ -857,8 +857,6 @@ mod tests {
             .edges_by_similarity(&embedding.into(), limit, None)
             .await;
 
-        // dbg!(&result.err());
-        // assert!(false);
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
     }
