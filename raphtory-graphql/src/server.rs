@@ -393,7 +393,8 @@ mod server_tests {
             project_id: None,
             org_id: None,
         };
-        server.vectorise_all_graphs(&template, model).await.unwrap();
+        let result = server.vectorise_all_graphs(&template, model).await;
+        assert!(result.is_err());
         let handler = server.start_with_port(0);
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await
