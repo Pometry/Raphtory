@@ -50,6 +50,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
+use std::collections::BTreeMap;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -91,6 +92,25 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     } else {
         false
     }
+}
+
+fn normalise_temporal_map<T: AsTime + Copy>(
+    map: &HashMap<ArcStr, Vec<(T, Prop)>>
+) -> BTreeMap<ArcStr, Vec<(i64, Prop)>> {
+    let mut out = BTreeMap::new();
+
+    for (k, v) in map {
+        let mut v2: Vec<(i64, Prop)> = v.iter().map(|(t, p)| (t.t(), p.clone())).collect();
+
+        // stable deterministic ordering for same timestamp too
+        v2.sort_by(|(t1, p1), (t2, p2)| {
+            t1.cmp(t2).then_with(|| format!("{p1:?}").cmp(&format!("{p2:?}")))
+        });
+
+        out.insert(k.clone(), v2);
+    }
+
+    out
 }
 
 pub fn assert_node_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
@@ -193,13 +213,16 @@ pub fn assert_node_equal_layer<'graph, G1: GraphView + 'graph, G2: GraphView + '
             n2_collected
         );
     } else {
+        let left = normalise_temporal_map(&n1.properties().temporal().as_map());
+        let right = normalise_temporal_map(&n2.properties().temporal().as_map());
+
         assert_eq!(
-            n1.properties().temporal().as_map(),
-            n2.properties().temporal().as_map(),
+            left,
+            right,
             "mismatched temporal properties for node {:?}{layer_tag}: left {:?}, right {:?}",
             n1.id(),
-            n1.properties().temporal().as_map(),
-            n2.properties().temporal().as_map()
+            left,
+            right
         );
     }
     assert_eq!(
@@ -451,9 +474,12 @@ pub fn assert_edges_equal_layer<
                 e1.id(),
             );
         } else {
+            let left = normalise_temporal_map(&e1.properties().temporal().as_map());
+            let right = normalise_temporal_map(&e2.properties().temporal().as_map());
+
             assert_eq!(
-                e1.properties().temporal().as_map(),
-                e2.properties().temporal().as_map(),
+                left,
+                right,
                 "mismatched temporal properties for edge {:?}{layer_tag}",
                 e1.id(),
             );
@@ -576,9 +602,12 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
             "mismatched graph temporal properties{layer_tag}",
         );
     } else {
+        let left = normalise_temporal_map(&g1.properties().temporal().as_map());
+        let right = normalise_temporal_map(&g2.properties().temporal().as_map());
+
         assert_eq!(
-            g1.properties().temporal().as_map(),
-            g2.properties().temporal().as_map(),
+            left,
+            right,
             "mismatched graph temporal properties{layer_tag}",
         );
     }
