@@ -119,8 +119,8 @@ impl InternalStorageOps for MaterializedGraph {
         for_all!(self, g => g.get_storage())
     }
 
-    fn disk_storage_enabled(&self) -> Option<&Path> {
-        for_all!(self, g => g.disk_storage_enabled())
+    fn disk_storage_path(&self) -> Option<&Path> {
+        for_all!(self, g => g.disk_storage_path())
     }
 }
 

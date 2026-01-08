@@ -288,8 +288,8 @@ impl InternalStorageOps for Storage {
         Some(self)
     }
 
-    fn disk_storage_enabled(&self) -> Option<&Path> {
-        self.graph.disk_storage_enabled()
+    fn disk_storage_path(&self) -> Option<&Path> {
+        self.graph.disk_storage_path()
     }
 }
 

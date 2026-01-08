@@ -94,10 +94,10 @@ impl GraphStorage {
         }
     }
 
-    pub fn disk_storage_enabled(&self) -> Option<&Path> {
+    pub fn disk_storage_path(&self) -> Option<&Path> {
         match self {
-            GraphStorage::Mem(graph) => graph.graph.disk_storage_enabled(),
-            GraphStorage::Unlocked(graph) => graph.disk_storage_enabled(),
+            GraphStorage::Mem(graph) => graph.graph.disk_storage_path(),
+            GraphStorage::Unlocked(graph) => graph.disk_storage_path(),
         }
     }
 

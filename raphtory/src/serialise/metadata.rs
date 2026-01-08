@@ -19,7 +19,7 @@ impl GraphMetadata {
         let node_count = graph.count_nodes();
         let edge_count = graph.count_edges();
         let graph_type = graph.graph_type();
-        let is_diskgraph = graph.disk_storage_enabled().is_some();
+        let is_diskgraph = graph.disk_storage_path().is_some();
         Self {
             node_count,
             edge_count,

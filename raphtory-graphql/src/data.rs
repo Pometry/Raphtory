@@ -571,7 +571,7 @@ pub(crate) mod data_tests {
         let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
-        if loaded_graph1.graph.disk_storage_enabled().is_some() {
+        if loaded_graph1.graph.disk_storage_path().is_some() {
             assert!(
                 !loaded_graph1.is_dirty(),
                 "Graph1 should not be dirty when loaded from disk"
@@ -678,7 +678,7 @@ pub(crate) mod data_tests {
         data.cache.run_pending_tasks().await;
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
-        if loaded_graph1.graph.disk_storage_enabled().is_some() {
+        if loaded_graph1.graph.disk_storage_path().is_some() {
             // Check modification times after eviction
             let graph1_metadata_after = fs::metadata(&graph1_path).unwrap();
             let graph2_metadata_after = fs::metadata(&graph2_path).unwrap();

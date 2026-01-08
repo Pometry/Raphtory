@@ -107,7 +107,7 @@ impl ExistingGraphFolder {
 
     pub fn replace_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
         self.with_internal_errors(|| {
-            if let Some(path) = graph.disk_storage_enabled() {
+            if let Some(path) = graph.disk_storage_path() {
                 if path != self.global_path.graph_path()? {
                     return Err(InternalPathValidationError::MismatchedGraphPath);
                 }
@@ -352,7 +352,7 @@ impl ValidWriteableGraphFolder {
         if Extension::disk_storage_enabled() {
             let graph_path = self.graph_folder().graph_path()?;
             if graph
-                .disk_storage_enabled()
+                .disk_storage_path()
                 .is_some_and(|path| path == &graph_path)
             {
                 self.global_path.write_metadata(&graph)?;
