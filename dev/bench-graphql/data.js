@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767889791674,
+  "lastUpdate": 1767901343113,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3077,6 +3077,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1339,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dff2fc57de039b9982db939fe9708e43a6af0e4e",
+          "message": "Update UI to v0.2.1 (#2431)\n\n* Update UI to v0.2.1\n\n* chore: apply tidy-public auto-fixes\n\n* Update action to install all deps\n\n---------\n\nCo-authored-by: louisch <772346+louisch@users.noreply.github.com>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Louis Chan <louisch@fastmail.com>",
+          "timestamp": "2026-01-08T19:06:19Z",
+          "tree_id": "5d050b3f695623d8d94a4b733e6c3174cfcdbbc2",
+          "url": "https://github.com/Pometry/Raphtory/commit/dff2fc57de039b9982db939fe9708e43a6af0e4e"
+        },
+        "date": 1767901339779,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1437,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 165,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 134,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1208,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1026,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1503,
             "unit": "req/s"
           }
         ]
