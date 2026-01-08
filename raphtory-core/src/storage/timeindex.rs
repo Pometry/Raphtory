@@ -314,7 +314,6 @@ where
                 let start = max(range.start, w.start);
                 let end = min(range.end, w.end);
                 if end <= start {
-                    println!("TimeIndexWindow::Range called with empty range: {:?} vs {range:?} {start:?}..{end:?}", w);
                     TimeIndexWindow::Empty
                 } else {
                     TimeIndexWindow::Range {

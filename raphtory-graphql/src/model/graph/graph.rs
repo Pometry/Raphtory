@@ -17,9 +17,10 @@ use crate::{
     },
     paths::ExistingGraphFolder,
     rayon::blocking_compute,
+    GQLError,
 };
 use async_graphql::Context;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use itertools::Itertools;
 use raphtory::{
     core::{
@@ -38,15 +39,18 @@ use raphtory::{
             },
         },
     },
-    errors::{GraphError, InvalidPathReason},
+    errors::GraphError,
     prelude::*,
 };
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
-    sync::Arc,
 };
 
+use crate::{
+    graph::GraphWithVectors,
+    paths::{PathValidationError, ValidGraphPaths},
+};
 #[cfg(feature = "search")]
 use raphtory::db::api::view::SearchableGraphOps;
 
@@ -55,6 +59,12 @@ use raphtory::db::api::view::SearchableGraphOps;
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
+}
+
+impl From<GraphWithVectors> for GqlGraph {
+    fn from(value: GraphWithVectors) -> Self {
+        GqlGraph::new(value.folder, value.graph)
+    }
 }
 
 impl GqlGraph {
@@ -246,18 +256,18 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns the timestamp for the creation of the graph.
-    async fn created(&self) -> Result<i64, GraphError> {
-        self.path.created_async().await
+    async fn created(&self) -> Result<i64> {
+        Ok(self.path.created_async().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
-    async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.path.last_opened_async().await
+    async fn last_opened(&self) -> Result<i64> {
+        Ok(self.path.last_opened_async().await?)
     }
 
     /// Returns the graph's last updated timestamp.
-    async fn last_updated(&self) -> Result<i64, GraphError> {
-        self.path.last_updated_async().await
+    async fn last_updated(&self) -> Result<i64> {
+        Ok(self.path.last_updated_async().await?)
     }
 
     /// Returns the timestamp of the earliest activity in the graph.
@@ -415,33 +425,22 @@ impl GqlGraph {
     //if someone write non-utf characters as a filename
 
     /// Returns the graph name.
-    async fn name(&self) -> Result<String, GraphError> {
+    async fn name(&self) -> Result<String, PathValidationError> {
         self.path.get_graph_name()
     }
 
     /// Returns path of graph.
-    async fn path(&self) -> Result<String, GraphError> {
-        Ok(self
-            .path
-            .get_original_path()
-            .to_str()
-            .ok_or(InvalidPathReason::PathNotParsable(
-                self.path.to_error_path(),
-            ))?
-            .to_owned())
+    async fn path(&self) -> String {
+        self.path.local_path().into()
     }
 
     /// Returns namespace of graph.
-    async fn namespace(&self) -> Result<String, GraphError> {
-        Ok(self
-            .path
-            .get_original_path()
-            .parent()
-            .and_then(|p| p.to_str().map(|s| s.to_string()))
-            .ok_or(InvalidPathReason::PathNotParsable(
-                self.path.to_error_path(),
-            ))?
-            .to_owned())
+    async fn namespace(&self) -> String {
+        self.path
+            .local_path()
+            .rsplit_once("/")
+            .map_or("", |(prefix, _)| prefix)
+            .to_string()
     }
 
     /// Returns the graph schema.
@@ -486,13 +485,9 @@ impl GqlGraph {
     }
 
     /// Export all nodes and edges from this graph view to another existing graph
-    async fn export_to<'a>(
-        &self,
-        ctx: &Context<'a>,
-        path: String,
-    ) -> Result<bool, Arc<GraphError>> {
+    async fn export_to<'a>(&self, ctx: &Context<'a>, path: String) -> Result<bool, GQLError> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref()).await?.0;
+        let other_g = data.get_graph(path.as_ref()).await?.graph;
         let g = self.graph.clone();
         blocking_compute(move || {
             other_g.import_nodes(g.nodes(), true)?;

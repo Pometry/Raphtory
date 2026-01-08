@@ -36,21 +36,29 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{Extension, transaction::TransactionManager, WalImpl, wal::LSN};
+use storage::{transaction::TransactionManager, WalImpl, wal::LSN};
 
+pub use storage::{
+    Extension,
+    persist::strategy::{PersistenceConfig, PersistenceStrategy},
+};
 #[cfg(feature = "search")]
 use {
     crate::{
         db::api::view::IndexSpec,
         search::graph_index::{GraphIndex, MutableGraphIndex},
-        serialise::GraphFolder,
+        serialise::{GraphFolder, GraphPaths},
     },
     either::Either,
     parking_lot::RwLock,
     raphtory_core::entities::nodes::node_ref::AsNodeRef,
     raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
-    std::ops::{Deref, DerefMut},
+    std::{
+        io::{Seek, Write},
+        ops::{Deref, DerefMut},
+    },
     tracing::info,
+    zip::ZipWriter,
 };
 
 #[derive(Debug, Default)]
@@ -96,23 +104,35 @@ impl Storage {
         }
     }
 
-    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Self {
-        Self {
-            graph: GraphStorage::Unlocked(Arc::new(
-                TemporalGraph::new_with_path(path, Extension::default()).unwrap(),
-            )),
+    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(
+                path,
+                Extension::default(),
+            )?)),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
-        }
+        })
     }
 
-    pub(crate) fn load_from(path: impl AsRef<Path>) -> Self {
-        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path).unwrap()));
-        Self {
+    pub(crate) fn new_with_path_and_ext(
+        path: impl AsRef<Path>,
+        ext: Extension,
+    ) -> Result<Self, GraphError> {
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(path, ext)?)),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
+    pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path)?));
+        Ok(Self {
             graph,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
-        }
+        })
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
@@ -230,7 +250,7 @@ impl Storage {
         self.index.read_recursive().is_indexed()
     }
 
-    pub(crate) fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn persist_index_to_disk(&self, path: &impl GraphPaths) -> Result<(), GraphError> {
         let guard = self.get_index().read_recursive();
         if guard.is_indexed() {
             if guard.path().is_none() {
@@ -242,14 +262,18 @@ impl Storage {
         Ok(())
     }
 
-    pub(crate) fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn persist_index_to_disk_zip<W: Write + Seek>(
+        &self,
+        writer: &mut ZipWriter<W>,
+        prefix: &str,
+    ) -> Result<(), GraphError> {
         let guard = self.get_index().read_recursive();
         if guard.is_indexed() {
             if guard.path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
                 return Ok(());
             }
-            self.if_index(|index| index.persist_to_disk_zip(path))?;
+            self.if_index(|index| index.persist_to_disk_zip(writer, prefix))?;
         }
         Ok(())
     }
@@ -266,8 +290,8 @@ impl InternalStorageOps for Storage {
         Some(self)
     }
 
-    fn disk_storage_enabled(&self) -> bool {
-        self.graph.disk_storage_enabled()
+    fn disk_storage_path(&self) -> Option<&Path> {
+        self.graph.disk_storage_path()
     }
 }
 
@@ -395,61 +419,6 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
             .resolve_edge_property(prop, dtype.clone(), is_static)?;
 
         Ok(id)
-    }
-
-    fn internal_add_node(
-        &self,
-        t: TimeIndexEntry,
-        v: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
-        self.session.internal_add_node(t, v, props)?;
-
-        #[cfg(feature = "search")]
-        self.storage
-            .if_index_mut(|index| index.add_node_update(t, v, props))?;
-
-        Ok(())
-    }
-
-    fn internal_add_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, Self::Error> {
-        let id = self.session.internal_add_edge(t, src, dst, props, layer)?;
-        #[cfg(feature = "search")]
-        self.storage.if_index_mut(|index| {
-            index.add_edge_update(&self.storage.graph, id, t, layer, props)
-        })?;
-
-        Ok(id)
-    }
-
-    fn internal_add_edge_update(
-        &self,
-        t: TimeIndexEntry,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<(), Self::Error> {
-        self.session
-            .internal_add_edge_update(t, edge, props, layer)?;
-
-        #[cfg(feature = "search")]
-        self.storage.if_index_mut(|index| {
-            index.add_edge_update(
-                &self.storage.graph,
-                MaybeNew::Existing(edge),
-                t,
-                layer,
-                props,
-            )
-        })?;
-        Ok(())
     }
 }
 

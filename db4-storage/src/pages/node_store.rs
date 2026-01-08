@@ -11,7 +11,10 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::properties::meta::Meta;
+use raphtory_api::core::entities::{
+    GidType,
+    properties::{meta::Meta, prop::PropType},
+};
 use raphtory_core::{
     entities::{EID, VID},
     storage::timeindex::AsTime,
@@ -22,7 +25,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-
 // graph // (nodes|edges) // graph segments // layers // chunks
 
 #[derive(Debug)]
@@ -224,6 +226,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> NodeStorageInn
         let segment = &self.pages[segment_id];
         let head = segment.try_head_mut()?;
         Some(NodeWriter::new(segment, &self.stats, head))
+    }
+
+    pub fn id_type(&self) -> Option<GidType> {
+        self.node_meta
+            .metadata_mapper()
+            .d_types()
+            .first()
+            .and_then(|dtype| GidType::from_prop_type(dtype))
     }
 
     pub fn load(

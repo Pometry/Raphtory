@@ -568,21 +568,19 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use raphtory_api::core::entities::properties::{
-        meta::Meta,
-        prop::{Prop, PropType},
-    };
-    use raphtory_core::entities::{EID, ELID, VID};
-    use tempfile::tempdir;
-
     use crate::{
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::strategy::NoOpStrategy,
     };
+    use raphtory_api::core::entities::properties::{
+        meta::Meta,
+        prop::{Prop, PropType},
+    };
+    use raphtory_core::entities::{EID, ELID, VID};
+    use std::sync::Arc;
+    use tempfile::tempdir;
 
     #[test]
     fn est_size_changes() {

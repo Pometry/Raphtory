@@ -462,7 +462,8 @@ fn write_graph_config<EXT: PersistenceConfig>(
     config: &EXT,
 ) -> Result<(), StorageError> {
     let config_file = graph_dir.as_ref().join("graph_config.json");
-    let config_file = std::fs::File::create(config_file).unwrap();
+    let config_file = std::fs::File::create(&config_file)?;
+
     serde_json::to_writer_pretty(config_file, config)?;
     Ok(())
 }
@@ -471,7 +472,7 @@ fn read_graph_config<EXT: PersistenceStrategy>(
     graph_dir: impl AsRef<Path>,
 ) -> Result<EXT, StorageError> {
     let config_file = graph_dir.as_ref().join("graph_config.json");
-    let config_file = std::fs::File::open(config_file).unwrap();
+    let config_file = std::fs::File::open(config_file)?;
     let config = serde_json::from_reader(config_file)?;
     Ok(config)
 }
@@ -496,7 +497,7 @@ mod test {
             make_nodes,
         },
     };
-    use chrono::{DateTime, NaiveDateTime, Utc};
+    use chrono::DateTime;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
@@ -510,10 +511,7 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(
-                Some(graph_dir),
-                crate::Extension::new(chunk_size, chunk_size),
-            )
+            Layer::new(Some(graph_dir), Extension::new(chunk_size, chunk_size))
         })
     }
 
@@ -523,10 +521,7 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(
-                Some(graph_dir),
-                crate::Extension::new(chunk_size, chunk_size),
-            )
+            Layer::new(Some(graph_dir), Extension::new(chunk_size, chunk_size))
         })
     }
 
@@ -778,14 +773,11 @@ mod test {
                     ("857".to_owned(), Prop::F64(2.56)),
                     (
                         "296".to_owned(),
-                        Prop::NDTime(NaiveDateTime::from_timestamp(1334043671, 0)),
+                        Prop::NDTime(DateTime::from_timestamp(1334043671, 0).unwrap().naive_utc()),
                     ),
                     (
                         "92".to_owned(),
-                        Prop::DTime(DateTime::<Utc>::from_utc(
-                            NaiveDateTime::from_timestamp(994032315, 0),
-                            Utc,
-                        )),
+                        Prop::DTime(DateTime::from_timestamp(994032315, 0).unwrap()),
                     ),
                 ],
             )],

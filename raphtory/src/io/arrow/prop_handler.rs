@@ -242,7 +242,7 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
     }
 }
 
-trait PropCol: Send + Sync {
+pub trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
 
     fn as_array(&self) -> ArrayRef;
@@ -442,7 +442,7 @@ impl PropCol for EmptyCol {
     }
 }
 
-fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
+pub fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
     match arr.data_type() {
         DataType::Boolean => Box::new(arr.as_boolean().clone()),
         DataType::Int32 => Box::new(arr.as_primitive::<Int32Type>().clone()),

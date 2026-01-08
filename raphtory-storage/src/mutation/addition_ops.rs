@@ -171,33 +171,6 @@ pub trait SessionAdditionOps: Send + Sync {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error>;
-
-    /// add node update
-    fn internal_add_node(
-        &self,
-        t: TimeIndexEntry,
-        v: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error>;
-
-    /// add edge update
-    fn internal_add_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, Self::Error>;
-
-    /// add update for an existing edge
-    fn internal_add_edge_update(
-        &self,
-        t: TimeIndexEntry,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<(), Self::Error>;
 }
 
 impl InternalAdditionOps for GraphStorage {

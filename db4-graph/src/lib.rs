@@ -5,7 +5,7 @@ use std::{
 };
 
 use raphtory_api::core::{
-    entities::{self, properties::meta::Meta},
+    entities::{self, properties::meta::Meta, GidType},
     input::input_node::InputNode,
 };
 use raphtory_core::{
@@ -114,9 +114,10 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
         let path = path.as_ref();
         let storage = Layer::load(path)?;
+        let id_type = storage.nodes().id_type();
 
         let gid_resolver_dir = path.join("gid_resolver");
-        let resolver = GIDResolver::new_with_path(&gid_resolver_dir)?;
+        let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
         let wal_dir = path.join("wal");
         let wal = Arc::new(WalImpl::new(Some(wal_dir))?);
@@ -149,9 +150,15 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
             std::fs::create_dir_all(dir)?
         }
 
+        let id_type = node_meta
+            .metadata_mapper()
+            .d_types()
+            .first()
+            .and_then(|dtype| GidType::from_prop_type(dtype));
+
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
         let logical_to_physical = match gid_resolver_dir {
-            Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir)?,
+            Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir, id_type)?,
             None => GIDResolver::new()?,
         }
         .into();
@@ -177,8 +184,9 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
         })
     }
 
-    pub fn disk_storage_enabled(&self) -> bool {
-        self.graph_dir().is_some() && Extension::disk_storage_enabled()
+    pub fn disk_storage_path(&self) -> Option<&Path> {
+        self.graph_dir()
+            .filter(|_| Extension::disk_storage_enabled())
     }
 
     pub fn extension(&self) -> &EXT {

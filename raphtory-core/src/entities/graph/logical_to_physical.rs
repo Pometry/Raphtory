@@ -209,6 +209,18 @@ impl Mapping {
         }
     }
 
+    pub fn new_u64() -> Self {
+        Mapping {
+            map: OnceCell::with_value(Map::U64(Default::default())),
+        }
+    }
+
+    pub fn new_str() -> Self {
+        Mapping {
+            map: OnceCell::with_value(Map::Str(Default::default())),
+        }
+    }
+
     pub fn set(&self, gid: GidRef, vid: VID) -> Result<(), InvalidNodeId> {
         let map = self.map.get_or_init(|| match gid {
             GidRef::U64(_) => Map::U64(FxDashMap::default()),

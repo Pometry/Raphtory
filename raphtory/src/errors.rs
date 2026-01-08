@@ -18,15 +18,13 @@ use raphtory_core::{
 };
 use raphtory_storage::mutation::MutationError;
 use std::{
-    backtrace::Backtrace,
     fmt::Debug,
-    io, panic,
+    io,
     panic::Location,
     path::{PathBuf, StripPrefixError},
     sync::Arc,
     time::SystemTimeError,
 };
-use tracing::error;
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
@@ -34,35 +32,36 @@ use pyo3::PyErr;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
+use storage::error::StorageError;
+#[cfg(feature = "io")]
+use zip::result::ZipError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
-    #[error("Backslash not allowed in path: {0}")]
-    BackslashError(PathBuf),
-    #[error("Double forward slashes are not allowed in path: {0}")]
-    DoubleForwardSlash(PathBuf),
-    #[error("Only relative paths are allowed to be used within the working_dir: {0}")]
-    RootNotAllowed(PathBuf),
-    #[error("References to the current dir are not allowed within the path: {0}")]
-    CurDirNotAllowed(PathBuf),
-    #[error("References to the parent dir are not allowed within the path: {0}")]
-    ParentDirNotAllowed(PathBuf),
-    #[error("A component of the given path was a symlink: {0}")]
-    SymlinkNotAllowed(PathBuf),
-    #[error("The give path does not exist: {0}")]
-    PathDoesNotExist(PathBuf),
-    #[error("Could not parse Path: {0}")]
-    PathNotParsable(PathBuf),
-    #[error("The path to the graph contains a subpath to an existing graph: {0}")]
-    ParentIsGraph(PathBuf),
-    #[error("The path provided does not exists as a namespace: {0}")]
-    NamespaceDoesNotExist(String),
-    #[error("The path provided contains non-UTF8 characters.")]
-    NonUTFCharacters,
-    #[error("Failed to strip prefix")]
-    StripPrefix {
-        #[from]
-        source: StripPrefixError,
-    },
+    #[error("Backslash not allowed in path")]
+    BackslashError,
+    #[error("Double forward slashes are not allowed in path")]
+    DoubleForwardSlash,
+    #[error("Only relative paths are allowed to be used within the working_dir")]
+    RootNotAllowed,
+    #[error("References to the current dir are not allowed within the path")]
+    CurDirNotAllowed,
+    #[error("References to the parent dir are not allowed within the path")]
+    ParentDirNotAllowed,
+    #[error("A component of the given path was a symlink")]
+    SymlinkNotAllowed,
+    #[error("Could not parse Path")]
+    PathNotParsable,
+    #[error("The path to the graph contains a subpath to an existing graph")]
+    ParentIsGraph,
+    #[error("Graph name cannot start with _")]
+    GraphNamePrefix,
+    #[error("The path provided already exists as a namespace")]
+    GraphIsNamespace,
+    #[error("The path provided already exists as a graph")]
+    NamespaceIsGraph,
+    #[error("Failed to strip prefix: {source}")]
+    StripPrefix { source: StripPrefixError },
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -147,8 +146,11 @@ pub enum GraphError {
         source: LoadError,
     },
 
+    #[error("Path {0} does not exist")]
+    PathDoesNotExist(PathBuf),
+
     #[error("Storage feature not enabled")]
-    DiskGraphNotFound,
+    DiskGraphNotEnabled,
 
     #[error("Missing graph index. You need to create an index first.")]
     IndexNotCreated,
@@ -251,9 +253,18 @@ pub enum GraphError {
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
-        #[from]
         source: zip::result::ZipError,
+        location: &'static Location<'static>,
     },
+
+    #[error("Not a zip archive")]
+    NotAZip,
+
+    #[error("Not a disk graph")]
+    NotADiskGraph,
+
+    #[error("Graph folder is not initialised for writing")]
+    NoWriteInProgress,
 
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
@@ -423,8 +434,19 @@ pub enum GraphError {
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
 
-    #[error("Cannot initialize cache for zipped graph. Unzip the graph to initialize the cache.")]
-    ZippedGraphCannotBeCached,
+    #[error("Cannot swap zipped graph data")]
+    ZippedGraphCannotBeSwapped,
+
+    #[error("{source} at {location}")]
+    StripPrefixError {
+        source: StripPrefixError,
+        location: &'static Location<'static>,
+    },
+    #[error("Path {0} is not a valid relative data path")]
+    InvalidRelativePath(String),
+
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
 }
 
 impl From<MetadataError> for GraphError {
@@ -469,6 +491,23 @@ impl From<io::Error> for GraphError {
     fn from(source: io::Error) -> Self {
         let location = Location::caller();
         GraphError::IOError { source, location }
+    }
+}
+
+#[cfg(feature = "io")]
+impl From<ZipError> for GraphError {
+    #[track_caller]
+    fn from(source: ZipError) -> Self {
+        let location = Location::caller();
+        GraphError::ZipError { source, location }
+    }
+}
+
+impl From<StripPrefixError> for GraphError {
+    #[track_caller]
+    fn from(source: StripPrefixError) -> Self {
+        let location = Location::caller();
+        GraphError::StripPrefixError { source, location }
     }
 }
 

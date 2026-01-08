@@ -20,7 +20,7 @@ def test_copy_graph_fails_if_graph_not_found():
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'ben/g5' does not exist" in str(excinfo.value)
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists():
@@ -45,7 +45,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists():
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'g6' already exists" in str(excinfo.value)
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_same_namespace_as_graph():
@@ -70,7 +70,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'ben/g6' already exists" in str(excinfo.value)
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespace_as_graph():
@@ -96,7 +96,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'shivam/g6' already exists" in str(excinfo.value)
 
 
 def test_copy_graph_succeeds():

@@ -5,7 +5,7 @@ use dynamic_graphql::Union;
 // This is useful for when fetching a collection of both for the purposes of displaying all such
 // items, paged.
 #[derive(Union, Clone, PartialOrd, PartialEq, Ord, Eq)]
-pub(crate) enum NamespacedItem {
+pub enum NamespacedItem {
     /// Namespace.
     Namespace(Namespace),
     /// Metagraph.

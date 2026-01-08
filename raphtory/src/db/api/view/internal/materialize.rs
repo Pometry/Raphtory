@@ -7,11 +7,15 @@ use crate::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::ops::Range;
+
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 
 #[derive(Clone)]
 pub enum MaterializedGraph {
@@ -93,6 +97,21 @@ impl MaterializedGraph {
             MaterializedGraph::PersistentGraph(g) => Some(g),
         }
     }
+
+    #[cfg(feature = "io")]
+    pub fn load_from_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        let meta = path.read_metadata()?;
+        if meta.is_diskgraph {
+            match meta.graph_type {
+                GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_from_path(path)?)),
+                GraphType::PersistentGraph => Ok(Self::PersistentGraph(
+                    PersistentGraph::load_from_path(path)?,
+                )),
+            }
+        } else {
+            Err(GraphError::NotADiskGraph)
+        }
+    }
 }
 
 impl InternalStorageOps for MaterializedGraph {
@@ -100,8 +119,8 @@ impl InternalStorageOps for MaterializedGraph {
         for_all!(self, g => g.get_storage())
     }
 
-    fn disk_storage_enabled(&self) -> bool {
-        for_all!(self, g => g.disk_storage_enabled())
+    fn disk_storage_path(&self) -> Option<&Path> {
+        for_all!(self, g => g.disk_storage_path())
     }
 }
 

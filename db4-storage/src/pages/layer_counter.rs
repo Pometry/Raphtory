@@ -96,8 +96,6 @@ impl GraphStats {
             }
         } else {
             // we need to create the layer
-            self.layers.reserve(layer_id + 1 - self.layers.count());
-
             loop {
                 let new_layer_id = self.layers.push_with(|_| Default::default());
                 if new_layer_id >= layer_id {

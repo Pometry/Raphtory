@@ -1,5 +1,5 @@
-#[cfg(feature = "search")]
-use crate::search::{fallback_filter_edges, fallback_filter_nodes};
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
@@ -17,13 +17,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView,
-                filter::{
-                    model::{AsEdgeFilter, AsNodeFilter},
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
-                },
-                node_subgraph::NodeSubgraph,
-                valid_graph::ValidGraph,
+                cached_view::CachedView, filter::node_type_filtered_graph::NodeTypeFilteredGraph,
+                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
             },
         },
     },
@@ -38,7 +33,7 @@ use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
         entities::{
-            properties::meta::{Meta, PropMapper},
+            properties::meta::{Meta, PropMapper, STATIC_GRAPH_LAYER_ID},
             EID,
         },
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
@@ -61,6 +56,13 @@ use rustc_hash::FxHashSet;
 use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
+};
+use storage::{persist::strategy::PersistenceStrategy, Extension};
+
+#[cfg(feature = "search")]
+use crate::{
+    db::graph::views::filter::model::{AsEdgeFilter, AsNodeFilter},
+    search::{fallback_filter_edges, fallback_filter_nodes},
 };
 
 /// This trait GraphViewOps defines operations for accessing
@@ -86,11 +88,13 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     ///
     /// Returns:
     ///     MaterializedGraph: Returns a new materialized graph.
-    fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError>;
+    #[cfg(feature = "io")]
+    fn materialize_at(
+        &self,
+        path: &(impl GraphPaths + ?Sized),
+    ) -> Result<MaterializedGraph, GraphError>;
 
-    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        self.materialize_at(None)
-    }
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
 
@@ -229,6 +233,329 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
     }
 }
 
+fn materialize_impl(
+    graph: &impl GraphView,
+    path: Option<&Path>,
+) -> Result<MaterializedGraph, GraphError> {
+    let storage = graph.core_graph().lock();
+    let mut node_meta = Meta::new_for_nodes();
+    let mut edge_meta = Meta::new_for_edges();
+    let mut graph_props_meta = Meta::new_for_graph_props();
+
+    node_meta.set_metadata_mapper(graph.node_meta().metadata_mapper().deep_clone());
+    node_meta.set_temporal_prop_mapper(graph.node_meta().temporal_prop_mapper().deep_clone());
+    edge_meta.set_metadata_mapper(graph.edge_meta().metadata_mapper().deep_clone());
+    edge_meta.set_temporal_prop_mapper(graph.edge_meta().temporal_prop_mapper().deep_clone());
+    graph_props_meta.set_metadata_mapper(graph.graph_props_meta().metadata_mapper().deep_clone());
+    graph_props_meta
+        .set_temporal_prop_mapper(graph.graph_props_meta().temporal_prop_mapper().deep_clone());
+
+    let layer_meta = edge_meta.layer_meta();
+
+    // NOTE: layers must be set in layer_meta before the TemporalGraph is initialized to
+    // make sure empty layers are created.
+    let layer_map: Vec<_> = match graph.layer_ids() {
+        LayerIds::None => {
+            // no layers to map
+            vec![]
+        }
+        LayerIds::All => {
+            let layers = storage.edge_meta().layer_meta().keys();
+            let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+
+            for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
+                let new_id = layer_meta.get_or_create_id(name).inner();
+                layer_map[id] = new_id;
+            }
+
+            layer_map
+        }
+        LayerIds::One(l_id) => {
+            let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+            let layer_name = storage.edge_meta().get_layer_name_by_id(*l_id);
+            let new_id = layer_meta.get_or_create_id(&layer_name).inner();
+
+            layer_map[*l_id] = new_id;
+            layer_map
+        }
+        LayerIds::Multiple(ids) => {
+            let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+            let layers = storage.edge_meta().layer_meta().all_keys();
+
+            for id in ids {
+                let layer_name = &layers[id];
+                let new_id = layer_meta.get_or_create_id(layer_name).inner();
+                layer_map[id] = new_id;
+            }
+
+            layer_map
+        }
+    };
+
+    node_meta.set_layer_mapper(layer_meta.clone());
+
+    let temporal_graph = TemporalGraph::new_with_meta(
+        path.map(|p| p.into()),
+        node_meta,
+        edge_meta,
+        graph_props_meta,
+        storage.extension().clone(),
+    )?;
+
+    if let Some(earliest) = graph.earliest_time() {
+        temporal_graph.update_time(TimeIndexEntry::start(earliest));
+    };
+
+    if let Some(latest) = graph.latest_time() {
+        temporal_graph.update_time(TimeIndexEntry::end(latest));
+    };
+
+    // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
+    temporal_graph
+        .storage()
+        .set_event_id(storage.read_event_id());
+
+    let graph_storage = GraphStorage::from(temporal_graph);
+
+    {
+        // scope for the write lock
+        let mut new_storage = graph_storage.write_lock()?;
+        new_storage.resize_chunks_to_num_nodes(graph.count_nodes());
+        for layer_id in &layer_map {
+            new_storage.nodes.ensure_layer(*layer_id);
+        }
+
+        let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
+        let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
+
+        new_storage.nodes.par_iter_mut().try_for_each(|shard| {
+            for (index, node) in graph.nodes().iter().enumerate() {
+                let new_id = VID(index);
+                let gid = node.id();
+                node_map_shared[node.node.index()].store(new_id.index(), Ordering::Relaxed);
+                if let Some(node_pos) = shard.resolve_pos(new_id) {
+                    let mut writer = shard.writer();
+                    if let Some(node_type) = node.node_type() {
+                        let new_type_id = graph_storage
+                            .node_meta()
+                            .node_type_meta()
+                            .get_or_create_id(&node_type)
+                            .inner();
+                        writer.store_node_id_and_node_type(
+                            node_pos,
+                            STATIC_GRAPH_LAYER_ID,
+                            gid.as_ref(),
+                            new_type_id,
+                        );
+                    } else {
+                        writer.store_node_id(node_pos, STATIC_GRAPH_LAYER_ID, gid.as_ref());
+                    }
+                    graph_storage
+                        .write_session()?
+                        .set_node(gid.as_ref(), new_id)?;
+
+                    for (t, row) in node.rows() {
+                        writer.add_props(t, node_pos, 0, row);
+                    }
+
+                    writer.update_c_props(
+                        node_pos,
+                        STATIC_GRAPH_LAYER_ID,
+                        node.metadata_ids()
+                            .filter_map(|id| node.get_metadata(id).map(|prop| (id, prop))),
+                    );
+                }
+            }
+            Ok::<(), MutationError>(())
+        })?;
+
+        new_storage.resize_chunks_to_num_edges(graph.count_edges());
+
+        for layer_id in &layer_map {
+            new_storage.edges.ensure_layer(*layer_id);
+        }
+
+        new_storage.edges.par_iter_mut().try_for_each(|shard| {
+            for (eid, edge) in graph.edges().iter().enumerate() {
+                let src = node_map[edge.edge.src().index()];
+                let dst = node_map[edge.edge.dst().index()];
+                let eid = EID(eid);
+                if let Some(edge_pos) = shard.resolve_pos(eid) {
+                    let mut writer = shard.writer();
+                    // make the edge for the first time
+                    writer.add_static_edge(Some(edge_pos), src, dst, false);
+
+                    for edge in edge.explode_layers() {
+                        let layer = layer_map[edge.edge.layer().unwrap()];
+                        for edge in edge.explode() {
+                            let t = edge.edge.time().unwrap();
+                            writer.add_edge(t, edge_pos, src, dst, [], layer);
+                        }
+                        //TODO: move this in edge.row()
+                        for (t, t_props) in edge
+                            .properties()
+                            .temporal()
+                            .values()
+                            .map(|tp| {
+                                let prop_id = tp.id();
+                                tp.iter_indexed()
+                                    .map(|(t, prop)| (t, prop_id, prop))
+                                    .collect::<Vec<_>>()
+                            })
+                            .kmerge_by(|(t, _, _), (t2, _, _)| t <= t2)
+                            .chunk_by(|(t, _, _)| *t)
+                            .into_iter()
+                        {
+                            let props = t_props
+                                .map(|(_, prop_id, prop)| (prop_id, prop))
+                                .collect::<Vec<_>>();
+                            writer.add_edge(t, edge_pos, src, dst, props, layer);
+                        }
+                        writer.update_c_props(
+                            edge_pos,
+                            src,
+                            dst,
+                            layer,
+                            edge.metadata_ids().filter_map(move |prop_id| {
+                                edge.get_metadata(prop_id).map(|prop| (prop_id, prop))
+                            }),
+                        );
+                    }
+
+                    let time_semantics = graph.edge_time_semantics();
+                    let edge_entry = graph.core_edge(edge.edge.pid());
+                    for (t, layer) in time_semantics.edge_deletion_history(
+                        edge_entry.as_ref(),
+                        graph,
+                        graph.layer_ids(),
+                    ) {
+                        let layer = layer_map[layer];
+                        writer.delete_edge(t, edge_pos, src, dst, layer);
+                    }
+                }
+            }
+            Ok::<(), MutationError>(())
+        })?;
+
+        new_storage.nodes.par_iter_mut().try_for_each(|shard| {
+            for (eid, edge) in graph.edges().iter().enumerate() {
+                let eid = EID(eid);
+                let src_id = node_map[edge.edge.src().index()];
+                let dst_id = node_map[edge.edge.dst().index()];
+                let maybe_src_pos = shard.resolve_pos(src_id);
+                let maybe_dst_pos = shard.resolve_pos(dst_id);
+
+                if let Some(node_pos) = maybe_src_pos {
+                    let mut writer = shard.writer();
+                    writer.add_static_outbound_edge(node_pos, dst_id, eid);
+                }
+
+                if let Some(node_pos) = maybe_dst_pos {
+                    let mut writer = shard.writer();
+                    writer.add_static_inbound_edge(node_pos, src_id, eid);
+                }
+
+                for e in edge.explode_layers() {
+                    let layer = layer_map[e.edge.layer().unwrap()];
+                    if let Some(node_pos) = maybe_src_pos {
+                        let mut writer = shard.writer();
+                        writer.add_outbound_edge::<i64>(
+                            None,
+                            node_pos,
+                            dst_id,
+                            eid.with_layer(layer),
+                        );
+                    }
+                    if let Some(node_pos) = maybe_dst_pos {
+                        let mut writer = shard.writer();
+                        writer.add_inbound_edge::<i64>(
+                            None,
+                            node_pos,
+                            src_id,
+                            eid.with_layer(layer),
+                        );
+                    }
+                }
+
+                for e in edge.explode() {
+                    if let Some(node_pos) = maybe_src_pos {
+                        let mut writer = shard.writer();
+
+                        let t = e.time_and_index().expect("exploded edge should have time");
+                        let l = layer_map[e.edge.layer().unwrap()];
+                        writer.update_timestamp(t, node_pos, eid.with_layer(l));
+                    }
+                    if let Some(node_pos) = maybe_dst_pos {
+                        let mut writer = shard.writer();
+
+                        let t = e.time_and_index().expect("exploded edge should have time");
+                        let l = layer_map[e.edge.layer().unwrap()];
+                        writer.update_timestamp(t, node_pos, eid.with_layer(l));
+                    }
+                }
+
+                let edge_time_semantics = graph.edge_time_semantics();
+                let edge_entry = graph.core_edge(edge.edge.pid());
+                for (t, layer) in edge_time_semantics.edge_deletion_history(
+                    edge_entry.as_ref(),
+                    graph,
+                    graph.layer_ids(),
+                ) {
+                    let layer = layer_map[layer];
+                    if let Some(node_pos) = maybe_src_pos {
+                        let mut writer = shard.writer();
+                        writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer));
+                    }
+                    if let Some(node_pos) = maybe_dst_pos {
+                        let mut writer = shard.writer();
+                        writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer));
+                    }
+                }
+            }
+
+            Ok::<(), MutationError>(())
+        })?;
+
+        // Copy over graph properties
+        if let Some(graph_writer) = new_storage.graph_props.writer() {
+            // Copy temporal properties
+            for (prop_name, temporal_prop) in graph.properties().temporal().iter() {
+                let prop_id = graph_storage
+                    .graph_props_meta()
+                    .temporal_prop_mapper()
+                    .get_or_create_id(&prop_name)
+                    .inner();
+
+                for (t, prop_value) in temporal_prop.iter_indexed() {
+                    let lsn = 0;
+                    graph_writer.add_properties(t, [(prop_id, prop_value)], lsn);
+                }
+            }
+
+            // Copy metadata (constant properties)
+            let metadata_props: Vec<_> = graph
+                .metadata()
+                .iter_filtered()
+                .map(|(prop_name, prop_value)| {
+                    let prop_id = graph_storage
+                        .graph_props_meta()
+                        .metadata_mapper()
+                        .get_or_create_id(&prop_name)
+                        .inner();
+                    (prop_id, prop_value)
+                })
+                .collect();
+
+            if !metadata_props.is_empty() {
+                let lsn = 0;
+                graph_writer.update_metadata(metadata_props, lsn);
+            }
+        }
+    }
+
+    Ok(graph.new_base_graph(graph_storage))
+}
+
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         edges_inner(self, true)
@@ -243,328 +570,24 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         Nodes::new(graph)
     }
 
-    fn materialize_at(&self, path: Option<&Path>) -> Result<MaterializedGraph, GraphError> {
-        let storage = self.core_graph().lock();
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
+        materialize_impl(self, None)
+    }
 
-        let mut node_meta = Meta::new_for_nodes();
-        let mut edge_meta = Meta::new_for_edges();
-        let mut graph_props_meta = Meta::new_for_graph_props();
-
-        node_meta.set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
-        node_meta.set_temporal_prop_mapper(self.node_meta().temporal_prop_mapper().deep_clone());
-        edge_meta.set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
-        edge_meta.set_temporal_prop_mapper(self.edge_meta().temporal_prop_mapper().deep_clone());
-        graph_props_meta
-            .set_metadata_mapper(self.graph_props_meta().metadata_mapper().deep_clone());
-        graph_props_meta
-            .set_temporal_prop_mapper(self.graph_props_meta().temporal_prop_mapper().deep_clone());
-
-        let layer_meta = edge_meta.layer_meta();
-
-        // NOTE: layers must be set in layer_meta before the TemporalGraph is initialized to
-        // make sure empty layers are created.
-        let layer_map: Vec<_> = match self.layer_ids() {
-            LayerIds::None => {
-                // no layers to map
-                vec![]
-            }
-            LayerIds::All => {
-                let layers = storage.edge_meta().layer_meta().keys();
-                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-
-                for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
-                    let new_id = layer_meta.get_or_create_id(name).inner();
-                    layer_map[id] = new_id;
-                }
-
-                layer_map
-            }
-            LayerIds::One(l_id) => {
-                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-                let layer_name = storage.edge_meta().get_layer_name_by_id(*l_id);
-                let new_id = layer_meta.get_or_create_id(&layer_name).inner();
-
-                layer_map[*l_id] = new_id;
-                layer_map
-            }
-            LayerIds::Multiple(ids) => {
-                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-                let layers = storage.edge_meta().layer_meta().all_keys();
-
-                for id in ids {
-                    let layer_name = &layers[id];
-                    let new_id = layer_meta.get_or_create_id(layer_name).inner();
-                    layer_map[id] = new_id;
-                }
-
-                layer_map
-            }
-        };
-
-        node_meta.set_layer_mapper(layer_meta.clone());
-
-        let temporal_graph = TemporalGraph::new_with_meta(
-            path.map(|p| p.into()),
-            node_meta,
-            edge_meta,
-            graph_props_meta,
-            storage.extension().clone(),
-        )
-        .unwrap();
-
-        if let Some(earliest) = self.earliest_time() {
-            temporal_graph.update_time(TimeIndexEntry::start(earliest));
-        };
-
-        if let Some(latest) = self.latest_time() {
-            temporal_graph.update_time(TimeIndexEntry::end(latest));
-        };
-
-        // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
-        temporal_graph
-            .storage()
-            .set_event_id(storage.read_event_id());
-
-        let graph_storage = GraphStorage::from(temporal_graph);
-
-        {
-            // scope for the write lock
-            let mut new_storage = graph_storage.write_lock()?;
-            new_storage.resize_chunks_to_num_nodes(self.count_nodes());
-            for layer_id in &layer_map {
-                new_storage.nodes.ensure_layer(*layer_id);
-            }
-
-            let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
-            let node_map_shared =
-                atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
-
-            new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-                for (index, node) in self.nodes().iter().enumerate() {
-                    let new_id = VID(index);
-                    let gid = node.id();
-                    node_map_shared[node.node.index()].store(new_id.index(), Ordering::Relaxed);
-                    if let Some(node_pos) = shard.resolve_pos(new_id) {
-                        let mut writer = shard.writer();
-                        if let Some(node_type) = node.node_type() {
-                            let new_type_id = graph_storage
-                                .node_meta()
-                                .node_type_meta()
-                                .get_or_create_id(&node_type)
-                                .inner();
-                            writer.store_node_id_and_node_type(
-                                node_pos,
-                                0,
-                                gid.as_ref(),
-                                new_type_id,
-                            );
-                        } else {
-                            writer.store_node_id(node_pos, 0, gid.as_ref());
-                        }
-                        graph_storage
-                            .write_session()?
-                            .set_node(gid.as_ref(), new_id)?;
-
-                        for (t, row) in node.rows() {
-                            writer.add_props(t, node_pos, 0, row);
-                        }
-
-                        writer.update_c_props(
-                            node_pos,
-                            0,
-                            node.metadata_ids()
-                                .filter_map(|id| node.get_metadata(id).map(|prop| (id, prop))),
-                        );
-                    }
-                }
-                Ok::<(), MutationError>(())
-            })?;
-
-            new_storage.resize_chunks_to_num_edges(self.count_edges());
-
-            for layer_id in &layer_map {
-                new_storage.edges.ensure_layer(*layer_id);
-            }
-
-            new_storage.edges.par_iter_mut().try_for_each(|shard| {
-                for (eid, edge) in self.edges().iter().enumerate() {
-                    let src = node_map[edge.edge.src().index()];
-                    let dst = node_map[edge.edge.dst().index()];
-                    let eid = EID(eid);
-                    if let Some(edge_pos) = shard.resolve_pos(eid) {
-                        let mut writer = shard.writer();
-                        // make the edge for the first time
-                        writer.add_static_edge(Some(edge_pos), src, dst, false);
-
-                        for edge in edge.explode_layers() {
-                            let layer = layer_map[edge.edge.layer().unwrap()];
-                            for edge in edge.explode() {
-                                let t = edge.edge.time().unwrap();
-                                writer.add_edge(t, edge_pos, src, dst, [], layer);
-                            }
-                            //TODO: move this in edge.row()
-                            for (t, t_props) in edge
-                                .properties()
-                                .temporal()
-                                .values()
-                                .map(|tp| {
-                                    let prop_id = tp.id();
-                                    tp.iter_indexed()
-                                        .map(|(t, prop)| (t, prop_id, prop))
-                                        .collect::<Vec<_>>()
-                                })
-                                .kmerge_by(|(t, _, _), (t2, _, _)| t <= t2)
-                                .chunk_by(|(t, _, _)| *t)
-                                .into_iter()
-                            {
-                                let props = t_props
-                                    .map(|(_, prop_id, prop)| (prop_id, prop))
-                                    .collect::<Vec<_>>();
-                                writer.add_edge(t, edge_pos, src, dst, props, layer);
-                            }
-                            writer.update_c_props(
-                                edge_pos,
-                                src,
-                                dst,
-                                layer,
-                                edge.metadata_ids().filter_map(move |prop_id| {
-                                    edge.get_metadata(prop_id).map(|prop| (prop_id, prop))
-                                }),
-                            );
-                        }
-
-                        let time_semantics = self.edge_time_semantics();
-                        let edge_entry = self.core_edge(edge.edge.pid());
-                        for (t, layer) in time_semantics.edge_deletion_history(
-                            edge_entry.as_ref(),
-                            self,
-                            self.layer_ids(),
-                        ) {
-                            let layer = layer_map[layer];
-                            writer.delete_edge(t, edge_pos, src, dst, layer);
-                        }
-                    }
-                }
-                Ok::<(), MutationError>(())
-            })?;
-
-            new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-                for (eid, edge) in self.edges().iter().enumerate() {
-                    let eid = EID(eid);
-                    let src_id = node_map[edge.edge.src().index()];
-                    let dst_id = node_map[edge.edge.dst().index()];
-                    let maybe_src_pos = shard.resolve_pos(src_id);
-                    let maybe_dst_pos = shard.resolve_pos(dst_id);
-
-                    if let Some(node_pos) = maybe_src_pos {
-                        let mut writer = shard.writer();
-                        writer.add_static_outbound_edge(node_pos, dst_id, eid);
-                    }
-
-                    if let Some(node_pos) = maybe_dst_pos {
-                        let mut writer = shard.writer();
-                        writer.add_static_inbound_edge(node_pos, src_id, eid);
-                    }
-
-                    for e in edge.explode_layers() {
-                        let layer = layer_map[e.edge.layer().unwrap()];
-                        if let Some(node_pos) = maybe_src_pos {
-                            let mut writer = shard.writer();
-                            writer.add_outbound_edge::<i64>(
-                                None,
-                                node_pos,
-                                dst_id,
-                                eid.with_layer(layer),
-                            );
-                        }
-                        if let Some(node_pos) = maybe_dst_pos {
-                            let mut writer = shard.writer();
-                            writer.add_inbound_edge::<i64>(
-                                None,
-                                node_pos,
-                                src_id,
-                                eid.with_layer(layer),
-                            );
-                        }
-                    }
-
-                    for e in edge.explode() {
-                        if let Some(node_pos) = maybe_src_pos {
-                            let mut writer = shard.writer();
-
-                            let t = e.time_and_index().expect("exploded edge should have time");
-                            let l = layer_map[e.edge.layer().unwrap()];
-                            writer.update_timestamp(t, node_pos, eid.with_layer(l));
-                        }
-                        if let Some(node_pos) = maybe_dst_pos {
-                            let mut writer = shard.writer();
-
-                            let t = e.time_and_index().expect("exploded edge should have time");
-                            let l = layer_map[e.edge.layer().unwrap()];
-                            writer.update_timestamp(t, node_pos, eid.with_layer(l));
-                        }
-                    }
-
-                    let edge_time_semantics = self.edge_time_semantics();
-                    let edge_entry = self.core_edge(edge.edge.pid());
-                    for (t, layer) in edge_time_semantics.edge_deletion_history(
-                        edge_entry.as_ref(),
-                        self,
-                        self.layer_ids(),
-                    ) {
-                        let layer = layer_map[layer];
-                        if let Some(node_pos) = maybe_src_pos {
-                            let mut writer = shard.writer();
-                            writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer));
-                        }
-                        if let Some(node_pos) = maybe_dst_pos {
-                            let mut writer = shard.writer();
-                            writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer));
-                        }
-                    }
-                }
-
-                Ok::<(), MutationError>(())
-            })?;
-
-            // Copy over graph properties
-            if let Some(graph_writer) = new_storage.graph_props.writer() {
-                // Copy temporal properties
-                for (prop_name, temporal_prop) in self.properties().temporal().iter() {
-                    let prop_id = graph_storage
-                        .graph_props_meta()
-                        .temporal_prop_mapper()
-                        .get_or_create_id(&prop_name)
-                        .inner();
-
-                    for (t, prop_value) in temporal_prop.iter_indexed() {
-                        let lsn = 0;
-                        graph_writer.add_properties(t, [(prop_id, prop_value)], lsn);
-                    }
-                }
-
-                // Copy metadata (constant properties)
-                let metadata_props: Vec<_> = self
-                    .metadata()
-                    .iter_filtered()
-                    .map(|(prop_name, prop_value)| {
-                        let prop_id = graph_storage
-                            .graph_props_meta()
-                            .metadata_mapper()
-                            .get_or_create_id(&prop_name)
-                            .inner();
-                        (prop_id, prop_value)
-                    })
-                    .collect();
-
-                if !metadata_props.is_empty() {
-                    let lsn = 0;
-                    graph_writer.update_metadata(metadata_props, lsn);
-                }
-            }
+    #[cfg(feature = "io")]
+    fn materialize_at(
+        &self,
+        path: &(impl GraphPaths + ?Sized),
+    ) -> Result<MaterializedGraph, GraphError> {
+        if Extension::disk_storage_enabled() {
+            path.init()?;
+            let graph_path = path.graph_path()?;
+            let graph = materialize_impl(self, Some(graph_path.as_ref()))?;
+            path.write_metadata(&graph)?;
+            Ok(graph)
+        } else {
+            Err(GraphError::DiskGraphNotEnabled)
         }
-
-        Ok(self.new_base_graph(graph_storage))
     }
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {

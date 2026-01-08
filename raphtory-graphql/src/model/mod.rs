@@ -1,38 +1,39 @@
 use crate::{
     auth::ContextValidation,
-    data::Data,
+    data::{Data, DeletionError},
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
-            mutable_graph::GqlMutableGraph, namespace::Namespace,
+            mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
-    paths::valid_path,
+    paths::{ValidGraphPaths, ValidWriteableGraphFolder},
     rayon::blocking_compute,
-    url_encode::{url_decode_graph, url_encode_graph},
+    url_encode::{url_decode_graph_at, url_encode_graph},
 };
 use async_graphql::Context;
 use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
+use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{internal::InternalStorageOps, MaterializedGraph},
+        api::{
+            storage::storage::{Extension, PersistenceStrategy},
+            view::MaterializedGraph,
+        },
         graph::views::deletion_graph::PersistentGraph,
     },
-    errors::{GraphError, InvalidPathReason},
+    errors::GraphError,
     prelude::*,
-    serialise::*,
     version,
 };
 use std::{
     error::Error,
     fmt::{Display, Formatter},
-    path::PathBuf,
-    sync::Arc,
 };
 
 pub(crate) mod graph;
@@ -97,10 +98,7 @@ impl QueryRoot {
     /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
-        Ok(data
-            .get_graph(path)
-            .await
-            .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
+        Ok(data.get_graph(path).await?.into())
     }
 
     /// Update graph query, has side effects to update graph state
@@ -110,10 +108,7 @@ impl QueryRoot {
         ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
 
-        let graph = data
-            .get_graph(path.as_ref())
-            .await
-            .map(|(g, folder)| GqlMutableGraph::new(folder, g, data.clone()))?;
+        let graph = data.get_graph(path.as_ref()).await?.into();
 
         Ok(graph)
     }
@@ -123,7 +118,7 @@ impl QueryRoot {
     /// Returns:: GqlVectorisedGraph
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path).await.ok()?.0.vectors?;
+        let g = data.get_graph(path).await.ok()?.vectors?;
         Some(g.into())
     }
 
@@ -132,25 +127,26 @@ impl QueryRoot {
     /// Returns::  List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
-        GqlCollection::new(root.get_all_namespaces().into())
+        let root = Namespace::root(data.work_dir.clone());
+        let list = blocking_compute(move || {
+            root.get_all_children()
+                .filter_map(|child| match child {
+                    NamespacedItem::Namespace(item) => Some(item),
+                    NamespacedItem::MetaGraph(_) => None,
+                })
+                .sorted()
+                .collect()
+        })
+        .await;
+        GqlCollection::new(list)
     }
 
     /// Returns a specific namespace at a given path
     ///
     /// Returns:: Namespace or error if no namespace found
-    async fn namespace<'a>(
-        ctx: &Context<'a>,
-        path: String,
-    ) -> Result<Namespace, InvalidPathReason> {
+    async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        let current_dir = valid_path(data.work_dir.clone(), path.as_str(), true)?;
-
-        if current_dir.exists() {
-            Ok(Namespace::new(data.work_dir.clone(), current_dir))
-        } else {
-            Err(InvalidPathReason::NamespaceDoesNotExist(path))
-        }
+        Ok(Namespace::try_new(data.work_dir.clone(), path)?)
     }
 
     /// Returns root namespace
@@ -158,7 +154,7 @@ impl QueryRoot {
     /// Returns::  Root namespace
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
-        Namespace::new(data.work_dir.clone(), data.work_dir.clone())
+        Namespace::root(data.work_dir.clone())
     }
 
     /// Returns a plugin.
@@ -169,10 +165,10 @@ impl QueryRoot {
     /// Encodes graph and returns as string
     ///
     /// Returns:: Base64 url safe encoded string
-    async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
+    async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
         let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path).await?.0.graph.clone();
+        let g = data.get_graph(path).await?.graph.clone();
         let res = url_encode_graph(g)?;
         Ok(res)
     }
@@ -197,7 +193,7 @@ impl Mut {
 
     /// Delete graph from a path on the server.
     // If namespace is not provided, it will be set to the current working directory.
-    async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
+    async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool, DeletionError> {
         let data = ctx.data_unchecked::<Data>();
         data.delete_graph(&path).await?;
         Ok(true)
@@ -212,10 +208,17 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
-        let path = folder.get_graph_path();
-        let graph: MaterializedGraph = match graph_type {
-            GqlGraphType::Persistent => PersistentGraph::new_at_path(path).into(),
-            GqlGraphType::Event => Graph::new_at_path(path).into(),
+        let graph_path = folder.graph_folder();
+        let graph: MaterializedGraph = if Extension::disk_storage_enabled() {
+            match graph_type {
+                GqlGraphType::Persistent => PersistentGraph::new_at_path(graph_path)?.into(),
+                GqlGraphType::Event => Graph::new_at_path(graph_path)?.into(),
+            }
+        } else {
+            match graph_type {
+                GqlGraphType::Persistent => PersistentGraph::new().into(),
+                GqlGraphType::Event => Graph::new().into(),
+            }
         };
 
         data.insert_graph(folder, graph).await?;
@@ -223,29 +226,33 @@ impl Mut {
         Ok(true)
     }
 
-    /// Move graph from a path path on the server to a new_path on the server.
-    ///
-    /// If namespace is not provided, it will be set to the current working directory.
-    /// This applies to both the graph namespace and new graph namespace.
-    async fn move_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
-        Self::copy_graph(ctx, path, new_path).await?;
+    /// Move graph from a path on the server to a new_path on the server.
+    async fn move_graph<'a>(
+        ctx: &Context<'a>,
+        path: &str,
+        new_path: &str,
+        overwrite: Option<bool>,
+    ) -> Result<bool> {
+        Self::copy_graph(ctx, path, new_path, overwrite).await?;
         let data = ctx.data_unchecked::<Data>();
         data.delete_graph(path).await?;
         Ok(true)
     }
 
-    /// Copy graph from a path path on the server to a new_path on the server.
-    ///
-    /// If namespace is not provided, it will be set to the current working directory.
-    /// This applies to both the graph namespace and new graph namespace.
-    async fn copy_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
+    /// Copy graph from a path on the server to a new_path on the server.
+    async fn copy_graph<'a>(
+        ctx: &Context<'a>,
+        path: &str,
+        new_path: &str,
+        overwrite: Option<bool>,
+    ) -> Result<bool> {
         // doing this in a more efficient way is not trivial, this at least is correct
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
+        let overwrite = overwrite.unwrap_or(false);
         let data = ctx.data_unchecked::<Data>();
-        let overwrite = false;
+        let graph = data.get_graph(path).await?.graph;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
-        let graph = data.get_graph(path).await?.0.graph;
         data.insert_graph(folder, graph).await?;
 
         Ok(true)
@@ -264,11 +271,6 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
-
-        if overwrite {
-            let _ignored = data.delete_graph(&path).await;
-        }
-
         data.insert_graph_as_bytes(folder, in_file).await?;
 
         Ok(path)
@@ -285,14 +287,12 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let folder = data.validate_path_for_insert(path, overwrite)?;
-        let path_for_decoded_graph = Some(folder.get_graph_path());
-        let g: MaterializedGraph = url_decode_graph(graph, path_for_decoded_graph.as_deref())?;
-
-        if overwrite {
-            let _ignored = data.delete_graph(path).await;
-        }
-
+        let folder = if overwrite {
+            ValidWriteableGraphFolder::try_existing_or_new(data.work_dir.clone(), path)?
+        } else {
+            ValidWriteableGraphFolder::try_new(data.work_dir.clone(), path)?
+        };
+        let g: MaterializedGraph = url_decode_graph_at(graph, folder.graph_folder())?;
         data.insert_graph(folder, g).await?;
         Ok(path.to_owned())
     }
@@ -309,14 +309,18 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let parent_graph = data.get_graph(parent_path).await?.0.graph;
-        let new_subgraph =
-            blocking_compute(move || parent_graph.subgraph(nodes).materialize()).await?;
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
-
-        if overwrite {
-            let _ignored = data.delete_graph(&new_path).await;
-        }
+        let parent_graph = data.get_graph(parent_path).await?.graph;
+        let folder_clone = folder.clone();
+        let new_subgraph = blocking_compute(move || {
+            let subgraph = parent_graph.subgraph(nodes);
+            if Extension::disk_storage_enabled() {
+                subgraph.materialize_at(folder_clone.graph_folder())
+            } else {
+                subgraph.materialize()
+            }
+        })
+        .await?;
 
         data.insert_graph(folder, new_subgraph).await?;
         Ok(new_path)
@@ -332,7 +336,7 @@ impl Mut {
         #[cfg(feature = "search")]
         {
             let data = ctx.data_unchecked::<Data>();
-            let graph = data.get_graph(path).await?.0.graph;
+            let graph = data.get_graph(path).await?.graph;
             match index_spec {
                 Some(index_spec) => {
                     let index_spec = index_spec.to_index_spec(graph.clone())?;

@@ -254,10 +254,8 @@ fn materialize_window_multilayer() {
     let g = PersistentGraph::new();
     g.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
     g.delete_edge(3, 0, 0, Some("a")).unwrap();
-
     let w = 0..10;
     let glw = g.valid_layers("a").window(w.start, w.end);
-    let layers = glw.edge(0, 0).unwrap().explode_layers();
     let gmlw = glw.materialize().unwrap();
     assert_persistent_materialize_graph_equal(&glw, &gmlw);
 }

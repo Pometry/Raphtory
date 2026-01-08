@@ -16,7 +16,7 @@ pub fn gen_embedding_for_bench(text: &str) -> Embedding {
     let hash = hasher.finish();
 
     let mut rng: StdRng = SeedableRng::seed_from_u64(hash);
-    (0..1536).map(|_| rng.gen()).collect()
+    (0..1536).map(|_| rng.random()).collect()
 }
 
 async fn embedding_model(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {

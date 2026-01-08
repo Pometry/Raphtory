@@ -1208,19 +1208,13 @@ type MutRoot {
 	"""
 	newGraph(path: String!, graphType: GraphType!): Boolean!
 	"""
-	Move graph from a path path on the server to a new_path on the server.
-	
-	If namespace is not provided, it will be set to the current working directory.
-	This applies to both the graph namespace and new graph namespace.
+	Move graph from a path on the server to a new_path on the server.
 	"""
-	moveGraph(path: String!, newPath: String!): Boolean!
+	moveGraph(path: String!, newPath: String!, overwrite: Boolean): Boolean!
 	"""
-	Copy graph from a path path on the server to a new_path on the server.
-	
-	If namespace is not provided, it will be set to the current working directory.
-	This applies to both the graph namespace and new graph namespace.
+	Copy graph from a path on the server to a new_path on the server.
 	"""
-	copyGraph(path: String!, newPath: String!): Boolean!
+	copyGraph(path: String!, newPath: String!, overwrite: Boolean): Boolean!
 	"""
 	Upload a graph file from a path on the client using GQL multipart uploading.
 	
