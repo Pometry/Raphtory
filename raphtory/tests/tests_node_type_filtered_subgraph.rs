@@ -471,14 +471,21 @@ mod test_filters_node_type_filtered_subgraph {
         }
 
         use crate::test_filters_node_type_filtered_subgraph::{
-            LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer,
-            NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
+            get_all_node_types, LayeredNodeTypeGraphTransformer,
+            LayeredWindowedNodeTypeGraphTransformer, NodeTypeGraphTransformer,
+            WindowedNodeTypeGraphTransformer,
         };
         use raphtory::{
-            db::graph::assertions::{
-                assert_filter_edges_results, assert_search_edges_results, TestVariants,
+            db::graph::{
+                assertions::{
+                    assert_filter_edges_results, assert_search_edges_results, TestVariants,
+                },
+                views::deletion_graph::PersistentGraph,
             },
-            prelude::{EdgeFilter, PropertyFilterFactory},
+            prelude::{
+                EdgeFilter, EdgeViewOps, GraphViewOps, PropertiesOps, PropertyFilterFactory,
+                TimeOps,
+            },
         };
 
         #[test]
@@ -602,7 +609,7 @@ mod test_filters_node_type_filtered_subgraph {
                 WindowedNodeTypeGraphTransformer(None, 6..9),
                 filter.clone(),
                 &expected_results,
-                vec![],
+                TestVariants::PersistentOnly,
             );
             assert_search_edges_results(
                 init_graph,
@@ -621,7 +628,7 @@ mod test_filters_node_type_filtered_subgraph {
                 WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                 filter.clone(),
                 &expected_results,
-                vec![],
+                TestVariants::PersistentOnly,
             );
             assert_search_edges_results(
                 init_graph,

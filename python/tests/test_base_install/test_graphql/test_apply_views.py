@@ -310,6 +310,7 @@ def test_apply_view_default_layer():
                                             1735689600000,
                                             1735776000000,
                                             1735862400000,
+                                            1735862400000,
                                             1735948800000,
                                         ]
                                     }
@@ -517,6 +518,7 @@ def test_apply_view_at():
                                     "timestamps": {
                                         "list": [
                                             1735689600000,
+                                            1735689600000,
                                         ]
                                     }
                                 }
@@ -640,7 +642,10 @@ def test_apply_view_snapshot_at():
                                     "timestamps": {
                                         "list": [
                                             1735689600000,
+                                            1735689600000,
                                             1735776000000,
+                                            1735776000000,
+                                            1735862400000,
                                             1735862400000,
                                         ]
                                     }
@@ -732,9 +737,9 @@ def test_apply_view_window():
     }
     edge(src: "1", dst: "2") {
        applyViews(views: [{window: {
-     start: 1735689600000
-      end: 1735862400000
-    }}]) {
+          start: 1735689600000
+          end: 1735862400000
+        }}]) {
         src {
           history {
             timestamps {
@@ -782,6 +787,8 @@ def test_apply_view_window():
                                     "timestamps": {
                                         "list": [
                                             1735689600000,
+                                            1735689600000,
+                                            1735776000000,
                                             1735776000000,
                                         ]
                                     }
@@ -808,6 +815,8 @@ def test_apply_view_window():
                             "timestamps": {
                                 "list": [
                                     1735689600000,
+                                    1735689600000,
+                                    1735776000000,
                                     1735776000000,
                                 ]
                             }
@@ -921,6 +930,8 @@ def test_apply_view_before():
                                     "timestamps": {
                                         "list": [
                                             1735689600000,
+                                            1735689600000,
+                                            1735776000000,
                                             1735776000000,
                                         ]
                                     }
@@ -947,6 +958,8 @@ def test_apply_view_before():
                             "timestamps": {
                                 "list": [
                                     1735689600000,
+                                    1735689600000,
+                                    1735776000000,
                                     1735776000000,
                                 ]
                             }
