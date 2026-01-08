@@ -1,4 +1,10 @@
-use crate::{db::api::storage::storage::Storage, prelude::*};
+use crate::{
+    db::{
+        api::storage::storage::Storage,
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    prelude::*,
+};
 use ahash::HashSet;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -6,11 +12,18 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, prelude::*};
 use proptest_derive::Arbitrary;
 use rand::seq::SliceRandom;
-use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
+use raphtory_api::core::{
+    entities::properties::prop::{PropType, DECIMAL_MAX},
+    storage::{
+        arc_str::{ArcStr, OptionAsStr},
+        timeindex::AsTime,
+    },
+};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
 };
+use rayon::iter::ParallelIterator;
 use std::{
     collections::{hash_map, HashMap},
     ops::{Range, RangeInclusive},
@@ -19,6 +32,299 @@ use std::{
 
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
+}
+
+pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
+    // helpers for extracting data from fixtures
+    let get_fixture_metadata_map = |c_props: &Vec<(String, Prop)>| -> HashMap<ArcStr, Prop> {
+        c_props
+            .iter()
+            .map(|(k, v)| (ArcStr::from(k.as_str()), v.clone()))
+            .collect()
+    };
+    let get_fixture_t_prop_map =
+        |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> HashMap<ArcStr, Vec<(i64, Prop)>> {
+            let mut out: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
+            for (t, props) in t_props {
+                for (k, v) in props {
+                    out.entry(ArcStr::from(k.as_str()))
+                        .or_default()
+                        .push((*t, v.clone()));
+                }
+            }
+            for values in out.values_mut() {
+                values.sort_by_key(|(t, _)| *t);
+            }
+            out
+        };
+    let get_node_t_prop_map = |node: &NodeView<Graph>| -> HashMap<ArcStr, Vec<(i64, Prop)>> {
+        let mut out: HashMap<ArcStr, Vec<(i64, Prop)>> = node
+            .properties()
+            .temporal()
+            .iter()
+            .map(|(key, values)| {
+                let mut v = values.iter().map(|(t, p)| (t.t(), p.clone())).collect_vec();
+                v.sort_by_key(|(t, _)| *t);
+                (key, v)
+            })
+            .filter(|(_, v)| !v.is_empty())
+            .collect();
+        for values in out.values_mut() {
+            values.sort_by_key(|(t, _)| *t);
+        }
+        out
+    };
+    let get_edge_t_prop_map = |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, Prop)>> {
+        let mut out: HashMap<ArcStr, Vec<(i64, Prop)>> = edge
+            .properties()
+            .temporal()
+            .iter()
+            .map(|(key, values)| {
+                let mut v = values.iter().map(|(t, p)| (t.t(), p.clone())).collect_vec();
+                v.sort_by_key(|(t, _)| *t);
+                (key, v)
+            })
+            .filter(|(_, v)| !v.is_empty())
+            .collect();
+        for values in out.values_mut() {
+            values.sort_by_key(|(t, _)| *t);
+        }
+        out
+    };
+
+    // collect expected sets from fixture
+    let mut expected_node_histories: HashMap<u64, Vec<i64>> = fixture
+        .nodes()
+        .map(|(n, updates)| {
+            (
+                n,
+                updates.props.t_props.iter().map(|(t, _)| *t).collect_vec(),
+            )
+        })
+        .collect();
+    for ((src, dst, _), updates) in fixture.edges() {
+        expected_node_histories
+            .entry(src)
+            .or_default()
+            .extend(updates.props.t_props.iter().map(|(t, _)| *t));
+        expected_node_histories
+            .entry(dst)
+            .or_default()
+            .extend(updates.props.t_props.iter().map(|(t, _)| *t));
+        // deletions are part of history as well
+        expected_node_histories
+            .entry(src)
+            .or_default()
+            .extend(updates.deletions.iter().copied());
+        expected_node_histories
+            .entry(dst)
+            .or_default()
+            .extend(updates.deletions.iter().copied());
+    }
+    // sort and dedup history vecs to match node.history()
+    for values in expected_node_histories.values_mut() {
+        values.sort();
+        values.dedup();
+    }
+    let expected_edge_pairs: std::collections::HashSet<(u64, u64)> = fixture
+        .edges()
+        .map(|((src, dst, _), _)| (src, dst))
+        .collect();
+    let expected_exploded_edge_count: usize = fixture
+        .edges()
+        .map(|(_, updates)| updates.props.t_props.len())
+        .sum();
+    let expected_edge_layer_updates: HashMap<(u64, u64, ArcStr), _> = fixture
+        .edges()
+        .map(|((s, d, layer), updates)| {
+            ((s, d, ArcStr::from(layer.unwrap_or("_default"))), updates)
+        })
+        .collect();
+
+    // graph-level checks
+    let expected_node_ids: std::collections::HashSet<u64> = expected_node_histories
+        .keys()
+        .copied()
+        .collect::<std::collections::HashSet<u64>>();
+    let actual_node_ids: std::collections::HashSet<u64> = graph
+        .nodes()
+        .id()
+        .par_iter_values()
+        .map(|x| {
+            x.as_u64()
+                .unwrap_or_else(|| panic!("u64 could not be retrieved from GID: {x:?}"))
+        })
+        .collect();
+    assert_eq!(
+        expected_node_ids, actual_node_ids,
+        "mismatched node id set: expected {:?}, got {:?}",
+        expected_node_ids, actual_node_ids
+    );
+
+    assert_eq!(
+        expected_edge_pairs.len(),
+        graph.count_edges(),
+        "mismatched number of unique edges (src,dst) pairs"
+    );
+
+    assert_eq!(
+        expected_exploded_edge_count,
+        graph.count_temporal_edges(),
+        "mismatched number of temporal (exploded) edge events"
+    );
+
+    for ((_, _, layer), _) in &expected_edge_layer_updates {
+        assert!(
+            graph.has_layer(layer.as_ref()),
+            "graph missing expected layer {:?}",
+            layer
+        );
+    }
+
+    // check earliest/latest time
+    let mut all_times: Vec<i64> = Vec::new();
+    for (_, updates) in fixture.nodes() {
+        all_times.extend(updates.props.t_props.iter().map(|(t, _)| *t));
+    }
+    for (_, updates) in fixture.edges() {
+        all_times.extend(updates.props.t_props.iter().map(|(t, _)| *t));
+        all_times.extend(updates.deletions.iter().copied());
+    }
+
+    if all_times.is_empty() {
+        assert!(graph.earliest_time().is_none(), "expected no earliest_time");
+        assert!(graph.latest_time().is_none(), "expected no latest_time");
+    } else {
+        let expected_earliest = *all_times.iter().min().unwrap();
+        let expected_latest = *all_times.iter().max().unwrap();
+        assert_eq!(
+            graph.earliest_time().map(|t| t.t()),
+            Some(expected_earliest),
+            "mismatched earliest_time"
+        );
+        assert_eq!(
+            graph.latest_time().map(|t| t.t()),
+            Some(expected_latest),
+            "mismatched latest_time"
+        );
+    }
+
+    // node-level checks
+    for (node_id, expected_history) in expected_node_histories {
+        let node = graph
+            .node(node_id)
+            .unwrap_or_else(|| panic!("graph should have node {node_id}"));
+        assert_eq!(
+            expected_history,
+            node.history(),
+            "mismatched history for node {node_id}"
+        );
+
+        match fixture.nodes.0.get(&node_id) {
+            Some(updates) => {
+                assert_eq!(
+                    node.node_type().as_str(),
+                    updates.node_type,
+                    "mismatched node_type for node {node_id}"
+                );
+
+                let expected_metadata = get_fixture_metadata_map(&updates.props.c_props);
+                assert_eq!(
+                    node.metadata().as_map(),
+                    expected_metadata,
+                    "mismatched node metadata for node {node_id}"
+                );
+
+                let expected_temporal = get_fixture_t_prop_map(&updates.props.t_props);
+                let actual_temporal = get_node_t_prop_map(&node);
+                assert_eq!(
+                    actual_temporal, expected_temporal,
+                    "mismatched node temporal properties for node {node_id}"
+                );
+            }
+            None => {
+                // node exists only because it was an endpoint of some edge
+                // it should have no node temporal props/metadata/type since fixture didn't add any
+                assert!(
+                    node.metadata().as_map().is_empty(),
+                    "unexpected metadata on endpoint-only node {node_id}"
+                );
+                assert!(
+                    node.properties()
+                        .temporal()
+                        .iter()
+                        .filter(|(_, v)| !v.is_empty())
+                        .next()
+                        .is_none(),
+                    "unexpected temporal props on endpoint-only node {node_id}"
+                );
+                assert_eq!(
+                    node.node_type().as_str(),
+                    None,
+                    "unexpected node_type on endpoint-only node {node_id}"
+                );
+            }
+        }
+    }
+
+    // edge-level checks
+    for edge in graph.edges().iter() {
+        let src = edge.src().id().as_u64().unwrap();
+        let dst = edge.dst().id().as_u64().unwrap();
+
+        assert!(
+            expected_edge_pairs.contains(&(src, dst)),
+            "unexpected edge pair present in graph: {src}->{dst}"
+        );
+
+        for e_layered in edge.explode_layers() {
+            let layer_name = e_layered.layer_name().unwrap_or(ArcStr::from("_default"));
+            let key = (src, dst, layer_name.clone());
+            let updates = expected_edge_layer_updates.get(&key).unwrap_or_else(|| {
+                panic!(
+                    "unexpected edge-layer present in graph: {src}->{dst} layer {:?}",
+                    layer_name
+                )
+            });
+
+            let expected_metadata = get_fixture_metadata_map(&updates.props.c_props);
+            assert_eq!(
+                e_layered.metadata().as_map(),
+                expected_metadata,
+                "mismatched edge metadata for {src}->{dst} in layer {:?}",
+                layer_name
+            );
+
+            let expected_temporal = get_fixture_t_prop_map(&updates.props.t_props);
+            let actual_temporal = get_edge_t_prop_map(&e_layered);
+            assert_eq!(
+                actual_temporal, expected_temporal,
+                "mismatched edge temporal properties for {src}->{dst} in layer {:?}",
+                layer_name
+            );
+
+            let mut expected_deletion_ts = updates.deletions.iter().copied().collect_vec();
+            expected_deletion_ts.sort();
+            let mut actual_del_ts = e_layered.deletions_hist().map(|(t, _)| t.t()).collect_vec();
+            actual_del_ts.sort();
+            assert_eq!(
+                actual_del_ts, expected_deletion_ts,
+                "mismatched edge deletion timestamps for {src}->{dst} in layer {:?}",
+                layer_name
+            );
+        }
+    }
+
+    // also iterate over fixture to make sure nothing is missing
+    for ((src, dst, layer), _) in fixture.edges() {
+        let layer_name = layer.unwrap_or("_default");
+        let lv = graph
+            .layers(layer_name)
+            .unwrap_or_else(|_| panic!("graph should have layer {layer_name:?}"));
+        lv.edge(src, dst).unwrap_or_else(|| {
+            panic!("graph should have edge {src}->{dst} in layer {layer_name:?}")
+        });
+    }
 }
 
 #[macro_export]

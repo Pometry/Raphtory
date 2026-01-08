@@ -610,9 +610,9 @@ mod parquet_tests {
         db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         prelude::*,
         test_utils::{
-            build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
-            EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
-            PropUpdatesFixture,
+            assert_valid_graph, build_edge_list_dyn, build_graph, build_graph_strat,
+            build_nodes_dyn, build_props_dyn, EdgeFixture, EdgeUpdatesFixture, GraphFixture,
+            NodeFixture, NodeUpdatesFixture, PropUpdatesFixture,
         },
     };
     use std::str::FromStr;
@@ -966,10 +966,11 @@ mod parquet_tests {
     // proptest
     fn build_and_check_parquet_encoding(edges: GraphFixture) {
         let g = Graph::from(build_graph(&edges));
-        check_parquet_encoding(g);
+        check_parquet_encoding(&g);
+        assert_valid_graph(&edges, &g);
     }
 
-    fn check_parquet_encoding(g: Graph) {
+    fn check_parquet_encoding(g: &Graph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None).unwrap();
@@ -1082,8 +1083,8 @@ mod parquet_tests {
 
     #[test]
     fn write_graph_to_parquet() {
-        proptest!(|(edges in build_graph_strat(10, 10, 10, 10, true))| {
-            build_and_check_parquet_encoding(edges);
+        proptest!(|(graph in build_graph_strat(10, 10, 10, 10, true))| {
+            build_and_check_parquet_encoding(graph);
         })
     }
 
@@ -1100,7 +1101,7 @@ mod parquet_tests {
         graph
             .add_edge(0, 0, 1, [("test", Prop::map(NO_PROPS))], None)
             .unwrap();
-        check_parquet_encoding(graph);
+        check_parquet_encoding(&graph);
     }
 
     #[test]
