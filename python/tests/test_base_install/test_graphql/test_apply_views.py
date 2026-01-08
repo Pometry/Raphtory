@@ -1029,11 +1029,11 @@ def test_apply_view_after():
             "nodes": {
                 "applyViews": {
                     "list": [
-                        {"history": []},
-                        {"history": []},
-                        {"history": []},
-                        {"history": []},
-                        {"history": []},
+                        {"history": {"timestamps": {"list": []}}},
+                        {"history": {"timestamps": {"list": []}}},
+                        {"history": {"timestamps": {"list": []}}},
+                        {"history": {"timestamps": {"list": []}}},
+                        {"history": {"timestamps": {"list": []}}},
                     ]
                 }
             },
@@ -2378,10 +2378,10 @@ def test_apply_view_a_lot_of_views():
                             "name": "1",
                             "history": {"timestamps": {"list": [1735689600000]}},
                         },
-                        {"name": "2", "history": []},
-                        {"name": "3", "history": []},
-                        {"name": "6", "history": []},
-                        {"name": "7", "history": []},
+                        {"name": "2", "history": {"timestamps": {"list": []}}},
+                        {"name": "3", "history": {"timestamps": {"list": []}}},
+                        {"name": "6", "history": {"timestamps": {"list": []}}},
+                        {"name": "7", "history": {"timestamps": {"list": []}}},
                     ]
                 }
             }

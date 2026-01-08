@@ -279,7 +279,7 @@ def test_graph_windows_and_layers_query():
                               {
                                 "timestamp": 555,
                                 "eventId": 14
-                              },
+                              }
                             ]
                           }
                         }
@@ -300,7 +300,7 @@ def test_graph_windows_and_layers_query():
                               {
                                 "timestamp": 562,
                                 "eventId": 16
-                              },
+                              }
                             ]
                           }
                         }
