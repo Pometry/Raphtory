@@ -54,6 +54,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             }
             for values in out.values_mut() {
                 values.sort_by_key(|(t, _)| *t);
+                values.dedup()
             }
             out
         };

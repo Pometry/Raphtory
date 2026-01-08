@@ -966,14 +966,17 @@ mod parquet_tests {
     // proptest
     fn build_and_check_parquet_encoding(edges: GraphFixture) {
         let g = Graph::from(build_graph(&edges));
-        check_parquet_encoding(&g);
-        assert_valid_graph(&edges, &g);
+        check_parquet_encoding(&g, Some(edges));
     }
 
-    fn check_parquet_encoding(g: &Graph) {
+    fn check_parquet_encoding(g: &Graph, fixture: Option<GraphFixture>) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None).unwrap();
+        if let Some(f) = fixture {
+            assert_valid_graph(&f, g);
+            assert_valid_graph(&f, &g2);
+        }
         assert_graph_equal(&g, &g2);
     }
 
@@ -1101,7 +1104,7 @@ mod parquet_tests {
         graph
             .add_edge(0, 0, 1, [("test", Prop::map(NO_PROPS))], None)
             .unwrap();
-        check_parquet_encoding(&graph);
+        check_parquet_encoding(&graph, None);
     }
 
     #[test]
