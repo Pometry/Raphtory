@@ -3,7 +3,7 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::strategy::{Config, PersistentStrategy},
+    persist::strategy::{PersistenceConfig, PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
 };
@@ -48,7 +48,7 @@ pub mod test_utils;
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 
 #[derive(Debug)]
-pub struct GraphStore<NS, ES, GS, EXT: Config> {
+pub struct GraphStore<NS, ES, GS, EXT: PersistenceConfig> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     graph_props: Arc<GraphPropStorageInner<GS, EXT>>,
@@ -62,7 +62,7 @@ pub struct ReadLockedGraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: Config,
+    EXT: PersistenceConfig,
 > {
     pub nodes: Arc<ReadLockedNodeStorage<NS, EXT>>,
     pub edges: Arc<ReadLockedEdgeStorage<ES, EXT>>,
@@ -73,7 +73,7 @@ impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy,
+    EXT: PersistenceStrategy,
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, GS, EXT> {
@@ -445,7 +445,7 @@ impl<
     }
 }
 
-impl<NS, ES, GS, EXT: Config> Drop for GraphStore<NS, ES, GS, EXT> {
+impl<NS, ES, GS, EXT: PersistenceConfig> Drop for GraphStore<NS, ES, GS, EXT> {
     fn drop(&mut self) {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         self._ext.set_node_types(node_types);
@@ -457,7 +457,7 @@ impl<NS, ES, GS, EXT: Config> Drop for GraphStore<NS, ES, GS, EXT> {
     }
 }
 
-fn write_graph_config<EXT: Config>(
+fn write_graph_config<EXT: PersistenceConfig>(
     graph_dir: impl AsRef<Path>,
     config: &EXT,
 ) -> Result<(), StorageError> {
@@ -467,7 +467,7 @@ fn write_graph_config<EXT: Config>(
     Ok(())
 }
 
-fn read_graph_config<EXT: PersistentStrategy>(
+fn read_graph_config<EXT: PersistenceStrategy>(
     graph_dir: impl AsRef<Path>,
 ) -> Result<EXT, StorageError> {
     let config_file = graph_dir.as_ref().join("graph_config.json");

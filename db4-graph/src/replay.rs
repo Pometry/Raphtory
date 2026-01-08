@@ -13,7 +13,7 @@ use raphtory_core::entities::GidRef;
 use storage::{
     api::nodes::NodeSegmentOps,
     api::edges::EdgeSegmentOps,
-    persist::strategy::PersistentStrategy,
+    persist::strategy::PersistenceStrategy,
     NS, ES, GS,
     error::StorageError,
     wal::{GraphReplay, TransactionID, LSN},
@@ -22,7 +22,7 @@ use storage::resolver::GIDResolverOps;
 
 impl<EXT> GraphReplay for WriteLockedGraph<'_, EXT>
 where
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
 {
     fn replay_add_edge(
         &mut self,

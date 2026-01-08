@@ -106,16 +106,6 @@ impl Storage {
         }
     }
 
-    pub(crate) fn new_with_path_and_ext(path: impl AsRef<Path>, ext: Extension) -> Self {
-        Self {
-            graph: GraphStorage::Unlocked(Arc::new(
-                TemporalGraph::new_with_path(path, ext).unwrap(),
-            )),
-            #[cfg(feature = "search")]
-            index: RwLock::new(GraphIndex::Empty),
-        }
-    }
-
     pub(crate) fn load_from(path: impl AsRef<Path>) -> Self {
         let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path).unwrap()));
         Self {

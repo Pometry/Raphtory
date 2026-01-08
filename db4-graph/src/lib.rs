@@ -21,7 +21,7 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::{Config, PersistentStrategy},
+    persist::strategy::{PersistenceStrategy},
     resolver::GIDResolverOps,
     Extension, GIDResolver, Layer, ReadLockedLayer, transaction::TransactionManager,
     WalImpl, ES, NS, GS, wal::Wal,
@@ -31,7 +31,7 @@ use tempfile::TempDir;
 mod replay;
 
 #[derive(Debug)]
-pub struct TemporalGraph<EXT: Config = Extension> {
+pub struct TemporalGraph<EXT: PersistenceStrategy = Extension> {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
     pub node_count: AtomicUsize,
@@ -88,7 +88,7 @@ impl Default for TemporalGraph<Extension> {
     }
 }
 
-impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> TemporalGraph<EXT> {
+impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> TemporalGraph<EXT> {
     pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
@@ -339,7 +339,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
 /// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
 where
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
 {
     pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
@@ -347,7 +347,7 @@ where
     pub graph: &'a TemporalGraph<EXT>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
+impl<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
     WriteLockedGraph<'a, EXT>
 {
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {

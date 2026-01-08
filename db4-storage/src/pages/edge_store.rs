@@ -13,7 +13,7 @@ use crate::{
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     },
-    persist::strategy::Config,
+    persist::strategy::PersistenceConfig,
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
@@ -42,7 +42,7 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     locked_pages: Box<[ES::ArcLockedSegment]>,
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedEdgeStorage<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> ReadLockedEdgeStorage<ES, EXT> {
     pub fn storage(&self) -> &EdgeStorageInner<ES, EXT> {
         &self.storage
     }
@@ -96,7 +96,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedEdgeStorage<ES,
     }
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> EdgeStorageInner<ES, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
         let locked_pages = self
             .segments

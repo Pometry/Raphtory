@@ -1,4 +1,5 @@
 use std::ops::DerefMut;
+use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
@@ -12,8 +13,8 @@ pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
 pub const DEFAULT_MAX_MEMORY_BYTES: usize = 32 * 1024 * 1024;
 
-pub trait Config:
-    Default + std::fmt::Debug + Clone + Send + Sync + 'static + for<'a> Deserialize<'a> + Serialize
+pub trait PersistenceConfig:
+    Default + Debug + Clone + Send + Sync + 'static + for<'a> Deserialize<'a> + Serialize
 {
     fn max_node_page_len(&self) -> u32;
     fn max_edge_page_len(&self) -> u32;
@@ -24,7 +25,7 @@ pub trait Config:
     fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>);
 }
 
-pub trait PersistentStrategy: Config {
+pub trait PersistenceStrategy: PersistenceConfig {
     type NS;
     type ES;
     type GS;
@@ -75,7 +76,7 @@ impl Default for NoOpStrategy {
     }
 }
 
-impl Config for NoOpStrategy {
+impl PersistenceConfig for NoOpStrategy {
     fn max_node_page_len(&self) -> u32 {
         self.max_node_page_len
     }
@@ -102,7 +103,7 @@ impl Config for NoOpStrategy {
     }
 }
 
-impl PersistentStrategy for NoOpStrategy {
+impl PersistenceStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;

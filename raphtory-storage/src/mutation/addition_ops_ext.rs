@@ -21,14 +21,14 @@ use raphtory_core::{
 };
 use storage::{
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
-    persist::strategy::PersistentStrategy,
+    persist::strategy::PersistenceStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     Extension, transaction::TransactionManager, WalImpl, ES, NS, GS,
     wal::LSN,
 };
 
-pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
+pub struct WriteS<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
     static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
 }
 
@@ -37,7 +37,7 @@ pub struct UnlockedSession<'a> {
     graph: &'a TemporalGraph<Extension>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> EdgeWriteLock
+impl<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> EdgeWriteLock
     for WriteS<'a, EXT>
 {
     fn internal_add_static_edge(

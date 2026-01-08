@@ -4,7 +4,7 @@ pub mod segment;
 use crate::{
     api::graph_props::GraphPropSegmentOps,
     error::StorageError,
-    persist::strategy::Config,
+    persist::strategy::PersistenceConfig,
     segments::graph_prop::{entry::MemGraphPropEntry, segment::MemGraphPropSegment},
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -20,7 +20,7 @@ use std::{
 /// `GraphPropSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
 #[derive(Debug)]
-pub struct GraphPropSegmentView<P: Config> {
+pub struct GraphPropSegmentView<P: PersistenceConfig> {
     /// In-memory segment that contains the latest graph properties
     /// and graph metadata writes.
     head: Arc<RwLock<MemGraphPropSegment>>,
@@ -33,7 +33,7 @@ pub struct GraphPropSegmentView<P: Config> {
     _persistent: P,
 }
 
-impl<P: Config> GraphPropSegmentOps for GraphPropSegmentView<P> {
+impl<P: PersistenceConfig> GraphPropSegmentOps for GraphPropSegmentView<P> {
     type Extension = P;
 
     type Entry<'a> = MemGraphPropEntry<'a>;

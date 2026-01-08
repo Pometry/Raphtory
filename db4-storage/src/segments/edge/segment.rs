@@ -3,7 +3,7 @@ use crate::{
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
     pages::resolve_pos,
-    persist::strategy::PersistentStrategy,
+    persist::strategy::PersistenceStrategy,
     properties::PropMutEntry,
     segments::{
         HasRow, SegmentContainer,
@@ -462,7 +462,7 @@ impl LockedESegment for ArcLockedSegmentView {
     }
 }
 
-impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegmentView<P> {
+impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegmentView<P> {
     type Extension = P;
 
     type Entry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;

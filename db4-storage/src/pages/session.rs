@@ -4,7 +4,7 @@ use super::{
 use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    persist::strategy::{Config, PersistentStrategy},
+    persist::strategy::{PersistenceConfig, PersistenceStrategy},
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     wal::LSN,
 };
@@ -20,7 +20,7 @@ pub struct WriteSession<
     NS: NodeSegmentOps,
     ES: EdgeSegmentOps,
     GS: GraphPropSegmentOps,
-    EXT: Config,
+    EXT: PersistenceConfig,
 > {
     node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>,
@@ -32,7 +32,7 @@ impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy,
+    EXT: PersistenceStrategy,
 > WriteSession<'a, NS, ES, GS, EXT>
 {
     pub fn new(

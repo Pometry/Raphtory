@@ -1,5 +1,5 @@
 use crate::{
-    api::nodes::{LockedNSSegment, NodeSegmentOps}, error::StorageError, loop_lock_write, persist::strategy::PersistentStrategy, segments::{
+    api::nodes::{LockedNSSegment, NodeSegmentOps}, error::StorageError, loop_lock_write, persist::strategy::PersistenceStrategy, segments::{
         node::entry::{MemNodeEntry, MemNodeRef}, HasRow, SegmentContainer
     }, wal::LSN, LocalPOS
 };
@@ -398,7 +398,7 @@ impl LockedNSSegment for ArcLockedSegmentView {
     }
 }
 
-impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegmentView<P> {
+impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegmentView<P> {
     type Extension = P;
 
     type Entry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
