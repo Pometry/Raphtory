@@ -50,9 +50,9 @@
 
 use crate::{
     algorithms::motifs::local_triangle_count::local_triangle_count,
-    core::entities::nodes::node_ref::AsNodeRef, db::api::view::*,
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::api::view::{internal::GraphView, *},
 };
-use crate::db::api::view::internal::GraphView;
 
 /// Local clustering coefficient - measures the degree to which a single node in a graph tend to cluster together.
 ///
@@ -63,10 +63,7 @@ use crate::db::api::view::internal::GraphView;
 ///
 /// # Returns
 /// the local clustering coefficient of node v in g.
-pub fn local_clustering_coefficient<G: GraphView, V: AsNodeRef>(
-    graph: &G,
-    v: V,
-) -> Option<f64> {
+pub fn local_clustering_coefficient<G: GraphView, V: AsNodeRef>(graph: &G, v: V) -> Option<f64> {
     let v = v.as_node_ref();
     if let Some(node) = graph.node(v) {
         if let Some(triangle_count) = local_triangle_count(graph, v) {
