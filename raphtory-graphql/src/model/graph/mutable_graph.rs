@@ -603,24 +603,17 @@ mod tests {
     use raphtory::{
         db::api::view::MaterializedGraph,
         vectors::{
-            cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate, Embedding,
+            custom::{serve_custom_embedding, EmbeddingServer},
+            embeddings::EmbeddingResult,
+            storage::OpenAIEmbeddings,
+            template::DocumentTemplate,
+            Embedding,
         },
     };
-    use std::collections::HashMap;
     use tempfile::tempdir;
 
-    async fn fake_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
-        Ok(texts
-            .into_iter()
-            .map(|_| vec![1.0, 0.0, 0.0].into())
-            .collect_vec())
-    }
-
-    fn custom_template() -> DocumentTemplate {
-        DocumentTemplate {
-            node_template: Some("{{ name }} is a {{ node_type }}".to_string()),
-            edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
-        }
+    fn fake_embedding(_: &str) -> Vec<f32> {
+        vec![1.0]
     }
 
     fn create_test_graph() -> MaterializedGraph {
@@ -628,31 +621,50 @@ mod tests {
         graph.into()
     }
 
-    async fn create_mutable_graph() -> (GqlMutableGraph, tempfile::TempDir) {
+    async fn create_mutable_graph() -> (GqlMutableGraph, tempfile::TempDir, EmbeddingServer) {
         let graph = create_test_graph();
         let tmp_dir = tempdir().unwrap();
 
         let config = AppConfig::default();
         let data = Data::new(tmp_dir.path(), &config);
 
-        // Override the embedding function with a mock for testing.
-        // data.embedding_conf = Some(EmbeddingConf { // FIXME: now need to vectorise before starting the server
-        //     cache: VectorCache::in_memory(fake_embedding),
-        //     global_template: Some(custom_template()),
-        //     individual_templates: HashMap::new(),
-        // });
+        let graph_name = "test_graph";
 
-        data.insert_graph("test_graph", graph).await.unwrap();
+        data.insert_graph(graph_name, graph).await.unwrap();
 
-        let (graph_with_vectors, path) = data.get_graph("test_graph").await.unwrap();
+        let template = DocumentTemplate {
+            node_template: Some("{{ name }} is a {{ node_type }}".to_string()),
+            edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
+        };
+
+        let embedding_server = serve_custom_embedding("0.0.0.0:1745", fake_embedding).await;
+
+        let config = OpenAIEmbeddings {
+            model: "whatever".to_owned(),
+            api_base: Some("http://localhost:1745".to_owned()),
+            api_key_env: None,
+            project_id: None,
+            org_id: None,
+        };
+        let vector_cache = data.vector_cache.resolve().await.unwrap();
+        let model = vector_cache.openai(config).await.unwrap();
+        data.vectorise_folder(
+            &ExistingGraphFolder::try_from(tmp_dir.path().to_path_buf(), graph_name).unwrap(),
+            &template,
+            model,
+        )
+        .await
+        .unwrap();
+
+        let (graph_with_vectors, path) = data.get_graph(graph_name).await.unwrap();
         let mutable_graph = GqlMutableGraph::new(path, graph_with_vectors);
 
-        (mutable_graph, tmp_dir)
+        (mutable_graph, tmp_dir, embedding_server)
     }
 
     #[tokio::test]
     async fn test_add_nodes_empty_list() {
-        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph().await;
 
         let nodes = vec![];
         let result = mutable_graph.add_nodes(nodes).await;
@@ -663,7 +675,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_nodes_simple() {
-        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph().await;
 
         let nodes = vec![
             NodeAddition {
@@ -691,14 +703,13 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap());
 
-        let query = "node1".to_string();
-        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let embedding = fake_embedding("node1");
         let limit = 5;
         let result = mutable_graph
             .graph
             .vectors
             .unwrap()
-            .nodes_by_similarity(embedding, limit, None)
+            .nodes_by_similarity(&embedding.into(), limit, None)
             .await;
 
         assert!(result.is_ok());
@@ -707,7 +718,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_nodes_with_properties() {
-        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph().await;
 
         let nodes = vec![
             NodeAddition {
@@ -762,14 +773,13 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap());
 
-        let query = "complex_node_1".to_string();
-        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let embedding = fake_embedding("complex_node_1");
         let limit = 5;
         let result = mutable_graph
             .graph
             .vectors
             .unwrap()
-            .nodes_by_similarity(embedding, limit, None)
+            .nodes_by_similarity(&embedding.into(), limit, None)
             .await;
 
         assert!(result.is_ok());
@@ -778,7 +788,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_edges_simple() {
-        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph().await;
 
         // First add some nodes.
         let nodes = vec![
@@ -838,16 +848,17 @@ mod tests {
         assert!(result.unwrap());
 
         // Test that edge embeddings were generated.
-        let query = "node1 appeared with node2".to_string();
-        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let embedding = fake_embedding("node1 appeared with node2");
         let limit = 5;
         let result = mutable_graph
             .graph
             .vectors
             .unwrap()
-            .edges_by_similarity(embedding, limit, None)
+            .edges_by_similarity(&embedding.into(), limit, None)
             .await;
 
+        // dbg!(&result.err());
+        // assert!(false);
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
     }
