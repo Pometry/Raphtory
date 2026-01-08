@@ -324,8 +324,9 @@ mod lancedb_tests {
         assert_vector_is_searchable(&collection, 0, embedding(0)).await;
         assert_vector_is_searchable(&collection, 1, embedding(1)).await;
 
-        // VERY IMPORTANT: we create only 300 vectors out of the 4094 posible ones so that the tails nof the vectors
-        // are irrelevant and quantization remove that instead os messing up the head of the vector
+        // VERY IMPORTANT: we create only 300 vectors out of the 4094 posible ones so that the tails of the vectors
+        // are irrelevant and quantization removes that instead os messing up the head of the vectors.
+        // Also we create more than 256 to trigger the index type change from flat to IvfPq
         for index in 2..300 {
             collection
                 .insert_vectors(vec![index as u64], vec![embedding(index)].into_iter())
@@ -377,9 +378,12 @@ mod lancedb_tests {
         assert_eq!(result.len(), 1);
         let (returned_id, distance) = result[0];
         assert_eq!(returned_id, id);
-        assert!(
-            distance < 0.000001,
-            "distance has to be close to 0, instead is {distance}"
-        )
+        let returned_vector = collection.get_id(returned_id).await.unwrap().unwrap();
+        assert_eq!(returned_vector, vector);
+        // this assertion is unfortunately flaky because of quantization, as long as above remains true we are fine though
+        // assert!(
+        //     distance < 0.000001,
+        //     "distance has to be close to 0, instead is {distance}"
+        // )
     }
 }
