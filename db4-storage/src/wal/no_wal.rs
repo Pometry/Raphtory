@@ -23,8 +23,6 @@ impl Wal for NoWal {
         Ok(())
     }
 
-    fn wait_for_flush(&self, _lsn: LSN) {}
-
     fn rotate(&self, _cutoff_lsn: LSN) -> Result<(), StorageError> {
         Ok(())
     }

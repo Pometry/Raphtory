@@ -139,7 +139,7 @@ impl<
         let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata
-        let graph_props_storage =
+        let graph_prop_storage =
             Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
 
         for node_type in ext.node_types().iter() {
@@ -151,7 +151,7 @@ impl<
         Ok(Self {
             nodes: node_storage,
             edges: edge_storage,
-            graph_props: graph_props_storage,
+            graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
             _ext: ext,
@@ -184,7 +184,7 @@ impl<
             edge_meta,
             ext.clone(),
         ));
-        let graph_storage = Arc::new(GraphPropStorageInner::new_with_meta(
+        let graph_prop_storage = Arc::new(GraphPropStorageInner::new_with_meta(
             graph_props_path.as_deref(),
             graph_props_meta,
             ext.clone(),
@@ -198,7 +198,7 @@ impl<
         Self {
             nodes: node_storage,
             edges: edge_storage,
-            graph_props: graph_storage,
+            graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
             _ext: ext,

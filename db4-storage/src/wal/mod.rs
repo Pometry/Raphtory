@@ -30,9 +30,6 @@ pub trait Wal {
     /// Flushes in-memory WAL entries up to the given LSN to disk.
     fn flush(&self, lsn: LSN) -> Result<(), StorageError>;
 
-    /// Blocks until the WAL has flushed the given LSN to disk.
-    fn wait_for_flush(&self, lsn: LSN);
-
     /// Rotates the underlying WAL file.
     /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
     fn rotate(&self, cutoff_lsn: LSN) -> Result<(), StorageError>;
