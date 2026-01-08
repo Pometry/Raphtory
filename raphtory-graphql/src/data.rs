@@ -174,6 +174,11 @@ impl Data {
         }
     }
 
+    async fn invalidate(&self, path: &str) {
+        self.cache.invalidate(path).await;
+        self.cache.run_pending_tasks().await; // make sure the item is actually dropped
+    }
+
     pub fn validate_path_for_insert(
         &self,
         path: &str,
@@ -206,6 +211,7 @@ impl Data {
         writeable_folder: ValidWriteableGraphFolder,
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
+        self.invalidate(writeable_folder.local_path()).await;
         let vectors = self.vectorise(graph.clone(), &writeable_folder).await;
         let graph = blocking_compute(move || {
             writeable_folder.write_graph_data(graph.clone())?;
@@ -214,7 +220,6 @@ impl Data {
             Ok::<_, InsertionError>(graph)
         })
         .await?;
-
         self.cache
             .insert(graph.folder.local_path_string(), graph)
             .await;
@@ -227,6 +232,7 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
+        self.invalidate(folder.local_path()).await;
         let folder_clone = folder.clone();
         blocking_io(move || folder_clone.write_graph_bytes(bytes)).await?;
         if let Some(template) = self.resolve_template(folder.local_path()) {
@@ -243,9 +249,7 @@ impl Data {
         graph_folder: ExistingGraphFolder,
     ) -> Result<(), MutationErrorInner> {
         let dirty_file = mark_dirty(graph_folder.root())?;
-        if let Some(graph) = self.cache.remove(graph_folder.local_path()).await {
-            //TODO: disable drop handling
-        }
+        self.invalidate(graph_folder.local_path()).await;
         blocking_io(move || {
             fs::remove_dir_all(graph_folder.root())?;
             fs::remove_file(dirty_file)?;
