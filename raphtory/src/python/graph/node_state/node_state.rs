@@ -15,7 +15,6 @@ use crate::{
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
-    py_borrowing_iter,
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,

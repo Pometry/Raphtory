@@ -12,17 +12,13 @@ build-all: rust-build
 
 test-all: rust-test-all python-test
 
-test-all-public: rust-test-all-public python-test-public
-
 # Tidying
 
 tidy: rust-fmt build-python stubs python-fmt
 
-tidy-public: rust-fmt build-python-public stubs python-fmt
-
 python-tidy: stubs python-fmt test-graphql-schema
 
-check-pr: tidy-public test-all
+check-pr: tidy test-all
 
 gen-graphql-schema:
 	raphtory schema > raphtory-graphql/schema.graphql
@@ -31,7 +27,6 @@ test-graphql-schema: install-node-tools
 	npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql
 
 # Utilities
-
 activate-storage:
 	./scripts/activate_private_storage.py
 
@@ -71,13 +66,12 @@ run-graphql:
 rust-test:
 	cargo test -q
 
-rust-test-all: activate-storage
-	cargo nextest run --all --features=storage
+rust-check:
 	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
 
-rust-test-all-public:
+rust-test-all: rust-check
 	cargo nextest run --all
-	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,storage
+
 
 ##########
 # Python #
@@ -86,31 +80,22 @@ rust-test-all-public:
 install-python:
 	cd python && maturin build && pip install ../target/wheels/*.whl
 
-build-python-public: deactivate-storage
+build-python:
 	cd python && maturin develop -r --extras=dev
 
-build-python: activate-storage
-	cd python && maturin develop -r --features=storage --extras=dev
+debug-python:
+	cd python && maturin develop --profile=debug --extras=dev
 
 # Testing
-
-python-test: activate-storage
-	cd python && tox run && tox run -e storage
-
-python-test-public:
+python-test:
 	cd python && tox run
 
 python-fmt:
 	cd python && black .
 
-debug-python-public: deactivate-storage
-	cd python && maturin develop --profile=debug
 
 build-python-rtd:
 	cd python && maturin build --profile=build-fast && pip install ../target/wheels/*.whl
-
-debug-python: activate-storage
-	cd python && maturin develop --features=storage,extension-module --extras=dev
 
 ########
 # Docs #

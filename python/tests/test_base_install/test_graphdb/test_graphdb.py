@@ -1203,7 +1203,7 @@ def test_save_missing_dir():
     g = create_graph()
     tmpdirname = tempfile.TemporaryDirectory()
     inner_folder = "".join(random.choice(string.ascii_letters) for _ in range(10))
-    graph_path = tmpdirname.name + "/" + inner_folder + "/test_graph.bin"
+    graph_path = tmpdirname.name + "/" + inner_folder + "/test_graph"
     with pytest.raises(Exception):
         g.save_to_file(graph_path)
 

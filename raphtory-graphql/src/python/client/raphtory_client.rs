@@ -1,5 +1,4 @@
 use crate::{
-    paths::ExistingGraphFolder,
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph,
@@ -17,7 +16,7 @@ use raphtory::{db::api::view::MaterializedGraph, serialise::GraphFolder};
 use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, future::Future, io::Cursor, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, future::Future, io::Cursor, sync::Arc};
 use tokio::runtime::Runtime;
 use tracing::debug;
 
@@ -419,8 +418,7 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
         match data.get("receiveGraph") {
             Some(JsonValue::String(graph)) => {
-                let path_for_decoded_graph = None;
-                let mat_graph = url_decode_graph(graph, path_for_decoded_graph)?;
+                let mat_graph = url_decode_graph(graph)?;
                 Ok(mat_graph)
             }
             _ => Err(PyException::new_err(format!(

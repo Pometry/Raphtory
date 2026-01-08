@@ -4,19 +4,23 @@ use crate::{
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
-    io::parquet_loaders::{
-        load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
-        load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
+    io::{
+        arrow::prop_handler::lift_property_col,
+        parquet_loaders::{
+            get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_props_from_parquet,
+            load_edges_from_parquet, load_graph_props_from_parquet, load_node_props_from_parquet,
+            load_nodes_from_parquet, process_parquet_file_to_df,
+        },
     },
     prelude::*,
     serialise::{
-        graph_folder::GRAPH_PATH,
         parquet::{
             edges::encode_edge_deletions,
             graph::{encode_graph_cprop, encode_graph_tprop},
             model::get_id_type,
             nodes::{encode_nodes_cprop, encode_nodes_tprop},
         },
+        GraphPaths,
     },
 };
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
@@ -46,7 +50,7 @@ use std::{
     sync::Arc,
 };
 use walkdir::WalkDir;
-use zip::{write::FileOptions, ZipWriter};
+use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 mod edges;
 mod model;
@@ -55,22 +59,19 @@ mod nodes;
 mod graph;
 
 pub trait ParquetEncoder {
-    fn encode_parquet_to_bytes(&self) -> Result<Vec<u8>, GraphError> {
-        // Write directly to an in-memory cursor
-        let mut zip_buffer = Vec::new();
-        let cursor = std::io::Cursor::new(&mut zip_buffer);
-
-        self.encode_parquet_to_zip(cursor)?;
-
-        Ok(zip_buffer)
-    }
-
-    fn encode_parquet_to_zip<W: Write + Seek>(&self, writer: W) -> Result<(), GraphError> {
+    /// Encode the graph as parquet data to the zip writer
+    /// (note the writer is still open for appending more data after calling this function)
+    ///
+    /// The graph data will be written at `prefix` inside the zip.
+    fn encode_parquet_to_zip<W: Write + Seek, P: AsRef<Path>>(
+        &self,
+        mut zip_writer: &mut ZipWriter<W>,
+        prefix: P,
+    ) -> Result<(), GraphError> {
+        let prefix = prefix.as_ref();
         // Encode to a tmp dir using parquet, then zip it to the writer
         let temp_dir = tempfile::tempdir()?;
         self.encode_parquet(&temp_dir)?;
-
-        let mut zip_writer = ZipWriter::new(writer);
 
         // Walk through the directory and add files and directories to the zip.
         // Files and directories are stored in the archive under the GRAPH_PATH directory.
@@ -85,10 +86,7 @@ pub trait ParquetEncoder {
             })?;
 
             // Attach GRAPH_PATH as a prefix to the relative path
-            let zip_entry_name = PathBuf::from(GRAPH_PATH)
-                .join(relative_path)
-                .to_string_lossy()
-                .into_owned();
+            let zip_entry_name = prefix.join(relative_path).to_string_lossy().into_owned();
 
             if path.is_file() {
                 zip_writer.start_file::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
@@ -100,8 +98,6 @@ pub trait ParquetEncoder {
                 zip_writer.add_directory::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
             }
         }
-
-        zip_writer.finish()?;
         Ok(())
     }
 
@@ -109,22 +105,23 @@ pub trait ParquetEncoder {
 }
 
 pub trait ParquetDecoder: Sized {
-    fn decode_parquet_from_bytes(
+    fn decode_parquet_from_bytes<P: AsRef<Path>>(
         bytes: &[u8],
         path_for_decoded_graph: Option<&Path>,
+        prefix: P,
     ) -> Result<Self, GraphError> {
         // Read directly from an in-memory cursor
-        let reader = std::io::Cursor::new(bytes);
-
-        Self::decode_parquet_from_zip(reader, path_for_decoded_graph)
+        let mut reader = ZipArchive::new(std::io::Cursor::new(bytes))?;
+        Self::decode_parquet_from_zip(&mut reader, path_for_decoded_graph, prefix)
     }
 
-    fn decode_parquet_from_zip<R: Read + Seek>(
-        reader: R,
+    fn decode_parquet_from_zip<R: Read + Seek, P: AsRef<Path>>(
+        zip: &mut ZipArchive<R>,
         path_for_decoded_graph: Option<&Path>,
+        prefix: P,
     ) -> Result<Self, GraphError> {
+        let prefix = prefix.as_ref();
         // Unzip to a temp dir and decode parquet from there
-        let mut zip = zip::ZipArchive::new(reader)?;
         let temp_dir = tempfile::tempdir()?;
 
         for i in 0..zip.len() {
@@ -134,18 +131,8 @@ pub trait ParquetDecoder: Sized {
                 None => continue,
             };
 
-            if zip_entry_name.starts_with(GRAPH_PATH) {
-                // Since we attach the GRAPH_PATH prefix to the zip entry name
-                // when encoding, we strip it away while decoding.
-                let relative_path = zip_entry_name
-                    .strip_prefix(GRAPH_PATH)
-                    .map_err(|e| {
-                        GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
-                    })?
-                    .to_path_buf();
-
+            if let Ok(relative_path) = zip_entry_name.strip_prefix(prefix) {
                 let out_path = temp_dir.path().join(relative_path);
-
                 if file.is_dir() {
                     std::fs::create_dir_all(&out_path)?;
                 } else {
@@ -153,25 +140,12 @@ pub trait ParquetDecoder: Sized {
                     if let Some(parent) = out_path.parent() {
                         std::fs::create_dir_all(parent)?;
                     }
-
                     let mut out_file = std::fs::File::create(&out_path)?;
                     std::io::copy(&mut file, &mut out_file)?;
                 }
             }
         }
-
         Self::decode_parquet(temp_dir.path(), path_for_decoded_graph)
-    }
-
-    fn is_parquet_decodable(path: impl AsRef<Path>) -> bool {
-        // Considered to be decodable if there is at least one .parquet
-        WalkDir::new(path)
-            .into_iter()
-            .filter_map(Result::ok)
-            .any(|entry| {
-                entry.path().is_file()
-                    && entry.path().extension().is_some_and(|ext| ext == "parquet")
-            })
     }
 
     fn decode_parquet(
@@ -431,13 +405,37 @@ fn decode_graph_type(path: impl AsRef<Path>) -> Result<GraphType, GraphError> {
     g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))
 }
 
+pub fn decode_graph_metadata(
+    path: &impl GraphPaths,
+) -> Result<Vec<(String, Option<Prop>)>, GraphError> {
+    let c_graph_path = path.graph_path()?.join(GRAPH_C_PATH);
+    let exclude = vec![TIME_COL];
+    let (c_props, _) = collect_prop_columns(&c_graph_path, &exclude)?;
+    let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+    let mut result: Vec<(String, Option<Prop>)> =
+        c_props.iter().map(|s| (s.to_string(), None)).collect();
+
+    for path in get_parquet_file_paths(&c_graph_path)? {
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&c_props), None)?;
+        for chunk in df_view.chunks {
+            let chunk = chunk?;
+            for (col, res) in chunk.chunk.into_iter().zip(&mut result) {
+                if let Some(value) = lift_property_col(&col).get(0) {
+                    res.1 = Some(value);
+                }
+            }
+        }
+    }
+    Ok(result)
+}
+
 fn decode_graph_storage(
     path: impl AsRef<Path>,
     batch_size: Option<usize>,
     path_for_decoded_graph: Option<&Path>,
 ) -> Result<Arc<Storage>, GraphError> {
     let graph = if let Some(storage_path) = path_for_decoded_graph {
-        Arc::new(Storage::new_at_path(storage_path))
+        Arc::new(Storage::new_at_path(storage_path)?)
     } else {
         Arc::new(Storage::default())
     };

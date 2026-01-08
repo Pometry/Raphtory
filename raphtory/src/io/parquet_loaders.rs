@@ -1,6 +1,6 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
-    errors::{GraphError, InvalidPathReason::PathDoesNotExist},
+    errors::GraphError,
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
 };
@@ -360,9 +360,7 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
             }
         }
     } else {
-        return Err(GraphError::from(PathDoesNotExist(
-            parquet_path.to_path_buf(),
-        )));
+        return Err(GraphError::PathDoesNotExist(parquet_path.to_path_buf()));
     }
     parquet_files.sort();
 

@@ -45,7 +45,7 @@ def test_new_graph_fails_if_graph_found():
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'test/path/g1' already exists" in str(excinfo.value)
 
 
 def test_client_new_graph_works():
