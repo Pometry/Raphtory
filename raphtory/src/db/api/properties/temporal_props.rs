@@ -68,7 +68,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         self.id
     }
 
-    pub fn history(&self) -> History<Self> {
+    pub fn history(&self) -> History<'_, Self> {
         History::new(self.clone())
     }
 
@@ -76,7 +76,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         self.props.temporal_values_iter(self.id)
     }
 
-    pub fn values_rev(&self) -> BoxedLIter<Prop> {
+    pub fn values_rev(&self) -> BoxedLIter<'_, Prop> {
         self.props.temporal_values_iter_rev(self.id)
     }
 
