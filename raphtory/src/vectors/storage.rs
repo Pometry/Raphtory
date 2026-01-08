@@ -19,6 +19,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::sync::OnceCell;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OpenAIEmbeddings {
@@ -67,8 +68,34 @@ impl VectorMeta {
     }
 }
 
+#[derive(Clone)]
+pub struct LazyDiskVectorCache {
+    path: PathBuf,
+    cache: OnceCell<VectorCache>,
+}
+
+impl LazyDiskVectorCache {
+    pub fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            cache: Default::default(),
+        }
+    }
+
+    pub async fn resolve(&self) -> GraphResult<&VectorCache> {
+        self.cache
+            .get_or_try_init(async || VectorCache::on_disk(&self.path.clone()).await)
+            .await
+    }
+}
+
+// This is currently being used only by the GraphQL server,if that changes, accepting LazyDiskVectorCache might be too inflexible
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub async fn read_from_path(path: &Path, graph: G, cache: &VectorCache) -> GraphResult<Self> {
+    pub async fn read_from_path(
+        path: &Path,
+        graph: G,
+        cache: &LazyDiskVectorCache,
+    ) -> GraphResult<Self> {
         let meta = VectorMeta::read_from_path(&meta_path(path)).await?;
 
         let factory = LanceDb;
@@ -78,7 +105,8 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let node_db = NodeDb(factory.from_path(db_path.clone(), "nodes", dim).await?);
         let edge_db = EdgeDb(factory.from_path(db_path, "edges", dim).await?);
 
-        let model = cache.validate_and_cache_model(meta.model).await?.into();
+        let resolved = cache.resolve().await?;
+        let model = resolved.validate_and_cache_model(meta.model).await?.into();
 
         Ok(VectorisedGraph {
             template: meta.template,

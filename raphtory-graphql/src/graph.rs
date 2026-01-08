@@ -17,7 +17,9 @@ use raphtory::{
     prelude::{CacheOps, EdgeViewOps, IndexMutationOps},
     serialise::GraphFolder,
     storage::core_ops::CoreGraphOps,
-    vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
+    vectors::{
+        cache::VectorCache, storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph,
+    },
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
@@ -80,7 +82,7 @@ impl GraphWithVectors {
 
     pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
-        cache: &VectorCache,
+        cache: &LazyDiskVectorCache,
         create_index: bool,
     ) -> Result<Self, GraphError> {
         let graph_path = &folder.get_graph_path();

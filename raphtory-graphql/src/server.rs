@@ -30,10 +30,7 @@ use raphtory::{
     },
 };
 use serde_json::json;
-use std::{
-    fs::create_dir_all,
-    path::{Path, PathBuf},
-};
+use std::{fs::create_dir_all, path::PathBuf};
 use thiserror::Error;
 use tokio::{
     io,
@@ -145,7 +142,7 @@ impl GraphServer {
         template: &DocumentTemplate,
         embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
-        let vector_cache = self.data.get_vector_cache().await?;
+        let vector_cache = self.data.vector_cache.resolve().await?;
         let model = vector_cache.openai(embeddings).await?;
         for folder in self.data.get_all_graph_folders() {
             self.data
@@ -166,8 +163,8 @@ impl GraphServer {
         template: DocumentTemplate,
         embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
-        let vector_cache = self.data.get_vector_cache().await?;
-        let model = vector_cache.openai(embeddings).await?;
+        let vetor_cache = self.data.vector_cache.resolve();
+        let model = vetor_cache.await?.openai(embeddings).await?;
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), path)?;
         self.data.vectorise_folder(&folder, &template, model).await
     }

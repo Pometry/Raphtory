@@ -12,6 +12,7 @@ use raphtory::{
     prelude::CacheOps,
     vectors::{
         cache::{CachedEmbeddingModel, VectorCache},
+        storage::LazyDiskVectorCache,
         template::DocumentTemplate,
         vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
@@ -50,7 +51,7 @@ pub struct Data {
     pub(crate) work_dir: PathBuf, // TODO: move this to config?
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool, // TODO: move this to config?
-    pub(crate) vector_cache: OnceCell<VectorCache>,
+    pub(crate) vector_cache: LazyDiskVectorCache,
 }
 
 impl Data {
@@ -79,7 +80,7 @@ impl Data {
             work_dir: work_dir.to_path_buf(),
             cache,
             create_index,
-            vector_cache: OnceCell::new(),
+            vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
         }
     }
 
@@ -168,14 +169,6 @@ impl Data {
         Ok(())
     }
 
-    pub(crate) async fn get_vector_cache(&self) -> GraphResult<&VectorCache> {
-        self.vector_cache
-            .get_or_try_init(|| async {
-                VectorCache::on_disk(&self.work_dir.join(".vector-cache")).await
-            })
-            .await
-    }
-
     // TODO: return iter
     pub fn get_all_graph_folders(&self) -> Vec<ExistingGraphFolder> {
         let base_path = self.work_dir.clone();
@@ -195,8 +188,7 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let vector_cache = self.get_vector_cache().await?;
-        GraphWithVectors::read_from_folder(&folder, vector_cache, self.create_index).await
+        GraphWithVectors::read_from_folder(&folder, &self.vector_cache, self.create_index).await
         // FIXME: I need some blocking_io inside of GraphWithVectors::read_from_folder
     }
 }
