@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766153744499,
+  "lastUpdate": 1767889791674,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3023,6 +3023,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1472,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cheick95@gmail.com",
+            "name": "Cheick Ba",
+            "username": "BaCk7"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "566bd990611542ef7f58a915878e415671770fb1",
+          "message": "local clustering coefficient relax static graph requirement (#2433)\n\n* local clustering coefficient relax static graph requirement\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-08T16:54:01+01:00",
+          "tree_id": "2940e26f163d6f2b71c94c5e0a9757fc4748469d",
+          "url": "https://github.com/Pometry/Raphtory/commit/566bd990611542ef7f58a915878e415671770fb1"
+        },
+        "date": 1767889787942,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1476,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 196,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 154,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1111,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1016,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1339,
             "unit": "req/s"
           }
         ]
