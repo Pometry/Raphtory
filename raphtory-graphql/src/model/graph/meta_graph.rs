@@ -66,7 +66,7 @@ impl MetaGraph {
 
     /// Returns path of graph.
     async fn path(&self) -> String {
-        self.folder.local_path_string()
+        self.folder.local_path().into()
     }
 
     /// Returns the timestamp for the creation of the graph.

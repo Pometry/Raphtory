@@ -221,7 +221,7 @@ impl Data {
         })
         .await?;
         self.cache
-            .insert(graph.folder.local_path_string(), graph)
+            .insert(graph.folder.local_path().into(), graph)
             .await;
         Ok(())
     }
@@ -293,7 +293,7 @@ impl Data {
         match vectors {
             Ok(vectors) => Some(vectors),
             Err(error) => {
-                let name = folder.local_path_string();
+                let name = folder.local_path();
                 warn!("An error occurred when trying to vectorise graph {name}: {error}");
                 None
             }

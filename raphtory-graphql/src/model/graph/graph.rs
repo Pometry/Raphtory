@@ -431,7 +431,7 @@ impl GqlGraph {
 
     /// Returns path of graph.
     async fn path(&self) -> String {
-        self.path.local_path_string()
+        self.path.local_path().into()
     }
 
     /// Returns namespace of graph.

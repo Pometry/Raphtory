@@ -365,7 +365,6 @@ impl GqlMutableGraph {
             Ok(true)
         })
         .await;
-
         self.post_mutation_ops().await;
 
         result

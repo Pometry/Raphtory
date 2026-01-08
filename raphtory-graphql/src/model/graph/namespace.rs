@@ -3,7 +3,7 @@ use crate::{
     model::graph::{
         collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
     },
-    paths::{valid_path, ExistingGraphFolder, PathValidationError, ValidPath},
+    paths::{ExistingGraphFolder, PathValidationError, ValidPath},
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -70,7 +70,7 @@ impl Namespace {
     }
 
     pub fn try_new(root: PathBuf, relative_path: String) -> Result<Self, PathValidationError> {
-        let current_dir = valid_path(root, relative_path.as_str())?;
+        let current_dir = ValidPath::try_new(root, relative_path.as_str())?;
         Self::try_from_valid(current_dir, &relative_path)
     }
 
@@ -92,7 +92,7 @@ impl Namespace {
     }
 
     pub fn try_new_child(&self, file_name: &str) -> Result<NamespacedItem, PathValidationError> {
-        let current_dir = valid_path(self.current_dir.clone(), file_name)?;
+        let current_dir = ValidPath::try_new(self.current_dir.clone(), file_name)?;
         let relative_path = if self.relative_path.is_empty() {
             file_name.to_owned()
         } else {

@@ -9,7 +9,7 @@ use raphtory::{
     prelude::GraphViewOps,
     serialise::{
         metadata::GraphMetadata, GraphFolder, GraphPaths, RelativePath, StableDecode,
-        WriteableGraphFolder, META_PATH,
+        WriteableGraphFolder, ROOT_META_PATH,
     },
 };
 use std::{
@@ -31,10 +31,6 @@ pub trait ValidGraphPaths {
 
     fn graph_folder(&self) -> &impl GraphPaths;
 
-    fn local_path_string(&self) -> String {
-        self.local_path().to_owned()
-    }
-
     fn with_internal_errors<R: WithPath>(
         &self,
         fun: impl FnOnce() -> R,
@@ -45,15 +41,43 @@ pub trait ValidGraphPaths {
 
 pub struct ValidPath(PathBuf);
 
+fn valid_path_inner(
+    base_path: PathBuf,
+    relative_path: &str,
+) -> Result<PathBuf, InternalPathValidationError> {
+    ensure_clean_folder(&base_path)?;
+    let mut full_path = base_path.clone();
+    let user_facing_path: &Path = relative_path.as_ref();
+
+    if relative_path.contains(r"//") {
+        Err(InvalidPathReason::DoubleForwardSlash)?;
+    }
+    if relative_path.contains(r"\") {
+        Err(InvalidPathReason::BackslashError)?;
+    }
+
+    // fail if any component is a Prefix (C://), tries to access root,
+    // tries to access a parent dir or is a symlink which could break out of the working dir
+    for component in user_facing_path.components() {
+        extend_and_validate(&mut full_path, component)?;
+    }
+
+    Ok(full_path)
+}
+
 impl ValidPath {
+    pub fn try_new(base_path: PathBuf, relative_path: &str) -> Result<Self, PathValidationError> {
+        let full_path = valid_path_inner(base_path, relative_path).with_path(relative_path)?;
+        Ok(ValidPath(full_path))
+    }
     /// path exists and is a graph
     pub fn is_graph(&self) -> bool {
-        self.0.exists() && self.0.join(META_PATH).exists()
+        self.0.exists() && self.0.join(ROOT_META_PATH).exists()
     }
 
     /// path exists and is a namespace
     pub fn is_namespace(&self) -> bool {
-        self.0.exists() && !self.0.join(META_PATH).exists()
+        self.0.exists() && !self.0.join(ROOT_META_PATH).exists()
     }
 
     pub fn into_path(self) -> PathBuf {
@@ -84,7 +108,7 @@ impl Deref for ExistingGraphFolder {
 
 impl ExistingGraphFolder {
     pub fn try_from(base_path: PathBuf, relative_path: &str) -> Result<Self, PathValidationError> {
-        let path = valid_path(base_path, relative_path)?;
+        let path = ValidPath::try_new(base_path, relative_path)?;
         Self::try_from_valid(path, relative_path)
     }
 
@@ -142,7 +166,7 @@ fn extend_and_validate(
 ) -> Result<(), InternalPathValidationError> {
     let component = valid_component(component)?;
     // check if some intermediate path is already a graph
-    if full_path.join(META_PATH).exists() {
+    if full_path.join(ROOT_META_PATH).exists() {
         return Err(InvalidPathReason::ParentIsGraph.into());
     }
     full_path.push(component);
@@ -152,38 +176,6 @@ fn extend_and_validate(
     }
     ensure_clean_folder(&full_path)?;
     Ok(())
-}
-
-fn valid_path_inner(
-    base_path: PathBuf,
-    relative_path: &str,
-) -> Result<PathBuf, InternalPathValidationError> {
-    ensure_clean_folder(&base_path)?;
-    let mut full_path = base_path.clone();
-    let user_facing_path: &Path = relative_path.as_ref();
-
-    if relative_path.contains(r"//") {
-        Err(InvalidPathReason::DoubleForwardSlash)?;
-    }
-    if relative_path.contains(r"\") {
-        Err(InvalidPathReason::BackslashError)?;
-    }
-
-    // fail if any component is a Prefix (C://), tries to access root,
-    // tries to access a parent dir or is a symlink which could break out of the working dir
-    for component in user_facing_path.components() {
-        extend_and_validate(&mut full_path, component)?;
-    }
-
-    Ok(full_path)
-}
-
-pub(crate) fn valid_path(
-    base_path: PathBuf,
-    relative_path: &str,
-) -> Result<ValidPath, PathValidationError> {
-    let full_path = valid_path_inner(base_path, relative_path).with_path(relative_path)?;
-    Ok(ValidPath(full_path))
 }
 
 #[derive(Clone, Debug)]

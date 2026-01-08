@@ -10,7 +10,7 @@ use crate::{
         metadata::GraphMetadata,
         parquet::{ParquetDecoder, ParquetEncoder},
         GraphFolder, GraphPaths, Metadata, RelativePath, DEFAULT_DATA_PATH, DEFAULT_GRAPH_PATH,
-        META_PATH,
+        GRAPH_META_PATH, ROOT_META_PATH,
     },
 };
 use std::{
@@ -32,12 +32,12 @@ pub trait StableEncode: StaticGraphViewOps + AdditionOps {
 impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
     fn encode_to_zip<W: Write + Seek>(&self, mut writer: ZipWriter<W>) -> Result<(), GraphError> {
         let graph_meta = GraphMetadata::from_graph(self);
-        writer.start_file(META_PATH, SimpleFileOptions::default())?;
+        writer.start_file(ROOT_META_PATH, SimpleFileOptions::default())?;
         writer.write(&serde_json::to_vec(&RelativePath {
             path: DEFAULT_DATA_PATH.to_string(),
         })?)?;
         writer.start_file(
-            [DEFAULT_DATA_PATH, META_PATH].join("/"),
+            [DEFAULT_DATA_PATH, GRAPH_META_PATH].join("/"),
             SimpleFileOptions::default(),
         )?;
         writer.write(&serde_json::to_vec(&Metadata {

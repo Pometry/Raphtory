@@ -1,3 +1,15 @@
+//! Raphtory container format for managing graph data.
+//!
+//! Folder structure:
+//!
+//! GraphFolder
+//! ├── .raph         # Metadata file (json: {path: "data{id}"}) pointing at the current data folder
+//! └── data{id}/    # Data folder (incremental id for atomic replacement)
+//!     ├── .meta         # Metadata file (json: {path: "graph{id}", meta: {}}) pointing at the current graph folder
+//!     ├── graph{id}/   # Graph data (incremental id for atomic replacement)
+//!     ├── index/        # Search indexes (optional)
+//!     └── vectors/      # Vector embeddings (optional)
+
 use crate::{
     db::api::view::internal::GraphView, errors::GraphError, prelude::ParquetEncoder,
     serialise::metadata::GraphMetadata,
@@ -20,8 +32,11 @@ pub const DEFAULT_GRAPH_PATH: &str = "graph0";
 pub const DATA_PATH: &str = "data";
 pub const DEFAULT_DATA_PATH: &str = "data0";
 
-/// Stores graph metadata
-pub const META_PATH: &str = ".raph";
+/// Stores data folder path
+pub const ROOT_META_PATH: &str = ".raph";
+
+/// Stores graph folder path and graph metadata
+pub const GRAPH_META_PATH: &str = ".meta";
 
 /// Temporary metadata for atomic replacement
 pub const DIRTY_PATH: &str = ".dirty";
@@ -70,7 +85,7 @@ pub fn read_path_pointer(
 }
 
 pub fn read_data_path(base_path: &Path, prefix: &str) -> Result<Option<String>, GraphError> {
-    read_path_pointer(base_path, META_PATH, prefix)
+    read_path_pointer(base_path, ROOT_META_PATH, prefix)
 }
 
 pub fn read_dirty_path(base_path: &Path, prefix: &str) -> Result<Option<String>, GraphError> {
@@ -98,7 +113,7 @@ pub fn read_or_default_data_path(base_path: &Path, prefix: &str) -> Result<Strin
 }
 
 pub fn get_zip_data_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
-    let file = zip.by_name(META_PATH)?;
+    let file = zip.by_name(ROOT_META_PATH)?;
     Ok(read_path_from_file(file, DATA_PATH)?)
 }
 
@@ -115,7 +130,7 @@ pub fn get_zip_graph_path_name<R: Read + Seek>(
     mut data_path: String,
 ) -> Result<String, GraphError> {
     data_path.push('/');
-    data_path.push_str(META_PATH);
+    data_path.push_str(GRAPH_META_PATH);
     let graph_path = read_path_from_file(zip.by_name(&data_path)?, GRAPH_PATH)?;
     Ok(graph_path)
 }
@@ -123,7 +138,7 @@ pub fn get_zip_graph_path_name<R: Read + Seek>(
 pub fn get_zip_meta_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
     let mut path = get_zip_data_path(zip)?;
     path.push('/');
-    path.push_str(META_PATH);
+    path.push_str(GRAPH_META_PATH);
     Ok(path)
 }
 
@@ -142,7 +157,7 @@ pub trait GraphPaths {
     fn root(&self) -> &Path;
 
     fn root_meta_path(&self) -> PathBuf {
-        self.root().join(META_PATH)
+        self.root().join(ROOT_META_PATH)
     }
 
     fn data_path(&self) -> Result<InnerGraphFolder, GraphError> {
@@ -171,7 +186,7 @@ pub trait GraphPaths {
 
     fn meta_path(&self) -> Result<PathBuf, GraphError> {
         let mut path = self.data_path()?.path;
-        path.push(META_PATH);
+        path.push(GRAPH_META_PATH);
         Ok(path)
     }
 
@@ -271,20 +286,6 @@ impl<P: AsRef<Path> + ?Sized> GraphPaths for P {
     }
 }
 
-/// A container for managing graph data.
-///
-/// Folder structure:
-///
-/// GraphFolder
-/// ├── .raph         # Metadata file (json: {path: "data_{id}"})
-/// └── data_{id}/    # Data folder (incremental id for atomic replacement)
-///     ├── .raph         # Metadata file (json: {path: "graph_{id}", meta: {}})
-///     ├── graph_{id}/   # Graph data
-///     ├── index/        # Search indexes (optional)
-///     └── vectors/      # Vector embeddings (optional)
-///
-/// If `write_as_zip_format` is true, then the folder is compressed
-/// and stored as a zip file.
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     root_folder: PathBuf,
@@ -491,7 +492,10 @@ impl WriteableGraphFolder {
     /// This operation returns an error if there is no write in progress.
     pub fn finish(self) -> Result<GraphFolder, GraphError> {
         let old_data = read_data_path(self.root(), DATA_PATH)?;
-        fs::rename(self.root().join(DIRTY_PATH), self.root().join(META_PATH))?;
+        fs::rename(
+            self.root().join(DIRTY_PATH),
+            self.root().join(ROOT_META_PATH),
+        )?;
         if let Some(old_data) = old_data {
             let old_data_path = self.root().join(old_data);
             if old_data_path.is_dir() {
@@ -553,7 +557,7 @@ impl InnerGraphFolder {
                 meta,
             })?,
         )?;
-        fs::rename(&dirty_path, data_path.join(META_PATH))?;
+        fs::rename(&dirty_path, data_path.join(GRAPH_META_PATH))?;
         if new_relative_graph_path != old_relative_graph_path {
             fs::remove_dir_all(old_graph_path)?;
         }
@@ -568,7 +572,7 @@ impl InnerGraphFolder {
     }
 
     pub fn meta_path(&self) -> PathBuf {
-        self.path.join(META_PATH)
+        self.path.join(GRAPH_META_PATH)
     }
 
     pub fn relative_graph_path(&self) -> Result<String, GraphError> {
