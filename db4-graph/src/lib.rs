@@ -16,6 +16,7 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
+    api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
@@ -242,13 +243,22 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
 
     #[inline]
     pub fn resolve_node_ref(&self, node: NodeRef) -> Option<VID> {
-        match node {
+        let vid = match node {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
             NodeRef::External(GidRef::Str(string)) => self
                 .logical_to_physical
                 .get_str(string)
                 .or_else(|| self.logical_to_physical.get_u64(string.id())),
+        }?;
+        // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
+        let nodes = self.storage().nodes();
+        let (page_id, pos) = nodes.resolve_pos(vid);
+        let node_page = nodes.segments().get(page_id)?;
+        if pos.0 < node_page.num_nodes() {
+            Some(vid)
+        } else {
+            None
         }
     }
 
