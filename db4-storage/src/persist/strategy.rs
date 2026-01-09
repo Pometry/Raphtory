@@ -1,8 +1,8 @@
 use std::ops::DerefMut;
 use std::fmt::Debug;
-
+use std::path::Path;
 use serde::{Deserialize, Serialize};
-
+use crate::error::StorageError;
 use crate::segments::{
     edge::segment::{EdgeSegmentView, MemEdgeSegment},
     graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
@@ -35,6 +35,22 @@ impl Default for PersistenceConfig {
 }
 
 impl PersistenceConfig {
+    const CONFIG_FILE: &str = "persistence_config.json";
+
+    pub fn load_from_dir(dir: impl AsRef<Path>) -> Result<Self, StorageError> {
+        let config_file = dir.as_ref().join(Self::CONFIG_FILE);
+        let config_file = std::fs::File::open(config_file)?;
+        let config = serde_json::from_reader(config_file)?;
+        Ok(config)
+    }
+
+    pub fn save_to_dir(&self, dir: impl AsRef<Path>) -> Result<(), StorageError> {
+        let config_file = dir.as_ref().join(Self::CONFIG_FILE);
+        let config_file = std::fs::File::create(&config_file)?;
+        serde_json::to_writer_pretty(config_file, self)?;
+        Ok(())
+    }
+
     pub fn new_with_memory(max_memory_bytes: usize) -> Self {
         Self {
             max_memory_bytes,
