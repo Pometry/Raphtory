@@ -18,6 +18,7 @@ use crate::{
     },
     prelude::*,
 };
+use itertools::Itertools;
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
 use rayon::iter::ParallelIterator;
 use std::{
@@ -168,8 +169,8 @@ where
         let view = self.base_graph.clone();
         let node_select = self.predicate.clone();
         self.node_list().into_par_iter().filter(move |&vid| {
-            let node = g.core_node(vid);
-            view.filter_node(node.as_ref()) && node_select.apply(&g, vid)
+            g.try_core_node(vid)
+                .is_some_and(|node| view.filter_node(node.as_ref()) && node_select.apply(&g, vid))
         })
     }
 
@@ -179,8 +180,8 @@ where
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
         self.node_list().into_iter().filter(move |&vid| {
-            let node = g.core_node(vid);
-            view.filter_node(node.as_ref()) && selector.apply(&g, vid)
+            g.try_core_node(vid)
+                .is_some_and(|node| view.filter_node(node.as_ref()) && selector.apply(&g, vid))
         })
     }
 
@@ -189,8 +190,8 @@ where
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
         self.node_list().into_iter().filter(move |&vid| {
-            let node = g.core_node(vid);
-            view.filter_node(node.as_ref()) && selector.apply(&g, vid)
+            g.try_core_node(vid)
+                .is_some_and(|node| view.filter_node(node.as_ref()) && selector.apply(&g, vid))
         })
     }
 
