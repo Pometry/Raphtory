@@ -18,7 +18,7 @@ pub struct PersistenceConfig {
     pub max_node_page_len: u32,
     pub max_edge_page_len: u32,
     pub max_memory_bytes: usize,
-    pub is_parallel: bool,
+    pub bg_flush_enabled: bool,
     pub node_types: Vec<String>,
 }
 
@@ -41,7 +41,7 @@ impl Default for PersistenceConfig {
             max_node_page_len: DEFAULT_MAX_PAGE_LEN_NODES,
             max_edge_page_len: DEFAULT_MAX_PAGE_LEN_EDGES,
             max_memory_bytes: DEFAULT_MAX_MEMORY_BYTES,
-            is_parallel: false,
+            bg_flush_enabled: true,
             node_types: Vec::new(),
         }
     }
@@ -92,7 +92,7 @@ impl NoOpStrategy {
                 max_node_page_len,
                 max_edge_page_len,
                 max_memory_bytes: usize::MAX,
-                is_parallel: false,
+                bg_flush_enabled: true,
                 node_types: Vec::new(),
             },
         }
