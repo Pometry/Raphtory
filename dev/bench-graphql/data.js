@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767901343113,
+  "lastUpdate": 1767969004372,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3131,6 +3131,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1503,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d7678ed7ed41bd9dbddf0a3b67961e6bc4040087",
+          "message": "update version of python for the docker image (#2434)\n\n* update version of python for the docker image\n\n* fix syntax error\n\n* tag docker images with the python and debian version used",
+          "timestamp": "2026-01-09T14:54:15+01:00",
+          "tree_id": "816258df8406c2584aa88a7b7713a73b04cb08dd",
+          "url": "https://github.com/Pometry/Raphtory/commit/d7678ed7ed41bd9dbddf0a3b67961e6bc4040087"
+        },
+        "date": 1767969001257,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1444,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 181,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 119,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1198,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1019,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1459,
             "unit": "req/s"
           }
         ]
