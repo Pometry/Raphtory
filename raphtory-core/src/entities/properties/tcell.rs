@@ -1,4 +1,4 @@
-use crate::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps, TimeIndexWindow};
+use crate::storage::timeindex::{AsTime, EventTime, TimeIndexOps, TimeIndexWindow};
 use either::Either;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, Extend, FusedIterator, Iterator};
 use raphtory_api::core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike};
@@ -10,9 +10,9 @@ use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 pub enum TCell<A> {
     #[default]
     Empty,
-    TCell1(TimeIndexEntry, A),
-    TCellCap(SVM<TimeIndexEntry, A>),
-    TCellN(BTreeMap<TimeIndexEntry, A>),
+    TCell1(EventTime, A),
+    TCellCap(SVM<EventTime, A>),
+    TCellN(BTreeMap<EventTime, A>),
 }
 
 #[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator, Extend)]
@@ -26,12 +26,12 @@ enum TCellVariants<Empty, TCell1, TCellCap, TCellN> {
 const BTREE_CUTOFF: usize = 128;
 
 impl<A: PartialEq> TCell<A> {
-    pub fn new(t: TimeIndexEntry, value: A) -> Self {
+    pub fn new(t: EventTime, value: A) -> Self {
         TCell::TCell1(t, value)
     }
 
     #[inline]
-    pub fn set(&mut self, t: TimeIndexEntry, value: A) {
+    pub fn set(&mut self, t: EventTime, value: A) {
         match self {
             TCell::Empty => {
                 *self = TCell::TCell1(t, value);
@@ -53,7 +53,7 @@ impl<A: PartialEq> TCell<A> {
                     svm.insert(t, value);
                 } else {
                     let svm = std::mem::take(svm);
-                    let mut btm: BTreeMap<TimeIndexEntry, A> = BTreeMap::new();
+                    let mut btm: BTreeMap<EventTime, A> = BTreeMap::new();
                     for (k, v) in svm.into_iter() {
                         btm.insert(k, v);
                     }
@@ -67,7 +67,7 @@ impl<A: PartialEq> TCell<A> {
         }
     }
 
-    pub fn at(&self, ti: &TimeIndexEntry) -> Option<&A> {
+    pub fn at(&self, ti: &EventTime) -> Option<&A> {
         match self {
             TCell::Empty => None,
             TCell::TCell1(t, v) => (t == ti).then_some(v),
@@ -77,7 +77,7 @@ impl<A: PartialEq> TCell<A> {
     }
 }
 impl<A: Sync + Send> TCell<A> {
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&EventTime, &A)> + Send + Sync {
         match self {
             TCell::Empty => TCellVariants::Empty(std::iter::empty()),
             TCell::TCell1(t, value) => TCellVariants::TCell1(std::iter::once((t, value))),
@@ -92,8 +92,8 @@ impl<A: Sync + Send> TCell<A> {
 
     pub fn iter_window(
         &self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + Sync {
+        r: Range<EventTime>,
+    ) -> impl DoubleEndedIterator<Item = (&EventTime, &A)> + Send + Sync {
         match self {
             TCell::Empty => TCellVariants::Empty(std::iter::empty()),
             TCell::TCell1(t, value) => TCellVariants::TCell1(if r.contains(t) {
@@ -110,22 +110,16 @@ impl<A: Sync + Send> TCell<A> {
         &self,
         r: Range<i64>,
     ) -> impl DoubleEndedIterator<Item = (i64, &A)> + Send + Sync + '_ {
-        self.iter_window(TimeIndexEntry::range(r))
+        self.iter_window(EventTime::range(r))
             .map(|(t, a)| (t.t(), a))
     }
 
-    pub fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, &A)> {
+    pub fn last_before(&self, t: EventTime) -> Option<(EventTime, &A)> {
         match self {
             TCell::Empty => None,
             TCell::TCell1(t2, v) => (*t2 < t).then_some((*t2, v)),
-            TCell::TCellCap(map) => map
-                .range(TimeIndexEntry::MIN..t)
-                .last()
-                .map(|(ti, v)| (*ti, v)),
-            TCell::TCellN(map) => map
-                .range(TimeIndexEntry::MIN..t)
-                .last()
-                .map(|(ti, v)| (*ti, v)),
+            TCell::TCellCap(map) => map.range(EventTime::MIN..t).last().map(|(ti, v)| (*ti, v)),
+            TCell::TCellN(map) => map.range(EventTime::MIN..t).last().map(|(ti, v)| (*ti, v)),
         }
     }
 
@@ -144,7 +138,7 @@ impl<A: Sync + Send> TCell<A> {
 }
 
 impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = TimeIndexWindow<'a, Self::IndexType, TCell<A>>;
 
     #[inline]
@@ -270,12 +264,12 @@ impl<'a, A: Send + Sync> TimeIndexLike<'a> for &'a TCell<A> {
 #[cfg(test)]
 mod tcell_tests {
     use super::TCell;
-    use crate::storage::timeindex::{AsTime, TimeIndexEntry};
+    use crate::storage::timeindex::{AsTime, EventTime};
 
     #[test]
     fn set_new_value_for_tcell_initialized_as_empty() {
         let mut tcell = TCell::default();
-        tcell.set(TimeIndexEntry::start(16), String::from("lobster"));
+        tcell.set(EventTime::start(16), String::from("lobster"));
 
         assert_eq!(
             tcell.iter().map(|(_, v)| v).collect::<Vec<_>>(),
@@ -285,8 +279,8 @@ mod tcell_tests {
 
     #[test]
     fn every_new_update_to_the_same_prop_is_recorded_as_history() {
-        let mut tcell = TCell::new(TimeIndexEntry::start(1), "Pometry");
-        tcell.set(TimeIndexEntry::start(2), "Pometry Inc.");
+        let mut tcell = TCell::new(EventTime::start(1), "Pometry");
+        tcell.set(EventTime::start(2), "Pometry Inc.");
 
         assert_eq!(
             tcell.iter_t().collect::<Vec<_>>(),
@@ -296,8 +290,8 @@ mod tcell_tests {
 
     #[test]
     fn new_update_with_the_same_time_to_a_prop_is_ignored() {
-        let mut tcell = TCell::new(TimeIndexEntry::start(1), "Pometry");
-        tcell.set(TimeIndexEntry::start(1), "Pometry Inc.");
+        let mut tcell = TCell::new(EventTime::start(1), "Pometry");
+        tcell.set(EventTime::start(1), "Pometry Inc.");
 
         assert_eq!(
             tcell.iter_t().collect::<Vec<_>>(),
@@ -315,17 +309,17 @@ mod tcell_tests {
 
         assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![]);
 
-        let tcell = TCell::new(TimeIndexEntry::start(3), "Pometry");
+        let tcell = TCell::new(EventTime::start(3), "Pometry");
 
         assert_eq!(
             tcell.iter().collect::<Vec<_>>(),
-            vec![(&TimeIndexEntry::start(3), &"Pometry")]
+            vec![(&EventTime::start(3), &"Pometry")]
         );
 
         assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(3, &"Pometry")]);
 
-        let mut tcell = TCell::new(TimeIndexEntry::start(2), "Pometry");
-        tcell.set(TimeIndexEntry::start(1), "Inc. Pometry");
+        let mut tcell = TCell::new(EventTime::start(2), "Pometry");
+        tcell.set(EventTime::start(1), "Inc. Pometry");
 
         assert_eq!(
             // Results are ordered by time
@@ -337,14 +331,14 @@ mod tcell_tests {
             // Results are ordered by time
             tcell.iter().collect::<Vec<_>>(),
             vec![
-                (&TimeIndexEntry::start(1), &"Inc. Pometry"),
-                (&TimeIndexEntry::start(2), &"Pometry")
+                (&EventTime::start(1), &"Inc. Pometry"),
+                (&EventTime::start(2), &"Pometry")
             ]
         );
 
         let mut tcell: TCell<i64> = TCell::default();
         for n in 1..130 {
-            tcell.set(TimeIndexEntry::start(n), n)
+            tcell.set(EventTime::start(n), n)
         }
 
         assert_eq!(tcell.iter_t().count(), 129);
@@ -357,7 +351,7 @@ mod tcell_tests {
         let tcell: TCell<String> = TCell::default();
 
         let actual = tcell
-            .iter_window(TimeIndexEntry::MIN..TimeIndexEntry::MAX)
+            .iter_window(EventTime::MIN..EventTime::MAX)
             .collect::<Vec<_>>();
         let expected = vec![];
         assert_eq!(actual, expected);
@@ -367,13 +361,13 @@ mod tcell_tests {
             vec![]
         );
 
-        let tcell = TCell::new(TimeIndexEntry::start(3), "Pometry");
+        let tcell = TCell::new(EventTime::start(3), "Pometry");
 
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(3..4))
+                .iter_window(EventTime::range(3..4))
                 .collect::<Vec<_>>(),
-            vec![(&TimeIndexEntry(3, 0), &"Pometry")]
+            vec![(&EventTime(3, 0), &"Pometry")]
         );
 
         assert_eq!(
@@ -381,13 +375,13 @@ mod tcell_tests {
             vec![(3, &"Pometry")]
         );
 
-        let mut tcell = TCell::new(TimeIndexEntry::start(3), "Pometry");
-        tcell.set(TimeIndexEntry::start(1), "Pometry Inc.");
-        tcell.set(TimeIndexEntry::start(2), "Raphtory");
+        let mut tcell = TCell::new(EventTime::start(3), "Pometry");
+        tcell.set(EventTime::start(1), "Pometry Inc.");
+        tcell.set(EventTime::start(2), "Raphtory");
 
-        let one = TimeIndexEntry::start(1);
-        let two = TimeIndexEntry::start(2);
-        let three = TimeIndexEntry::start(3);
+        let one = EventTime::start(1);
+        let two = EventTime::start(2);
+        let three = EventTime::start(3);
 
         assert_eq!(
             tcell.iter_window_t(2..3).collect::<Vec<_>>(),
@@ -397,14 +391,14 @@ mod tcell_tests {
         let expected = vec![];
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(4..5))
+                .iter_window(EventTime::range(4..5))
                 .collect::<Vec<_>>(),
             expected
         );
 
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(1..i64::MAX))
+                .iter_window(EventTime::range(1..i64::MAX))
                 .collect::<Vec<_>>(),
             vec![
                 (&one, &"Pometry Inc."),
@@ -415,14 +409,14 @@ mod tcell_tests {
 
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(3..i64::MAX))
+                .iter_window(EventTime::range(3..i64::MAX))
                 .collect::<Vec<_>>(),
             vec![(&three, &"Pometry")]
         );
 
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(2..i64::MAX))
+                .iter_window(EventTime::range(2..i64::MAX))
                 .collect::<Vec<_>>(),
             vec![(&two, &"Raphtory"), (&three, &"Pometry")]
         );
@@ -430,14 +424,14 @@ mod tcell_tests {
         let expected = vec![];
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(5..i64::MAX))
+                .iter_window(EventTime::range(5..i64::MAX))
                 .collect::<Vec<_>>(),
             expected
         );
 
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(i64::MIN..4))
+                .iter_window(EventTime::range(i64::MIN..4))
                 .collect::<Vec<_>>(),
             vec![
                 (&one, &"Pometry Inc."),
@@ -449,21 +443,21 @@ mod tcell_tests {
         let expected = vec![];
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(i64::MIN..1))
+                .iter_window(EventTime::range(i64::MIN..1))
                 .collect::<Vec<_>>(),
             expected
         );
 
         let mut tcell: TCell<i64> = TCell::default();
         for n in 1..130 {
-            tcell.set(TimeIndexEntry::start(n), n)
+            tcell.set(EventTime::start(n), n)
         }
 
         assert_eq!(tcell.iter_window_t(i64::MIN..i64::MAX).count(), 129);
 
         assert_eq!(
             tcell
-                .iter_window(TimeIndexEntry::range(i64::MIN..i64::MAX))
+                .iter_window(EventTime::range(i64::MIN..i64::MAX))
                 .count(),
             129
         )

@@ -1,22 +1,20 @@
-use crate::model::plugins::entry_point::EntryPoint;
-use async_graphql::{dynamic::FieldValue, Context};
-use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
-use once_cell::sync::Lazy;
-use raphtory::db::api::view::DynamicGraph;
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    sync::{Mutex, MutexGuard},
-};
-
 use super::{
     algorithms::{Pagerank, ShortestPath},
     operation::Operation,
     RegisterFunction,
 };
+use crate::model::plugins::entry_point::EntryPoint;
+use async_graphql::{dynamic::FieldValue, indexmap::IndexMap, Context};
+use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
+use once_cell::sync::Lazy;
+use raphtory::db::api::view::DynamicGraph;
+use std::{
+    borrow::Cow,
+    sync::{Mutex, MutexGuard},
+};
 
-pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<IndexMap<String, RegisterFunction>>> =
+    Lazy::new(|| Mutex::new(IndexMap::new()));
 
 pub struct GraphAlgorithmPlugin {
     pub graph: DynamicGraph,
@@ -29,8 +27,8 @@ impl From<DynamicGraph> for GraphAlgorithmPlugin {
 }
 
 impl<'a> EntryPoint<'a> for GraphAlgorithmPlugin {
-    fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
-        HashMap::from([
+    fn predefined_operations() -> IndexMap<&'static str, RegisterFunction> {
+        IndexMap::from([
             (
                 "pagerank",
                 Box::new(Pagerank::register_operation) as RegisterFunction,
@@ -42,7 +40,7 @@ impl<'a> EntryPoint<'a> for GraphAlgorithmPlugin {
         ])
     }
 
-    fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
+    fn lock_plugins() -> MutexGuard<'static, IndexMap<String, RegisterFunction>> {
         GRAPH_ALGO_PLUGINS.lock().unwrap()
     }
 }

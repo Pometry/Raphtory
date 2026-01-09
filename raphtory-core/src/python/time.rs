@@ -1,12 +1,5 @@
-use crate::utils::time::{AlignmentUnit, Interval, ParseTimeError};
-use pyo3::{exceptions::PyTypeError, prelude::*, Bound, FromPyObject, PyAny, PyErr, PyResult};
-use raphtory_api::python::error::adapt_err_value;
-
-impl From<ParseTimeError> for PyErr {
-    fn from(value: ParseTimeError) -> Self {
-        adapt_err_value(&value)
-    }
-}
+use crate::utils::time::{AlignmentUnit, Interval};
+use pyo3::{exceptions::PyTypeError, prelude::*, Bound, FromPyObject, PyAny, PyResult};
 
 impl<'source> FromPyObject<'source> for Interval {
     fn extract_bound(interval: &Bound<'source, PyAny>) -> PyResult<Self> {

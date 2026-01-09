@@ -17,13 +17,17 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
-    python::{types::repr::Repr, utils::PyTime},
+    python::{graph::history::PyHistory, types::repr::Repr},
 };
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::{
+    core::{
+        entities::GID,
+        storage::{arc_str::ArcStr, timeindex::EventTime},
+    },
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
+};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
@@ -206,45 +210,22 @@ impl PyEdge {
         self.edge.properties().get(name)
     }
 
-    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
+    /// Returns a history object with EventTime entries for when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     List[int]:
-    pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
-        let history = self.edge.history();
-        history.into_pyarray(py)
+    ///    History:  A history object containing temporal entries about the edge
+    #[getter]
+    pub fn history(&self) -> PyHistory {
+        self.edge.history().into_arc_dyn().into()
     }
 
-    /// Returns the number of times an edge was added or change to an edge was made.
+    /// Returns a history object with EventTime entries for an edge's deletion times.
     ///
     /// Returns:
-    ///    int: The number of times an edge was added or change to an edge was made.
-    pub fn history_counts(&self) -> usize {
-        self.edge.history_counts()
-    }
-
-    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
-    ///
-    /// Returns:
-    ///     Optional[List[datetime]]:
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.edge.history_date_time()
-    }
-
-    /// Returns a list of timestamps of when an edge is deleted.
-    ///
-    /// Returns:
-    ///     List[int]: A list of unix timestamps
-    pub fn deletions(&self) -> Vec<i64> {
-        self.edge.deletions()
-    }
-
-    /// Returns a list of timestamps of when an edge is deleted.
-    ///
-    /// Returns:
-    ///     List[datetime]:
-    pub fn deletions_data_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.edge.deletions_date_time()
+    ///    History:  A history object containing time entries about the edge's deletions
+    #[getter]
+    pub fn deletions(&self) -> PyHistory {
+        self.edge.deletions().into_arc_dyn().into()
     }
 
     /// Check if the edge is currently valid (i.e., not deleted)
@@ -296,37 +277,19 @@ impl PyEdge {
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
-    ///     int: The earliest time of an edge
+    ///     OptionalEventTime: The earliest time of an edge
     #[getter]
-    pub fn earliest_time(&self) -> Option<i64> {
-        self.edge.earliest_time()
-    }
-
-    /// Gets of earliest datetime of an edge.
-    ///
-    /// Returns:
-    ///     datetime: the earliest datetime of an edge
-    #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.edge.earliest_date_time()
+    pub fn earliest_time(&self) -> PyOptionalEventTime {
+        self.edge.earliest_time().into()
     }
 
     /// Gets the latest time of an edge.
     ///
     /// Returns:
-    ///     int: The latest time of an edge
+    ///     OptionalEventTime: The latest time of an edge
     #[getter]
-    pub fn latest_time(&self) -> Option<i64> {
-        self.edge.latest_time()
-    }
-
-    /// Gets of latest datetime of an edge.
-    ///
-    /// Returns:
-    ///     datetime: the latest datetime of an edge
-    #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.edge.latest_date_time()
+    pub fn latest_time(&self) -> PyOptionalEventTime {
+        self.edge.latest_time().into()
     }
 
     /// Gets the time of an exploded edge.
@@ -334,7 +297,7 @@ impl PyEdge {
     /// Returns:
     ///     int: The time of an exploded edge
     #[getter]
-    pub fn time(&self) -> Result<i64, GraphError> {
+    pub fn time(&self) -> Result<EventTime, GraphError> {
         self.edge.time()
     }
 
@@ -354,15 +317,6 @@ impl PyEdge {
     #[getter]
     pub fn layer_name(&self) -> Result<ArcStr, GraphError> {
         self.edge.layer_name()
-    }
-
-    /// Gets the datetime of an exploded edge.
-    ///
-    /// Returns:
-    ///     datetime: the datetime of an exploded edge
-    #[getter]
-    pub fn date_time(&self) -> Option<DateTime<Utc>> {
-        self.edge.date_time()
     }
 }
 
@@ -428,28 +382,28 @@ impl PyMutableEdge {
     ///    t (TimeInput): The timestamp at which the updates should be applied.
     ///    properties (PropInput, optional): A dictionary of properties to update.
     ///    layer (str, optional): The layer you want these properties to be added on to.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, properties=None, layer=None, secondary_index=None))]
+    #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     fn add_updates(
         &self,
-        t: PyTime,
+        t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<(), GraphError> {
-        match secondary_index {
+        match event_id {
             None => self
                 .edge
                 .add_updates(t, properties.unwrap_or_default(), layer),
-            Some(secondary_index) => {
+            Some(event_id) => {
                 self.edge
-                    .add_updates((t, secondary_index), properties.unwrap_or_default(), layer)
+                    .add_updates((t, event_id), properties.unwrap_or_default(), layer)
             }
         }
     }
@@ -459,15 +413,24 @@ impl PyMutableEdge {
     /// Arguments:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to.
+    ///     event_id (int, optional): The event id for the deletion's time entry.
     ///
     /// Returns:
     ///     None:
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, layer=None))]
-    fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
-        self.edge.delete(t, layer)
+    #[pyo3(signature = (t, layer=None, event_id=None))]
+    fn delete(
+        &self,
+        t: EventTimeComponent,
+        layer: Option<&str>,
+        event_id: Option<usize>,
+    ) -> Result<(), GraphError> {
+        match event_id {
+            None => self.edge.delete(t, layer),
+            Some(index) => self.edge.delete((t, index), layer),
+        }
     }
 
     /// Add metadata to an edge in the graph.

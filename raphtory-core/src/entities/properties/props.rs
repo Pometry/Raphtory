@@ -2,7 +2,7 @@ use crate::{
     entities::properties::tprop::{IllegalPropType, TProp},
     storage::{
         lazy_vec::{IllegalSet, LazyVec},
-        timeindex::TimeIndexEntry,
+        timeindex::EventTime,
     },
 };
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -47,12 +47,7 @@ impl Props {
         }
     }
 
-    pub fn add_prop(
-        &mut self,
-        t: TimeIndexEntry,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), TPropError> {
+    pub fn add_prop(&mut self, t: EventTime, prop_id: usize, prop: Prop) -> Result<(), TPropError> {
         self.temporal_props.update(prop_id, |p| Ok(p.set(t, prop)?))
     }
 

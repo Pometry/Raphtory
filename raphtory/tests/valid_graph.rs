@@ -9,6 +9,7 @@ use raphtory::{
     prelude::*,
     test_utils::{build_graph, build_graph_strat},
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use std::ops::Range;
 
@@ -182,15 +183,21 @@ fn broken_earliest_time2() {
     let w = 1..11;
 
     let gv = g.valid();
-    assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
+    assert_eq!(gv.node(0).unwrap().earliest_time().map(|t| t.t()), Some(0));
 
     let gvw = gv.window(w.start, w.end);
-    assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(10));
+    assert_eq!(
+        gvw.node(0).unwrap().earliest_time().map(|t| t.t()),
+        Some(10)
+    );
 
     assert_eq!(gvw.node(0).unwrap().history(), [10]);
 
     let gvwm = gvw.materialize().unwrap();
-    assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(10));
+    assert_eq!(
+        gvwm.node(0).unwrap().earliest_time().map(|t| t.t()),
+        Some(10)
+    );
 }
 
 #[test]
@@ -200,10 +207,16 @@ fn broken_earliest_time3() {
     g.add_edge(10, 1, 0, NO_PROPS, None).unwrap();
     g.delete_edge(100, 0, 0, None).unwrap();
     let gvw = g.valid().window(2, 20);
-    assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(10));
+    assert_eq!(
+        gvw.node(0).unwrap().earliest_time().map(|t| t.t()),
+        Some(10)
+    );
     let gvwm = gvw.materialize().unwrap();
     println!("{:?}", gvwm);
-    assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(10));
+    assert_eq!(
+        gvwm.node(0).unwrap().earliest_time().map(|t| t.t()),
+        Some(10)
+    );
 }
 
 #[test]
@@ -231,7 +244,7 @@ fn wrong_temporal_edge_count() {
     g.add_edge(3, 1, 0, NO_PROPS, Some("b")).unwrap();
     let gw = g.valid().window(0, 9);
     let gwm = gw.materialize().unwrap();
-    assert_graph_equal(&gw, &gwm);
+    assert_persistent_materialize_graph_equal(&gw, &gwm); // PersistentGraph ignores the earliest time's event id
 }
 
 #[test]
@@ -272,7 +285,7 @@ fn node_earliest_time() {
     let gv = g.valid().window(-1, 10);
     let gvm = gv.materialize().unwrap();
     assert_graph_equal(&gv, &gvm);
-    assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
+    assert_eq!(gv.node(0).unwrap().earliest_time().map(|t| t.t()), Some(0));
 }
 
 #[test]
@@ -288,24 +301,30 @@ fn broken_degree() {
 
     let gv = g.valid().window(0, 20);
     assert!(!gv.default_layer().has_edge(5, 4));
-    assert_eq!(gv.edge(5, 4).unwrap().latest_time(), Some(2));
-    assert_eq!(gv.earliest_time(), Some(0));
-    assert_eq!(gv.latest_time(), Some(2));
-    assert_eq!(gv.node(6).unwrap().latest_time(), Some(0));
+    assert_eq!(gv.edge(5, 4).unwrap().latest_time().map(|t| t.t()), Some(2));
+    assert_eq!(gv.earliest_time().map(|t| t.t()), Some(0));
+    assert_eq!(gv.latest_time().map(|t| t.t()), Some(2));
+    assert_eq!(gv.node(6).unwrap().latest_time().map(|t| t.t()), Some(0));
     let expected = PersistentGraph::new();
-    expected.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
-    expected.add_edge(0, 4, 6, NO_PROPS, None).unwrap();
-    expected.add_edge(0, 4, 6, NO_PROPS, Some("b")).unwrap();
-    expected.add_edge(1, 4, 9, NO_PROPS, Some("a")).unwrap();
-    expected.add_edge(2, 5, 4, NO_PROPS, Some("a")).unwrap();
+    expected.add_edge((0, 1), 4, 9, NO_PROPS, None).unwrap();
+    expected.add_edge((0, 2), 4, 6, NO_PROPS, None).unwrap();
+    expected
+        .add_edge((0, 3), 4, 6, NO_PROPS, Some("b"))
+        .unwrap();
+    expected
+        .add_edge((1, 4), 4, 9, NO_PROPS, Some("a"))
+        .unwrap();
+    expected
+        .add_edge((2, 5), 5, 4, NO_PROPS, Some("a"))
+        .unwrap();
 
-    assert_graph_equal(&gv, &expected);
+    assert_persistent_materialize_graph_equal(&gv, &expected); // PersistentGraph ignores the earliest time's event id
 
     let n4 = gv.node(4).unwrap();
     assert_eq!(n4.out_degree(), 2);
     assert_eq!(n4.in_degree(), 1);
 
-    assert_graph_equal(&gv, &gv.materialize().unwrap());
+    assert_persistent_materialize_graph_equal(&gv, &gv.materialize().unwrap()); // PersistentGraph ignores the earliest time's event id
 }
 
 #[test]

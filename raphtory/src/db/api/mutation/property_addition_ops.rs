@@ -1,8 +1,6 @@
 use super::{time_from_input, CollectProperties};
-use crate::{
-    db::api::mutation::TryIntoInputTime,
-    errors::{into_graph_err, GraphError},
-};
+use crate::errors::{into_graph_err, GraphError};
+use raphtory_api::core::utils::time::TryIntoInputTime;
 use raphtory_storage::mutation::{
     addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
 };

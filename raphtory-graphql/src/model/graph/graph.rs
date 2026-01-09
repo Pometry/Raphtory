@@ -9,6 +9,7 @@ use crate::{
             node::GqlNode,
             nodes::GqlNodes,
             property::{GqlMetadata, GqlProperties},
+            timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlGraphWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
@@ -44,6 +45,7 @@ use raphtory::{
     errors::{GraphError, InvalidPathReason},
     prelude::*,
 };
+use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
@@ -191,12 +193,15 @@ impl GqlGraph {
     }
 
     /// Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
-    async fn window(&self, start: i64, end: i64) -> GqlGraph {
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> GqlGraph {
+        let start = start.into_time();
+        let end = end.into_time();
         self.apply(|g| g.window(start, end))
     }
 
     /// Creates a view including all events at a specified time.
-    async fn at(&self, time: i64) -> GqlGraph {
+    async fn at(&self, time: GqlTimeInput) -> GqlGraph {
+        let time = time.into_time();
         self.apply(|g| g.at(time))
     }
 
@@ -207,7 +212,8 @@ impl GqlGraph {
     }
 
     /// Create a view including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: i64) -> GqlGraph {
+    async fn snapshot_at(&self, time: GqlTimeInput) -> GqlGraph {
+        let time = time.into_time();
         self.apply(|g| g.snapshot_at(time))
     }
 
@@ -217,27 +223,33 @@ impl GqlGraph {
     }
 
     /// Create a view including all events before a specified end (exclusive).
-    async fn before(&self, time: i64) -> GqlGraph {
+    async fn before(&self, time: GqlTimeInput) -> GqlGraph {
+        let time = time.into_time();
         self.apply(|g| g.before(time))
     }
 
     /// Create a view including all events after a specified start (exclusive).
-    async fn after(&self, time: i64) -> GqlGraph {
+    async fn after(&self, time: GqlTimeInput) -> GqlGraph {
+        let time = time.into_time();
         self.apply(|g| g.after(time))
     }
 
     /// Shrink both the start and end of the window.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+    async fn shrink_window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        let start = start.into_time();
+        let end = end.into_time();
         self.apply(|g| g.shrink_window(start, end))
     }
 
     /// Set the start of the window to the larger of the specified value or current start.
-    async fn shrink_start(&self, start: i64) -> Self {
+    async fn shrink_start(&self, start: GqlTimeInput) -> Self {
+        let start = start.into_time();
         self.apply(|g| g.shrink_start(start))
     }
 
     /// Set the end of the window to the smaller of the specified value or current end.
-    async fn shrink_end(&self, end: i64) -> Self {
+    async fn shrink_end(&self, end: GqlTimeInput) -> Self {
+        let end = end.into_time();
         self.apply(|g| g.shrink_end(end))
     }
 
@@ -260,30 +272,30 @@ impl GqlGraph {
         self.path.last_updated_async().await
     }
 
-    /// Returns the timestamp of the earliest activity in the graph.
-    async fn earliest_time(&self) -> Option<i64> {
+    /// Returns the time entry of the earliest activity in the graph.
+    async fn earliest_time(&self) -> GqlEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.earliest_time()).await
+        blocking_compute(move || self_clone.graph.earliest_time().into()).await
     }
 
-    /// Returns the timestamp of the latest activity in the graph.
-    async fn latest_time(&self) -> Option<i64> {
+    /// Returns the time entry of the latest activity in the graph.
+    async fn latest_time(&self) -> GqlEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.latest_time()).await
+        blocking_compute(move || self_clone.graph.latest_time().into()).await
     }
 
     /// Returns the start time of the window. Errors if there is no window.
-    async fn start(&self) -> Option<i64> {
-        self.graph.start()
+    async fn start(&self) -> GqlEventTime {
+        self.graph.start().into()
     }
 
     /// Returns the end time of the window. Errors if there is no window.
-    async fn end(&self) -> Option<i64> {
-        self.graph.end()
+    async fn end(&self) -> GqlEventTime {
+        self.graph.end().into()
     }
 
     /// Returns the earliest time that any edge in this graph is valid.
-    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -292,15 +304,16 @@ impl GqlGraph {
                 .edges()
                 .earliest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
-                .min();
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
+                .min()
+                .into();
             all_edges
         })
         .await
     }
 
-    /// /// Returns the latest time that any edge in this graph is valid.
-    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+    /// Returns the latest time that any edge in this graph is valid.
+    async fn latest_edge_time(&self, include_negative: Option<bool>) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -309,8 +322,9 @@ impl GqlGraph {
                 .edges()
                 .latest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
-                .max();
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
+                .max()
+                .into();
 
             all_edges
         })
