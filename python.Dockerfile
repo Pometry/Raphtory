@@ -16,7 +16,7 @@ RUN pip install maturin==1.8.3 patchelf==0.17.2.2
 COPY . .
 RUN cd python && maturin build --release
 
-FROM python:${PYTHON_VERSION}-slim-${DEBIAN_VERSION}}
+FROM python:${PYTHON_VERSION}-slim-${DEBIAN_VERSION}
 ARG PYTHON_VERSION
 WORKDIR /var/lib/raphtory
 COPY --from=build /app/target/wheels/*.whl /
