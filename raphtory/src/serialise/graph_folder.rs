@@ -53,7 +53,7 @@ pub(crate) fn valid_relative_graph_path(
 ) -> Result<(), GraphError> {
     relative_path
         .strip_prefix(prefix) // should have the prefix
-        .and_then(|id| parse_u64_strict(id)) // the remainder should be the id
+        .and_then(parse_u64_strict) // the remainder should be the id
         .ok_or_else(|| GraphError::InvalidRelativePath(relative_path.to_string()))?;
     Ok(())
 }
@@ -650,9 +650,7 @@ impl From<&GraphFolder> for GraphFolder {
 mod tests {
     use super::*;
     use crate::{
-        db::graph::graph::assert_graph_equal,
-        prelude::{AdditionOps, Graph, Prop, StableEncode, NO_PROPS},
-        serialise::serialise::StableDecode,
+        db::graph::graph::assert_graph_equal, prelude::*, serialise::serialise::StableDecode,
     };
 
     // /// Verify that the metadata is re-created if it does not exist.
