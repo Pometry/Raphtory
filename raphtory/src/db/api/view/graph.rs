@@ -368,7 +368,7 @@ fn materialize_impl(
                                 0,
                             );
                         } else {
-                            writer.store_node_id(node_pos, 0, gid.clone().into(), 0);
+                            writer.store_node_id(node_pos, 0, gid.clone(), 0);
                         }
                         graph_storage
                             .write_session()?
@@ -392,7 +392,7 @@ fn materialize_impl(
 
             let mut new_eids = vec![];
             let mut max_eid = 0usize;
-            for (row, _) in self.edges().iter().enumerate() {
+            for (row, _) in graph.edges().iter().enumerate() {
                 let new_eid = new_storage.graph().storage().edges().reserve_new_eid(row);
                 new_eids.push(new_eid);
                 max_eid = new_eid.0.max(max_eid);

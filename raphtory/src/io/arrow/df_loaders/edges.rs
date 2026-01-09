@@ -363,7 +363,7 @@ pub fn get_or_resolve_node_vids<
     (
         &'c [VID],
         &'c [VID],
-        FxDashMap<GidKey<'a>, (Prop, MaybeNew<VID>)>,
+        FxDashMap<GidKey<'a>, (GID, MaybeNew<VID>)>,
     ),
     GraphError,
 > {
@@ -552,9 +552,8 @@ fn add_and_resolve_outbound_edges<
     }
 }
 
-#[inline(never)]
 pub fn store_node_ids<K: Eq + std::hash::Hash, NS: NodeSegmentOps<Extension = Extension>>(
-    gid_str_cache: &FxDashMap<K, (Prop, MaybeNew<VID>)>,
+    gid_str_cache: &FxDashMap<K, (GID, MaybeNew<VID>)>,
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
     for entry in gid_str_cache.iter() {

@@ -2,13 +2,10 @@ use crate::{
     LocalPOS, api::nodes::NodeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::node::segment::MemNodeSegment,
 };
-use raphtory_api::core::entities::{
-    EID, VID,
-    properties::{
-        meta::{NODE_ID_IDX, NODE_TYPE_IDX},
-        prop::Prop,
-    },
-};
+use raphtory_api::core::entities::{EID, VID, properties::{
+    meta::{NODE_ID_IDX, NODE_TYPE_IDX},
+    prop::Prop,
+}, GID};
 use raphtory_core::{
     entities::{ELID, GidRef},
     storage::timeindex::AsTime,
@@ -201,7 +198,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(pos, layer_id, node_info_as_props(Some(gid), node_type), lsn);
     }
 
-    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: Prop, lsn: u64) {
+    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: GID, lsn: u64) {
+        let gid = match gid {
+            GID::U64(id) => Prop::U64(id),
+            GID::Str(s) => Prop::str(s),
+        };
         self.update_c_props(pos, layer_id, [(NODE_ID_IDX, gid)], lsn);
     }
 

@@ -229,12 +229,12 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<FxDashMap<GidKey<'a>, (Prop, MaybeNew<VID>)>, GraphError> {
+) -> Result<FxDashMap<GidKey<'a>, (GID, MaybeNew<VID>)>, GraphError> {
     let node_type_col = vec![None; cols_to_resolve.len()];
     resolve_nodes_with_cache_generic(
         &cols_to_resolve,
         &node_type_col,
-        |v: &(Prop, MaybeNew<VID>), idx, col_idx| {
+        |v: &(GID, MaybeNew<VID>), idx, col_idx| {
             let (_, vid) = v;
             resolved_cols[col_idx][idx].store(vid.inner().0, Ordering::Relaxed);
         },
@@ -243,7 +243,7 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
             let vid = graph
                 .resolve_node(gid.as_node_ref())
                 .map_err(into_graph_err)?;
-            Ok((Prop::from(gid), vid))
+            Ok((GID::from(gid), vid))
         },
     )
 }
