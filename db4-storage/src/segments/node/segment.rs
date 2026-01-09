@@ -455,7 +455,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         _path: Option<PathBuf>,
         ext: Self::Extension,
     ) -> Self {
-        let max_page_len = ext.max_node_page_len();
+        let max_page_len = ext.config().max_node_page_len;
         Self {
             inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta))
                 .into(),

@@ -13,7 +13,7 @@ use crate::{
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     },
-    persist::strategy::PersistenceConfig,
+    persist::strategy::PersistenceStrategy,
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
@@ -42,7 +42,7 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     locked_pages: Box<[ES::ArcLockedSegment]>,
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> ReadLockedEdgeStorage<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedEdgeStorage<ES, EXT> {
     pub fn storage(&self) -> &EdgeStorageInner<ES, EXT> {
         &self.storage
     }
@@ -96,7 +96,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> ReadLockedEdge
     }
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> EdgeStorageInner<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageInner<ES, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
         let locked_pages = self
             .segments
@@ -193,7 +193,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> EdgeStorageInn
 
     pub fn load(edges_path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let edges_path = edges_path.as_ref();
-        let max_page_len = ext.max_edge_page_len();
+        let max_page_len = ext.config().max_edge_page_len;
 
         let meta = Arc::new(Meta::new_for_edges());
 
@@ -381,7 +381,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> EdgeStorageInn
 
     #[inline(always)]
     pub fn max_page_len(&self) -> u32 {
-        self.ext.max_edge_page_len()
+        self.ext.config().max_edge_page_len
     }
 
     pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {

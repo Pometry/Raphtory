@@ -7,7 +7,7 @@ use crate::{
         layer_counter::GraphStats,
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
     },
-    persist::strategy::PersistenceConfig,
+    persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -43,7 +43,7 @@ pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     locked_segments: Box<[NS::ArcLockedSegment]>,
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> ReadLockedNodeStorage<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNodeStorage<NS, EXT> {
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
@@ -93,7 +93,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> ReadLockedNode
     }
 }
 
-impl<NS, EXT: PersistenceConfig> NodeStorageInner<NS, EXT> {
+impl<NS, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -128,11 +128,11 @@ impl<NS, EXT: PersistenceConfig> NodeStorageInner<NS, EXT> {
     }
 
     pub fn max_page_len(&self) -> u32 {
-        self.ext.max_node_page_len()
+        self.ext.config().max_node_page_len
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceConfig> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
         node_meta: Arc<Meta>,

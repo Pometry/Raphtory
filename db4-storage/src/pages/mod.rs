@@ -48,13 +48,13 @@ pub mod test_utils;
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 
 #[derive(Debug)]
-pub struct GraphStore<NS, ES, GS, EXT: PersistenceConfig> {
+pub struct GraphStore<NS, ES, GS, EXT: PersistenceStrategy> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     graph_props: Arc<GraphPropStorageInner<GS, EXT>>,
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
-    _ext: EXT,
+    ext: EXT,
 }
 
 #[derive(Debug)]
@@ -62,7 +62,7 @@ pub struct ReadLockedGraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistenceConfig,
+    EXT: PersistenceStrategy,
 > {
     pub nodes: Arc<ReadLockedNodeStorage<NS, EXT>>,
     pub edges: Arc<ReadLockedEdgeStorage<ES, EXT>>,
@@ -88,7 +88,7 @@ impl<
     }
 
     pub fn extension(&self) -> &EXT {
-        &self._ext
+        &self.ext
     }
 
     pub fn nodes(&self) -> &Arc<NodeStorageInner<NS, EXT>> {
@@ -126,12 +126,18 @@ impl<
         self.nodes.stats().latest().max(self.edges.stats().latest())
     }
 
-    pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
+    pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError>
+    where
+        EXT: Default,
+    {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
         let graph_props_path = graph_dir.as_ref().join("graph_props");
 
-        let ext = read_persistence_config::<EXT>(graph_dir.as_ref())?;
+        let mut ext = EXT::default();
+        if let Ok(loaded_config) = read_persistence_config(graph_dir.as_ref()) {
+            *ext.config_mut() = loaded_config;
+        }
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();
@@ -142,7 +148,7 @@ impl<
         let graph_prop_storage =
             Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
 
-        for node_type in ext.node_types().iter() {
+        for node_type in ext.config().node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
         }
 
@@ -154,7 +160,7 @@ impl<
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.as_ref().to_path_buf()),
-            _ext: ext,
+            ext,
         })
     }
 
@@ -191,7 +197,7 @@ impl<
         ));
 
         if let Some(graph_dir) = graph_dir {
-            write_persistence_config(graph_dir, &ext)
+            write_persistence_config(graph_dir, ext.config())
                 .expect("Unrecoverable! Failed to write graph config");
         }
 
@@ -201,7 +207,7 @@ impl<
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|p| p.to_path_buf()),
-            _ext: ext,
+            ext,
         }
     }
 
@@ -445,21 +451,21 @@ impl<
     }
 }
 
-impl<NS, ES, GS, EXT: PersistenceConfig> Drop for GraphStore<NS, ES, GS, EXT> {
+impl<NS, ES, GS, EXT: PersistenceStrategy> Drop for GraphStore<NS, ES, GS, EXT> {
     fn drop(&mut self) {
         let node_types = self.nodes.prop_meta().get_all_node_types();
-        self._ext.set_node_types(node_types);
+        self.ext.config_mut().set_node_types(node_types);
         if let Some(graph_dir) = self.graph_dir.as_ref() {
-            if write_persistence_config(graph_dir, &self._ext).is_err() {
+            if write_persistence_config(graph_dir, self.ext.config()).is_err() {
                 eprintln!("Unrecoverable! Failed to write graph meta");
             }
         }
     }
 }
 
-fn write_persistence_config<EXT: PersistenceConfig>(
+fn write_persistence_config(
     graph_dir: impl AsRef<Path>,
-    config: &EXT,
+    config: &PersistenceConfig,
 ) -> Result<(), StorageError> {
     let config_file = graph_dir.as_ref().join("persistence_config.json");
     let config_file = std::fs::File::create(&config_file)?;
@@ -468,9 +474,9 @@ fn write_persistence_config<EXT: PersistenceConfig>(
     Ok(())
 }
 
-fn read_persistence_config<EXT: PersistenceStrategy>(
+fn read_persistence_config(
     graph_dir: impl AsRef<Path>,
-) -> Result<EXT, StorageError> {
+) -> Result<PersistenceConfig, StorageError> {
     let config_file = graph_dir.as_ref().join("persistence_config.json");
     let config_file = std::fs::File::open(config_file)?;
     let config = serde_json::from_reader(config_file)?;

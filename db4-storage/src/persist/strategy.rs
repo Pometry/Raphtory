@@ -13,22 +13,47 @@ pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
 pub const DEFAULT_MAX_MEMORY_BYTES: usize = 32 * 1024 * 1024;
 
-pub trait PersistenceConfig:
-    Default + Debug + Clone + Send + Sync + 'static + for<'a> Deserialize<'a> + Serialize
-{
-    fn max_node_page_len(&self) -> u32;
-    fn max_edge_page_len(&self) -> u32;
-
-    fn max_memory_bytes(&self) -> usize;
-    fn is_parallel(&self) -> bool;
-    fn node_types(&self) -> &[String];
-    fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistenceConfig {
+    pub max_node_page_len: u32,
+    pub max_edge_page_len: u32,
+    pub max_memory_bytes: usize,
+    pub is_parallel: bool,
+    pub node_types: Vec<String>,
 }
 
-pub trait PersistenceStrategy: PersistenceConfig {
+impl PersistenceConfig {
+    pub fn node_types(&self) -> &[String] {
+        &self.node_types
+    }
+
+    pub fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>) {
+        self.node_types = types
+            .into_iter()
+            .map(|s| s.as_ref().to_string())
+            .collect();
+    }
+}
+
+impl Default for PersistenceConfig {
+    fn default() -> Self {
+        Self {
+            max_node_page_len: DEFAULT_MAX_PAGE_LEN_NODES,
+            max_edge_page_len: DEFAULT_MAX_PAGE_LEN_EDGES,
+            max_memory_bytes: DEFAULT_MAX_MEMORY_BYTES,
+            is_parallel: false,
+            node_types: Vec::new(),
+        }
+    }
+}
+
+pub trait PersistenceStrategy: Debug + Clone + Default + Send + Sync + 'static + for<'de> Deserialize<'de> + Serialize {
     type NS;
     type ES;
     type GS;
+
+    fn config(&self) -> &PersistenceConfig;
+    fn config_mut(&mut self) -> &mut PersistenceConfig;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
@@ -55,17 +80,21 @@ pub trait PersistenceStrategy: PersistenceConfig {
     fn disk_storage_enabled() -> bool;
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NoOpStrategy {
-    max_node_page_len: u32,
-    max_edge_page_len: u32,
+    config: PersistenceConfig,
 }
 
 impl NoOpStrategy {
     pub fn new(max_node_page_len: u32, max_edge_page_len: u32) -> Self {
         Self {
-            max_node_page_len,
-            max_edge_page_len,
+            config: PersistenceConfig {
+                max_node_page_len,
+                max_edge_page_len,
+                max_memory_bytes: usize::MAX,
+                is_parallel: false,
+                node_types: Vec::new(),
+            },
         }
     }
 }
@@ -76,37 +105,19 @@ impl Default for NoOpStrategy {
     }
 }
 
-impl PersistenceConfig for NoOpStrategy {
-    fn max_node_page_len(&self) -> u32 {
-        self.max_node_page_len
-    }
-
-    #[inline(always)]
-    fn max_edge_page_len(&self) -> u32 {
-        self.max_edge_page_len
-    }
-
-    fn max_memory_bytes(&self) -> usize {
-        usize::MAX
-    }
-
-    fn is_parallel(&self) -> bool {
-        false
-    }
-
-    fn node_types(&self) -> &[String] {
-        &[]
-    }
-
-    fn set_node_types(&mut self, _types: impl IntoIterator<Item = impl AsRef<str>>) {
-        // No operation
-    }
-}
-
 impl PersistenceStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
+
+    fn config(&self) -> &PersistenceConfig {
+        &self.config
+    }
+
+    // Use builder pattern with_config.
+    fn config_mut(&mut self) -> &mut PersistenceConfig {
+        &mut self.config
+    }
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
