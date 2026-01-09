@@ -11,18 +11,15 @@ use raphtory::{
     errors::{GraphError, GraphResult, InvalidPathReason},
     prelude::CacheOps,
     vectors::{
-        cache::{CachedEmbeddingModel, VectorCache},
-        storage::LazyDiskVectorCache,
-        template::DocumentTemplate,
-        vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
+        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::{fs, sync::OnceCell};
+use tokio::fs;
 use tracing::{error, warn};
 use walkdir::WalkDir;
 

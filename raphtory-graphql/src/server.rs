@@ -365,12 +365,6 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
-    #[derive(thiserror::Error, Debug)]
-    enum SomeError {
-        #[error("A variant of this error")]
-        Variant,
-    }
-
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempdir().unwrap();
