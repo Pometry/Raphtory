@@ -131,7 +131,7 @@ impl<
         let edges_path = graph_dir.as_ref().join("edges");
         let graph_props_path = graph_dir.as_ref().join("graph_props");
 
-        let ext = read_graph_config::<EXT>(graph_dir.as_ref())?;
+        let ext = read_persistence_config::<EXT>(graph_dir.as_ref())?;
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();
@@ -191,7 +191,7 @@ impl<
         ));
 
         if let Some(graph_dir) = graph_dir {
-            write_graph_config(graph_dir, &ext)
+            write_persistence_config(graph_dir, &ext)
                 .expect("Unrecoverable! Failed to write graph config");
         }
 
@@ -450,28 +450,28 @@ impl<NS, ES, GS, EXT: PersistenceConfig> Drop for GraphStore<NS, ES, GS, EXT> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         self._ext.set_node_types(node_types);
         if let Some(graph_dir) = self.graph_dir.as_ref() {
-            if write_graph_config(graph_dir, &self._ext).is_err() {
+            if write_persistence_config(graph_dir, &self._ext).is_err() {
                 eprintln!("Unrecoverable! Failed to write graph meta");
             }
         }
     }
 }
 
-fn write_graph_config<EXT: PersistenceConfig>(
+fn write_persistence_config<EXT: PersistenceConfig>(
     graph_dir: impl AsRef<Path>,
     config: &EXT,
 ) -> Result<(), StorageError> {
-    let config_file = graph_dir.as_ref().join("graph_config.json");
+    let config_file = graph_dir.as_ref().join("persistence_config.json");
     let config_file = std::fs::File::create(&config_file)?;
 
     serde_json::to_writer_pretty(config_file, config)?;
     Ok(())
 }
 
-fn read_graph_config<EXT: PersistenceStrategy>(
+fn read_persistence_config<EXT: PersistenceStrategy>(
     graph_dir: impl AsRef<Path>,
 ) -> Result<EXT, StorageError> {
-    let config_file = graph_dir.as_ref().join("graph_config.json");
+    let config_file = graph_dir.as_ref().join("persistence_config.json");
     let config_file = std::fs::File::open(config_file)?;
     let config = serde_json::from_reader(config_file)?;
     Ok(config)
