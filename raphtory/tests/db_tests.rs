@@ -3795,8 +3795,8 @@ fn test_empty_window() {
 
 #[test]
 fn add_edge_and_read_props_concurrent() {
-    let g = Graph::new();
     for t in 0..1000 {
+        let g = Graph::new();
         join(
             || g.add_edge(t, 1, 2, [("test", true)], None).unwrap(),
             || {
