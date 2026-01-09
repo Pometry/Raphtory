@@ -2,10 +2,13 @@ use crate::{
     LocalPOS, api::nodes::NodeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::node::segment::MemNodeSegment,
 };
-use raphtory_api::core::entities::{EID, VID, properties::{
-    meta::{NODE_ID_IDX, NODE_TYPE_IDX},
-    prop::Prop,
-}, GID};
+use raphtory_api::core::entities::{
+    EID, GID, VID,
+    properties::{
+        meta::{NODE_ID_IDX, NODE_TYPE_IDX},
+        prop::Prop,
+    },
+};
 use raphtory_core::{
     entities::{ELID, GidRef},
     storage::timeindex::AsTime,

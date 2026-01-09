@@ -316,63 +316,63 @@ fn materialize_impl(
         .storage()
         .set_event_id(storage.read_event_id());
 
-        let temporal_graph = Arc::new(temporal_graph);
+    let temporal_graph = Arc::new(temporal_graph);
 
-        let graph_storage = GraphStorage::from(temporal_graph.clone());
+    let graph_storage = GraphStorage::from(temporal_graph.clone());
 
-        {
-            // scope for the write lock
+    {
+        // scope for the write lock
 
         let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
         let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
-            // reverse index pos -> new_vid
-            let index = Index::for_graph(graph);
-            graph.nodes().par_iter().for_each(|node| {
-                let vid = node.node;
-                if let Some(pos) = index.index(&vid) {
-                    let new_vid = temporal_graph.storage().nodes().reserve_vid(pos);
-                    node_map_shared[pos].store(new_vid.index(), Ordering::Relaxed);
-                }
-            });
-
-            let get_new_vid = |old_vid: VID, index: &Index<VID>, node_map: &[VID]| -> VID {
-                let pos = index
-                    .index(&old_vid)
-                    .expect("old_vid should exist in index");
-                node_map[pos]
-            };
-            let mut new_storage = graph_storage.write_lock()?;
-
-            for layer_id in &layer_map {
-                new_storage.nodes.ensure_layer(*layer_id);
+        // reverse index pos -> new_vid
+        let index = Index::for_graph(graph);
+        graph.nodes().par_iter().for_each(|node| {
+            let vid = node.node;
+            if let Some(pos) = index.index(&vid) {
+                let new_vid = temporal_graph.storage().nodes().reserve_vid(pos);
+                node_map_shared[pos].store(new_vid.index(), Ordering::Relaxed);
             }
+        });
 
-            new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-                for node in graph.nodes().iter() {
-                    let new_id = get_new_vid(node.node, &index, &node_map);
-                    let gid = node.id();
-                    if let Some(node_pos) = shard.resolve_pos(new_id) {
-                        let mut writer = shard.writer();
-                        if let Some(node_type) = node.node_type() {
-                            let new_type_id = graph_storage
-                                .node_meta()
-                                .node_type_meta()
-                                .get_or_create_id(&node_type)
-                                .inner();
-                            writer.store_node_id_and_node_type(
-                                node_pos,
-                                0,
-                                gid.as_ref(),
-                                new_type_id,
-                                0,
-                            );
-                        } else {
-                            writer.store_node_id(node_pos, 0, gid.clone(), 0);
-                        }
-                        graph_storage
-                            .write_session()?
-                            .set_node(gid.as_ref(), new_id)?;
+        let get_new_vid = |old_vid: VID, index: &Index<VID>, node_map: &[VID]| -> VID {
+            let pos = index
+                .index(&old_vid)
+                .expect("old_vid should exist in index");
+            node_map[pos]
+        };
+        let mut new_storage = graph_storage.write_lock()?;
+
+        for layer_id in &layer_map {
+            new_storage.nodes.ensure_layer(*layer_id);
+        }
+
+        new_storage.nodes.par_iter_mut().try_for_each(|shard| {
+            for node in graph.nodes().iter() {
+                let new_id = get_new_vid(node.node, &index, &node_map);
+                let gid = node.id();
+                if let Some(node_pos) = shard.resolve_pos(new_id) {
+                    let mut writer = shard.writer();
+                    if let Some(node_type) = node.node_type() {
+                        let new_type_id = graph_storage
+                            .node_meta()
+                            .node_type_meta()
+                            .get_or_create_id(&node_type)
+                            .inner();
+                        writer.store_node_id_and_node_type(
+                            node_pos,
+                            0,
+                            gid.as_ref(),
+                            new_type_id,
+                            0,
+                        );
+                    } else {
+                        writer.store_node_id(node_pos, 0, gid.clone(), 0);
+                    }
+                    graph_storage
+                        .write_session()?
+                        .set_node(gid.as_ref(), new_id)?;
 
                     for (t, row) in node.rows() {
                         writer.add_props(t, node_pos, 0, row, 0);
@@ -390,28 +390,28 @@ fn materialize_impl(
             Ok::<(), MutationError>(())
         })?;
 
-            let mut new_eids = vec![];
-            let mut max_eid = 0usize;
-            for (row, _) in graph.edges().iter().enumerate() {
-                let new_eid = new_storage.graph().storage().edges().reserve_new_eid(row);
-                new_eids.push(new_eid);
-                max_eid = new_eid.0.max(max_eid);
-            }
-            new_storage.resize_chunks_to_num_edges(EID(max_eid));
+        let mut new_eids = vec![];
+        let mut max_eid = 0usize;
+        for (row, _) in graph.edges().iter().enumerate() {
+            let new_eid = new_storage.graph().storage().edges().reserve_new_eid(row);
+            new_eids.push(new_eid);
+            max_eid = new_eid.0.max(max_eid);
+        }
+        new_storage.resize_chunks_to_num_edges(EID(max_eid));
 
         for layer_id in &layer_map {
             new_storage.edges.ensure_layer(*layer_id);
         }
 
-            new_storage.edges.par_iter_mut().try_for_each(|shard| {
-                for (row, edge) in graph.edges().iter().enumerate() {
-                    let src = get_new_vid(edge.edge.src(), &index, &node_map);
-                    let dst = get_new_vid(edge.edge.dst(), &index, &node_map);
-                    let eid = new_eids[row];
-                    if let Some(edge_pos) = shard.resolve_pos(eid) {
-                        let mut writer = shard.writer();
-                        // make the edge for the first time
-                        writer.add_static_edge(Some(edge_pos), src, dst, 0, false);
+        new_storage.edges.par_iter_mut().try_for_each(|shard| {
+            for (row, edge) in graph.edges().iter().enumerate() {
+                let src = get_new_vid(edge.edge.src(), &index, &node_map);
+                let dst = get_new_vid(edge.edge.dst(), &index, &node_map);
+                let eid = new_eids[row];
+                if let Some(edge_pos) = shard.resolve_pos(eid) {
+                    let mut writer = shard.writer();
+                    // make the edge for the first time
+                    writer.add_static_edge(Some(edge_pos), src, dst, 0, false);
 
                     for edge in edge.explode_layers() {
                         let layer = layer_map[edge.edge.layer().unwrap()];
@@ -465,13 +465,13 @@ fn materialize_impl(
             Ok::<(), MutationError>(())
         })?;
 
-            new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-                for (row, edge) in graph.edges().iter().enumerate() {
-                    let eid = new_eids[row];
-                    let src_id = get_new_vid(edge.edge.src(), &index, &node_map);
-                    let dst_id = get_new_vid(edge.edge.dst(), &index, &node_map);
-                    let maybe_src_pos = shard.resolve_pos(src_id);
-                    let maybe_dst_pos = shard.resolve_pos(dst_id);
+        new_storage.nodes.par_iter_mut().try_for_each(|shard| {
+            for (row, edge) in graph.edges().iter().enumerate() {
+                let eid = new_eids[row];
+                let src_id = get_new_vid(edge.edge.src(), &index, &node_map);
+                let dst_id = get_new_vid(edge.edge.dst(), &index, &node_map);
+                let maybe_src_pos = shard.resolve_pos(src_id);
+                let maybe_dst_pos = shard.resolve_pos(dst_id);
 
                 if let Some(node_pos) = maybe_src_pos {
                     let mut writer = shard.writer();
