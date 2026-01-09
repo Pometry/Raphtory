@@ -37,7 +37,10 @@
 //! println!("local_triangle_count: {:?}", result);
 //! ```
 
-use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::*};
+use crate::{
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::api::view::{internal::GraphView, *},
+};
 use itertools::Itertools;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
@@ -51,7 +54,7 @@ use itertools::Itertools;
 /// # Returns
 /// Number of triangles associated with node v
 ///
-pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V) -> Option<usize> {
+pub fn local_triangle_count<G: GraphView, V: AsNodeRef>(graph: &G, v: V) -> Option<usize> {
     if let Some(node) = (&graph).node(v) {
         if node.degree() >= 2 {
             let len = node
