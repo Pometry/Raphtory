@@ -22,19 +22,6 @@ pub struct PersistenceConfig {
     pub node_types: Vec<String>,
 }
 
-impl PersistenceConfig {
-    pub fn node_types(&self) -> &[String] {
-        &self.node_types
-    }
-
-    pub fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>) {
-        self.node_types = types
-            .into_iter()
-            .map(|s| s.as_ref().to_string())
-            .collect();
-    }
-}
-
 impl Default for PersistenceConfig {
     fn default() -> Self {
         Self {
@@ -47,12 +34,53 @@ impl Default for PersistenceConfig {
     }
 }
 
-pub trait PersistenceStrategy: Debug + Clone + Default + Send + Sync + 'static + for<'de> Deserialize<'de> + Serialize {
+impl PersistenceConfig {
+    pub fn new_with_memory(max_memory_bytes: usize) -> Self {
+        Self {
+            max_memory_bytes,
+            ..Default::default()
+        }
+    }
+
+    pub fn new_with_page_lens(
+        max_memory_bytes: usize,
+        max_node_page_len: u32,
+        max_edge_page_len: u32,
+    ) -> Self {
+        Self {
+            max_memory_bytes,
+            max_node_page_len,
+            max_edge_page_len,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_bg_flush(mut self) -> Self {
+        self.bg_flush_enabled = true;
+        self
+    }
+
+    pub fn node_types(&self) -> &[String] {
+        &self.node_types
+    }
+
+    pub fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>) {
+        self.node_types = types
+            .into_iter()
+            .map(|s| s.as_ref().to_string())
+            .collect();
+    }
+}
+
+pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static + for<'de> Deserialize<'de> + Serialize {
     type NS;
     type ES;
     type GS;
 
+    fn new(config: PersistenceConfig) -> Self;
+
     fn config(&self) -> &PersistenceConfig;
+
     fn config_mut(&mut self) -> &mut PersistenceConfig;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
@@ -99,16 +127,14 @@ impl NoOpStrategy {
     }
 }
 
-impl Default for NoOpStrategy {
-    fn default() -> Self {
-        Self::new(DEFAULT_MAX_PAGE_LEN_NODES, DEFAULT_MAX_PAGE_LEN_EDGES)
-    }
-}
-
 impl PersistenceStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
+
+    fn new(config: PersistenceConfig) -> Self {
+        Self { config }
+    }
 
     fn config(&self) -> &PersistenceConfig {
         &self.config

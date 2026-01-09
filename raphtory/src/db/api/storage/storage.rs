@@ -105,22 +105,11 @@ impl Storage {
     }
 
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(
-                path,
-                Extension::default(),
-            )?)),
-            #[cfg(feature = "search")]
-            index: RwLock::new(GraphIndex::Empty),
-        })
-    }
+        let config = PersistenceConfig::default();
+        let temporal_graph = TemporalGraph::new_with_path(path, Extension::new(config))?;
 
-    pub(crate) fn new_with_path_and_ext(
-        path: impl AsRef<Path>,
-        ext: Extension,
-    ) -> Result<Self, GraphError> {
         Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(path, ext)?)),
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })

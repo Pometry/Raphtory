@@ -2,23 +2,23 @@
 //! Allows for fast replay by making use of one-time lock acquisition for
 //! all the segments in the graph.
 
-use storage::pages::resolve_pos;
-use crate::{WriteLockedGraph};
+use crate::WriteLockedGraph;
 use raphtory_api::core::{
+    entities::properties::meta::STATIC_GRAPH_LAYER_ID,
     entities::{properties::prop::Prop, EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
-    entities::properties::meta::STATIC_GRAPH_LAYER_ID,
 };
 use raphtory_core::entities::GidRef;
-use storage::{
-    api::nodes::NodeSegmentOps,
-    api::edges::EdgeSegmentOps,
-    persist::strategy::PersistenceStrategy,
-    NS, ES, GS,
-    error::StorageError,
-    wal::{GraphReplay, TransactionID, LSN},
-};
+use storage::pages::resolve_pos;
 use storage::resolver::GIDResolverOps;
+use storage::{
+    api::edges::EdgeSegmentOps,
+    api::nodes::NodeSegmentOps,
+    error::StorageError,
+    persist::strategy::PersistenceStrategy,
+    wal::{GraphReplay, TransactionID, LSN},
+    ES, GS, NS,
+};
 
 impl<EXT> GraphReplay for WriteLockedGraph<'_, EXT>
 where
@@ -56,21 +56,33 @@ where
         }
 
         // 2. Insert node ids into resolver.
-        temporal_graph.logical_to_physical.set(GidRef::from(&src_name), src_id)?;
-        temporal_graph.logical_to_physical.set(GidRef::from(&dst_name), dst_id)?;
+        temporal_graph
+            .logical_to_physical
+            .set(GidRef::from(&src_name), src_id)?;
+        temporal_graph
+            .logical_to_physical
+            .set(GidRef::from(&dst_name), dst_id)?;
 
         // 3. Insert layer id into the layer meta of both edge and node.
         let node_meta = temporal_graph.node_meta();
 
-        edge_meta.layer_meta().set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
-        node_meta.layer_meta().set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+        edge_meta
+            .layer_meta()
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+        node_meta
+            .layer_meta()
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
 
         // 4. Grab src writer and add edge data.
         let (src_segment_id, src_pos) = resolve_pos(src_id, node_max_page_len);
         let num_nodes = src_id.index() + 1;
         self.resize_chunks_to_num_nodes(num_nodes); // Create enough segments.
 
-        let segment = self.graph().storage().nodes().get_or_create_segment(src_segment_id);
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(src_segment_id);
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
@@ -78,7 +90,9 @@ where
             let mut src_writer = self.nodes.get_mut(src_segment_id).unwrap().writer();
             src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, GidRef::from(&src_name));
 
-            let is_new_edge_static = src_writer.get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID).is_none();
+            let is_new_edge_static = src_writer
+                .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
+                .is_none();
             let is_new_edge_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
 
             // Add the edge to the static graph if it doesn't already exist.
@@ -104,7 +118,11 @@ where
         let num_nodes = dst_id.index() + 1;
         self.resize_chunks_to_num_nodes(num_nodes);
 
-        let segment = self.graph().storage().nodes().get_or_create_segment(dst_segment_id);
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(dst_segment_id);
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
@@ -112,7 +130,9 @@ where
             let mut dst_writer = self.nodes.get_mut(dst_segment_id).unwrap().writer();
             dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, GidRef::from(&dst_name));
 
-            let is_new_edge_static = dst_writer.get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID).is_none();
+            let is_new_edge_static = dst_writer
+                .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
+                .is_none();
             let is_new_edge_layer = dst_writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
 
             if is_new_edge_static {
@@ -135,14 +155,20 @@ where
         let num_edges = eid.index() + 1;
         self.resize_chunks_to_num_edges(num_edges);
 
-        let segment = self.graph().storage().edges().get_or_create_segment(edge_segment_id);
+        let segment = self
+            .graph()
+            .storage()
+            .edges()
+            .get_or_create_segment(edge_segment_id);
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
             let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
 
-            let is_new_edge_static = edge_writer.get_edge(STATIC_GRAPH_LAYER_ID, edge_pos).is_none();
+            let is_new_edge_static = edge_writer
+                .get_edge(STATIC_GRAPH_LAYER_ID, edge_pos)
+                .is_none();
 
             // Add edge into the static graph if it doesn't already exist.
             if is_new_edge_static {

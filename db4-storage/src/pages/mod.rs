@@ -127,17 +127,15 @@ impl<
     }
 
     pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError>
-    where
-        EXT: Default,
     {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
         let graph_props_path = graph_dir.as_ref().join("graph_props");
 
-        let mut ext = EXT::default();
-        if let Ok(loaded_config) = read_persistence_config(graph_dir.as_ref()) {
-            *ext.config_mut() = loaded_config;
-        }
+        let config = read_persistence_config(graph_dir.as_ref())
+            .unwrap_or_else(|_| PersistenceConfig::default());
+
+        let ext = EXT::new(config);
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();
