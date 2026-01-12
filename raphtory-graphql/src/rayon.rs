@@ -12,7 +12,7 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
     closure: F,
 ) -> R {
     let (send, recv) = oneshot::channel();
-    rayon::spawn(move || {
+    rayon::spawn_fifo(move || {
         let _ = send.send(closure()); // this only errors if no-one is listening anymore
     });
 
