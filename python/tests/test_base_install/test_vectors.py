@@ -1,5 +1,7 @@
 import pytest
-import requests
+import json
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 from raphtory import Graph
 from raphtory.vectors import VectorisedGraph, OpenAIEmbeddings, embedding_server
 
@@ -23,18 +25,33 @@ def test_server():
     with custom_embeddings.start():
         yield
 
+
+def post_json(url, payload):
+    data = json.dumps(payload).encode()
+    req = Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(req, timeout=10) as r:
+            return r.status, r.read()
+    except HTTPError as e:
+        return e.code, e.read()
+
+
 def test_failing_python_embeddings():
     @embedding_server(address="0.0.0.0:7342")
     def failing_embeddings(text: str):
         assert(False)
 
     with failing_embeddings.start():
-        headers = { "Content-Type": "application/json" }
         payload = { "model": "whatever", "input": ["Hello world"] }
-        response = requests.post("http://localhost:7342/embeddings", headers=headers, json=payload)
-        assert(response.status_code == 500)
-        response = requests.post("http://localhost:7342/embeddings", headers=headers, json=payload)
-        assert(response.status_code == 500)
+        status, _ = post_json("http://localhost:7342/embeddings", payload)
+        assert(status == 500)
+        status, _ = post_json("http://localhost:7342/embeddings", payload)
+        assert(status == 500)
 
 
 
@@ -74,14 +91,13 @@ def test_embedding_sever_context_manager():
         return [1.0]
 
     with constant.start():
-        headers = { "Content-Type": "application/json" }
-        data = {
+        payload = {
             # "model": "whatever",
             "input": ["The text to vectorise"]
         }
-        response = requests.post("http://localhost:7341/embeddings", headers=headers, json=data)
-        response.raise_for_status()
-        result = response.json()
+        status, body = post_json("http://localhost:7341/embeddings", payload)
+        assert(status == 200)
+        result = json.loads(body)
         vector = result['data'][0]['embedding']
         assert vector == [1.0]
 
