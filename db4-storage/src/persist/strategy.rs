@@ -97,6 +97,8 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static + for<'de> 
 
     fn config(&self) -> &PersistenceConfig;
 
+    // Need this to set node_types.
+    // TODO: Remove this once we have a better way to set node_types.
     fn config_mut(&mut self) -> &mut PersistenceConfig;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
@@ -156,7 +158,6 @@ impl PersistenceStrategy for NoOpStrategy {
         &self.config
     }
 
-    // Use builder pattern with_config.
     fn config_mut(&mut self) -> &mut PersistenceConfig {
         &mut self.config
     }

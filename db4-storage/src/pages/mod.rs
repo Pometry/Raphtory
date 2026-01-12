@@ -454,6 +454,7 @@ impl<NS, ES, GS, EXT: PersistenceStrategy> Drop for GraphStore<NS, ES, GS, EXT> 
     fn drop(&mut self) {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         self.ext.config_mut().set_node_types(node_types);
+
         if let Some(graph_dir) = self.graph_dir.as_ref() {
             if self.ext.config().save_to_dir(graph_dir).is_err() {
                 eprintln!("Unrecoverable! Failed to write graph meta");
