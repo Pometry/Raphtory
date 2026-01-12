@@ -87,7 +87,8 @@ impl<'a> From<&'a Path> for GraphDir {
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
         let config = PersistenceConfig::default();
-        Self::new(Extension::new(config)).unwrap()
+        let wal = Arc::new(WalType::new(None).unwrap());
+        Self::new(Extension::new(config, wal)).unwrap()
     }
 }
 

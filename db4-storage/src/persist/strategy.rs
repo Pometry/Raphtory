@@ -1,6 +1,7 @@
 use std::ops::DerefMut;
 use std::fmt::Debug;
 use std::path::Path;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use crate::error::StorageError;
 use crate::segments::{
@@ -90,19 +91,21 @@ impl PersistenceConfig {
     }
 }
 
-pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static + for<'de> Deserialize<'de> + Serialize {
+pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS;
     type ES;
     type GS;
     type WalType: Wal;
 
-    fn new(config: PersistenceConfig) -> Self;
+    fn new(config: PersistenceConfig, wal: Arc<Self::WalType>) -> Self;
 
     fn config(&self) -> &PersistenceConfig;
 
     // Need this to set node_types.
     // TODO: Remove this once we have a better way to set node_types.
     fn config_mut(&mut self) -> &mut PersistenceConfig;
+
+    fn wal(&self) -> &Self::WalType;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
@@ -129,9 +132,10 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static + for<'de> 
     fn disk_storage_enabled() -> bool;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct NoOpStrategy {
     config: PersistenceConfig,
+    wal: Arc<NoWal>,
 }
 
 impl NoOpStrategy {
@@ -144,6 +148,7 @@ impl NoOpStrategy {
                 bg_flush_enabled: true,
                 node_types: Vec::new(),
             },
+            wal: Arc::new(NoWal),
         }
     }
 }
@@ -154,8 +159,8 @@ impl PersistenceStrategy for NoOpStrategy {
     type GS = GraphPropSegmentView<Self>;
     type WalType = NoWal;
 
-    fn new(config: PersistenceConfig) -> Self {
-        Self { config }
+    fn new(config: PersistenceConfig, wal: Arc<Self::WalType>) -> Self {
+        Self { config, wal }
     }
 
     fn config(&self) -> &PersistenceConfig {
@@ -164,6 +169,10 @@ impl PersistenceStrategy for NoOpStrategy {
 
     fn config_mut(&mut self) -> &mut PersistenceConfig {
         &mut self.config
+    }
+
+    fn wal(&self) -> &Self::WalType {
+        &self.wal
     }
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(

@@ -6,7 +6,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use db4_graph::{TemporalGraph, WriteLockedGraph};
+use db4_graph::{GraphDir, TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -36,7 +36,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{transaction::TransactionManager, WalType, wal::LSN};
+use storage::{transaction::TransactionManager, WalType, wal::{LSN, Wal}};
 
 pub use storage::{
     Extension,
@@ -106,7 +106,10 @@ impl Storage {
 
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let config = PersistenceConfig::default();
-        let temporal_graph = TemporalGraph::new_with_path(path, Extension::new(config))?;
+        let graph_dir = GraphDir::from(path.as_ref());
+        let wal_dir = Some(graph_dir.wal_dir());
+        let wal = Arc::new(WalType::new(wal_dir)?);
+        let temporal_graph = TemporalGraph::new_with_path(path, Extension::new(config, wal))?;
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
