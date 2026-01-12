@@ -358,6 +358,6 @@ impl DurabilityOps for TemporalGraph {
     }
 
     fn wal(&self) -> &WalType {
-        &self.wal
+        &self.extension().wal()
     }
 }

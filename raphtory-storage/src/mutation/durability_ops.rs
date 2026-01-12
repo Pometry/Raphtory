@@ -15,7 +15,7 @@ impl DurabilityOps for GraphStorage {
     }
 
     fn wal(&self) -> &WalType {
-        self.mutable().unwrap().wal.as_ref()
+        self.mutable().unwrap().wal()
     }
 }
 

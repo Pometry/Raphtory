@@ -543,7 +543,7 @@ impl DurabilityOps for Storage {
     }
 
     fn wal(&self) -> &WalType {
-        self.graph.mutable().unwrap().wal.as_ref()
+        self.graph.mutable().unwrap().wal()
     }
 }
 

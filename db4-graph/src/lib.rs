@@ -40,7 +40,6 @@ pub struct TemporalGraph<EXT: PersistenceStrategy = Extension> {
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
-    pub wal: Arc<WalType>,
 }
 
 #[derive(Debug)]
@@ -123,8 +122,6 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
         let gid_resolver_dir = path.join("gid_resolver");
         let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
-        let wal_dir = path.join("wal");
-        let wal = Arc::new(WalType::new(Some(wal_dir))?);
 
         Ok(Self {
             graph_dir: Some(path.into()),
@@ -132,7 +129,6 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
             node_count,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
-            wal,
         })
     }
 
@@ -175,16 +171,12 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
             ext,
         );
 
-        let wal_dir = graph_dir.as_ref().map(|dir| dir.wal_dir());
-        let wal = Arc::new(WalType::new(wal_dir)?);
-
         Ok(Self {
             graph_dir,
             logical_to_physical,
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
-            wal,
         })
     }
 
@@ -195,6 +187,10 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
 
     pub fn extension(&self) -> &EXT {
         self.storage().extension()
+    }
+
+    pub fn wal(&self) -> &EXT::WalType {
+        self.storage().extension().wal()
     }
 
     pub fn read_event_counter(&self) -> usize {
