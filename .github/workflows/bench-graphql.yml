@@ -32,11 +32,16 @@ jobs:
         run: pip install maturin==1.8.3
       - run: df -h
       - name: Build raphtory
-        run: make install-python
+        run: |
+          cd python && maturin build --strip --out /tmp/wheels
       - run: df -h
-      - name: Remove target folder to free up some space
-        run: rm -fr target
+      - run: rm -fr target
       - run: df -h
+      - run: pip install /tmp/wheels/*.whl
+      - run: df -h
+      # - name: Remove target folder to free up some space
+      #   run: rm -fr target
+      # - run: df -h
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
