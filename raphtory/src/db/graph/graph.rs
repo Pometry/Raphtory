@@ -586,10 +586,15 @@ impl Graph {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
         }
+
         path.init()?;
+        let graph_storage_path = path.graph_path()?;
+        let storage = Storage::new_at_path(graph_storage_path)?;
+
         let graph = Self {
-            inner: Arc::new(Storage::new_at_path(path.graph_path()?)?),
+            inner: Arc::new(storage),
         };
+
         path.write_metadata(&graph)?;
         Ok(graph)
     }
