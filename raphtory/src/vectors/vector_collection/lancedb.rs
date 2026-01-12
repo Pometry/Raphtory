@@ -293,7 +293,7 @@ mod lancedb_tests {
         assert_eq!(result[0], (1, 2.0));
     }
 
-    const EMBEDDING_DIM: usize = 4096;
+    const EMBEDDING_DIM: usize = 32;
 
     #[tokio::test]
     async fn test_index_lifecycle() {
@@ -349,10 +349,17 @@ mod lancedb_tests {
         assert_vector_is_searchable(&collection, 299, embedding(299)).await;
     }
 
-    fn embedding(index: usize) -> Embedding {
-        assert!(index < EMBEDDING_DIM);
-        let mut vector: Vec<f32> = vec![0.0; EMBEDDING_DIM];
-        vector[index] = 1.0;
+    // fn embedding(index: usize) -> Embedding {
+    //     assert!(index < EMBEDDING_DIM);
+    //     let mut vector: Vec<f32> = vec![0.0; EMBEDDING_DIM];
+    //     vector[index] = 1.0;
+    //     vector.into()
+    // }
+    fn embedding(id: usize) -> Embedding {
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
+        let mut rng = StdRng::seed_from_u64(id as u64);
+        let vector: Vec<f32> = (0..EMBEDDING_DIM).map(|_| rng.gen::<f32>()).collect();
         vector.into()
     }
 

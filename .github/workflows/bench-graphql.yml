@@ -14,52 +14,36 @@ jobs:
     name: GraphQL Benchmark
     runs-on: ubuntu-latest
     steps:
-      - run: df -h
       - uses: actions/checkout@v3
         name: Checkout
-      - run: df -h
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: df -h
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - run: df -h
       - name: Install maturin
         run: pip install maturin==1.8.3
-      - run: df -h
       - name: Build raphtory
         run: |
-          cd python && maturin build --strip --out /tmp/wheels
-      - run: df -h
+          cd python && maturin build --strip --out /tmp/wheels # double-check --strip acutally makes sense
       - run: rm -fr target
-      - run: df -h
       - run: pip install /tmp/wheels/*.whl
-      - run: df -h
-      # - name: Remove target folder to free up some space
-      #   run: rm -fr target
-      # - run: df -h
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-      - run: df -h
       - uses: grafana/setup-k6-action@v1
         with:
           k6-version: "1.0.0"
-      - run: df -h
       - name: Run GraphQL benchmarks
         run: cd graphql-bench && make bench-local
-      - run: df -h
       - name: Restore metadata file
         run: git restore graphql-bench/data/apache/master/.raph # otherwise github-action-benchmark fails to create the commit
-      - run: df -h
       - name: Print bench results
         run: cat graphql-bench/output.json
-      - run: df -h
       - name: Store benchmark results from master branch
         if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
