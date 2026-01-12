@@ -103,21 +103,21 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static + for<'de> 
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
-        node_page: &Self::NS,
+        node_segment: &Self::NS,
         writer: MP,
     ) where
         Self: Sized;
 
-    fn persist_edge_page<MP: DerefMut<Target = MemEdgeSegment>>(
+    fn persist_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
-        edge_page: &Self::ES,
+        edge_segment: &Self::ES,
         writer: MP,
     ) where
         Self: Sized;
 
-    fn persist_graph_props<MP: DerefMut<Target = MemGraphPropSegment>>(
+    fn persist_graph_prop_segment<MP: DerefMut<Target = MemGraphPropSegment>>(
         &self,
-        graph_segment: &Self::GS,
+        graph_prop_segment: &Self::GS,
         writer: MP,
     ) where
         Self: Sized;
@@ -170,7 +170,7 @@ impl PersistenceStrategy for NoOpStrategy {
         // No operation
     }
 
-    fn persist_edge_page<MP: DerefMut<Target = MemEdgeSegment>>(
+    fn persist_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         _edge_page: &Self::ES,
         _writer: MP,
@@ -178,7 +178,7 @@ impl PersistenceStrategy for NoOpStrategy {
         // No operation
     }
 
-    fn persist_graph_props<MP: DerefMut<Target = MemGraphPropSegment>>(
+    fn persist_graph_prop_segment<MP: DerefMut<Target = MemGraphPropSegment>>(
         &self,
         _graph_segment: &Self::GS,
         _writer: MP,
