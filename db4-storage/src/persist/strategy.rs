@@ -8,6 +8,8 @@ use crate::segments::{
     graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
     node::segment::{MemNodeSegment, NodeSegmentView},
 };
+use crate::wal::no_wal::NoWal;
+use crate::wal::Wal;
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
@@ -92,6 +94,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static + for<'de> 
     type NS;
     type ES;
     type GS;
+    type WalType: Wal;
 
     fn new(config: PersistenceConfig) -> Self;
 
@@ -149,6 +152,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
+    type WalType = NoWal;
 
     fn new(config: PersistenceConfig) -> Self {
         Self { config }

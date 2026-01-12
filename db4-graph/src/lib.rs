@@ -26,7 +26,7 @@ use storage::{
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::Wal,
-    Extension, GIDResolver, Layer, PersistenceConfig, ReadLockedLayer, WalImpl, ES, GS, NS,
+    Extension, GIDResolver, Layer, PersistenceConfig, ReadLockedLayer, WalType, ES, GS, NS,
 };
 use tempfile::TempDir;
 
@@ -40,7 +40,7 @@ pub struct TemporalGraph<EXT: PersistenceStrategy = Extension> {
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
-    pub wal: Arc<WalImpl>,
+    pub wal: Arc<WalType>,
 }
 
 #[derive(Debug)]
@@ -123,7 +123,7 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
         let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
         let wal_dir = path.join("wal");
-        let wal = Arc::new(WalImpl::new(Some(wal_dir))?);
+        let wal = Arc::new(WalType::new(Some(wal_dir))?);
 
         Ok(Self {
             graph_dir: Some(path.into()),
@@ -175,7 +175,7 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
         );
 
         let wal_dir = graph_dir.as_ref().map(|dir| dir.wal_dir());
-        let wal = Arc::new(WalImpl::new(wal_dir)?);
+        let wal = Arc::new(WalType::new(wal_dir)?);
 
         Ok(Self {
             graph_dir,

@@ -24,7 +24,7 @@ use storage::{
     persist::strategy::PersistenceStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, transaction::TransactionManager, WalImpl, ES, NS, GS,
+    Extension, transaction::TransactionManager, WalType, ES, NS, GS,
     wal::LSN,
 };
 
@@ -357,7 +357,7 @@ impl DurabilityOps for TemporalGraph {
         &self.transaction_manager
     }
 
-    fn wal(&self) -> &WalImpl {
+    fn wal(&self) -> &WalType {
         &self.wal
     }
 }

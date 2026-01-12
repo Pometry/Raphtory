@@ -1,4 +1,4 @@
-use storage::{transaction::TransactionManager, WalImpl};
+use storage::{transaction::TransactionManager, WalType};
 use crate::graph::graph::GraphStorage;
 use raphtory_api::inherit::Base;
 
@@ -6,7 +6,7 @@ use raphtory_api::inherit::Base;
 pub trait DurabilityOps {
     fn transaction_manager(&self) -> &TransactionManager;
 
-    fn wal(&self) -> &WalImpl;
+    fn wal(&self) -> &WalType;
 }
 
 impl DurabilityOps for GraphStorage {
@@ -14,7 +14,7 @@ impl DurabilityOps for GraphStorage {
         self.mutable().unwrap().transaction_manager.as_ref()
     }
 
-    fn wal(&self) -> &WalImpl {
+    fn wal(&self) -> &WalType {
         self.mutable().unwrap().wal.as_ref()
     }
 }
@@ -31,7 +31,7 @@ where
     }
 
     #[inline]
-    fn wal(&self) -> &WalImpl {
+    fn wal(&self) -> &WalType {
         self.base().wal()
     }
 }

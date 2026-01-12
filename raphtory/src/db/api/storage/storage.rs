@@ -36,7 +36,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{transaction::TransactionManager, WalImpl, wal::LSN};
+use storage::{transaction::TransactionManager, WalType, wal::LSN};
 
 pub use storage::{
     Extension,
@@ -539,7 +539,7 @@ impl DurabilityOps for Storage {
         self.graph.mutable().unwrap().transaction_manager.as_ref()
     }
 
-    fn wal(&self) -> &WalImpl {
+    fn wal(&self) -> &WalType {
         self.graph.mutable().unwrap().wal.as_ref()
     }
 }

@@ -11,10 +11,9 @@ use crate::{
     },
     generic_t_props::GenericTProps,
     pages::{
-        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
-        node_store::ReadLockedNodeStorage,
+        edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage, GraphStore, ReadLockedGraphStore
     },
-    persist::strategy::NoOpStrategy,
+    persist::strategy::{NoOpStrategy, PersistenceStrategy},
     resolver::mapping_resolver::MappingResolver,
     segments::{
         edge::{
@@ -27,7 +26,6 @@ use crate::{
             segment::NodeSegmentView,
         },
     },
-    wal::no_wal::NoWal,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
@@ -53,7 +51,7 @@ pub type ES<P> = EdgeSegmentView<P>;
 pub type GS<P> = GraphPropSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
-pub type WalImpl = NoWal;
+pub type WalType = <Extension as PersistenceStrategy>::WalType;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
