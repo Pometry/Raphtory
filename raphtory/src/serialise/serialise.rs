@@ -147,17 +147,15 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     }
 
     fn decode(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        let graph;
         if path.is_zip() {
             let reader = path.read_zip()?;
-            graph = Self::decode_from_zip(reader)?;
+            Self::decode_from_zip(reader)
         } else {
-            graph = Self::decode_parquet(&path.graph_path()?, None)?;
+            Self::decode_parquet(&path.graph_path()?, None)
             // TODO: Fix index loading:
             // #[cfg(feature = "search")]
             // graph.load_index(&path)?;
         }
-        Ok(graph)
     }
 
     fn decode_at(

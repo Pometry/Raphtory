@@ -184,9 +184,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 })?;
             // validate src and dst columns
             let src_col = df.node_col(src_index)?;
-            src_col.validate(graph, LoadError::MissingSrcError)?;
             let dst_col = df.node_col(dst_index)?;
-            dst_col.validate(graph, LoadError::MissingDstError)?;
+            if resolve_nodes {
+                src_col.validate(graph, LoadError::MissingSrcError)?;
+                dst_col.validate(graph, LoadError::MissingDstError)?;
+            }
             let layer = lift_layer_col(layer, layer_index, &df)?;
             let layer_id_values = layer_id_index
                 .map(|idx| {
