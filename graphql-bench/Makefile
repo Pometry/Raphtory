@@ -10,7 +10,7 @@ build:
 	pnpm build
 
 bench-local: build
-	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js' || :
+	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --verbose --http-debug --out csv=output.csv.gz dist/bench.js' || :
 	python process-k6-output.py
 
 # call this like: make bench-e2-standard-16
@@ -23,7 +23,7 @@ bench: deploy push-graphs build-raphtory
 	make destroy
 
 stress-test: build
-	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run dist/stress-test.js
+	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --verbose --http-debug dist/stress-test.js
 
 stress-test-multiple: build # 12 x 10m = 2h
 	for _ in $(seq 1 12); do \
