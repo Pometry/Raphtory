@@ -22,6 +22,7 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     types::{PyFunction, PyList},
+    Borrowed,
 };
 use std::path::PathBuf;
 
@@ -57,15 +58,16 @@ impl PyQuery {
     }
 }
 
-impl<'source> FromPyObject<'source> for PyQuery {
-    fn extract_bound(query: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyQuery {
+    type Error = PyErr;
+    fn extract(query: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(text) = query.extract::<String>() {
             return Ok(PyQuery::Raw(text));
         }
         if let Ok(embedding) = query.extract::<Vec<f32>>() {
             return Ok(PyQuery::Computed(embedding.into()));
         }
-        let message = format!("query '{query}' must be a str, or a list of float");
+        let message = format!("query '{query:?}' must be a str, or a list of float");
         Err(PyTypeError::new_err(message))
     }
 }

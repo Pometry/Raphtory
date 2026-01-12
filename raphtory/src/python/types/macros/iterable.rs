@@ -232,8 +232,9 @@ macro_rules! py_iterable_comp {
             }
         }
 
-        impl<'source> FromPyObject<'source> for $cmp_internal {
-            fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        impl<'source> FromPyObject<'_, 'source> for $cmp_internal {
+            type Error = PyErr;
+            fn extract(ob: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
                 if let Ok(s) = ob.extract::<Py<$name>>() {
                     Ok($cmp_internal::This(s))
                 } else if let Ok(v) = ob.extract::<Vec<$cmp_item>>() {

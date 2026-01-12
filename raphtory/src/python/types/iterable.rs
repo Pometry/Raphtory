@@ -2,7 +2,7 @@ use crate::{
     db::api::view::BoxedIter,
     python::types::repr::{iterator_repr, Repr},
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyAnyMethods, Borrowed};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -153,13 +153,15 @@ impl<T> IntoIterator for FromIterable<T> {
     }
 }
 
-impl<'py, T: FromPyObject<'py>> FromPyObject<'py> for FromIterable<T> {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py, T: FromPyObject<'a, 'py>> FromPyObject<'a, 'py> for FromIterable<T> {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         let len = ob.len().unwrap_or(0);
         let mut vec = Vec::<T>::with_capacity(len);
         {
             for value in ob.try_iter()? {
-                vec.push(value?.extract()?)
+                let v = value?.extract().map_err(Into::into)?;
+                vec.push(v)
             }
         }
         Ok(Self(vec))

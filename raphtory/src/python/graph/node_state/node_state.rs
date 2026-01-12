@@ -378,8 +378,11 @@ macro_rules! impl_lazy_node_state {
             }
         }
 
-        impl<'py> FromPyObject<'py> for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        impl<'py> FromPyObject<'_, 'py>
+            for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>
+        {
+            type Error = PyErr;
+            fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
                 Ok(ob.downcast::<$name>()?.get().inner().clone())
             }
         }
@@ -426,8 +429,9 @@ macro_rules! impl_node_state {
             }
         }
 
-        impl<'py> FromPyObject<'py> for NodeState<'static, $value, DynamicGraph, DynamicGraph> {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        impl<'py> FromPyObject<'_, 'py> for NodeState<'static, $value, DynamicGraph, DynamicGraph> {
+            type Error = PyErr;
+            fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
                 Ok(ob.downcast::<$name>()?.get().inner().clone())
             }
         }

@@ -21,7 +21,7 @@ use pyo3::{
     prelude::*,
     pybacked::PyBackedStr,
     types::PyDateTime,
-    BoundObject,
+    Borrowed, BoundObject,
 };
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropUnwrap},
@@ -41,8 +41,9 @@ pub enum PyNodeRef {
     Internal(VID),
 }
 
-impl<'source> FromPyObject<'source> for PyNodeRef {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyNodeRef {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(s) = ob.extract::<PyBackedStr>() {
             Ok(PyNodeRef::ExternalStr(s))
         } else if let Ok(gid) = ob.extract::<u64>() {
@@ -106,8 +107,9 @@ pub struct PyTime {
     parsing_result: i64,
 }
 
-impl<'source> FromPyObject<'source> for PyTime {
-    fn extract_bound(time: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyTime {
+    type Error = PyErr;
+    fn extract(time: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(string) = time.extract::<String>() {
             let timestamp = string.as_str();
             let parsing_result = timestamp
@@ -141,7 +143,7 @@ impl<'source> FromPyObject<'source> for PyTime {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
             return Ok(PyTime::new(time));
         }
-        let message = format!("time '{time}' must be a str, datetime, float, or an integer");
+        let message = format!("time '{time:?}' must be a str, datetime, float, or an integer");
         Err(PyTypeError::new_err(message))
     }
 }

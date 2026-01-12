@@ -23,7 +23,7 @@ use crate::{
     },
     serialise::StableEncode,
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr};
+use pyo3::{prelude::*, pybacked::PyBackedStr, Borrowed};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::arc_str::ArcStr,
@@ -75,8 +75,9 @@ impl<'py> IntoPyObject<'py> for PersistentGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for PersistentGraph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PersistentGraph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let g = ob.downcast::<PyPersistentGraph>()?.get();
         Ok(g.graph.clone())
     }

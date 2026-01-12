@@ -25,7 +25,7 @@ use crate::{
         StableDecode, StableEncode,
     },
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
+use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict, Borrowed};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
@@ -85,8 +85,9 @@ impl From<PyGraph> for DynamicGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for MaterializedGraph {
-    fn extract_bound(graph: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for MaterializedGraph {
+    type Error = PyErr;
+    fn extract(graph: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(graph) = graph.extract::<PyRef<PyGraph>>() {
             Ok(graph.graph.clone().into())
         } else if let Ok(graph) = graph.extract::<PyRef<PyPersistentGraph>>() {
@@ -109,8 +110,9 @@ impl<'py> IntoPyObject<'py> for Graph {
     }
 }
 
-impl<'source> FromPyObject<'source> for Graph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Graph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let g = ob.downcast::<PyGraph>()?.borrow();
 
         Ok(g.graph.clone())

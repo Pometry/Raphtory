@@ -265,7 +265,7 @@ pub(crate) fn process_pandas_py_df<'a>(
         let chunk = (0..names_len)
             .map(|i| {
                 let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
-                let arr = array_to_rust(&array).map_err(GraphError::from)?;
+                let arr = array_to_rust(array.as_borrowed()).map_err(GraphError::from)?;
                 Ok::<_, GraphError>(arr)
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
@@ -284,8 +284,8 @@ pub(crate) fn process_pandas_py_df<'a>(
     })
 }
 
-pub fn array_to_rust(obj: &Bound<PyAny>) -> PyResult<ArrayRef> {
-    let (array, _) = PyArray::extract_bound(obj)?.into_inner();
+pub fn array_to_rust<'py>(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<ArrayRef> {
+    let (array, _) = PyArray::extract(obj)?.into_inner();
     Ok(array)
 }
 

@@ -42,7 +42,7 @@ use pyo3::{
     pybacked::PyBackedStr,
     pyclass, pymethods,
     types::PyDict,
-    IntoPyObjectExt, PyObject, PyResult, Python,
+    Borrowed, IntoPyObjectExt, PyObject, PyResult, Python,
 };
 use python::{
     types::repr::{iterator_repr, Repr},
@@ -480,8 +480,9 @@ pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph> {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Nodes<'static, DynamicGraph> {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         Ok(ob.downcast::<PyNodes>()?.get().nodes.clone())
     }
 }
