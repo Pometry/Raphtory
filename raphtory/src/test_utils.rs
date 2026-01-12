@@ -102,6 +102,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                 updates.props.t_props.iter().map(|(t, _)| *t).collect_vec(),
             )
         })
+        .filter(|(_, hist)| !hist.is_empty())
         .collect();
     for ((src, dst, _), updates) in fixture.edges() {
         expected_node_histories
