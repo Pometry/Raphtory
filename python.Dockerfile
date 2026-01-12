@@ -1,5 +1,5 @@
-ARG PYTHON_VERSION=3.13.5
 ARG RUST_VERSION=1.86.0
+ARG BASE_PYTHON_IMAGE_TAG
 
 FROM rust:${RUST_VERSION} AS build
 ARG PYTHON_VERSION
@@ -15,7 +15,7 @@ RUN pip install maturin==1.8.3 patchelf==0.17.2.2
 COPY . .
 RUN cd python && maturin build --release
 
-FROM python:${PYTHON_VERSION}-slim
+FROM python:${BASE_PYTHON_IMAGE_TAG}
 ARG PYTHON_VERSION
 WORKDIR /var/lib/raphtory
 COPY --from=build /app/target/wheels/*.whl /
