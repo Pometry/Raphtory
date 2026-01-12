@@ -102,8 +102,9 @@ impl<'a, 'py: 'a> IntoPyObject<'py> for &'a Prop {
 }
 
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
-impl<'source> FromPyObject<'source> for Prop {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Prop {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if ob.is_instance_of::<PyBool>() {
             return Ok(Prop::Bool(ob.extract()?));
         }

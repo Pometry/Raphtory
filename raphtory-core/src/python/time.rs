@@ -8,8 +8,9 @@ impl From<ParseTimeError> for PyErr {
     }
 }
 
-impl<'source> FromPyObject<'source> for Interval {
-    fn extract_bound(interval: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Interval {
+    type Error = PyErr;
+    fn extract(interval: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(string) = interval.extract::<String>() {
             return Ok(string.try_into()?);
         };
@@ -19,17 +20,20 @@ impl<'source> FromPyObject<'source> for Interval {
         };
 
         Err(PyTypeError::new_err(format!(
-            "interval '{interval}' must be a str or an unsigned integer"
+            "interval '{interval:?}' must be a str or an unsigned integer"
         )))
     }
 }
 
-impl<'source> FromPyObject<'source> for AlignmentUnit {
-    fn extract_bound(unit: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for AlignmentUnit {
+    type Error = PyErr;
+    fn extract(unit: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(string) = unit.extract::<String>() {
             return Ok(string.try_into()?);
         };
 
-        Err(PyTypeError::new_err(format!("unit '{unit}' must be a str")))
+        Err(PyTypeError::new_err(format!(
+            "unit '{unit:?}' must be a str"
+        )))
     }
 }
