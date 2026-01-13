@@ -1,18 +1,16 @@
+import json
 import os
 import tempfile
 
 import pytest
-
+from raphtory import Graph, graph_loader
 from raphtory.graphql import (
     GraphServer,
     RaphtoryClient,
-    encode_graph,
-    decode_graph,
     RemoteGraph,
+    decode_graph,
+    encode_graph,
 )
-from raphtory import graph_loader
-from raphtory import Graph
-import json
 
 
 def normalize_path(path):
@@ -416,7 +414,7 @@ def test_create_node():
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "ben"}, {"name": "shivam"}, {"name": "oogway"}]
+                    "list": [{"name": "ben"}, {"name": "oogway"}, {"name": "shivam"}]
                 }
             }
         }
@@ -446,7 +444,7 @@ def test_create_node_using_client():
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "ben"}, {"name": "shivam"}, {"name": "oogway"}]
+                    "list": [{"name": "ben"}, {"name": "oogway"}, {"name": "shivam"}]
                 }
             }
         }
@@ -616,8 +614,8 @@ def test_create_node_using_client_with_node_type():
                 "nodes": {
                     "list": [
                         {"name": "ben", "nodeType": None},
-                        {"name": "shivam", "nodeType": None},
                         {"name": "oogway", "nodeType": "master"},
+                        {"name": "shivam", "nodeType": None},
                     ]
                 }
             }
