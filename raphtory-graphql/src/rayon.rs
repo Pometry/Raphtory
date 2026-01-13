@@ -5,6 +5,13 @@ use tokio::sync::oneshot;
 static WRITE_POOL: LazyLock<ThreadPool> =
     LazyLock::new(|| ThreadPoolBuilder::new().build().unwrap());
 
+static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    ThreadPoolBuilder::new()
+        .stack_size(16 * 1024 * 1024)
+        .build()
+        .unwrap()
+});
+
 /// Use the rayon threadpool to execute a task
 ///
 /// Use this for long-running, compute-heavy work
@@ -12,7 +19,7 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
     closure: F,
 ) -> R {
     let (send, recv) = oneshot::channel();
-    rayon::spawn(move || {
+    COMPUTE_POOL.spawn_fifo(move || {
         let _ = send.send(closure()); // this only errors if no-one is listening anymore
     });
 
@@ -38,12 +45,16 @@ mod deadlock_tests {
     use reqwest::{Client, StatusCode};
     use tempfile::TempDir;
 
-    use crate::{rayon::WRITE_POOL, routes::Health, GraphServer};
+    use crate::{
+        rayon::{COMPUTE_POOL, WRITE_POOL},
+        routes::Health,
+        GraphServer,
+    };
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
         test_pool_lock(43871, |lock| {
-            rayon::spawn_broadcast(move |_| {
+            COMPUTE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock().unwrap();
             });
         })

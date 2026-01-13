@@ -6,7 +6,6 @@ use crate::{
     add_classes, add_functions,
     python::{
         algorithm::{epidemics::PyInfected, max_weight_matching::PyMatching},
-        filter::node_filter_builders::PyNodeFilterBuilder,
         graph::{
             edge::{PyEdge, PyMutableEdge},
             edges::{PyEdges, PyNestedEdges},
@@ -59,7 +58,10 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use raphtory_api::python::timeindex::{PyEventTime, PyOptionalEventTime};
+use raphtory_api::python::{
+    timeindex::{PyEventTime, PyOptionalEventTime},
+    PyProp,
+};
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -70,7 +72,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPersistentGraph,
         PyGraphEncoder,
         PyNode,
-        PyNodeFilterBuilder,
         PyNodes,
         PyPathFromNode,
         PyPathFromGraph,
@@ -95,7 +96,8 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyIntervals,
         PyWindowSet,
         PyIndexSpecBuilder,
-        PyIndexSpec
+        PyIndexSpec,
+        PyProp
     );
 
     #[pyfunction]

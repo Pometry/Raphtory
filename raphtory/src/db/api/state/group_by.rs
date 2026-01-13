@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::state::Index,
+        api::state::{ops::Const, Index},
         graph::{nodes::Nodes, views::node_subgraph::NodeSubgraph},
     },
     prelude::{GraphViewOps, NodeStateOps},
@@ -40,8 +40,8 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                 Nodes::new_filtered(
                     self.graph.clone(),
                     self.graph.clone(),
+                    Const(true),
                     Some(nodes.clone()),
-                    None,
                 ),
             )
         })
@@ -86,8 +86,8 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                 Nodes::new_filtered(
                     self.graph.clone(),
                     self.graph.clone(),
+                    Const(true),
                     Some(nodes.clone()),
-                    None,
                 ),
             )
         })

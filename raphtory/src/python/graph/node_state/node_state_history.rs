@@ -3,19 +3,18 @@ use crate::{
         api::{
             state::{
                 ops,
-                ops::{node::NodeOp, HistoryOp},
+                ops::{node::NodeOp, DynNodeFilter, HistoryOp},
                 LazyNodeState, NodeState,
             },
             view::{
                 history::{History, InternalHistoryOps},
-                internal::Static,
-                DynamicGraph, IntoDynHop, IntoDynamic, StaticGraphViewOps,
+                DynamicGraph,
             },
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    impl_lazy_node_state, impl_node_state, impl_node_state_ops, impl_one_hop,
-    prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
+    impl_lazy_node_state, impl_node_state, impl_node_state_ops,
+    prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
     python::{
         graph::history::{
             PyHistory, PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals,
@@ -34,16 +33,34 @@ use raphtory_api::{core::storage::timeindex::EventTime, python::timeindex::PyOpt
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use std::{collections::HashMap, sync::Arc};
 
+use crate::db::graph::nodes::IntoDynNodes;
+pub(crate) use crate::{
+    db::api::state::ops::IntoDynNodeOp, py_borrowing_iter,
+    python::graph::node_state::node_state::ops::NodeFilterOp,
+};
+
 /// A lazy view over History objects for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct HistoryView {
-    inner: LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>,
+    inner: LazyNodeState<
+        'static,
+        HistoryOp<'static, DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >,
 }
 
 impl HistoryView {
     pub fn inner(
         &self,
-    ) -> &LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph> {
+    ) -> &LazyNodeState<
+        'static,
+        HistoryOp<'static, DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         &self.inner
     }
 
@@ -70,6 +87,7 @@ impl HistoryView {
         ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryTimestamp>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|hist| hist.t().into());
         LazyNodeState::new(op, self.inner.nodes())
@@ -87,6 +105,7 @@ impl HistoryView {
         ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryDateTime>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|hist| hist.dt().into());
         LazyNodeState::new(op, self.inner.nodes())
@@ -104,6 +123,7 @@ impl HistoryView {
         ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryEventId>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|hist| hist.event_id().into());
         LazyNodeState::new(op, self.inner.nodes())
@@ -121,6 +141,7 @@ impl HistoryView {
         ops::Map<HistoryOp<'static, DynamicGraph>, PyIntervals>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|hist| hist.intervals().into());
         LazyNodeState::new(op, self.inner.nodes())
@@ -132,7 +153,13 @@ impl HistoryView {
     ///     EarliestTimeView: A lazy view over the earliest time of each node as an EventTime.
     fn earliest_time(
         &self,
-    ) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+    ) -> LazyNodeState<
+        'static,
+        ops::EarliestTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         self.inner.earliest_time()
     }
 
@@ -141,7 +168,13 @@ impl HistoryView {
     ///     LatestTimeView: A lazy view over the latest time of each node as an EventTime.
     fn latest_time(
         &self,
-    ) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+    ) -> LazyNodeState<
+        'static,
+        ops::LatestTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         self.inner.latest_time()
     }
 
@@ -151,12 +184,7 @@ impl HistoryView {
     ///     NodeStateHistory: the computed `NodeState`
     fn compute(
         &self,
-    ) -> NodeState<
-        'static,
-        History<'static, NodeView<'static, DynamicGraph>>,
-        DynamicGraph,
-        DynamicGraph,
-    > {
+    ) -> NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph> {
         self.inner.compute()
     }
 
@@ -193,8 +221,8 @@ impl HistoryView {
     ///
     /// Returns:
     ///     Nodes: The nodes
-    fn nodes(&self) -> Nodes<'static, DynamicGraph> {
-        self.inner.nodes()
+    fn nodes(&self) -> Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
+        self.inner.nodes().into_dyn()
     }
 
     fn __eq__<'py>(
@@ -252,7 +280,13 @@ impl HistoryView {
     fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
-            LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>,
+            LazyNodeState<
+                'static,
+                HistoryOp<'static, DynamicGraph>,
+                DynamicGraph,
+                DynamicGraph,
+                DynNodeFilter,
+            >,
             |inner| inner.iter_values()
         )
     }
@@ -296,7 +330,13 @@ impl HistoryView {
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
-            LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>,
+            LazyNodeState<
+                'static,
+                HistoryOp<'static, DynamicGraph>,
+                DynamicGraph,
+                DynamicGraph,
+                DynNodeFilter,
+            >,
             |inner| NodeStateOps::iter(inner).map(|(n, v)| (n.cloned(), v))
         )
     }
@@ -339,18 +379,38 @@ impl HistoryView {
     }
 }
 
-impl From<LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>>
-    for HistoryView
+impl
+    From<
+        LazyNodeState<
+            'static,
+            HistoryOp<'static, DynamicGraph>,
+            DynamicGraph,
+            DynamicGraph,
+            DynNodeFilter,
+        >,
+    > for HistoryView
 {
     fn from(
-        inner: LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>,
+        inner: LazyNodeState<
+            'static,
+            HistoryOp<'static, DynamicGraph>,
+            DynamicGraph,
+            DynamicGraph,
+            DynNodeFilter,
+        >,
     ) -> Self {
         HistoryView { inner }
     }
 }
 
 impl<'py> pyo3::IntoPyObject<'py>
-    for LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>
+    for LazyNodeState<
+        'static,
+        HistoryOp<'static, DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >
 {
     type Target = HistoryView;
     type Output = Bound<'py, Self::Target>;
@@ -362,7 +422,13 @@ impl<'py> pyo3::IntoPyObject<'py>
 }
 
 impl<'py> FromPyObject<'py>
-    for LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>
+    for LazyNodeState<
+        'static,
+        HistoryOp<'static, DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         Ok(ob.downcast::<HistoryView>()?.get().inner().clone())
@@ -371,28 +437,16 @@ impl<'py> FromPyObject<'py>
 
 type HistoryOpType<G> = HistoryOp<'static, G>;
 
-impl_one_hop!(HistoryView<HistoryOpType>, "HistoryView");
-
 /// A NodeState of History objects for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct NodeStateHistory {
-    inner: NodeState<
-        'static,
-        History<'static, NodeView<'static, DynamicGraph>>,
-        DynamicGraph,
-        DynamicGraph,
-    >,
+    inner: NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
 }
 
 impl NodeStateHistory {
     pub fn inner(
         &self,
-    ) -> &NodeState<
-        'static,
-        History<'static, NodeView<'static, DynamicGraph>>,
-        DynamicGraph,
-        DynamicGraph,
-    > {
+    ) -> &NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph> {
         &self.inner
     }
 
@@ -412,19 +466,14 @@ impl NodeStateHistory {
     /// Returns:
     ///     NodeStateHistoryTimestamp: A NodeState with the computed HistoryTimestamp object for each node.
     #[getter]
-    fn t(&self) -> NodeState<'static, PyHistoryTimestamp, DynamicGraph, DynamicGraph> {
+    fn t(&self) -> NodeState<'static, PyHistoryTimestamp, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
             .map(|h| h.clone().t().into())
             .collect::<Vec<PyHistoryTimestamp>>()
             .into();
-        NodeState::new(
-            self.inner.base_graph().clone(),
-            self.inner.graph().clone(),
-            values,
-            self.inner.ids().clone(),
-        )
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
     }
 
     /// Access history events as UTC datetimes.
@@ -432,19 +481,14 @@ impl NodeStateHistory {
     /// Returns:
     ///     NodeStateHistoryDateTime: A NodeState with the computed HistoryDateTime object for each node.
     #[getter]
-    fn dt(&self) -> NodeState<'static, PyHistoryDateTime, DynamicGraph, DynamicGraph> {
+    fn dt(&self) -> NodeState<'static, PyHistoryDateTime, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
             .map(|h| h.clone().dt().into())
             .collect::<Vec<PyHistoryDateTime>>()
             .into();
-        NodeState::new(
-            self.inner.base_graph().clone(),
-            self.inner.graph().clone(),
-            values,
-            self.inner.ids().clone(),
-        )
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
     }
 
     /// Access the unique event id of each time entry.
@@ -452,19 +496,14 @@ impl NodeStateHistory {
     /// Returns:
     ///     NodeStateHistoryEventId: A NodeState with the computed HistoryEventId object for each node.
     #[getter]
-    fn event_id(&self) -> NodeState<'static, PyHistoryEventId, DynamicGraph, DynamicGraph> {
+    fn event_id(&self) -> NodeState<'static, PyHistoryEventId, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
             .map(|h| h.clone().event_id().into())
             .collect::<Vec<PyHistoryEventId>>()
             .into();
-        NodeState::new(
-            self.inner.base_graph().clone(),
-            self.inner.graph().clone(),
-            values,
-            self.inner.ids().clone(),
-        )
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
     }
 
     /// Access the intervals between consecutive timestamps in milliseconds.
@@ -472,19 +511,14 @@ impl NodeStateHistory {
     /// Returns:
     ///     NodeStateIntervals: A NodeState with the computed Intervals object for each node.
     #[getter]
-    fn intervals(&self) -> NodeState<'static, PyIntervals, DynamicGraph, DynamicGraph> {
+    fn intervals(&self) -> NodeState<'static, PyIntervals, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
             .map(|h| h.clone().intervals().into())
             .collect::<Vec<PyIntervals>>()
             .into();
-        NodeState::new(
-            self.inner.base_graph().clone(),
-            self.inner.graph().clone(),
-            values,
-            self.inner.ids().clone(),
-        )
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
     }
 
     /// Get the earliest time entry of all nodes.
@@ -587,12 +621,7 @@ impl NodeStateHistory {
     fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
-            NodeState<
-                'static,
-                History<'static, NodeView<'static, DynamicGraph>>,
-                DynamicGraph,
-                DynamicGraph,
-            >,
+            NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
             |inner| inner.iter_values().map(|v| v.clone())
         )
     }
@@ -642,12 +671,7 @@ impl NodeStateHistory {
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
-            NodeState<
-                'static,
-                History<'static, NodeView<'static, DynamicGraph>>,
-                DynamicGraph,
-                DynamicGraph,
-            >,
+            NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
             |inner| inner.iter().map(|(n, v)| (n.cloned(), v.clone()))
         )
     }
@@ -690,35 +714,18 @@ impl NodeStateHistory {
     }
 }
 
-impl
-    From<
-        NodeState<
-            'static,
-            History<'static, NodeView<'static, DynamicGraph>>,
-            DynamicGraph,
-            DynamicGraph,
-        >,
-    > for NodeStateHistory
+impl From<NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>>
+    for NodeStateHistory
 {
     fn from(
-        inner: NodeState<
-            'static,
-            History<'static, NodeView<'static, DynamicGraph>>,
-            DynamicGraph,
-            DynamicGraph,
-        >,
+        inner: NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
     ) -> Self {
         NodeStateHistory { inner: inner }
     }
 }
 
 impl<'py> pyo3::IntoPyObject<'py>
-    for NodeState<
-        'static,
-        History<'static, NodeView<'static, DynamicGraph>>,
-        DynamicGraph,
-        DynamicGraph,
-    >
+    for NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>
 {
     type Target = NodeStateHistory;
     type Output = Bound<'py, Self::Target>;
@@ -730,12 +737,7 @@ impl<'py> pyo3::IntoPyObject<'py>
 }
 
 impl<'py> FromPyObject<'py>
-    for NodeState<
-        'static,
-        History<'static, NodeView<'static, DynamicGraph>>,
-        DynamicGraph,
-        DynamicGraph,
-    >
+    for NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         Ok(ob.downcast::<NodeStateHistory>()?.get().inner().clone())

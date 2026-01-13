@@ -141,13 +141,13 @@ fn persisted_prop_value_at<'a, 'b>(
     t: EventTime,
     props: impl TPropOps<'a>,
     deletions: impl TimeIndexOps<'b, IndexType = EventTime>,
-) -> Option<Prop> {
+) -> Option<(EventTime, Prop)> {
     if props.active(t..EventTime::start(t.t().saturating_add(1)))
         || deletions.active(t..EventTime::start(t.t().saturating_add(1)))
     {
         None
     } else {
-        last_prop_value_before(t, props, deletions).map(|(_, v)| v)
+        last_prop_value_before(t, props, deletions)
     }
 }
 
@@ -1220,7 +1220,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     .filtered_deletions(layer, &view)
                     .merge(e.filtered_additions(layer, &view).invert());
                 let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
-                    .map(|v| (w.start, layer, v));
+                    .map(|(t, v)| (t, layer, v));
                 first_prop.into_iter().chain(
                     props
                         .iter_window(interior_window(w.clone(), &deletions))
@@ -1228,6 +1228,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 )
             })
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
+            .map(move |(t, layer, v)| (t.max(w.start), layer, v))
     }
 
     fn temporal_edge_prop_hist_window_rev<'graph, G: GraphView + 'graph>(
@@ -1242,7 +1243,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .map(|(layer, props)| {
                 let deletions = merged_deletions(e, &view, layer);
                 let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
-                    .map(|v| (w.start, layer, v));
+                    .map(|(t, v)| (t, layer, v));
                 first_prop
                     .into_iter()
                     .chain(
@@ -1253,6 +1254,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     .rev()
             })
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
+            .map(move |(t, layer, v)| (t.max(w.start), layer, v))
     }
 
     fn edge_metadata<'graph, G: GraphViewOps<'graph>>(

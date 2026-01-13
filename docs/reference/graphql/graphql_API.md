@@ -1123,6 +1123,16 @@ Returns: boolean
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.filter">filter</strong></td>
+<td valign="top"><a href="#edge">Edge</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td></td>
+</tr>
 </tbody>
 </table>
 
@@ -1614,6 +1624,34 @@ will be returned.
 Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.filter">filter</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+Returns a filtered view that applies to list down the chain
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.select">select</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+Returns filtered list of edges
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -2252,8 +2290,8 @@ Gets (optionally a subset of) the nodes in the graph.
 </td>
 </tr>
 <tr>
-<td colspan="2" align="right" valign="top">ids</td>
-<td valign="top">[<a href="#string">String</a>!]</td>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
 <td></td>
 </tr>
 <tr>
@@ -2283,6 +2321,11 @@ Gets the edge with the specified source and destination nodes.
 Gets the edges in the graph.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.properties">properties</strong></td>
@@ -2368,22 +2411,22 @@ Export all nodes and edges from this graph view to another existing graph
 <td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graph.nodefilter">nodeFilter</strong></td>
+<td colspan="2" valign="top"><strong id="graph.filternodes">filterNodes</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td></td>
 </tr>
 <tr>
-<td colspan="2" align="right" valign="top">filter</td>
+<td colspan="2" align="right" valign="top">expr</td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
 <td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graph.edgefilter">edgeFilter</strong></td>
+<td colspan="2" valign="top"><strong id="graph.filteredges">filterEdges</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td></td>
 </tr>
 <tr>
-<td colspan="2" align="right" valign="top">filter</td>
+<td colspan="2" align="right" valign="top">expr</td>
 <td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
 <td></td>
 </tr>
@@ -4452,6 +4495,11 @@ Returns all connected edges.
 </td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="node.outedges">outEdges</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
@@ -4459,6 +4507,11 @@ Returns all connected edges.
 Returns outgoing edges.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.inedges">inEdges</strong></td>
@@ -4470,6 +4523,11 @@ Returns incoming edges.
 </td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="node.neighbours">neighbours</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
 <td>
@@ -4477,6 +4535,11 @@ Returns incoming edges.
 Returns neighbouring nodes.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.inneighbours">inNeighbours</strong></td>
@@ -4488,6 +4551,11 @@ Returns the number of neighbours that have at least one in-going edge to this no
 </td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="node.outneighbours">outNeighbours</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
 <td>
@@ -4497,12 +4565,17 @@ Returns the number of neighbours that have at least one out-going edge from this
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="node.nodefilter">nodeFilter</strong></td>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="node.filter">filter</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
 <td></td>
 </tr>
 <tr>
-<td colspan="2" align="right" valign="top">filter</td>
+<td colspan="2" align="right" valign="top">expr</td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
 <td></td>
 </tr>
@@ -4885,20 +4958,6 @@ Filter nodes by node type.
 <td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodes.nodefilter">nodeFilter</strong></td>
-<td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td>
-
-Returns a view of the node types.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nodes.applyviews">applyViews</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td></td>
@@ -4982,6 +5041,34 @@ will be returned.
 Returns a view of the node ids.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.filter">filter</strong></td>
+<td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+Returns a filtered view that applies to list down the chain
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.select">select</strong></td>
+<td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+Returns filtered list of nodes
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -5422,6 +5509,34 @@ Takes a specified selection of views and applies them in given order.
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
 <td valign="top">[<a href="#pathfromnodeviewcollection">PathFromNodeViewCollection</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.filter">filter</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns a filtered view that applies to list down the chain
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.select">select</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns filtered list of neighbour nodes
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
 <td></td>
 </tr>
 </tbody>
@@ -6153,46 +6268,46 @@ Metadata.
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.src">src</strong></td>
-<td valign="top"><a href="#nodefieldfilter">NodeFieldFilter</a></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
 <td>
 
-Source node.
+Source node filter.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.dst">dst</strong></td>
-<td valign="top"><a href="#nodefieldfilter">NodeFieldFilter</a></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
 <td>
 
-Destination node.
+Destination node filter.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.property">property</strong></td>
-<td valign="top"><a href="#propertyfilterexpr">PropertyFilterExpr</a></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Property.
+Property filter.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.metadata">metadata</strong></td>
-<td valign="top"><a href="#metadatafilterexpr">MetadataFilterExpr</a></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Metadata.
+Metadata filter.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#temporalpropertyfilterexpr">TemporalPropertyFilterExpr</a></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Temporal property.
+Temporal property filter.
 
 </td>
 </tr>
@@ -6351,15 +6466,6 @@ List of excluded layers.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.layer">layer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single included layer.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
 <td>
@@ -6431,6 +6537,15 @@ Set the window end to a specified time.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeviewcollection.edgefilter">edgeFilter</strong></td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td>
+
+Edge filter
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -6496,15 +6611,6 @@ List of included layers.
 <td>
 
 List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.layer">layer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single included layer.
 
 </td>
 </tr>
@@ -6580,6 +6686,15 @@ Set the window end to a specified time.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgesviewcollection.edgefilter">edgeFilter</strong></td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td>
+
+Edge filter
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -6618,15 +6733,6 @@ List of included layers.
 <td>
 
 List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.layer">layer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single included layer.
 
 </td>
 </tr>
@@ -6850,47 +6956,6 @@ Destination node.
 </tbody>
 </table>
 
-### MetadataFilterExpr
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="metadatafilterexpr.name">name</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Node metadata to compare against.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="metadatafilterexpr.operator">operator</strong></td>
-<td valign="top"><a href="#operator">Operator</a>!</td>
-<td>
-
-Operator.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="metadatafilterexpr.value">value</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Value.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### NodeAddition
 
 <table>
@@ -6941,7 +7006,7 @@ Updates.
 </tbody>
 </table>
 
-### NodeFieldFilter
+### NodeFieldCondition
 
 <table>
 <thead>
@@ -6953,31 +7018,88 @@ Updates.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefieldfilter.field">field</strong></td>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.eq">eq</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.ne">ne</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.gt">gt</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.ge">ge</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.lt">lt</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.le">le</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.startswith">startsWith</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.endswith">endsWith</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.contains">contains</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.notcontains">notContains</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.isin">isIn</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.isnotin">isNotIn</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### NodeFieldFilterNew
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldfilternew.field">field</strong></td>
 <td valign="top"><a href="#nodefield">NodeField</a>!</td>
-<td>
-
-Node component to compare against.
-
-</td>
+<td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefieldfilter.operator">operator</strong></td>
-<td valign="top"><a href="#operator">Operator</a>!</td>
-<td>
-
-Operator filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldfilter.value">value</strong></td>
-<td valign="top"><a href="#value">Value</a>!</td>
-<td>
-
-Value filter.
-
-</td>
+<td colspan="2" valign="top"><strong id="nodefieldfilternew.where">where</strong></td>
+<td valign="top"><a href="#nodefieldcondition">NodeFieldCondition</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -6995,7 +7117,7 @@ Value filter.
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.node">node</strong></td>
-<td valign="top"><a href="#nodefieldfilter">NodeFieldFilter</a></td>
+<td valign="top"><a href="#nodefieldfilternew">NodeFieldFilterNew</a></td>
 <td>
 
 Node filter.
@@ -7004,7 +7126,7 @@ Node filter.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.property">property</strong></td>
-<td valign="top"><a href="#propertyfilterexpr">PropertyFilterExpr</a></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
 Property filter.
@@ -7013,7 +7135,7 @@ Property filter.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.metadata">metadata</strong></td>
-<td valign="top"><a href="#metadatafilterexpr">MetadataFilterExpr</a></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
 Metadata filter.
@@ -7022,7 +7144,7 @@ Metadata filter.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#temporalpropertyfilterexpr">TemporalPropertyFilterExpr</a></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
 Temporal property filter.
@@ -7175,15 +7297,6 @@ List of excluded layers.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.layer">layer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single included layer.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
 <td>
@@ -7320,15 +7433,6 @@ List of included layers.
 <td>
 
 List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.layer">layer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single included layer.
 
 </td>
 </tr>
@@ -7523,15 +7627,6 @@ List of excluded layers.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.layer">layer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single layer.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
 <td>
@@ -7606,7 +7701,7 @@ Set the window end to a specified time.
 </tbody>
 </table>
 
-### PropertyFilterExpr
+### PropCondition
 
 <table>
 <thead>
@@ -7618,31 +7713,168 @@ Set the window end to a specified time.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="propertyfilterexpr.name">name</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Node property to compare against.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="propertyfilterexpr.operator">operator</strong></td>
-<td valign="top"><a href="#operator">Operator</a>!</td>
-<td>
-
-Operator.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="propertyfilterexpr.value">value</strong></td>
+<td colspan="2" valign="top"><strong id="propcondition.eq">eq</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.ne">ne</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.gt">gt</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.ge">ge</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.lt">lt</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.le">le</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.startswith">startsWith</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.endswith">endsWith</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.contains">contains</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.notcontains">notContains</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.isin">isIn</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.isnotin">isNotIn</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.issome">isSome</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.isnone">isNone</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.and">and</strong></td>
+<td valign="top">[<a href="#propcondition">PropCondition</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.or">or</strong></td>
+<td valign="top">[<a href="#propcondition">PropCondition</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.not">not</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.first">first</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.last">last</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.any">any</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.all">all</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.sum">sum</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.avg">avg</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.min">min</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.max">max</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.len">len</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
 
-Value.
+### PropertyFilterNew
 
-</td>
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyfilternew.name">name</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyfilternew.window">window</strong></td>
+<td valign="top"><a href="#window">Window</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyfilternew.layers">layers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyfilternew.where">where</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -7745,56 +7977,6 @@ List of properties.
 </tbody>
 </table>
 
-### TemporalPropertyFilterExpr
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.name">name</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Name.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.temporal">temporal</strong></td>
-<td valign="top"><a href="#temporaltype">TemporalType</a>!</td>
-<td>
-
-Type of temporal property. Choose from: any, latest.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.operator">operator</strong></td>
-<td valign="top"><a href="#operator">Operator</a>!</td>
-<td>
-
-Operator.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.value">value</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Value.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### TemporalPropertyInput
 
 <table>
@@ -7839,6 +8021,33 @@ Properties.
 </thead>
 <tbody>
 <tr>
+<td colspan="2" valign="top"><strong id="value.u8">u8</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+8 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.u16">u16</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+16 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.u32">u32</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+32 bit unsigned integer.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="value.u64">u64</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
@@ -7848,11 +8057,29 @@ Properties.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="value.i32">i32</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+32 bit signed integer.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="value.i64">i64</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
 64 bit signed integer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.f32">f32</strong></td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+32 bit float.
 
 </td>
 </tr>
@@ -8132,6 +8359,14 @@ Event.
 </thead>
 <tbody>
 <tr>
+<td valign="top"><strong>NODE_ID</strong></td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
 <td valign="top"><strong>NODE_NAME</strong></td>
 <td>
 
@@ -8144,115 +8379,6 @@ Node name.
 <td>
 
 Node type.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### Operator
-
-<table>
-<thead>
-<tr>
-<th align="left">Value</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td valign="top"><strong>EQUAL</strong></td>
-<td>
-
-Equality operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>NOT_EQUAL</strong></td>
-<td>
-
-Inequality operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>GREATER_THAN_OR_EQUAL</strong></td>
-<td>
-
-Greater Than Or Equal operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>LESS_THAN_OR_EQUAL</strong></td>
-<td>
-
-Less Than Or Equal operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>GREATER_THAN</strong></td>
-<td>
-
-Greater Than operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>LESS_THAN</strong></td>
-<td>
-
-Less Than operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>IS_NONE</strong></td>
-<td>
-
-Is None operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>IS_SOME</strong></td>
-<td>
-
-Is Some operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>IS_IN</strong></td>
-<td>
-
-Is In operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>IS_NOT_IN</strong></td>
-<td>
-
-Is Not In operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>CONTAINS</strong></td>
-<td>
-
-Contains operator.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>NOT_CONTAINS</strong></td>
-<td>
-
-Not Contains operator.
 
 </td>
 </tr>
@@ -8282,35 +8408,6 @@ Latest time
 <td>
 
 Earliest time
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### TemporalType
-
-<table>
-<thead>
-<tr>
-<th align="left">Value</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td valign="top"><strong>ANY</strong></td>
-<td>
-
-Any.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>LATEST</strong></td>
-<td>
-
-Latest.
 
 </td>
 </tr>

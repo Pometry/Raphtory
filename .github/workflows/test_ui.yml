@@ -65,7 +65,7 @@ jobs:
           args: --release
       - name: Prepare for testing UI
         working-directory: ui-tests
-        run: npm install && npx playwright install --with-deps
+        run: npm install && npx playwright install --with-deps --only-shell
       - name: Test UI
         timeout-minutes: 30
         run: |

@@ -243,8 +243,17 @@ def test_history():
     query_1 = """
     {
       graph(path: "g") {
-        edgeFilter(
-          filter: {property: {name: "weight", operator: EQUAL, value: {f64: 0.9}}}
+        filterEdges(
+          expr:  {
+              property:  {
+                name: "weight"
+                where:  {
+                    eq:  {
+                      f64: 0.9
+                    }
+                }
+              }
+          }
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
@@ -255,10 +264,11 @@ def test_history():
           }
         }
       }
-    }"""
+    }
+    """
     expected_output_1 = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edge": {"history": {"timestamps": {"list": [150, 200, 300, 350]}}}
             }
         }
@@ -268,8 +278,17 @@ def test_history():
     query_2 = """
     {
       graph(path: "g") {
-        edgeFilter(
-          filter: {property: {name: "weight", operator: EQUAL, value: {f64: 0.7}}}
+        filterEdges(
+          expr:  {
+              property:  {
+                name: "weight"
+                where:  {
+                    eq:  {
+                      f64: 0.7
+                    }
+                }
+              }
+          }
         ) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
@@ -281,15 +300,24 @@ def test_history():
         }
       }
     }"""
-    expected_output_2 = {"graph": {"edgeFilter": {"edge": None}}}
+    expected_output_2 = {"graph": {"filterEdges": {"edge": None}}}
     queries_and_expected_outputs.append((query_2, expected_output_2))
 
     # test node filtered by property, when the same property is updated at different times
     query_1 = """
     {
       graph(path: "g") {
-        nodeFilter(
-          filter: {property: {name: "Age", operator: LESS_THAN, value: {i64: 51}}}
+        filterNodes(
+          expr:  {
+            property:  {
+              name: "Age"
+              where:  {
+                  lt:  {
+                    i64: 51
+                  }
+              }
+            }
+          }
         ) {
           node(name: "Dumbledore") {
             history {
@@ -301,14 +329,23 @@ def test_history():
         }
       }
     }"""
-    expected_output_1 = {"graph": {"nodeFilter": {"node": None}}}
+    expected_output_1 = {"graph": {"filterNodes": {"node": None}}}
     queries_and_expected_outputs.append((query_1, expected_output_1))
 
     query_2 = """
     {
       graph(path: "g") {
-        nodeFilter(
-          filter: {property: {name: "Age", operator: GREATER_THAN_OR_EQUAL, value: {i64: 51}}}
+        filterNodes(
+          expr:  {
+              property:  {
+                name: "Age"
+                where:  {
+                    ge:  {
+                      i64: 51
+                    }
+                }
+            }
+          }
         ) {
           node(name: "Dumbledore") {
             history {
@@ -322,7 +359,7 @@ def test_history():
     }"""
     expected_output_2 = {
         "graph": {
-            "nodeFilter": {
+            "filterNodes": {
                 "node": {"history": {"timestamps": {"list": [100, 200, 300]}}}
             }
         }
@@ -332,8 +369,17 @@ def test_history():
     query_3 = """
     {
       graph(path: "g") {
-        nodeFilter(
-          filter: {property: {name: "Age", operator: LESS_THAN, value: {i64: 21}}}
+        filterNodes(
+          expr:  {
+              property:  {
+                name: "Age"
+                where:  {
+                    lt:  {
+                      i64: 21
+                    }
+                }
+              }
+          }
         ) {
           node(name: "Harry") {
             history {
@@ -345,14 +391,23 @@ def test_history():
         }
       }
     }"""
-    expected_output_3 = {"graph": {"nodeFilter": {"node": None}}}
+    expected_output_3 = {"graph": {"filterNodes": {"node": None}}}
     queries_and_expected_outputs.append((query_3, expected_output_3))
 
     query_4 = """
     {
       graph(path: "g") {
-        nodeFilter(
-          filter: {property: {name: "Age", operator: GREATER_THAN_OR_EQUAL, value: {i64: 21}}}
+        filterNodes(
+          expr:  {
+              property:  {
+                name: "Age"
+                where:  {
+                    ge:  {
+                      i64: 21
+                    }
+                }
+              }
+          }
         ) {
           node(name: "Harry") {
             history {
@@ -366,7 +421,7 @@ def test_history():
     }"""
     expected_output_4 = {
         "graph": {
-            "nodeFilter": {
+            "filterNodes": {
                 "node": {
                     "history": {
                         "timestamps": {"list": [150, 150, 200, 250, 300, 350, 350]}

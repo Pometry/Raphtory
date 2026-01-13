@@ -280,7 +280,7 @@ impl PyPersistentGraph {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         event_id: Option<usize>,
-    ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<EdgeView<PersistentGraph>, GraphError> {
         match event_id {
             None => self
                 .graph
@@ -348,11 +348,7 @@ impl PyPersistentGraph {
     /// Returns:
     ///     Optional[MutableEdge]: The edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(
-        &self,
-        src: PyNodeRef,
-        dst: PyNodeRef,
-    ) -> Option<EdgeView<PersistentGraph, PersistentGraph>> {
+    pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<PersistentGraph>> {
         self.graph.edge(src, dst)
     }
 
@@ -375,7 +371,7 @@ impl PyPersistentGraph {
         &self,
         node: PyNode,
         merge: bool,
-    ) -> Result<NodeView<'static, PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
         self.graph.import_node(&node.node, merge)
     }
 
@@ -400,7 +396,7 @@ impl PyPersistentGraph {
         node: PyNode,
         new_id: GID,
         merge: bool,
-    ) -> Result<NodeView<'static, PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
         self.graph.import_node_as(&node.node, new_id, merge)
     }
 
@@ -469,7 +465,7 @@ impl PyPersistentGraph {
         &self,
         edge: PyEdge,
         merge: bool,
-    ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<EdgeView<PersistentGraph>, GraphError> {
         self.graph.import_edge(&edge.edge, merge)
     }
 
@@ -494,7 +490,7 @@ impl PyPersistentGraph {
         edge: PyEdge,
         new_id: (GID, GID),
         merge: bool,
-    ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<EdgeView<PersistentGraph>, GraphError> {
         self.graph.import_edge_as(&edge.edge, new_id, merge)
     }
 

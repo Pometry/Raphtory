@@ -116,6 +116,7 @@ bigdecimal = { version = "0.4.7", features = ["serde"] }
 kdam = "0.6.3"
 hashbrown = "0.15.1"
 pretty_assertions = "1.4.0"
+quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 streaming-stats = "0.2.3"
 proptest = "1.4.0"

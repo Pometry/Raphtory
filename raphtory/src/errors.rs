@@ -221,6 +221,10 @@ pub enum GraphError {
 
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
+
+    #[error("Metadata {0} does not exist")]
+    MetadataMissingError(String),
+
     // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
@@ -384,6 +388,9 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
+    #[error("Node filter expected")]
+    NotNodeFilter,
+
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilterExpectSingleGotNone(FilterOperator),
 
@@ -407,6 +414,9 @@ pub enum GraphError {
 
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
+
+    #[error("Invalid filter: {0}")]
+    InvalidFilter(String),
 
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),

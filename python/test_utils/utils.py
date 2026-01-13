@@ -182,6 +182,42 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
             ), f"Expected '{expected_error_message}', but got '{error_message}'"
 
 
+def run_graphql_error_test_contains(query, expected_substrings, graph):
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+
+        with pytest.raises(Exception) as excinfo:
+            client.query(query)
+
+        full_error_message = str(excinfo.value)
+        match = re.search(r'"message":"(.*?)"', full_error_message)
+        error_message = match.group(1) if match else ""
+
+        for s in expected_substrings:
+            assert s in error_message, f"expected to find {s!r} in {error_message!r}"
+
+
+def run_graphql_compare_test(query_a, query_b, graph):
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+
+        resp_a = client.query(query_a)
+        resp_b = client.query(query_b)
+
+        dict_a = json.loads(resp_a) if isinstance(resp_a, str) else resp_a
+        dict_b = json.loads(resp_b) if isinstance(resp_b, str) else resp_b
+
+        assert sort_dict_recursive(dict_a) == sort_dict_recursive(dict_b), (
+            f"Query A != Query B\n"
+            f"A={sort_dict_recursive(dict_a)}\n"
+            f"B={sort_dict_recursive(dict_b)}"
+        )
+
+
 def assert_set_eq(left, right):
     """Check if two lists are the same set and same length"""
     assert len(left) == len(right)
@@ -204,3 +240,13 @@ def assert_has_metadata(entity, props):
             assert v == actual
         else:
             assert entity.metadata.get(k) == v
+
+
+def expect_unify_error(fn):
+    with pytest.raises(BaseException, match="Cannot unify"):
+        fn()
+
+
+def assert_in_all(haystack: str, needles):
+    for n in needles:
+        assert n in haystack, f"expected to find {n!r} in {haystack!r}"

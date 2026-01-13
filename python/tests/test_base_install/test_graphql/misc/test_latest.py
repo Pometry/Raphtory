@@ -177,6 +177,10 @@ def test_latest_and_active():
                             "history": {"list": [{"timestamp": 3, "eventId": 2}]},
                         },
                         {
+                            "name": "3",
+                            "history": {"list": []},
+                        },
+                        {
                             "name": "4",
                             "history": {"list": [{"timestamp": 3, "eventId": 5}]},
                         },

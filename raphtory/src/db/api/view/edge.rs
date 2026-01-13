@@ -8,7 +8,7 @@ use crate::{
             properties::{internal::InternalPropertiesOps, Metadata, Properties},
             view::{
                 history::{DeletionHistory, History},
-                internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
+                internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView},
                 BoxableGraphView, IntoDynBoxed,
             },
         },
@@ -57,7 +57,7 @@ impl<'graph, G: GraphViewOps<'graph>> Iterator for ExplodedIter<'graph, G> {
     }
 }
 
-fn exploded<'graph, G: BoxableGraphView + Clone + 'graph>(
+fn exploded<'graph, G: GraphView + 'graph>(
     view: G,
     edge_ref: EdgeRef,
 ) -> BoxedLIter<'graph, EdgeRef> {
@@ -77,7 +77,7 @@ fn exploded<'graph, G: BoxableGraphView + Clone + 'graph>(
     .into_dyn_boxed()
 }
 
-fn exploded_layers<'graph, G: BoxableGraphView + Clone + 'graph>(
+fn exploded_layers<'graph, G: GraphView + 'graph>(
     view: G,
     edge_ref: EdgeRef,
 ) -> BoxedLIter<'graph, EdgeRef> {
@@ -98,15 +98,14 @@ fn exploded_layers<'graph, G: BoxableGraphView + Clone + 'graph>(
 }
 
 pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
-    type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph
     where
         T: 'graph;
 
     type PropType: InternalPropertiesOps + Clone + 'graph;
-    type Nodes: NodeViewOps<'graph, Graph = Self::BaseGraph, BaseGraph = Self::BaseGraph> + 'graph;
-    type Exploded: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
+    type Nodes: NodeViewOps<'graph, Graph = Self::Graph> + 'graph;
+    type Exploded: EdgeViewOps<'graph, Graph = Self::Graph> + 'graph;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -137,10 +136,9 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
         T: 'graph;
     type PropType: InternalPropertiesOps + Clone + 'graph;
     type Graph: GraphViewOps<'graph>;
-    type BaseGraph: GraphViewOps<'graph>;
-    type Nodes: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
+    type Nodes: NodeViewOps<'graph, Graph = Self::Graph>;
 
-    type Exploded: EdgeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::Graph>;
+    type Exploded: EdgeViewOps<'graph, Graph = Self::Graph>;
 
     /// History object for the edge containing its activation times.
     fn history(&self) -> Self::ValueType<History<'graph, EdgeView<Self::Graph>>>;
@@ -242,7 +240,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         T: 'graph;
     type PropType = E::PropType;
     type Graph = E::Graph;
-    type BaseGraph = E::BaseGraph;
     type Nodes = E::Nodes;
 
     type Exploded = E::Exploded;

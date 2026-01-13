@@ -1,4 +1,4 @@
-use crate::{db::api::view::StaticGraphViewOps, search::fields};
+use crate::search::fields;
 use raphtory_api::core::{entities::EID, storage::timeindex::EventTime};
 use std::collections::HashSet;
 use tantivy::{
@@ -7,31 +7,19 @@ use tantivy::{
     Score, SegmentReader,
 };
 
-pub struct EdgePropertyFilterCollector<G> {
-    prop_id: usize,
+pub struct ExplodedEdgePropertyFilterCollector {
     field: String,
-    graph: G,
 }
 
-impl<G> EdgePropertyFilterCollector<G>
-where
-    G: StaticGraphViewOps,
-{
-    pub fn new(field: String, prop_id: usize, graph: G) -> Self {
-        Self {
-            field,
-            prop_id,
-            graph,
-        }
+impl ExplodedEdgePropertyFilterCollector {
+    pub fn new(field: String) -> Self {
+        Self { field }
     }
 }
 
-impl<G> Collector for EdgePropertyFilterCollector<G>
-where
-    G: StaticGraphViewOps,
-{
-    type Fruit = HashSet<u64>;
-    type Child = EdgePropertyFilterSegmentCollector<G>;
+impl Collector for ExplodedEdgePropertyFilterCollector {
+    type Fruit = HashSet<(EventTime, EID, usize)>;
+    type Child = ExplodedEdgePropertyFilterSegmentCollector;
 
     fn for_segment(
         &self,
@@ -44,14 +32,12 @@ where
         let column_opt_event_id: Option<Column<u64>> =
             segment_reader.fast_fields().column_opt(fields::EVENT_ID)?;
 
-        Ok(EdgePropertyFilterSegmentCollector {
-            prop_id: self.prop_id,
+        Ok(ExplodedEdgePropertyFilterSegmentCollector {
             column_opt_time,
             column_opt_entity_id,
             column_opt_layer_id,
             column_opt_event_id,
             unique_entity_ids: HashSet::new(),
-            graph: self.graph.clone(),
         })
     }
 
@@ -59,8 +45,11 @@ where
         false
     }
 
-    fn merge_fruits(&self, segment_fruits: Vec<HashSet<u64>>) -> tantivy::Result<HashSet<u64>> {
-        let mut global_unique_entity_ids: HashSet<u64> = HashSet::new();
+    fn merge_fruits(
+        &self,
+        segment_fruits: Vec<HashSet<(EventTime, EID, usize)>>,
+    ) -> tantivy::Result<HashSet<(EventTime, EID, usize)>> {
+        let mut global_unique_entity_ids: HashSet<(EventTime, EID, usize)> = HashSet::new();
 
         for entity_id in segment_fruits.into_iter().flatten() {
             global_unique_entity_ids.insert(entity_id);
@@ -70,21 +59,16 @@ where
     }
 }
 
-pub struct EdgePropertyFilterSegmentCollector<G> {
-    prop_id: usize,
+pub struct ExplodedEdgePropertyFilterSegmentCollector {
     column_opt_time: Option<Column<i64>>,
     column_opt_entity_id: Option<Column<u64>>,
     column_opt_layer_id: Option<Column<u64>>,
     column_opt_event_id: Option<Column<u64>>,
-    unique_entity_ids: HashSet<u64>,
-    graph: G,
+    unique_entity_ids: HashSet<(EventTime, EID, usize)>,
 }
 
-impl<G> SegmentCollector for EdgePropertyFilterSegmentCollector<G>
-where
-    G: StaticGraphViewOps,
-{
-    type Fruit = HashSet<u64>;
+impl SegmentCollector for ExplodedEdgePropertyFilterSegmentCollector {
+    type Fruit = HashSet<(EventTime, EID, usize)>;
 
     fn collect(&mut self, doc_id: u32, _score: Score) {
         let opt_time = self
@@ -107,18 +91,11 @@ where
         if let (Some(time), Some(entity_id), Some(layer_id), Some(event_id)) =
             (opt_time, opt_entity_id, opt_layer_id, opt_event_id)
         {
-            // If is_node_prop_update_latest check is true for a doc, we can ignore validating all other docs
-            // against expensive is_node_prop_update_latest check for a given node id.
-            if !self.unique_entity_ids.contains(&entity_id)
-                && self.graph.is_edge_prop_update_available(
-                    layer_id as usize,
-                    self.prop_id,
-                    EID(entity_id as usize),
-                    EventTime::new(time, event_id as usize),
-                )
-            {
-                self.unique_entity_ids.insert(entity_id);
-            }
+            let tie = EventTime::new(time, event_id as usize);
+            let eid = EID(entity_id as usize);
+            let layer_id = layer_id as usize;
+
+            self.unique_entity_ids.insert((tie, eid, layer_id));
         }
     }
 

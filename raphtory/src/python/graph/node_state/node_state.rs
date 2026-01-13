@@ -1,23 +1,21 @@
-use crate::{
+pub(crate) use crate::{
     algorithms::dynamics::temporal::epidemics::Infected,
     api::core::storage::timeindex::EventTime,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             state::{
-                ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
-                OrderedNodeStateOps,
+                ops, ops::IntoDynNodeOp, LazyNodeState, NodeGroups, NodeOp, NodeState,
+                NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
             },
-            view::{
-                internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
-                StaticGraphViewOps,
-            },
+            view::{DynamicGraph, GraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
     py_borrowing_iter,
     python::{
+        graph::node_state::node_state::ops::NodeFilterOp,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -31,6 +29,8 @@ use pyo3::{
 };
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::collections::HashMap;
+
+use crate::db::{api::state::ops::DynNodeFilter, graph::nodes::IntoDynNodes};
 
 #[macro_export]
 macro_rules! impl_node_state_ops {
@@ -51,8 +51,8 @@ macro_rules! impl_node_state_ops {
             ///
             /// Returns:
             ///     Nodes: The nodes
-            fn nodes(&self) -> Nodes<'static, DynamicGraph> {
-                self.inner.nodes()
+            fn nodes(&self) -> Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
+                self.inner.nodes().into_dyn()
             }
 
             fn __eq__<'py>(
@@ -327,11 +327,13 @@ macro_rules! impl_lazy_node_state {
         /// A lazy view over node values
         #[pyclass(module = "raphtory.node_state", frozen)]
         pub struct $name {
-            inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>,
+            inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph, DynNodeFilter>,
         }
 
         impl $name {
-            pub fn inner(&self) -> &LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
+            pub fn inner(
+                &self,
+            ) -> &LazyNodeState<'static, $op, DynamicGraph, DynamicGraph, DynNodeFilter> {
                 &self.inner
             }
         }
@@ -342,9 +344,7 @@ macro_rules! impl_lazy_node_state {
             ///
             /// Returns:
             #[doc = concat!("     ", $computed, ": the computed `NodeState`")]
-            fn compute(
-                &self,
-            ) -> NodeState<'static, <$op as NodeOp>::Output, DynamicGraph, DynamicGraph> {
+            fn compute(&self) -> NodeState<'static, <$op as NodeOp>::Output, DynamicGraph> {
                 self.inner.compute()
             }
 
@@ -360,20 +360,24 @@ macro_rules! impl_lazy_node_state {
         impl_node_state_ops!(
             $name,
             <$op as NodeOp>::Output,
-            LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>,
+            LazyNodeState<'static, $op, DynamicGraph, DynamicGraph, DynNodeFilter>,
             |v: <$op as NodeOp>::Output| v,
             $computed,
             $py_value
         );
 
-        impl From<LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>> for $name {
-            fn from(inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>) -> Self {
-                $name { inner }
+        impl<F: IntoDynNodeOp + NodeFilterOp + 'static>
+            From<LazyNodeState<'static, $op, DynamicGraph, DynamicGraph, F>> for $name
+        {
+            fn from(inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph, F>) -> Self {
+                $name {
+                    inner: inner.into_dyn(),
+                }
             }
         }
 
-        impl<'py> pyo3::IntoPyObject<'py>
-            for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>
+        impl<'py, F: IntoDynNodeOp + NodeFilterOp + 'static> pyo3::IntoPyObject<'py>
+            for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph, F>
         {
             type Target = $name;
             type Output = Bound<'py, Self::Target>;
@@ -384,7 +388,9 @@ macro_rules! impl_lazy_node_state {
             }
         }
 
-        impl<'py> FromPyObject<'py> for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
+        impl<'py> FromPyObject<'py>
+            for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph, DynNodeFilter>
+        {
             fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
                 Ok(ob.downcast::<$name>()?.get().inner().clone())
             }
@@ -397,11 +403,11 @@ macro_rules! impl_node_state {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         #[pyclass(module = "raphtory.node_state", frozen)]
         pub struct $name {
-            inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>,
+            inner: NodeState<'static, $value, DynamicGraph>,
         }
 
         impl $name {
-            pub fn inner(&self) -> &NodeState<'static, $value, DynamicGraph, DynamicGraph> {
+            pub fn inner(&self) -> &NodeState<'static, $value, DynamicGraph> {
                 &self.inner
             }
         }
@@ -409,21 +415,19 @@ macro_rules! impl_node_state {
         impl_node_state_ops!(
             $name,
             $value,
-            NodeState<'static, $value, DynamicGraph, DynamicGraph>,
+            NodeState<'static, $value, DynamicGraph>,
             |v: &$value| v.clone(),
             $computed,
             $py_value
         );
 
-        impl From<NodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
-            fn from(inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
+        impl From<NodeState<'static, $value, DynamicGraph>> for $name {
+            fn from(inner: NodeState<'static, $value, DynamicGraph>) -> Self {
                 $name { inner: inner }
             }
         }
 
-        impl<'py> pyo3::IntoPyObject<'py>
-            for NodeState<'static, $value, DynamicGraph, DynamicGraph>
-        {
+        impl<'py> pyo3::IntoPyObject<'py> for NodeState<'static, $value, DynamicGraph> {
             type Target = $name;
             type Output = Bound<'py, Self::Target>;
             type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
@@ -433,7 +437,7 @@ macro_rules! impl_node_state {
             }
         }
 
-        impl<'py> FromPyObject<'py> for NodeState<'static, $value, DynamicGraph, DynamicGraph> {
+        impl<'py> FromPyObject<'py> for NodeState<'static, $value, DynamicGraph> {
             fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
                 Ok(ob.downcast::<$name>()?.get().inner().clone())
             }
@@ -477,39 +481,15 @@ macro_rules! impl_node_state_num {
     };
 }
 
-#[macro_export]
-macro_rules! impl_one_hop {
-        ($name:ident<$($path:ident)::+>, $py_name:literal) => {
-            impl<'py, G: StaticGraphViewOps + IntoDynamic + Static> pyo3::IntoPyObject<'py>
-                for LazyNodeState<'static, $($path)::+<G>, DynamicGraph, DynamicGraph>
-            {
-                type Target = $name;
-                type Output = Bound<'py, Self::Target>;
-                type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
-
-                fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                    self.into_dyn_hop().into_pyobject(py)
-                }
-            }
-
-            impl_timeops!($name, inner, LazyNodeState<'static, $($path)::+<DynamicGraph>, DynamicGraph>, $py_name);
-            impl_layerops!($name, inner, LazyNodeState<'static, $($path)::+<DynamicGraph>, DynamicGraph>, $py_name);
-        }
-    }
-
 impl_lazy_node_state_num!(
     DegreeView<ops::Degree<DynamicGraph>>,
     "NodeStateUsize",
     "int"
 );
-impl_one_hop!(DegreeView<ops::Degree>, "DegreeView");
 impl_node_state_group_by_ops!(DegreeView, usize);
-
 impl_node_state_num!(NodeStateUsize<usize>, "NodeStateUsize", "int");
 impl_node_state_group_by_ops!(NodeStateUsize, usize);
-
 impl_node_state_num!(NodeStateU64<u64>, "NodeStateU64", "int");
-
 impl_lazy_node_state_ord!(IdView<ops::Id>, "NodeStateGID", "GID");
 impl_node_state_ord!(NodeStateGID<GID>, "NodeStateGID", "GID");
 
@@ -550,11 +530,6 @@ impl_lazy_node_state_num!(
     "EdgeHistoryCountView",
     "int"
 );
-impl_one_hop!(
-    EdgeHistoryCountView<ops::EdgeHistoryCount>,
-    "EdgeHistoryCountView"
-);
-
 impl_lazy_node_state_ord!(
     NodeTypeView<ops::Type>,
     "NodeStateOptionStr",
@@ -567,13 +542,11 @@ impl_node_state_ord!(
     "Optional[str]"
 );
 impl_node_state_group_by_ops!(NodeStateOptionStr, Option<ArcStr>);
-
 impl_node_state_ord!(
     NodeStateListDateTime<Vec<DateTime<Utc>>>,
     "NodeStateListDateTime",
     "list[datetime]"
 );
-
 impl_node_state_num!(NodeStateF64<f64>, "NodeStateF64", "float");
 impl_node_state_ord!(
     NodeStateOptionF64<Option<f64>>,
@@ -582,47 +555,38 @@ impl_node_state_ord!(
 );
 
 impl_node_state_ord!(NodeStateSEIR<Infected>, "NodeStateSEIR", "Infected");
-
 impl_node_state!(
     NodeStateNodes<Nodes<'static, DynamicGraph>>,
     "NodeStateNodes",
     "Nodes"
 );
-
 impl_node_state!(
     NodeStateReachability<Vec<(i64, String)>>,
     "NodeStateReachability",
     "list[Tuple[int, str]]"
 );
-
 impl_node_state_ord!(
     NodeStateI64Tuple<(i64, i64)>,
     "NodeStateI64Tuple",
     "Tuple[int, int]"
 );
-
 impl_node_state_ord!(NodeStateMotifs<Vec<usize>>, "NodeStateMotifs", "list[int]");
-
 impl_node_state_ord!(
     NodeStateHits<(f32, f32)>,
     "NodeStateHits",
     "Tuple[float, float]"
 );
-
 impl_node_state!(
     NodeStateWeightedSP<(f64, Nodes<'static, DynamicGraph>)>,
     "NodeStateWeightedSP",
     "Tuple[float, Nodes]"
 );
-
 impl_node_state!(NodeLayout<[f32; 2]>, "NodeLayout", "list[float]");
-
 impl_node_state!(
     NodeStateListF64<Vec<f64>>,
     "NodeStateListF64",
     "list[float]"
 );
-
 impl_node_state!(
     NodeStateF64String<(f64, String)>,
     "NodeStateF64String",
