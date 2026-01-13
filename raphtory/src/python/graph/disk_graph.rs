@@ -9,7 +9,10 @@ use crate::{
     io::parquet_loaders::read_struct_arrays,
     prelude::Graph,
     python::{
-        graph::{graph::PyGraph, io::arrow_loaders::convert_py_prop_args},
+        graph::{
+            graph::PyGraph,
+            io::arrow_loaders::{convert_py_prop_args, process_arrow_c_stream_df},
+        },
         types::repr::StructReprBuilder,
     },
 };
@@ -154,7 +157,7 @@ impl PyDiskGraph {
         let df_columns: Vec<String> = edge_df.getattr("columns")?.extract()?;
         let df_columns: Vec<&str> = df_columns.iter().map(|x| x.as_str()).collect();
 
-        let df_view = process_pandas_py_df(edge_df, df_columns)?;
+        let df_view = process_arrow_c_stream_df(edge_df, df_columns, None)?;
         df_view.check_cols_exist(&cols_to_check)?;
         let src_index = df_view.get_index(src_col)?;
         let dst_index = df_view.get_index(dst_col)?;

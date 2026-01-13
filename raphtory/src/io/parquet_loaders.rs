@@ -478,7 +478,8 @@ mod test {
 
         let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
         let df =
-            process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names), None).unwrap();
+            process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names), None, None)
+                .unwrap();
 
         let expected_names: Vec<String> = ["src", "dst", "time", "weight", "marbles"]
             .iter()
