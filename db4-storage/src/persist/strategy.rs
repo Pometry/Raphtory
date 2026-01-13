@@ -1,12 +1,14 @@
 use std::ops::DerefMut;
 
-use serde::{Deserialize, Serialize};
-
-use crate::segments::{
-    edge::segment::{EdgeSegmentView, MemEdgeSegment},
-    graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
-    node::segment::{MemNodeSegment, NodeSegmentView},
+use crate::{
+    api::nodes::NodeSegmentOps,
+    segments::{
+        edge::segment::{EdgeSegmentView, MemEdgeSegment},
+        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
+        node::segment::{MemNodeSegment, NodeSegmentView},
+    },
 };
+use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20

@@ -107,7 +107,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 
-    fn flush(&self);
+    fn flush(&self) -> Result<(), StorageError>;
 
     fn est_size(&self) -> usize;
 
