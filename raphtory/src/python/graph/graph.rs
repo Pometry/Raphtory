@@ -113,7 +113,7 @@ impl<'py> IntoPyObject<'py> for Graph {
 impl<'py> FromPyObject<'_, 'py> for Graph {
     type Error = PyErr;
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        let g = ob.downcast::<PyGraph>()?.borrow();
+        let g = ob.cast::<PyGraph>()?.borrow();
 
         Ok(g.graph.clone())
     }
@@ -121,7 +121,7 @@ impl<'py> FromPyObject<'_, 'py> for Graph {
 
 impl PyGraph {
     pub fn py_from_db_graph(db_graph: Graph) -> PyResult<Py<PyGraph>> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Py::new(
                 py,
                 (PyGraph::from(db_graph.clone()), PyGraphView::from(db_graph)),

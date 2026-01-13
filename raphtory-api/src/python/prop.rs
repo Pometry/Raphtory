@@ -3,7 +3,7 @@ use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
-    sync::GILOnceCell,
+    sync::PyOnceLock,
     types::{PyBool, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
@@ -31,7 +31,7 @@ use crate::core::entities::properties::prop::PropArray;
 use array_ext::*;
 use pyo3_arrow::PyArray;
 
-static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static DECIMAL_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.import(py, "decimal", "Decimal")

@@ -78,14 +78,15 @@ impl<'py> IntoPyObject<'py> for PersistentGraph {
 impl<'py> FromPyObject<'_, 'py> for PersistentGraph {
     type Error = PyErr;
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        let g = ob.downcast::<PyPersistentGraph>()?.get();
+        let binding = ob.cast::<PyPersistentGraph>()?;
+        let g = binding.get();
         Ok(g.graph.clone())
     }
 }
 
 impl PyPersistentGraph {
     pub fn py_from_db_graph(db_graph: PersistentGraph) -> PyResult<Py<PyPersistentGraph>> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Py::new(
                 py,
                 (

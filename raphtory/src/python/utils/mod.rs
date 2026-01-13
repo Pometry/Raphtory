@@ -93,7 +93,7 @@ impl AsNodeRef for PyNodeRef {
 // }
 
 fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let email_utils = PyModule::import(py, "email.utils")?;
         let datetime = email_utils.call_method1("parsedate_to_datetime", (timestamp,))?;
         let py_seconds = datetime.call_method1("timestamp", ())?;
@@ -139,7 +139,7 @@ impl<'py> FromPyObject<'_, 'py> for PyTime {
             // Important, this is needed to ensure that naive DateTime objects are treated as UTC and not local time
             return Ok(PyTime::new(parsed_datetime.into_time()));
         }
-        if let Ok(py_datetime) = time.downcast::<PyDateTime>() {
+        if let Ok(py_datetime) = time.cast::<PyDateTime>() {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
             return Ok(PyTime::new(time));
         }
@@ -258,7 +258,7 @@ impl PyWindowSet {
 
 #[pyclass(name = "Iterable")]
 pub struct PyGenericIterable {
-    build_iter: Box<dyn Fn() -> BoxedIter<PyResult<PyObject>> + Send + Sync>,
+    build_iter: Box<dyn Fn() -> BoxedIter<PyResult<Py<PyAny>>> + Send + Sync>,
 }
 
 impl<F, I: Send + Sync, T> From<F> for PyGenericIterable
@@ -268,10 +268,10 @@ where
     T: for<'py> IntoPyObject<'py> + 'static,
 {
     fn from(value: F) -> Self {
-        let build_py_iter: Box<dyn Fn() -> BoxedIter<PyResult<PyObject>> + Send + Sync> =
+        let build_py_iter: Box<dyn Fn() -> BoxedIter<PyResult<Py<PyAny>>> + Send + Sync> =
             Box::new(move || {
                 Box::new(value().map(|item| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         Ok(item
                             .into_pyobject(py)
                             .map_err(|e| e.into())?
@@ -295,11 +295,11 @@ impl PyGenericIterable {
 
 #[pyclass(name = "Iterator", unsendable)]
 pub struct PyGenericIterator {
-    iter: Box<dyn Iterator<Item = PyResult<PyObject>>>,
+    iter: Box<dyn Iterator<Item = PyResult<Py<PyAny>>>>,
 }
 
 impl PyGenericIterator {
-    fn new(iter: Box<dyn Iterator<Item = PyResult<PyObject>>>) -> Self {
+    fn new(iter: Box<dyn Iterator<Item = PyResult<Py<PyAny>>>>) -> Self {
         Self { iter }
     }
 }
@@ -311,7 +311,7 @@ where
 {
     fn from(value: I) -> Self {
         let py_iter = Box::new(value.map(|item| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 Ok(item
                     .into_pyobject(py)
                     .map_err(|e| e.into())?
@@ -324,7 +324,7 @@ where
 }
 
 impl IntoIterator for PyGenericIterator {
-    type Item = PyResult<PyObject>;
+    type Item = PyResult<Py<PyAny>>;
 
     type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
@@ -338,7 +338,7 @@ impl PyGenericIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(&mut self) -> Option<PyResult<PyObject>> {
+    fn __next__(&mut self) -> Option<PyResult<Py<PyAny>>> {
         self.iter.next()
     }
 }
@@ -468,9 +468,9 @@ where
     F: Future<Output = O> + 'static,
     O: Send + 'static,
 {
-    Python::with_gil(|py| {
-        py.allow_threads(move || {
-            // we call `allow_threads` because the task might need to grab the GIL
+    Python::attach(|py| {
+        py.detach(move || {
+            // we call `detach` because the task might need to grab the GIL
             thread::spawn(move || {
                 tokio::runtime::Builder::new_multi_thread()
                     .enable_all()

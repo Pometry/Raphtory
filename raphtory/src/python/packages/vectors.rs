@@ -473,13 +473,13 @@ impl PyVectorSelection {
 
 impl EmbeddingFunction for Py<PyFunction> {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        let embedding_function = Python::with_gil(|py| self.clone_ref(py));
+        let embedding_function = Python::attach(|py| self.clone_ref(py));
         Box::pin(async move {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let embedding_function = embedding_function.bind(py);
                 let python_texts = PyList::new(py, texts)?;
                 let result = embedding_function.call1((python_texts,))?;
-                let embeddings = result.downcast::<PyList>().map_err(|_| {
+                let embeddings = result.cast::<PyList>().map_err(|_| {
                     PyTypeError::new_err(
                         "value returned by the embedding function was not a python list",
                     )
@@ -488,7 +488,7 @@ impl EmbeddingFunction for Py<PyFunction> {
                 let embeddings: EmbeddingResult<Vec<_>> = embeddings
                     .iter()
                     .map(|embedding| {
-                        let pylist = embedding.downcast::<PyList>().map_err(|_| {
+                        let pylist = embedding.cast::<PyList>().map_err(|_| {
                             PyTypeError::new_err("one of the values in the list returned by the embedding function was not a python list")
                         })?;
                         let embedding: EmbeddingResult<Embedding> = pylist

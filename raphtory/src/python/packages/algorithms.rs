@@ -86,7 +86,7 @@ fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
         return Ok(vec![single_node]);
     }
 
-    if let Ok(py_list) = param.downcast::<PyList>() {
+    if let Ok(py_list) = param.cast::<PyList>() {
         let mut nodes = Vec::new();
         for item in py_list.iter() {
             let num = item.extract::<PyNodeRef>()?;
@@ -946,7 +946,7 @@ pub fn temporal_rich_club_coefficient(
 ) -> PyResult<f64> {
     let py_iterator = views.try_iter()?;
     let views = py_iterator
-        .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
+        .map(|view| view.and_then(|view| Ok(view.cast::<PyGraphView>()?.get().graph.clone())))
         .collect::<PyResult<Vec<_>>>()?;
     Ok(temporal_rich_club_rs(&graph.graph, views, k, window_size))
 }

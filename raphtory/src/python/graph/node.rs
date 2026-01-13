@@ -42,7 +42,7 @@ use pyo3::{
     pybacked::PyBackedStr,
     pyclass, pymethods,
     types::PyDict,
-    Borrowed, IntoPyObjectExt, PyObject, PyResult, Python,
+    Borrowed, IntoPyObjectExt, Py, PyAny, PyResult, Python,
 };
 use python::{
     types::repr::{iterator_repr, Repr},
@@ -483,7 +483,7 @@ pub struct PyNodes {
 impl<'py> FromPyObject<'_, 'py> for Nodes<'static, DynamicGraph> {
     type Error = PyErr;
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        Ok(ob.downcast::<PyNodes>()?.get().nodes.clone())
+        Ok(ob.cast::<PyNodes>()?.get().nodes.clone())
     }
 }
 
@@ -762,7 +762,7 @@ impl PyNodes {
         &self,
         include_property_history: bool,
         convert_datetime: bool,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let mut column_names = vec![String::from("name"), String::from("type")];
         let meta = self.nodes.graph.node_meta();
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
@@ -808,7 +808,7 @@ impl PyNodes {
             })
             .collect();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let kwargs = PyDict::new(py);
             kwargs.set_item("columns", column_names.clone())?;
             let pandas = PyModule::import(py, "pandas")?;
