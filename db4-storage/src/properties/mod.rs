@@ -202,13 +202,12 @@ impl Properties {
                 let dt = meta
                     .get_dtype(col_id)
                     .as_ref()
-                    .map(arrow_dtype_from_prop_type)
-                    .unwrap();
+                    .map(arrow_dtype_from_prop_type)?;
                 let array_iter = indices
                     .map(|i| lazy_vec.get_opt(i))
                     .map(|e| e.map(|m| SerdeArrowMap(m)));
 
-                let struct_array = struct_array_from_props(&dt, array_iter);
+                let struct_array = struct_array_from_props(&dt, array_iter).ok()?;
 
                 Some(Arc::new(struct_array))
             }
@@ -223,7 +222,7 @@ impl Properties {
                     .map(|i| lazy_vec.get_opt(i))
                     .map(|opt_list| opt_list.map(SerdeArrowList));
 
-                let list_array = list_array_from_props(&dt, array_iter);
+                let list_array = list_array_from_props(&dt, array_iter).ok()?;
 
                 Some(Arc::new(list_array))
             }
