@@ -10,6 +10,7 @@ jobs:
   stress-test:
     name: GraphQL Stress Test
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
         name: Checkout
@@ -31,7 +32,7 @@ jobs:
           version: 9
       - uses: grafana/setup-k6-action@v1
         with:
-          k6-version: '1.0.0'
+          k6-version: "1.0.0"
       - name: Run stress test
         run: |
           cd graphql-bench
