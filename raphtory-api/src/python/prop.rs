@@ -129,6 +129,10 @@ impl<'source> FromPyObject<'source> for Prop {
     }
 }
 
+/// PropType provides access to the types used by Raphtory. They can be used to specify the data type of different properties,
+/// which is especially useful if one wishes to cast some input column from one type to another during ingestion.
+/// PropType can be used to define the schema in the various load_* functions used for data ingestion
+/// (i.e. Graph.load_nodes(...)/Graph.load_edges(...) etc.)
 #[pyclass(name = "PropType", frozen, module = "raphtory")]
 pub struct PyPropType(pub PropType);
 
