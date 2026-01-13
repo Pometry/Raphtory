@@ -18,18 +18,14 @@ jobs:
     strategy:
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        os: [ubuntu-latest]
-    runs-on: "${{ matrix.os }}"
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0
     steps:
       - uses: actions/checkout@v5
         name: Checkout
         with:
           ref: ${{ github.head_ref }}
-      - name: Install UI fonts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-inter fonts-roboto fonts-noto
-          fc-cache -f -v
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Setup SSH for UI tests submodule
