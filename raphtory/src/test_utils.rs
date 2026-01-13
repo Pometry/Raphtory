@@ -70,9 +70,6 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             })
             .filter(|(_, v)| !v.is_empty())
             .collect();
-        for values in out.values_mut() {
-            values.sort_by_key(|(t, _)| *t);
-        }
         out
     };
     let get_edge_t_prop_map = |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, Prop)>> {
@@ -87,9 +84,6 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             })
             .filter(|(_, v)| !v.is_empty())
             .collect();
-        for values in out.values_mut() {
-            values.sort_by_key(|(t, _)| *t);
-        }
         out
     };
 
