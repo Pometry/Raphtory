@@ -3,7 +3,6 @@ on:
   pull_request:
     branches:
       - master
-      - master_filter
       - "0.16"
 
 concurrency:
