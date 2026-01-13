@@ -4,7 +4,7 @@ use crate::{
     io::arrow::{
         dataframe::*,
         df_loaders::{
-            edges::{load_edges_from_df, ColumnNames},
+            edges::{load_edges_from_df, load_edges_from_df_pandas, ColumnNames},
             nodes::{load_node_props_from_df, load_nodes_from_df},
             *,
         },
@@ -99,7 +99,7 @@ pub(crate) fn load_edges_from_pandas<
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
 
-    load_edges_from_df(
+    load_edges_from_df_pandas(
         df_view,
         ColumnNames {
             time,
@@ -172,7 +172,7 @@ pub(crate) fn load_edge_props_from_pandas<
     cols_to_check.extend_from_slice(metadata);
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edges_props_from_df(
+    load_edges_props_from_df_pandas(
         df_view,
         src,
         dst,
@@ -208,7 +208,7 @@ pub fn load_edge_deletions_from_pandas<
 
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edge_deletions_from_df(
+    load_edge_deletions_from_df_pandas(
         df_view,
         ColumnNames::new(time, secondary_index, src, dst, layer_col),
         true,
@@ -220,7 +220,7 @@ pub fn load_edge_deletions_from_pandas<
 pub(crate) fn process_pandas_py_df<'a>(
     df: &Bound<'a, PyAny>,
     col_names: Vec<&str>,
-) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send + 'a>> {
+) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
     let py = df.py();
     is_jupyter(py);
     py.import("pandas")?;
@@ -261,20 +261,17 @@ pub(crate) fn process_pandas_py_df<'a>(
 
     // Convert all Python batches to Rust Arrow arrays while we have the GIL
     // This makes the iterator Send-safe
-    let rust_batches: Vec<Result<DFChunk, GraphError>> = rb
-        .into_iter()
-        .map(|rb| {
-            let chunk = (0..names_len)
-                .map(|i| {
-                    let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
-                    let arr = array_to_rust(&array).map_err(GraphError::from)?;
-                    Ok::<_, GraphError>(arr)
-                })
-                .collect::<Result<Vec<_>, GraphError>>()?;
+    let rust_batches = rb.into_iter().map(move |rb| {
+        let chunk = (0..names_len)
+            .map(|i| {
+                let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
+                let arr = array_to_rust(&array).map_err(GraphError::from)?;
+                Ok::<_, GraphError>(arr)
+            })
+            .collect::<Result<Vec<_>, GraphError>>()?;
 
-            Ok(DFChunk { chunk })
-        })
-        .collect();
+        Ok(DFChunk { chunk })
+    });
 
     let num_rows: usize = dropped_df.call_method0("__len__")?.extract()?;
 

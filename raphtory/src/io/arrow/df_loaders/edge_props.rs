@@ -36,8 +36,9 @@ use storage::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
+fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    chunks: impl IntoIterator<Item = Result<DFChunk, GraphError>>,
+    df_view: DFView<impl Iterator<Item = ()>>,
     column_names: ColumnNames,
     resolve_nodes: bool,
     metadata: &[&str],
@@ -81,12 +82,146 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut dst_col_resolved: Vec<VID> = vec![];
     let mut eid_col_resolved: Vec<EID> = vec![];
 
+    for chunk in chunks {
+        let df = chunk?;
+        let metadata_cols =
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                session
+                    .resolve_edge_property(key, dtype, true)
+                    .map_err(into_graph_err)
+            })?;
+        // validate src and dst columns
+        let src_col = df.node_col(src_index)?;
+        let dst_col = df.node_col(dst_index)?;
+        if resolve_nodes {
+            src_col.validate(graph, LoadError::MissingSrcError)?;
+            dst_col.validate(graph, LoadError::MissingDstError)?;
+        }
+        let layer = lift_layer_col(layer, layer_index, &df)?;
+        let layer_id_values = layer_id_index
+            .map(|idx| {
+                df.chunk[idx]
+                    .as_primitive_opt::<UInt64Type>()
+                    .ok_or_else(|| LoadError::InvalidLayerType(df.chunk[idx].data_type().clone()))
+                    .map(|array| array.values().as_ref())
+            })
+            .transpose()?;
+        let layer_col_resolved = layer.resolve_layer(layer_id_values, graph)?;
+
+        let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
+            graph,
+            src_index,
+            dst_index,
+            &mut src_col_resolved,
+            &mut dst_col_resolved,
+            resolve_nodes,
+            &df,
+            &src_col,
+            &dst_col,
+        )?;
+
+        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
+        eid_col_resolved.resize_with(df.len(), Default::default);
+        let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
+
+        let WriteLockedGraph { nodes, .. } = &mut write_locked_graph;
+
+        // Generate all edge_ids + add outbound edges
+        nodes.par_iter_mut().try_for_each(|locked_page| {
+            // Zip all columns for iteration.
+            let zip = izip!(src_vids.iter(), dst_vids.iter());
+            add_and_resolve_outbound_edges(&eid_col_shared, locked_page, zip)?;
+            // resolve_nodes=false
+            // assumes we are loading our own graph, via the parquet loaders,
+            // so previous calls have already stored the node ids and types
+            if resolve_nodes {
+                store_node_ids(&gid_str_cache, locked_page);
+            }
+            Ok::<_, GraphError>(())
+        })?;
+
+        drop(write_locked_graph);
+
+        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
+        write_locked_graph.edges.par_iter_mut().for_each(|shard| {
+            let zip = izip!(
+                src_vids.iter(),
+                dst_vids.iter(),
+                eid_col_resolved.iter(),
+                layer_col_resolved.iter(),
+            );
+            update_edge_metadata(&shared_metadata, &metadata_cols, shard, zip);
+        });
+
+        // #[cfg(feature = "python")]
+        let _ = pb.update(df.len());
+    }
+    Ok::<_, GraphError>(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn load_edges_from_df_pandas<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
+    column_names: ColumnNames,
+    resolve_nodes: bool,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    graph: &G,
+) -> Result<(), GraphError> {
+    let DFView {
+        names,
+        chunks,
+        num_rows,
+    } = df_view;
+    let df_view_meta = DFView {
+        names,
+        chunks: std::iter::empty(),
+        num_rows,
+    };
+
+    load_edges_from_df_inner(
+        chunks,
+        df_view_meta,
+        column_names,
+        resolve_nodes,
+        metadata,
+        shared_metadata,
+        layer,
+        graph,
+    )?;
+
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
+    column_names: ColumnNames,
+    resolve_nodes: bool,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    graph: &G,
+) -> Result<(), GraphError> {
+    let DFView {
+        names,
+        chunks,
+        num_rows,
+    } = df_view;
+    let df_view_meta = DFView {
+        names,
+        chunks: std::iter::empty(),
+        num_rows,
+    };
     rayon::scope(|s| {
         let (tx, rx) = mpsc::sync_channel(2);
 
         s.spawn(move |_| {
             let sender = tx;
-            for chunk in df_view.chunks {
+            for chunk in chunks {
                 if let Err(e) = sender.send(chunk) {
                     eprintln!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
                     break;
@@ -94,87 +229,18 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             }
         });
 
-        for chunk in rx.iter() {
-            let df = chunk?;
-            let metadata_cols =
-                combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                    session
-                        .resolve_edge_property(key, dtype, true)
-                        .map_err(into_graph_err)
-                })?;
-            // validate src and dst columns
-            let src_col = df.node_col(src_index)?;
-            let dst_col = df.node_col(dst_index)?;
-            if resolve_nodes {
-                src_col.validate(graph, LoadError::MissingSrcError)?;
-                dst_col.validate(graph, LoadError::MissingDstError)?;
-            }
-            let layer = lift_layer_col(layer, layer_index, &df)?;
-            let layer_id_values = layer_id_index
-                .map(|idx| {
-                    df.chunk[idx]
-                        .as_primitive_opt::<UInt64Type>()
-                        .ok_or_else(|| {
-                            LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
-                        })
-                        .map(|array| array.values().as_ref())
-                })
-                .transpose()?;
-            let layer_col_resolved = layer.resolve_layer(layer_id_values, graph)?;
-
-            let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
-                graph,
-                src_index,
-                dst_index,
-                &mut src_col_resolved,
-                &mut dst_col_resolved,
-                resolve_nodes,
-                &df,
-                &src_col,
-                &dst_col,
-            )?;
-
-            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
-            eid_col_resolved.resize_with(df.len(), Default::default);
-            let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
-
-            let WriteLockedGraph { nodes, .. } = &mut write_locked_graph;
-
-            // Generate all edge_ids + add outbound edges
-            nodes.par_iter_mut().try_for_each(|locked_page| {
-                // Zip all columns for iteration.
-                let zip = izip!(src_vids.iter(), dst_vids.iter());
-                add_and_resolve_outbound_edges(&eid_col_shared, locked_page, zip)?;
-                // resolve_nodes=false
-                // assumes we are loading our own graph, via the parquet loaders,
-                // so previous calls have already stored the node ids and types
-                if resolve_nodes {
-                    store_node_ids(&gid_str_cache, locked_page);
-                }
-                Ok::<_, GraphError>(())
-            })?;
-
-            drop(write_locked_graph);
-
-            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
-            write_locked_graph.edges.par_iter_mut().for_each(|shard| {
-                let zip = izip!(
-                    src_vids.iter(),
-                    dst_vids.iter(),
-                    eid_col_resolved.iter(),
-                    layer_col_resolved.iter(),
-                );
-                update_edge_metadata(&shared_metadata, &metadata_cols, shard, zip);
-            });
-
-            // #[cfg(feature = "python")]
-            let _ = pb.update(df.len());
-        }
-        Ok::<_, GraphError>(())
+        load_edges_from_df_inner(
+            rx,
+            df_view_meta,
+            column_names,
+            resolve_nodes,
+            metadata,
+            shared_metadata,
+            layer,
+            graph,
+        )?;
+        Ok::<(), GraphError>(())
     })?;
-    // set the type of the resolver;
 
     Ok(())
 }

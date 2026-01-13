@@ -1,5 +1,5 @@
 use crate::{
-    db::api::view::StaticGraphViewOps,
+    db::api::view::{internal::GraphView, StaticGraphViewOps},
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView},
@@ -16,6 +16,7 @@ use crate::{
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
+use either::Either;
 use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{
@@ -88,8 +89,104 @@ impl<'a> ColumnNames<'a> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
+pub fn load_edges_from_df_pandas<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+    I2: Iterator<Item = Result<DFChunk, GraphError>>,
+>(
+    df_view: DFView<I2>,
+    column_names: ColumnNames,
+    resolve_nodes: bool, // this is reserved for internal parquet encoders, this cannot be exposed to users
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    graph: &G,
+    delete: bool, // whether to update edge deletions or additions
+) -> Result<(), GraphError> {
+    let DFView {
+        names,
+        chunks,
+        num_rows,
+    } = df_view;
+    let df_view_meta = DFView {
+        names,
+        chunks: std::iter::empty(),
+        num_rows,
+    };
+    load_edges_from_df_inner(
+        chunks,
+        df_view_meta,
+        column_names,
+        resolve_nodes,
+        properties,
+        metadata,
+        shared_metadata,
+        layer,
+        graph,
+        delete,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn load_edges_from_df<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+    I1: Iterator<Item = Result<DFChunk, GraphError>> + Send,
+>(
+    df_view: DFView<I1>,
+    column_names: ColumnNames,
+    resolve_nodes: bool, // this is reserved for internal parquet encoders, this cannot be exposed to users
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    graph: &G,
+    delete: bool, // whether to update edge deletions or additions
+) -> Result<(), GraphError> {
+    let DFView {
+        names,
+        chunks,
+        num_rows,
+    } = df_view;
+    let df_view_meta = DFView {
+        names,
+        chunks: std::iter::empty(),
+        num_rows,
+    };
+    rayon::scope(|s| {
+        let (tx, rx) = mpsc::sync_channel(2);
+
+        s.spawn(move |_| {
+            let sender = tx;
+            for chunk in chunks {
+                if let Err(e) = sender.send(chunk) {
+                    eprintln!("Error sending chunk to loader: {}", e);
+                    break;
+                }
+            }
+        });
+
+        load_edges_from_df_inner(
+            rx,
+            df_view_meta,
+            column_names,
+            resolve_nodes,
+            properties,
+            metadata,
+            shared_metadata,
+            layer,
+            graph,
+            delete,
+        )?;
+        Ok::<(), GraphError>(())
+    })?;
+
+    Ok(())
+}
+
+fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    chunks: impl IntoIterator<Item = Result<DFChunk, GraphError>>,
+    df_view: DFView<impl Iterator<Item = ()>>, // for metadata only
+
     column_names: ColumnNames,
     resolve_nodes: bool, // this is reserved for internal parquet encoders, this cannot be exposed to users
     properties: &[&str],
@@ -149,7 +246,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         "resolve_nodes must be false when layer_id is provided or true when layer_id is None, {{resolve_nodes:{resolve_nodes:?}, layer_id:{layer_id_index:?}}}"
     );
 
-    // #[cfg(feature = "python")]
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
 
     let mut src_col_resolved: Vec<VID> = vec![];
@@ -158,193 +255,174 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
-    rayon::scope(|s| {
-        let (tx, rx) = mpsc::sync_channel(2);
+    for chunk in chunks {
+        let df = chunk?;
+        let prop_cols =
+            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
+                session
+                    .resolve_edge_property(key, dtype, false)
+                    .map_err(into_graph_err)
+            })?;
+        let metadata_cols =
+            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                session
+                    .resolve_edge_property(key, dtype, true)
+                    .map_err(into_graph_err)
+            })?;
+        // validate src and dst columns
+        let src_col = df.node_col(src_index)?;
+        let dst_col = df.node_col(dst_index)?;
+        if resolve_nodes {
+            src_col.validate(graph, LoadError::MissingSrcError)?;
+            dst_col.validate(graph, LoadError::MissingDstError)?;
+        }
+        let layer = lift_layer_col(layer, layer_index, &df)?;
+        let layer_id_values = layer_id_index
+            .map(|idx| {
+                df.chunk[idx]
+                    .as_primitive_opt::<UInt64Type>()
+                    .ok_or_else(|| LoadError::InvalidLayerType(df.chunk[idx].data_type().clone()))
+                    .map(|array| array.values().as_ref())
+            })
+            .transpose()?;
+        let layer_col_resolved = layer.resolve_layer(layer_id_values, graph)?;
 
-        s.spawn(move |_| {
-            let sender = tx;
-            for chunk in df_view.chunks {
-                if let Err(e) = sender.send(chunk) {
-                    eprintln!("Error sending chunk to loader: {}", e);
-                    break;
-                }
-            }
+        let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
+            graph,
+            src_index,
+            dst_index,
+            &mut src_col_resolved,
+            &mut dst_col_resolved,
+            resolve_nodes,
+            &df,
+            &src_col,
+            &dst_col,
+        )?;
+
+        let time_col = df.time_col(time_index)?;
+
+        // Load the secondary index column if it exists, otherwise generate from start_id.
+        let secondary_index_col =
+            extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
+
+        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
+        eid_col_resolved.resize_with(df.len(), Default::default);
+        eids_exist.resize_with(df.len(), Default::default);
+        layer_eids_exist.resize_with(df.len(), Default::default);
+        let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
+
+        let arc_edges = write_locked_graph.graph().storage().edges().clone();
+        let next_edge_id = |row: usize| {
+            let (page, pos) = arc_edges.reserve_free_pos(row);
+            pos.as_eid(page, arc_edges.max_page_len())
+        };
+
+        let WriteLockedGraph {
+            nodes, ref edges, ..
+        } = &mut write_locked_graph;
+
+        let eids = edge_index.and_then(|edge_id_col| {
+            Some(
+                df.chunk[edge_id_col]
+                    .as_primitive_opt::<UInt64Type>()?
+                    .values()
+                    .as_ref(),
+            )
         });
 
-        for chunk in rx.iter() {
-            let df = chunk?;
-            let prop_cols =
-                combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
-                    session
-                        .resolve_edge_property(key, dtype, false)
-                        .map_err(into_graph_err)
-                })?;
-            let metadata_cols =
-                combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                    session
-                        .resolve_edge_property(key, dtype, true)
-                        .map_err(into_graph_err)
-                })?;
-            // validate src and dst columns
-            let src_col = df.node_col(src_index)?;
-            let dst_col = df.node_col(dst_index)?;
+        // Generate all edge_ids + add outbound edges
+        nodes.par_iter_mut().for_each(|locked_page| {
+            // Zip all columns for iteration.
+            let zip = izip!(
+                src_vids.iter(),
+                dst_vids.iter(),
+                time_col.iter(),
+                secondary_index_col.iter(),
+                layer_col_resolved.iter()
+            );
+
+            // resolve_nodes=false
+            // assumes we are loading our own graph, via the parquet loaders,
+            // so previous calls have already stored the node ids and types
             if resolve_nodes {
-                src_col.validate(graph, LoadError::MissingSrcError)?;
-                dst_col.validate(graph, LoadError::MissingDstError)?;
+                store_node_ids(&gid_str_cache, locked_page);
             }
-            let layer = lift_layer_col(layer, layer_index, &df)?;
-            let layer_id_values = layer_id_index
-                .map(|idx| {
-                    df.chunk[idx]
-                        .as_primitive_opt::<UInt64Type>()
-                        .ok_or_else(|| {
-                            LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
-                        })
-                        .map(|array| array.values().as_ref())
-                })
-                .transpose()?;
-            let layer_col_resolved = layer.resolve_layer(layer_id_values, graph)?;
 
-            let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
-                graph,
-                src_index,
-                dst_index,
-                &mut src_col_resolved,
-                &mut dst_col_resolved,
-                resolve_nodes,
-                &df,
-                &src_col,
-                &dst_col,
-            )?;
-
-            let time_col = df.time_col(time_index)?;
-
-            // Load the secondary index column if it exists, otherwise generate from start_id.
-            let secondary_index_col =
-                extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
-
-            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
-            eid_col_resolved.resize_with(df.len(), Default::default);
-            eids_exist.resize_with(df.len(), Default::default);
-            layer_eids_exist.resize_with(df.len(), Default::default);
-            let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
-
-            let arc_edges = write_locked_graph.graph().storage().edges().clone();
-            let next_edge_id = |row: usize| {
-                let (page, pos) = arc_edges.reserve_free_pos(row);
-                pos.as_eid(page, arc_edges.max_page_len())
-            };
-
-            let WriteLockedGraph {
-                nodes, ref edges, ..
-            } = &mut write_locked_graph;
-
-            let eids = edge_index.and_then(|edge_id_col| {
-                Some(
-                    df.chunk[edge_id_col]
-                        .as_primitive_opt::<UInt64Type>()?
-                        .values()
-                        .as_ref(),
-                )
-            });
-
-            // Generate all edge_ids + add outbound edges
-            nodes.par_iter_mut().for_each(|locked_page| {
-                // Zip all columns for iteration.
-                let zip = izip!(
-                    src_vids.iter(),
-                    dst_vids.iter(),
-                    time_col.iter(),
-                    secondary_index_col.iter(),
-                    layer_col_resolved.iter()
-                );
-
-                // resolve_nodes=false
-                // assumes we are loading our own graph, via the parquet loaders,
-                // so previous calls have already stored the node ids and types
-                if resolve_nodes {
-                    store_node_ids(&gid_str_cache, locked_page);
-                }
-
-                if resolve_nodes {
-                    add_and_resolve_outbound_edges(
-                        &eids_exist,
-                        &layer_eids_exist,
-                        &eid_col_shared,
-                        next_edge_id,
-                        edges,
-                        locked_page,
-                        zip,
-                        delete,
-                    );
-                } else if let Some(edge_ids) = eids {
-                    add_and_resolve_outbound_edges(
-                        &eids_exist,
-                        &layer_eids_exist,
-                        &eid_col_shared,
-                        |row| {
-                            let eid = EID(edge_ids[row] as usize);
-                            arc_edges.increment_edge_segment_count(eid);
-                            eid
-                        },
-                        edges,
-                        locked_page,
-                        zip,
-                        delete,
-                    );
-                }
-            });
-
-            write_locked_graph.nodes.par_iter_mut().for_each(|shard| {
-                let zip = izip!(
-                    src_vids.iter(),
-                    dst_vids.iter(),
-                    eid_col_resolved.iter(),
-                    time_col.iter(),
-                    secondary_index_col.iter(),
-                    layer_col_resolved.iter(),
-                    layer_eids_exist.iter().map(|a| a.load(Ordering::Relaxed)),
-                    eids_exist.iter().map(|b| b.load(Ordering::Relaxed))
-                );
-
-                update_inbound_edges(shard, zip, delete);
-            });
-
-            drop(write_locked_graph);
-
-            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
-            write_locked_graph.edges.par_iter_mut().for_each(|shard| {
-                let zip = izip!(
-                    src_vids.iter(),
-                    dst_vids.iter(),
-                    time_col.iter(),
-                    secondary_index_col.iter(),
-                    eid_col_resolved.iter(),
-                    layer_col_resolved.iter(),
-                    eids_exist
-                        .iter()
-                        .map(|exists| exists.load(Ordering::Relaxed))
-                );
-                update_edge_properties(
-                    &shared_metadata,
-                    &prop_cols,
-                    &metadata_cols,
-                    shard,
+            if resolve_nodes {
+                add_and_resolve_outbound_edges(
+                    &eids_exist,
+                    &layer_eids_exist,
+                    &eid_col_shared,
+                    next_edge_id,
+                    edges,
+                    locked_page,
                     zip,
                     delete,
                 );
-            });
+            } else if let Some(edge_ids) = eids {
+                add_and_resolve_outbound_edges(
+                    &eids_exist,
+                    &layer_eids_exist,
+                    &eid_col_shared,
+                    |row| {
+                        let eid = EID(edge_ids[row] as usize);
+                        arc_edges.increment_edge_segment_count(eid);
+                        eid
+                    },
+                    edges,
+                    locked_page,
+                    zip,
+                    delete,
+                );
+            }
+        });
 
-            // #[cfg(feature = "python")]
-            let _ = pb.update(df.len());
-        }
-        Ok::<_, GraphError>(())
-    })?;
-    // set the type of the resolver;
+        write_locked_graph.nodes.par_iter_mut().for_each(|shard| {
+            let zip = izip!(
+                src_vids.iter(),
+                dst_vids.iter(),
+                eid_col_resolved.iter(),
+                time_col.iter(),
+                secondary_index_col.iter(),
+                layer_col_resolved.iter(),
+                layer_eids_exist.iter().map(|a| a.load(Ordering::Relaxed)),
+                eids_exist.iter().map(|b| b.load(Ordering::Relaxed))
+            );
 
-    Ok(())
+            update_inbound_edges(shard, zip, delete);
+        });
+
+        drop(write_locked_graph);
+
+        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
+        write_locked_graph.edges.par_iter_mut().for_each(|shard| {
+            let zip = izip!(
+                src_vids.iter(),
+                dst_vids.iter(),
+                time_col.iter(),
+                secondary_index_col.iter(),
+                eid_col_resolved.iter(),
+                layer_col_resolved.iter(),
+                eids_exist
+                    .iter()
+                    .map(|exists| exists.load(Ordering::Relaxed))
+            );
+            update_edge_properties(
+                &shared_metadata,
+                &prop_cols,
+                &metadata_cols,
+                shard,
+                zip,
+                delete,
+            );
+        });
+
+        #[cfg(feature = "python")]
+        let _ = pb.update(df.len());
+    }
+    Ok::<_, GraphError>(())
 }
 
 #[inline(never)]

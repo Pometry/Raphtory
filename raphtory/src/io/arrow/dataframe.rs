@@ -30,10 +30,7 @@ impl<I> Debug for DFView<I> {
     }
 }
 
-impl<I, E> DFView<I>
-where
-    I: Iterator<Item = Result<DFChunk, E>>,
-{
+impl<I> DFView<I> {
     pub fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
         let non_cols: Vec<&&str> = cols
             .iter()

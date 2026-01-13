@@ -233,6 +233,113 @@ mod io_tests {
         })
     }
 
+    // def test_load_from_pandas():
+    #[test]
+    fn load_some_edges_as_in_python() {
+        use arrow::array::builder::{Float64Builder, LargeStringBuilder};
+
+        // Create the dataframe equivalent to the pandas DataFrame
+        let edges = vec![
+            (1u64, 2u64, 1i64, 1.0f64, "red".to_string()),
+            (2, 3, 2, 2.0, "blue".to_string()),
+            (3, 4, 3, 3.0, "green".to_string()),
+            (4, 5, 4, 4.0, "yellow".to_string()),
+            (5, 6, 5, 5.0, "purple".to_string()),
+        ];
+
+        // Build the dataframe
+        let mut src_col = UInt64Builder::new();
+        let mut dst_col = UInt64Builder::new();
+        let mut time_col = Int64Builder::new();
+        let mut weight_col = Float64Builder::new();
+        let mut marbles_col = LargeStringBuilder::new();
+
+        for (src, dst, time, weight, marbles) in &edges {
+            src_col.append_value(*src);
+            dst_col.append_value(*dst);
+            time_col.append_value(*time);
+            weight_col.append_value(*weight);
+            marbles_col.append_value(marbles);
+        }
+
+        let chunk = vec![
+            ArrayBuilder::finish(&mut src_col),
+            ArrayBuilder::finish(&mut dst_col),
+            ArrayBuilder::finish(&mut time_col),
+            ArrayBuilder::finish(&mut weight_col),
+            ArrayBuilder::finish(&mut marbles_col),
+        ];
+
+        let df_view = DFView {
+            names: vec![
+                "src".to_owned(),
+                "dst".to_owned(),
+                "time".to_owned(),
+                "weight".to_owned(),
+                "marbles".to_owned(),
+            ],
+            chunks: vec![Ok(DFChunk { chunk })].into_iter(),
+            num_rows: edges.len(),
+        };
+
+        // Load edges into graph
+        let g = Graph::new();
+        let props = ["weight", "marbles"];
+        load_edges_from_df(
+            df_view,
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
+            &props,
+            &[],
+            None,
+            None,
+            &g,
+            false,
+        )
+        .unwrap();
+
+        // Expected values
+        let expected_nodes = vec![1u64, 2, 3, 4, 5, 6];
+        let mut expected_edges = vec![
+            (1u64, 2u64, 1.0f64, "red".to_string()),
+            (2, 3, 2.0, "blue".to_string()),
+            (3, 4, 3.0, "green".to_string()),
+            (4, 5, 4.0, "yellow".to_string()),
+            (5, 6, 5.0, "purple".to_string()),
+        ];
+
+        // Collect actual nodes
+        let mut actual_nodes: Vec<u64> = g
+            .nodes()
+            .id()
+            .into_iter()
+            .flat_map(|(_, id)| id.as_u64())
+            .collect();
+        actual_nodes.sort();
+
+        // Collect actual edges
+        let mut actual_edges: Vec<(u64, u64, f64, String)> = g
+            .edges()
+            .iter()
+            .filter_map(|e| {
+                let weight = e.properties().get("weight").unwrap_f64();
+                let marbles = e.properties().get("marbles").unwrap_str().to_string();
+                Some((
+                    e.src().id().as_u64()?,
+                    e.dst().id().as_u64()?,
+                    weight,
+                    marbles,
+                ))
+            })
+            .collect();
+        actual_edges.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        expected_edges.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+
+        // Assertions
+        assert_eq!(actual_nodes, expected_nodes);
+        assert_eq!(actual_edges, expected_edges);
+    }
+
     #[test]
     fn test_simultaneous_edge_update() {
         let edges = [(0, 1, 0, "".to_string(), 0), (0, 1, 0, "".to_string(), 1)];
