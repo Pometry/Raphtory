@@ -258,22 +258,6 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let index = Index::for_graph(graph.clone());
 
-        println!("DEBUG TaskRunner::run:");
-        println!(
-            "  graph.unfiltered_num_nodes() = {}",
-            graph.unfiltered_num_nodes()
-        );
-        println!("  node_index.len() = {}", num_nodes);
-        println!("  morcel_size = {}", morcel_size);
-        println!("  num_chunks = {}", num_chunks);
-        println!(
-            "  index variant = {:?}",
-            match &index {
-                Index::Full(_) => "Full",
-                Index::Partial(_) => "Partial",
-            }
-        );
-
         let mut shard_state =
             shard_initial_state.unwrap_or_else(|| Shard::new(num_nodes, num_chunks, morcel_size));
 
@@ -291,11 +275,6 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             node_index.par_iter().for_each(|(i, vid)| {
                 atom_vids[i].store(vid.0, Ordering::Relaxed);
             });
-        }
-
-        println!("  reverse_vids mapping (flat_idx -> VID):");
-        for (flat_idx, vid) in reverse_vids.iter().enumerate() {
-            println!("    {} -> {}", flat_idx, vid.0);
         }
 
         (_done, shard_state, global_state, cur_local_state) = self.run_task_list(

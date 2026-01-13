@@ -96,6 +96,31 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedEdgeStorage<ES,
                 )
             })
     }
+
+    pub fn row_groups_par_iter(
+        &self,
+    ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = EID> + '_)> {
+        let max_actual_seg_len = self
+            .storage
+            .segments
+            .iter()
+            .map(|(_, seg)| seg.num_edges())
+            .max()
+            .unwrap_or(0);
+        let max_seg_len = self.storage.max_page_len();
+        row_group_par_iter(
+            max_seg_len as usize,
+            self.locked_pages.len(),
+            max_seg_len,
+            max_actual_seg_len,
+        )
+        .map(|(row_group_id, iter)| {
+            (
+                row_group_id,
+                iter.filter(|eid| self.edge_ref(*eid).edge(0).is_some()),
+            )
+        })
+    }
 }
 
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT> {
@@ -585,26 +610,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                     )
                 })
             })
-    }
-
-    pub fn row_groups_par_iter(
-        &self,
-    ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = EID> + '_)> {
-        row_group_par_iter(
-            self.max_page_len() as usize,
-            self.segments.count(),
-            self.max_page_len(),
-        )
-        .map(|(s_id, iter)| (s_id, iter.filter(|eid| self.has_eid(*eid))))
-    }
-
-    fn has_eid(&self, eid: EID) -> bool {
-        let (segment_id, pos) = self.resolve_pos(eid);
-        segment_id < self.segments.count()
-            && self
-                .segments
-                .get(segment_id)
-                .is_some_and(|s| pos.0 < s.num_edges())
     }
 
     pub(crate) fn segment_counts(&self) -> SegmentCounts<EID> {

@@ -178,14 +178,14 @@ const PERSISTENT_GRAPH_TYPE: &str = "rap_persistent_graph";
 
 impl ParquetEncoder for Graph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        let gs = self.core_graph().clone();
+        let gs = self.core_graph().lock();
         encode_graph_storage(&gs, path, GraphType::EventGraph)
     }
 }
 
 impl ParquetEncoder for PersistentGraph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        let gs = self.core_graph().clone();
+        let gs = self.core_graph().lock();
         encode_graph_storage(&gs, path, GraphType::PersistentGraph)
     }
 }

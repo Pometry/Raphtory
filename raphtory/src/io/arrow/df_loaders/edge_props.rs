@@ -89,6 +89,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             for chunk in df_view.chunks {
                 if let Err(e) = sender.send(chunk) {
                     eprintln!("Error pre-fetching chunk for loading edges, possibly receiver has been dropped {e}");
+                    break;
                 }
             }
         });

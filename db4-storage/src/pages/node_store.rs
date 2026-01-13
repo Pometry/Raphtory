@@ -97,10 +97,17 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
     pub fn row_groups_par_iter(
         &self,
     ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = VID> + '_)> {
+        let max_actual_seg_len = self
+            .locked_segments
+            .iter()
+            .map(|seg| seg.num_nodes())
+            .max()
+            .unwrap_or(0);
         row_group_par_iter(
             self.storage.max_segment_len() as usize,
             self.locked_segments.len(),
             self.storage.max_segment_len(),
+            max_actual_seg_len,
         )
         .map(|(s_id, iter)| (s_id, iter.filter(|vid| self.has_vid(*vid))))
     }

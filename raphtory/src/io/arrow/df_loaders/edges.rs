@@ -164,7 +164,10 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         s.spawn(move |_| {
             let sender = tx;
             for chunk in df_view.chunks {
-                sender.send(chunk).unwrap()
+                if let Err(e) = sender.send(chunk) {
+                    eprintln!("Error sending chunk to loader: {}", e);
+                    break;
+                }
             }
         });
 

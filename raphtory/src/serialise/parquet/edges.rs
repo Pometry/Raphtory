@@ -19,7 +19,9 @@ pub(crate) fn encode_edge_tprop(
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
-        g.edges().segmented_par_iter(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_T_PATH,
         |_| {
@@ -65,7 +67,9 @@ pub(crate) fn encode_edge_deletions(
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
-        g.edges().segmented_par_iter(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_D_PATH,
         |_| {
@@ -129,7 +133,9 @@ pub(crate) fn encode_edge_cprop(
     run_encode_indexed(
         g,
         g.edge_meta().metadata_mapper(),
-        g.edges().segmented_par_iter(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_C_PATH,
         |_| {

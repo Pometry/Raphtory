@@ -15,7 +15,6 @@ use std::{
     mem,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::state::StateIndex;
 
 /// Keeps track of node assignments to weakly-connected components
 ///

@@ -541,13 +541,16 @@ impl InnerGraphFolder {
         Ok(metadata.meta)
     }
 
-    pub fn replace_graph(&self, graph: impl ParquetEncoder + GraphView) -> Result<(), GraphError> {
+    pub fn replace_graph(
+        &self,
+        graph: impl ParquetEncoder + GraphView + std::fmt::Debug,
+    ) -> Result<(), GraphError> {
         let data_path = self.as_ref();
         let old_relative_graph_path = self.relative_graph_path()?;
         let old_graph_path = self.path.join(&old_relative_graph_path);
         let meta = GraphMetadata::from_graph(&graph);
-        let new_relative_graph_path = make_data_path(&data_path, GRAPH_PATH)?;
-        graph.encode_parquet(&data_path.join(&new_relative_graph_path))?;
+        let new_relative_graph_path = make_data_path(data_path, GRAPH_PATH)?;
+        graph.encode_parquet(data_path.join(&new_relative_graph_path))?;
 
         let dirty_path = data_path.join(DIRTY_PATH);
         fs::write(

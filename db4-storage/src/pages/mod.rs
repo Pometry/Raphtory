@@ -534,6 +534,7 @@ pub fn row_group_par_iter<I: From<usize>>(
     chunk_size: usize,
     num_segments: usize,
     max_seg_len: u32,
+    max_actual_seg_len: u32,
 ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = I>)> {
     let (num_chunks, chunk_size) = if num_segments != 0 {
         let chunk_size = (chunk_size / num_segments).max(1);
@@ -545,7 +546,7 @@ pub fn row_group_par_iter<I: From<usize>>(
 
     (0..num_chunks).into_par_iter().map(move |chunk_id| {
         let start = chunk_id * chunk_size;
-        let end = ((chunk_id + 1) * chunk_size).min(max_seg_len as usize);
+        let end = ((chunk_id + 1) * chunk_size).min(max_actual_seg_len as usize);
 
         let iter = (start..end).flat_map(move |x| {
             (0..num_segments).map(move |seg| I::from(seg * max_seg_len as usize + x))
@@ -579,7 +580,7 @@ mod test {
         let num_segments = 3;
         let max_seg_len = 4;
 
-        let actual = super::row_group_par_iter(chunk_size, num_segments, max_seg_len)
+        let actual = super::row_group_par_iter(chunk_size, num_segments, max_seg_len, max_seg_len)
             .map(|(c, items)| (c, items.collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
