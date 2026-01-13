@@ -899,6 +899,8 @@ def test_loading_list_as_properties():
             "marbles": [["red"], ["blue"], ["green"], ["yellow"], ["purple"]],
         }
     )
+    # malformed columns must be dropped even if they are not being ingested
+    df = df.drop(columns=["weight"])
 
     g = Graph()
     g.load_edges(
