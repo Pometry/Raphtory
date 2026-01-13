@@ -356,8 +356,7 @@ mod lancedb_tests {
     //     vector.into()
     // }
     fn embedding(id: usize) -> Embedding {
-        use rand::rngs::StdRng;
-        use rand::{Rng, SeedableRng};
+        use rand::{rngs::StdRng, Rng, SeedableRng};
         let mut rng = StdRng::seed_from_u64(id as u64);
         let vector: Vec<f32> = (0..EMBEDDING_DIM).map(|_| rng.gen::<f32>()).collect();
         vector.into()

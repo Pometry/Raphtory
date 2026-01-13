@@ -93,26 +93,6 @@ class GraphServer(object):
             None:
         """
 
-    def set_embeddings(
-        self,
-        cache: str,
-        embedding: Optional[Callable] = None,
-        nodes: bool | str = True,
-        edges: bool | str = True,
-    ) -> GraphServer:
-        """
-        Setup the server to vectorise graphs with a default template.
-
-        Arguments:
-            cache  (str): the directory to use as cache for the embeddings.
-            embedding (Callable, optional): the embedding function to translate documents to embeddings.
-            nodes  (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-
-        Returns:
-            GraphServer: A new server object with embeddings setup.
-        """
-
     def start(self, port: int = 1736, timeout_ms: int = 5000) -> RunningGraphServer:
         """
         Start the server and return a handle to it.
@@ -127,22 +107,21 @@ class GraphServer(object):
             RunningGraphServer: The running server
         """
 
-    def turn_off_index(self) -> GraphServer:
-        """
-        Turn off index for all graphs
+    def turn_off_index(self):
+        """Turn off index for all graphs"""
 
-        Returns:
-            GraphServer: The server with indexing disabled
-        """
-
-    def with_vectorised_graphs(
-        self, graph_names: list[str], nodes: bool | str = True, edges: bool | str = True
+    def vectorise_graph(
+        self,
+        name: list[str],
+        embeddings,
+        nodes: bool | str = True,
+        edges: bool | str = True,
     ) -> GraphServer:
         """
-        Vectorise a subset of the graphs of the server.
+        Vectorise the graph name in the server working directory.
 
         Arguments:
-            graph_names (list[str]): the names of the graphs to vectorise. All by default.
+            name (list[str]): the name of the graph to vectorise.
             nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
             edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 

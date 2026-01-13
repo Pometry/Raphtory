@@ -6,7 +6,7 @@ from raphtory import Graph
 from raphtory.vectors import VectorisedGraph, OpenAIEmbeddings, embedding_server
 
 embedding_map = {
-    "raphtory": [1.0, 0.0, 0.0], # this is now needed,
+    "raphtory": [1.0, 0.0, 0.0],  # this is now needed,
     "node1": [1.0, 0.0, 0.0],
     "node2": [0.0, 1.0, 0.0],
     "node3": [0.0, 0.0, 1.0],
@@ -16,9 +16,10 @@ embedding_map = {
     "edge3": [0.0, 1.0, 1.0],
 }
 
+
 @pytest.fixture(autouse=True)
 def test_server():
-    @embedding_server(address="0.0.0.0:7340") # TODO: ask only for PORT!!!
+    @embedding_server(address="0.0.0.0:7340")  # TODO: ask only for PORT!!!
     def custom_embeddings(text: str):
         return embedding_map[text]
 
@@ -44,15 +45,14 @@ def post_json(url, payload):
 def test_failing_python_embeddings():
     @embedding_server(address="0.0.0.0:7342")
     def failing_embeddings(text: str):
-        assert(False)
+        assert False
 
     with failing_embeddings.start():
-        payload = { "model": "whatever", "input": ["Hello world"] }
+        payload = {"model": "whatever", "input": ["Hello world"]}
         status, _ = post_json("http://localhost:7342/embeddings", payload)
-        assert(status == 500)
+        assert status == 500
         status, _ = post_json("http://localhost:7342/embeddings", payload)
-        assert(status == 500)
-
+        assert status == 500
 
 
 def floats_are_equals(float1: float, float2: float) -> bool:
@@ -85,6 +85,7 @@ def create_graph() -> VectorisedGraph:
 
     return vg
 
+
 def test_embedding_sever_context_manager():
     @embedding_server(address="0.0.0.0:7341")
     def constant(text: str):
@@ -96,9 +97,9 @@ def test_embedding_sever_context_manager():
             "input": ["The text to vectorise"]
         }
         status, body = post_json("http://localhost:7341/embeddings", payload)
-        assert(status == 200)
+        assert status == 200
         result = json.loads(body)
-        vector = result['data'][0]['embedding']
+        vector = result["data"][0]["embedding"]
         assert vector == [1.0]
 
 
@@ -154,7 +155,9 @@ def test_search():
     assert edge_names_returned == [("node1", "node2")]
     # TODO: same for edges ?
 
-    [(doc1, distance1)] = vg.entities_by_similarity("node1", 1).get_documents_with_distances()
+    [(doc1, distance1)] = vg.entities_by_similarity(
+        "node1", 1
+    ).get_documents_with_distances()
     assert floats_are_equals(distance1, 0.0)
     assert (doc1.entity.name, doc1.content) == ("node1", "node1")
 
@@ -246,10 +249,10 @@ def test_filtering_by_entity_type():
     assert contents == ["edge1", "edge2", "edge3"]
 
 
-
 @embedding_server(address="0.0.0.0:7341")
 def constant_embedding(_text):
     return [1.0, 0.0, 0.0]
+
 
 def test_default_template():
     g = Graph()

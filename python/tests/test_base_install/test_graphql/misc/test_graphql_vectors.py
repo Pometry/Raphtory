@@ -8,6 +8,7 @@ from raphtory.vectors import OpenAIEmbeddings, embedding_server
 def embeddings(text: str):
     return [text.count("a"), text.count("b")]
 
+
 def setup_graph(g):
     g.add_node(1, "aab")
     g.add_edge(1, "aab", "bbb")
@@ -64,11 +65,13 @@ def test_new_graph():
             client.new_graph("abb", "EVENT")
             rg = client.remote_graph("abb")
             setup_graph(rg)
-            client.query("""
+            client.query(
+                """
                 {
                     vectoriseGraph(path: "abb", model: { openAI: { model: "whatever", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
-                """)
+                """
+            )
             assert_correct_documents(client)
 
 
@@ -85,14 +88,18 @@ def test_upload_graph():
             g_path = temp_dir.name + "/abb"
             g.save_to_zip(g_path)
             client.upload_graph(path="abb", file_path=g_path, overwrite=True)
-            client.query("""
+            client.query(
+                """
                 {
                 vectoriseGraph(path: "abb", model: { openAI: { model: "whatever", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
-                """)
+                """
+            )
             assert_correct_documents(client)
 
+
 GRAPH_NAME = "abb"
+
 
 def test_include_graph():
     work_dir = tempfile.TemporaryDirectory()
@@ -107,7 +114,7 @@ def test_include_graph():
             name=GRAPH_NAME,
             embeddings=embedding_client,
             nodes="{{ name }}",
-            edges=False
+            edges=False,
         )
         with server.start():
             client = RaphtoryClient("http://localhost:1736")

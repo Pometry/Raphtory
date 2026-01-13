@@ -711,6 +711,13 @@ type EdgesWindowSet {
 	list: [Edges!]!
 }
 
+input EmbeddingModel @oneOf {
+	"""
+	OpenAI embedding models or compatible providers
+	"""
+	openAI: OpenAIConfig
+}
+
 """
 Raphtory’s EventTime.
 Represents a unique timepoint in the graph’s history as (timestamp, event_id).
@@ -2207,6 +2214,14 @@ input ObjectEntry {
 	value: Value!
 }
 
+input OpenAIConfig {
+	model: String!
+	apiBase: String
+	apiKeyEnv: String
+	orgId: String
+	projectId: String
+}
+
 enum Operator {
 	"""
 	Equality operator.
@@ -2550,7 +2565,7 @@ type QueryRoot {
 	
 	Returns:: GqlMutableGraph
 	"""
-	vectoriseGraph(path: String!, model: String, apiBase: String, nodes: Template, edges: Template): Boolean!
+	vectoriseGraph(path: String!, model: EmbeddingModel, nodes: Template, edges: Template): Boolean!
 	"""
 	Create vectorised graph in the format used for queries
 	
@@ -2792,6 +2807,10 @@ type VectorSelection {
 }
 
 type VectorisedGraph {
+	"""
+	Optmize the vector index
+	"""
+	optimizeIndex: Boolean!
 	"""
 	Returns an empty selection of documents.
 	"""
