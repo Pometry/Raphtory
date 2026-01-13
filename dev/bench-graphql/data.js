@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1767969004372,
+  "lastUpdate": 1768321606724,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3185,6 +3185,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1459,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+shivamka1@users.noreply.github.com",
+            "name": "Shivam",
+            "username": "shivamka1"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cd9236aeeb2cd2fb79393dd3bbcb0fd62ba8f058",
+          "message": "Master filter (#2254)\n\n* window filter semantics, wip\n\n* fix lifetimes in the eval apis\n\n* add review suggestions\n\n* fix tests\n\n* found some busted bit\n\n* fix type validation for map filters\n\n* improve filter validation\n\n* report correct property name\n\n* clean up the test\n\n* update rust test\n\n* impl one hop filter\n\n* fix tests\n\n* Issues with constant props filter as discussed\n\n* Added some fuzzy tests\n\n* fix tests\n\n* disable constant properties on multilayer edge views\n\n* fix repr for python ConstantProps\n\n* constant properties use layer priority to find the merged value instead of creating a map\n\n* no more enum_dispatch and quickcheck and some other minor tidy up\n\n* update tests (changed semantics for constant properties, no support for comparison operators on list)\n\n* order of layers matters now, need to preserve it in test\n\n* fix py, gql for one hop filter\n\n* simplify LayerColVariants\n\n* no reason to use par_bridge here\n\n* imports\n\n* run tests first before tidy\n\n* ref\n\n* fix tests\n\n* revert cargo\n\n* fix tests\n\n* fix tests\n\n* split properties and metadata\n\n* core bits are compiling, more cleanup needed\n\n* fix tests\n\n* fix python\n\n* bring back map expansion for multilayer metadata view\n\n* everything compiles, some tests to fix\n\n* bring back map validation for metadata of multilayer edges\n\n* start updating tests\n\n* fix python properties keys\n\n* rename constant_properties to metadata\n\n* fix filter module initialisation\n\n* more renaming\n\n* a lot more renaming\n\n* fix metadata filter for exploded edges\n\n* Fixed metadata tests\n\n* fixing semantics tests\n\n* fix semantics\n\n* fixed explode tests\n\n* No_fallback_docs (#2195)\n\n* fix docs tests in ingestion topics\n\n* fix docs tests\n\n* fix docs tests\n\n* fix admonitions\n\n* update storage\n\n* Fixed more filters\n\n* ref, add exploded edge property filtering for py, enable test\n\n* fixed test_graphdb\n\n* fixed load and export tests\n\n* ref search\n\n* fix example\n\n* fix python build\n\n* remove the fallback in search api\n\n* should use filtered iterator in test\n\n* add extension-module to features in makefile\n\n* fix example\n\n* fix example\n\n* fix filter and search tests\n\n* fix the index tests\n\n* fix the old_proto reading test\n\n* fix graphql node schema\n\n* fix the metadata write in the .raph file\n\n* rename the field\n\n* fix imports\n\n* update edge metadata query and test\n\n* properties are now metadata\n\n* use rayon instead of tokio\n\n* fix warning\n\n* one more case of renaming properties to metadata\n\n* fix PyRemotePropertySpec\n\n* update python tests\n\n* fix properties is_empty\n\n* use a TemporaryDirectory for the saving example such that it gets cleaned up afterwards\n\n* Fixed python client and add test for upload graph\n\n* fmt\n\n* fix py import\n\n* fix py test\n\n* fix test\n\n* fmt\n\n* flatten the metadata access in GqlMetaGraph\n\n* add rounding to pagerank example to make the test not flaky\n\n* disable graphql vector test\n\n* bring back filtering of empty/non-existing values for individual Properties and Metadata in python\n\n* bring back filtering of empty/none values in graphql properties/metadata\n\n* no more fallback for the property type in balance\n\n* no more fallback for weight type in dijkstra\n\n* bring the first vector test back\n\n* allow threads in query to avoid gil deadlocks\n\n* bring back the vector tests\n\n* put the ? in the right place\n\n* bring back the extra thread\n\n* revert LayerIds::Mutliple to sorted slice\n\n* needs closure\n\n* update tests for property semantics\n\n* add support for unzipped folders in upload_graph\n\n* release the GIL\n\n* add review suggestions\n\n* add test, ref\n\n* chore: apply tidy-public auto-fixes\n\n* impl #2211\n\n* fmt\n\n* chore: apply tidy-public auto-fixes\n\n* impl temporal first filter\n\n* impl temporal all filter\n\n* public tidy\n\n* impl collectors\n\n* impl list agg filter\n\n* fix agg filter semantics\n\n* impl tests and some fixes\n\n* add agg tests\n\n* add prop python apis to create rust types\n\n* impl python list\n\n* impl python map\n\n* chore: apply tidy-public auto-fixes\n\n* use pytest.raises\n\n* more tests\n\n* fix comment\n\n* fix comment\n\n* simplify props\n\n* fix test\n\n* fix\n\n* fix test\n\n* unique results based search, fix tests\n\n* rid dead collectors\n\n* fix test\n\n* fmt\n\n* chore: apply tidy-public auto-fixes\n\n* impl node py filter iter (#2270)\n\n* impl node py filter iter\n\n* chore: apply tidy-public auto-fixes\n\n* impl path_from_graph, path_from_node, edges, nested_edges py filter, fix tests,\n\n* rid iter_graph\n\n* add more tests\n\n* add more tests\n\n* add exploded edges test\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\n\n* chore: apply tidy-public auto-fixes\n\n* Features/filter (#2281)\n\n* impl node id filter\n\n* impl node id filter for gql\n\n* impl edge src/dst id filter\n\n* chore: apply tidy-public auto-fixes\n\n* add validations, support numeric, string filters for ids\n\n* rid dead code\n\n* add review changes\n\n* fix options\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\n\n* rid dead code\n\n* chore: apply tidy-public auto-fixes\n\n* add u8, u16, u32, f32, i32 to the graphql types (#2287)\n\n* chore: apply tidy-public auto-fixes\n\n* chore: apply tidy-public auto-fixes\n\n* impl qualifier filters for list properties and metadata (#2284)\n\n* impl qualifier filters for list properties and metadata\n\n* impl python, graphql qualifier filter, add tests\n\n* rename gql from gql object names, throw error if prop not found\n\n* ref\n\n* add more suggestions\n\n* allow empty graph in tests\n\n* allow empty graphs for tests\n\n* fix test\n\n* chore: apply tidy-public auto-fixes\n\n* impl aggs for temporal properties, add tests (#2294)\n\n* impl aggs for temporal properties, add tests\n\n* add review suggestions\n\n* redesign, refactor property filters (#2311)\n\n* redesign, refactor property filters\n\n* takes a reference\n\n* rework validation\n\n* fix arbitrary list, fix tests\n\n* merge python traits, fix tests, add more validations\n\n* rework gql filtering apis, fix tests\n\n* add review suggestions\n\n* Features/gql apis (#2350)\n\n* impl nodes select filtering in gql\n\n* change semantics of filters in gql, add missing filter apis in edges, fix all tests\n\n* add more edge filter tests\n\n* add filtering to path from node, add tests\n\n* fix apply views\n\n* rename filter-iter to select\n\n* add select as args\n\n* impl window filter (#2359)\n\n* impl window filter\n\n* impl window filter in python, add tests\n\n* impl gql window filter, add tests\n\n* ref\n\n* impl review suggestions\n\n* fixes\n\n* fix py and gql\n\n* add review suggestions\n\n* impl edge node filtering, add few tests (#2364)\n\n* redesign, refactor property filters\n\n* takes a reference\n\n* rework validation\n\n* fix arbitrary list, fix tests\n\n* merge python traits, fix tests, add more validations\n\n* rework gql filtering apis, fix tests\n\n* impl nodes select filtering in gql\n\n* change semantics of filters in gql, add missing filter apis in edges, fix all tests\n\n* add more edge filter tests\n\n* add filtering to path from node, add tests\n\n* impl window filter\n\n* impl window filter in python, add tests\n\n* impl gql window filter, add tests\n\n* ref\n\n* impl edge node filtering, add few tests\n\n* rid redundant code\n\n* fix call to filter nodes\n\n* rid dead code\n\n* Integrating edge endpoint filtering mechanism into Python using the same wrapper types as node filtering.\n\n* Added src/dst endpoint filtering support for exploded edge filters in rust and python\n\n* Added src/dst endpoint filtering support for exploded edge filters in GraphQL and fixed search\n\n* Added tests from previous branch, some of them fail\n\n* Fixed DynFilterOps implementations for EndpointWrapper<T> types. Endpoint filtering tests pass\n\n* Changed many impls to be blanket implementations using traits, especially EndpointWrapper<T> types. Use indexes in search on edge endpoints using NodeFilterExecutor.\n\n* rid dead code\n\n* nodeops suggestions from lucas\n\n* start fixing some apis\n\n* fixed most of the compilation errors\n\n* fix all the python problems except for actually implementing the python filtering\n\n* finish ref, fix tests\n\n* redone\n\n* fix\n\n* more changes\n\n* start fixing infinite trait bound recursion\n\n* rid filtered graphs\n\n* rid nodetypefilteredgraph\n\n* add review suggestions\n\n* fix infinite type recursion\n\n* fmt, fix recursion issue in search\n\n* impl py\n\n* Do not rely on Wrap for the trait bounds in the builder API as the compiler cannot figure out the bounds when trying to implement python wrappers.\n\n* fix gql, tests\n\n---------\n\nCo-authored-by: arienandalibi <arienandalibi2@gmail.com>\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>\n\n* Refactoring filter (#2404)\n\n* ref property filters\n\n* move windowed filter into its own file\n\n* ref node filter\n\n* ref filter module\n\n* move InternalPropertyFilterBuilderOps to mod\n\n* move validation and evaluation logic to independent files\n\n* ref\n\n* simple renames\n\n* rid duplicate temporal impl\n\n* rename endpoint wrappers\n\n* rearrange\n\n* impl node select\n\n* move createfilter to respective files\n\n* ref\n\n* move createfilter impl to respective files, ref\n\n* replace enum with macro, rename trait\n\n* replace edge enums with macro, rename traits\n\n* give sensible names to all types\n\n* add review suggestions\n\n* Layers (#2428)\n\n* layer impl rust, py, add tests\n\n* impl gql layers, add tests\n\n* fix tests\n\n* disable a test for now because node layers not supported yet\n\n* add review suggestions\n\n* merge from master\n\n* fix tests\n\n* fix tests\n\n* update private\n\n* fix stress\n\n* fix test\n\n* fix docs\n\n* fix bug caught by stress test\n\n* chore: apply tidy-public auto-fixes\n\n* limit query depth\n\n* add graph latest bm\n\n* increase the stack size, not a fix though\n\n* fix test, ref\n\n* update ui\n\n* Update test_during_pr.yml\n\n---------\n\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>\nCo-authored-by: Ben Steer <ben.steer@pometry.com>\nCo-authored-by: James Baross <james.baross@pometry.com>\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: arienandalibi <arienandalibi2@gmail.com>",
+          "timestamp": "2026-01-13T15:50:56Z",
+          "tree_id": "9deccd38e0b4ef3dbe1de4c573eac07d43c8bc18",
+          "url": "https://github.com/Pometry/Raphtory/commit/cd9236aeeb2cd2fb79393dd3bbcb0fd62ba8f058"
+        },
+        "date": 1768321603590,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1493,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 213,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 163,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1102,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 963,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1486,
             "unit": "req/s"
           }
         ]
