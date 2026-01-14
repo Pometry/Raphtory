@@ -351,6 +351,10 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
             )
         }
     }
+
+    pub fn keys(&self) -> &Index<VID> {
+        &self.keys
+    }
 }
 
 impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {

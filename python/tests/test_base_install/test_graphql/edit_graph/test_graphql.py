@@ -697,13 +697,19 @@ def test_graph_persistence_across_restarts():
         client = RaphtoryClient("http://localhost:1738")
 
         # Verify persistence: check that nodes and edges are still there
-        query_nodes = """{graph(path: "persistent_graph") {nodes {list {name}}}}"""
-        query_edges = """{graph(path: "persistent_graph") {edges {list {id}}}}"""
+        query_nodes = """{graph(path: "persistent_graph") {nodes {sorted (sortBys: [{id: true}]){ list {name} }}}}"""
+        query_edges = """{graph(path: "persistent_graph") {edges {sorted (sortBys: [{src: true, dst: true}]){ list {id} }}}}"""
 
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "node1"}, {"name": "node2"}, {"name": "node3"}]
+                    "sorted": {
+                        "list": [
+                            {"name": "node1"},
+                            {"name": "node2"},
+                            {"name": "node3"},
+                        ]
+                    }
                 }
             }
         }
@@ -711,10 +717,12 @@ def test_graph_persistence_across_restarts():
         assert client.query(query_edges) == {
             "graph": {
                 "edges": {
-                    "list": [
-                        {"id": ["node1", "node2"]},
-                        {"id": ["node2", "node3"]},
-                    ]
+                    "sorted": {
+                        "list": [
+                            {"id": ["node1", "node2"]},
+                            {"id": ["node2", "node3"]},
+                        ]
+                    }
                 }
             }
         }
@@ -728,12 +736,14 @@ def test_graph_persistence_across_restarts():
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [
-                        {"name": "node1"},
-                        {"name": "node4"},
-                        {"name": "node2"},
-                        {"name": "node3"},
-                    ]
+                    "sorted": {
+                        "list": [
+                            {"name": "node1"},
+                            {"name": "node2"},
+                            {"name": "node3"},
+                            {"name": "node4"},
+                        ]
+                    }
                 }
             }
         }
@@ -741,11 +751,13 @@ def test_graph_persistence_across_restarts():
         assert client.query(query_edges) == {
             "graph": {
                 "edges": {
-                    "list": [
-                        {"id": ["node1", "node2"]},
-                        {"id": ["node2", "node3"]},
-                        {"id": ["node3", "node4"]},
-                    ]
+                    "sorted": {
+                        "list": [
+                            {"id": ["node1", "node2"]},
+                            {"id": ["node2", "node3"]},
+                            {"id": ["node3", "node4"]},
+                        ]
+                    }
                 }
             }
         }
