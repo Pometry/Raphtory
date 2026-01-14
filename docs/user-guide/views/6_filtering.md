@@ -71,9 +71,9 @@ traffic_graph.load_nodes_from_pandas(
     shared_metadata={"datasource": "../data/network_traffic_edges.csv"},
 )
 
-my_filter = filter.Property("OS_version").is_in(["Ubuntu 20.04", "Red Hat 8.1"]) & filter.Property("primary_function").is_in(["Web Server", "Application Server"])
+my_filter = filter.Node.property("OS_version").is_in(["Ubuntu 20.04", "Red Hat 8.1"]) & filter.Node.property("primary_function").is_in(["Web Server", "Application Server"])
 
-cve_view = traffic_graph.filter_nodes(my_filter)
+cve_view = traffic_graph.filter(my_filter)
 
 print(cve_view.nodes)
 

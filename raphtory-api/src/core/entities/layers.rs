@@ -6,7 +6,7 @@ use iter_enum::{
 use rayon::prelude::*;
 use std::{iter::Copied, sync::Arc};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Layer {
     All,
     None,

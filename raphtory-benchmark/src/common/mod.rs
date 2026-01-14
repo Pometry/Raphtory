@@ -440,6 +440,10 @@ pub fn run_analysis_benchmarks<F, G>(
             b.iter(|| v.neighbours().degree().max())
         },
     );
+
+    bench(group, "graph_latest", parameter, |b: &mut Bencher| {
+        b.iter(|| graph.latest_time().expect("graph should not be empty"))
+    });
 }
 
 pub fn run_materialize<F, G>(

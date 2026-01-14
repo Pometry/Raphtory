@@ -5,7 +5,7 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
-        api::state::{Index, NodeState},
+        api::state::{ops::filter::NO_FILTER, Index, NodeState},
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
@@ -45,7 +45,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
             nextlevel.clear();
             for v in thislevel.iter() {
                 let node = NodeView::new_internal(g, *v);
-                for w in node.neighbours() {
+                for w in node.out_neighbours() {
                     if !paths.contains_key(&w.node) {
                         let mut new_path = paths.get(v).unwrap().clone();
                         new_path.push(w.node);
@@ -58,6 +58,6 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
         }
     }
     NodeState::new_from_map(g.clone(), paths, |v| {
-        Nodes::new_filtered(g.clone(), g.clone(), Some(Index::from_iter(v)), None)
+        Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::from_iter(v)))
     })
 }

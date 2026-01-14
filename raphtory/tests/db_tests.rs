@@ -4,10 +4,6 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
 #[cfg(feature = "proto")]
 use raphtory::serialise::StableDecode;
-use raphtory::test_utils::{
-    build_graph, build_graph_strat, test_graph, EdgeFixture, EdgeUpdatesFixture, GraphFixture,
-    NodeFixture, PropUpdatesFixture,
-};
 use raphtory::{
     algorithms::components::weakly_connected_components,
     db::{
@@ -15,11 +11,7 @@ use raphtory::{
             properties::internal::InternalMetadataOps,
             view::{
                 internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
-                // time::internal::InternalTimeOps,
-                EdgeViewOps,
-                LayerOps,
-                NodeViewOps,
-                TimeOps,
+                EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
             },
         },
         graph::{
@@ -31,6 +23,7 @@ use raphtory::{
     graphgen::random_attachment::random_attachment,
     prelude::*,
     test_storage,
+    test_utils::{EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, PropUpdatesFixture},
 };
 use raphtory_api::core::{
     entities::{GID, VID},
@@ -135,10 +128,7 @@ fn test_empty_graph() {
         assert!(graph.is_empty());
 
         assert!(graph.nodes().collect().is_empty());
-        assert_eq!(
-            graph.edges().collect(),
-            Vec::<EdgeView<Graph, Graph>>::new()
-        );
+        assert_eq!(graph.edges().collect(), Vec::<EdgeView<Graph>>::new());
         assert!(!graph.internal_edge_filtered());
         assert!(graph.edge(1, 2).is_none());
         assert!(graph.latest_time_global().is_none());
@@ -1438,9 +1428,7 @@ fn layers() -> Result<(), GraphError> {
         assert_eq!(node1.in_degree(), 0);
         assert_eq!(node2.in_degree(), 0);
 
-        fn to_tuples<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-            edges: Edges<'graph, G, GH>,
-        ) -> Vec<(u64, u64)> {
+        fn to_tuples<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<(u64, u64)> {
             edges
                 .id()
                 .filter_map(|(s, d)| s.to_u64().zip(d.to_u64()))
@@ -1472,8 +1460,8 @@ fn layers() -> Result<(), GraphError> {
         assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
         assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-            neighbours: PathFromNode<'graph, G, GH>,
+        fn to_ids<'graph, G: GraphViewOps<'graph>>(
+            neighbours: PathFromNode<'graph, G>,
         ) -> Vec<u64> {
             neighbours
                 .iter()
@@ -1873,6 +1861,7 @@ fn check_node_edge_history_count() {
 
 #[cfg(feature = "storage")]
 use raphtory::test_utils::test_disk_graph;
+use raphtory::test_utils::{build_graph, build_graph_strat, test_graph};
 #[cfg(feature = "storage")]
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 #[cfg(feature = "storage")]
@@ -2787,103 +2776,6 @@ fn check_exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, off
         ),
     );
     correct
-}
-
-#[test]
-fn test_one_hop_filter_reset() {
-    let graph = Graph::new();
-    graph.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
-    graph.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
-    graph.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
-    graph.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
-    graph.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
-
-    test_storage!(&graph, |graph| {
-        let v = graph.node(1).unwrap();
-
-        // filtering resets on neighbours
-        let out_out: Vec<_> = v
-            .at(0)
-            .layers("1")
-            .unwrap()
-            .out_neighbours()
-            .layers("2")
-            .unwrap()
-            .out_neighbours()
-            .id()
-            .collect();
-        assert_eq!(out_out, [GID::U64(3)]);
-
-        let out_out: Vec<_> = v
-            .at(0)
-            .layers("1")
-            .unwrap()
-            .out_neighbours()
-            .layers("2")
-            .unwrap()
-            .out_edges()
-            .properties()
-            .flat_map(|p| p.get("layer").into_i32())
-            .collect();
-        assert_eq!(out_out, [2]);
-
-        // filter applies to edges
-        let layers: Vec<_> = v
-            .layers("1")
-            .unwrap()
-            .edges()
-            .layer_names()
-            .flatten()
-            .dedup()
-            .collect();
-        assert_eq!(layers, ["1"]);
-
-        // graph level filter is preserved
-        let out_out_2: Vec<_> = graph
-            .at(0)
-            .node(1)
-            .unwrap()
-            .layers("1")
-            .unwrap()
-            .out_neighbours()
-            .layers("2")
-            .unwrap()
-            .out_neighbours()
-            .id()
-            .collect();
-        assert!(out_out_2.is_empty());
-
-        let v = graph.node(1).unwrap();
-        let out_out: Vec<_> = v
-            .at(0)
-            .out_neighbours()
-            .after(1)
-            .out_neighbours()
-            .id()
-            .collect();
-        assert_eq!(out_out, [GID::U64(4)]);
-
-        let earliest_time = v
-            .at(0)
-            .out_neighbours()
-            .after(1)
-            .out_edges()
-            .earliest_time()
-            .flatten()
-            .min();
-        assert_eq!(earliest_time.unwrap().t(), 2);
-
-        // dst and src on edge reset the filter
-        let degrees: Vec<_> = v
-            .at(0)
-            .layers("1")
-            .unwrap()
-            .edges()
-            .dst()
-            .out_degree()
-            .collect();
-        assert_eq!(degrees, [1]);
-    });
 }
 
 #[test]

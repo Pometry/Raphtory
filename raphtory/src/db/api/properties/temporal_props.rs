@@ -68,7 +68,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         self.id
     }
 
-    pub fn history(&self) -> History<Self> {
+    pub fn history(&self) -> History<'_, Self> {
         History::new(self.clone())
     }
 
@@ -76,12 +76,16 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         self.props.temporal_values_iter(self.id)
     }
 
-    pub fn values_rev(&self) -> BoxedLIter<Prop> {
+    pub fn values_rev(&self) -> BoxedLIter<'_, Prop> {
         self.props.temporal_values_iter_rev(self.id)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (EventTime, Prop)> + '_ {
         self.history().into_iter().zip(self.values())
+    }
+
+    pub fn first(&self) -> Option<Prop> {
+        self.props.temporal_values_iter(self.id).next()
     }
 
     pub fn iter_rev(&self) -> impl Iterator<Item = (EventTime, Prop)> + '_ {
@@ -181,6 +185,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalProperties<P> {
     pub(crate) fn new(props: P) -> Self {
         Self { props }
     }
+
     pub fn keys(&self) -> impl Iterator<Item = ArcStr> + '_ {
         self.props.temporal_prop_keys()
     }

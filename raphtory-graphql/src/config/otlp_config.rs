@@ -16,6 +16,7 @@ pub const DEFAULT_TRACING_ENABLED: bool = false;
 #[derive(
     Clone, Debug, Deserialize, PartialEq, serde::Serialize, EnumIter, EnumString, Display, ValueEnum,
 )]
+#[clap(rename_all = "UPPERCASE")]
 pub enum TracingLevel {
     COMPLETE,
     ESSENTIAL,

@@ -17,11 +17,19 @@ EDGES_FILE = os.path.join(base_dir, "data/network_traffic_edges.csv")
 NODES_FILE = os.path.join(base_dir, "data/network_traffic_nodes.csv")
 
 
+def duck_query(con, sql: str):
+    return con.execute(sql).arrow()
+
+
 @pytest.fixture(scope="module")
 def dataframes():
     # Load Data using Pandas
     df_edges_pd = pd.read_csv(EDGES_FILE)
     df_nodes_pd = pd.read_csv(NODES_FILE)
+
+    con = duckdb.connect(database=":memory:")
+    con.register("edges_df", df_edges_pd)
+    con.register("nodes_df", df_nodes_pd)
 
     data = {
         "pandas": {"edges": df_edges_pd, "nodes": df_nodes_pd},
@@ -33,10 +41,7 @@ def dataframes():
             "edges": pa.Table.from_pandas(df_edges_pd),
             "nodes": pa.Table.from_pandas(df_nodes_pd),
         },
-        "duckdb": {
-            "edges": duckdb.from_df(df_edges_pd),
-            "nodes": duckdb.from_df(df_nodes_pd),
-        },
+        "duckdb": {"con": con},
     }
     if fpd:
         data["fireducks"] = {
@@ -86,8 +91,9 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
 
     # DuckDB
     g_duckdb = graph_type()
+    con = dataframes["duckdb"]["con"]
     g_duckdb.load_edges(
-        data=dataframes["duckdb"]["edges"],
+        data=duck_query(con, "SELECT * FROM edges_df"),
         time="timestamp",
         src="source",
         dst="destination",
@@ -146,8 +152,9 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
 
     # DuckDB
     g_duckdb = graph_type()
+    con = dataframes["duckdb"]["con"]
     g_duckdb.load_nodes(
-        data=dataframes["duckdb"]["nodes"],
+        data=duck_query(con, "SELECT * FROM nodes_df"),
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
@@ -253,25 +260,26 @@ def test_metadata_update_equivalence(dataframes, graph_type):
 
     # DuckDB
     g_duckdb = graph_type()
+    con = dataframes["duckdb"]["con"]
     g_duckdb.load_edges(
-        data=dataframes["duckdb"]["edges"],
+        data=duck_query(con, "SELECT * FROM edges_df"),
         time="timestamp",
         src="source",
         dst="destination",
     )
     g_duckdb.load_nodes(
-        data=dataframes["duckdb"]["nodes"],
+        data=duck_query(con, "SELECT * FROM nodes_df"),
         time="timestamp",
         id="server_id",
     )
     # update metadata
     g_duckdb.load_node_metadata(
-        data=dataframes["duckdb"]["nodes"],
+        data=duck_query(con, "SELECT * FROM nodes_df"),
         id="server_id",
         metadata=["primary_function", "server_name", "hardware_type"],
     )
     g_duckdb.load_edge_metadata(
-        data=dataframes["duckdb"]["edges"],
+        data=duck_query(con, "SELECT * FROM edges_df"),
         src="source",
         dst="destination",
         metadata=["is_encrypted"],

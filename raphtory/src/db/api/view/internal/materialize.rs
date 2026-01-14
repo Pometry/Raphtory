@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::{LayerIds, EID, VID},
-        storage::timeindex::EventTime,
-    },
+    core::storage::timeindex::EventTime,
     db::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
@@ -167,82 +164,6 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at_window(prop_id, t, w))
-    }
-}
-
-impl NodeHistoryFilter for MaterializedGraph {
-    fn is_node_prop_update_available(&self, prop_id: usize, node_id: VID, time: EventTime) -> bool {
-        for_all!(self, g => g.is_node_prop_update_available(prop_id, node_id, time))
-    }
-
-    fn is_node_prop_update_available_window(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-        w: Range<EventTime>,
-    ) -> bool {
-        for_all!(self, g => g.is_node_prop_update_available_window(prop_id, node_id, time, w))
-    }
-
-    fn is_node_prop_update_latest(&self, prop_id: usize, node_id: VID, time: EventTime) -> bool {
-        for_all!(self, g =>g.is_node_prop_update_latest(prop_id, node_id, time))
-    }
-
-    fn is_node_prop_update_latest_window(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-        w: Range<EventTime>,
-    ) -> bool {
-        for_all!(self, g => g.is_node_prop_update_latest_window(prop_id, node_id, time, w))
-    }
-}
-
-impl EdgeHistoryFilter for MaterializedGraph {
-    fn is_edge_prop_update_available(
-        &self,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-    ) -> bool {
-        for_all!(self, g => g.is_edge_prop_update_available(layer_id, prop_id, edge_id, time))
-    }
-
-    fn is_edge_prop_update_available_window(
-        &self,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-        w: Range<EventTime>,
-    ) -> bool {
-        for_all!(self, g => g.is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w))
-    }
-
-    fn is_edge_prop_update_latest(
-        &self,
-        layer_ids: &LayerIds,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-    ) -> bool {
-        for_all!(self, g => g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time))
-    }
-
-    fn is_edge_prop_update_latest_window(
-        &self,
-        layer_ids: &LayerIds,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-        w: Range<EventTime>,
-    ) -> bool {
-        for_all!(self, g => g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w))
     }
 }
 

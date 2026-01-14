@@ -32,13 +32,8 @@ fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
         .sum::<usize>()
 }
 
-fn one_path_algorithm<
-    'graph,
-    G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
-    CS: ComputeState,
->(
-    nf_e_edge_expl: EvalEdgeView<'graph, '_, G, GH, CS, ()>,
+fn one_path_algorithm<'graph, G: GraphViewOps<'graph>, CS: ComputeState>(
+    nf_e_edge_expl: EvalEdgeView<'graph, '_, G, CS, ()>,
     no_time: bool,
 ) -> usize {
     //     MATCH
@@ -171,6 +166,6 @@ mod one_path_test {
         //     )
         //     .expect("Panic");
         let actual = netflow_one_path_node(&graph, true, None);
-        assert_eq!(actual, 1);
+        assert_eq!(actual, 0);
     }
 }

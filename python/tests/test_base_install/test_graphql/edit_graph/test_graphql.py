@@ -287,24 +287,7 @@ def test_graph_windows_and_layers_query():
                         "name": "Gandalf",
                         "before": {
                           "history": {
-                            "list": [
-                              {
-                                "timestamp": 270,
-                                "eventId": 13
-                              },
-                              {
-                                "timestamp": 270,
-                                "eventId": 14
-                              },
-                              {
-                                "timestamp": 270,
-                                "eventId": 18
-                              },
-                              {
-                                "timestamp": 270,
-                                "eventId": 20
-                              }
-                            ]
+                            "list": []
                           }
                         }
                       },
@@ -312,40 +295,7 @@ def test_graph_windows_and_layers_query():
                         "name": "Bilbo",
                         "before": {
                           "history": {
-                            "list": [
-                              {
-                                "timestamp": 205,
-                                "eventId": 10
-                              },
-                              {
-                                "timestamp": 205,
-                                "eventId": 11
-                              },
-                              {
-                                "timestamp": 270,
-                                "eventId": 16
-                              },
-                              {
-                                "timestamp": 270,
-                                "eventId": 17
-                              },
-                              {
-                                "timestamp": 270,
-                                "eventId": 19
-                              },
-                              {
-                                "timestamp": 270,
-                                "eventId": 20
-                              },
-                              {
-                                "timestamp": 286,
-                                "eventId": 22
-                              },
-                              {
-                                "timestamp": 286,
-                                "eventId": 23
-                              }
-                            ]
+                            "list": []
                           }
                         }
                       }
@@ -387,7 +337,7 @@ def test_graph_windows_and_layers_query():
                   "neighbours": {
                     "list": [{
                         "name": "2",
-                        "layer": {"neighbours": {"list": [{ "name": "3" }]}}
+                        "layer": {"neighbours": {"list": []}}
                       }]
                   }
                 }

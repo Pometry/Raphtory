@@ -80,6 +80,13 @@ impl Display for PropType {
 }
 
 impl PropType {
+    pub fn inner(&self) -> Option<&PropType> {
+        match self {
+            PropType::List(inner) => Some(inner.as_ref()),
+            _ => None,
+        }
+    }
+
     pub fn map(fields: impl IntoIterator<Item = (impl Into<String>, PropType)>) -> Self {
         let map: HashMap<_, _> = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
         PropType::Map(Arc::from(map))

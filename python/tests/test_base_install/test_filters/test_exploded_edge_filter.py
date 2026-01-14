@@ -17,11 +17,11 @@ def test_graph(GraphClass):
     g.add_edge(2, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
     g.add_edge(3, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
-    weight_e3 = filter.Property("weight") == 3
-    weight_lt3 = filter.Property("weight") < 3
-    name_bob = filter.Property("name") == "bob"
+    weight_e3 = filter.ExplodedEdge.property("weight") == 3
+    weight_lt3 = filter.ExplodedEdge.property("weight") < 3
+    name_bob = filter.ExplodedEdge.property("name") == "bob"
 
-    f_g = g.filter_exploded_edges(filter=weight_e3)
+    f_g = g.filter(filter=weight_e3)
     e1 = f_g.edge(1, 2)
     e2 = f_g.edge(1, 3)
 
@@ -42,7 +42,7 @@ def test_graph(GraphClass):
     assert e1.properties.temporal.get("weight").items() == [(EventTime(3, 2), 3)]
     assert e2.properties.temporal.get("weight").items() == [(EventTime(3, 5), 3)]
 
-    f_g = g.filter_exploded_edges(filter=weight_lt3 & name_bob)
+    f_g = g.filter(filter=weight_lt3 & name_bob)
     e1 = f_g.edge(1, 2)
     e2 = f_g.edge(1, 3)
 
@@ -61,7 +61,7 @@ def test_graph(GraphClass):
     assert e1.properties.temporal.get("weight").items() == [(EventTime(1, 0), 1)]
     assert e2.properties.temporal.get("weight").items() == [(EventTime(1, 3), 1)]
 
-    f_g = g.filter_exploded_edges(filter=weight_e3 | name_bob)
+    f_g = g.filter(filter=weight_e3 | name_bob)
     e1 = f_g.edge(1, 2)
     e2 = f_g.edge(1, 3)
 
@@ -98,11 +98,11 @@ def test_same_time_event(GraphClass):
     g.add_edge(1, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
     g.add_edge(1, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
-    weight_e3 = filter.Property("weight") == 3
-    weight_lt3 = filter.Property("weight") < 3
-    name_bob = filter.Property("name") == "bob"
+    weight_e3 = filter.ExplodedEdge.property("weight") == 3
+    weight_lt3 = filter.ExplodedEdge.property("weight") < 3
+    name_bob = filter.ExplodedEdge.property("name") == "bob"
 
-    f_g = g.filter_exploded_edges(filter=weight_lt3 & name_bob)
+    f_g = g.filter(filter=weight_lt3 & name_bob)
     e1 = f_g.edge(1, 2)
     e2 = f_g.edge(1, 3)
 
@@ -121,7 +121,7 @@ def test_same_time_event(GraphClass):
     assert e1.properties.temporal.get("weight").items() == [(EventTime(1, 0), 1)]
     assert e2.properties.temporal.get("weight").items() == [(EventTime(1, 3), 1)]
 
-    f_g = g.filter_exploded_edges(filter=weight_e3 | name_bob)
+    f_g = g.filter(filter=weight_e3 | name_bob)
     e1 = f_g.edge(1, 2)
     e2 = f_g.edge(1, 3)
 
@@ -160,38 +160,42 @@ def test_with_edge_node_filter(GraphClass):
     g.add_edge(1, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
     g.add_edge(1, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
-    weight_e3 = filter.Property("weight") == 3
-    name_filter = filter.Node.name() == "1"
+    weight_e3 = filter.ExplodedEdge.property("weight") == 3
+    name_filter = filter.Node.name() == "2"
 
-    with pytest.raises(Exception) as e:
-        g.filter_exploded_edges(weight_e3 | name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(weight_e3 | name_filter).edges.explode()
+    ]
+    expected = [("1", "2"), ("1", "2"), ("1", "2"), ("1", "3"), ("1", "3"), ("1", "3")]
+    assert sorted(actual) == sorted(expected)
 
-    with pytest.raises(Exception) as e:
-        g.filter_exploded_edges(name_filter | weight_e3)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(name_filter | weight_e3).edges.explode()
+    ]
+    expected = [("1", "2"), ("1", "2"), ("1", "2"), ("1", "3"), ("1", "3"), ("1", "3")]
+    assert sorted(actual) == sorted(expected)
 
-    with pytest.raises(Exception) as e:
-        g.filter_exploded_edges(weight_e3 & name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(weight_e3 & name_filter).edges.explode()
+    ]
+    expected = []
+    assert sorted(actual) == sorted(expected)
 
-    with pytest.raises(Exception) as e:
-        g.filter_exploded_edges(name_filter & weight_e3)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(name_filter & weight_e3).edges.explode()
+    ]
+    expected = []
+    assert sorted(actual) == sorted(expected)
 
-    with pytest.raises(Exception) as e:
-        g.filter_exploded_edges(name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [
+        (edge.src.name, edge.dst.name) for edge in g.filter(name_filter).edges.explode()
+    ]
+    expected = []
+    assert sorted(actual) == sorted(expected)
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
@@ -297,151 +301,155 @@ def test_all_property_types(GraphClass):
 
     test_cases = [
         # weight (int)
-        (filter.Property("weight") == 2, 2),
-        (filter.Property("weight") != 3, 4),
-        (filter.Property("weight") < 3, 4),
-        (filter.Property("weight") > 1, 4),
-        (filter.Property("weight") <= 2, 4),
-        (filter.Property("weight") >= 3, 2),
-        (filter.Property("weight").is_in([1, 2]), 4),
-        (filter.Property("weight").is_not_in([3]), 4),
-        (filter.Property("weight").is_some(), 6),
-        (filter.Property("weight").is_none(), 0),
-        (filter.Property("weight").is_in(["1", 2]), 2),  # actually does the filter
-        (filter.Property("weight").is_not_in(["3"]), 6),  # actually does the filter
-        # confidence (float)
-        (filter.Property("confidence") == 0.95, 1),
-        (filter.Property("confidence") != 0.80, 5),
-        (filter.Property("confidence") < 0.9, 4),
-        (filter.Property("confidence") > 0.75, 5),
-        (filter.Property("confidence") <= 0.85, 3),
-        (filter.Property("confidence") >= 0.88, 3),
-        (filter.Property("confidence").is_in([0.95, 0.92]), 2),
-        (filter.Property("confidence").is_not_in([0.75]), 5),
-        (filter.Property("confidence").is_some(), 6),
-        (filter.Property("confidence").is_none(), 0),
+        (filter.ExplodedEdge.property("weight") == 2, 2),
+        (filter.ExplodedEdge.property("weight") != 3, 4),
+        (filter.ExplodedEdge.property("weight") < 3, 4),
+        (filter.ExplodedEdge.property("weight") > 1, 4),
+        (filter.ExplodedEdge.property("weight") <= 2, 4),
+        (filter.ExplodedEdge.property("weight") >= 3, 2),
+        (filter.ExplodedEdge.property("weight").is_in([1, 2]), 4),
+        (filter.ExplodedEdge.property("weight").is_not_in([3]), 4),
+        (filter.ExplodedEdge.property("weight").is_some(), 6),
+        (filter.ExplodedEdge.property("weight").is_none(), 0),
         (
-            filter.Property("confidence").is_in(["1", 0.95]),
+            filter.ExplodedEdge.property("weight").is_in(["1", 2]),
+            2,
+        ),  # actually does the filter
+        (
+            filter.ExplodedEdge.property("weight").is_not_in(["3"]),
+            6,
+        ),  # actually does the filter
+        # confidence (float)
+        (filter.ExplodedEdge.property("confidence") == 0.95, 1),
+        (filter.ExplodedEdge.property("confidence") != 0.80, 5),
+        (filter.ExplodedEdge.property("confidence") < 0.9, 4),
+        (filter.ExplodedEdge.property("confidence") > 0.75, 5),
+        (filter.ExplodedEdge.property("confidence") <= 0.85, 3),
+        (filter.ExplodedEdge.property("confidence") >= 0.88, 3),
+        (filter.ExplodedEdge.property("confidence").is_in([0.95, 0.92]), 2),
+        (filter.ExplodedEdge.property("confidence").is_not_in([0.75]), 5),
+        (filter.ExplodedEdge.property("confidence").is_some(), 6),
+        (filter.ExplodedEdge.property("confidence").is_none(), 0),
+        (
+            filter.ExplodedEdge.property("confidence").is_in(["1", 0.95]),
             1,
         ),  # actually does the filter
         (
-            filter.Property("confidence").is_not_in(["3", 0.95]),
+            filter.ExplodedEdge.property("confidence").is_not_in(["3", 0.95]),
             5,
         ),  # actually does the filter
         # name (str)
-        (filter.Property("name") == "bob", 2),
-        (filter.Property("name") != "greg", 4),
-        (filter.Property("name").is_in(["bob", "dave"]), 4),
-        (filter.Property("name").is_not_in(["greg"]), 4),
-        (filter.Property("name").contains("bo"), 2),
-        (filter.Property("name").not_contains("eg"), 4),
-        (filter.Property("name").is_some(), 6),
-        (filter.Property("name").is_none(), 0),
-        (filter.Property("name") < "dave", 2),
-        (filter.Property("name") > "dave", 2),
-        (filter.Property("name") <= "dave", 4),
-        (filter.Property("name") >= "dave", 4),
-        (filter.Property("name").is_in([1, 2]), 0),
-        (filter.Property("name").is_not_in([3, "dave"]), 4),
-        (filter.Property("name").fuzzy_search("gabe", 2, False), 2),
+        (filter.ExplodedEdge.property("name") == "bob", 2),
+        (filter.ExplodedEdge.property("name") != "greg", 4),
+        (filter.ExplodedEdge.property("name").is_in(["bob", "dave"]), 4),
+        (filter.ExplodedEdge.property("name").is_not_in(["greg"]), 4),
+        (filter.ExplodedEdge.property("name").contains("bo"), 2),
+        (filter.ExplodedEdge.property("name").not_contains("eg"), 4),
+        (filter.ExplodedEdge.property("name").is_some(), 6),
+        (filter.ExplodedEdge.property("name").is_none(), 0),
+        (filter.ExplodedEdge.property("name") < "dave", 2),
+        (filter.ExplodedEdge.property("name") > "dave", 2),
+        (filter.ExplodedEdge.property("name") <= "dave", 4),
+        (filter.ExplodedEdge.property("name") >= "dave", 4),
+        (filter.ExplodedEdge.property("name").is_in([1, 2]), 0),
+        (filter.ExplodedEdge.property("name").is_not_in([3, "dave"]), 4),
+        (filter.ExplodedEdge.property("name").fuzzy_search("gabe", 2, False), 2),
         # active (bool)
-        (filter.Property("active") == True, 4),
-        (filter.Property("active") != False, 4),
-        (filter.Property("active").is_in([True]), 4),
-        (filter.Property("active").is_in([True, False]), 6),
-        (filter.Property("active").is_not_in([False]), 4),
-        (filter.Property("active").is_some(), 6),
-        (filter.Property("active").is_none(), 0),
-        (filter.Property("active") < True, 2),
-        (filter.Property("active") > False, 4),
-        (filter.Property("active") >= False, 6),
-        (filter.Property("active") <= False, 2),
-        (filter.Property("active").is_in([1, 2]), 0),
-        (filter.Property("active").is_not_in([3]), 6),
+        (filter.ExplodedEdge.property("active") == True, 4),
+        (filter.ExplodedEdge.property("active") != False, 4),
+        (filter.ExplodedEdge.property("active").is_in([True]), 4),
+        (filter.ExplodedEdge.property("active").is_in([True, False]), 6),
+        (filter.ExplodedEdge.property("active").is_not_in([False]), 4),
+        (filter.ExplodedEdge.property("active").is_some(), 6),
+        (filter.ExplodedEdge.property("active").is_none(), 0),
+        (filter.ExplodedEdge.property("active") < True, 2),
+        (filter.ExplodedEdge.property("active") > False, 4),
+        (filter.ExplodedEdge.property("active") >= False, 6),
+        (filter.ExplodedEdge.property("active") <= False, 2),
+        (filter.ExplodedEdge.property("active").is_in([1, 2]), 0),
+        (filter.ExplodedEdge.property("active").is_not_in([3]), 6),
         # created (datetime)
-        (filter.Property("created") == datetime(2023, 1, 1), 1),
-        (filter.Property("created") != datetime(2023, 1, 1), 5),
-        (filter.Property("created") < datetime(2024, 1, 1), 3),
-        (filter.Property("created") > datetime(2024, 1, 1), 3),
-        (filter.Property("created") <= datetime(2023, 5, 1), 3),
-        (filter.Property("created") >= datetime(2024, 1, 15), 3),
+        (filter.ExplodedEdge.property("created") == datetime(2023, 1, 1), 1),
+        (filter.ExplodedEdge.property("created") != datetime(2023, 1, 1), 5),
+        (filter.ExplodedEdge.property("created") < datetime(2024, 1, 1), 3),
+        (filter.ExplodedEdge.property("created") > datetime(2024, 1, 1), 3),
+        (filter.ExplodedEdge.property("created") <= datetime(2023, 5, 1), 3),
+        (filter.ExplodedEdge.property("created") >= datetime(2024, 1, 15), 3),
         (
-            filter.Property("created").is_in(
+            filter.ExplodedEdge.property("created").is_in(
                 [datetime(2023, 1, 1), datetime(2024, 6, 10)]
             ),
             2,
         ),
         (
-            filter.Property("created").is_not_in(
+            filter.ExplodedEdge.property("created").is_not_in(
                 [datetime(2024, 6, 10), datetime(2025, 1, 1)]
             ),
             4,
         ),
-        (filter.Property("created").is_some(), 6),
-        (filter.Property("created").is_none(), 0),
-        (filter.Property("created").is_in([1, 2]), 0),
-        (filter.Property("created").is_not_in([3]), 6),
+        (filter.ExplodedEdge.property("created").is_some(), 6),
+        (filter.ExplodedEdge.property("created").is_none(), 0),
+        (filter.ExplodedEdge.property("created").is_in([1, 2]), 0),
+        (filter.ExplodedEdge.property("created").is_not_in([3]), 6),
         # tags (list of str)
-        (filter.Property("tags") == ["team_b", "remote"], 1),
-        (filter.Property("tags") != ["team_b", "remote"], 5),
-        (filter.Property("tags").is_in([["team_b", "remote"], ["team_a"]]), 2),
-        (filter.Property("tags").is_not_in([["team_b", "remote"], ["team_a"]]), 4),
-        (filter.Property("tags").is_some(), 6),
-        (filter.Property("tags").is_none(), 0),
-        (filter.Property("tags").is_in([1, 2]), 0),
+        (filter.ExplodedEdge.property("tags") == ["team_b", "remote"], 1),
+        (filter.ExplodedEdge.property("tags") != ["team_b", "remote"], 5),
         (
-            filter.Property("tags").is_in([1, 2, ["team_a", 0]]),
+            filter.ExplodedEdge.property("tags").is_in(
+                [["team_b", "remote"], ["team_a"]]
+            ),
+            2,
+        ),
+        (
+            filter.ExplodedEdge.property("tags").is_not_in(
+                [["team_b", "remote"], ["team_a"]]
+            ),
+            4,
+        ),
+        (filter.ExplodedEdge.property("tags").is_some(), 6),
+        (filter.ExplodedEdge.property("tags").is_none(), 0),
+        (filter.ExplodedEdge.property("tags").is_in([1, 2]), 0),
+        (
+            filter.ExplodedEdge.property("tags").is_in([1, 2, ["team_a", 0]]),
             0,
         ),  # actually does the filter, maybe should be a type error on the heterogeneous list
-        (filter.Property("tags").is_not_in([3]), 6),  # actually does the filter
-        # meta (dict)
-        (filter.Property("meta") == {"location": "SF", "level": 2}, 1),
-        (filter.Property("meta") != {"location": "SF", "level": 2}, 5),
         (
-            filter.Property("meta").is_in(
+            filter.ExplodedEdge.property("tags").is_not_in([3]),
+            6,
+        ),  # actually does the filter
+        # meta (dict)
+        (filter.ExplodedEdge.property("meta") == {"location": "SF", "level": 2}, 1),
+        (filter.ExplodedEdge.property("meta") != {"location": "SF", "level": 2}, 5),
+        (
+            filter.ExplodedEdge.property("meta").is_in(
                 [{"location": "SF", "level": 2}, {"contract": True}]
             ),
             2,
         ),
         (
-            filter.Property("meta").is_not_in(
+            filter.ExplodedEdge.property("meta").is_not_in(
                 [{"location": "SF", "level": 2}, {"contract": True}]
             ),
             4,
         ),
-        (filter.Property("meta").is_some(), 6),
-        (filter.Property("meta").is_none(), 0),
+        (filter.ExplodedEdge.property("meta").is_some(), 6),
+        (filter.ExplodedEdge.property("meta").is_none(), 0),
         (
-            filter.Property("meta").is_not_in(
+            filter.ExplodedEdge.property("meta").is_not_in(
                 [2, 4, {"location": "SF", "level": 2}, {"contract": True}]
             ),
             4,
         ),
         (
-            filter.Property("meta").is_in(
+            filter.ExplodedEdge.property("meta").is_in(
                 ["hi", {"location": "SF", "level": 2}, {"contract": True}]
             ),
             2,
         ),
-        # fake property
-        (filter.Property("blah") == 2, 0),
-        (filter.Property("blah") != 3, 0),
-        (filter.Property("blah") < 3, 0),
-        (filter.Property("blah") > 1, 0),
-        (filter.Property("blah") <= 2, 0),
-        (filter.Property("blah") >= 3, 0),
-        (filter.Property("blah").is_in([1, 2]), 0),
-        (filter.Property("blah").is_not_in([3]), 0),
-        (filter.Property("blah").contains(["blah"]), 0),
-        (filter.Property("blah").contains([]), 0),
-        (filter.Property("blah").not_contains([]), 0),
-        (filter.Property("blah").not_contains(["blah"]), 0),
-        (filter.Property("blah").is_some(), 0),
-        (filter.Property("blah").is_none(), 6),
     ]
     print()
     for i, (expr, expected) in enumerate(test_cases):
-        result = g.filter_exploded_edges(expr).edges.explode()
+        result = g.filter(expr).edges.explode()
         assert (
             len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
@@ -449,113 +457,120 @@ def test_all_property_types(GraphClass):
     nonsense_filter_cases = [
         # Integers (weight)
         (
-            filter.Property("weight").contains(2),
+            filter.ExplodedEdge.property("weight").contains(2),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("weight").not_contains(3),
+            filter.ExplodedEdge.property("weight").not_contains(3),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("weight").fuzzy_search("blah", 2, False),
+            filter.ExplodedEdge.property("weight").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         # Floats (confidence)
         (
-            filter.Property("confidence").contains(0.9),
+            filter.ExplodedEdge.property("confidence").contains(0.9),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("confidence").not_contains(0.8),
+            filter.ExplodedEdge.property("confidence").not_contains(0.8),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("confidence").fuzzy_search("blah", 2, False),
+            filter.ExplodedEdge.property("confidence").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         # Booleans (active)
         (
-            filter.Property("active").contains(True),
+            filter.ExplodedEdge.property("active").contains(True),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("active").not_contains(False),
+            filter.ExplodedEdge.property("active").not_contains(False),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("active").fuzzy_search("blah", 2, False),
+            filter.ExplodedEdge.property("active").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         # Datetimes (created)
         (
-            filter.Property("created").contains(datetime(2023, 1, 1)),
+            filter.ExplodedEdge.property("created").contains(datetime(2023, 1, 1)),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("created").not_contains(datetime(2023, 1, 1)),
+            filter.ExplodedEdge.property("created").not_contains(datetime(2023, 1, 1)),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("created").fuzzy_search("blah", 2, False),
+            filter.ExplodedEdge.property("created").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         # Lists (tags) — odd comparisons
         (
-            filter.Property("tags").contains("team_a"),
+            filter.ExplodedEdge.property("tags").contains("team_a"),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("tags").not_contains("team_z"),
+            filter.ExplodedEdge.property("tags").not_contains("team_z"),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("tags").fuzzy_search("blah", 2, False),
+            filter.ExplodedEdge.property("tags").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
-        (filter.Property("tags") < ["x"], "Comparison not implemented for List<Str>"),
-        (filter.Property("tags") > ["a"], "Comparison not implemented for List<Str>"),
         (
-            filter.Property("tags") <= ["team_b"],
+            filter.ExplodedEdge.property("tags") < ["x"],
             "Comparison not implemented for List<Str>",
         ),
         (
-            filter.Property("tags") >= ["consultant"],
+            filter.ExplodedEdge.property("tags") > ["a"],
+            "Comparison not implemented for List<Str>",
+        ),
+        (
+            filter.ExplodedEdge.property("tags") <= ["team_b"],
+            "Comparison not implemented for List<Str>",
+        ),
+        (
+            filter.ExplodedEdge.property("tags") >= ["consultant"],
             "Comparison not implemented for List<Str>",
         ),
         # Dicts (meta) — contains() expects a key, but here simulates wrong context
         (
-            filter.Property("meta").contains("role"),
+            filter.ExplodedEdge.property("meta").contains("role"),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("meta").not_contains("salary"),
+            filter.ExplodedEdge.property("meta").not_contains("salary"),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("meta").fuzzy_search("blah", 2, False),
+            filter.ExplodedEdge.property("meta").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         (
-            filter.Property("meta")
+            filter.ExplodedEdge.property("meta")
             < {"location": "SF", "level": 2, "contract": False, "role": "blah"},
             "Comparison not implemented for Map",
         ),
         (
-            filter.Property("meta") < {"location": "SF", "level": 2, "role": "blah"},
+            filter.ExplodedEdge.property("meta")
+            < {"location": "SF", "level": 2, "role": "blah"},
             "Comparison not implemented for Map",
         ),  # check subset of keys also raise the same error
         (
-            filter.Property("meta")
+            filter.ExplodedEdge.property("meta")
             <= {"location": "SF", "level": 2, "contract": False, "role": "blah"},
             "Comparison not implemented for Map",
         ),
         (
-            filter.Property("meta")
+            filter.ExplodedEdge.property("meta")
             > {"location": "SF", "level": 2, "contract": False, "role": "blah"},
             "Comparison not implemented for Map",
         ),
         (
-            filter.Property("meta")
+            filter.ExplodedEdge.property("meta")
             >= {"location": "SF", "level": 2, "contract": False, "role": "blah"},
             "Comparison not implemented for Map",
         ),
@@ -563,287 +578,342 @@ def test_all_property_types(GraphClass):
 
     for i, (expr, message) in enumerate(nonsense_filter_cases):
         with pytest.raises(Exception) as e:
-            print(len(g.filter_exploded_edges(expr).edges.explode()))
+            print(len(g.filter(expr).edges.explode()))
         print(e.value)
         assert message in str(e.value)
 
     wrong_types = [
         # Integers (weight)
         (
-            filter.Property("weight") == "2",
+            filter.ExplodedEdge.property("weight") == "2",
             "Wrong type for property weight: expected I64 but actual type is Str",
         ),
         (
-            filter.Property("weight") != "3",
+            filter.ExplodedEdge.property("weight") != "3",
             "Wrong type for property weight: expected I64 but actual type is Str",
         ),
         (
-            filter.Property("weight") < "3",
+            filter.ExplodedEdge.property("weight") < "3",
             "Wrong type for property weight: expected I64 but actual type is Str",
         ),
         (
-            filter.Property("weight") > "1",
+            filter.ExplodedEdge.property("weight") > "1",
             "Wrong type for property weight: expected I64 but actual type is Str",
         ),
         (
-            filter.Property("weight") <= "2",
+            filter.ExplodedEdge.property("weight") <= "2",
             "Wrong type for property weight: expected I64 but actual type is Str",
         ),
         (
-            filter.Property("weight") >= "3",
+            filter.ExplodedEdge.property("weight") >= "3",
             "Wrong type for property weight: expected I64 but actual type is Str",
         ),
         (
-            filter.Property("weight").contains("bo"),
+            filter.ExplodedEdge.property("weight").contains("bo"),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("weight").not_contains("eg"),
+            filter.ExplodedEdge.property("weight").not_contains("eg"),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         # Floats (confidence)
         (
-            filter.Property("confidence") == "2",
+            filter.ExplodedEdge.property("confidence") == "2",
             "Wrong type for property confidence: expected F64 but actual type is Str",
         ),
         (
-            filter.Property("confidence") != "3",
+            filter.ExplodedEdge.property("confidence") != "3",
             "Wrong type for property confidence: expected F64 but actual type is Str",
         ),
         (
-            filter.Property("confidence") < "3",
+            filter.ExplodedEdge.property("confidence") < "3",
             "Wrong type for property confidence: expected F64 but actual type is Str",
         ),
         (
-            filter.Property("confidence") > "1",
+            filter.ExplodedEdge.property("confidence") > "1",
             "Wrong type for property confidence: expected F64 but actual type is Str",
         ),
         (
-            filter.Property("confidence") <= "2",
+            filter.ExplodedEdge.property("confidence") <= "2",
             "Wrong type for property confidence: expected F64 but actual type is Str",
         ),
         (
-            filter.Property("confidence") >= "3",
+            filter.ExplodedEdge.property("confidence") >= "3",
             "Wrong type for property confidence: expected F64 but actual type is Str",
         ),
         (
-            filter.Property("confidence").contains("bo"),
+            filter.ExplodedEdge.property("confidence").contains("bo"),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("confidence").not_contains("eg"),
+            filter.ExplodedEdge.property("confidence").not_contains("eg"),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         # # Strings (name)
         (
-            filter.Property("name") == 2,
+            filter.ExplodedEdge.property("name") == 2,
             "Wrong type for property name: expected Str but actual type is I64",
         ),
         (
-            filter.Property("name") != 3,
+            filter.ExplodedEdge.property("name") != 3,
             "Wrong type for property name: expected Str but actual type is I64",
         ),
         (
-            filter.Property("name") < 3,
+            filter.ExplodedEdge.property("name") < 3,
             "Wrong type for property name: expected Str but actual type is I64",
         ),
         (
-            filter.Property("name") > 1,
+            filter.ExplodedEdge.property("name") > 1,
             "Wrong type for property name: expected Str but actual type is I64",
         ),
         (
-            filter.Property("name") <= 2,
+            filter.ExplodedEdge.property("name") <= 2,
             "Wrong type for property name: expected Str but actual type is I64",
         ),
         (
-            filter.Property("name") >= 3,
+            filter.ExplodedEdge.property("name") >= 3,
             "Wrong type for property name: expected Str but actual type is I64",
         ),
         (
-            filter.Property("name").contains(2),
+            filter.ExplodedEdge.property("name").contains(2),
             "Operator CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("name").not_contains(3),
+            filter.ExplodedEdge.property("name").not_contains(3),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         # Booleans (active)
         (
-            filter.Property("active") == 2,
+            filter.ExplodedEdge.property("active") == 2,
             "Wrong type for property active: expected Bool but actual type is I64",
         ),
         (
-            filter.Property("active") != 3,
+            filter.ExplodedEdge.property("active") != 3,
             "Wrong type for property active: expected Bool but actual type is I64",
         ),
         (
-            filter.Property("active") < 3,
+            filter.ExplodedEdge.property("active") < 3,
             "Wrong type for property active: expected Bool but actual type is I64",
         ),
         (
-            filter.Property("active") > 1,
+            filter.ExplodedEdge.property("active") > 1,
             "Wrong type for property active: expected Bool but actual type is I64",
         ),
         (
-            filter.Property("active") <= 2,
+            filter.ExplodedEdge.property("active") <= 2,
             "Wrong type for property active: expected Bool but actual type is I64",
         ),
         (
-            filter.Property("active") >= 3,
+            filter.ExplodedEdge.property("active") >= 3,
             "Wrong type for property active: expected Bool but actual type is I64",
         ),
         (
-            filter.Property("active").contains(2),
+            filter.ExplodedEdge.property("active").contains(2),
             "Operator CONTAINS is only supported for strings.",
         ),  # should fail on contains not type
         (
-            filter.Property("active").not_contains(3),
+            filter.ExplodedEdge.property("active").not_contains(3),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),  # should fail on contains not type
         # # Datetimes (created)
         (
-            filter.Property("created") == 2,
+            filter.ExplodedEdge.property("created") == 2,
             "Wrong type for property created: expected NDTime but actual type is I64",
         ),
         (
-            filter.Property("created") != 3,
+            filter.ExplodedEdge.property("created") != 3,
             "Wrong type for property created: expected NDTime but actual type is I64",
         ),
         (
-            filter.Property("created") < 3,
+            filter.ExplodedEdge.property("created") < 3,
             "Wrong type for property created: expected NDTime but actual type is I64",
         ),
         (
-            filter.Property("created") > 1,
+            filter.ExplodedEdge.property("created") > 1,
             "Wrong type for property created: expected NDTime but actual type is I64",
         ),
         (
-            filter.Property("created") <= 2,
+            filter.ExplodedEdge.property("created") <= 2,
             "Wrong type for property created: expected NDTime but actual type is I64",
         ),
         (
-            filter.Property("created") >= 3,
+            filter.ExplodedEdge.property("created") >= 3,
             "Wrong type for property created: expected NDTime but actual type is I64",
         ),
         (
-            filter.Property("created").contains(2),
+            filter.ExplodedEdge.property("created").contains(2),
             "Operator CONTAINS is only supported for strings.",
         ),  # should fail on contains not type
         (
-            filter.Property("created").not_contains(3),
+            filter.ExplodedEdge.property("created").not_contains(3),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),  # should fail on contains not type
         # # Lists (tags)
         (
-            filter.Property("tags") == 2,
+            filter.ExplodedEdge.property("tags") == 2,
             "Wrong type for property tags: expected List(Str) but actual type is I64",
         ),
         (
-            filter.Property("tags") != 3,
+            filter.ExplodedEdge.property("tags") != 3,
             "Wrong type for property tags: expected List(Str) but actual type is I64",
         ),
         (
-            filter.Property("tags") < 3,
+            filter.ExplodedEdge.property("tags") < 3,
             "Wrong type for property tags: expected List(Str) but actual type is I64",
         ),
         (
-            filter.Property("tags") > 1,
+            filter.ExplodedEdge.property("tags") > 1,
             "Wrong type for property tags: expected List(Str) but actual type is I64",
         ),
         (
-            filter.Property("tags") <= 2,
+            filter.ExplodedEdge.property("tags") <= 2,
             "Wrong type for property tags: expected List(Str) but actual type is I64",
         ),
         (
-            filter.Property("tags") >= 3,
+            filter.ExplodedEdge.property("tags") >= 3,
             "Wrong type for property tags: expected List(Str) but actual type is I64",
         ),
         (
-            filter.Property("tags").contains(2),
+            filter.ExplodedEdge.property("tags").contains(2),
             "Operator CONTAINS is only supported for strings.",
         ),  # should fail on contains not type
         (
-            filter.Property("tags").not_contains(3),
+            filter.ExplodedEdge.property("tags").not_contains(3),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),  # should fail on contains not type
         # # Dicts (meta)
         (
-            filter.Property("meta") == 2,
+            filter.ExplodedEdge.property("meta") == 2,
             """Wrong type for property meta: expected Map""",
         ),
         (
-            filter.Property("meta") != 3,
-            """Wrong type for property meta: expected Map""",
-        ),
-        (filter.Property("meta") < 3, """Wrong type for property meta: expected Map"""),
-        (filter.Property("meta") > 1, """Wrong type for property meta: expected Map"""),
-        (
-            filter.Property("meta") <= 2,
+            filter.ExplodedEdge.property("meta") != 3,
             """Wrong type for property meta: expected Map""",
         ),
         (
-            filter.Property("meta") >= 3,
+            filter.ExplodedEdge.property("meta") < 3,
             """Wrong type for property meta: expected Map""",
         ),
         (
-            filter.Property("meta").contains(2),
+            filter.ExplodedEdge.property("meta") > 1,
+            """Wrong type for property meta: expected Map""",
+        ),
+        (
+            filter.ExplodedEdge.property("meta") <= 2,
+            """Wrong type for property meta: expected Map""",
+        ),
+        (
+            filter.ExplodedEdge.property("meta") >= 3,
+            """Wrong type for property meta: expected Map""",
+        ),
+        (
+            filter.ExplodedEdge.property("meta").contains(2),
             "Operator CONTAINS is only supported for strings.",
         ),  # should fail on contains not type
         (
-            filter.Property("meta").not_contains(3),
+            filter.ExplodedEdge.property("meta").not_contains(3),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),  # should fail on contains not type
     ]
 
     for i, (expr, message) in enumerate(wrong_types):
         with pytest.raises(Exception) as e:
-            print(len(g.filter_exploded_edges(expr).edges.explode()))
+            print(len(g.filter(expr).edges.explode()))
         print(e.value)
         assert message in str(e.value)
 
     with pytest.raises(Exception) as e:
-        filter.Property("name").fuzzy_search(2, 2, False)
+        filter.ExplodedEdge.property("name").fuzzy_search(2, 2, False)
     assert "'int' object cannot be converted to 'PyString'" in str(e.value)
+
+    missing_prop = [
+        (filter.ExplodedEdge.property("blah") == 2),
+        (filter.ExplodedEdge.property("blah") != 3),
+        (filter.ExplodedEdge.property("blah") < 3),
+        (filter.ExplodedEdge.property("blah") > 1),
+        (filter.ExplodedEdge.property("blah") <= 2),
+        (filter.ExplodedEdge.property("blah") >= 3),
+        (filter.ExplodedEdge.property("blah").is_in([1, 2])),
+        (filter.ExplodedEdge.property("blah").is_not_in([3])),
+        (filter.ExplodedEdge.property("blah").contains(["blah"])),
+        (filter.ExplodedEdge.property("blah").contains([])),
+        (filter.ExplodedEdge.property("blah").not_contains([])),
+        (filter.ExplodedEdge.property("blah").not_contains(["blah"])),
+        (filter.ExplodedEdge.property("blah").is_some()),
+        (filter.ExplodedEdge.property("blah").is_none()),
+    ]
+
+    for expr in missing_prop:
+        with pytest.raises(Exception) as e:
+            # force evaluation so the exception surfaces here
+            _ = g.filter(expr).edges.explode()
+        assert "Property blah does not exist" in str(e.value)
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
 def test_temporal_constant(GraphClass):
 
     g = GraphClass()
-    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 1, "name": "bob"})
-    g.add_edge(2, 1, 2, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(
+        1,
+        1,
+        2,
+        layer="blue",
+        properties={"weight": 1, "name": "bob", "p20": "Gold_ship"},
+    )
+    g.add_edge(
+        2,
+        1,
+        2,
+        layer="blue",
+        properties={"weight": 2, "name": "dave", "p20": "Gold_ship"},
+    )
     g.add_edge(3, 1, 2, layer="blue", properties={"weight": 3, "name": "greg"})
 
-    g.add_edge(1, 1, 3, layer="blue", properties={"weight": 1, "name": "bob"})
-    g.add_edge(2, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(
+        1,
+        1,
+        3,
+        layer="blue",
+        properties={"weight": 1, "name": "bob", "p20": "Old_boat"},
+    )
+    g.add_edge(
+        2,
+        1,
+        3,
+        layer="blue",
+        properties={"weight": 2, "name": "dave", "p20": "Gold_ship"},
+    )
     g.add_edge(3, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
     # Temporal shoudl act exactly the same as non-temporal
     test_cases = [
-        (filter.Property("weight").temporal().any() == 2, 2),
-        (filter.Property("weight").temporal().any() != 3, 4),
-        (filter.Property("weight").temporal().any() < 3, 4),
-        (filter.Property("weight").temporal().any() > 1, 4),
-        (filter.Property("weight").temporal().any() <= 2, 4),
-        (filter.Property("weight").temporal().any() >= 3, 2),
-        (filter.Property("weight").temporal().any().is_in([1, 2]), 4),
-        (filter.Property("weight").temporal().any().is_not_in([3]), 4),
-        (filter.Property("weight").temporal().any().is_some(), 6),
-        (filter.Property("weight").temporal().any().is_none(), 0),
-        (filter.Property("weight").temporal().latest() == 2, 2),
-        (filter.Property("weight").temporal().latest() != 3, 4),
-        (filter.Property("weight").temporal().latest() < 3, 4),
-        (filter.Property("weight").temporal().latest() > 1, 4),
-        (filter.Property("weight").temporal().latest() <= 2, 4),
-        (filter.Property("weight").temporal().latest() >= 3, 2),
-        (filter.Property("weight").temporal().latest().is_in([1, 2]), 4),
-        (filter.Property("weight").temporal().latest().is_not_in([3]), 4),
-        (filter.Property("weight").temporal().latest().is_some(), 6),
-        (filter.Property("weight").temporal().latest().is_none(), 0),
+        (filter.ExplodedEdge.property("weight").temporal().any() == 2, 2),
+        (filter.ExplodedEdge.property("weight").temporal().any() != 3, 4),
+        (filter.ExplodedEdge.property("weight").temporal().any() < 3, 4),
+        (filter.ExplodedEdge.property("weight").temporal().any() > 1, 4),
+        (filter.ExplodedEdge.property("weight").temporal().any() <= 2, 4),
+        (filter.ExplodedEdge.property("weight").temporal().any() >= 3, 2),
+        (filter.ExplodedEdge.property("weight").temporal().any().is_in([1, 2]), 4),
+        (filter.ExplodedEdge.property("weight").temporal().any().is_not_in([3]), 4),
+        (filter.ExplodedEdge.property("weight").temporal().any().is_some(), 6),
+        (filter.ExplodedEdge.property("weight").temporal().any().is_none(), 0),
+        (filter.ExplodedEdge.property("weight").temporal().last() == 2, 2),
+        (filter.ExplodedEdge.property("weight").temporal().last() != 3, 4),
+        (filter.ExplodedEdge.property("weight").temporal().last() < 3, 4),
+        (filter.ExplodedEdge.property("weight").temporal().last() > 1, 4),
+        (filter.ExplodedEdge.property("weight").temporal().last() <= 2, 4),
+        (filter.ExplodedEdge.property("weight").temporal().last() >= 3, 2),
+        (filter.ExplodedEdge.property("weight").temporal().last().is_in([1, 2]), 4),
+        (filter.ExplodedEdge.property("weight").temporal().last().is_not_in([3]), 4),
+        (filter.ExplodedEdge.property("weight").temporal().last().is_some(), 6),
+        (filter.ExplodedEdge.property("weight").temporal().last().is_none(), 0),
+        (filter.ExplodedEdge.property("p20").temporal().first().starts_with("Old"), 1),
+        (filter.ExplodedEdge.property("p20").temporal().first().ends_with("boat"), 1),
     ]
 
     for i, (expr, expected) in enumerate(test_cases):
-        result = g.filter_exploded_edges(expr).edges.explode()
+        result = g.filter(expr).edges.explode()
         assert (
             len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
@@ -859,20 +929,20 @@ def test_temporal_constant(GraphClass):
     e.add_metadata(metadata={"weight": 2, "name": "dave"})
 
     test_cases = [
-        (filter.Metadata("weight") == 2, 3),
-        (filter.Metadata("weight") != 3, 6),
-        (filter.Metadata("weight") < 3, 6),
-        (filter.Metadata("weight") > 1, 3),
-        (filter.Metadata("weight") <= 2, 6),
-        (filter.Metadata("weight") >= 3, 0),
-        (filter.Metadata("weight").is_in([1, 2]), 6),
-        (filter.Metadata("weight").is_not_in([3]), 6),
-        (filter.Metadata("weight").is_some(), 6),
-        (filter.Metadata("weight").is_none(), 0),
+        (filter.Edge.metadata("weight") == 2, 3),
+        (filter.Edge.metadata("weight") != 3, 6),
+        (filter.Edge.metadata("weight") < 3, 6),
+        (filter.Edge.metadata("weight") > 1, 3),
+        (filter.Edge.metadata("weight") <= 2, 6),
+        (filter.Edge.metadata("weight") >= 3, 0),
+        (filter.Edge.metadata("weight").is_in([1, 2]), 6),
+        (filter.Edge.metadata("weight").is_not_in([3]), 6),
+        (filter.Edge.metadata("weight").is_some(), 6),
+        (filter.Edge.metadata("weight").is_none(), 0),
     ]
 
     for i, (expr, expected) in enumerate(test_cases):
-        result = g.filter_exploded_edges(expr).edges.explode()
+        result = g.filter(expr).edges.explode()
         print(g.edges.explode().metadata.get("weight"))
         assert (
             len(result) == expected

@@ -1,40 +1,38 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import create_test_graph
-from utils import run_graphql_test, run_graphql_error_test
+from filters_setup import create_test_graph, init_graph2
+from utils import (
+    run_graphql_test,
+    run_graphql_error_test,
+    run_graphql_error_test_contains,
+    run_graphql_compare_test,
+)
 
 EVENT_GRAPH = create_test_graph(Graph())
 PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
 
 
-# Edge property filter is not supported yet for PersistentGraph
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop5"
-                  operator: EQUAL
-                  value: { list: [{i64: 1},{i64: 2},{i64: 3}]}
+        filterEdges(
+          expr: {
+            property: {
+              name: "eprop5"
+              where: { eq: { list: [{i64: 1},{i64: 2},{i64: 3}] } }
             }
           }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {"list": [{"src": {"name": "a"}, "dst": {"name": "d"}}]}
             }
         }
@@ -43,52 +41,19 @@ def test_graph_edge_property_filter_equal(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_graph_edge_property_filter_equal_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop5"
-                  operator: EQUAL
-            }
-          }
-        ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator EQUAL requires a value"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-# Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-            filter: {
-                property: {
-                    name: "eprop5"
-                    operator: EQUAL
-                    value: { i64: 1 }
-              }
-            }
-          ) {
-          nodes {
-            list {
-              name
+        filterEdges(
+          expr: {
+            property: {
+              name: "eprop5"
+              where: { eq: { i64: 1 } }
             }
           }
+        ) {
+          nodes { list { name } }
         }
       }
     }
@@ -104,28 +69,22 @@ def test_graph_edge_property_filter_not_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-            filter: {
-                property: {
-                    name: "eprop4"
-                    operator: NOT_EQUAL
-                    value: { bool: true }
-              }
-            }
-          ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
+        filterEdges(
+          expr: {
+            property: {
+              name: "eprop4"
+              where: { ne: { bool: true } }
             }
           }
+        ) {
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {"list": [{"src": {"name": "c"}, "dst": {"name": "d"}}]}
             }
         }
@@ -134,53 +93,19 @@ def test_graph_edge_property_filter_not_equal(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_graph_edge_property_filter_not_equal_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter(
-            filter: {
-                property: {
-                    name: "eprop4"
-                    operator: NOT_EQUAL
-              }
-            }
-          ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator NOT_EQUAL requires a value"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-# Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_not_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop4"
-                  operator: NOT_EQUAL
-                  value: { i64: 1 }
+        filterEdges(
+          expr: {
+            property: {
+              name: "eprop4"
+              where: { ne: { i64: 1 } }
             }
           }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
@@ -191,34 +116,27 @@ def test_graph_edge_property_filter_not_equal_type_error(graph):
     run_graphql_error_test(query, expected_error_message, graph)
 
 
-# Edge property filter is not supported yet for PersistentGraph
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_greater_than_or_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: GREATER_THAN_OR_EQUAL
-                  value: { i64: 60 }
+        filterEdges(
+          expr: {
+            property: {
+              name: "eprop1"
+              where: { ge: { i64: 60 } }
             }
           }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {"list": [{"src": {"name": "a"}, "dst": {"name": "d"}}]}
             }
         }
@@ -227,55 +145,19 @@ def test_graph_edge_property_filter_greater_than_or_equal(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_graph_edge_property_filter_greater_than_or_equal_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: GREATER_THAN_OR_EQUAL
-            }
-          }
-        ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = (
-        "Invalid filter: Operator GREATER_THAN_OR_EQUAL requires a value"
-    )
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-# Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-            filter: {
-                property: {
-                    name: "eprop1"
-                    operator: GREATER_THAN_OR_EQUAL
-                    value: { bool: true }
-              }
-            }
-          ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
+        filterEdges(
+          expr: {
+            property: {
+              name: "eprop1"
+              where: { ge: { bool: true } }
             }
           }
+        ) {
+          edges { list { src { name } dst { name } } }
         }
       }
     }
@@ -286,34 +168,27 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
     run_graphql_error_test(query, expected_error_message, graph)
 
 
-# Edge property filter is not supported yet for PersistentGraph
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_less_than_or_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-            filter: {
-                property: {
-                    name: "eprop1"
-                    operator: LESS_THAN_OR_EQUAL
-                    value: { i64: 30 }
-              }
-            }
-          ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
+        filterEdges(
+          expr: {
+            property: {
+              name: "eprop1"
+              where: { le: { i64: 30 } }
             }
           }
+        ) {
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {
                     "list": [
                         {"src": {"name": "b"}, "dst": {"name": "d"}},
@@ -327,54 +202,14 @@ def test_graph_edge_property_filter_less_than_or_equal(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_graph_edge_property_filter_less_than_or_equal_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: LESS_THAN_OR_EQUAL
-            }
-          }
-        ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = (
-        "Invalid filter: Operator LESS_THAN_OR_EQUAL requires a value"
-    )
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_less_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: LESS_THAN_OR_EQUAL
-                  value: { str: "shivam" }
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { le: { str: "shivam" } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
@@ -390,28 +225,17 @@ def test_graph_edge_property_filter_greater_than(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: GREATER_THAN
-                  value: { i64: 30 }
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { gt: { i64: 30 } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {"list": [{"src": {"name": "a"}, "dst": {"name": "d"}}]}
             }
         }
@@ -420,53 +244,14 @@ def test_graph_edge_property_filter_greater_than(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_graph_edge_property_filter_greater_than_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: GREATER_THAN
-            }
-          }
-        ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator GREATER_THAN requires a value"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-# Edge property filter is not supported yet for PersistentGraph
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_greater_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: GREATER_THAN
-                  value: { str: "shivam" }
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { gt: { str: "shivam" } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
@@ -477,34 +262,22 @@ def test_graph_edge_property_filter_greater_than_type_error(graph):
     run_graphql_error_test(query, expected_error_message, graph)
 
 
-# Edge property filter is not supported yet for PersistentGraph
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_less_than(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: LESS_THAN
-                  value: { i64: 30 }
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { lt: { i64: 30 } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {"list": [{"src": {"name": "b"}, "dst": {"name": "d"}}]}
             }
         }
@@ -513,52 +286,14 @@ def test_graph_edge_property_filter_less_than(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_graph_edge_property_filter_less_than_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: LESS_THAN
-            }
-          }
-        ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator LESS_THAN requires a value"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_less_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: LESS_THAN
-                  value: { str: "shivam" }
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { lt: { str: "shivam" } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
@@ -574,25 +309,15 @@ def test_graph_edge_property_filter_is_none(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop5"
-                  operator: IS_NONE
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop5", where: { isNone: true } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
-    expected_output = {"graph": {"edgeFilter": {"edges": {"list": []}}}}
+    expected_output = {"graph": {"filterEdges": {"edges": {"list": []}}}}
     run_graphql_test(query, expected_output, graph)
 
 
@@ -601,27 +326,17 @@ def test_graph_edge_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop5"
-                  operator: IS_SOME
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop5", where: { isSome: true } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {
                     "list": [
                         {"src": {"name": "a"}, "dst": {"name": "d"}},
@@ -640,28 +355,17 @@ def test_graph_edge_property_filter_is_in(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: IS_IN
-                  value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { isIn: { list: [{i64: 10},{i64: 20},{i64: 30}] } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {
                     "list": [
                         {"src": {"name": "b"}, "dst": {"name": "d"}},
@@ -679,54 +383,16 @@ def test_graph_edge_property_filter_is_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: IS_IN
-                  value: { list: []}
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { isIn: { list: [] } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
-    expected_output = {"graph": {"edgeFilter": {"edges": {"list": []}}}}
+    expected_output = {"graph": {"filterEdges": {"edges": {"list": []}}}}
     run_graphql_test(query, expected_output, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_graph_edge_property_filter_is_in_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "prop1"
-                  operator: IS_IN
-            }
-          }
-        ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator IS_IN requires a list"
-    run_graphql_error_test(query, expected_error_message, graph)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -734,27 +400,16 @@ def test_graph_edge_property_filter_is_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: IS_IN
-                  value: { str: "shivam" }
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { isIn: { str: "shivam" } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_error_message = (
-        "Invalid filter: Operator IS_IN requires a list value, got Str(shivam)"
+        "Invalid filter: isIn requires a list value, got Str(shivam)"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -764,28 +419,17 @@ def test_graph_edge_property_filter_is_not_in(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: IS_NOT_IN
-                  value: { list: [{i64: 10},{i64: 20},{i64: 30}]}
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { isNotIn: { list: [{i64: 10},{i64: 20},{i64: 30}] } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {"list": [{"src": {"name": "a"}, "dst": {"name": "d"}}]}
             }
         }
@@ -798,28 +442,17 @@ def test_graph_edge_property_filter_is_not_in_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: IS_NOT_IN
-                  value: { list: []}
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { isNotIn: { list: [] } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {
                     "list": [
                         {"src": {"name": "a"}, "dst": {"name": "d"}},
@@ -834,58 +467,20 @@ def test_graph_edge_property_filter_is_not_in_empty_list(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_graph_edge_property_filter_is_not_in_no_value_error(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: IS_NOT_IN
-            }
-          }
-        ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
-        }
-      }
-    }
-    """
-    expected_error_message = "Invalid filter: Operator IS_NOT_IN requires a list"
-    run_graphql_error_test(query, expected_error_message, graph)
-
-
-@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_property_filter_is_not_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter(
-          filter: {
-              property: {
-                  name: "eprop1"
-                  operator: IS_NOT_IN
-                  value: { str: "shivam" }
-            }
-          }
+        filterEdges(
+          expr: { property: { name: "eprop1", where: { isNotIn: { str: "shivam" } } } }
         ) {
-          edges {
-            list {
-              src{name}
-              dst{name}
-            }
-          }
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_error_message = (
-        "Invalid filter: Operator IS_NOT_IN requires a list value, got Str(shivam)"
+        "Invalid filter: isNotIn requires a list value, got Str(shivam)"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -895,31 +490,24 @@ def test_graph_edge_not_property_filter(graph):
     query = """
     query {
       graph(path: "g") {
-        edgeFilter (
-          filter: {
-            not:
-              {
-                property: {
-                  name: "eprop5"
-                  operator: EQUAL
-                  value: { list: [{i64: 1},{i64: 2}]}
-              	}
-              }
-          }
-        ) {
-          edges {
-              list {
-                src{name}
-                dst{name}
+        filterEdges (
+          expr: {
+            not: {
+              property: {
+                name: "eprop5"
+                where: { eq: { list: [{i64: 1},{i64: 2}] } }
               }
             }
+          }
+        ) {
+          edges { list { src { name } dst { name } } }
         }
       }
     }
     """
     expected_output = {
         "graph": {
-            "edgeFilter": {
+            "filterEdges": {
                 "edges": {
                     "list": [
                         {"dst": {"name": "d"}, "src": {"name": "a"}},
@@ -931,3 +519,320 @@ def test_graph_edge_not_property_filter(graph):
         }
     }
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_property_filter_starts_with(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          property: {
+            name: "eprop3"
+            where: { startsWith: { str: "xyz" } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "filterEdges": {
+                "edges": {
+                    "list": [
+                        {"src": {"name": "a"}, "dst": {"name": "d"}},
+                        {"src": {"name": "b"}, "dst": {"name": "d"}},
+                        {"src": {"name": "c"}, "dst": {"name": "d"}},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_property_filter_ends_with(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          property: {
+            name: "eprop3"
+            where: { endsWith: { str: "123" } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "filterEdges": {
+                "edges": {
+                    "list": [
+                        {"src": {"name": "a"}, "dst": {"name": "d"}},
+                        {"src": {"name": "b"}, "dst": {"name": "d"}},
+                        {"src": {"name": "c"}, "dst": {"name": "d"}},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = init_graph2(Graph())
+PERSISTENT_GRAPH = init_graph2(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_selection(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
+             list { src { name } dst { name } }
+          }
+        }
+      }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "list": [
+                    {"dst": {"name": "2"}, "src": {"name": "1"}},
+                    {"dst": {"name": "1"}, "src": {"name": "3"}},
+                    {"dst": {"name": "4"}, "src": {"name": "3"}},
+                    {"dst": {"name": "1"}, "src": {"name": "2"}},
+                ]
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+# The inner edges filter has no effect on the list of edges returned from selection filter
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_selection_edges_filter_paired(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
+          filter(expr:{
+            property: { name: "p3", where: { eq:{ i64: 5 } } }
+          }) {
+            list { src { name } dst { name } }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "filter": {
+                    "list": [
+                        {"dst": {"name": "2"}, "src": {"name": "1"}},
+                        {"dst": {"name": "1"}, "src": {"name": "3"}},
+                        {"dst": {"name": "4"}, "src": {"name": "3"}},
+                        {"dst": {"name": "1"}, "src": {"name": "2"}},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_chained_selection_edges_filter_paired(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
+          select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
+            filter(expr: {
+              dst: {
+                node: {
+                  field: NODE_ID
+                  where: { eq: { u64: 2 } }
+                }
+              }
+            }) {
+              list { src { name } dst { name } }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "select": {
+                    "filter": {"list": [{"dst": {"name": "2"}, "src": {"name": "1"}}]}
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_chained_selection_edges_filter_paired_ver2(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          select(expr: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
+            select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
+              filter(expr: {
+                dst: {
+                  node: {
+                    field: NODE_ID
+                    where: { eq: { u64: 2 } }
+                  }
+                }
+              }) {
+                list { src { name } dst { name } }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "select": {
+                    "select": {
+                        "filter": {
+                            "list": [{"dst": {"name": "2"}, "src": {"name": "1"}}]
+                        }
+                    }
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edge_temporal_property_filter_empty_layers_is_error(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "prop5"
+            layers: []
+            where: { any: { avg: { lt: { f64: 10.0 } } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    run_graphql_error_test_contains(
+        query,
+        [
+            "EdgeFilter.temporalProperty",
+            "'layers' must be non-empty",
+        ],
+        graph,
+    )
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_temporal_property_last_with_single_layer(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "p10"
+            layers: ["air_nomads"]
+            where: { last: { eq: { str: "Paper_ship" } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    # Edge (2 -> 3) in air_nomads has p10 Paper_ship at time 2
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "2"}, "dst": {"name": "3"}}]}
+            }
+        }
+    }
+
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_temporal_property_last_with_multiple_layers(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "p10"
+            layers: ["fire_nation", "air_nomads"]
+            where: { last: { eq: { str: "Paper_airplane" } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    # fire_nation edge (1 -> 2) has p10 Paper_airplane at time 1
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "1"}, "dst": {"name": "2"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_temporal_property_last_with_default_layer(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          temporalProperty: {
+            name: "p10"
+            layers: ["_default"]
+            where: { last: { eq: { str: "Paper_airplane" } } }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    # default-layer edge (2 -> 1) has p10 Paper_airplane at time 3 (edge_type is None)
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "2"}, "dst": {"name": "1"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)

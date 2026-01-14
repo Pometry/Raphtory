@@ -197,6 +197,7 @@ function queryGraphSize(path: string) {
   const response = fetchAndParse({
       graph: {
           __args: { path },
+          countNodes: true,
           countEdges: true
       },
   });
@@ -207,89 +208,76 @@ function queryGraphSize(path: string) {
 }
 
 function deleteEdge() {
-  // TODO: also try deleting sometimes non existing edges
   const { numEdges } = queryGraphSize("empty");
+  if (!numEdges || numEdges <= 0) return;
 
-  const edgeIndex = randomInt(numEdges); // just in case, to avoid races, only target the first half
-  const response = fetchAndParse({
-      graph: {
-          __args: {
-              path: "empty",
-          },
-          edges: {
-            page: {
-              __args: {
-                limit: 1,
-                offset: edgeIndex
-              },
-              src: {
-                name: true
-              },
-              dst: {
-                name: true,
-              }
-            }
-          }
-      },
-  });
-  const edge = response.data.graph.edges.page[0]
-
-  fetchAndCheck(errorRate, {
-      updateGraph: {
-          __args: {
-              path: "empty",
-          },
-          deleteEdge: {
-            __args: {
-              time: randomTime(),
-              src: edge.src.name,
-              dst: edge.dst.name,
-            },
-            success: true,
-          }
-      },
-  });
-}
-
-function getRandomEntityIds({ numEdges, numNodes }: {numEdges: number, numNodes: number}) {
+  const edgeIndex = randomInt(numEdges);
   const response = fetchAndParse({
     graph: {
-      __args: {
-        path: "empty"
-      },
-      nodes: {
-        page: {
-          __args: {
-            limit: 1,
-            offset: randomInt(numNodes)
-          },
-          name: true,
-        }
-      },
+      __args: { path: "empty" },
       edges: {
         page: {
-          __args: {
-            limit: 1,
-            offset: randomInt(numEdges)
-          },
-          src: {
-            name: true,
-          },
-          dst: {
-            name: true,
-          }
-        }
-      }
-    }
-  })
-  const node = response.data.graph.nodes.page[0]?.name as string | undefined;
-  const edge = response.data.graph.edges.page[0];
-  const src = edge?.src?.name as string | undefined;
-  const dst = edge?.dst?.name as string | undefined;
-  const name = pickRandom([node ?? src, src ?? node, dst ?? node])
-  return { src, dst, name }
+          __args: { limit: 1, offset: edgeIndex },
+          src: { name: true },
+          dst: { name: true },
+        },
+      },
+    },
+  });
+
+  const edge = response?.data?.graph?.edges?.page?.[0];
+  if (!edge?.src?.name || !edge?.dst?.name) return;
+
+  fetchAndCheck(errorRate, {
+    updateGraph: {
+      __args: { path: "empty" },
+      deleteEdge: {
+        __args: {
+          time: randomTime(),
+          src: edge.src.name,
+          dst: edge.dst.name,
+        },
+        success: true,
+      },
+    },
+  });
 }
 
+function getRandomEntityIds({ numEdges, numNodes }: { numEdges: number; numNodes: number }) {
+  if (numEdges <= 0 && numNodes <= 0) {
+    return { src: undefined, dst: undefined, name: undefined };
+  }
+
+  const response = fetchAndParse({
+    graph: {
+      __args: { path: "empty" },
+      ...(numNodes > 0
+          ? { nodes: { page: { __args: { limit: 1, offset: randomInt(numNodes) }, name: true } } }
+          : {}),
+      ...(numEdges > 0
+          ? {
+            edges: {
+              page: {
+                __args: { limit: 1, offset: randomInt(numEdges) },
+                src: { name: true },
+                dst: { name: true },
+              },
+            },
+          }
+          : {}),
+    },
+  });
+
+  const node = response?.data?.graph?.nodes?.page?.[0]?.name as string | undefined;
+  const edge = response?.data?.graph?.edges?.page?.[0];
+  const src = edge?.src?.name as string | undefined;
+  const dst = edge?.dst?.name as string | undefined;
+
+  const candidates = [node, src, dst].filter((x): x is string => typeof x === "string");
+  const name = candidates.length ? pickRandom(candidates) : undefined;
+
+  return { src, dst, name };
+}
 
 // ---------- random decision utilities ----------------
 type Option<T> = {
@@ -299,7 +287,9 @@ type Option<T> = {
 
 function pickRandomOption<T>(choices: Option<T>[]) {
   const flattened = choices.flatMap(({weight, query}) => [...Array(weight).keys()].map(() => query))
-  return flattened[randomInt(flattened.length)]
+  let query  = flattened[randomInt(flattened.length)]
+  // console.log("random query", query)
+  return query
 }
 
 function pickRandom<T>(choices: T[]) {
@@ -422,7 +412,7 @@ function randomView(rate: ViewRate) {
   const [start, end] = [randomTime(), randomTime()].sort()
   const views: PathFromNodeViewCollection[] = [
     ...randomAppend(rate.latest, { latest: true }),
-    ...randomAppend(rate.layer, { layer: randomLayer() }),
+    ...randomAppend(rate.layer, { layers: [randomLayer()] }),
     ...randomAppend(rate.window, { window: { start, end } }),
   ]
   // TODO: add more kind of filters
@@ -433,118 +423,85 @@ function randomView(rate: ViewRate) {
   }
 }
 
-function randomTraversal(): NodeGenqlSelection {
-  const view = randomView(TRAVERSAL_VIEW_RATES);
-  const nodeInner = {
-    applyViews: {
-      ...view,
-      page: {
-        __args: {
-          limit: PAGE_SIZE,
-        },
-        ...randomNodeQuery()
-      }
-    },
-  }
-  const edgeInner = {
-    applyViews: {
-      ...view,
-      page: {
-        __args: {
-          limit: PAGE_SIZE,
-        },
-        ...randomEdgeQuery()
-      }
-    },
-  }
+const MAX_DEPTH = 3;
 
-  const queries: Option<NodeGenqlSelection>[] = [{
-    weight: NEIGHBOURS_WEIGHT,
-    query: {
-      neighbours: {
-        ...nodeInner
-      }
-    }
-  }, {
-    weight: IN_NEIGHBOURS_WEIGHT,
-    query: {
-      inNeighbours: {
-        ...nodeInner
-      }
-    }
-  }, {
-    weight: OUT_NEIGHBOURS_WEIGHT,
-    query: {
-      outNeighbours: {
-        ...nodeInner
-      }
-    }
-  }, {
-    weight: IN_COMPONENT_WEIGHT,
-    query: {
-      inComponent: {
-        ...nodeInner
-      }
-    }
-  }, {
-    weight: OUT_COMPONENT_WEIGHT,
-    query: {
-      outComponent: {
-        ...nodeInner
-      }
-    }
-  }, {
-    weight: EDGES_WEIGHT,
-    query: {
-      edges: {
-        ...edgeInner
-      }
-    }
-  }, {
-    weight: OUT_EDGES_WEIGHT,
-    query: {
-      outEdges: {
-        ...edgeInner
-      }
-    }
-  }, {
-    weight: IN_EDGES_WEIGHT,
-    query: {
-      inEdges: {
-        ...edgeInner
-      }
-    }
-  }]
-  return pickRandomOption(queries);
-}
+function randomNodeQuery(depth: number = MAX_DEPTH): NodeGenqlSelection {
+  const allowTraversal = depth > 0 && Math.random() < TRAVERSAL_RATIO;
 
-function randomNodeQuery(): NodeGenqlSelection {
-  let traversal: NodeGenqlSelection = {}
-  if (Math.random() > 1 - TRAVERSAL_RATIO) { // this is a fire line to avoid infinite recursions
-    traversal = randomTraversal();
-  }
+  const traversal: NodeGenqlSelection = allowTraversal
+      ? randomTraversal(depth - 1)
+      : {};
+
   return {
     applyViews: {
       name: true,
       ...randomView(NODE_VIEW_RATES),
       ...randomPropertyQuery(NODE_PROPERTY_RATE),
-      ...randomIncl(0.5, { degree: true, inDegree: true, outDegree: true}),
+      ...randomIncl(0.5, { degree: true, inDegree: true, outDegree: true }),
       ...traversal,
     }
-  }
+  };
 }
 
-function randomEdgeQuery(): EdgeGenqlSelection {
-  const nodeQuery = randomNodeQuery();
+function shallowNodeQuery(): NodeGenqlSelection {
+  return {
+    applyViews: {
+      name: true,
+      ...randomView(NODE_VIEW_RATES),
+      ...randomPropertyQuery(NODE_PROPERTY_RATE),
+      ...randomIncl(0.5, { degree: true, inDegree: true, outDegree: true }),
+    }
+  };
+}
+
+function randomEdgeQuery(depth: number = MAX_DEPTH): EdgeGenqlSelection {
+  const endpointNode =
+      depth > 0
+          ? randomNodeQuery(depth - 1)
+          : shallowNodeQuery();
+
   return {
     applyViews: {
       id: true,
       ...randomView(EDGE_VIEW_RATES),
       ...randomPropertyQuery(EDGE_PROPERTY_RATE),
-      ...randomIncl(0.5, {src: nodeQuery}),
-      ...randomIncl(0.5, {dst: nodeQuery}),
+      ...randomIncl(0.5, { src: endpointNode }),
+      ...randomIncl(0.5, { dst: endpointNode }),
     }
-  }
+  };
+}
+
+function randomTraversal(depth: number): NodeGenqlSelection {
+  if (depth <= 0) return {};
+
+  const view = randomView(TRAVERSAL_VIEW_RATES);
+
+  const nodeInner = {
+    applyViews: {
+      ...view,
+      page: { __args: { limit: PAGE_SIZE }, ...randomNodeQuery(depth - 1) }
+    }
+  };
+
+  const edgeInner = {
+    applyViews: {
+      ...view,
+      page: { __args: { limit: PAGE_SIZE }, ...randomEdgeQuery(depth - 1) }
+    }
+  };
+
+  const queries: Option<NodeGenqlSelection>[] = [
+    { weight: NEIGHBOURS_WEIGHT, query: { neighbours: { ...nodeInner } } },
+    { weight: IN_NEIGHBOURS_WEIGHT, query: { inNeighbours: { ...nodeInner } } },
+    { weight: OUT_NEIGHBOURS_WEIGHT, query: { outNeighbours: { ...nodeInner } } },
+    { weight: IN_COMPONENT_WEIGHT, query: { inComponent: { ...nodeInner } } },
+    { weight: OUT_COMPONENT_WEIGHT, query: { outComponent: { ...nodeInner } } },
+    { weight: EDGES_WEIGHT, query: { edges: { ...edgeInner } } },
+    { weight: OUT_EDGES_WEIGHT, query: { outEdges: { ...edgeInner } } },
+    { weight: IN_EDGES_WEIGHT, query: { inEdges: { ...edgeInner } } },
+  ];
+
+  return pickRandomOption(queries);
 }
 
 type PropertyGenqlSelection = NodeGenqlSelection & EdgeGenqlSelection;
