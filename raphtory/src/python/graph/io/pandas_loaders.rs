@@ -4,7 +4,7 @@ use crate::{
     io::arrow::{
         dataframe::*,
         df_loaders::{
-            edges::{load_edges_from_df, load_edges_from_df_pandas, ColumnNames},
+            edges::{load_edges_from_df_pandas, ColumnNames},
             nodes::{load_node_props_from_df, load_nodes_from_df},
             *,
         },

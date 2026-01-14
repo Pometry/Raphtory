@@ -5,7 +5,7 @@ use crate::{
     io::arrow::{
         dataframe::{DFChunk, DFView, SecondaryIndexCol},
         df_loaders::edges::ColumnNames,
-        layer_col::{lift_layer_col, LayerCol},
+        layer_col::LayerCol,
         node_col::NodeCol,
         prop_handler::*,
     },

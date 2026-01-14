@@ -1,5 +1,5 @@
 use crate::{
-    db::api::view::{internal::GraphView, StaticGraphViewOps},
+    db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView},
@@ -16,7 +16,6 @@ use crate::{
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
-use either::Either;
 use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{
