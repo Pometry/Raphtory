@@ -26,9 +26,23 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['FilterExpr', 'FilterOps', 'PropertyFilterOps', 'Node', 'NodeIdFilterBuilder', 'NodeNameFilterBuilder', 'NodeTypeFilterBuilder', 'Edge', 'EdgeEndpoint', 'EdgeEndpointIdFilter', 'EdgeEndpointNameFilter', 'EdgeEndpointTypeFilter', 'ExplodedEdge']
-class FilterExpr(object): 
+__all__ = [
+    "FilterExpr",
+    "FilterOps",
+    "PropertyFilterOps",
+    "Node",
+    "NodeIdFilterBuilder",
+    "NodeNameFilterBuilder",
+    "NodeTypeFilterBuilder",
+    "Edge",
+    "EdgeEndpoint",
+    "EdgeEndpointIdFilter",
+    "EdgeEndpointNameFilter",
+    "EdgeEndpointTypeFilter",
+    "ExplodedEdge",
+]
 
+class FilterExpr(object):
     def __and__(self, value):
         """Return self&value."""
 
@@ -44,8 +58,7 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class FilterOps(object): 
-
+class FilterOps(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -64,15 +77,9 @@ class FilterOps(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def all(self):
-        ...
-
-    def any(self):
-        ...
-
-    def avg(self):
-        ...
-
+    def all(self): ...
+    def any(self): ...
+    def avg(self): ...
     def contains(self, value: Prop) -> filter.FilterExpr:
         """
         Returns a filter expression that checks whether the property's
@@ -97,10 +104,10 @@ class FilterOps(object):
             filter.FilterExpr: A filter expression evaluating suffix matching.
         """
 
-    def first(self):
-        ...
-
-    def fuzzy_search(self, prop_value: str, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def first(self): ...
+    def fuzzy_search(
+        self, prop_value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that performs fuzzy matching
         against the property's string value.
@@ -158,18 +165,10 @@ class FilterOps(object):
             filter.FilterExpr: A filter expression evaluating `value is not None`.
         """
 
-    def last(self):
-        ...
-
-    def len(self):
-        ...
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
+    def last(self): ...
+    def len(self): ...
+    def max(self): ...
+    def min(self): ...
     def not_contains(self, value: Prop) -> filter.FilterExpr:
         """
         Returns a filter expression that checks whether the property's
@@ -194,50 +193,30 @@ class FilterOps(object):
             filter.FilterExpr: A filter expression evaluating prefix matching.
         """
 
-    def sum(self):
-        ...
+    def sum(self): ...
 
-class PropertyFilterOps(FilterOps): 
+class PropertyFilterOps(FilterOps):
+    def temporal(self): ...
 
-    def temporal(self):
-        ...
-
-class Node(object): 
-
+class Node(object):
     @staticmethod
-    def id():
-        ...
-
+    def id(): ...
     @staticmethod
-    def layer(layer):
-        ...
-
+    def layer(layer): ...
     @staticmethod
-    def layers(layers):
-        ...
-
+    def layers(layers): ...
     @staticmethod
-    def metadata(name):
-        ...
-
+    def metadata(name): ...
     @staticmethod
-    def name():
-        ...
-
+    def name(): ...
     @staticmethod
-    def node_type():
-        ...
-
+    def node_type(): ...
     @staticmethod
-    def property(name):
-        ...
-
+    def property(name): ...
     @staticmethod
-    def window(start, end):
-        ...
+    def window(start, end): ...
 
-class NodeIdFilterBuilder(object): 
-
+class NodeIdFilterBuilder(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -280,7 +259,9 @@ class NodeIdFilterBuilder(object):
             filter.FilterExpr: A filter expression evaluating suffix matching.
         """
 
-    def fuzzy_search(self, value: str, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that performs fuzzy matching
         against the string representation of the node ID.
@@ -344,8 +325,7 @@ class NodeIdFilterBuilder(object):
             filter.FilterExpr: A filter expression evaluating prefix matching.
         """
 
-class NodeNameFilterBuilder(object): 
-
+class NodeNameFilterBuilder(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -388,7 +368,9 @@ class NodeNameFilterBuilder(object):
             filter.FilterExpr: A filter expression evaluating suffix matching.
         """
 
-    def fuzzy_search(self, value: str, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that performs fuzzy matching
         against the entity's string value.
@@ -452,8 +434,7 @@ class NodeNameFilterBuilder(object):
             filter.FilterExpr: A filter expression evaluating prefix matching.
         """
 
-class NodeTypeFilterBuilder(object): 
-
+class NodeTypeFilterBuilder(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -496,7 +477,9 @@ class NodeTypeFilterBuilder(object):
             filter.FilterExpr: A filter expression evaluating suffix matching.
         """
 
-    def fuzzy_search(self, value: str, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that performs fuzzy matching
         against the entity's string value.
@@ -560,55 +543,30 @@ class NodeTypeFilterBuilder(object):
             filter.FilterExpr: A filter expression evaluating prefix matching.
         """
 
-class Edge(object): 
-
+class Edge(object):
     @staticmethod
-    def dst():
-        ...
-
+    def dst(): ...
     @staticmethod
-    def layer(layer):
-        ...
-
+    def layer(layer): ...
     @staticmethod
-    def layers(layers):
-        ...
-
+    def layers(layers): ...
     @staticmethod
-    def metadata(name):
-        ...
-
+    def metadata(name): ...
     @staticmethod
-    def property(name):
-        ...
-
+    def property(name): ...
     @staticmethod
-    def src():
-        ...
-
+    def src(): ...
     @staticmethod
-    def window(start, end):
-        ...
+    def window(start, end): ...
 
-class EdgeEndpoint(object): 
+class EdgeEndpoint(object):
+    def id(self): ...
+    def metadata(self, name): ...
+    def name(self): ...
+    def node_type(self): ...
+    def property(self, name): ...
 
-    def id(self):
-        ...
-
-    def metadata(self, name):
-        ...
-
-    def name(self):
-        ...
-
-    def node_type(self):
-        ...
-
-    def property(self, name):
-        ...
-
-class EdgeEndpointIdFilter(object): 
-
+class EdgeEndpointIdFilter(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -651,7 +609,9 @@ class EdgeEndpointIdFilter(object):
             filter.FilterExpr: A filter expression evaluating suffix matching.
         """
 
-    def fuzzy_search(self, value: str, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that performs fuzzy matching
         against the string representation of the endpoint ID.
@@ -715,8 +675,7 @@ class EdgeEndpointIdFilter(object):
             filter.FilterExpr: A filter expression evaluating prefix matching.
         """
 
-class EdgeEndpointNameFilter(object): 
-
+class EdgeEndpointNameFilter(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -759,7 +718,9 @@ class EdgeEndpointNameFilter(object):
             filter.FilterExpr: A filter expression evaluating suffix matching.
         """
 
-    def fuzzy_search(self, value: str, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that performs fuzzy matching
         against the entity's string value.
@@ -823,8 +784,7 @@ class EdgeEndpointNameFilter(object):
             filter.FilterExpr: A filter expression evaluating prefix matching.
         """
 
-class EdgeEndpointTypeFilter(object): 
-
+class EdgeEndpointTypeFilter(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -867,7 +827,9 @@ class EdgeEndpointTypeFilter(object):
             filter.FilterExpr: A filter expression evaluating suffix matching.
         """
 
-    def fuzzy_search(self, value: str, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, value: str, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Returns a filter expression that performs fuzzy matching
         against the entity's string value.
@@ -931,24 +893,14 @@ class EdgeEndpointTypeFilter(object):
             filter.FilterExpr: A filter expression evaluating prefix matching.
         """
 
-class ExplodedEdge(object): 
-
+class ExplodedEdge(object):
     @staticmethod
-    def layer(layer):
-        ...
-
+    def layer(layer): ...
     @staticmethod
-    def layers(layers):
-        ...
-
+    def layers(layers): ...
     @staticmethod
-    def metadata(name):
-        ...
-
+    def metadata(name): ...
     @staticmethod
-    def property(name):
-        ...
-
+    def property(name): ...
     @staticmethod
-    def window(start, end):
-        ...
+    def window(start, end): ...

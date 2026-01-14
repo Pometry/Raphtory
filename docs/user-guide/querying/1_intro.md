@@ -42,15 +42,15 @@ print(edges_df.head())
     21 2019-06-13 09:51:00  ANGELE    FELIPE  Grooming  Affiliative       1
     ```
 
-Next we load this into Raphtory using the `load_edges_from_pandas` function, modelling it as a weighted multi-layer graph, with a layer per unique `behavior`.
+Next we load this into Raphtory using the `load_edges` function, modelling it as a weighted multi-layer graph, with a layer per unique `behavior`.
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
 import raphtory as rp
 
 g = rp.Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",

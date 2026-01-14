@@ -16,8 +16,8 @@ import pandas as pd
 df = pd.read_csv("../data/lotr.csv")
 
 lotr_graph = rp.Graph()
-lotr_graph.load_edges_from_pandas(
-    df=df,time="time", src="src", dst="dst"
+lotr_graph.load_edges(
+    data=df, time="time", src="src", dst="dst"
 )
 
 density = rp.algorithms.directed_graph_density(lotr_graph)

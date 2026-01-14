@@ -26,8 +26,8 @@ server_nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
 
 traffic_graph = Graph()
-traffic_graph.load_edges_from_pandas(
-    df=server_edges_df,
+traffic_graph.load_edges(
+    data=server_edges_df,
     src="source",
     dst="destination",
     time="timestamp",
@@ -36,8 +36,8 @@ traffic_graph.load_edges_from_pandas(
     metadata=["is_encrypted"],
     shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
-traffic_graph.load_nodes_from_pandas(
-    df=server_nodes_df,
+traffic_graph.load_nodes(
+    data=server_nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
@@ -101,8 +101,8 @@ server_edges_df = pd.read_csv("../data/network_traffic_edges.csv")
 server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
 
 traffic_graph = Graph()
-traffic_graph.load_edges_from_pandas(
-    df=server_edges_df,
+traffic_graph.load_edges(
+    data=server_edges_df,
     time="timestamp",
     src="source",
     dst="destination",

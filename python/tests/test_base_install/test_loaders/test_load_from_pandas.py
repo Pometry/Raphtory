@@ -152,16 +152,12 @@ def test_load_from_pandas_into_existing_graph():
         assert nodes == expected_nodes
 
     g = Graph()
-    g.load_nodes(
-        nodes_df, "time", "id", node_type_col="node_type", properties=["name"]
-    )
+    g.load_nodes(nodes_df, "time", "id", node_type_col="node_type", properties=["name"])
     g.load_edges(edges_df, "time", "src", "dst", ["weight", "marbles"])
     assertions(g)
 
     g = PersistentGraph()
-    g.load_nodes(
-        nodes_df, "time", "id", node_type_col="node_type", properties=["name"]
-    )
+    g.load_nodes(nodes_df, "time", "id", node_type_col="node_type", properties=["name"])
     g.load_edges(edges_df, "time", "src", "dst", ["weight", "marbles"])
     assertions(g)
 
@@ -1091,17 +1087,13 @@ def test_edge_both_option_failures_pandas():
         Exception,
         match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edges(
-            edges_df, "time", "src", "dst", layer="blah", layer_col="marbles"
-        )
+        g.load_edges(edges_df, "time", "src", "dst", layer="blah", layer_col="marbles")
 
     with pytest.raises(
         Exception,
         match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edge_metadata(
-            edges_df, "src", "dst", layer="blah", layer_col="marbles"
-        )
+        g.load_edge_metadata(edges_df, "src", "dst", layer="blah", layer_col="marbles")
 
     # CHECK IF JUST LAYER WORKS
     g = Graph()
@@ -1117,9 +1109,7 @@ def test_edge_both_option_failures_pandas():
 
     g = Graph()
     g.load_edges(edges_df, "time", "src", "dst", layer="blah")
-    g.load_edge_metadata(
-        edges_df, "src", "dst", layer="blah", metadata=["marbles"]
-    )
+    g.load_edge_metadata(edges_df, "src", "dst", layer="blah", metadata=["marbles"])
     assert g.edges.layer_names.collect() == [
         ["blah"],
         ["blah"],
@@ -1188,17 +1178,13 @@ def test_edge_both_option_failures_pandas():
         Exception,
         match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edges(
-            edges_df, "time", "src", "dst", layer="blah", layer_col="marbles"
-        )
+        g.load_edges(edges_df, "time", "src", "dst", layer="blah", layer_col="marbles")
 
     with pytest.raises(
         Exception,
         match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edge_metadata(
-            edges_df, "src", "dst", layer="blah", layer_col="marbles"
-        )
+        g.load_edge_metadata(edges_df, "src", "dst", layer="blah", layer_col="marbles")
 
     with pytest.raises(
         Exception,
@@ -1222,9 +1208,7 @@ def test_edge_both_option_failures_pandas():
 
     g = PersistentGraph()
     g.load_edges(edges_df, "time", "src", "dst", layer="blah")
-    g.load_edge_metadata(
-        edges_df, "src", "dst", layer="blah", metadata=["marbles"]
-    )
+    g.load_edge_metadata(edges_df, "src", "dst", layer="blah", metadata=["marbles"])
     assert g.edges.layer_names.collect() == [
         ["blah"],
         ["blah"],
@@ -1300,9 +1284,7 @@ def test_edge_both_option_failures_pandas():
     }
 
     g = PersistentGraph()
-    g.load_edge_deletions(
-        edges_df, "time", "src", "dst", layer_col="marbles"
-    )
+    g.load_edge_deletions(edges_df, "time", "src", "dst", layer_col="marbles")
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
         (2, 3): ["blue"],

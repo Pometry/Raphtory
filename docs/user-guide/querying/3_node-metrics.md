@@ -22,8 +22,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -85,8 +85,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",

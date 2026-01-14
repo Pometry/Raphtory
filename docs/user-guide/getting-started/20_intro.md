@@ -17,7 +17,7 @@ Raphtory is written in Rust for speed and safety. However, you can interact with
 
 You can build graphs directly in Raphtory or import data in standard formats. In the following example we use the `OBS.txt` baboon interaction dataset from [SocioPatterns](http://www.sociopatterns.org/datasets/baboons-interactions/) which is provided in a tab separated text file.
 
-To ingest this data you must first format it using `pandas` to create a dataframe and convert the timestamps to the `datetime` format. Then you can create a new graph `g` in Raphtory using the [`.load_edges_from_pandas()`][raphtory.Graph.load_edges_from_pandas] method and assigning each of the parameters appropriately.
+To ingest this data you must first format it using `pandas` to create a dataframe and convert the timestamps to the `datetime` format. Then you can create a new graph `g` in Raphtory using the [`.load_edges()`][raphtory.Graph.load_edges] method and assigning each of the parameters appropriately.
 
 /// tab | :fontawesome-brands-python: Python
 ```python
@@ -36,8 +36,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",

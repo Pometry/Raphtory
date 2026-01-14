@@ -42,6 +42,7 @@ def test_load_edges_from_polars_df(graph_type):
     assert _collect_edges(g_to_pandas) == expected
     assert _collect_edges(g_from_df) == expected
 
+
 def test_different_data_sources():
     nodes_list = []
 
@@ -50,7 +51,9 @@ def test_different_data_sources():
     parquet_file_path_str = str(_btc_root() / "flattened_data.parquet")
     # test path string for parquet file
     g = Graph()
-    g.load_nodes(data=parquet_file_path_str, time="block_timestamp", id="inputs_address")
+    g.load_nodes(
+        data=parquet_file_path_str, time="block_timestamp", id="inputs_address"
+    )
     nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
@@ -132,7 +135,9 @@ def test_different_data_sources():
     del g
 
     ######### mixed directory #########
-    mixed_dir_path_str = str(Path(__file__).parent) + "/data/btc_dataset/mixed_directory"
+    mixed_dir_path_str = (
+        str(Path(__file__).parent) + "/data/btc_dataset/mixed_directory"
+    )
     # test path string
     g = Graph()
     g.load_nodes(data=mixed_dir_path_str, time="block_timestamp", id="inputs_address")
@@ -141,7 +146,9 @@ def test_different_data_sources():
 
     # test Path object
     g = Graph()
-    g.load_nodes(data=Path(mixed_dir_path_str), time="block_timestamp", id="inputs_address")
+    g.load_nodes(
+        data=Path(mixed_dir_path_str), time="block_timestamp", id="inputs_address"
+    )
     nodes_list.append(sorted(g.nodes.id.collect()))
     del g
 
@@ -162,8 +169,11 @@ def test_different_data_sources():
 
     # sanity check, make sure we ingested the same nodes each time
     print(f"Number of tests ran: {len(nodes_list)}")
-    for i in range(len(nodes_list)-1):
-        assert nodes_list[0] == nodes_list[i+1], f"Nodes list assertion failed at item i={i}"
+    for i in range(len(nodes_list) - 1):
+        assert (
+            nodes_list[0] == nodes_list[i + 1]
+        ), f"Nodes list assertion failed at item i={i}"
+
 
 def test_schema_casting():
     # time/id as regular ints (I64), value column as explicit int32
@@ -256,6 +266,7 @@ def test_list_schema_casting():
     n_prop_dtype = g.node(10).properties.get_dtype_of("val_list_i32")
     assert n_prop_dtype == PropType.list(PropType.i64())
 
+
 def test_schema_casting_dict():
     # time/id as regular ints (I64), value column as explicit int32
     df = pd.DataFrame(
@@ -304,6 +315,7 @@ def test_schema_casting_dict():
 
     for dtype in dtype_list:
         assert dtype == PropType.i64()
+
 
 def test_nested_schema_casting():
     # types to make sure the table is built properly and test the types
@@ -417,18 +429,24 @@ def test_nested_schema_casting():
     # also check PropType.map of pyarrow types, mix and match
     assert dtype_pyarrow == PropType.map({"a": pa.int64(), "b": pa.int64()})
 
+
 def _btc_root() -> Path:
     return Path(__file__).parent / "data" / "btc_dataset"
+
 
 def _csv_expected_earliest_dt(paths: list[Path]):
     df = pd.concat([pd.read_csv(p) for p in paths], ignore_index=True)
     return pd.to_datetime(df["block_timestamp"], utc=True).min().to_pydatetime()
 
+
 def _parquet_expected_earliest_dt(paths: list[Path]):
     df = pd.concat([pd.read_parquet(p) for p in paths], ignore_index=True)
     return pd.to_datetime(df["block_timestamp"], utc=True).min().to_pydatetime()
 
-@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+
+@pytest.mark.parametrize(
+    "schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")]
+)
 def test_casting_btc_csv_file(schema_value):
     csv_path = _btc_root() / "flattened_data.csv"
     expected_earliest = _csv_expected_earliest_dt([csv_path])
@@ -451,7 +469,10 @@ def test_casting_btc_csv_file(schema_value):
     assert dtype == pa.timestamp("ms", tz="UTC")
     assert g.earliest_time.dt == expected_earliest
 
-@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+
+@pytest.mark.parametrize(
+    "schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")]
+)
 def test_casting_btc_csv_directory(schema_value):
     csv_dir = _btc_root() / "csv_directory"
     csv_paths = sorted(p for p in csv_dir.iterdir() if p.suffix == ".csv")
@@ -474,7 +495,10 @@ def test_casting_btc_csv_directory(schema_value):
     assert dtype == pa.timestamp("ms", tz="UTC")
     assert g.earliest_time.dt == expected_earliest
 
-@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+
+@pytest.mark.parametrize(
+    "schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")]
+)
 def test_casting_btc_parquet_file(schema_value):
     pq_path = _btc_root() / "flattened_data.parquet"
     expected_earliest = _parquet_expected_earliest_dt([pq_path])
@@ -496,7 +520,10 @@ def test_casting_btc_parquet_file(schema_value):
     assert dtype == pa.timestamp("ms", tz="UTC")
     assert g.earliest_time.dt == expected_earliest
 
-@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+
+@pytest.mark.parametrize(
+    "schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")]
+)
 def test_casting_btc_parquet_directory(schema_value):
     pq_dir = _btc_root() / "parquet_directory"
     pq_paths = sorted(p for p in pq_dir.iterdir() if p.suffix == ".parquet")
@@ -519,7 +546,10 @@ def test_casting_btc_parquet_directory(schema_value):
     assert dtype == pa.timestamp("ms", tz="UTC")
     assert g.earliest_time.dt == expected_earliest
 
-@pytest.mark.parametrize("schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")])
+
+@pytest.mark.parametrize(
+    "schema_value", [PropType.datetime(), pa.timestamp("ms", tz="UTC")]
+)
 def test_casting_btc_mixed_directory(schema_value):
     mixed_dir = _btc_root() / "mixed_directory"
     csv_paths = sorted(p for p in mixed_dir.iterdir() if p.suffix == ".csv")
@@ -547,9 +577,13 @@ def test_casting_btc_mixed_directory(schema_value):
     assert dtype == pa.timestamp("ms", tz="UTC")
     assert g.earliest_time.dt == expected_earliest
 
+
 def test_malformed_files_and_directory():
     empty_dir = _btc_root() / "empty_directory"
-    with pytest.raises(Exception, match="Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files"):
+    with pytest.raises(
+        Exception,
+        match="Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files",
+    ):
         g = Graph()
         g.load_nodes(
             data=empty_dir,
@@ -562,7 +596,9 @@ def test_malformed_files_and_directory():
     for malformed_file in malformed_dir.iterdir():
         # couldn't create a parquet file malformed with an extra column in a row
         if "extra_field" in malformed_file.name:
-            with pytest.raises(Exception, match="Encountered unequal lengths between records"):
+            with pytest.raises(
+                Exception, match="Encountered unequal lengths between records"
+            ):
                 g = Graph()
                 g.load_nodes(
                     data=malformed_file,
@@ -580,11 +616,16 @@ def test_malformed_files_and_directory():
                     id="inputs_address",
                     properties=["outputs_address"],
                 )
-            assert ("Error during parsing of time string" in str(e.value)) or ("Error parsing timestamp from '2025-99-99 99:99:99'" in str(e.value))
+            assert ("Error during parsing of time string" in str(e.value)) or (
+                "Error parsing timestamp from '2025-99-99 99:99:99'" in str(e.value)
+            )
 
         # csv file raises exception but parquet file doesn't
         if "missing_field.csv" in malformed_file.name:
-            with pytest.raises(Exception, match="Encountered unequal lengths between records on CSV file"):
+            with pytest.raises(
+                Exception,
+                match="Encountered unequal lengths between records on CSV file",
+            ):
                 g = Graph()
                 g.load_nodes(
                     data=malformed_file,
@@ -606,7 +647,10 @@ def test_malformed_files_and_directory():
             assert n.properties.get("outputs_address") is None
 
         if "missing_id_col" in malformed_file.name:
-            with pytest.raises(Exception, match="columns are not present within the dataframe: inputs_address"):
+            with pytest.raises(
+                Exception,
+                match="columns are not present within the dataframe: inputs_address",
+            ):
                 g = Graph()
                 g.load_nodes(
                     data=malformed_file,
@@ -616,7 +660,10 @@ def test_malformed_files_and_directory():
                 )
 
         if "missing_prop_col" in malformed_file.name:
-            with pytest.raises(Exception, match="columns are not present within the dataframe: outputs_address"):
+            with pytest.raises(
+                Exception,
+                match="columns are not present within the dataframe: outputs_address",
+            ):
                 g = Graph()
                 g.load_nodes(
                     data=malformed_file,
@@ -626,7 +673,10 @@ def test_malformed_files_and_directory():
                 )
 
         if "missing_timestamp_col" in malformed_file.name:
-            with pytest.raises(Exception, match="columns are not present within the dataframe: block_timestamp"):
+            with pytest.raises(
+                Exception,
+                match="columns are not present within the dataframe: block_timestamp",
+            ):
                 g = Graph()
                 g.load_nodes(
                     data=malformed_file,
@@ -647,7 +697,9 @@ def test_malformed_files_and_directory():
 
         # in parquet, null value gets interpreted as Float64
         if "null_id.parquet" in malformed_file.name:
-            with pytest.raises(Exception, match="Float64 not supported as node id type"):
+            with pytest.raises(
+                Exception, match="Float64 not supported as node id type"
+            ):
                 g = Graph()
                 g.load_nodes(
                     data=malformed_file,
@@ -677,7 +729,9 @@ def test_malformed_files_and_directory():
                 )
 
         if "out_of_range_timestamp" in malformed_file.name:
-            with pytest.raises(Exception, match="'999999999999999999999' is not a valid datetime"):
+            with pytest.raises(
+                Exception, match="'999999999999999999999' is not a valid datetime"
+            ):
                 g = Graph()
                 g.load_nodes(
                     data=malformed_file,
@@ -688,7 +742,10 @@ def test_malformed_files_and_directory():
 
         # not applicable to csv
         if "semicolon_delimiter" in malformed_file.name:
-            with pytest.raises(Exception, match="the following columns are not present within the dataframe"):
+            with pytest.raises(
+                Exception,
+                match="the following columns are not present within the dataframe",
+            ):
                 g = Graph()
                 g.load_nodes(
                     data=malformed_file,
@@ -703,7 +760,7 @@ def test_malformed_files_and_directory():
                 time="block_timestamp",
                 id="inputs_address",
                 properties=["outputs_address"],
-                csv_options={"delimiter": ';'}
+                csv_options={"delimiter": ";"},
             )
             assert g.node("bc1qabc").history[0] == "2025-11-10 00:28:09"
 
@@ -715,9 +772,8 @@ def test_malformed_files_and_directory():
                     time="block_timestamp",
                     id="inputs_address",
                     properties=["block_timestamp"],
-                    schema={"block_timestamp": pa.timestamp("ms", tz="UTC")}
+                    schema={"block_timestamp": pa.timestamp("ms", tz="UTC")},
                 )
-
 
 
 if fpd:
@@ -736,9 +792,7 @@ if fpd:
         )
 
         g = graph_type()
-        g.load_edges(
-            data=df, time="time", src="src", dst="dst", properties=["value"]
-        )
+        g.load_edges(data=df, time="time", src="src", dst="dst", properties=["value"])
         assert [(1, 1, 2, 10.0), (2, 2, 3, 20.0), (3, 3, 4, 30.0)] == _collect_edges(g)
 
     @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])

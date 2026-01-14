@@ -18,8 +18,8 @@ import pandas as pd
 df = pd.read_csv("../data/lotr.csv")
 
 lotr_graph = rp.Graph()
-lotr_graph.load_edges_from_pandas(
-    df=df, time="time", src="src", dst="dst"
+lotr_graph.load_edges(
+    data=df, time="time", src="src", dst="dst"
 )
 
 results = rp.algorithms.pagerank(lotr_graph)
@@ -73,8 +73,8 @@ import pandas as pd
 df = pd.read_csv("../data/lotr.csv")
 
 lotr_graph = rp.Graph()
-lotr_graph.load_edges_from_pandas(
-    df=df, time="time", src="src", dst="dst"
+lotr_graph.load_edges(
+    data=df, time="time", src="src", dst="dst"
 )
 
 results = rp.algorithms.weakly_connected_components(lotr_graph)

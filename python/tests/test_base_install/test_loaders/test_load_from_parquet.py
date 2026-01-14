@@ -536,9 +536,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST LAYER WORKS
     g = Graph()
-    g.load_edges(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer="blah")
     assert g.edges.layer_names.collect() == [
         ["blah"],
         ["blah"],
@@ -549,9 +547,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     assert g.unique_layers == ["blah"]
 
     g = Graph()
-    g.load_edges(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer="blah")
     g.load_edge_metadata(
         edges_parquet_file_path,
         "src",
@@ -579,9 +575,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST LAYER_COL WORKS
     g = Graph()
-    g.load_edges(
-        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer_col="marbles")
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
         (2, 3): ["blue"],
@@ -598,9 +592,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     }
 
     g = Graph()
-    g.load_edges(
-        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer_col="marbles")
     g.load_edge_metadata(
         edges_parquet_file_path,
         "src",
@@ -667,9 +659,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST LAYER WORKS
     g = PersistentGraph()
-    g.load_edges(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer="blah")
     assert g.edges.layer_names.collect() == [
         ["blah"],
         ["blah"],
@@ -680,9 +670,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     assert g.unique_layers == ["blah"]
 
     g = PersistentGraph()
-    g.load_edges(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer="blah")
     g.load_edge_metadata(
         edges_parquet_file_path,
         "src",
@@ -709,9 +697,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     }
 
     g = PersistentGraph()
-    g.load_edge_deletions(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
+    g.load_edge_deletions(edges_parquet_file_path, "time", "src", "dst", layer="blah")
     assert g.edges.layer_names.collect() == [
         ["blah"],
         ["blah"],
@@ -723,9 +709,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST LAYER_COL WORKS
     g = PersistentGraph()
-    g.load_edges(
-        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer_col="marbles")
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
         (2, 3): ["blue"],
@@ -742,9 +726,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     }
 
     g = PersistentGraph()
-    g.load_edges(
-        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer_col="marbles")
     g.load_edge_metadata(
         edges_parquet_file_path,
         "src",
@@ -805,7 +787,7 @@ def test_node_both_option_failures_parquet(parquet_files):
     with pytest.raises(
         Exception,
         match=re.escape(
-            r'Failed to load graph: You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other.'
+            r"Failed to load graph: You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other."
         ),
     ):
         g = Graph()
@@ -820,7 +802,7 @@ def test_node_both_option_failures_parquet(parquet_files):
     with pytest.raises(
         Exception,
         match=re.escape(
-            r'Failed to load graph: You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other.'
+            r"Failed to load graph: You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other."
         ),
     ):
         g = Graph()
@@ -833,9 +815,7 @@ def test_node_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST NODE_TYPE WORKS
     g = Graph()
-    g.load_nodes(
-        nodes_parquet_file_path, "time", "id", node_type="node_type"
-    )
+    g.load_nodes(nodes_parquet_file_path, "time", "id", node_type="node_type")
     assert g.nodes.node_type.collect() == [
         "node_type",
         "node_type",
@@ -858,15 +838,11 @@ def test_node_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST NODE_TYPE_COL WORKS
     g = Graph()
-    g.load_nodes(
-        nodes_parquet_file_path, "time", "id", node_type_col="node_type"
-    )
+    g.load_nodes(nodes_parquet_file_path, "time", "id", node_type_col="node_type")
     assert g.nodes.node_type.sorted_by_id() == ["p1", "p2", "p3", "p4", "p5", "p6"]
     g = Graph()
     g.load_nodes(nodes_parquet_file_path, "time", "id")
-    g.load_node_metadata(
-        nodes_parquet_file_path, "id", node_type_col="node_type"
-    )
+    g.load_node_metadata(nodes_parquet_file_path, "id", node_type_col="node_type")
     assert g.nodes.node_type.sorted_by_id() == ["p1", "p2", "p3", "p4", "p5", "p6"]
 
 

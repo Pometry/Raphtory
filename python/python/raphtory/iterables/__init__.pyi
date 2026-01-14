@@ -26,9 +26,56 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['NestedUtcDateTimeIterable', 'NestedGIDIterable', 'GIDIterable', 'StringIterable', 'OptionArcStringIterable', 'UsizeIterable', 'OptionI64Iterable', 'NestedOptionArcStringIterable', 'NestedStringIterable', 'NestedOptionI64Iterable', 'NestedI64VecIterable', 'NestedUsizeIterable', 'BoolIterable', 'ArcStringIterable', 'NestedVecUtcDateTimeIterable', 'OptionVecUtcDateTimeIterable', 'GIDGIDIterable', 'NestedGIDGIDIterable', 'NestedBoolIterable', 'U64Iterable', 'OptionUtcDateTimeIterable', 'ArcStringVecIterable', 'NestedArcStringVecIterable', 'NestedEventTimeIterable', 'NestedArcStringIterable', 'NestedOptionEventTimeIterable', 'NestedHistoryIterable', 'EventTimeIterable', 'OptionEventTimeIterable', 'HistoryIterable', 'HistoryTimestampIterable', 'IntervalsIterable', 'HistoryEventIdIterable', 'HistoryDateTimeIterable', 'OptionUsizeIterable', 'ResultOptionUtcDateTimeIterable', 'I64Iterable', 'ResultUtcDateTimeIterable', 'NestedHistoryTimestampIterable', 'NestedIntervalsIterable', 'NestedHistoryEventIdIterable', 'NestedHistoryDateTimeIterable', 'NestedOptionUsizeIterable', 'NestedResultOptionUtcDateTimeIterable', 'NestedI64Iterable', 'NestedResultUtcDateTimeIterable']
-class NestedUtcDateTimeIterable(object): 
+__all__ = [
+    "NestedUtcDateTimeIterable",
+    "NestedGIDIterable",
+    "GIDIterable",
+    "StringIterable",
+    "OptionArcStringIterable",
+    "UsizeIterable",
+    "OptionI64Iterable",
+    "NestedOptionArcStringIterable",
+    "NestedStringIterable",
+    "NestedOptionI64Iterable",
+    "NestedI64VecIterable",
+    "NestedUsizeIterable",
+    "BoolIterable",
+    "ArcStringIterable",
+    "NestedVecUtcDateTimeIterable",
+    "OptionVecUtcDateTimeIterable",
+    "GIDGIDIterable",
+    "NestedGIDGIDIterable",
+    "NestedBoolIterable",
+    "U64Iterable",
+    "OptionUtcDateTimeIterable",
+    "ArcStringVecIterable",
+    "NestedArcStringVecIterable",
+    "NestedEventTimeIterable",
+    "NestedArcStringIterable",
+    "NestedOptionEventTimeIterable",
+    "NestedHistoryIterable",
+    "EventTimeIterable",
+    "OptionEventTimeIterable",
+    "HistoryIterable",
+    "HistoryTimestampIterable",
+    "IntervalsIterable",
+    "HistoryEventIdIterable",
+    "HistoryDateTimeIterable",
+    "OptionUsizeIterable",
+    "ResultOptionUtcDateTimeIterable",
+    "I64Iterable",
+    "ResultUtcDateTimeIterable",
+    "NestedHistoryTimestampIterable",
+    "NestedIntervalsIterable",
+    "NestedHistoryEventIdIterable",
+    "NestedHistoryDateTimeIterable",
+    "NestedOptionUsizeIterable",
+    "NestedResultOptionUtcDateTimeIterable",
+    "NestedI64Iterable",
+    "NestedResultUtcDateTimeIterable",
+]
 
+class NestedUtcDateTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -56,11 +103,9 @@ class NestedUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedGIDIterable(object): 
-
+class NestedGIDIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -88,17 +133,11 @@ class NestedGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class GIDIterable(object): 
-
+class GIDIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -126,17 +165,11 @@ class GIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class StringIterable(object): 
-
+class StringIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -164,11 +197,9 @@ class StringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class OptionArcStringIterable(object): 
-
+class OptionArcStringIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -196,11 +227,9 @@ class OptionArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class UsizeIterable(object): 
-
+class UsizeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -228,23 +257,13 @@ class UsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def min(self): ...
+    def sum(self): ...
 
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class OptionI64Iterable(object): 
-
+class OptionI64Iterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -272,17 +291,11 @@ class OptionI64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedOptionArcStringIterable(object): 
-
+class NestedOptionArcStringIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -310,11 +323,9 @@ class NestedOptionArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedStringIterable(object): 
-
+class NestedStringIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -342,11 +353,9 @@ class NestedStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedOptionI64Iterable(object): 
-
+class NestedOptionI64Iterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -374,17 +383,11 @@ class NestedOptionI64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedI64VecIterable(object): 
-
+class NestedI64VecIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -412,11 +415,9 @@ class NestedI64VecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedUsizeIterable(object): 
-
+class NestedUsizeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -444,23 +445,13 @@ class NestedUsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def min(self): ...
+    def sum(self): ...
 
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class BoolIterable(object): 
-
+class BoolIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -488,11 +479,9 @@ class BoolIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class ArcStringIterable(object): 
-
+class ArcStringIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -502,11 +491,9 @@ class ArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedVecUtcDateTimeIterable(object): 
-
+class NestedVecUtcDateTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -534,11 +521,9 @@ class NestedVecUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class OptionVecUtcDateTimeIterable(object): 
-
+class OptionVecUtcDateTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -566,11 +551,9 @@ class OptionVecUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class GIDGIDIterable(object): 
-
+class GIDGIDIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -598,17 +581,11 @@ class GIDGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedGIDGIDIterable(object): 
-
+class NestedGIDGIDIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -636,17 +613,11 @@ class NestedGIDGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedBoolIterable(object): 
-
+class NestedBoolIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -674,11 +645,9 @@ class NestedBoolIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class U64Iterable(object): 
-
+class U64Iterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -706,23 +675,13 @@ class U64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def min(self): ...
+    def sum(self): ...
 
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class OptionUtcDateTimeIterable(object): 
-
+class OptionUtcDateTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -750,11 +709,9 @@ class OptionUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class ArcStringVecIterable(object): 
-
+class ArcStringVecIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -782,11 +739,9 @@ class ArcStringVecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedArcStringVecIterable(object): 
-
+class NestedArcStringVecIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -814,11 +769,9 @@ class NestedArcStringVecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedEventTimeIterable(object): 
-
+class NestedEventTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -846,9 +799,7 @@ class NestedEventTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
-
+    def collect(self): ...
     @property
     def dt(self) -> NestedResultUtcDateTimeIterable:
         """
@@ -870,12 +821,8 @@ class NestedEventTimeIterable(object):
             NestedUsizeIterable: Nested iterable of event ids associated to each EventTime.
         """
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
+    def max(self): ...
+    def min(self): ...
     @property
     def t(self) -> NestedI64Iterable:
         """
@@ -885,8 +832,7 @@ class NestedEventTimeIterable(object):
             NestedI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each EventTime.
         """
 
-class NestedArcStringIterable(object): 
-
+class NestedArcStringIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -896,11 +842,9 @@ class NestedArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedOptionEventTimeIterable(object): 
-
+class NestedOptionEventTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -928,9 +872,7 @@ class NestedOptionEventTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
-
+    def collect(self): ...
     @property
     def dt(self) -> NestedResultOptionUtcDateTimeIterable:
         """
@@ -952,12 +894,8 @@ class NestedOptionEventTimeIterable(object):
             NestedOptionUsizeIterable: Nested iterable of event ids associated to each EventTime, if available.
         """
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
+    def max(self): ...
+    def min(self): ...
     @property
     def t(self) -> NestedOptionI64Iterable:
         """
@@ -967,8 +905,7 @@ class NestedOptionEventTimeIterable(object):
             NestedOptionI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each EventTime, if available.
         """
 
-class NestedHistoryIterable(object): 
-
+class NestedHistoryIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1030,8 +967,7 @@ class NestedHistoryIterable(object):
             NestedHistoryTimestampIterable: Iterable of iterables of HistoryTimestamp objects.
         """
 
-class EventTimeIterable(object): 
-
+class EventTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1059,9 +995,7 @@ class EventTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
-
+    def collect(self): ...
     @property
     def dt(self) -> ResultUtcDateTimeIterable:
         """
@@ -1083,12 +1017,8 @@ class EventTimeIterable(object):
             UsizeIterable: Iterable of event ids associated to each EventTime.
         """
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
+    def max(self): ...
+    def min(self): ...
     @property
     def t(self) -> I64Iterable:
         """
@@ -1098,8 +1028,7 @@ class EventTimeIterable(object):
             I64Iterable: Iterable of millisecond timestamps since the Unix epoch for each EventTime.
         """
 
-class OptionEventTimeIterable(object): 
-
+class OptionEventTimeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1127,9 +1056,7 @@ class OptionEventTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
-
+    def collect(self): ...
     @property
     def dt(self) -> ResultOptionUtcDateTimeIterable:
         """
@@ -1151,12 +1078,8 @@ class OptionEventTimeIterable(object):
             OptionUsizeIterable: Iterable of event ids associated to each EventTime, if available.
         """
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
+    def max(self): ...
+    def min(self): ...
     @property
     def t(self) -> OptionI64Iterable:
         """
@@ -1166,8 +1089,7 @@ class OptionEventTimeIterable(object):
             OptionI64Iterable: Iterable of millisecond timestamps since the Unix epoch for each EventTime, if available.
         """
 
-class HistoryIterable(object): 
-
+class HistoryIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1229,8 +1151,7 @@ class HistoryIterable(object):
             HistoryTimestampIterable: Iterable of HistoryTimestamp objects, one for each item.
         """
 
-class HistoryTimestampIterable(object): 
-
+class HistoryTimestampIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1256,8 +1177,7 @@ class HistoryTimestampIterable(object):
             list[list[int]]: List of timestamps in milliseconds per history.
         """
 
-class IntervalsIterable(object): 
-
+class IntervalsIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1283,8 +1203,7 @@ class IntervalsIterable(object):
             list[list[int]]: List of intervals per history.
         """
 
-class HistoryEventIdIterable(object): 
-
+class HistoryEventIdIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1310,8 +1229,7 @@ class HistoryEventIdIterable(object):
             list[list[int]]: List of event ids per history.
         """
 
-class HistoryDateTimeIterable(object): 
-
+class HistoryDateTimeIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1332,8 +1250,7 @@ class HistoryDateTimeIterable(object):
             TimeError: If a timestamp cannot be converted to a datetime.
         """
 
-class OptionUsizeIterable(object): 
-
+class OptionUsizeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1361,17 +1278,11 @@ class OptionUsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class ResultOptionUtcDateTimeIterable(object): 
-
+class ResultOptionUtcDateTimeIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1381,11 +1292,9 @@ class ResultOptionUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class I64Iterable(object): 
-
+class I64Iterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1413,23 +1322,13 @@ class I64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def min(self): ...
+    def sum(self): ...
 
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class ResultUtcDateTimeIterable(object): 
-
+class ResultUtcDateTimeIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1439,11 +1338,9 @@ class ResultUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedHistoryTimestampIterable(object): 
-
+class NestedHistoryTimestampIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1485,8 +1382,7 @@ class NestedHistoryTimestampIterable(object):
             list[list[list[int]]]: List of timestamps in milliseconds per nested history.
         """
 
-class NestedIntervalsIterable(object): 
-
+class NestedIntervalsIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1528,8 +1424,7 @@ class NestedIntervalsIterable(object):
             list[list[list[int]]]: List of intervals per nested history.
         """
 
-class NestedHistoryEventIdIterable(object): 
-
+class NestedHistoryEventIdIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1571,8 +1466,7 @@ class NestedHistoryEventIdIterable(object):
             list[list[list[int]]]: List of event ids per nested history.
         """
 
-class NestedHistoryDateTimeIterable(object): 
-
+class NestedHistoryDateTimeIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1604,8 +1498,7 @@ class NestedHistoryDateTimeIterable(object):
             TimeError: If a timestamp cannot be converted to a datetime.
         """
 
-class NestedOptionUsizeIterable(object): 
-
+class NestedOptionUsizeIterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1633,17 +1526,11 @@ class NestedOptionUsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...
 
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedResultOptionUtcDateTimeIterable(object): 
-
+class NestedResultOptionUtcDateTimeIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1653,11 +1540,9 @@ class NestedResultOptionUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
 
-class NestedI64Iterable(object): 
-
+class NestedI64Iterable(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1685,23 +1570,13 @@ class NestedI64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def min(self): ...
+    def sum(self): ...
 
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class NestedResultUtcDateTimeIterable(object): 
-
+class NestedResultUtcDateTimeIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -1711,5 +1586,4 @@ class NestedResultUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
-        ...
+    def collect(self): ...
