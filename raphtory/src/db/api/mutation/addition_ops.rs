@@ -14,7 +14,13 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps},
+        MutationError,
+    },
+};
 use storage::wal::{GraphWal, Wal};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
@@ -141,6 +147,8 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         let time: i64 = t.parse_time(fmt)?;
         self.add_edge(time, src, dst, props, layer)
     }
+
+    fn flush(&self) -> Result<(), Self::Error>;
 }
 
 impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> AdditionOps for G {
@@ -365,5 +373,11 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             self.clone(),
             EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
         ))
+    }
+
+    fn flush(&self) -> Result<(), Self::Error> {
+        self.core_graph()
+            .flush()
+            .map_err(|err| MutationError::from(err).into())
     }
 }
