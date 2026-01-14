@@ -207,9 +207,10 @@ pub fn check_edges_support<
     check("pre-drop", &edges, &graph);
 
     if check_load {
+        let ext = graph.extension().clone();
         drop(graph);
 
-        let maybe_ns = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path());
+        let maybe_ns = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path(), ext);
 
         match maybe_ns {
             Ok(graph) => {
@@ -351,8 +352,9 @@ pub fn check_graph_with_nodes_support<
     check_fn(temp_props, const_props, &graph);
 
     if check_load {
+        let ext = graph.extension().clone();
         drop(graph);
-        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path()).unwrap();
+        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path(), ext).unwrap();
         check_fn(temp_props, const_props, &graph);
     }
 }
@@ -505,9 +507,10 @@ pub fn check_graph_with_props_support<
 
     if check_load {
         // Load the graph from disk and check again
+        let ext = graph.extension().clone();
         drop(graph);
 
-        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path()).unwrap();
+        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path(), ext).unwrap();
         black_box(check_fn(edges, &graph));
     }
 }

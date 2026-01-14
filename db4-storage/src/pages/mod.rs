@@ -3,10 +3,9 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::strategy::{PersistenceConfig, PersistenceStrategy},
+    persist::strategy::PersistenceStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    wal::Wal,
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -133,17 +132,11 @@ impl<
         }
     }
 
-    pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError>
+    pub fn load(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError>
     {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
         let graph_props_path = graph_dir.as_ref().join("graph_props");
-
-        let config = PersistenceConfig::load_from_dir(graph_dir.as_ref())
-            .unwrap_or_else(|_| PersistenceConfig::default());
-
-        let wal = Arc::new(EXT::WalType::new(Some(graph_dir.as_ref().to_path_buf()))?);
-        let ext = EXT::new(config, wal);
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();

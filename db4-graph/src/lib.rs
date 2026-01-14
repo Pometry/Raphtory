@@ -22,11 +22,11 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::PersistenceStrategy,
+    persist::strategy::{PersistenceConfig, PersistenceStrategy},
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::Wal,
-    Extension, GIDResolver, Layer, PersistenceConfig, ReadLockedLayer, WalType, ES, GS, NS,
+    Extension, GIDResolver, Layer, ReadLockedLayer, WalType, ES, GS, NS,
 };
 use tempfile::TempDir;
 
@@ -87,7 +87,7 @@ impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
         let config = PersistenceConfig::default();
         let wal = Arc::new(WalType::new(None).unwrap());
-        Self::new(Extension::new(config, wal)).unwrap()
+        Self::new(<Extension as PersistenceStrategy>::new(config, wal)).unwrap()
     }
 }
 
@@ -162,9 +162,9 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
         })
     }
 
-    pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
+    pub fn load_from_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let path = path.as_ref();
-        let storage = Layer::load(path)?;
+        let storage = Layer::load(path, ext)?;
         let id_type = storage.nodes().id_type();
 
         let gid_resolver_dir = path.join("gid_resolver");
