@@ -47,10 +47,7 @@ pub const INDEX_PATH: &str = "index";
 /// Directory that stores vector embeddings of the graph
 pub const VECTORS_PATH: &str = "vectors";
 
-pub(crate) fn valid_path_pointer(
-    relative_path: &str,
-    prefix: &str,
-) -> Result<(), GraphError> {
+pub(crate) fn valid_path_pointer(relative_path: &str, prefix: &str) -> Result<(), GraphError> {
     relative_path
         .strip_prefix(prefix) // should have the prefix
         .and_then(parse_u64_strict) // the remainder should be the id
@@ -84,7 +81,11 @@ pub fn read_path_pointer(
     Ok(Some(path))
 }
 
-pub fn make_path_pointer(base_path: &Path, file_name: &str, prefix: &str) -> Result<String, io::Error> {
+pub fn make_path_pointer(
+    base_path: &Path,
+    file_name: &str,
+    prefix: &str,
+) -> Result<String, io::Error> {
     let mut id = read_path_pointer(base_path, file_name, prefix)?
         .and_then(|path| {
             path.strip_prefix(prefix)
@@ -100,7 +101,11 @@ pub fn make_path_pointer(base_path: &Path, file_name: &str, prefix: &str) -> Res
     Ok(path)
 }
 
-pub fn read_or_default_path_pointer(base_path: &Path, file_name: &str, prefix: &str) -> Result<String, GraphError> {
+pub fn read_or_default_path_pointer(
+    base_path: &Path,
+    file_name: &str,
+    prefix: &str,
+) -> Result<String, GraphError> {
     Ok(read_path_pointer(base_path, file_name, prefix)?.unwrap_or_else(|| prefix.to_owned() + "0"))
 }
 
@@ -347,7 +352,8 @@ impl GraphFolder {
                 swap_path
             }
             None => {
-                let new_relative_data_path = make_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
+                let new_relative_data_path =
+                    make_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
                 let new_data_path = self.root_folder.join(&new_relative_data_path);
                 let meta = serde_json::to_string(&RelativePath {
                     path: new_relative_data_path,
@@ -383,7 +389,11 @@ impl GraphFolder {
             Ok([get_zip_data_path(&mut zip)?, get_zip_graph_path(&mut zip)?].join("/"))
         } else {
             let data_path = read_or_default_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
-            let graph_path = read_or_default_path_pointer(&self.root().join(&data_path), GRAPH_META_PATH, GRAPH_PATH)?;
+            let graph_path = read_or_default_path_pointer(
+                &self.root().join(&data_path),
+                GRAPH_META_PATH,
+                GRAPH_PATH,
+            )?;
             Ok([data_path, graph_path].join("/"))
         }
     }
@@ -463,12 +473,14 @@ impl GraphPaths for WriteableGraphFolder {
     }
 
     fn relative_data_path(&self) -> Result<String, GraphError> {
-        let path = read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH)?.ok_or(GraphError::NoWriteInProgress)?;
+        let path = read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH)?
+            .ok_or(GraphError::NoWriteInProgress)?;
         Ok(path)
     }
 
     fn relative_graph_path(&self) -> Result<String, GraphError> {
-        let path = read_or_default_path_pointer(&self.data_path()?.as_ref(), GRAPH_META_PATH, GRAPH_PATH)?;
+        let path =
+            read_or_default_path_pointer(&self.data_path()?.as_ref(), GRAPH_META_PATH, GRAPH_PATH)?;
         Ok(path)
     }
 
@@ -571,8 +583,7 @@ impl InnerGraphFolder {
     }
 
     pub fn relative_graph_path(&self) -> Result<String, GraphError> {
-        let relative =
-            read_or_default_path_pointer(&self.path, GRAPH_META_PATH, GRAPH_PATH)?;
+        let relative = read_or_default_path_pointer(&self.path, GRAPH_META_PATH, GRAPH_PATH)?;
         Ok(relative)
     }
 
