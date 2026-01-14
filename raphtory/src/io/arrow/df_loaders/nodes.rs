@@ -166,7 +166,7 @@ pub fn load_nodes_from_df<
     Ok(())
 }
 
-pub(crate) fn load_node_props_from_df<
+pub fn load_node_props_from_df<
     'a,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
@@ -385,11 +385,16 @@ fn resolve_node_and_meta_for_node_col<
     );
 
     let mut last_node_type: Option<&str> = None;
+    let mut last_node_type_id: Option<usize> = None;
     for (gid, node_type, vid, node_type_id) in zip {
         if last_node_type != node_type {
             if let Some(name) = node_type {
-                *node_type_id = locked_mapper.get_or_create_id(name).inner();
+                let resolved_node_type_id = locked_mapper.get_or_create_id(name).inner();
+                *node_type_id = resolved_node_type_id;
+                last_node_type_id = Some(resolved_node_type_id);
             }
+        } else if let Some(id) = last_node_type_id {
+            *node_type_id = id;
         }
 
         let res_vid = graph

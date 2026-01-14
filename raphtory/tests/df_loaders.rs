@@ -1,5 +1,7 @@
 #[cfg(feature = "io")]
 mod io_tests {
+    use std::any::Any;
+
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
@@ -8,16 +10,20 @@ mod io_tests {
     use raphtory::{
         db::graph::graph::assert_graph_equal,
         errors::GraphError,
-        io::arrow::{
-            dataframe::{DFChunk, DFView},
-            df_loaders::{
-                edges::{load_edges_from_df, ColumnNames},
-                nodes::load_nodes_from_df,
+        io::{
+            arrow::{
+                dataframe::{DFChunk, DFView},
+                df_loaders::{
+                    edges::{load_edges_from_df, ColumnNames},
+                    nodes::{load_node_props_from_df, load_nodes_from_df},
+                },
             },
+            parquet_loaders::load_node_props_from_parquet,
         },
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use raphtory_core::storage::timeindex::TimeIndexEntry;
     use raphtory_storage::{
         core_ops::CoreGraphOps,
@@ -162,7 +168,7 @@ mod io_tests {
 
     fn build_nodes_df_with_secondary_index(
         chunk_size: usize,
-        nodes: &[(u64, i64, u64, String, i64)],
+        nodes: &[(u64, i64, u64, &str, i64, &str)],
     ) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>>> {
         let chunks = nodes.iter().chunks(chunk_size);
         let mut node_id_col = UInt64Builder::new();
@@ -170,15 +176,17 @@ mod io_tests {
         let mut secondary_index_col = UInt64Builder::new();
         let mut str_prop_col = LargeStringBuilder::new();
         let mut int_prop_col = Int64Builder::new();
+        let mut node_type_col = StringViewBuilder::new();
         let chunks = chunks
             .into_iter()
             .map(|chunk| {
-                for (node_id, time, secondary_index, str_prop, int_prop) in chunk {
+                for (node_id, time, secondary_index, str_prop, int_prop, node_type) in chunk {
                     node_id_col.append_value(*node_id);
                     time_col.append_value(*time);
                     secondary_index_col.append_value(*secondary_index);
                     str_prop_col.append_value(str_prop);
                     int_prop_col.append_value(*int_prop);
+                    node_type_col.append_value(node_type);
                 }
                 let chunk = vec![
                     ArrayBuilder::finish(&mut node_id_col),
@@ -186,6 +194,7 @@ mod io_tests {
                     ArrayBuilder::finish(&mut secondary_index_col),
                     ArrayBuilder::finish(&mut str_prop_col),
                     ArrayBuilder::finish(&mut int_prop_col),
+                    ArrayBuilder::finish(&mut node_type_col),
                 ];
                 Ok(DFChunk { chunk })
             })
@@ -197,6 +206,7 @@ mod io_tests {
                 "secondary_index".to_owned(),
                 "str_prop".to_owned(),
                 "int_prop".to_owned(),
+                "node_type".to_owned(),
             ],
             chunks: chunks.into_iter(),
             num_rows: nodes.len(),
@@ -573,15 +583,22 @@ mod io_tests {
         // Create nodes with the same timestamp but different secondary_index values
         // Node format: (node_id, time, secondary_index, str_prop, int_prop)
         let nodes = [
-            (1, 100, 2, "secondary_index_2".to_string(), 1),
-            (1, 100, 0, "secondary_index_0".to_string(), 2),
-            (1, 100, 1, "secondary_index_1".to_string(), 3),
-            (2, 200, 1, "secondary_index_1".to_string(), 4),
-            (2, 200, 0, "secondary_index_0".to_string(), 5),
-            (3, 300, 10, "secondary_index_10".to_string(), 6),
-            (3, 300, 5, "secondary_index_5".to_string(), 7),
-            (4, 400, 0, "secondary_index_0".to_string(), 8),
-            (4, 500, 0, "secondary_index_0".to_string(), 9),
+            (1, 100, 2, "secondary_index_2", 1, "TypeA"),
+            (1, 100, 0, "secondary_index_0", 2, "TypeA"),
+            (1, 100, 1, "secondary_index_1", 3, "TypeA"),
+            (2, 200, 1, "secondary_index_1", 4, "TypeA"),
+            (2, 200, 0, "secondary_index_0", 5, "TypeA"),
+            (3, 300, 10, "secondary_index_10", 6, "TypeC"),
+            (3, 300, 5, "secondary_index_5", 7, "TypeC"),
+            (4, 400, 0, "secondary_index_0", 8, "TypeA"),
+            (4, 500, 0, "secondary_index_0", 9, "TypeA"),
+        ];
+
+        let nodes_no_dupes = [
+            (1, 100, 2, "secondary_index_2", 1, "TypeA"),
+            (2, 200, 1, "secondary_index_1", 4, "TypeA"),
+            (4, 400, 0, "secondary_index_0", 8, "TypeA"),
+            (3, 300, 5, "secondary_index_5", 7, "TypeC"),
         ];
 
         let chunk_size = 50;
@@ -606,19 +623,34 @@ mod io_tests {
         )
         .unwrap();
 
+        let df_view = build_nodes_df_with_secondary_index(chunk_size, &nodes_no_dupes);
+
+        load_node_props_from_df(
+            df_view,
+            "node_id",
+            None,
+            Some("node_type"),
+            None,
+            None,
+            &[],
+            None,
+            &g,
+        )
+        .unwrap();
+
         let g2 = Graph::new();
 
-        for (node_id, time, secondary_index, str_prop, int_prop) in nodes {
+        for (node_id, time, secondary_index, str_prop, int_prop, node_type) in nodes {
             let time_with_secondary_index = TimeIndexEntry(time, secondary_index as usize);
 
             g2.add_node(
                 time_with_secondary_index,
                 node_id,
                 [
-                    ("str_prop", str_prop.clone().into_prop()),
+                    ("str_prop", str_prop.into_prop()),
                     ("int_prop", int_prop.into_prop()),
                 ],
-                None,
+                Some(node_type),
             )
             .unwrap();
         }
@@ -637,67 +669,32 @@ mod io_tests {
             g.write_session().unwrap().read_event_id().unwrap(),
             10 // max secondary index in nodes
         );
-    }
 
-    fn check_load_edges_layers(
-        mut edges: Vec<(u64, u64, i64, String, i64, Option<String>)>,
-        chunk_size: usize,
-    ) {
-        let distinct_edges = edges
-            .iter()
-            .map(|(src, dst, _, _, _, _)| (src, dst))
-            .collect::<std::collections::HashSet<_>>()
-            .len();
-        edges.sort_by(|(_, _, _, _, _, l1), (_, _, _, _, _, l2)| l1.cmp(l2));
-        let g = Graph::new();
-        let g2 = Graph::new();
+        let mut act_node_types = g
+            .nodes()
+            .node_type()
+            .compute()
+            .into_iter()
+            .filter_map(|(node, val)| Some((node.id().as_u64()?, val)))
+            .collect_vec();
+        act_node_types.sort();
+        let exp_node_types = vec![
+            (1u64, Some(ArcStr::from("TypeA"))),
+            (2u64, Some(ArcStr::from("TypeA"))),
+            (3u64, Some(ArcStr::from("TypeC"))),
+            (4u64, Some(ArcStr::from("TypeA"))),
+        ];
+        assert_eq!(act_node_types, exp_node_types);
 
-        for edges in edges.chunk_by(|(_, _, _, _, _, l1), (_, _, _, _, _, l2)| l1 < l2) {
-            let layer = edges[0].5.clone();
-            let edges = edges
-                .iter()
-                .map(|(src, dst, time, str_prop, int_prop, _)| {
-                    (*src, *dst, *time, str_prop.clone(), *int_prop)
-                })
-                .collect_vec();
-            let df_view = build_df(chunk_size, &edges);
-            let props = ["str_prop", "int_prop"];
-            let secondary_index = None;
-            load_edges_from_df(
-                df_view,
-                ColumnNames::new("time", secondary_index, "src", "dst", None),
-                true,
-                &props,
-                &[],
-                None,
-                layer.as_deref(),
-                &g,
-                false,
-            )
-            .unwrap();
-            for (src, dst, time, str_prop, int_prop) in edges {
-                g2.add_edge(
-                    time,
-                    src,
-                    dst,
-                    [
-                        ("str_prop", str_prop.clone().into_prop()),
-                        ("int_prop", int_prop.into_prop()),
-                    ],
-                    layer.as_deref(),
-                )
-                .unwrap();
-                let edge = g.edge(src, dst).unwrap().at(time);
-                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-                if let Some(layer) = &layer {
-                    assert!(edge.has_layer(layer))
-                }
-            }
-            assert_eq!(g.count_edges(), distinct_edges);
-            assert_eq!(g2.count_edges(), distinct_edges);
-            assert_graph_equal(&g, &g2);
-        }
+        let mut act_node_types = g.nodes().node_type().iter_values().collect_vec();
+        act_node_types.sort();
+        let exp_node_types = vec![
+            Some(ArcStr::from("TypeA")),
+            Some(ArcStr::from("TypeA")),
+            Some(ArcStr::from("TypeA")),
+            Some(ArcStr::from("TypeC")),
+        ];
+        assert_eq!(act_node_types, exp_node_types);
     }
 }
 
