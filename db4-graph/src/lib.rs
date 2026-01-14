@@ -33,7 +33,9 @@ use storage::{
 use tempfile::TempDir;
 
 #[derive(Debug)]
-pub struct TemporalGraph<EXT: Config = Extension> {
+pub struct TemporalGraph<
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>> = Extension,
+> {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
     pub event_counter: AtomicUsize,

@@ -35,6 +35,8 @@ where
         &self,
         mem_segment: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
+
+    fn flush(&self) -> Result<(), StorageError>;
 }
 
 /// Trait for returning a guard-free, copyable reference to graph properties

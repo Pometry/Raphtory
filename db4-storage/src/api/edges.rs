@@ -102,6 +102,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &self,
         locked_head: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError>;
+    fn flush(&self) -> Result<(), StorageError>;
 }
 
 pub trait LockedESegment: Send + Sync + std::fmt::Debug {

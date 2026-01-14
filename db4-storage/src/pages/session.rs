@@ -16,10 +16,10 @@ use raphtory_core::{
 
 pub struct WriteSession<
     'a,
-    NS: NodeSegmentOps,
-    ES: EdgeSegmentOps,
-    GS: GraphPropSegmentOps,
-    EXT: Config,
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
 > {
     node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
@@ -31,7 +31,7 @@ impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
 > WriteSession<'a, NS, ES, GS, EXT>
 {
     pub fn new(

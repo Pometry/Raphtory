@@ -23,7 +23,7 @@ pub trait Config:
     fn max_memory_bytes(&self) -> usize;
     fn is_parallel(&self) -> bool;
     fn node_types(&self) -> &[String];
-    fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>);
+    fn with_node_types(&self, types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 }
 
 pub trait PersistentStrategy: Config {
@@ -99,8 +99,8 @@ impl Config for NoOpStrategy {
         &[]
     }
 
-    fn set_node_types(&mut self, _types: impl IntoIterator<Item = impl AsRef<str>>) {
-        // No operation
+    fn with_node_types(&self, _types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        *self
     }
 }
 

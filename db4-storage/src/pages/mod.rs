@@ -50,7 +50,12 @@ pub mod test_utils;
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 
 #[derive(Debug)]
-pub struct GraphStore<NS, ES, GS, EXT: Config> {
+pub struct GraphStore<
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     graph_props: Arc<GraphPropStorageInner<GS, EXT>>,
@@ -59,12 +64,32 @@ pub struct GraphStore<NS, ES, GS, EXT: Config> {
     _ext: EXT,
 }
 
+impl<
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+> GraphStore<NS, ES, GS, EXT>
+{
+    pub fn flush(&self) -> Result<(), StorageError> {
+        let node_types = self.nodes.prop_meta().get_all_node_types();
+        let config = self._ext.with_node_types(node_types);
+        if let Some(graph_dir) = self.graph_dir.as_ref() {
+            write_graph_config(graph_dir, &config)?;
+        }
+        self.nodes.flush()?;
+        self.edges.flush()?;
+        self.graph_props.flush()?;
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub struct ReadLockedGraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: Config,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
 > {
     pub nodes: Arc<ReadLockedNodeStorage<NS, EXT>>,
     pub edges: Arc<ReadLockedEdgeStorage<ES, EXT>>,
@@ -75,7 +100,7 @@ impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, GS, EXT> {
@@ -490,19 +515,24 @@ impl<I: From<usize> + Send> SegmentCounts<I> {
     }
 }
 
-impl<NS, ES, GS, EXT: Config> Drop for GraphStore<NS, ES, GS, EXT> {
+impl<
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+> Drop for GraphStore<NS, ES, GS, EXT>
+{
     fn drop(&mut self) {
-        let node_types = self.nodes.prop_meta().get_all_node_types();
-        self._ext.set_node_types(node_types);
-        if let Some(graph_dir) = self.graph_dir.as_ref()
-            && write_graph_config(graph_dir, &self._ext).is_err()
-        {
-            eprintln!("Unrecoverable! Failed to write graph meta");
+        match self.flush() {
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("Failed to flush storage in drop: {err}")
+            }
         }
     }
 }
 
-fn write_graph_config<EXT: Config>(
+pub fn write_graph_config<EXT: Config>(
     graph_dir: impl AsRef<Path>,
     config: &EXT,
 ) -> Result<(), StorageError> {

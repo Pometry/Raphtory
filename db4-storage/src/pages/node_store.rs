@@ -24,9 +24,11 @@ use raphtory_core::{
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
 };
+
 // graph // (nodes|edges) // graph segments // layers // chunks
 pub const N: usize = 32;
 
@@ -119,7 +121,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
     }
 }
 
-impl<NS, EXT: Config> NodeStorageInner<NS, EXT> {
+impl<NS: Send + Sync, EXT: Config> NodeStorageInner<NS, EXT> {
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -143,6 +145,13 @@ impl<NS, EXT: Config> NodeStorageInner<NS, EXT> {
 
     pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
         &self.segments
+    }
+
+    fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
+        let len = self.segments.count();
+        (0..len)
+            .into_par_iter()
+            .filter_map(|idx| self.segments.get(idx).map(|seg| seg.deref()))
     }
 
     pub fn nodes_path(&self) -> Option<&Path> {
@@ -522,6 +531,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
             self.max_segment_len(),
             self.segments().iter().map(|(_, seg)| seg.num_nodes()),
         )
+    }
+
+    pub(crate) fn flush(&self) -> Result<(), StorageError> {
+        self.segments_par_iter().try_for_each(|seg| seg.flush())
     }
 }
 

@@ -524,6 +524,10 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
     }
 
     fn mark_dirty(&self) {}
+
+    fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
