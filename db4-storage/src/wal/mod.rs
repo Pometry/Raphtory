@@ -20,7 +20,7 @@ pub struct WalRecord {
 
 /// Core Wal methods.
 pub trait Wal {
-    fn new(dir: Option<PathBuf>) -> Result<Self, StorageError>
+    fn new(dir: Option<&Path>) -> Result<Self, StorageError>
     where
         Self: Sized;
 

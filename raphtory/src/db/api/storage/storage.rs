@@ -111,8 +111,8 @@ impl Storage {
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let config = PersistenceConfig::default();
         let graph_dir = GraphDir::from(path.as_ref());
-        let wal_dir = Some(graph_dir.wal_dir());
-        let wal = Arc::new(WalType::new(wal_dir)?);
+        let wal_dir = graph_dir.wal_dir();
+        let wal = Arc::new(WalType::new(Some(wal_dir.as_path()))?);
         let ext = Extension::new(config, wal);
         let temporal_graph = TemporalGraph::new_with_path(path, ext)?;
 
@@ -127,8 +127,8 @@ impl Storage {
         let config = PersistenceConfig::load_from_dir(path.as_ref())
             .unwrap_or_else(|_| PersistenceConfig::default());
         let graph_dir = GraphDir::from(path.as_ref());
-        let wal_dir = Some(graph_dir.wal_dir());
-        let wal = Arc::new(WalType::new(wal_dir)?);
+        let wal_dir = graph_dir.wal_dir();
+        let wal = Arc::new(WalType::new(Some(wal_dir.as_path()))?);
         let ext = Extension::new(config, wal);
         let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
 

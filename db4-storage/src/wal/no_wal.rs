@@ -11,7 +11,7 @@ use crate::{
 pub struct NoWal;
 
 impl Wal for NoWal {
-    fn new(_dir: Option<PathBuf>) -> Result<Self, StorageError> {
+    fn new(_dir: Option<&Path>) -> Result<Self, StorageError> {
         Ok(Self)
     }
 
