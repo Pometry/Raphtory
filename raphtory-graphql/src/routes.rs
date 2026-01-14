@@ -6,12 +6,12 @@ use poem::{
     Endpoint, IntoResponse, Request, Response,
 };
 use rust_embed::Embed;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Serialize)]
-struct Health {
-    healthy: bool,
+#[derive(Serialize, Deserialize)]
+pub(crate) struct Health {
+    pub(crate) healthy: bool,
 }
 
 #[derive(Serialize)]
