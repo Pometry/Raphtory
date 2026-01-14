@@ -2635,6 +2635,9 @@ Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%
 """
 scalar TimeInput
 
+"""
+A multipart file upload
+"""
 scalar Upload
 
 input Value @oneOf {
