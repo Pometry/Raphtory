@@ -138,20 +138,6 @@ pub struct NoOpStrategy {
     wal: Arc<NoWal>,
 }
 
-impl NoOpStrategy {
-    pub fn new(max_node_page_len: u32, max_edge_page_len: u32) -> Self {
-        Self {
-            config: PersistenceConfig {
-                max_node_page_len,
-                max_edge_page_len,
-                max_memory_bytes: usize::MAX,
-                bg_flush_enabled: true,
-                node_types: Vec::new(),
-            },
-            wal: Arc::new(NoWal),
-        }
-    }
-}
 
 impl PersistenceStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;

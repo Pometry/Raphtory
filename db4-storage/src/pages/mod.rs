@@ -471,14 +471,11 @@ pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: u32) -> (usize, Lo
 mod test {
     use super::GraphStore;
     use crate::{
-        Extension, Layer,
-        api::nodes::{NodeEntryOps, NodeRefOps},
-        pages::test_utils::{
-            AddEdge, Fixture, NodeFixture, check_edges_support, check_graph_with_nodes_support,
-            check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,
-            make_nodes,
-        },
+        api::nodes::{NodeEntryOps, NodeRefOps}, pages::test_utils::{
+            check_edges_support, check_graph_with_nodes_support, check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges, make_nodes, AddEdge, Fixture, NodeFixture
+        }, persist::strategy::{PersistenceConfig, PersistenceStrategy, DEFAULT_MAX_MEMORY_BYTES}, wal::no_wal::NoWal, Extension, Layer
     };
+    use std::sync::Arc;
     use chrono::DateTime;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
@@ -493,7 +490,8 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(Some(graph_dir), Extension::new(chunk_size, chunk_size))
+            let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, chunk_size, chunk_size);
+            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
 
@@ -503,7 +501,8 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(Some(graph_dir), Extension::new(chunk_size, chunk_size))
+            let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, chunk_size, chunk_size);
+            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
 
@@ -575,7 +574,8 @@ mod test {
     #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::new(Some(graph_dir.path()), Extension::new(32, 32));
+        let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
+        let g = Layer::new(Some(graph_dir.path()), Extension::new(config, Arc::new(NoWal)));
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
     }
@@ -583,7 +583,8 @@ mod test {
     #[test]
     fn test_node_additions_1() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = GraphStore::new(Some(graph_dir.path()), Extension::new(32, 32));
+        let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
+        let g = GraphStore::new(Some(graph_dir.path()), Extension::new(config, Arc::new(NoWal)));
         g.add_edge(4, 7, 3).unwrap();
 
         let check = |g: &Layer<Extension>| {
@@ -625,7 +626,8 @@ mod test {
     #[test]
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::new(Some(graph_dir.path()), Extension::new(32, 32));
+        let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
+        let g = Layer::new(Some(graph_dir.path()), Extension::new(config, Arc::new(NoWal)));
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
         g.add_node_props::<String>(2, 0, 0, vec![])
@@ -1428,13 +1430,15 @@ mod test {
 
     fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
-            Layer::new(Some(path), Extension::new(node_page_len, edge_page_len))
+            let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, node_page_len, edge_page_len);
+            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 
     fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
-            Layer::new(Some(path), Extension::new(node_page_len, edge_page_len))
+            let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, node_page_len, edge_page_len);
+            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 }

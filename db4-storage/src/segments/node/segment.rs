@@ -572,7 +572,8 @@ mod test {
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
-        persist::strategy::NoOpStrategy,
+        persist::strategy::{NoOpStrategy, PersistenceConfig, PersistenceStrategy, DEFAULT_MAX_MEMORY_BYTES},
+        wal::no_wal::NoWal,
     };
     use raphtory_api::core::entities::properties::{
         meta::Meta,
@@ -587,7 +588,8 @@ mod test {
         let node_meta = Arc::new(Meta::default());
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
-        let ext = NoOpStrategy::new(10, 10);
+        let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 10, 10);
+        let ext = NoOpStrategy::new(config, Arc::new(NoWal));
         let segment = NodeSegmentView::new(
             0,
             node_meta.clone(),
