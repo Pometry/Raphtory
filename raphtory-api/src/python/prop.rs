@@ -1,4 +1,7 @@
-use crate::core::{entities::properties::prop::{data_type_as_prop_type, Prop, PropType}, storage::arc_str::ArcStr};
+use crate::core::{
+    entities::properties::prop::{data_type_as_prop_type, Prop, PropType},
+    storage::arc_str::ArcStr,
+};
 use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
@@ -8,8 +11,8 @@ use pyo3::{
     types::{PyBool, PyDict, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
-use rustc_hash::FxHashMap;
 use pyo3_arrow::PyDataType;
+use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
 #[cfg(feature = "arrow")]
@@ -152,8 +155,8 @@ impl PyProp {
         Ok(PyProp(Prop::Map(Arc::new(map))))
     }
 
-    pub fn dtype(&self) -> String {
-        format!("{:?}", self.0.dtype())
+    pub fn dtype(&self) -> PropType {
+        self.0.dtype()
     }
 
     pub fn __repr__(&self) -> String {

@@ -20,63 +20,15 @@ import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
+from pyarrow import DataType
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = [
-    "NodeGroups",
-    "DegreeView",
-    "NodeStateUsize",
-    "NodeStateOptionUsize",
-    "NodeStateU64",
-    "NodeStateOptionI64",
-    "NodeStateOptionEventTime",
-    "NodeStateOptionDateTime",
-    "IdView",
-    "NodeStateGID",
-    "EarliestTimeView",
-    "EarliestTimestampView",
-    "EarliestEventIdView",
-    "EarliestDateTimeView",
-    "LatestTimeView",
-    "LatestTimestampView",
-    "LatestEventIdView",
-    "LatestDateTimeView",
-    "NameView",
-    "NodeStateString",
-    "HistoryView",
-    "HistoryTimestampView",
-    "HistoryDateTimeView",
-    "HistoryEventIdView",
-    "IntervalsView",
-    "IntervalsFloatView",
-    "IntervalsIntegerView",
-    "EdgeHistoryCountView",
-    "UsizeIterable",
-    "NodeTypeView",
-    "NodeStateOptionStr",
-    "NodeStateListDateTime",
-    "NodeStateWeightedSP",
-    "NodeStateF64",
-    "NodeStateOptionF64",
-    "NodeStateNodes",
-    "NodeStateReachability",
-    "NodeStateListF64",
-    "NodeStateMotifs",
-    "NodeStateHits",
-    "NodeStateHistory",
-    "NodeStateHistoryTimestamp",
-    "NodeStateHistoryDateTime",
-    "NodeStateHistoryEventId",
-    "NodeStateIntervals",
-    "NodeStateSEIR",
-    "NodeLayout",
-    "NodeStateF64String",
-]
+__all__ = ['NodeGroups', 'DegreeView', 'NodeStateUsize', 'NodeStateOptionUsize', 'NodeStateU64', 'NodeStateOptionI64', 'NodeStateOptionEventTime', 'NodeStateOptionDateTime', 'IdView', 'NodeStateGID', 'EarliestTimeView', 'EarliestTimestampView', 'EarliestEventIdView', 'EarliestDateTimeView', 'LatestTimeView', 'LatestTimestampView', 'LatestEventIdView', 'LatestDateTimeView', 'NameView', 'NodeStateString', 'HistoryView', 'HistoryTimestampView', 'HistoryDateTimeView', 'HistoryEventIdView', 'IntervalsView', 'IntervalsFloatView', 'IntervalsIntegerView', 'EdgeHistoryCountView', 'UsizeIterable', 'NodeTypeView', 'NodeStateOptionStr', 'NodeStateListDateTime', 'NodeStateWeightedSP', 'NodeStateF64', 'NodeStateOptionF64', 'NodeStateNodes', 'NodeStateReachability', 'NodeStateListF64', 'NodeStateMotifs', 'NodeStateHits', 'NodeStateHistory', 'NodeStateHistoryTimestamp', 'NodeStateHistoryDateTime', 'NodeStateHistoryEventId', 'NodeStateIntervals', 'NodeStateSEIR', 'NodeLayout', 'NodeStateF64String']
+class NodeGroups(object): 
 
-class NodeGroups(object):
     def __bool__(self):
         """True if self else False"""
 
@@ -119,7 +71,7 @@ class NodeGroups(object):
             Iterator[Tuple[Any, GraphView]]: Iterator over subgraphs with corresponding value
         """
 
-class DegreeView(object):
+class DegreeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -330,7 +282,8 @@ class DegreeView(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateUsize(object):
+class NodeStateUsize(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -523,7 +476,8 @@ class NodeStateUsize(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateOptionUsize(object):
+class NodeStateOptionUsize(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -565,9 +519,7 @@ class NodeStateOptionUsize(object):
              NodeStateOptionUsize: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -701,7 +653,8 @@ class NodeStateOptionUsize(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class NodeStateU64(object):
+class NodeStateU64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -886,7 +839,8 @@ class NodeStateU64(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateOptionI64(object):
+class NodeStateOptionI64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -928,9 +882,7 @@ class NodeStateOptionI64(object):
              NodeStateOptionI64: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -1064,7 +1016,8 @@ class NodeStateOptionI64(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class NodeStateOptionEventTime(object):
+class NodeStateOptionEventTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1106,9 +1059,7 @@ class NodeStateOptionEventTime(object):
              NodeStateOptionEventTime: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[EventTime]] = None
-    ) -> Optional[Optional[EventTime]]:
+    def get(self, node: NodeInput, default: Optional[Optional[EventTime]] = None) -> Optional[Optional[EventTime]]:
         """
         Get value for node
 
@@ -1242,7 +1193,8 @@ class NodeStateOptionEventTime(object):
              Iterator[Optional[EventTime]]: Iterator over values
         """
 
-class NodeStateOptionDateTime(object):
+class NodeStateOptionDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1284,9 +1236,7 @@ class NodeStateOptionDateTime(object):
              NodeStateOptionDateTime: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[datetime]] = None
-    ) -> Optional[Optional[datetime]]:
+    def get(self, node: NodeInput, default: Optional[Optional[datetime]] = None) -> Optional[Optional[datetime]]:
         """
         Get value for node
 
@@ -1420,7 +1370,7 @@ class NodeStateOptionDateTime(object):
              Iterator[Optional[datetime]]: Iterator over values
         """
 
-class IdView(object):
+class IdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1606,7 +1556,8 @@ class IdView(object):
              Iterator[GID]: Iterator over values
         """
 
-class NodeStateGID(object):
+class NodeStateGID(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1774,7 +1725,7 @@ class NodeStateGID(object):
              Iterator[GID]: Iterator over values
         """
 
-class EarliestTimeView(object):
+class EarliestTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1852,9 +1803,7 @@ class EarliestTimeView(object):
             EarliestEventIdView: A lazy view over the event ids of the earliest times for each node.
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[EventTime]] = None
-    ) -> Optional[Optional[EventTime]]:
+    def get(self, node: NodeInput, default: Optional[Optional[EventTime]] = None) -> Optional[Optional[EventTime]]:
         """
         Get value for node
 
@@ -1997,7 +1946,7 @@ class EarliestTimeView(object):
              Iterator[Optional[EventTime]]: Iterator over values
         """
 
-class EarliestTimestampView(object):
+class EarliestTimestampView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2057,9 +2006,7 @@ class EarliestTimestampView(object):
              NodeStateOptionI64: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -2193,7 +2140,7 @@ class EarliestTimestampView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class EarliestEventIdView(object):
+class EarliestEventIdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2253,9 +2200,7 @@ class EarliestEventIdView(object):
              NodeStateOptionUsize: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -2389,7 +2334,7 @@ class EarliestEventIdView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class EarliestDateTimeView(object):
+class EarliestDateTimeView(object): 
     """A lazy view over EarliestDateTime values for each node."""
 
     def __eq__(self, value):
@@ -2630,7 +2575,7 @@ class EarliestDateTimeView(object):
             Iterator[datetime]: Iterator over values
         """
 
-class LatestTimeView(object):
+class LatestTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2708,9 +2653,7 @@ class LatestTimeView(object):
             LatestEventIdView: A lazy view over the event ids of the latest times for each node.
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -2853,7 +2796,7 @@ class LatestTimeView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class LatestTimestampView(object):
+class LatestTimestampView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2913,9 +2856,7 @@ class LatestTimestampView(object):
              NodeStateOptionI64: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -3049,7 +2990,7 @@ class LatestTimestampView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class LatestEventIdView(object):
+class LatestEventIdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -3109,9 +3050,7 @@ class LatestEventIdView(object):
              NodeStateOptionUsize: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -3245,7 +3184,7 @@ class LatestEventIdView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class LatestDateTimeView(object):
+class LatestDateTimeView(object): 
     """A lazy view over EarliestDateTime values for each node."""
 
     def __eq__(self, value):
@@ -3321,9 +3260,7 @@ class LatestDateTimeView(object):
             NodeStateOptionDateTime: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[datetime] = None
-    ) -> Optional[datetime]:
+    def get(self, node: NodeInput, default: Optional[datetime] = None) -> Optional[datetime]:
         """
         Get value for node
 
@@ -3488,7 +3425,7 @@ class LatestDateTimeView(object):
             Iterator[datetime]: Iterator over values
         """
 
-class NameView(object):
+class NameView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -3682,7 +3619,8 @@ class NameView(object):
              Iterator[str]: Iterator over values
         """
 
-class NodeStateString(object):
+class NodeStateString(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -3858,7 +3796,7 @@ class NodeStateString(object):
              Iterator[str]: Iterator over values
         """
 
-class HistoryView(object):
+class HistoryView(object): 
     """A lazy view over History objects for each node."""
 
     def __eq__(self, value):
@@ -3949,9 +3887,7 @@ class HistoryView(object):
             History: a history object containing all time entries
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[History] = None
-    ) -> Optional[History]:
+    def get(self, node: NodeInput, default: Optional[History] = None) -> Optional[History]:
         """
         Get value for node
 
@@ -4031,7 +3967,7 @@ class HistoryView(object):
             Iterator[History]: Iterator over histories
         """
 
-class HistoryTimestampView(object):
+class HistoryTimestampView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4080,9 +4016,7 @@ class HistoryTimestampView(object):
              NodeStateHistoryTimestamp: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[HistoryTimestamp] = None
-    ) -> Optional[HistoryTimestamp]:
+    def get(self, node: NodeInput, default: Optional[HistoryTimestamp] = None) -> Optional[HistoryTimestamp]:
         """
         Get value for node
 
@@ -4137,7 +4071,7 @@ class HistoryTimestampView(object):
              Iterator[HistoryTimestamp]: Iterator over values
         """
 
-class HistoryDateTimeView(object):
+class HistoryDateTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4186,9 +4120,7 @@ class HistoryDateTimeView(object):
              NodeStateHistoryDateTime: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[HistoryDateTime] = None
-    ) -> Optional[HistoryDateTime]:
+    def get(self, node: NodeInput, default: Optional[HistoryDateTime] = None) -> Optional[HistoryDateTime]:
         """
         Get value for node
 
@@ -4243,7 +4175,7 @@ class HistoryDateTimeView(object):
              Iterator[HistoryDateTime]: Iterator over values
         """
 
-class HistoryEventIdView(object):
+class HistoryEventIdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4292,9 +4224,7 @@ class HistoryEventIdView(object):
              NodeStateHistoryEventId: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[HistoryEventId] = None
-    ) -> Optional[HistoryEventId]:
+    def get(self, node: NodeInput, default: Optional[HistoryEventId] = None) -> Optional[HistoryEventId]:
         """
         Get value for node
 
@@ -4349,7 +4279,7 @@ class HistoryEventIdView(object):
              Iterator[HistoryEventId]: Iterator over values
         """
 
-class IntervalsView(object):
+class IntervalsView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4398,9 +4328,7 @@ class IntervalsView(object):
              NodeStateIntervals: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Intervals] = None
-    ) -> Optional[Intervals]:
+    def get(self, node: NodeInput, default: Optional[Intervals] = None) -> Optional[Intervals]:
         """
         Get value for node
 
@@ -4487,7 +4415,7 @@ class IntervalsView(object):
              Iterator[Intervals]: Iterator over values
         """
 
-class IntervalsFloatView(object):
+class IntervalsFloatView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4547,9 +4475,7 @@ class IntervalsFloatView(object):
              NodeStateOptionF64: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[float]] = None
-    ) -> Optional[Optional[float]]:
+    def get(self, node: NodeInput, default: Optional[Optional[float]] = None) -> Optional[Optional[float]]:
         """
         Get value for node
 
@@ -4675,7 +4601,7 @@ class IntervalsFloatView(object):
              Iterator[Optional[float]]: Iterator over values
         """
 
-class IntervalsIntegerView(object):
+class IntervalsIntegerView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4735,9 +4661,7 @@ class IntervalsIntegerView(object):
              NodeStateOptionI64: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -4863,7 +4787,7 @@ class IntervalsIntegerView(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class EdgeHistoryCountView(object):
+class EdgeHistoryCountView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -5066,7 +4990,8 @@ class EdgeHistoryCountView(object):
              Iterator[int]: Iterator over values
         """
 
-class UsizeIterable(object):
+class UsizeIterable(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5094,13 +5019,22 @@ class UsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def mean(self): ...
-    def min(self): ...
-    def sum(self): ...
+    def collect(self):
+        ...
 
-class NodeTypeView(object):
+    def max(self):
+        ...
+
+    def mean(self):
+        ...
+
+    def min(self):
+        ...
+
+    def sum(self):
+        ...
+
+class NodeTypeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -5160,9 +5094,7 @@ class NodeTypeView(object):
              NodeStateOptionStr: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[str]] = None
-    ) -> Optional[Optional[str]]:
+    def get(self, node: NodeInput, default: Optional[Optional[str]] = None) -> Optional[Optional[str]]:
         """
         Get value for node
 
@@ -5296,7 +5228,8 @@ class NodeTypeView(object):
              Iterator[Optional[str]]: Iterator over values
         """
 
-class NodeStateOptionStr(object):
+class NodeStateOptionStr(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5338,9 +5271,7 @@ class NodeStateOptionStr(object):
              NodeStateOptionStr: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[str]] = None
-    ) -> Optional[Optional[str]]:
+    def get(self, node: NodeInput, default: Optional[Optional[str]] = None) -> Optional[Optional[str]]:
         """
         Get value for node
 
@@ -5474,7 +5405,8 @@ class NodeStateOptionStr(object):
              Iterator[Optional[str]]: Iterator over values
         """
 
-class NodeStateListDateTime(object):
+class NodeStateListDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5516,9 +5448,7 @@ class NodeStateListDateTime(object):
              NodeStateListDateTime: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[list[datetime]] = None
-    ) -> Optional[list[datetime]]:
+    def get(self, node: NodeInput, default: Optional[list[datetime]] = None) -> Optional[list[datetime]]:
         """
         Get value for node
 
@@ -5644,7 +5574,8 @@ class NodeStateListDateTime(object):
              Iterator[list[datetime]]: Iterator over values
         """
 
-class NodeStateWeightedSP(object):
+class NodeStateWeightedSP(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5675,9 +5606,7 @@ class NodeStateWeightedSP(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[Tuple[float, Nodes]] = None
-    ) -> Optional[Tuple[float, Nodes]]:
+    def get(self, node: NodeInput, default: Optional[Tuple[float, Nodes]] = None) -> Optional[Tuple[float, Nodes]]:
         """
         Get value for node
 
@@ -5732,7 +5661,8 @@ class NodeStateWeightedSP(object):
              Iterator[Tuple[float, Nodes]]: Iterator over values
         """
 
-class NodeStateF64(object):
+class NodeStateF64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5917,7 +5847,8 @@ class NodeStateF64(object):
              Iterator[float]: Iterator over values
         """
 
-class NodeStateOptionF64(object):
+class NodeStateOptionF64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5959,9 +5890,7 @@ class NodeStateOptionF64(object):
              NodeStateOptionF64: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[float]] = None
-    ) -> Optional[Optional[float]]:
+    def get(self, node: NodeInput, default: Optional[Optional[float]] = None) -> Optional[Optional[float]]:
         """
         Get value for node
 
@@ -6087,7 +6016,8 @@ class NodeStateOptionF64(object):
              Iterator[Optional[float]]: Iterator over values
         """
 
-class NodeStateNodes(object):
+class NodeStateNodes(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6173,7 +6103,8 @@ class NodeStateNodes(object):
              Iterator[Nodes]: Iterator over values
         """
 
-class NodeStateReachability(object):
+class NodeStateReachability(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6204,9 +6135,7 @@ class NodeStateReachability(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[list[Tuple[int, str]]] = None
-    ) -> Optional[list[Tuple[int, str]]]:
+    def get(self, node: NodeInput, default: Optional[list[Tuple[int, str]]] = None) -> Optional[list[Tuple[int, str]]]:
         """
         Get value for node
 
@@ -6261,7 +6190,8 @@ class NodeStateReachability(object):
              Iterator[list[Tuple[int, str]]]: Iterator over values
         """
 
-class NodeStateListF64(object):
+class NodeStateListF64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6292,9 +6222,7 @@ class NodeStateListF64(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[list[float]] = None
-    ) -> Optional[list[float]]:
+    def get(self, node: NodeInput, default: Optional[list[float]] = None) -> Optional[list[float]]:
         """
         Get value for node
 
@@ -6349,7 +6277,8 @@ class NodeStateListF64(object):
              Iterator[list[float]]: Iterator over values
         """
 
-class NodeStateMotifs(object):
+class NodeStateMotifs(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6391,9 +6320,7 @@ class NodeStateMotifs(object):
              NodeStateMotifs: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[list[int]] = None
-    ) -> Optional[list[int]]:
+    def get(self, node: NodeInput, default: Optional[list[int]] = None) -> Optional[list[int]]:
         """
         Get value for node
 
@@ -6519,7 +6446,8 @@ class NodeStateMotifs(object):
              Iterator[list[int]]: Iterator over values
         """
 
-class NodeStateHits(object):
+class NodeStateHits(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6561,9 +6489,7 @@ class NodeStateHits(object):
              NodeStateHits: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Tuple[float, float]] = None
-    ) -> Optional[Tuple[float, float]]:
+    def get(self, node: NodeInput, default: Optional[Tuple[float, float]] = None) -> Optional[Tuple[float, float]]:
         """
         Get value for node
 
@@ -6689,7 +6615,7 @@ class NodeStateHits(object):
              Iterator[Tuple[float, float]]: Iterator over values
         """
 
-class NodeStateHistory(object):
+class NodeStateHistory(object): 
     """A NodeState of History objects for each node."""
 
     def __eq__(self, value):
@@ -6764,9 +6690,7 @@ class NodeStateHistory(object):
             History: A history object containing all time entries.
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[History] = None
-    ) -> Optional[History]:
+    def get(self, node: NodeInput, default: Optional[History] = None) -> Optional[History]:
         """
         Get History object for the node.
 
@@ -6847,7 +6771,8 @@ class NodeStateHistory(object):
             Iterator[History]: Iterator over History objects.
         """
 
-class NodeStateHistoryTimestamp(object):
+class NodeStateHistoryTimestamp(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6878,9 +6803,7 @@ class NodeStateHistoryTimestamp(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[HistoryTimestamp] = None
-    ) -> Optional[HistoryTimestamp]:
+    def get(self, node: NodeInput, default: Optional[HistoryTimestamp] = None) -> Optional[HistoryTimestamp]:
         """
         Get value for node
 
@@ -6935,7 +6858,8 @@ class NodeStateHistoryTimestamp(object):
              Iterator[HistoryTimestamp]: Iterator over values
         """
 
-class NodeStateHistoryDateTime(object):
+class NodeStateHistoryDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6966,9 +6890,7 @@ class NodeStateHistoryDateTime(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[HistoryDateTime] = None
-    ) -> Optional[HistoryDateTime]:
+    def get(self, node: NodeInput, default: Optional[HistoryDateTime] = None) -> Optional[HistoryDateTime]:
         """
         Get value for node
 
@@ -7023,7 +6945,8 @@ class NodeStateHistoryDateTime(object):
              Iterator[HistoryDateTime]: Iterator over values
         """
 
-class NodeStateHistoryEventId(object):
+class NodeStateHistoryEventId(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7054,9 +6977,7 @@ class NodeStateHistoryEventId(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[HistoryEventId] = None
-    ) -> Optional[HistoryEventId]:
+    def get(self, node: NodeInput, default: Optional[HistoryEventId] = None) -> Optional[HistoryEventId]:
         """
         Get value for node
 
@@ -7111,7 +7032,8 @@ class NodeStateHistoryEventId(object):
              Iterator[HistoryEventId]: Iterator over values
         """
 
-class NodeStateIntervals(object):
+class NodeStateIntervals(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7142,9 +7064,7 @@ class NodeStateIntervals(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[Intervals] = None
-    ) -> Optional[Intervals]:
+    def get(self, node: NodeInput, default: Optional[Intervals] = None) -> Optional[Intervals]:
         """
         Get value for node
 
@@ -7239,7 +7159,8 @@ class NodeStateIntervals(object):
              Iterator[Intervals]: Iterator over values
         """
 
-class NodeStateSEIR(object):
+class NodeStateSEIR(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7281,9 +7202,7 @@ class NodeStateSEIR(object):
              NodeStateSEIR: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Infected] = None
-    ) -> Optional[Infected]:
+    def get(self, node: NodeInput, default: Optional[Infected] = None) -> Optional[Infected]:
         """
         Get value for node
 
@@ -7409,7 +7328,8 @@ class NodeStateSEIR(object):
              Iterator[Infected]: Iterator over values
         """
 
-class NodeLayout(object):
+class NodeLayout(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7440,9 +7360,7 @@ class NodeLayout(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[list[float]] = None
-    ) -> Optional[list[float]]:
+    def get(self, node: NodeInput, default: Optional[list[float]] = None) -> Optional[list[float]]:
         """
         Get value for node
 
@@ -7497,7 +7415,8 @@ class NodeLayout(object):
              Iterator[list[float]]: Iterator over values
         """
 
-class NodeStateF64String(object):
+class NodeStateF64String(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7528,9 +7447,7 @@ class NodeStateF64String(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[Tuple[float, str]] = None
-    ) -> Optional[Tuple[float, str]]:
+    def get(self, node: NodeInput, default: Optional[Tuple[float, str]] = None) -> Optional[Tuple[float, str]]:
         """
         Get value for node
 
