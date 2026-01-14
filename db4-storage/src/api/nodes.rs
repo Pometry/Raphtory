@@ -25,7 +25,12 @@ use std::{
 };
 
 use crate::{
-    error::StorageError, gen_ts::LayerIter, segments::node::segment::MemNodeSegment, utils::{Iter2, Iter3, Iter4}, wal::LSN, LocalPOS
+    LocalPOS,
+    error::StorageError,
+    gen_ts::LayerIter,
+    segments::node::segment::MemNodeSegment,
+    utils::{Iter2, Iter3, Iter4},
+    wal::LSN,
 };
 
 pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {

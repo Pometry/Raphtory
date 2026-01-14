@@ -2,7 +2,7 @@
 use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::{
-        mutation::AdditionOps, storage::storage::{PersistenceStrategy}, view::StaticGraphViewOps,
+        mutation::AdditionOps, storage::storage::PersistenceStrategy, view::StaticGraphViewOps,
     },
     errors::GraphError,
     serialise::{

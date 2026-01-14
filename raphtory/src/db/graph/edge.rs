@@ -40,8 +40,8 @@ use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps},
-        durability_ops::DurabilityOps,
         deletion_ops::InternalDeletionOps,
+        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
 };
@@ -441,13 +441,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
             .atomic_add_edge(src, dst, Some(e_id), layer_id)
             .map_err(into_graph_err)?;
 
-        writer.internal_add_edge(
-            t,
-            src,
-            dst,
-            MaybeNew::New(e_id.with_layer(layer_id)),
-            props,
-        );
+        writer.internal_add_edge(t, src, dst, MaybeNew::New(e_id.with_layer(layer_id)), props);
 
         Ok(())
     }

@@ -1,5 +1,7 @@
 use crate::{
-    error::StorageError, segments::{HasRow, SegmentContainer}, wal::LSN,
+    error::StorageError,
+    segments::{HasRow, SegmentContainer},
+    wal::LSN,
 };
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
 use raphtory_core::{
@@ -83,7 +85,10 @@ impl MemGraphPropSegment {
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
 
-        Self { layers, lsn: self.lsn }
+        Self {
+            layers,
+            lsn: self.lsn,
+        }
     }
 
     pub fn lsn(&self) -> LSN {

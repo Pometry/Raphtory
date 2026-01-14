@@ -9,8 +9,8 @@ use crate::{
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
-use node_page::writer::{NodeWriter, NodeWriters};
 use graph_prop_store::GraphPropStorageInner;
+use node_page::writer::{NodeWriter, NodeWriters};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
@@ -132,8 +132,7 @@ impl<
         }
     }
 
-    pub fn load(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError>
-    {
+    pub fn load(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
         let graph_props_path = graph_dir.as_ref().join("graph_props");
@@ -355,12 +354,18 @@ impl<
             let src = self.node_writer(src_chunk);
             let dst = self.node_writer(dst_chunk);
 
-            NodeWriters { src, dst: Some(dst) }
+            NodeWriters {
+                src,
+                dst: Some(dst),
+            }
         } else if src_chunk > dst_chunk {
             let dst = self.node_writer(dst_chunk);
             let src = self.node_writer(src_chunk);
 
-            NodeWriters { src, dst: Some(dst) }
+            NodeWriters {
+                src,
+                dst: Some(dst),
+            }
         } else {
             let src = self.node_writer(src_chunk);
 
@@ -404,7 +409,10 @@ impl<
             }
         } else {
             let writer = self.node_writer(src_chunk);
-            NodeWriters { src: writer, dst: None }
+            NodeWriters {
+                src: writer,
+                dst: None,
+            }
         };
 
         let (_, src_pos) = self.nodes.resolve_pos(src);
@@ -458,7 +466,6 @@ impl<NS, ES, GS, EXT: PersistenceStrategy> Drop for GraphStore<NS, ES, GS, EXT> 
     }
 }
 
-
 #[inline(always)]
 pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: u32) -> (usize, LocalPOS) {
     let i = i.into();
@@ -471,15 +478,21 @@ pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: u32) -> (usize, Lo
 mod test {
     use super::GraphStore;
     use crate::{
-        api::nodes::{NodeEntryOps, NodeRefOps}, pages::test_utils::{
-            check_edges_support, check_graph_with_nodes_support, check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges, make_nodes, AddEdge, Fixture, NodeFixture
-        }, persist::strategy::{PersistenceConfig, PersistenceStrategy, DEFAULT_MAX_MEMORY_BYTES}, wal::no_wal::NoWal, Extension, Layer
+        Extension, Layer,
+        api::nodes::{NodeEntryOps, NodeRefOps},
+        pages::test_utils::{
+            AddEdge, Fixture, NodeFixture, check_edges_support, check_graph_with_nodes_support,
+            check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,
+            make_nodes,
+        },
+        persist::strategy::{DEFAULT_MAX_MEMORY_BYTES, PersistenceConfig, PersistenceStrategy},
+        wal::no_wal::NoWal,
     };
-    use std::sync::Arc;
     use chrono::DateTime;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
+    use std::sync::Arc;
 
     fn check_edges(edges: Vec<(impl Into<VID>, impl Into<VID>)>, chunk_size: u32, par_load: bool) {
         // Set optional layer_id to None
@@ -490,7 +503,11 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, chunk_size, chunk_size);
+            let config = PersistenceConfig::new_with_page_lens(
+                DEFAULT_MAX_MEMORY_BYTES,
+                chunk_size,
+                chunk_size,
+            );
             Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
@@ -501,7 +518,11 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, chunk_size, chunk_size);
+            let config = PersistenceConfig::new_with_page_lens(
+                DEFAULT_MAX_MEMORY_BYTES,
+                chunk_size,
+                chunk_size,
+            );
             Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
@@ -575,7 +596,10 @@ mod test {
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
         let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
-        let g = Layer::new(Some(graph_dir.path()), Extension::new(config, Arc::new(NoWal)));
+        let g = Layer::new(
+            Some(graph_dir.path()),
+            Extension::new(config, Arc::new(NoWal)),
+        );
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
     }
@@ -584,7 +608,10 @@ mod test {
     fn test_node_additions_1() {
         let graph_dir = tempfile::tempdir().unwrap();
         let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
-        let g = GraphStore::new(Some(graph_dir.path()), Extension::new(config, Arc::new(NoWal)));
+        let g = GraphStore::new(
+            Some(graph_dir.path()),
+            Extension::new(config, Arc::new(NoWal)),
+        );
         g.add_edge(4, 7, 3).unwrap();
 
         let check = |g: &Layer<Extension>| {
@@ -627,7 +654,10 @@ mod test {
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
         let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
-        let g = Layer::new(Some(graph_dir.path()), Extension::new(config, Arc::new(NoWal)));
+        let g = Layer::new(
+            Some(graph_dir.path()),
+            Extension::new(config, Arc::new(NoWal)),
+        );
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
         g.add_node_props::<String>(2, 0, 0, vec![])
@@ -1430,14 +1460,22 @@ mod test {
 
     fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
-            let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, node_page_len, edge_page_len);
+            let config = PersistenceConfig::new_with_page_lens(
+                DEFAULT_MAX_MEMORY_BYTES,
+                node_page_len,
+                edge_page_len,
+            );
             Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 
     fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
-            let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, node_page_len, edge_page_len);
+            let config = PersistenceConfig::new_with_page_lens(
+                DEFAULT_MAX_MEMORY_BYTES,
+                node_page_len,
+                edge_page_len,
+            );
             Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }

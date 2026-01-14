@@ -20,7 +20,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::{nodes::node_ref::NodeRef, ELID};
-use storage::{Extension, wal::LSN};
+use storage::{wal::LSN, Extension};
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;

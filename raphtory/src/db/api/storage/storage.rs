@@ -24,9 +24,9 @@ use raphtory_storage::{
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-        durability_ops::DurabilityOps,
         addition_ops_ext::{UnlockedSession, WriteS},
         deletion_ops::InternalDeletionOps,
+        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, NodeWriterT,
     },
@@ -36,11 +36,15 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{transaction::TransactionManager, WalType, wal::{LSN, Wal}};
+use storage::{
+    transaction::TransactionManager,
+    wal::{Wal, LSN},
+    WalType,
+};
 
 pub use storage::{
-    Extension,
     persist::strategy::{PersistenceConfig, PersistenceStrategy},
+    Extension,
 };
 #[cfg(feature = "search")]
 use {
@@ -328,8 +332,7 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         e_id: MaybeNew<ELID>,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
-        self.session
-            .internal_add_edge(t, src, dst, e_id, props)
+        self.session.internal_add_edge(t, src, dst, e_id, props)
     }
 
     fn internal_delete_edge(

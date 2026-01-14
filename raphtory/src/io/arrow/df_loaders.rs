@@ -200,8 +200,7 @@ pub fn load_nodes_from_df<
                         let layer_id = STATIC_GRAPH_LAYER_ID;
 
                         update_time(t);
-                        writer
-                            .store_node_id_and_node_type(mut_node, layer_id, gid, *node_type);
+                        writer.store_node_id_and_node_type(mut_node, layer_id, gid, *node_type);
 
                         let t_props = prop_cols.iter_row(row);
                         let c_props = metadata_cols
@@ -508,48 +507,51 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             // Add temporal & constant properties to edges
             sc.spawn(|_| {
-                write_locked_graph.edges.par_iter_mut().for_each(|locked_page| {
-                    let zip = izip!(
-                        src_col_resolved.iter(),
-                        dst_col_resolved.iter(),
-                        time_col.iter(),
-                        secondary_index_col.iter(),
-                        eid_col_resolved.iter(),
-                        layer_col_resolved.iter(),
-                        eids_exist
-                            .iter()
-                            .map(|exists| exists.load(Ordering::Relaxed))
-                    );
-                    let mut t_props: Vec<(usize, Prop)> = vec![];
-                    let mut c_props: Vec<(usize, Prop)> = vec![];
+                write_locked_graph
+                    .edges
+                    .par_iter_mut()
+                    .for_each(|locked_page| {
+                        let zip = izip!(
+                            src_col_resolved.iter(),
+                            dst_col_resolved.iter(),
+                            time_col.iter(),
+                            secondary_index_col.iter(),
+                            eid_col_resolved.iter(),
+                            layer_col_resolved.iter(),
+                            eids_exist
+                                .iter()
+                                .map(|exists| exists.load(Ordering::Relaxed))
+                        );
+                        let mut t_props: Vec<(usize, Prop)> = vec![];
+                        let mut c_props: Vec<(usize, Prop)> = vec![];
 
-                    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
-                        zip.enumerate()
-                    {
-                        if let Some(eid_pos) = locked_page.resolve_pos(*eid) {
-                            let t = TimeIndexEntry(time, secondary_index);
-                            let mut writer = locked_page.writer();
+                        for (row, (src, dst, time, secondary_index, eid, layer, exists)) in
+                            zip.enumerate()
+                        {
+                            if let Some(eid_pos) = locked_page.resolve_pos(*eid) {
+                                let t = TimeIndexEntry(time, secondary_index);
+                                let mut writer = locked_page.writer();
 
-                            t_props.clear();
-                            t_props.extend(prop_cols.iter_row(row));
+                                t_props.clear();
+                                t_props.extend(prop_cols.iter_row(row));
 
-                            c_props.clear();
-                            c_props.extend(metadata_cols.iter_row(row));
-                            c_props.extend_from_slice(&shared_metadata);
+                                c_props.clear();
+                                c_props.extend(metadata_cols.iter_row(row));
+                                c_props.extend_from_slice(&shared_metadata);
 
-                            writer.bulk_add_edge(
-                                t,
-                                eid_pos,
-                                *src,
-                                *dst,
-                                exists,
-                                *layer,
-                                c_props.drain(..),
-                                t_props.drain(..),
-                            );
+                                writer.bulk_add_edge(
+                                    t,
+                                    eid_pos,
+                                    *src,
+                                    *dst,
+                                    exists,
+                                    *layer,
+                                    c_props.drain(..),
+                                    t_props.drain(..),
+                                );
+                            }
                         }
-                    }
-                });
+                    });
             });
         });
 

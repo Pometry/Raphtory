@@ -3,7 +3,10 @@ use crate::{
     segments::edge::segment::MemEdgeSegment,
 };
 use arrow_array::{ArrayRef, BooleanArray};
-use raphtory_api::core::entities::{properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop}, VID};
+use raphtory_api::core::entities::{
+    VID,
+    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+};
 use raphtory_core::{
     entities::EID,
     storage::timeindex::{AsTime, TimeIndexEntry},

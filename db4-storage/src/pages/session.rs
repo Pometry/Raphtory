@@ -9,7 +9,10 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{entities::properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop}, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+    storage::dict_mapper::MaybeNew,
+};
 use raphtory_core::{
     entities::{EID, ELID, VID},
     storage::timeindex::AsTime,
@@ -128,8 +131,7 @@ impl<
             .max_page_len();
         let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
 
-        self.edge_writer
-            .delete_edge(t, edge_pos, src, dst, layer);
+        self.edge_writer.delete_edge(t, edge_pos, src, dst, layer);
 
         let edge_id = edge.inner();
 
@@ -141,18 +143,12 @@ impl<
                     .get_out_edge(src_pos, dst, edge_id.layer())
                     .is_none()
             {
-                self.node_writers.get_mut_src().add_outbound_edge(
-                    Some(t),
-                    src_pos,
-                    dst,
-                    edge_id,
-                );
-                self.node_writers.get_mut_dst().add_inbound_edge(
-                    Some(t),
-                    dst_pos,
-                    src,
-                    edge_id,
-                );
+                self.node_writers
+                    .get_mut_src()
+                    .add_outbound_edge(Some(t), src_pos, dst, edge_id);
+                self.node_writers
+                    .get_mut_dst()
+                    .add_inbound_edge(Some(t), dst_pos, src, edge_id);
             }
 
             self.node_writers
@@ -164,33 +160,32 @@ impl<
         }
     }
 
-    pub fn add_static_edge(
-        &mut self,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-    ) -> MaybeNew<EID> {
+    pub fn add_static_edge(&mut self, src: impl Into<VID>, dst: impl Into<VID>) -> MaybeNew<EID> {
         let src = src.into();
         let dst = dst.into();
 
         let (_, src_pos) = self.graph.nodes().resolve_pos(src);
         let (_, dst_pos) = self.graph.nodes().resolve_pos(dst);
 
-        let existing_eid = self
-            .node_writers
-            .get_mut_src()
-            .get_out_edge(src_pos, dst, STATIC_GRAPH_LAYER_ID);
+        let existing_eid =
+            self.node_writers
+                .get_mut_src()
+                .get_out_edge(src_pos, dst, STATIC_GRAPH_LAYER_ID);
 
         // Edge already exists, so no need to add it again.
         if let Some(eid) = existing_eid {
-            return MaybeNew::Existing(eid)
+            return MaybeNew::Existing(eid);
         }
 
         let edge_pos = None;
         let already_counted = false;
-        let edge_pos =
-            self.edge_writer.add_static_edge(edge_pos, src, dst, already_counted);
-        let edge_id =
-            edge_pos.as_eid(self.edge_writer.segment_id(), self.graph.edges().max_page_len());
+        let edge_pos = self
+            .edge_writer
+            .add_static_edge(edge_pos, src, dst, already_counted);
+        let edge_id = edge_pos.as_eid(
+            self.edge_writer.segment_id(),
+            self.graph.edges().max_page_len(),
+        );
 
         self.node_writers
             .get_mut_src()

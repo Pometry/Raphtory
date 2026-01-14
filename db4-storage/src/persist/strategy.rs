@@ -1,16 +1,14 @@
-use std::ops::DerefMut;
-use std::fmt::Debug;
-use std::path::Path;
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use crate::error::StorageError;
-use crate::segments::{
-    edge::segment::{EdgeSegmentView, MemEdgeSegment},
-    graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
-    node::segment::{MemNodeSegment, NodeSegmentView},
+use crate::{
+    error::StorageError,
+    segments::{
+        edge::segment::{EdgeSegmentView, MemEdgeSegment},
+        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
+        node::segment::{MemNodeSegment, NodeSegmentView},
+    },
+    wal::{Wal, no_wal::NoWal},
 };
-use crate::wal::no_wal::NoWal;
-use crate::wal::Wal;
+use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
@@ -84,10 +82,7 @@ impl PersistenceConfig {
     }
 
     pub fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>) {
-        self.node_types = types
-            .into_iter()
-            .map(|s| s.as_ref().to_string())
-            .collect();
+        self.node_types = types.into_iter().map(|s| s.as_ref().to_string()).collect();
     }
 }
 
@@ -137,7 +132,6 @@ pub struct NoOpStrategy {
     config: PersistenceConfig,
     wal: Arc<NoWal>,
 }
-
 
 impl PersistenceStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;

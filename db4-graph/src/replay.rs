@@ -4,18 +4,19 @@
 
 use crate::WriteLockedGraph;
 use raphtory_api::core::{
-    entities::properties::meta::STATIC_GRAPH_LAYER_ID,
-    entities::{properties::prop::Prop, EID, GID, VID},
+    entities::{
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+        EID, GID, VID,
+    },
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_core::entities::GidRef;
-use storage::pages::resolve_pos;
-use storage::resolver::GIDResolverOps;
 use storage::{
-    api::edges::EdgeSegmentOps,
-    api::nodes::NodeSegmentOps,
+    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
+    pages::resolve_pos,
     persist::strategy::PersistenceStrategy,
+    resolver::GIDResolverOps,
     wal::{GraphReplay, TransactionID, LSN},
     ES, GS, NS,
 };

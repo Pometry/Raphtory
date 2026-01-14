@@ -31,7 +31,9 @@ pub struct GraphPropStorageInner<GS, EXT> {
     ext: EXT,
 }
 
-impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> GraphPropStorageInner<GS, EXT> {
+impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
+    GraphPropStorageInner<GS, EXT>
+{
     pub fn new_with_meta(path: Option<&Path>, meta: Arc<Meta>, ext: EXT) -> Self {
         let page = Arc::new(GS::new(meta.clone(), path, ext.clone()));
 

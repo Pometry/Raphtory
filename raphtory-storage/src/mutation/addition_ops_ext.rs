@@ -17,15 +17,16 @@ use raphtory_core::{
         nodes::node_ref::{AsNodeRef, NodeRef},
         GidRef, EID, ELID, MAX_LAYER, VID,
     },
-    storage::{timeindex::TimeIndexEntry},
+    storage::timeindex::TimeIndexEntry,
 };
 use storage::{
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
     persist::strategy::PersistenceStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, transaction::TransactionManager, WalType, ES, NS, GS,
+    transaction::TransactionManager,
     wal::LSN,
+    Extension, WalType, ES, GS, NS,
 };
 
 pub struct WriteS<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
@@ -56,7 +57,8 @@ impl<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Edg
         eid: MaybeNew<ELID>,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
-        self.static_session.add_edge_into_layer(t, src, dst, eid, props);
+        self.static_session
+            .add_edge_into_layer(t, src, dst, eid, props);
 
         eid
     }
@@ -75,8 +77,7 @@ impl<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Edg
             .add_static_edge(src, dst)
             .map(|eid| eid.with_layer_deletion(layer));
 
-        self.static_session
-            .delete_edge_from_layer(t, src, dst, eid);
+        self.static_session.delete_edge_from_layer(t, src, dst, eid);
 
         eid
     }

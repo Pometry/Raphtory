@@ -1,7 +1,14 @@
 use crate::{
-    api::nodes::{LockedNSSegment, NodeSegmentOps}, error::StorageError, loop_lock_write, persist::strategy::PersistenceStrategy, segments::{
-        node::entry::{MemNodeEntry, MemNodeRef}, HasRow, SegmentContainer
-    }, wal::LSN, LocalPOS
+    LocalPOS,
+    api::nodes::{LockedNSSegment, NodeSegmentOps},
+    error::StorageError,
+    loop_lock_write,
+    persist::strategy::PersistenceStrategy,
+    segments::{
+        HasRow, SegmentContainer,
+        node::entry::{MemNodeEntry, MemNodeRef},
+    },
+    wal::LSN,
 };
 use either::Either;
 use parking_lot::lock_api::ArcRwLockReadGuard;
@@ -279,12 +286,7 @@ impl MemNodeSegment {
         prop_mut_entry.addition_timestamp(ts, e_id);
     }
 
-    pub fn update_timestamp<T: AsTime>(
-        &mut self,
-        t: T,
-        node_pos: LocalPOS,
-        e_id: ELID,
-    ) -> usize {
+    pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) -> usize {
         let layer_id = e_id.layer();
         let (est_size, row) = {
             let segment_container = self.get_or_create_layer(layer_id); //&mut self.layers[e_id.layer()];
@@ -572,7 +574,9 @@ mod test {
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
-        persist::strategy::{NoOpStrategy, PersistenceConfig, PersistenceStrategy, DEFAULT_MAX_MEMORY_BYTES},
+        persist::strategy::{
+            DEFAULT_MAX_MEMORY_BYTES, NoOpStrategy, PersistenceConfig, PersistenceStrategy,
+        },
         wal::no_wal::NoWal,
     };
     use raphtory_api::core::entities::properties::{

@@ -66,9 +66,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
         let e_id = e_id.into();
         let layer_id = e_id.layer();
-        let (is_new_node, add) = self
-            .mut_segment
-            .add_outbound_edge(t, src_pos, dst, e_id);
+        let (is_new_node, add) = self.mut_segment.add_outbound_edge(t, src_pos, dst, e_id);
         self.page.increment_est_size(add);
 
         if is_new_node && !self.page.check_node(src_pos, layer_id) {
@@ -110,9 +108,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
         let layer = e_id.layer();
         let dst_pos = dst_pos.into();
-        let (is_new_node, add) = self
-            .mut_segment
-            .add_inbound_edge(t, dst_pos, src, e_id);
+        let (is_new_node, add) = self.mut_segment.add_inbound_edge(t, dst_pos, src, e_id);
 
         self.page.increment_est_size(add);
 
@@ -219,7 +215,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
             .expect("Failed to persist node page");
     }
 }
-
 
 /// Holds writers for src and dst node segments when adding an edge.
 /// If both nodes are in the same segment, `dst` is `None` and `src` is used for both.

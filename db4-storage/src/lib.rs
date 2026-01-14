@@ -11,7 +11,8 @@ use crate::{
     },
     generic_t_props::GenericTProps,
     pages::{
-        edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage, GraphStore, ReadLockedGraphStore
+        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
+        node_store::ReadLockedNodeStorage,
     },
     persist::strategy::{NoOpStrategy, PersistenceStrategy},
     resolver::mapping_resolver::MappingResolver,

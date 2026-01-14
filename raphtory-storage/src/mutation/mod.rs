@@ -3,8 +3,7 @@ use crate::{
     graph::graph::Immutable,
     mutation::{
         addition_ops::InheritAdditionOps, deletion_ops::InheritDeletionOps,
-        property_addition_ops::InheritPropertyAdditionOps,
-        durability_ops::InheritDurabilityOps,
+        durability_ops::InheritDurabilityOps, property_addition_ops::InheritPropertyAdditionOps,
     },
 };
 use parking_lot::RwLockWriteGuard;
@@ -31,8 +30,8 @@ use thiserror::Error;
 pub mod addition_ops;
 pub mod addition_ops_ext;
 pub mod deletion_ops;
-pub mod property_addition_ops;
 pub mod durability_ops;
+pub mod property_addition_ops;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;

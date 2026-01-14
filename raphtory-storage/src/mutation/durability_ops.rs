@@ -1,6 +1,6 @@
-use storage::{transaction::TransactionManager, WalType};
 use crate::graph::graph::GraphStorage;
 use raphtory_api::inherit::Base;
+use storage::{transaction::TransactionManager, WalType};
 
 /// Accessor methods for transactions and write-ahead logging.
 pub trait DurabilityOps {

@@ -15,11 +15,15 @@ use crate::{
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::GID;
-use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
-use raphtory_storage::mutation::durability_ops::DurabilityOps;
+use raphtory_storage::mutation::{
+    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    durability_ops::DurabilityOps,
+};
 use storage::wal::{GraphWal, Wal};
 
-pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> + DurabilityOps {
+pub trait AdditionOps:
+    StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> + DurabilityOps
+{
     // TODO: Probably add vector reference here like add
     /// Add a node to the graph
     ///
@@ -145,7 +149,9 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     }
 }
 
-impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + DurabilityOps> AdditionOps for G {
+impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + DurabilityOps>
+    AdditionOps for G
+{
     fn add_node<
         V: AsNodeRef,
         T: TryIntoInputTime,
@@ -279,8 +285,18 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
 
         // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
         // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
-        let src_gid = src.as_node_ref().as_gid_ref().left().map(|gid_ref| GID::from(gid_ref)).unwrap();
-        let dst_gid = dst.as_node_ref().as_gid_ref().left().map(|gid_ref| GID::from(gid_ref)).unwrap();
+        let src_gid = src
+            .as_node_ref()
+            .as_gid_ref()
+            .left()
+            .map(|gid_ref| GID::from(gid_ref))
+            .unwrap();
+        let dst_gid = dst
+            .as_node_ref()
+            .as_gid_ref()
+            .left()
+            .map(|gid_ref| GID::from(gid_ref))
+            .unwrap();
 
         let src_id = src_id.inner();
         let dst_id = dst_id.inner();
@@ -307,18 +323,21 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
             })
             .collect::<Vec<_>>();
 
-        let lsn = self.wal().log_add_edge(
-            transaction_id,
-            ti,
-            src_gid,
-            src_id,
-            dst_gid,
-            dst_id,
-            edge_id.inner(),
-            layer,
-            layer_id,
-            props_for_wal,
-        ).unwrap();
+        let lsn = self
+            .wal()
+            .log_add_edge(
+                transaction_id,
+                ti,
+                src_gid,
+                src_id,
+                dst_gid,
+                dst_id,
+                edge_id.inner(),
+                layer,
+                layer_id,
+                props_for_wal,
+            )
+            .unwrap();
 
         let props = props_with_status
             .into_iter()
