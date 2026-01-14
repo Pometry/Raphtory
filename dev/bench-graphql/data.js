@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768321606724,
+  "lastUpdate": 1768406907791,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3239,6 +3239,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1486,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "db9bce17a6cb4f3ca77e39c1311668ac1fe49473",
+          "message": "Prevent client errors from going missing with async_graphql 7.1.0 (#2439)\n\n* update the result handling to prevent the errors from going missing with async_graphql 7.1.0\n\n* cargo update\n\n* update rust version\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-14T15:32:24Z",
+          "tree_id": "0f985854114a4a135c1f103a1334f4e275b2cb53",
+          "url": "https://github.com/Pometry/Raphtory/commit/db9bce17a6cb4f3ca77e39c1311668ac1fe49473"
+        },
+        "date": 1768406904619,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1465,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 192,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 137,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1109,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 995,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1521,
             "unit": "req/s"
           }
         ]
