@@ -341,7 +341,10 @@ fn arrow_fields(meta: &PropMapper) -> Vec<Field> {
 }
 
 fn ls_parquet_files(dir: &Path) -> Result<impl Iterator<Item = PathBuf>, GraphError> {
-    Ok(std::fs::read_dir(dir)?
+    Ok(std::fs::read_dir(dir)
+        .inspect_err(|err| {
+            eprintln!("Error reading directory {}: {}", dir.display(), err);
+        })? // print out the path if it's missing
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == "parquet")))

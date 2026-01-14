@@ -88,6 +88,10 @@ pub fn read_data_path(base_path: &Path, prefix: &str) -> Result<Option<String>, 
     read_path_pointer(base_path, ROOT_META_PATH, prefix)
 }
 
+pub fn read_graph_path(base_path: &Path, prefix: &str) -> Result<Option<String>, GraphError> {
+    read_path_pointer(base_path, GRAPH_META_PATH, prefix)
+}
+
 pub fn read_dirty_path(base_path: &Path, prefix: &str) -> Result<Option<String>, GraphError> {
     read_path_pointer(base_path, DIRTY_PATH, prefix)
 }
@@ -110,6 +114,10 @@ pub fn make_data_path(base_path: &Path, prefix: &str) -> Result<String, io::Erro
 
 pub fn read_or_default_data_path(base_path: &Path, prefix: &str) -> Result<String, GraphError> {
     Ok(read_data_path(base_path, prefix)?.unwrap_or_else(|| prefix.to_owned() + "0"))
+}
+
+pub fn read_or_default_graph_path(base_path: &Path, prefix: &str) -> Result<String, GraphError> {
+    Ok(read_graph_path(base_path, prefix)?.unwrap_or_else(|| prefix.to_owned() + "0"))
 }
 
 pub fn get_zip_data_path<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Result<String, GraphError> {
@@ -221,7 +229,7 @@ pub trait GraphPaths {
             get_zip_graph_path_name(&mut zip, data_path)
         } else {
             let data_path = self.data_path()?;
-            read_or_default_data_path(data_path.as_ref(), GRAPH_PATH)
+            read_or_default_graph_path(data_path.as_ref(), GRAPH_PATH)
         }
     }
 
