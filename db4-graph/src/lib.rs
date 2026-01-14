@@ -114,24 +114,6 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
         )
     }
 
-    pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
-        let path = path.as_ref();
-        let storage = Layer::load(path)?;
-        let id_type = storage.nodes().id_type();
-
-        let gid_resolver_dir = path.join("gid_resolver");
-        let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
-        let node_count = AtomicUsize::new(storage.nodes().num_nodes());
-
-        Ok(Self {
-            graph_dir: Some(path.into()),
-            logical_to_physical: resolver.into(),
-            node_count,
-            storage: Arc::new(storage),
-            transaction_manager: Arc::new(TransactionManager::new()),
-        })
-    }
-
     pub fn new_with_meta(
         graph_dir: Option<GraphDir>,
         node_meta: Meta,
@@ -180,6 +162,24 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
         })
     }
 
+    pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
+        let path = path.as_ref();
+        let storage = Layer::load(path)?;
+        let id_type = storage.nodes().id_type();
+
+        let gid_resolver_dir = path.join("gid_resolver");
+        let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
+        let node_count = AtomicUsize::new(storage.nodes().num_nodes());
+
+        Ok(Self {
+            graph_dir: Some(path.into()),
+            logical_to_physical: resolver.into(),
+            node_count,
+            storage: Arc::new(storage),
+            transaction_manager: Arc::new(TransactionManager::new()),
+        })
+    }
+
     pub fn disk_storage_path(&self) -> Option<&Path> {
         self.graph_dir()
             .filter(|_| Extension::disk_storage_enabled())
@@ -215,10 +215,12 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
                 .get_str(string)
                 .or_else(|| self.logical_to_physical.get_u64(string.id())),
         }?;
+
         // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
         let nodes = self.storage().nodes();
         let (page_id, pos) = nodes.resolve_pos(vid);
         let node_page = nodes.segments().get(page_id)?;
+
         if pos.0 < node_page.num_nodes() {
             Some(vid)
         } else {

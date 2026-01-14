@@ -120,6 +120,7 @@ impl Storage {
 
     pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path)?));
+
         Ok(Self {
             graph,
             #[cfg(feature = "search")]

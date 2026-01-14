@@ -611,7 +611,7 @@ impl Graph {
     ///
     #[cfg(feature = "io")]
     pub fn load_from_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        //TODO: add support for loading indexes and vectors
+        // TODO: add support for loading indexes and vectors
         Ok(Self {
             inner: Arc::new(Storage::load_from(path.graph_path()?)?),
         })

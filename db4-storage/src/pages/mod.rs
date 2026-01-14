@@ -1,5 +1,5 @@
 use crate::{
-    LocalPOS, WalType,
+    LocalPOS,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
@@ -77,91 +77,12 @@ impl<
     EXT: PersistenceStrategy,
 > GraphStore<NS, ES, GS, EXT>
 {
-    pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, GS, EXT> {
-        let nodes = self.nodes.locked().into();
-        let edges = self.edges.locked().into();
+    pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
+        let node_meta = Meta::new_for_nodes();
+        let edge_meta = Meta::new_for_edges();
+        let graph_props_meta = Meta::new_for_graph_props();
 
-        ReadLockedGraphStore {
-            nodes,
-            edges,
-            graph: self.clone(),
-        }
-    }
-
-    pub fn extension(&self) -> &EXT {
-        &self.ext
-    }
-
-    pub fn nodes(&self) -> &Arc<NodeStorageInner<NS, EXT>> {
-        &self.nodes
-    }
-
-    pub fn edges(&self) -> &Arc<EdgeStorageInner<ES, EXT>> {
-        &self.edges
-    }
-
-    pub fn graph_props(&self) -> &Arc<GraphPropStorageInner<GS, EXT>> {
-        &self.graph_props
-    }
-
-    pub fn edge_meta(&self) -> &Meta {
-        self.edges.edge_meta()
-    }
-
-    pub fn node_meta(&self) -> &Meta {
-        self.nodes.prop_meta()
-    }
-
-    pub fn graph_props_meta(&self) -> &Meta {
-        self.graph_props.meta()
-    }
-
-    pub fn earliest(&self) -> i64 {
-        self.nodes
-            .stats()
-            .earliest()
-            .min(self.edges.stats().earliest())
-    }
-
-    pub fn latest(&self) -> i64 {
-        self.nodes.stats().latest().max(self.edges.stats().latest())
-    }
-
-    pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError>
-    {
-        let nodes_path = graph_dir.as_ref().join("nodes");
-        let edges_path = graph_dir.as_ref().join("edges");
-        let graph_props_path = graph_dir.as_ref().join("graph_props");
-
-        let config = PersistenceConfig::load_from_dir(graph_dir.as_ref())
-            .unwrap_or_else(|_| PersistenceConfig::default());
-
-        let wal = Arc::new(EXT::WalType::new(Some(graph_dir.as_ref().to_path_buf()))?);
-        let ext = EXT::new(config, wal);
-
-        let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
-        let edge_meta = edge_storage.edge_meta().clone();
-        let node_storage = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
-        let node_meta = node_storage.prop_meta();
-
-        // Load graph temporal properties and metadata.
-        let graph_prop_storage =
-            Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
-
-        for node_type in ext.config().node_types().iter() {
-            node_meta.get_or_create_node_type_id(node_type);
-        }
-
-        let t_len = edge_storage.t_len();
-
-        Ok(Self {
-            nodes: node_storage,
-            edges: edge_storage,
-            graph_props: graph_prop_storage,
-            event_id: AtomicUsize::new(t_len),
-            graph_dir: Some(graph_dir.as_ref().to_path_buf()),
-            ext,
-        })
+        Self::new_with_meta(graph_dir, node_meta, edge_meta, graph_props_meta, ext)
     }
 
     pub fn new_with_meta(
@@ -212,12 +133,91 @@ impl<
         }
     }
 
-    pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
-        let node_meta = Meta::new_for_nodes();
-        let edge_meta = Meta::new_for_edges();
-        let graph_props_meta = Meta::new_for_graph_props();
+    pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError>
+    {
+        let nodes_path = graph_dir.as_ref().join("nodes");
+        let edges_path = graph_dir.as_ref().join("edges");
+        let graph_props_path = graph_dir.as_ref().join("graph_props");
 
-        Self::new_with_meta(graph_dir, node_meta, edge_meta, graph_props_meta, ext)
+        let config = PersistenceConfig::load_from_dir(graph_dir.as_ref())
+            .unwrap_or_else(|_| PersistenceConfig::default());
+
+        let wal = Arc::new(EXT::WalType::new(Some(graph_dir.as_ref().to_path_buf()))?);
+        let ext = EXT::new(config, wal);
+
+        let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
+        let edge_meta = edge_storage.edge_meta().clone();
+        let node_storage = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
+        let node_meta = node_storage.prop_meta();
+
+        // Load graph temporal properties and metadata.
+        let graph_prop_storage =
+            Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
+
+        for node_type in ext.config().node_types().iter() {
+            node_meta.get_or_create_node_type_id(node_type);
+        }
+
+        let t_len = edge_storage.t_len();
+
+        Ok(Self {
+            nodes: node_storage,
+            edges: edge_storage,
+            graph_props: graph_prop_storage,
+            event_id: AtomicUsize::new(t_len),
+            graph_dir: Some(graph_dir.as_ref().to_path_buf()),
+            ext,
+        })
+    }
+
+    pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, GS, EXT> {
+        let nodes = self.nodes.locked().into();
+        let edges = self.edges.locked().into();
+
+        ReadLockedGraphStore {
+            nodes,
+            edges,
+            graph: self.clone(),
+        }
+    }
+
+    pub fn extension(&self) -> &EXT {
+        &self.ext
+    }
+
+    pub fn nodes(&self) -> &Arc<NodeStorageInner<NS, EXT>> {
+        &self.nodes
+    }
+
+    pub fn edges(&self) -> &Arc<EdgeStorageInner<ES, EXT>> {
+        &self.edges
+    }
+
+    pub fn graph_props(&self) -> &Arc<GraphPropStorageInner<GS, EXT>> {
+        &self.graph_props
+    }
+
+    pub fn edge_meta(&self) -> &Meta {
+        self.edges.edge_meta()
+    }
+
+    pub fn node_meta(&self) -> &Meta {
+        self.nodes.prop_meta()
+    }
+
+    pub fn graph_props_meta(&self) -> &Meta {
+        self.graph_props.meta()
+    }
+
+    pub fn earliest(&self) -> i64 {
+        self.nodes
+            .stats()
+            .earliest()
+            .min(self.edges.stats().earliest())
+    }
+
+    pub fn latest(&self) -> i64 {
+        self.nodes.stats().latest().max(self.edges.stats().latest())
     }
 
     pub fn add_edge<T: TryIntoInputTime>(

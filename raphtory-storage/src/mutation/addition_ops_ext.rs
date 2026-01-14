@@ -175,9 +175,7 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
 
 impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
-
     type WS<'a> = UnlockedSession<'a>;
-
     type AtomicAddEdge<'a> = WriteS<'a, Extension>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
