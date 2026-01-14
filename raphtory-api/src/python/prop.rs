@@ -323,6 +323,10 @@ impl PyPropType {
         format!("PropType.{}", self.0)
     }
 
+    fn __str__(&self) -> String {
+        format!("{:?}", self.0)
+    }
+
     fn __eq__(&self, other: PropType) -> bool {
         self.0 == other
     }

@@ -683,7 +683,7 @@ def create_test_graph2(g: Graph):
         "p_bools",
     ]
 
-    g.load_edges_from_pandas(df, "time", "src", "dst", prop_cols)
+    g.load_edges(df, "time", "src", "dst", prop_cols)
 
     return g
 
