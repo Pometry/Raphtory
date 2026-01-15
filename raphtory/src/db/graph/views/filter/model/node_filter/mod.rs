@@ -13,12 +13,14 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter::Filter,
+                latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
                 },
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 ComposableFilter, CompositeExplodedEdgeFilter, InternalPropertyFilterFactory,
                 TryAsCompositeFilter, Wrap,
@@ -75,6 +77,8 @@ impl Wrap for NodeFilter {
         value
     }
 }
+
+impl ComposableFilter for NodeFilter {}
 
 impl InternalPropertyFilterFactory for NodeFilter {
     type Entity = NodeFilter;
@@ -281,6 +285,9 @@ pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter<NodeFilter>),
     Windowed(Box<Windowed<CompositeNodeFilter>>),
+    Latest(Box<Latest<CompositeNodeFilter>>),
+    SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
+    SnapshotLatest(Box<SnapshotLatest<CompositeNodeFilter>>),
     Layered(Box<Layered<CompositeNodeFilter>>),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
@@ -293,6 +300,9 @@ impl Display for CompositeNodeFilter {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Layered(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Latest(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -334,6 +344,18 @@ impl CreateFilter for CompositeNodeFilter {
                 i.create_node_filter(dyn_graph)
             }
             CompositeNodeFilter::Layered(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::Latest(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::SnapshotAt(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::SnapshotLatest(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_node_filter(dyn_graph)
             }

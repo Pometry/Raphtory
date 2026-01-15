@@ -8,6 +8,7 @@ use crate::{
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
+                latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
                     builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
@@ -17,9 +18,11 @@ use crate::{
                     builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
                     Op, PropertyFilter, PropertyRef,
                 },
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, InternalPropertyFilterBuilder, InternalPropertyFilterFactory, NotFilter,
-                OrFilter, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                AndFilter, ComposableFilter, InternalPropertyFilterBuilder,
+                InternalPropertyFilterFactory, NotFilter, OrFilter, TemporalPropertyFilterFactory,
+                TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -62,6 +65,8 @@ impl Wrap for ExplodedEdgeFilter {
         value
     }
 }
+
+impl ComposableFilter for ExplodedEdgeFilter {}
 
 impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
     type Entity = ExplodedEdgeFilter;
@@ -268,6 +273,9 @@ pub enum CompositeExplodedEdgeFilter {
     Dst(CompositeNodeFilter),
     Property(PropertyFilter<ExplodedEdgeFilter>),
     Windowed(Box<Windowed<CompositeExplodedEdgeFilter>>),
+    Latest(Box<Latest<CompositeExplodedEdgeFilter>>),
+    SnapshotAt(Box<SnapshotAt<CompositeExplodedEdgeFilter>>),
+    SnapshotLatest(Box<SnapshotLatest<CompositeExplodedEdgeFilter>>),
     Layered(Box<Layered<CompositeExplodedEdgeFilter>>),
     And(
         Box<CompositeExplodedEdgeFilter>,
@@ -287,6 +295,9 @@ impl Display for CompositeExplodedEdgeFilter {
             CompositeExplodedEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
             CompositeExplodedEdgeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::Windowed(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::Latest(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeExplodedEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -320,6 +331,18 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
             }
             Self::Property(p) => Ok(Arc::new(p.create_filter(graph)?)),
             Self::Windowed(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::Latest(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::SnapshotAt(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::SnapshotLatest(pw) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 pw.create_filter(dyn_graph)
             }

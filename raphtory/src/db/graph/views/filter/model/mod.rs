@@ -2,10 +2,14 @@ pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
 use crate::{
     db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter,
+        latest_filter::Latest,
+        layered_filter::Layered,
         property_filter::{
             builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
             Op, PropertyRef,
         },
+        snapshot_filter::{SnapshotAt, SnapshotLatest},
+        windowed_filter::Windowed,
     },
     prelude::PropertyFilter,
 };
@@ -34,7 +38,11 @@ pub use crate::{
     prelude::{GraphViewOps, TimeOps},
 };
 pub use node_filter::CompositeNodeFilter;
-use raphtory_api::core::storage::timeindex::AsTime;
+use raphtory_api::core::{
+    entities::Layer,
+    storage::timeindex::{AsTime, EventTime},
+    utils::time::IntoTime,
+};
 use std::{fmt::Display, ops::Deref, sync::Arc};
 
 pub mod and_filter;
@@ -42,11 +50,13 @@ pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;
 pub mod filter_operator;
+pub mod latest_filter;
 pub mod layered_filter;
 pub mod node_filter;
 pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
+pub mod snapshot_filter;
 pub mod windowed_filter;
 
 pub trait Wrap {
@@ -196,3 +206,53 @@ impl<T: TryAsCompositeFilter + ?Sized> TryAsCompositeFilter for Arc<T> {
 pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static {}
 
 impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
+
+pub trait ViewWrapOps: ComposableFilter + Sized {
+    #[inline]
+    fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Windowed<Self> {
+        Windowed::from_times(start, end, self)
+    }
+
+    #[inline]
+    fn at<T: IntoTime>(self, time: T) -> Windowed<Self> {
+        let t = time.into_time();
+        Windowed::from_times(t, t.t().saturating_add(1), self)
+    }
+
+    #[inline]
+    fn after<T: IntoTime>(self, time: T) -> Windowed<Self> {
+        let start = time.into_time().t().saturating_add(1);
+        Windowed::new(EventTime::start(start), EventTime::end(i64::MAX), self)
+    }
+
+    #[inline]
+    fn before<T: IntoTime>(self, time: T) -> Windowed<Self> {
+        Windowed::new(
+            EventTime::start(i64::MIN),
+            EventTime::end(time.into_time().t()),
+            self,
+        )
+    }
+
+    #[inline]
+    fn latest(self) -> Latest<Self> {
+        Latest::new(self)
+    }
+
+    #[inline]
+    fn snapshot_at<T: IntoTime>(self, time: T) -> SnapshotAt<Self> {
+        SnapshotAt::new(time, self)
+    }
+
+    #[inline]
+    fn snapshot_latest(self) -> SnapshotLatest<Self> {
+        SnapshotLatest::new(self)
+    }
+
+    #[inline]
+    fn layer<L: Into<Layer>>(self, layer: L) -> Layered<Self> {
+        Layered::from_layers(layer, self)
+    }
+}
+
+impl<T: ComposableFilter + Sized> ViewWrapOps for T {}

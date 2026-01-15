@@ -2299,7 +2299,7 @@ mod test_node_property_filter {
             node_filter::NodeFilter,
             not_filter::NotFilter,
             property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-            ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+            ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory, ViewWrapOps,
         },
     };
     use raphtory_api::core::entities::properties::prop::Prop;
@@ -3499,7 +3499,8 @@ mod test_node_property_filter {
 
     #[test]
     fn test_nodes_window_filter() {
-        let filter = NodeFilter::window(1, 3)
+        let filter = NodeFilter
+            .window(1, 3)
             .property("p2")
             .temporal()
             .sum()
@@ -3522,7 +3523,8 @@ mod test_node_property_filter {
         );
 
         // Wider window includes node 3
-        let filter = NodeFilter::window(1, 5)
+        let filter = NodeFilter
+            .window(1, 5)
             .property("p2")
             .temporal()
             .sum()
@@ -3547,8 +3549,9 @@ mod test_node_property_filter {
 
     #[test]
     fn test_nodes_window_filter_on_non_temporal_property() {
-        let filter1 = NodeFilter::window(1, 2).property("p1").eq("shivam_kapoor");
-        let filter2 = NodeFilter::window(100, 200)
+        let filter1 = NodeFilter.window(1, 2).property("p1").eq("shivam_kapoor");
+        let filter2 = NodeFilter
+            .window(100, 200)
             .property("p1")
             .eq("shivam_kapoor");
 
@@ -3584,7 +3587,8 @@ mod test_node_property_filter {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter::window(100, 200)
+        let filter = NodeFilter
+            .window(100, 200)
             .property("p1")
             .eq("shivam_kapoor");
 
@@ -3607,7 +3611,8 @@ mod test_node_property_filter {
 
     #[test]
     fn test_nodes_window_filter_any_all_over_window() {
-        let filter = NodeFilter::window(3, 5)
+        let filter = NodeFilter
+            .window(3, 5)
             .property("p20")
             .temporal()
             .any()
@@ -3629,7 +3634,8 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::window(3, 5)
+        let filter = NodeFilter
+            .window(3, 5)
             .property("p20")
             .temporal()
             .all()
@@ -3655,14 +3661,16 @@ mod test_node_property_filter {
     #[test]
     fn test_nodes_window_filter_and() {
         // Filters both node 1 and 3
-        let filter1 = NodeFilter::window(1, 4)
+        let filter1 = NodeFilter
+            .window(1, 4)
             .property("p10")
             .temporal()
             .any()
             .eq("Paper_airplane");
 
         // Filters only node 3
-        let filter2 = NodeFilter::window(3, 6)
+        let filter2 = NodeFilter
+            .window(3, 6)
             .property("p2")
             .temporal()
             .sum()
@@ -3688,15 +3696,386 @@ mod test_node_property_filter {
     }
 
     #[test]
+    fn test_nodes_at_filter() {
+        // Only time=2 contributes; node 2 has p2=2 at t=2
+        let filter = NodeFilter.at(2).property("p2").temporal().sum().eq(2u64);
+
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+
+        // Only time=3 contributes; node 3 has p2=6 at t=3
+        let filter = NodeFilter.at(3).property("p2").temporal().sum().eq(6u64);
+
+        let expected_results = vec!["3"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_after_filter() {
+        // after(2) means t >= 3
+        let filter = NodeFilter.after(2).property("p2").temporal().sum().ge(6u64);
+
+        let expected_results = vec!["3"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_before_filter() {
+        // before(3) means t <= 2
+        let filter = NodeFilter
+            .before(3)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(2u64);
+
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+
+        // And node 3 shouldn't match, because its p2=6 lives at t=3.
+        let filter = NodeFilter
+            .before(3)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(6u64);
+
+        let expected_results = vec![];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_latest_filter() {
+        // At latest time (currently t=4), only node 4 has p5=12
+        let filter = NodeFilter.latest().property("p5").eq(12u64);
+
+        let expected_results = vec!["4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_nodes_snapshot_at_semantics_event_graph() {
+        let t = 2;
+
+        let filter_snapshot = NodeFilter.snapshot_at(t).property("p2").eq(2u64);
+
+        let filter_before = NodeFilter.before(t + 1).property("p2").eq(2u64);
+
+        let expected_results = vec!["2"];
+
+        // snapshot_at
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        // before(t+1)
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_before.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_before,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+    }
+
+    #[test]
+    fn test_nodes_snapshot_at_semantics_persistent_graph() {
+        let t = 2;
+
+        let filter_snapshot = NodeFilter.snapshot_at(t).property("p2").eq(2u64);
+
+        let filter_at = NodeFilter.at(t).property("p2").eq(2u64);
+
+        let expected_results = vec!["2"];
+
+        // snapshot_at
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+
+        // at(t)
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_at.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_at,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_nodes_snapshot_latest_semantics_event_graph() {
+        let filter_snapshot_latest = NodeFilter
+            .snapshot_latest()
+            .property("p2")
+            .temporal()
+            .sum()
+            .ge(2u64);
+
+        let filter_noop = NodeFilter.property("p2").temporal().sum().ge(2u64);
+
+        // From your earlier window test, "2" and "3" are the ones with p2 values across time.
+        // If your underlying dataset changes, adjust this accordingly.
+        let expected_results = vec!["2", "3"];
+
+        // snapshot_latest
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        // no-op baseline
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_noop.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_noop,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+    }
+
+    #[test]
+    fn test_nodes_snapshot_latest_semantics_persistent_graph() {
+        let filter_snapshot_latest = NodeFilter
+            .snapshot_latest()
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let filter_latest = NodeFilter.latest().property("p1").eq("shivam_kapoor");
+
+        let expected_results = vec!["1"];
+
+        // snapshot_latest
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+
+        // latest
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_latest.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter_latest,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
     #[ignore] // TODO: Enable this when node layer is supported
     fn test_nodes_layer_filter() {
-        let filter = NodeFilter::layer("_default")
+        let filter = NodeFilter
+            .layer("_default")
             .property("p2")
             .temporal()
             .sum()
             .ge(2u64);
 
         let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
+    fn test_nodes_layer_then_window_ordering() {
+        // In layer "fire_nation" within window [1,4), node "1" matches p1 == "shivam_kapoor".
+        let filter = NodeFilter
+            .layer("fire_nation")
+            .window(1, 4)
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let expected_results = vec!["1"];
+
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
+    fn test_nodes_window_then_layer_ordering() {
+        // Same semantics as above, but reversed chaining order.
+        let filter = NodeFilter
+            .window(1, 4)
+            .layer("fire_nation")
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let expected_results = vec!["1"];
+
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -8861,6 +9240,7 @@ mod test_edge_property_filter {
                 edge_filter::EdgeFilter,
                 property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
                 ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+                ViewWrapOps,
             },
         },
     };
@@ -10028,7 +10408,8 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_window_filter() {
-        let filter = EdgeFilter::window(1, 3)
+        let filter = EdgeFilter
+            .window(1, 3)
             .property("p2")
             .temporal()
             .sum()
@@ -10050,7 +10431,8 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter::window(1, 5)
+        let filter = EdgeFilter
+            .window(1, 5)
             .property("p2")
             .temporal()
             .sum()
@@ -10082,8 +10464,9 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_window_filter_on_non_temporal_property() {
-        let filter1 = EdgeFilter::window(1, 2).property("p1").eq("shivam_kapoor");
-        let filter2 = EdgeFilter::window(100, 200)
+        let filter1 = EdgeFilter.window(1, 2).property("p1").eq("shivam_kapoor");
+        let filter2 = EdgeFilter
+            .window(100, 200)
             .property("p1")
             .eq("shivam_kapoor");
 
@@ -10119,7 +10502,8 @@ mod test_edge_property_filter {
             TestVariants::EventOnly,
         );
 
-        let filter2 = EdgeFilter::window(100, 200)
+        let filter2 = EdgeFilter
+            .window(100, 200)
             .property("p1")
             .eq("shivam_kapoor");
         let expected_results = vec!["1->2"];
@@ -10141,7 +10525,8 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_window_filter_any_all_over_window() {
-        let filter_any = EdgeFilter::window(2, 4)
+        let filter_any = EdgeFilter
+            .window(2, 4)
             .property("p20")
             .temporal()
             .any()
@@ -10163,7 +10548,8 @@ mod test_edge_property_filter {
             TestVariants::All,
         );
 
-        let filter_all = EdgeFilter::window(2, 4)
+        let filter_all = EdgeFilter
+            .window(2, 4)
             .property("p20")
             .temporal()
             .all()
@@ -10188,13 +10574,15 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_window_filter_and() {
-        let filter1 = EdgeFilter::window(3, 6)
+        let filter1 = EdgeFilter
+            .window(3, 6)
             .property("p10")
             .temporal()
             .any()
             .eq("Paper_airplane");
 
-        let filter2 = EdgeFilter::window(3, 6)
+        let filter2 = EdgeFilter
+            .window(3, 6)
             .property("p2")
             .temporal()
             .sum()
@@ -10221,7 +10609,8 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_edges_layer_filter() {
-        let filter = EdgeFilter::layer("fire_nation")
+        let filter = EdgeFilter
+            .layer("fire_nation")
             .property("p2")
             .temporal()
             .sum()
@@ -10239,6 +10628,407 @@ mod test_edge_property_filter {
             init_edges_graph,
             IdentityGraphTransformer,
             filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_edges_at_filter() {
+        // Only time=2 contributes; edge 2->3 has p2=2 at t=2
+        let filter = EdgeFilter.at(2).property("p2").temporal().sum().eq(2u64);
+
+        let expected_results = vec!["2->3"];
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+
+        // Only time=3 contributes; edge 3->1 has p2=6 at t=3
+        let filter = EdgeFilter.at(3).property("p2").temporal().sum().eq(6u64);
+
+        let expected_results = vec!["3->1", "2->1"];
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_edges_after_filter() {
+        // after(2) means t >= 3
+        let filter = EdgeFilter.after(2).property("p2").temporal().sum().ge(6u64);
+
+        // At t=3: 3->1 and 2->1 have p2=6
+        // At t=4: David->John and John->Jimmy have p2=6
+        let expected_results = vec![
+            "3->1",
+            "2->1",
+            "David Gilmour->John Mayer",
+            "John Mayer->Jimmy Page",
+        ];
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_edges_before_filter() {
+        // before(3) means t <= 2
+        let filter = EdgeFilter
+            .before(3)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(2u64);
+
+        // Only t=2 contributes for p2=2 -> 2->3
+        let expected_results = vec!["2->3"];
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+
+        // And p2=6 edges shouldn't match, because their p2=6 lives at t=3+.
+        let filter = EdgeFilter
+            .before(3)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(6u64);
+
+        let expected_results = vec![];
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_edges_latest_filter() {
+        // At latest time (currently t=4), only the t=4 edges exist in the Event graph.
+        // Use EventOnly so the expectation is stable and matches node-style.
+        let filter = EdgeFilter.latest().property("p2").eq(6u64);
+
+        let expected_results = vec!["David Gilmour->John Mayer", "John Mayer->Jimmy Page"];
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+    }
+
+    #[test]
+    fn test_edges_snapshot_at_semantics_event_graph() {
+        let t = 2;
+
+        let filter_snapshot = EdgeFilter
+            .snapshot_at(t)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(2u64);
+
+        let filter_before = EdgeFilter
+            .before(t + 1)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(2u64);
+
+        let expected_results = vec!["2->3"];
+
+        // snapshot_at
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_snapshot.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_snapshot,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        // before(t+1)
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_before.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_before,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+    }
+
+    #[test]
+    fn test_edges_snapshot_at_semantics_persistent_graph() {
+        let t = 2;
+
+        let filter_snapshot = EdgeFilter
+            .snapshot_at(t)
+            .property("p2")
+            .temporal()
+            .sum()
+            .eq(2u64);
+
+        let filter_at = EdgeFilter.at(t).property("p2").temporal().sum().eq(2u64);
+
+        let expected_results = vec!["2->3"];
+
+        // snapshot_at
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_snapshot.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_snapshot,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+
+        // at(t)
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_at.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_at,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_edges_snapshot_latest_semantics_event_graph() {
+        let filter_snapshot_latest = EdgeFilter
+            .snapshot_latest()
+            .property("p2")
+            .temporal()
+            .sum()
+            .ge(6u64);
+
+        let filter_noop = EdgeFilter.property("p2").temporal().sum().ge(6u64);
+
+        // Across the whole event history, p2=6 appears at t=3 and t=4.
+        let expected_results = vec![
+            "3->1",
+            "2->1",
+            "David Gilmour->John Mayer",
+            "John Mayer->Jimmy Page",
+        ];
+
+        // snapshot_latest
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        // no-op baseline
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_noop.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_noop,
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+    }
+
+    #[test]
+    fn test_edges_snapshot_latest_semantics_persistent_graph() {
+        let filter_snapshot_latest = EdgeFilter.snapshot_latest().property("p2").eq(6u64);
+
+        let filter_latest = EdgeFilter.latest().property("p2").eq(6u64);
+
+        // In persistent latest state at t=4, these edges have p2=6:
+        // - t=3 edges: 3->1, 2->1
+        // - t=4 edges: David->John, John->Jimmy
+        let expected_results = vec![
+            "3->1",
+            "2->1",
+            "David Gilmour->John Mayer",
+            "John Mayer->Jimmy Page",
+        ];
+
+        // snapshot_latest
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_snapshot_latest,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+
+        // latest
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_latest.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter_latest,
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_edges_layer_then_window_ordering() {
+        // In layer "fire_nation" within window [1,3), edge 1->2 matches p1 == "shivam_kapoor".
+        let filter = EdgeFilter
+            .layer("fire_nation")
+            .window(1, 3)
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let expected_results = vec!["1->2"];
+
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_edges_window_then_layer_ordering() {
+        // Same semantics, reversed chaining order.
+        let filter = EdgeFilter
+            .window(1, 3)
+            .layer("fire_nation")
+            .property("p1")
+            .eq("shivam_kapoor");
+
+        let expected_results = vec!["1->2"];
+
+        assert_filter_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+        assert_search_edges_results(
+            init_edges_graph,
+            IdentityGraphTransformer,
+            filter,
             &expected_results,
             TestVariants::All,
         );
