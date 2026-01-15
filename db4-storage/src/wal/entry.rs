@@ -36,10 +36,7 @@ impl GraphWal for NoWal {
         std::iter::empty()
     }
 
-    fn replay_to_graph<G: GraphReplay>(
-        &self,
-        _graph: &mut G,
-    ) -> Result<(), StorageError> {
+    fn replay_to_graph<G: GraphReplay>(&self, _graph: &mut G) -> Result<(), StorageError> {
         panic!("NoWAL does not support replay")
     }
 }

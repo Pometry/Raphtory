@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     error::StorageError,
-    wal::{LSN, Wal, ReplayRecord},
+    wal::{LSN, ReplayRecord, Wal},
 };
 
 /// `NoWAL` is a no-op WAL implementation that discards all writes.

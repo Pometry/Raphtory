@@ -38,7 +38,7 @@ use std::{
 };
 use storage::{
     transaction::TransactionManager,
-    wal::{Wal, LSN},
+    wal::{GraphWal, Wal, LSN},
     WalType,
 };
 
@@ -113,7 +113,7 @@ impl Storage {
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
         let wal = Arc::new(WalType::new(Some(wal_dir.as_path()))?);
-        let ext = Extension::new(config, wal);
+        let ext = Extension::new(config, wal.clone());
         let temporal_graph = TemporalGraph::new_with_path(path, ext)?;
 
         Ok(Self {
@@ -128,9 +128,14 @@ impl Storage {
             .unwrap_or_else(|_| PersistenceConfig::default());
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
-        let wal = Arc::new(WalType::new(Some(wal_dir.as_path()))?);
-        let ext = Extension::new(config, wal);
+        let wal = Arc::new(WalType::load(Some(wal_dir.as_path()))?);
+        let ext = Extension::new(config, wal.clone());
         let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
+
+        // Replay any pending writes from the WAL.
+        let mut write_locked_graph = temporal_graph.write_lock()?;
+        wal.replay_to_graph(&mut write_locked_graph)?;
+        drop(write_locked_graph);
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),

@@ -49,7 +49,11 @@ pub struct ReplayRecord {
 
 impl ReplayRecord {
     pub fn new(lsn: LSN, data: Vec<u8>, raw_bytes: Vec<u8>) -> Self {
-        Self { lsn, data, raw_bytes }
+        Self {
+            lsn,
+            data,
+            raw_bytes,
+        }
     }
 
     pub fn lsn(&self) -> LSN {
@@ -92,10 +96,8 @@ pub trait GraphWal {
     fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
 
     /// Replays and applies all the entries in the wal to the given graph.
-    fn replay_to_graph<G: GraphReplay>(
-        &self,
-        graph: &mut G,
-    ) -> Result<(), StorageError>;
+    /// Subsequent appends to the WAL will start from the LSN of the last replayed entry.
+    fn replay_to_graph<G: GraphReplay>(&self, graph: &mut G) -> Result<(), StorageError>;
 }
 
 /// Trait for defining callbacks for replaying from wal.
