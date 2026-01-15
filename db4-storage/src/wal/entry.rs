@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
     entities::{EID, GID, VID},
@@ -34,17 +32,14 @@ impl GraphWal for NoWal {
         Ok(0)
     }
 
-    fn replay_iter(
-        _dir: impl AsRef<Path>,
-    ) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
-        std::iter::once(Ok((0, ())))
+    fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
+        std::iter::empty()
     }
 
     fn replay_to_graph<G: GraphReplay>(
         &self,
-        _dir: impl AsRef<Path>,
         _graph: &mut G,
     ) -> Result<(), StorageError> {
-        todo!()
+        panic!("NoWAL does not support replay")
     }
 }

@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::{
     error::StorageError,
-    wal::{LSN, Wal, WalRecord},
+    wal::{LSN, Wal, ReplayRecord},
 };
 
 /// `NoWAL` is a no-op WAL implementation that discards all writes.
@@ -27,7 +27,7 @@ impl Wal for NoWal {
         Ok(())
     }
 
-    fn replay(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, StorageError>> {
+    fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>> {
         let error = "Recovery is not supported for NoWAL";
         std::iter::once(Err(StorageError::GenericFailure(error.to_string())))
     }

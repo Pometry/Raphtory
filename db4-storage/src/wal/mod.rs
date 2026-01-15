@@ -12,12 +12,6 @@ pub mod no_wal;
 pub type LSN = u64;
 pub type TransactionID = u64;
 
-#[derive(Debug)]
-pub struct WalRecord {
-    pub lsn: LSN,
-    pub data: Vec<u8>,
-}
-
 /// Core Wal methods.
 pub trait Wal {
     fn new(dir: Option<&Path>) -> Result<Self, StorageError>
@@ -34,8 +28,36 @@ pub trait Wal {
     /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
     fn rotate(&self, cutoff_lsn: LSN) -> Result<(), StorageError>;
 
-    /// Returns an iterator over the wal entries in the given directory.
-    fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, StorageError>>;
+    /// Returns an iterator over the entries in the wal.
+    fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
+}
+
+#[derive(Debug)]
+pub struct ReplayRecord {
+    lsn: LSN,
+
+    data: Vec<u8>,
+
+    /// The raw bytes of the WAL entry stored on disk, including CRC data.
+    raw_bytes: Vec<u8>,
+}
+
+impl ReplayRecord {
+    pub fn new(lsn: LSN, data: Vec<u8>, raw_bytes: Vec<u8>) -> Self {
+        Self { lsn, data, raw_bytes }
+    }
+
+    pub fn lsn(&self) -> LSN {
+        self.lsn
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn raw_bytes(&self) -> &[u8] {
+        &self.raw_bytes
+    }
 }
 
 // Raphtory-specific logging & replay methods.
@@ -61,15 +83,12 @@ pub trait GraphWal {
     /// `lsn` has been persisted to disk.
     fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
-    /// Returns an iterator over the wal entries in the given directory.
-    fn replay_iter(
-        dir: impl AsRef<Path>,
-    ) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
+    /// Returns an iterator over the entries in the wal.
+    fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
 
-    /// Replays and applies all the wal entries in the given directory to the given graph.
+    /// Replays and applies all the entries in the wal to the given graph.
     fn replay_to_graph<G: GraphReplay>(
         &self,
-        dir: impl AsRef<Path>,
         graph: &mut G,
     ) -> Result<(), StorageError>;
 }
