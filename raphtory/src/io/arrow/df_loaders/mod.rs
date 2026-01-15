@@ -278,7 +278,7 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
 ) -> Result<FxDashMap<GidKey<'a>, (GID, MaybeNew<VID>)>, GraphError> {
     let node_type_col = vec![None; cols_to_resolve.len()];
     resolve_nodes_with_cache_generic(
-        &cols_to_resolve,
+        cols_to_resolve,
         &node_type_col,
         |v: &(GID, MaybeNew<VID>), idx, col_idx| {
             let (_, vid) = v;

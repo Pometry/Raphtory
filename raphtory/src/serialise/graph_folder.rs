@@ -265,7 +265,7 @@ pub trait GraphPaths {
                 return Err(GraphError::NonEmptyGraphFolder(self.root().into()));
             }
         } else {
-            fs::create_dir(self.root())?
+            fs::create_dir_all(self.root())?
         }
         let meta_path = self.relative_data_path()?;
         fs::create_dir(self.root().join(&meta_path))?;

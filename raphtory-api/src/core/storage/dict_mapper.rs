@@ -172,6 +172,18 @@ impl WriteLockedDictMapper<'_> {
 }
 
 impl DictMapper {
+    fn read_lock_reverse_map(&self) -> RwLockReadGuard<'_, Vec<ArcStr>> {
+        self.reverse_map.read_recursive()
+    }
+
+    fn write_lock_reverse_map(&self) -> RwLockWriteGuard<'_, Vec<ArcStr>> {
+        self.reverse_map.write()
+    }
+
+    fn read_arc_lock_reverse_map(&self) -> ArcRwLockReadGuard<Vec<ArcStr>> {
+        self.reverse_map.read_arc_recursive()
+    }
+
     pub fn new_layer_mapper() -> Self {
         Self::new_with_private_fields([STATIC_GRAPH_LAYER])
     }
@@ -190,7 +202,7 @@ impl DictMapper {
     }
 
     pub fn deep_clone(&self) -> Self {
-        let reverse_map = self.reverse_map.read_recursive().clone();
+        let reverse_map = self.read_lock_reverse_map().clone();
 
         Self {
             map: self.map.clone(),
@@ -202,7 +214,7 @@ impl DictMapper {
     pub fn read(&self) -> LockedDictMapper<'_> {
         LockedDictMapper {
             map: self.map.read(),
-            reverse_map: self.reverse_map.read(),
+            reverse_map: self.read_lock_reverse_map(),
             num_private_fields: self.num_private_fields,
         }
     }
@@ -210,7 +222,7 @@ impl DictMapper {
     pub fn write(&self) -> WriteLockedDictMapper<'_> {
         WriteLockedDictMapper {
             map: self.map.write(),
-            reverse_map: self.reverse_map.write(),
+            reverse_map: self.write_lock_reverse_map(),
         }
     }
 
@@ -219,19 +231,24 @@ impl DictMapper {
         Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
         T: Into<ArcStr>,
     {
-        let map = self.map.read();
+        let map = self
+            .map
+            .try_read_for(std::time::Duration::from_secs(3))
+            .unwrap_or_else(|| panic!("failed to get lock on layer met read"));
         if let Some(existing_id) = map.get(name.borrow()) {
             return MaybeNew::Existing(*existing_id);
         }
         drop(map);
 
-        let mut map = self.map.write();
-
+        let mut map = self
+            .map
+            .try_write_for(std::time::Duration::from_secs(3))
+            .unwrap_or_else(|| panic!("failed to get lock on layer met write"));
         let name = name.to_owned().into();
         let new_id = match map.entry(name.clone()) {
             Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
             Entry::Vacant(entry) => {
-                let mut reverse = self.reverse_map.write();
+                let mut reverse = self.write_lock_reverse_map();
                 let id = reverse.len();
                 reverse.push(name);
                 entry.insert(id);
@@ -250,7 +267,7 @@ impl DictMapper {
         let mut map = self.map.write();
         let arc_name = name.into();
         let map_entry = map.entry(arc_name.clone());
-        let mut keys = self.reverse_map.write();
+        let mut keys = self.write_lock_reverse_map();
         if keys.len() <= id {
             keys.resize(id + 1, Default::default())
         }
@@ -259,12 +276,12 @@ impl DictMapper {
     }
 
     pub fn has_id(&self, id: usize) -> bool {
-        let guard = self.reverse_map.read_recursive();
+        let guard = self.read_lock_reverse_map();
         guard.get(id).is_some()
     }
 
     pub fn get_name(&self, id: usize) -> ArcStr {
-        let guard = self.reverse_map.read_recursive();
+        let guard = self.read_lock_reverse_map();
         guard
             .get(id)
             .cloned()
@@ -284,7 +301,7 @@ impl DictMapper {
     /// Public keys
     pub fn keys(&self) -> PublicKeys<ArcStr> {
         PublicKeys {
-            guard: self.reverse_map.read_arc_recursive(),
+            guard: self.read_arc_lock_reverse_map(),
             num_private_fields: self.num_private_fields,
         }
     }
@@ -292,12 +309,12 @@ impl DictMapper {
     /// All keys including private fields
     pub fn all_keys(&self) -> AllKeys<ArcStr> {
         AllKeys {
-            guard: self.reverse_map.read_arc(),
+            guard: self.read_arc_lock_reverse_map(),
         }
     }
 
     pub fn num_all_fields(&self) -> usize {
-        self.reverse_map.read_recursive().len()
+        self.read_lock_reverse_map().len()
     }
 
     pub fn num_fields(&self) -> usize {
