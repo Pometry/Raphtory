@@ -182,7 +182,7 @@ pub fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
     }
 }
 
-pub fn prop_type() -> impl Strategy<Value = PropType> {
+pub fn prop_type(nested_prop_size: usize) -> impl Strategy<Value = PropType> {
     let leaf = proptest::sample::select(&[
         PropType::Str,
         PropType::I64,
@@ -194,8 +194,8 @@ pub fn prop_type() -> impl Strategy<Value = PropType> {
         PropType::Decimal { scale: 7 },
     ]);
 
-    leaf.prop_recursive(3, 10, 10, |inner| {
-        let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 0..10) // FIXME size 0..=len breaks type merging because empty maps {} needs looking into
+    leaf.prop_recursive(3, 10, 10, move |inner| {
+        let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 0..=nested_prop_size) // FIXME size 0..=len breaks type merging because empty maps {} needs looking into
             .prop_map(PropType::map);
         let list = inner
             .clone()
@@ -397,7 +397,7 @@ fn make_props(schema: Vec<(String, PropType)>) -> impl Strategy<Value = Vec<(Str
 }
 
 fn prop_schema(num_props: RangeInclusive<usize>) -> impl Strategy<Value = Vec<(String, PropType)>> {
-    proptest::collection::hash_map(num_props.clone(), prop_type(), num_props)
+    proptest::collection::hash_map(num_props.clone(), prop_type(*num_props.end()), num_props)
         .prop_map(|v| v.into_iter().map(|(k, p)| (k.to_string(), p)).collect())
 }
 
