@@ -6,8 +6,8 @@ use crate::{
                 builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
             },
-            InternalPropertyFilterBuilder, PropertyFilterFactory, TemporalPropertyFilterFactory,
-            TryAsCompositeFilter,
+            ComposableFilter, InternalPropertyFilterBuilder, PropertyFilterFactory,
+            TemporalPropertyFilterFactory, TryAsCompositeFilter,
         },
         CreateFilter,
     },
@@ -17,6 +17,9 @@ use crate::{
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
+use raphtory_api::core::storage::timeindex::EventTime;
+use crate::db::graph::views::filter::model::ViewWrapOps;
+use crate::python::filter::create_filter::PyViewFilterBuilder;
 
 pub trait DynPropertyFilterOps: Send + Sync {
     fn __eq__(&self, value: Prop) -> PyFilterExpr;
@@ -552,7 +555,7 @@ pub trait DynPropertyFilterFactory: Send + Sync + 'static {
     fn metadata(&self, name: String) -> PyPropertyExprBuilder;
 }
 
-impl<T: PropertyFilterFactory + Send + Sync + 'static> DynPropertyFilterFactory for T {
+impl<T: PropertyFilterFactory + Send + Sync + 'static> DynPropertyFilterFactory for T where T: ViewWrapOps {
     fn property(&self, name: String) -> PyPropertyFilterBuilder {
         PyPropertyFilterBuilder::from_arc(Arc::new(self.property(name)))
     }
@@ -563,26 +566,62 @@ impl<T: PropertyFilterFactory + Send + Sync + 'static> DynPropertyFilterFactory 
 }
 
 #[pyclass(
-    name = "PropertyFilterFactory",
+    name = "ViewFilterBuilder",
     module = "raphtory.filter",
     subclass,
     frozen
 )]
-pub struct PyPropertyFilterFactory(Arc<dyn DynPropertyFilterFactory>);
+pub struct PyViewFilterBuilder(Arc<dyn DynPropertyFilterFactory>);
 
-impl PyPropertyFilterFactory {
+impl PyViewFilterBuilder {
     pub fn wrap<T: DynPropertyFilterFactory>(value: T) -> Self {
         Self(Arc::new(value))
     }
 }
 
 #[pymethods]
-impl PyPropertyFilterFactory {
+impl PyViewFilterBuilder {
     fn property(&self, name: String) -> PyPropertyFilterBuilder {
         self.0.property(name)
     }
 
     fn metadata(&self, name: String) -> PyPropertyExprBuilder {
         self.0.metadata(name)
+    }
+
+    fn window(&self, start: EventTime, end: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().window(start, end)))
+    }
+
+    fn at(&self, time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().at(time)))
+    }
+
+    fn after(&self, time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().after(time)))
+    }
+
+    fn before(&self, time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().before(time)))
+    }
+
+    fn latest(&self) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().latest()))
+    }
+
+    fn snapshot_at(&self, time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().snapshot_at(time)))
+    }
+
+    fn snapshot_latest(&self) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().snapshot_latest()))
+    }
+
+    fn layer(&self, layer: String) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().layer(layer)))
+    }
+
+    fn layers(&self, layers: FromIterable<String>) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(self.0.clone().layer(layers)))
     }
 }

@@ -23,7 +23,8 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                InternalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
+                InternalPropertyFilterFactory, InternalViewWrapOps, TryAsCompositeFilter,
+                ViewWrapOps, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -32,6 +33,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
@@ -66,7 +68,13 @@ impl Wrap for NodeFilter {
     }
 }
 
-impl ViewWrapOps for NodeFilter {}
+impl InternalViewWrapOps for NodeFilter {
+    type Window = Windowed<NodeFilter>;
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Windowed::from_times(start, end, self)
+    }
+}
 
 impl InternalPropertyFilterFactory for NodeFilter {
     type Entity = NodeFilter;

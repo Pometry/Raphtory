@@ -12,8 +12,9 @@ use crate::{
                         MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
                     },
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
+                    TryAsCompositeFilter, ViewWrapOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -27,7 +28,7 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {
@@ -66,7 +67,17 @@ impl<M> Windowed<M> {
     }
 }
 
-impl<T: ViewWrapOps> ViewWrapOps for Windowed<T> {}
+impl<T: InternalViewWrapOps> InternalViewWrapOps for Windowed<T> {
+    type Window = T::Window;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        (self.start, self.end)
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        self.inner.build_window(start, end)
+    }
+}
 
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Windowed<T> {
     type FilterType = T::FilterType;

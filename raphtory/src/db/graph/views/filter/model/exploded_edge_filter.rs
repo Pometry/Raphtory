@@ -21,8 +21,8 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 AndFilter, ComposableFilter, InternalPropertyFilterBuilder,
-                InternalPropertyFilterFactory, NotFilter, OrFilter, TemporalPropertyFilterFactory,
-                TryAsCompositeFilter, ViewWrapOps, Wrap,
+                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
+                TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
             },
             CreateFilter,
         },
@@ -30,6 +30,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
@@ -55,7 +56,13 @@ impl Wrap for ExplodedEdgeFilter {
     }
 }
 
-impl ViewWrapOps for ExplodedEdgeFilter {}
+impl InternalViewWrapOps for ExplodedEdgeFilter {
+    type Window = Windowed<ExplodedEdgeFilter>;
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Windowed::from_times(start, end, self)
+    }
+}
 
 impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
     type Entity = ExplodedEdgeFilter;

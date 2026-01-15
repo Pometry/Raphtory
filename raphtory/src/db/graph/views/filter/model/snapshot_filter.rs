@@ -8,9 +8,11 @@ use crate::{
                     property_filter::builders::{
                         MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
                     },
+                    windowed_filter::Windowed,
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
+                    TryAsCompositeFilter, ViewWrapOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -45,7 +47,13 @@ impl<M: Display> Display for SnapshotAt<M> {
     }
 }
 
-impl<T: ViewWrapOps> ViewWrapOps for SnapshotAt<T> {}
+impl<T: InternalViewWrapOps> InternalViewWrapOps for SnapshotAt<T> {
+    type Window = Windowed<SnapshotAt<T>>;
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Windowed::from_times(start, end, self)
+    }
+}
 
 impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for SnapshotAt<T> {
     type Filter = SnapshotAt<T::Filter>;
@@ -188,7 +196,13 @@ impl<M: Display> Display for SnapshotLatest<M> {
     }
 }
 
-impl<T: ViewWrapOps> ViewWrapOps for SnapshotLatest<T> {}
+impl<T: InternalViewWrapOps> InternalViewWrapOps for SnapshotLatest<T> {
+    type Window = Windowed<SnapshotLatest<T>>;
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Windowed::from_times(start, end, self)
+    }
+}
 
 impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for SnapshotLatest<T> {
     type Filter = SnapshotLatest<T::Filter>;

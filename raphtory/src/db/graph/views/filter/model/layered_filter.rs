@@ -11,9 +11,11 @@ use crate::{
                     property_filter::builders::{
                         MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
                     },
+                    windowed_filter::Windowed,
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
+                    TryAsCompositeFilter, ViewWrapOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -23,7 +25,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, LayerOps, PropertyFilter},
 };
-use raphtory_api::core::entities::Layer;
+use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,7 +55,17 @@ impl<M> Layered<M> {
     }
 }
 
-impl<T: ViewWrapOps> ViewWrapOps for Layered<T> {}
+impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
+    type Window = Layered<T::Window>;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.inner.bounds()
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Layered::new(self.layer, self.inner.build_window(start, end))
+    }
+}
 
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Layered<T> {
     type FilterType = T::FilterType;

@@ -9,7 +9,6 @@ use crate::{
             Op, PropertyRef,
         },
         snapshot_filter::{SnapshotAt, SnapshotLatest},
-        windowed_filter::Windowed,
     },
     prelude::PropertyFilter,
 };
@@ -43,7 +42,7 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
-use std::{fmt::Display, ops::Deref, sync::Arc};
+use std::{ops::Deref, sync::Arc};
 
 pub mod and_filter;
 pub mod edge_filter;
@@ -207,30 +206,43 @@ pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static 
 
 impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
 
-pub trait ViewWrapOps: Sized {
+// This is implemented to avoid infinite recursive windowing.
+pub trait InternalViewWrapOps: Send + Sync + Clone + 'static {
+    type Window: InternalViewWrapOps;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        (EventTime::MIN, EventTime::MAX)
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window;
+}
+
+pub trait ViewWrapOps: InternalViewWrapOps + Sized {
     #[inline]
-    fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Windowed<Self> {
-        Windowed::from_times(start, end, self)
+    fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Self::Window {
+        let (old_start, old_end) = self.bounds();
+        let end = end.into_time().min(old_end);
+        let start = start.into_time().max(old_start).min(end);
+        self.build_window(start, end)
     }
 
     #[inline]
-    fn at<T: IntoTime>(self, time: T) -> Windowed<Self> {
+    fn at<T: IntoTime>(self, time: T) -> Self::Window {
         let t = time.into_time();
-        Windowed::from_times(t, t.t().saturating_add(1), self)
+        self.window(t, t.t().saturating_add(1))
     }
 
     #[inline]
-    fn after<T: IntoTime>(self, time: T) -> Windowed<Self> {
+    fn after<T: IntoTime>(self, time: T) -> Self::Window {
         let start = time.into_time().t().saturating_add(1);
-        Windowed::new(EventTime::start(start), EventTime::end(i64::MAX), self)
+        self.window(EventTime::start(start), EventTime::end(i64::MAX))
     }
 
     #[inline]
-    fn before<T: IntoTime>(self, time: T) -> Windowed<Self> {
-        Windowed::new(
+    fn before<T: IntoTime>(self, time: T) -> Self::Window {
+        self.window(
             EventTime::start(i64::MIN),
             EventTime::end(time.into_time().t()),
-            self,
         )
     }
 
@@ -254,3 +266,5 @@ pub trait ViewWrapOps: Sized {
         Layered::from_layers(layer, self)
     }
 }
+
+impl<T: InternalViewWrapOps + Sized> ViewWrapOps for T {}

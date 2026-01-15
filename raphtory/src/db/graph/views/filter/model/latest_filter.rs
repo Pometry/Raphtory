@@ -11,9 +11,11 @@ use crate::{
                     property_filter::builders::{
                         MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
                     },
+                    windowed_filter::Windowed,
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
+                    TryAsCompositeFilter, ViewWrapOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -23,6 +25,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter, TimeOps},
 };
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,7 +46,13 @@ impl<M: Display> Display for Latest<M> {
     }
 }
 
-impl<T: ViewWrapOps> ViewWrapOps for Latest<T> {}
+impl<T: InternalViewWrapOps> InternalViewWrapOps for Latest<T> {
+    type Window = Windowed<Latest<T>>;
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Windowed::from_times(start, end, self)
+    }
+}
 
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Latest<T> {
     type FilterType = T::FilterType;
