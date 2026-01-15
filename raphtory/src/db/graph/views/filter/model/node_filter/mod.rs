@@ -22,8 +22,8 @@ use crate::{
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                ComposableFilter, CompositeExplodedEdgeFilter, InternalPropertyFilterFactory,
-                TryAsCompositeFilter, Wrap,
+                CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
+                InternalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -32,8 +32,6 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::{entities::Layer, utils::time::IntoTime};
-use raphtory_storage::core_ops::CoreGraphOps;
 use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
@@ -58,16 +56,6 @@ impl NodeFilter {
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
     }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<NodeFilter> {
-        Windowed::from_times(start, end, NodeFilter)
-    }
-
-    #[inline]
-    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<NodeFilter> {
-        Layered::from_layers(layer, NodeFilter)
-    }
 }
 
 impl Wrap for NodeFilter {
@@ -78,7 +66,7 @@ impl Wrap for NodeFilter {
     }
 }
 
-impl ComposableFilter for NodeFilter {}
+impl ViewWrapOps for NodeFilter {}
 
 impl InternalPropertyFilterFactory for NodeFilter {
     type Entity = NodeFilter;
@@ -118,6 +106,8 @@ impl From<Filter> for NodeIdFilter {
         NodeIdFilter(filter)
     }
 }
+
+impl ComposableFilter for NodeIdFilter {}
 
 impl CreateFilter for NodeIdFilter {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeIdFilterOp>;

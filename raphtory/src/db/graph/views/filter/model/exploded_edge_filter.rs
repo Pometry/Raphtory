@@ -22,7 +22,7 @@ use crate::{
                 windowed_filter::Windowed,
                 AndFilter, ComposableFilter, InternalPropertyFilterBuilder,
                 InternalPropertyFilterFactory, NotFilter, OrFilter, TemporalPropertyFilterFactory,
-                TryAsCompositeFilter, Wrap,
+                TryAsCompositeFilter, ViewWrapOps, Wrap,
             },
             CreateFilter,
         },
@@ -30,7 +30,6 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::Layer, utils::time::IntoTime};
 use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
@@ -46,16 +45,6 @@ impl ExplodedEdgeFilter {
     pub fn dst() -> ExplodedEdgeEndpointWrapper<NodeFilter> {
         ExplodedEdgeEndpointWrapper::new(NodeFilter, Endpoint::Dst)
     }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
-        Windowed::from_times(start, end, ExplodedEdgeFilter)
-    }
-
-    #[inline]
-    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<ExplodedEdgeFilter> {
-        Layered::from_layers(layer, ExplodedEdgeFilter)
-    }
 }
 
 impl Wrap for ExplodedEdgeFilter {
@@ -66,7 +55,7 @@ impl Wrap for ExplodedEdgeFilter {
     }
 }
 
-impl ComposableFilter for ExplodedEdgeFilter {}
+impl ViewWrapOps for ExplodedEdgeFilter {}
 
 impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
     type Entity = ExplodedEdgeFilter;

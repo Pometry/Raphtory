@@ -13,7 +13,7 @@ use crate::{
                     },
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -42,6 +42,8 @@ impl<M: Display> Display for Latest<M> {
         write!(f, "LATEST({})", self.inner)
     }
 }
+
+impl<T: ViewWrapOps> ViewWrapOps for Latest<T> {}
 
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Latest<T> {
     type FilterType = T::FilterType;

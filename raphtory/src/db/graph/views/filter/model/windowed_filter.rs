@@ -13,7 +13,7 @@ use crate::{
                     },
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -65,6 +65,8 @@ impl<M> Windowed<M> {
         Self::new(s, e, entity)
     }
 }
+
+impl<T: ViewWrapOps> ViewWrapOps for Windowed<T> {}
 
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Windowed<T> {
     type FilterType = T::FilterType;

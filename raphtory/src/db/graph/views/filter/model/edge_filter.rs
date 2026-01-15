@@ -25,7 +25,7 @@ use crate::{
                 windowed_filter::Windowed,
                 AndFilter, ComposableFilter, InternalPropertyFilterBuilder,
                 InternalPropertyFilterFactory, NotFilter, OrFilter, TemporalPropertyFilterFactory,
-                TryAsCompositeFilter, Wrap,
+                TryAsCompositeFilter, ViewWrapOps, Wrap,
             },
             CreateFilter,
         },
@@ -33,7 +33,6 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::Layer, utils::time::IntoTime};
 use std::{fmt, fmt::Display, sync::Arc};
 
 // User facing entry for building edge filters.
@@ -50,16 +49,6 @@ impl EdgeFilter {
     pub fn dst() -> EdgeEndpointWrapper<NodeFilter> {
         EdgeEndpointWrapper::new(NodeFilter, Endpoint::Dst)
     }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<EdgeFilter> {
-        Windowed::from_times(start, end, EdgeFilter)
-    }
-
-    #[inline]
-    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<EdgeFilter> {
-        Layered::from_layers(layer, EdgeFilter)
-    }
 }
 
 impl Wrap for EdgeFilter {
@@ -70,7 +59,7 @@ impl Wrap for EdgeFilter {
     }
 }
 
-impl ComposableFilter for EdgeFilter {}
+impl ViewWrapOps for EdgeFilter {}
 
 impl InternalPropertyFilterFactory for EdgeFilter {
     type Entity = EdgeFilter;

@@ -10,7 +10,7 @@ use crate::{
                     },
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -44,6 +44,8 @@ impl<M: Display> Display for SnapshotAt<M> {
         write!(f, "SNAPSHOT_AT[{}]({})", self.time, self.inner)
     }
 }
+
+impl<T: ViewWrapOps> ViewWrapOps for SnapshotAt<T> {}
 
 impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for SnapshotAt<T> {
     type Filter = SnapshotAt<T::Filter>;
@@ -185,6 +187,8 @@ impl<M: Display> Display for SnapshotLatest<M> {
         write!(f, "SNAPSHOT_LATEST({})", self.inner)
     }
 }
+
+impl<T: ViewWrapOps> ViewWrapOps for SnapshotLatest<T> {}
 
 impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for SnapshotLatest<T> {
     type Filter = SnapshotLatest<T::Filter>;

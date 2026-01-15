@@ -207,7 +207,7 @@ pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static 
 
 impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
 
-pub trait ViewWrapOps: ComposableFilter + Sized {
+pub trait ViewWrapOps: Sized {
     #[inline]
     fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Windowed<Self> {
         Windowed::from_times(start, end, self)
@@ -254,5 +254,3 @@ pub trait ViewWrapOps: ComposableFilter + Sized {
         Layered::from_layers(layer, self)
     }
 }
-
-impl<T: ComposableFilter + Sized> ViewWrapOps for T {}
