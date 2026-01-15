@@ -14,23 +14,23 @@ print("Network Traffic Servers:")
 print(f"{server_nodes_df}\n")
 
 traffic_graph = Graph()
-traffic_graph.load_edges_from_pandas(
-    df=server_edges_df,
+traffic_graph.load_edges(
+    data=server_edges_df,
     src="source",
     dst="destination",
     time="timestamp",
     properties=["data_size_MB"],
     layer_col="transaction_type",
-    constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["is_encrypted"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
-traffic_graph.load_nodes_from_pandas(
-    df=server_nodes_df,
+traffic_graph.load_nodes(
+    data=server_nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
-    constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["server_name", "hardware_type"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
 monkey_edges_df = pd.read_csv(
@@ -46,8 +46,8 @@ print("Monkey Interactions:")
 print(f"{monkey_edges_df}\n")
 
 monkey_graph = Graph()
-monkey_graph.load_edges_from_pandas(
-    df=monkey_edges_df,
+monkey_graph.load_edges(
+    data=monkey_edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -117,8 +117,8 @@ server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
 server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
 
 traffic_graph = Graph()
-traffic_graph.load_edges_from_pandas(
-    df=server_edges_df,
+traffic_graph.load_edges(
+    data=server_edges_df,
     time="timestamp",
     src="source",
     dst="destination",
