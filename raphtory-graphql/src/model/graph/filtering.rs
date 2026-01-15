@@ -6,6 +6,8 @@ use dynamic_graphql::{
     },
     Enum, InputObject, OneOfInput,
 };
+use raphtory::db::graph::views::filter::model::latest_filter::Latest;
+use raphtory::db::graph::views::filter::model::snapshot_filter::{SnapshotAt, SnapshotLatest};
 use raphtory::{
     db::graph::views::filter::model::{
         edge_filter::{CompositeEdgeFilter, EdgeFilter},
@@ -19,6 +21,7 @@ use raphtory::{
     errors::GraphError,
 };
 use raphtory_api::core::entities::{properties::prop::Prop, Layer, GID};
+use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -276,6 +279,12 @@ impl Display for NodeField {
 pub struct PropertyFilterNew {
     pub name: String,
     pub window: Option<Window>,
+    pub at: Option<GqlTimeInput>,
+    pub before: Option<GqlTimeInput>,
+    pub after: Option<GqlTimeInput>,
+    pub latest: Option<bool>,
+    pub snapshot_at: Option<GqlTimeInput>,
+    pub snapshot_latest: Option<bool>,
     pub layers: Option<Vec<String>>,
     #[graphql(name = "where")]
     pub where_: PropCondition,
@@ -919,6 +928,114 @@ fn validate_layers(
     }
 }
 
+fn intersect_window(
+    start: EventTime,
+    end: EventTime,
+    new_start: EventTime,
+    new_end: EventTime,
+) -> Result<(EventTime, EventTime), GraphError> {
+    let s = start.max(new_start);
+    let e = end.min(new_end);
+
+    if s.t() > e.t() {
+        return Err(GraphError::InvalidGqlFilter(format!(
+            "Invalid view constraints: resulting window is empty (start={} > end={})",
+            s.t(),
+            e.t()
+        )));
+    }
+    Ok((s, e))
+}
+
+fn compute_property_bounds(
+    p: &PropertyFilterNew,
+) -> Result<Option<(EventTime, EventTime)>, GraphError> {
+    let mut start = EventTime::start(i64::MIN);
+    let mut end = EventTime::end(i64::MAX);
+
+    let mut any_time = false;
+
+    if let Some(w) = &p.window {
+        any_time = true;
+        let ws: EventTime = w.start.into();
+        let we: EventTime = w.end.into();
+        (start, end) = intersect_window(start, end, ws, we)?;
+    }
+    if let Some(t) = &p.at {
+        any_time = true;
+        let et: EventTime = (*t).into();
+        let ws = et;
+        let we = EventTime::end(et.t().saturating_add(1));
+        (start, end) = intersect_window(start, end, ws, we)?;
+    }
+    if let Some(t) = &p.before {
+        any_time = true;
+        let et: EventTime = (*t).into();
+        (start, end) = intersect_window(
+            start,
+            end,
+            EventTime::start(i64::MIN),
+            EventTime::end(et.t()),
+        )?;
+    }
+    if let Some(t) = &p.after {
+        any_time = true;
+        let et: EventTime = (*t).into();
+        let ws = EventTime::start(et.t().saturating_add(1));
+        (start, end) = intersect_window(start, end, ws, EventTime::end(i64::MAX))?;
+    }
+
+    if any_time {
+        Ok(Some((start, end)))
+    } else {
+        Ok(None)
+    }
+}
+
+fn apply_property_view_to_node_filter(
+    mut f: CompositeNodeFilter,
+    p: &PropertyFilterNew,
+) -> Result<CompositeNodeFilter, GraphError> {
+    if let Some((start, end)) = compute_property_bounds(p)? {
+        let w = Windowed::new(start, end, f);
+        f = CompositeNodeFilter::Windowed(Box::new(w));
+    }
+    if let Some(t) = &p.snapshot_at {
+        f = CompositeNodeFilter::SnapshotAt(Box::new(SnapshotAt::new(t.into(), f)));
+    }
+    if p.snapshot_latest.unwrap_or(false) {
+        f = CompositeNodeFilter::SnapshotLatest(Box::new(SnapshotLatest::new(f)));
+    }
+    if p.latest.unwrap_or(false) {
+        f = CompositeNodeFilter::Latest(Box::new(Latest::new(f)));
+    }
+    Ok(f)
+}
+
+fn apply_property_view_to_edge_filter(
+    mut f: CompositeEdgeFilter,
+    p: &PropertyFilterNew,
+) -> Result<CompositeEdgeFilter, GraphError> {
+    if let Some((start, end)) = compute_property_bounds(p)? {
+        let w = Windowed::new(start, end, f);
+        f = CompositeEdgeFilter::Windowed(Box::new(w));
+    }
+
+    if let Some(t) = &p.snapshot_at {
+        f = CompositeEdgeFilter::SnapshotAt(Box::new(SnapshotAt::new(t.into(), f)));
+    }
+
+    if p.snapshot_latest.unwrap_or(false) {
+        f = CompositeEdgeFilter::SnapshotLatest(Box::new(SnapshotLatest::new(f)));
+    }
+
+    if p.latest.unwrap_or(false) {
+        f = CompositeEdgeFilter::Latest(Box::new(Latest::new(f)));
+    }
+
+    Ok(f)
+}
+
 fn maybe_wrap_node_layer(filter: CompositeNodeFilter, layer: Option<Layer>) -> CompositeNodeFilter {
     match layer {
         None => filter,
@@ -948,28 +1065,31 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             }
             GqlNodeFilter::Property(prop) => {
                 let layers = validate_layers(&prop.layers, "NodeFilter.property")?;
-                let prop_ref = PropertyRef::Property(prop.name);
-                let filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
-                Ok(maybe_wrap_node_layer(filter, layers))
+                let prop_ref = PropertyRef::Property(prop.name.clone());
+
+                let mut filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
+                filter = apply_property_view_to_node_filter(filter, &prop)?;
+                filter = maybe_wrap_node_layer(filter, layers);
+                Ok(filter)
             }
             GqlNodeFilter::Metadata(prop) => {
                 let layers = validate_layers(&prop.layers, "NodeFilter.metadata")?;
-                let prop_ref = PropertyRef::Metadata(prop.name);
-                let filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
-                Ok(maybe_wrap_node_layer(filter, layers))
+                let prop_ref = PropertyRef::Metadata(prop.name.clone());
+
+                let mut filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
+                filter = apply_property_view_to_node_filter(filter, &prop)?;
+                filter = maybe_wrap_node_layer(filter, layers);
+
+                Ok(filter)
             }
             GqlNodeFilter::TemporalProperty(prop) => {
                 let layers = validate_layers(&prop.layers, "NodeFilter.temporalProperty")?;
-                let prop_ref = PropertyRef::TemporalProperty(prop.name);
+                let prop_ref = PropertyRef::TemporalProperty(prop.name.clone());
 
                 let mut filter = build_node_filter_from_prop_condition(prop_ref, &prop.where_)?;
-
-                if let Some(w) = prop.window {
-                    let windowed = Windowed::from_times(w.start, w.end, filter);
-                    filter = CompositeNodeFilter::Windowed(Box::new(windowed));
-                }
-
+                filter = apply_property_view_to_node_filter(filter, &prop)?;
                 filter = maybe_wrap_node_layer(filter, layers);
+
                 Ok(filter)
             }
             GqlNodeFilter::And(and_filters) => {
@@ -1056,30 +1176,34 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                 let nf: CompositeNodeFilter = nf.try_into()?;
                 Ok(CompositeEdgeFilter::Dst(nf))
             }
-            GqlEdgeFilter::Property(p) => {
-                let layers = validate_layers(&p.layers, "EdgeFilter.property")?;
-                let prop_ref = PropertyRef::Property(p.name);
-                let filter = build_edge_filter_from_prop_condition(prop_ref, &p.where_)?;
-                Ok(maybe_wrap_edge_layer(filter, layers))
+            GqlEdgeFilter::Property(prop) => {
+                let layers = validate_layers(&prop.layers, "EdgeFilter.property")?;
+                let prop_ref = PropertyRef::Property(prop.name.clone());
+
+                let mut filter = build_edge_filter_from_prop_condition(prop_ref, &prop.where_)?;
+                filter = apply_property_view_to_edge_filter(filter, &prop)?;
+                filter = maybe_wrap_edge_layer(filter, layers);
+
+                Ok(filter)
             }
-            GqlEdgeFilter::Metadata(p) => {
-                let layers = validate_layers(&p.layers, "EdgeFilter.metadata")?;
-                let prop_ref = PropertyRef::Metadata(p.name);
-                let filter = build_edge_filter_from_prop_condition(prop_ref, &p.where_)?;
-                Ok(maybe_wrap_edge_layer(filter, layers))
+            GqlEdgeFilter::Metadata(prop) => {
+                let layers = validate_layers(&prop.layers, "EdgeFilter.metadata")?;
+                let prop_ref = PropertyRef::Metadata(prop.name.clone());
+
+                let mut filter = build_edge_filter_from_prop_condition(prop_ref, &prop.where_)?;
+                filter = apply_property_view_to_edge_filter(filter, &prop)?;
+                filter = maybe_wrap_edge_layer(filter, layers);
+
+                Ok(filter)
             }
             GqlEdgeFilter::TemporalProperty(prop) => {
                 let layers = validate_layers(&prop.layers, "EdgeFilter.temporalProperty")?;
-                let prop_ref = PropertyRef::TemporalProperty(prop.name);
+                let prop_ref = PropertyRef::TemporalProperty(prop.name.clone());
 
                 let mut filter = build_edge_filter_from_prop_condition(prop_ref, &prop.where_)?;
-
-                if let Some(w) = prop.window {
-                    let windowed = Windowed::from_times(w.start, w.end, filter);
-                    filter = CompositeEdgeFilter::Windowed(Box::new(windowed));
-                }
-
+                filter = apply_property_view_to_edge_filter(filter, &prop)?;
                 filter = maybe_wrap_edge_layer(filter, layers);
+
                 Ok(filter)
             }
             GqlEdgeFilter::And(and_filters) => {
