@@ -148,7 +148,7 @@ from raphtory import Graph
 h=Graph()
 
 h.load_edges(
-    data="../data/net_edges_parquet",
+    data="../data/net_edges.parquet",
     time="timestamp",
     src="source",
     dst="destination",
@@ -158,7 +158,7 @@ h.load_edges(
 )
 
 h.load_nodes(
-    data="../data/net_nodes_parquet",
+    data="../data/net_nodes.parquet",
     time="timestamp",
     id="server_id",
     properties=["OS_version", "primary_function", "uptime_days"],
