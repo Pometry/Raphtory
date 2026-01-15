@@ -15,6 +15,10 @@ impl Wal for NoWal {
         Ok(Self)
     }
 
+    fn load(_dir: Option<&Path>) -> Result<Self, StorageError> {
+        Ok(Self)
+    }
+
     fn append(&self, _data: &[u8]) -> Result<LSN, StorageError> {
         Ok(0)
     }

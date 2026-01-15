@@ -4,7 +4,7 @@ use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
 };
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub mod entry;
 pub mod no_wal;
@@ -15,6 +15,11 @@ pub type TransactionID = u64;
 /// Core Wal methods.
 pub trait Wal {
     fn new(dir: Option<&Path>) -> Result<Self, StorageError>
+    where
+        Self: Sized;
+
+    /// Loads an existing WAL file from the given directory in append mode.
+    fn load(dir: Option<&Path>) -> Result<Self, StorageError>
     where
         Self: Sized;
 
