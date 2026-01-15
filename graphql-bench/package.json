@@ -17,7 +17,7 @@
         "@types/k6": "^1.0.2",
         "@types/node": "^22.10.2",
         "concurrently": "^9.1.2",
-        "tsup": "8.3.0",
+        "tsup": "8.3.5",
         "typescript": "^5.8.3"
     },
     "dependencies": {
