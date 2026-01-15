@@ -594,6 +594,22 @@ impl Graph {
         Ok(graph)
     }
 
+    #[cfg(feature = "io")]
+    pub fn new_at_path_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Extension,
+    ) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
+        path.init()?;
+        let graph = Self {
+            inner: Arc::new(Storage::new_with_path_and_ext(path.graph_path()?, config)?),
+        };
+        path.write_metadata(&graph)?;
+        Ok(graph)
+    }
+
     /// Load a graph from a specific path
     /// # Arguments
     /// * `path` - The path to the storage location
