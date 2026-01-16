@@ -9229,19 +9229,15 @@ mod test_edge_filter {
 #[cfg(test)]
 mod test_edge_property_filter {
     use crate::{init_edges_graph, IdentityGraphTransformer};
-    use raphtory::db::{
-        api::state::ops::NodeFilterOp,
-        graph::{
-            assertions::{
-                assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
-                TestVariants,
-            },
-            views::filter::model::{
-                edge_filter::EdgeFilter,
-                property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
-                ViewWrapOps,
-            },
+    use raphtory::db::graph::{
+        assertions::{
+            assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
+            TestVariants,
+        },
+        views::filter::model::{
+            edge_filter::EdgeFilter,
+            property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+            ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory, ViewWrapOps,
         },
     };
     use raphtory_api::core::entities::properties::prop::Prop;

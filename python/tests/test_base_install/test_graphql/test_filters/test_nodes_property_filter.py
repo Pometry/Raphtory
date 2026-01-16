@@ -1039,10 +1039,15 @@ def test_nodes_temporal_property_filter_any_avg_with_window(graph):
     query {
       graph(path: "g") {
         filterNodes(expr: {
-          temporalProperty: {
-            name: "prop5"
-            window: { start: 1, end: 3 }
-            where: { any: { avg: { lt: { f64: 10.0 } } } }
+          window: {
+            start: 1
+            end: 3
+            expr: {
+              temporalProperty: {
+                name: "prop5"
+                where: { any: { avg: { lt: { f64: 10.0 } } } }
+              }
+            }
           }
         }) {
           nodes { list { name } }
@@ -1063,15 +1068,17 @@ def test_node_property_layer_filter_not_supported(graph):
     query {
       graph(path: "g") {
         filterNodes(expr: {
-           temporalProperty: {
-            name: "prop5"
-            layers: ["air_nomads"]
-            where: { any: { avg: { lt: { f64: 10.0 } } } }
+          layers: {
+            names: ["air_nomads"]
+            expr: {
+              temporalProperty: {
+                name: "prop5"
+                where: { any: { avg: { lt: { f64: 10.0 } } } }
+              }
+            }
           }
         }) {
-          nodes {
-            list { name }
-          }
+          nodes { list { name } }
         }
       }
     }
@@ -1083,3 +1090,218 @@ def test_node_property_layer_filter_not_supported(graph):
     ]
 
     run_graphql_error_test_contains(query, expected_needles, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
+def test_nodes_at_temporal_property(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          at: {
+            time: 2
+            expr: {
+              temporalProperty: {
+                name: "prop5"
+                where: { any: { avg: { lt: { f64: 10.0 } } } }
+              }
+            }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+    expected = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
+def test_nodes_before_temporal_property(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          before: {
+            time: 3
+            expr: {
+              temporalProperty: {
+                name: "prop5"
+                where: { any: { avg: { lt: { f64: 10.0 } } } }
+              }
+            }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
+def test_nodes_after_temporal_property(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          after: {
+            time: 2
+            expr: {
+              temporalProperty: {
+                name: "prop5"
+                where: { any: { avg: { lt: { f64: 10.0 } } } }
+              }
+            }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
+def test_nodes_latest_temporal_property(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          latest: {
+            expr: {
+              temporalProperty: {
+                name: "prop5"
+                where: { any: { avg: { lt: { f64: 10.0 } } } }
+              }
+            }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+    expected = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_snapshot_at_temporal_property(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          snapshotAt: {
+            time: 2
+            expr: {
+              temporalProperty: {
+                name: "prop5"
+                where: { any: { avg: { lt: { f64: 10.0 } } } }
+              }
+            }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_snapshot_latest_temporal_property(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          snapshotLatest: {
+            expr: {
+              temporalProperty: {
+                name: "prop5"
+                where: { any: { avg: { lt: { f64: 10.0 } } } }
+              }
+            }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}, {"name": "c"}]}}}
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
+def test_nodes_layer_then_latest(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          latest: {
+            expr: {
+              layers: {
+                names: ["_default"]
+                expr: {
+                  temporalProperty: {
+                    name: "prop5"
+                    where: { any: { avg: { lt: { f64: 10.0 } } } }
+                  }
+                }
+              }
+            }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+    expected = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
+def test_nodes_latest_then_layer(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterNodes(expr: {
+          layers: {
+            names: ["_default"]
+            expr: {
+              latest: {
+                expr: {
+                  temporalProperty: {
+                    name: "prop5"
+                    where: { any: { avg: { lt: { f64: 10.0 } } } }
+                  }
+                }
+              }
+            }
+          }
+        }) {
+          nodes { list { name } }
+        }
+      }
+    }
+    """
+
+    expected = {"graph": {"filterNodes": {"nodes": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected, graph)

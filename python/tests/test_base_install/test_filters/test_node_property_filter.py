@@ -1160,3 +1160,83 @@ def test_filter_nodes_temporal_layer_sum_ge():
             graph.filter(expr).nodes.id
 
     return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_at():
+    def check(graph):
+        expr = filter.Node.at(1).property("prop5").temporal().last().sum() >= 10
+        assert sorted(graph.filter(expr).nodes.id) == ["c"]
+
+        expr = filter.Node.at(1).property("prop5").temporal().last().sum() == 6
+        assert sorted(graph.filter(expr).nodes.id) == ["a"]
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_before():
+    def check(graph):
+        expr = filter.Node.before(2).property("prop5").temporal().last().sum() == 6
+        assert sorted(graph.filter(expr).nodes.id) == ["a"]
+
+        expr = filter.Node.before(2).property("prop5").temporal().last().sum() >= 10
+        assert sorted(graph.filter(expr).nodes.id) == ["c"]
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_after():
+    def check(graph):
+        expr = filter.Node.after(1).property("prop5").temporal().sum() >= 0
+        assert list(graph.filter(expr).nodes.id) == []
+
+        expr = filter.Node.after(1).property("prop6").temporal().last().sum() == 12
+        assert sorted(graph.filter(expr).nodes.id) == ["a"]
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_latest():
+    def check(graph):
+        expr = filter.Node.latest().property("prop6").temporal().last().sum() == 12
+        assert sorted(graph.filter(expr).nodes.id) == ["a"]
+
+        expr = filter.Node.latest().property("prop5").temporal().sum() >= 0
+        assert list(graph.filter(expr).nodes.id) == []
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_snapshot_at():
+    def check(graph):
+        expr = filter.Node.snapshot_at(1).property("prop5").temporal().last().sum() == 6
+        assert sorted(graph.filter(expr).nodes.id) == ["a"]
+
+        expr = (
+            filter.Node.snapshot_at(1).property("prop5").temporal().last().sum() >= 10
+        )
+        assert sorted(graph.filter(expr).nodes.id) == ["c"]
+
+        expr = filter.Node.snapshot_at(1).property("prop6").temporal().sum() >= 0
+        assert list(graph.filter(expr).nodes.id) == []
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_snapshot_latest():
+    def check(graph):
+        expr = (
+            filter.Node.snapshot_latest().property("prop6").temporal().last().sum()
+            == 12
+        )
+        assert sorted(graph.filter(expr).nodes.id) == ["a"]
+
+        expr = filter.Node.snapshot_latest().property("prop5").temporal().sum() >= 0
+        assert list(graph.filter(expr).nodes.id) == []
+
+    return check
