@@ -90,7 +90,7 @@ pub trait ComposableFilter: Sized {
     }
 }
 
-pub(crate) trait InternalPropertyFilterBuilder: Send + Sync {
+pub trait InternalPropertyFilterBuilder: Send + Sync {
     type Filter: CombinedFilter;
     type ExprBuilder: InternalPropertyFilterBuilder;
     type Marker: Into<EntityMarker> + Send + Sync + Clone + 'static;
@@ -160,7 +160,7 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
     }
 }
 
-pub(crate) trait DynPropertyFilterBuilder: Send + Sync + 'static {
+pub trait DynPropertyFilterBuilder: Send + Sync + 'static {
     fn dyn_property_ref(&self) -> PropertyRef;
 
     fn dyn_ops(&self) -> &[Op];
@@ -285,7 +285,7 @@ pub enum EntityMarker {
     ExplodedEdge,
 }
 
-pub(crate) trait InternalPropertyFilterFactory {
+pub trait InternalPropertyFilterFactory {
     type Entity: Clone + Send + Sync + Into<EntityMarker> + 'static;
     type PropertyBuilder: InternalPropertyFilterBuilder + TemporalPropertyFilterFactory;
     type MetadataBuilder: InternalPropertyFilterBuilder;
@@ -297,7 +297,7 @@ pub(crate) trait InternalPropertyFilterFactory {
     fn metadata_builder(&self, property: String) -> Self::MetadataBuilder;
 }
 
-pub(crate) trait DynPropertyFilterFactory: Send + Sync + 'static {
+pub trait DynPropertyFilterFactory: Send + Sync + 'static {
     fn dyn_entity(&self) -> EntityMarker;
 
     fn dyn_property_builder(&self, property: String) -> Arc<dyn DynTemporalPropertyFilterBuilder>;
@@ -337,7 +337,7 @@ impl InternalPropertyFilterFactory for Arc<dyn DynPropertyFilterFactory> {
     }
 }
 
-pub(crate) trait PropertyFilterFactory: InternalPropertyFilterFactory {
+pub trait PropertyFilterFactory: InternalPropertyFilterFactory {
     fn property(&self, name: impl Into<String>) -> Self::PropertyBuilder {
         self.property_builder(name.into())
     }
@@ -349,7 +349,7 @@ pub(crate) trait PropertyFilterFactory: InternalPropertyFilterFactory {
 
 impl<T: InternalPropertyFilterFactory> PropertyFilterFactory for T {}
 
-pub(crate) trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilder {
+pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilder {
     fn temporal(&self) -> Self::ExprBuilder {
         let builder = PropertyExprBuilderInput {
             prop_ref: PropertyRef::TemporalProperty(self.property_ref().name().to_string()),
@@ -359,7 +359,7 @@ pub(crate) trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilder {
     }
 }
 
-pub(crate) trait DynTemporalPropertyFilterBuilder: DynPropertyFilterBuilder {
+pub trait DynTemporalPropertyFilterBuilder: DynPropertyFilterBuilder {
     fn dyn_temporal(&self) -> Arc<dyn DynPropertyFilterBuilder>;
 }
 
@@ -402,7 +402,7 @@ pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static 
 impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
 
 // This is implemented to avoid infinite recursive windowing.
-pub(crate) trait InternalViewWrapOps:
+pub trait InternalViewWrapOps:
     InternalPropertyFilterFactory + Send + Sync + Clone + 'static
 {
     type Window: InternalViewWrapOps;
@@ -414,7 +414,7 @@ pub(crate) trait InternalViewWrapOps:
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window;
 }
 
-pub(crate) trait DynInternalViewWrapOps: DynPropertyFilterFactory {
+pub trait DynInternalViewWrapOps: DynPropertyFilterFactory {
     fn dyn_bounds(&self) -> (EventTime, EventTime);
 
     fn dyn_build_window(&self, start: EventTime, end: EventTime)
@@ -461,7 +461,7 @@ impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapOps> {
     }
 }
 
-pub(crate) trait ViewWrapOps: InternalViewWrapOps + Sized {
+pub trait ViewWrapOps: InternalViewWrapOps + Sized {
     #[inline]
     fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Self::Window {
         let (old_start, old_end) = self.bounds();

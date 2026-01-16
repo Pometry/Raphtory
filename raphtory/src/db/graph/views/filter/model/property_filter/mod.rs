@@ -115,7 +115,7 @@ pub enum PropertyFilterValue {
     Set(Arc<HashSet<Prop>>),
 }
 
-pub(crate) struct PropertyFilterInput {
+pub struct PropertyFilterInput {
     pub prop_ref: PropertyRef,
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,

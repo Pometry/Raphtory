@@ -107,7 +107,7 @@ where
     }
 }
 
-pub(crate) struct PropertyExprBuilderInput {
+pub struct PropertyExprBuilderInput {
     pub prop_ref: PropertyRef,
     pub ops: Vec<Op>,
 }
