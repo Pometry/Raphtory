@@ -198,7 +198,7 @@ impl DictMapper {
         }
     }
     pub fn contains(&self, key: &str) -> bool {
-        self.map.read().contains_key(key)
+        self.map.read_recursive().contains_key(key)
     }
 
     pub fn deep_clone(&self) -> Self {
@@ -213,7 +213,7 @@ impl DictMapper {
 
     pub fn read(&self) -> LockedDictMapper<'_> {
         LockedDictMapper {
-            map: self.map.read(),
+            map: self.map.read_recursive(),
             reverse_map: self.read_lock_reverse_map(),
             num_private_fields: self.num_private_fields,
         }
@@ -231,19 +231,15 @@ impl DictMapper {
         Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
         T: Into<ArcStr>,
     {
-        let map = self
-            .map
-            .try_read_for(std::time::Duration::from_secs(3))
-            .unwrap_or_else(|| panic!("failed to get lock on layer met read"));
+        let map = self.map.read_recursive();
+
         if let Some(existing_id) = map.get(name.borrow()) {
             return MaybeNew::Existing(*existing_id);
         }
         drop(map);
 
-        let mut map = self
-            .map
-            .try_write_for(std::time::Duration::from_secs(3))
-            .unwrap_or_else(|| panic!("failed to get lock on layer met write"));
+        let mut map = self.map.write();
+
         let name = name.to_owned().into();
         let new_id = match map.entry(name.clone()) {
             Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
@@ -259,7 +255,7 @@ impl DictMapper {
     }
 
     pub fn get_id(&self, name: &str) -> Option<usize> {
-        self.map.read().get(name).copied()
+        self.map.read_recursive().get(name).copied()
     }
 
     /// Explicitly set the id for a key (useful for initialising the map in parallel)

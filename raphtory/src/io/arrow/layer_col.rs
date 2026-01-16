@@ -105,7 +105,7 @@ impl<'a> LayerCol<'a> {
                 let mut last_name = None;
                 let mut last_layer = None;
                 for (row, name) in col.iter().enumerate() {
-                    if last_name == name {
+                    if last_name == name && last_layer.is_some() {
                         if let Some(layer) = last_layer {
                             res[row] = layer;
                         }
