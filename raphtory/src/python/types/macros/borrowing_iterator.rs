@@ -4,7 +4,10 @@ macro_rules! py_borrowing_iter {
         struct Iterator($inner_t);
 
         impl $crate::python::types::wrappers::iterators::PyIter for Iterator {
-            fn iter(&self) -> $crate::db::api::view::BoxedLIter<'_, PyResult<pyo3::Py<pyo3::PyAny>>> {
+            fn iter(
+                &self,
+            ) -> $crate::db::api::view::BoxedLIter<'_, PyResult<pyo3::Py<pyo3::PyAny>>>
+            {
                 // forces the type inference to return the correct lifetimes,
                 // calling the closure directly does not work
                 fn apply<'a, O: $crate::python::types::wrappers::iterators::IntoPyIter<'a>>(
