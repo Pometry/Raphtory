@@ -461,7 +461,6 @@ pub(crate) fn load_nodes_from_csv_path<
         cols_to_check.push(node_type_col.as_ref());
     }
 
-    // get the CSV file paths
     let csv_paths = collect_csv_paths(path)?;
 
     let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
@@ -503,7 +502,6 @@ pub(crate) fn load_edges_from_csv_path<
         cols_to_check.push(layer_col.as_ref());
     }
 
-    // get the CSV file paths
     let csv_paths = collect_csv_paths(path)?;
 
     let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
@@ -542,7 +540,6 @@ pub(crate) fn load_node_metadata_from_csv_path<
         cols_to_check.push(node_type_col.as_ref());
     }
 
-    // get the CSV file paths
     let csv_paths = collect_csv_paths(path)?;
 
     let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
@@ -579,7 +576,6 @@ pub(crate) fn load_edge_metadata_from_csv_path<
     }
     cols_to_check.extend_from_slice(metadata);
 
-    // get the CSV file paths
     let csv_paths = collect_csv_paths(path)?;
 
     let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
@@ -615,7 +611,6 @@ pub(crate) fn load_edge_deletions_from_csv_path<
         cols_to_check.push(layer_col.as_ref());
     }
 
-    // get the CSV file paths
     let csv_paths = collect_csv_paths(path)?;
 
     let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
@@ -677,6 +672,9 @@ fn build_csv_reader(
 
     if let Some(allow_truncated_rows) = csv_options.and_then(|o| o.allow_truncated_rows) {
         format = format.with_truncated_rows(allow_truncated_rows);
+    } else {
+        // allow truncated rows to avoid crashes if the last item is missing
+        format = format.with_truncated_rows(true);
     }
 
     // infer schema
@@ -719,6 +717,8 @@ fn build_csv_reader(
 
     if let Some(allow_truncated_rows) = csv_options.and_then(|o| o.allow_truncated_rows) {
         reader_builder = reader_builder.with_truncated_rows(allow_truncated_rows);
+    } else {
+        reader_builder = reader_builder.with_truncated_rows(true);
     }
 
     reader_builder.build(reader).map_err(|e| {

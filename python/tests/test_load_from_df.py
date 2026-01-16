@@ -597,7 +597,7 @@ def test_malformed_files_and_directory():
         # couldn't create a parquet file malformed with an extra column in a row
         if "extra_field" in malformed_file.name:
             with pytest.raises(
-                Exception, match="Encountered unequal lengths between records"
+                Exception, match="incorrect number of fields for line 2, expected 3 got 4"
             ):
                 g = Graph()
                 g.load_nodes(
@@ -620,21 +620,7 @@ def test_malformed_files_and_directory():
                 "Error parsing timestamp from '2025-99-99 99:99:99'" in str(e.value)
             )
 
-        # csv file raises exception but parquet file doesn't
-        if "missing_field.csv" in malformed_file.name:
-            with pytest.raises(
-                Exception,
-                match="Encountered unequal lengths between records on CSV file",
-            ):
-                g = Graph()
-                g.load_nodes(
-                    data=malformed_file,
-                    time="block_timestamp",
-                    id="inputs_address",
-                    properties=["outputs_address"],
-                )
-
-        if "missing_field.parquet" in malformed_file.name:
+        if "missing_field" in malformed_file.name:
             g = Graph()
             g.load_nodes(
                 data=malformed_file,
@@ -645,6 +631,8 @@ def test_malformed_files_and_directory():
             n = g.node("bc1qabc")
             assert n.history[0] == "2025-11-10 00:28:09"
             assert n.properties.get("outputs_address") is None
+            with pytest.raises(Exception, match="'No such property'"):
+                n.properties["outputs_address"]
 
         if "missing_id_col" in malformed_file.name:
             with pytest.raises(
