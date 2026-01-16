@@ -27,6 +27,7 @@ pub trait Wal {
     fn append(&self, data: &[u8]) -> Result<LSN, StorageError>;
 
     /// Flushes in-memory WAL entries up to the given LSN to disk.
+    /// Returns immediately if the given LSN is already flushed to disk.
     fn flush(&self, lsn: LSN) -> Result<(), StorageError>;
 
     /// Rotates the underlying WAL file.

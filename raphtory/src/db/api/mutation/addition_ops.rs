@@ -364,8 +364,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
         self.transaction_manager().end_transaction(transaction_id);
 
         // Drop to release all the segment locks.
-        // FIXME: Make sure segments cannot get to disk before wal entry is flushed.
-        // drop(add_edge_op);
+        drop(add_edge_op);
 
         // Flush the wal entry to disk.
         self.wal().flush(lsn).unwrap();
