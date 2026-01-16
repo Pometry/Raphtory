@@ -597,7 +597,8 @@ def test_malformed_files_and_directory():
         # couldn't create a parquet file malformed with an extra column in a row
         if "extra_field" in malformed_file.name:
             with pytest.raises(
-                Exception, match="incorrect number of fields for line 2, expected 3 got 4"
+                Exception,
+                match="incorrect number of fields for line 2, expected 3 got 4",
             ):
                 g = Graph()
                 g.load_nodes(
