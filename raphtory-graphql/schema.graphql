@@ -947,8 +947,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -2439,6 +2439,9 @@ enum TemporalType {
 	LATEST
 }
 
+"""
+A multipart file upload
+"""
 scalar Upload
 
 input Value @oneOf {
