@@ -7,7 +7,7 @@ use crate::db::graph::views::filter::model::{
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::sync::Arc;
 
-pub trait PropertyFilterOps: InternalPropertyFilterBuilder {
+pub(crate) trait PropertyFilterOps: InternalPropertyFilterBuilder {
     fn eq(&self, value: impl Into<Prop>) -> Self::Filter;
     fn ne(&self, value: impl Into<Prop>) -> Self::Filter;
     fn le(&self, value: impl Into<Prop>) -> Self::Filter;
@@ -190,7 +190,7 @@ impl<T: ?Sized + InternalPropertyFilterBuilder> PropertyFilterOps for T {
     }
 }
 
-pub trait ElemQualifierOps: InternalPropertyFilterBuilder {
+pub(crate) trait ElemQualifierOps: InternalPropertyFilterBuilder {
     fn any(&self) -> Self::ExprBuilder
     where
         Self: Sized,
@@ -216,7 +216,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterBuilder {
 
 impl<T: InternalPropertyFilterBuilder> ElemQualifierOps for T {}
 
-pub trait ListAggOps: InternalPropertyFilterBuilder {
+pub(crate) trait ListAggOps: InternalPropertyFilterBuilder {
     fn len(&self) -> Self::ExprBuilder {
         let builder = PropertyExprBuilderInput {
             prop_ref: self.property_ref(),

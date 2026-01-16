@@ -6,6 +6,7 @@ use crate::{
             ops::{NodeFilterOps, NodeIdFilterOps},
             NodeFilter,
         },
+        property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory, ViewWrapOps,
     },
     impl_node_text_filter_builder,
@@ -261,6 +262,23 @@ impl PyEdgeFilter {
     #[staticmethod]
     fn dst() -> PyEdgeEndpoint {
         PyEdgeEndpoint(EdgeFilter::dst())
+    }
+
+    #[staticmethod]
+    fn property<'py>(
+        py: Python<'py>,
+        name: String,
+    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
+        let b: PropertyFilterBuilder<EdgeFilter> =
+            PropertyFilterFactory::property(&EdgeFilter, name);
+        b.into_pyobject(py)
+    }
+
+    #[staticmethod]
+    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
+        let b: MetadataFilterBuilder<EdgeFilter> =
+            PropertyFilterFactory::metadata(&EdgeFilter, name);
+        b.into_pyobject(py)
     }
 
     #[staticmethod]

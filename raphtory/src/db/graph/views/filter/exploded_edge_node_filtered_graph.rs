@@ -1,19 +1,15 @@
-use crate::{
-    db::{
-        api::{
-            properties::internal::InheritPropertiesOps,
-            state::ops::NodeFilterOp,
-            view::internal::{
-                GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
-                InternalExplodedEdgeFilterOps, Static,
-            },
+use crate::db::{
+    api::{
+        properties::internal::InheritPropertiesOps,
+        state::ops::NodeFilterOp,
+        view::internal::{
+            GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+            InheritEdgeLayerFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
+            InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalExplodedEdgeFilterOps, Static,
         },
-        graph::views::filter::model::edge_filter::Endpoint,
     },
-    prelude::GraphViewOps,
+    graph::views::filter::model::edge_filter::Endpoint,
 };
 use raphtory_api::{
     core::{
@@ -23,8 +19,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps,
-    graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    core_ops::InheritCoreGraphOps, graph::edges::edge_storage_ops::EdgeStorageOps,
 };
 
 #[derive(Debug, Clone)]

@@ -19,7 +19,6 @@ use pyo3::{
 };
 use raphtory_api::core::entities::Layer;
 
-pub mod create_filter;
 pub mod edge_filter_builders;
 pub mod exploded_edge_filter_builder;
 pub mod filter_expr;

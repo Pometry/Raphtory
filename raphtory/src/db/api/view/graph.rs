@@ -9,7 +9,6 @@ use crate::{
             view::{internal::*, *},
         },
         graph::{
-            create_node_type_filter,
             edge::EdgeView,
             edges::Edges,
             node::NodeView,

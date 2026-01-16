@@ -6,10 +6,9 @@ use crate::{
                 builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
             },
-            ComposableFilter, DynInternalViewWrapOps, DynPropertyFilterBuilder,
-            DynPropertyFilterFactory, DynTemporalPropertyFilterBuilder, EntityMarker,
-            InternalPropertyFilterBuilder, PropertyFilterFactory, TemporalPropertyFilterFactory,
-            TryAsCompositeFilter, ViewWrapOps,
+            DynInternalViewWrapOps, DynPropertyFilterBuilder, DynTemporalPropertyFilterBuilder,
+            EntityMarker, InternalPropertyFilterBuilder, PropertyFilterFactory,
+            TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
         },
         CreateFilter,
     },
@@ -22,14 +21,14 @@ use std::sync::Arc;
 
 #[pyclass(frozen, name = "FilterOps", module = "raphtory.filter", subclass)]
 #[derive(Clone)]
-pub struct PyPropertyExprBuilder(pub Arc<dyn DynPropertyFilterBuilder>);
+pub struct PyPropertyExprBuilder(pub(crate) Arc<dyn DynPropertyFilterBuilder>);
 
 impl PyPropertyExprBuilder {
-    pub fn wrap<T: DynPropertyFilterBuilder + 'static>(t: T) -> Self {
+    pub(crate) fn wrap<T: DynPropertyFilterBuilder + 'static>(t: T) -> Self {
         Self(Arc::new(t))
     }
 
-    pub fn from_arc(inner: Arc<dyn DynPropertyFilterBuilder>) -> Self {
+    pub(crate) fn from_arc(inner: Arc<dyn DynPropertyFilterBuilder>) -> Self {
         Self(inner)
     }
 }
@@ -266,10 +265,10 @@ impl PyPropertyExprBuilder {
     extends = PyPropertyExprBuilder
 )]
 #[derive(Clone)]
-pub struct PyPropertyFilterBuilder(pub Arc<dyn DynTemporalPropertyFilterBuilder>);
+pub struct PyPropertyFilterBuilder(pub(crate) Arc<dyn DynTemporalPropertyFilterBuilder>);
 
 impl PyPropertyFilterBuilder {
-    pub fn from_arc(inner: Arc<dyn DynTemporalPropertyFilterBuilder>) -> Self {
+    pub(crate) fn from_arc(inner: Arc<dyn DynTemporalPropertyFilterBuilder>) -> Self {
         Self(inner)
     }
 }
@@ -365,10 +364,10 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
     subclass,
     frozen
 )]
-pub struct PyViewFilterBuilder(pub Arc<dyn DynInternalViewWrapOps>);
+pub struct PyViewFilterBuilder(pub(crate) Arc<dyn DynInternalViewWrapOps>);
 
 impl PyViewFilterBuilder {
-    pub fn wrap<T: DynInternalViewWrapOps>(value: T) -> Self {
+    pub(crate) fn wrap<T: DynInternalViewWrapOps>(value: T) -> Self {
         Self(Arc::new(value))
     }
 }

@@ -1,6 +1,3 @@
-use crate::db::api::view::internal::InternalFilter;
-use pyo3::prelude::PyResult;
-
 /// Macro for implementing all the FilterOps methods on a python wrapper
 ///
 /// # Arguments

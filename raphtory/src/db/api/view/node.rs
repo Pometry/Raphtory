@@ -10,7 +10,6 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::Direction;
 use raphtory_storage::graph::graph::GraphStorage;
-use std::marker::PhantomData;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type Graph: GraphViewOps<'graph>;

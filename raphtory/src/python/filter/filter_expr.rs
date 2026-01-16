@@ -7,14 +7,14 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
-                not_filter::NotFilter, or_filter::OrFilter, AndFilter, TryAsCompositeFilter,
+                not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter,
+                TryAsCompositeFilter,
             },
             CreateFilter,
         },
     },
     errors::GraphError,
     prelude::GraphViewOps,
-    python::filter::create_filter::DynCreateFilter,
 };
 use pyo3::prelude::*;
 use std::sync::Arc;

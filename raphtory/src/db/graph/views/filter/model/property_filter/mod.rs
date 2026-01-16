@@ -24,7 +24,6 @@ use crate::{
     errors::GraphError,
     prelude::{
         EdgeFilter, EdgeViewOps, GraphViewOps, LayerOps, NodeFilter, NodeViewOps, PropertiesOps,
-        TimeOps,
     },
 };
 use itertools::Itertools;
@@ -36,14 +35,11 @@ use raphtory_api::core::{
         },
         EID,
     },
-    storage::timeindex::{AsTime, EventTime},
+    storage::timeindex::EventTime,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 

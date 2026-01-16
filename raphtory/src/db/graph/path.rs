@@ -5,9 +5,7 @@ use crate::{
             state::ops::{NodeFilterOp, NodeOp},
             view::{
                 history::History,
-                internal::{
-                    FilterOps, InternalEdgeSelect, InternalFilter, InternalNodeSelect, Static,
-                },
+                internal::{InternalFilter, InternalNodeSelect, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -20,7 +18,6 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::inherit::Base;
 use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
 

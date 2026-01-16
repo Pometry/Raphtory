@@ -6,19 +6,13 @@ use crate::{
         },
         graph::{
             create_node_type_filter,
-            views::filter::{
-                model::{filter::Filter, node_filter::NodeFilter},
-                CreateFilter,
-            },
+            views::filter::model::{filter::Filter, node_filter::NodeFilter},
         },
     },
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::PropertyFilter,
 };
 use raphtory_api::core::{entities::VID, storage::arc_str::OptionAsStr};
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
-};
+use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]

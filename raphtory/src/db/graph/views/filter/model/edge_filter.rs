@@ -19,8 +19,7 @@ use crate::{
                 },
                 property_filter::{
                     builders::{
-                        MetadataFilterBuilder, PropertyExprBuilder, PropertyExprBuilderInput,
-                        PropertyFilterBuilder,
+                        MetadataFilterBuilder, PropertyExprBuilderInput, PropertyFilterBuilder,
                     },
                     Op, PropertyFilter, PropertyFilterInput, PropertyRef,
                 },
@@ -28,14 +27,13 @@ use crate::{
                 windowed_filter::Windowed,
                 AndFilter, ComposableFilter, EntityMarker, InternalPropertyFilterBuilder,
                 InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
-                TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
+                TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
     },
     errors::GraphError,
     prelude::GraphViewOps,
-    test_utils::prop,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};

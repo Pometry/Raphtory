@@ -6,22 +6,24 @@ use dynamic_graphql::{
     },
     Enum, InputObject, OneOfInput,
 };
-use raphtory::db::graph::views::filter::model::latest_filter::Latest;
-use raphtory::db::graph::views::filter::model::snapshot_filter::{SnapshotAt, SnapshotLatest};
 use raphtory::{
     db::graph::views::filter::model::{
         edge_filter::{CompositeEdgeFilter, EdgeFilter},
         filter::{Filter, FilterValue},
         filter_operator::FilterOperator,
+        latest_filter::Latest,
         layered_filter::Layered,
         node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
+        snapshot_filter::{SnapshotAt, SnapshotLatest},
         windowed_filter::Windowed,
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::{properties::prop::Prop, Layer, GID};
-use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, Layer, GID},
+    storage::timeindex::{AsTime, EventTime},
+};
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -957,20 +959,20 @@ fn compute_property_bounds(
 
     if let Some(w) = &p.window {
         any_time = true;
-        let ws: EventTime = w.start.into();
-        let we: EventTime = w.end.into();
+        let ws: EventTime = w.start.0;
+        let we: EventTime = w.end.0;
         (start, end) = intersect_window(start, end, ws, we)?;
     }
     if let Some(t) = &p.at {
         any_time = true;
-        let et: EventTime = (*t).into();
+        let et: EventTime = t.0;
         let ws = et;
         let we = EventTime::end(et.t().saturating_add(1));
         (start, end) = intersect_window(start, end, ws, we)?;
     }
     if let Some(t) = &p.before {
         any_time = true;
-        let et: EventTime = (*t).into();
+        let et: EventTime = t.0;
         (start, end) = intersect_window(
             start,
             end,
@@ -980,7 +982,7 @@ fn compute_property_bounds(
     }
     if let Some(t) = &p.after {
         any_time = true;
-        let et: EventTime = (*t).into();
+        let et: EventTime = t.0;
         let ws = EventTime::start(et.t().saturating_add(1));
         (start, end) = intersect_window(start, end, ws, EventTime::end(i64::MAX))?;
     }
@@ -1001,7 +1003,7 @@ fn apply_property_view_to_node_filter(
         f = CompositeNodeFilter::Windowed(Box::new(w));
     }
     if let Some(t) = &p.snapshot_at {
-        f = CompositeNodeFilter::SnapshotAt(Box::new(SnapshotAt::new(t.into(), f)));
+        f = CompositeNodeFilter::SnapshotAt(Box::new(SnapshotAt::new(t.0, f)));
     }
     if p.snapshot_latest.unwrap_or(false) {
         f = CompositeNodeFilter::SnapshotLatest(Box::new(SnapshotLatest::new(f)));
@@ -1022,7 +1024,7 @@ fn apply_property_view_to_edge_filter(
     }
 
     if let Some(t) = &p.snapshot_at {
-        f = CompositeEdgeFilter::SnapshotAt(Box::new(SnapshotAt::new(t.into(), f)));
+        f = CompositeEdgeFilter::SnapshotAt(Box::new(SnapshotAt::new(t.0, f)));
     }
 
     if p.snapshot_latest.unwrap_or(false) {

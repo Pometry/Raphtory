@@ -8,18 +8,12 @@ use crate::{
                     node_filter::builders::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                     },
-                    property_filter::{
-                        builders::{
-                            MetadataFilterBuilder, PropertyExprBuilder, PropertyExprBuilderInput,
-                            PropertyFilterBuilder,
-                        },
-                        PropertyFilterInput,
-                    },
+                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     windowed_filter::Windowed,
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
                     InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
-                    TryAsCompositeFilter, ViewWrapOps, Wrap,
+                    TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -27,7 +21,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter, TimeOps},
+    prelude::{GraphViewOps, TimeOps},
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display};
