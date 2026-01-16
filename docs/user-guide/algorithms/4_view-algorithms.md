@@ -15,8 +15,8 @@ import raphtory as rp
 
 df = pd.read_csv("../data/lotr.csv")
 lotr_graph = rp.Graph()
-lotr_graph.load_edges_from_pandas(
-    df=df, src="src", dst="dst", time="time"
+lotr_graph.load_edges(
+    data=df, src="src", dst="dst", time="time"
 )
 
 importance = []

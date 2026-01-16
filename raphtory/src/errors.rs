@@ -29,7 +29,10 @@ use pometry_storage::RAError;
 use {
     arrow::{datatypes::DataType, error::ArrowError},
     parquet::errors::ParquetError,
-    raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
+    raphtory_api::core::entities::{
+        properties::prop::{DeserialisationError, InvalidPropertyTypeErr},
+        GidType, VID,
+    },
 };
 
 #[cfg(feature = "python")]
@@ -509,5 +512,19 @@ impl From<TimeError> for GraphError {
 impl From<GraphError> for io::Error {
     fn from(error: GraphError) -> Self {
         io::Error::other(error)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<InvalidPropertyTypeErr> for LoadError {
+    fn from(value: InvalidPropertyTypeErr) -> Self {
+        LoadError::InvalidPropertyType(value.0)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<InvalidPropertyTypeErr> for GraphError {
+    fn from(value: InvalidPropertyTypeErr) -> Self {
+        GraphError::from(LoadError::from(value))
     }
 }

@@ -59,6 +59,7 @@ use crate::{
 };
 use pyo3::prelude::*;
 use raphtory_api::python::{
+    prop::PyPropType,
     timeindex::{PyEventTime, PyOptionalEventTime},
     PyProp,
 };
@@ -82,6 +83,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyMutableEdge,
         PyProperties,
         PyPropValueList,
+        PyPropType,
         PyMetadata,
         MetadataView,
         PyTemporalProperties,

@@ -5,17 +5,35 @@ use crate::{
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
     serialise::incremental::InternalCache,
 };
+use arrow::{
+    array::{Array, RecordBatch, StructArray},
+    compute::cast,
+    datatypes::{DataType, Field, Fields},
+};
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
-use raphtory_api::core::entities::properties::prop::Prop;
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
+use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
     collections::HashMap,
+    ffi::OsStr,
     fs,
     fs::File,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
-#[cfg(feature = "storage")]
-use {arrow::array::StructArray, pometry_storage::RAError};
+pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
+    if path.is_dir() {
+        Ok(fs::read_dir(&path)?.any(|entry| {
+            entry.map_or(false, |e| {
+                e.path().extension().and_then(OsStr::to_str) == Some("parquet")
+            })
+        }))
+    } else {
+        Ok(path.extension().and_then(OsStr::to_str) == Some("parquet"))
+    }
+}
 
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
@@ -30,6 +48,7 @@ pub fn load_nodes_from_parquet<
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     batch_size: Option<usize>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend_from_slice(properties);
@@ -39,7 +58,12 @@ pub fn load_nodes_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
+        let df_view = process_parquet_file_to_df(
+            path.as_path(),
+            Some(&cols_to_check),
+            batch_size,
+            schema.clone(),
+        )?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_nodes_from_df(
             df_view,
@@ -52,7 +76,7 @@ pub fn load_nodes_from_parquet<
             node_type_col,
             graph,
         )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
 
     Ok(())
@@ -72,6 +96,7 @@ pub fn load_edges_from_parquet<
     layer: Option<&str>,
     layer_col: Option<&str>,
     batch_size: Option<usize>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
@@ -107,9 +132,13 @@ pub fn load_edges_from_parquet<
     let all_df_view = get_parquet_file_paths(parquet_path)?
         .into_iter()
         .flat_map(|file| {
-            let df_view =
-                process_parquet_file_to_df(file.as_path(), Some(&cols_to_check), batch_size)
-                    .expect("Failed to process Parquet file");
+            let df_view = process_parquet_file_to_df(
+                file.as_path(),
+                Some(&cols_to_check),
+                batch_size,
+                schema.clone(),
+            )
+            .expect("Failed to process Parquet file");
             df_view.chunks
         });
 
@@ -131,12 +160,12 @@ pub fn load_edges_from_parquet<
         layer_col,
         graph,
     )
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
 
     Ok(())
 }
 
-pub fn load_node_props_from_parquet<
+pub fn load_node_metadata_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
@@ -147,6 +176,7 @@ pub fn load_node_props_from_parquet<
     metadata_properties: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     batch_size: Option<usize>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
     cols_to_check.extend_from_slice(metadata_properties);
@@ -156,7 +186,12 @@ pub fn load_node_props_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
+        let df_view = process_parquet_file_to_df(
+            path.as_path(),
+            Some(&cols_to_check),
+            batch_size,
+            schema.clone(),
+        )?;
         df_view.check_cols_exist(&cols_to_check)?;
 
         load_node_props_from_df(
@@ -168,13 +203,13 @@ pub fn load_node_props_from_parquet<
             shared_metadata,
             graph,
         )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
 
     Ok(())
 }
 
-pub fn load_edge_props_from_parquet<
+pub fn load_edge_metadata_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
@@ -186,6 +221,7 @@ pub fn load_edge_props_from_parquet<
     layer: Option<&str>,
     layer_col: Option<&str>,
     batch_size: Option<usize>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst];
     if let Some(ref layer_col) = layer_col {
@@ -195,7 +231,12 @@ pub fn load_edge_props_from_parquet<
     cols_to_check.extend_from_slice(metadata);
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
+        let df_view = process_parquet_file_to_df(
+            path.as_path(),
+            Some(&cols_to_check),
+            batch_size,
+            schema.clone(),
+        )?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
             df_view,
@@ -207,7 +248,7 @@ pub fn load_edge_props_from_parquet<
             layer_col,
             graph,
         )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
 
     Ok(())
@@ -224,6 +265,7 @@ pub fn load_edge_deletions_from_parquet<
     layer: Option<&str>,
     layer_col: Option<&str>,
     batch_size: Option<usize>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     if let Some(ref layer_col) = layer_col {
@@ -231,10 +273,15 @@ pub fn load_edge_deletions_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
+        let df_view = process_parquet_file_to_df(
+            path.as_path(),
+            Some(&cols_to_check),
+            batch_size,
+            schema.clone(),
+        )?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+            .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
     Ok(())
 }
@@ -246,16 +293,22 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
     properties: &[&str],
     metadata: &[&str],
     batch_size: Option<usize>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![time];
     cols_to_check.extend_from_slice(properties);
     cols_to_check.extend_from_slice(metadata);
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
+        let df_view = process_parquet_file_to_df(
+            path.as_path(),
+            Some(&cols_to_check),
+            batch_size,
+            schema.clone(),
+        )?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_graph_props_from_df(df_view, time, Some(properties), Some(metadata), graph)
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+            .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     }
 
     Ok(())
@@ -265,6 +318,7 @@ pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: Option<&[&str]>,
     batch_size: Option<usize>,
+    schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>, GraphError> {
     let (names, chunks, num_rows) = read_parquet_file(parquet_file_path, col_names)?;
 
@@ -278,12 +332,20 @@ pub(crate) fn process_parquet_file_to_df(
         Some(batch_size) => chunks.with_batch_size(batch_size),
     };
 
-    let chunks = chunks.build()?.into_iter().map(move |result| {
-        result
-            .map(|r| DFChunk {
-                chunk: r.columns().to_vec(),
+    let chunks = chunks.build()?.into_iter().map(move |result| match result {
+        Ok(r) => {
+            let casted_batch = if let Some(schema) = schema.as_deref() {
+                cast_columns(r, schema)?
+            } else {
+                r
+            };
+            Ok(DFChunk {
+                chunk: casted_batch.columns().to_vec(),
             })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to process Parquet file: {e:?}")))
+        }
+        Err(e) => Err(GraphError::LoadFailure(format!(
+            "Failed to process Parquet file: {e:?}"
+        ))),
     });
 
     Ok(DFView {
@@ -336,6 +398,50 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     Ok(parquet_files)
 }
 
+pub(crate) fn cast_columns(
+    batch: RecordBatch,
+    schema: &HashMap<String, PropType>,
+) -> Result<RecordBatch, GraphError> {
+    let old_schema_ref = batch.schema();
+    let old_fields = old_schema_ref.fields();
+
+    let mut target_fields: Vec<Field> = Vec::with_capacity(old_fields.len());
+
+    for field in old_fields.iter() {
+        if let Some(target_prop_type) = schema.get(field.name()) {
+            let target_dtype = arrow_dtype_from_prop_type(target_prop_type);
+            target_fields.push(
+                Field::new(field.name(), target_dtype, field.is_nullable())
+                    .with_metadata(field.metadata().clone()),
+            );
+        } else {
+            // schema doesn't say anything about this column
+            target_fields.push(field.as_ref().clone());
+        }
+    }
+    let struct_array = StructArray::from(batch);
+    let target_struct_type = DataType::Struct(Fields::from(target_fields));
+
+    // cast whole RecordBatch at once
+    let casted = cast(&struct_array, &target_struct_type).map_err(|e| {
+        GraphError::LoadFailure(format!(
+            "Failed to cast RecordBatch to target schema {:?}: {e}",
+            target_struct_type
+        ))
+    })?;
+
+    let casted_struct = casted
+        .as_any()
+        .downcast_ref::<StructArray>()
+        .ok_or_else(|| {
+            GraphError::LoadFailure(
+                "Internal error: casting RecordBatch did not return StructArray".to_string(),
+            )
+        })?;
+
+    Ok(RecordBatch::from(casted_struct))
+}
+
 #[cfg(feature = "storage")]
 pub fn read_struct_arrays(
     path: &Path,
@@ -372,7 +478,8 @@ mod test {
 
         let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
         let df =
-            process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names), None).unwrap();
+            process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names), None, None)
+                .unwrap();
 
         let expected_names: Vec<String> = ["src", "dst", "time", "weight", "marbles"]
             .iter()
