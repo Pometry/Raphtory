@@ -102,7 +102,6 @@ impl PyProperties {
     }
 
     /// Get the PropType of a property. Specifically, returns the PropType of the latest value for this property if it exists.
-    /// If not, it returns the PropType for the static property matching this name.
     ///
     /// Arguments:
     ///     key (str): the name of the property.
