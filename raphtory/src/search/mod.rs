@@ -488,9 +488,6 @@ mod test_index {
         fn test_too_many_open_files_graph_index() {
             use tempfile::TempDir;
 
-            let tmp_dir = TempDir::new().unwrap();
-            let path = tmp_dir.path().to_path_buf();
-
             let mut graphs = vec![];
 
             for i in 0..1000 {

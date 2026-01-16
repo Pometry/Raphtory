@@ -19,21 +19,24 @@ pub(crate) fn encode_edge_tprop(
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
-        g.edges().segmented_par_iter(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_T_PATH,
-        |id_type| {
+        |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(SRC_COL, id_type.clone(), false),
-                Field::new(DST_COL, id_type.clone(), false),
+                Field::new(SRC_COL_ID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
+                Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
         |edges, g, decoder, writer| {
             let row_group_size = 100_000;
-            let edges = edges.collect::<Vec<_>>();
 
             for edge_rows in edges
                 .into_iter()
@@ -64,16 +67,20 @@ pub(crate) fn encode_edge_deletions(
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
-        g.edges().segmented_par_iter(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_D_PATH,
-        |id_type| {
+        |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(SRC_COL, id_type.clone(), false),
-                Field::new(DST_COL, id_type.clone(), false),
+                Field::new(SRC_COL_ID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
+                Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
         |edges, g, decoder, writer| {
@@ -99,6 +106,7 @@ pub(crate) fn encode_edge_deletions(
                         .map(move |deletions| ParquetDelEdge {
                             del: deletions,
                             layer: &layers[layer_id - 1],
+                            layer_id,
                             edge: EdgeView::new(g, edge_ref),
                         })
                     })
@@ -125,13 +133,16 @@ pub(crate) fn encode_edge_cprop(
     run_encode_indexed(
         g,
         g.edge_meta().metadata_mapper(),
-        g.edges().segmented_par_iter(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_C_PATH,
-        |id_type| {
+        |_| {
             vec![
-                Field::new(SRC_COL, id_type.clone(), false),
-                Field::new(DST_COL, id_type.clone(), false),
+                Field::new(SRC_COL_ID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
             ]
         },

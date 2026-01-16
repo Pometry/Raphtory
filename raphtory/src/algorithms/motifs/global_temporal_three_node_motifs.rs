@@ -242,7 +242,7 @@ where
         vec![Job::new(neighbourhood_update_step)],
         vec![Job::new(intersection_compute_step)],
         None,
-        |egs, _, _, _| {
+        |egs, _, _, _, _| {
             tri_mc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(mc)).collect_vec()
         },
         threads,
@@ -294,7 +294,7 @@ where
         vec![],
         vec![Job::new(star_count_step)],
         None,
-        |egs, _ , _ , _ | {
+        |egs, _ , _ , _ ,_| {
             triadic_motifs.iter().enumerate().map(|(i,tri)| {
                 let mut tmp = egs.finalize::<[usize; 32], [usize;32], [usize; 32], ArrConst<usize,SumDef<usize>,32>>(&star_clone[i])
                 .iter().copied()

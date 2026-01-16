@@ -41,7 +41,7 @@ use crate::{
     },
 };
 use chrono::prelude::*;
-use pyo3::prelude::*;
+use pyo3::{prelude::*, Borrowed};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
@@ -69,9 +69,10 @@ impl<'py> IntoPyObject<'py> for DynamicGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for DynamicGraph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        ob.extract::<PyRef<PyGraphView>>().map(|g| g.graph.clone())
+impl<'py> FromPyObject<'_, 'py> for DynamicGraph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.extract::<PyRef<PyGraphView>>()?.graph.clone())
     }
 }
 /// Graph view is a read-only version of a graph at a certain point in time.

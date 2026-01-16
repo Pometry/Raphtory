@@ -10,7 +10,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     errors::GraphError,
-    io::parquet_loaders::*,
+    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
     prelude::*,
     python::{
         graph::{
@@ -25,7 +25,7 @@ use crate::{
         StableDecode, StableEncode,
     },
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
+use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict, Borrowed};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
@@ -85,8 +85,9 @@ impl From<PyGraph> for DynamicGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for MaterializedGraph {
-    fn extract_bound(graph: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for MaterializedGraph {
+    type Error = PyErr;
+    fn extract(graph: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(graph) = graph.extract::<PyRef<PyGraph>>() {
             Ok(graph.graph.clone().into())
         } else if let Ok(graph) = graph.extract::<PyRef<PyPersistentGraph>>() {
@@ -109,9 +110,10 @@ impl<'py> IntoPyObject<'py> for Graph {
     }
 }
 
-impl<'source> FromPyObject<'source> for Graph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        let g = ob.downcast::<PyGraph>()?.borrow();
+impl<'py> FromPyObject<'_, 'py> for Graph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let g = ob.cast::<PyGraph>()?.borrow();
 
         Ok(g.graph.clone())
     }
@@ -119,7 +121,7 @@ impl<'source> FromPyObject<'source> for Graph {
 
 impl PyGraph {
     pub fn py_from_db_graph(db_graph: Graph) -> PyResult<Py<PyGraph>> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Py::new(
                 py,
                 (PyGraph::from(db_graph.clone()), PyGraphView::from(db_graph)),
@@ -716,6 +718,7 @@ impl PyGraph {
             &metadata,
             shared_metadata.as_ref(),
             None,
+            true,
         )
     }
 
@@ -811,15 +814,12 @@ impl PyGraph {
         load_edges_from_parquet(
             &self.graph,
             parquet_path.as_path(),
-            time,
-            secondary_index,
-            src,
-            dst,
+            ColumnNames::new(time, secondary_index, src, dst, layer_col),
+            true,
             &properties,
             &metadata,
             shared_metadata.as_ref(),
             layer,
-            layer_col,
             None,
         )
     }
@@ -897,6 +897,8 @@ impl PyGraph {
             id,
             node_type,
             node_type_col,
+            None,
+            None,
             &metadata,
             shared_metadata.as_ref(),
             None,
@@ -985,6 +987,7 @@ impl PyGraph {
             layer,
             layer_col,
             None,
+            true,
         )
     }
 

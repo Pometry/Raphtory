@@ -22,8 +22,9 @@ impl<'py> IntoPyObject<'py> for &ArcStr {
     }
 }
 
-impl<'source> FromPyObject<'source> for ArcStr {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        ob.extract::<String>().map(|v| v.into())
+impl<'py> FromPyObject<'_, 'py> for ArcStr {
+    type Error = PyErr;
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        obj.extract::<String>().map(|v| v.into())
     }
 }

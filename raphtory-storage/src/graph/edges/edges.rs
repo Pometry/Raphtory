@@ -70,19 +70,11 @@ impl<'a> EdgesStorageRef<'a> {
 
     pub fn segmented_par_iter(
         self,
-    ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = EID> + use<'a>)> + 'a {
+    ) -> Option<impl ParallelIterator<Item = (usize, impl Iterator<Item = EID> + use<'a>)> + 'a>
+    {
         match self {
-            EdgesStorageRef::Mem(storage) => Iter2::I1(
-                storage
-                    .segmented_par_iter()
-                    .map(|(segment, iter)| (segment, Iter2::I1(iter))),
-            ),
-            EdgesStorageRef::Unlocked(edges) => Iter2::I2(
-                edges
-                    .storage()
-                    .segmented_par_iter()
-                    .map(|(segment, iter)| (segment, Iter2::I2(iter))),
-            ),
+            EdgesStorageRef::Mem(storage) => Some(storage.row_groups_par_iter()),
+            _ => None,
         }
     }
 

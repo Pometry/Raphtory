@@ -33,14 +33,14 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
     fn encode_to_zip<W: Write + Seek>(&self, mut writer: ZipWriter<W>) -> Result<(), GraphError> {
         let graph_meta = GraphMetadata::from_graph(self);
         writer.start_file(ROOT_META_PATH, SimpleFileOptions::default())?;
-        writer.write(&serde_json::to_vec(&RelativePath {
+        writer.write_all(&serde_json::to_vec(&RelativePath {
             path: DEFAULT_DATA_PATH.to_string(),
         })?)?;
         writer.start_file(
             [DEFAULT_DATA_PATH, GRAPH_META_PATH].join("/"),
             SimpleFileOptions::default(),
         )?;
-        writer.write(&serde_json::to_vec(&Metadata {
+        writer.write_all(&serde_json::to_vec(&Metadata {
             path: DEFAULT_GRAPH_PATH.to_string(),
             meta: graph_meta,
         })?)?;
@@ -147,17 +147,15 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     }
 
     fn decode(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        let graph;
         if path.is_zip() {
             let reader = path.read_zip()?;
-            graph = Self::decode_from_zip(reader)?;
+            Self::decode_from_zip(reader)
         } else {
-            graph = Self::decode_parquet(&path.graph_path()?, None)?;
+            Self::decode_parquet(&path.graph_path()?, None)
             // TODO: Fix index loading:
             // #[cfg(feature = "search")]
             // graph.load_index(&path)?;
         }
-        Ok(graph)
     }
 
     fn decode_at(

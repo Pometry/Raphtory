@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::NodeState,
+            state::{Index, NodeState},
             view::{internal::GraphView, NodeViewOps, StaticGraphViewOps},
         },
         graph::node::NodeView,
@@ -25,6 +25,8 @@ struct ComponentState<'graph, G> {
     node_labels: Vec<AtomicUsize>,
     next_start: AtomicUsize,
     next_chunk: AtomicUsize,
+    vid_map: Vec<VID>,
+    node_state_index: Index<VID>,
     graph: &'graph G,
 }
 
@@ -40,7 +42,8 @@ impl<'graph, G> Debug for ComponentState<'graph, G> {
 
 impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
     fn new(graph: &'graph G) -> Self {
-        let num_nodes = graph.unfiltered_num_nodes();
+        let node_state_index = Index::for_graph(graph);
+        let num_nodes = node_state_index.len();
         let chunk_labels = (0..num_nodes)
             .map(|_| AtomicUsize::new(usize::MAX))
             .collect();
@@ -49,13 +52,27 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
             .collect();
         let next_start = AtomicUsize::new(0);
         let next_chunk = AtomicUsize::new(0);
+        let vid_map: Vec<_> = (0..num_nodes).map(|_| AtomicUsize::new(0)).collect();
+        node_state_index.par_iter().for_each(|(i, vid)| {
+            vid_map[i].store(vid.index(), Ordering::Relaxed);
+        });
+        let vid_map: Vec<VID> = vid_map
+            .into_iter()
+            .map(|a| VID(a.load(Ordering::Relaxed)))
+            .collect();
         Self {
             chunk_labels,
             node_labels,
             next_start,
             next_chunk,
             graph,
+            vid_map,
+            node_state_index,
         }
+    }
+
+    fn vid(&self, index: usize) -> VID {
+        self.vid_map[index]
     }
 
     /// Link two chunks `chunk_id_1` and `chunk_id_2` such that they will be part of the same
@@ -102,8 +119,9 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
                 .compare_exchange(usize::MAX, chunk_id, Ordering::Relaxed, Ordering::Relaxed)
                 .is_ok()
             {
-                if self.graph.has_node(VID(next_start)) {
-                    return Some((chunk_id, VID(next_start)));
+                let vid = self.vid(next_start);
+                if self.graph.has_node(vid) {
+                    return Some((chunk_id, vid));
                 }
             }
             next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
@@ -131,8 +149,8 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
             for node_id in frontier.drain(..) {
                 for neighbour in NodeView::new_internal(self.graph, node_id).neighbours() {
                     let node_id = neighbour.node;
-                    let old_label =
-                        self.node_labels[node_id.index()].fetch_min(min_label, Ordering::Relaxed);
+                    let pos = self.node_state_index.index(&node_id).unwrap();
+                    let old_label = self.node_labels[pos].fetch_min(min_label, Ordering::Relaxed);
                     if old_label != usize::MAX {
                         self.link_chunks(chunk_id, old_label);
                         min_label = min_label.min(old_label);

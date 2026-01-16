@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 pub mod props_meta_writer;
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default)]
 pub struct Properties {
     c_properties: Vec<PropColumn>,
 
@@ -266,13 +266,13 @@ impl Properties {
         self.t_properties.len()
     }
 
-    pub(crate) fn t_properties_mut(&mut self) -> &mut TColumns {
-        &mut self.t_properties
-    }
+    // pub(crate) fn t_properties_mut(&mut self) -> &mut TColumns {
+    //     &mut self.t_properties
+    // }
 
-    pub(crate) fn reset_t_len(&mut self) {
-        self.t_properties.reset_len();
-    }
+    // pub(crate) fn reset_t_len(&mut self) {
+    //     self.t_properties.reset_len();
+    // }
 }
 
 impl<'a> PropMutEntry<'a> {

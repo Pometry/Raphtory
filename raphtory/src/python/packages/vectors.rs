@@ -22,6 +22,7 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     types::{PyFunction, PyList},
+    Borrowed,
 };
 use std::path::PathBuf;
 
@@ -57,15 +58,16 @@ impl PyQuery {
     }
 }
 
-impl<'source> FromPyObject<'source> for PyQuery {
-    fn extract_bound(query: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyQuery {
+    type Error = PyErr;
+    fn extract(query: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(text) = query.extract::<String>() {
             return Ok(PyQuery::Raw(text));
         }
         if let Ok(embedding) = query.extract::<Vec<f32>>() {
             return Ok(PyQuery::Computed(embedding.into()));
         }
-        let message = format!("query '{query}' must be a str, or a list of float");
+        let message = format!("query '{query:?}' must be a str, or a list of float");
         Err(PyTypeError::new_err(message))
     }
 }
@@ -471,13 +473,13 @@ impl PyVectorSelection {
 
 impl EmbeddingFunction for Py<PyFunction> {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        let embedding_function = Python::with_gil(|py| self.clone_ref(py));
+        let embedding_function = Python::attach(|py| self.clone_ref(py));
         Box::pin(async move {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let embedding_function = embedding_function.bind(py);
                 let python_texts = PyList::new(py, texts)?;
                 let result = embedding_function.call1((python_texts,))?;
-                let embeddings = result.downcast::<PyList>().map_err(|_| {
+                let embeddings = result.cast::<PyList>().map_err(|_| {
                     PyTypeError::new_err(
                         "value returned by the embedding function was not a python list",
                     )
@@ -486,7 +488,7 @@ impl EmbeddingFunction for Py<PyFunction> {
                 let embeddings: EmbeddingResult<Vec<_>> = embeddings
                     .iter()
                     .map(|embedding| {
-                        let pylist = embedding.downcast::<PyList>().map_err(|_| {
+                        let pylist = embedding.cast::<PyList>().map_err(|_| {
                             PyTypeError::new_err("one of the values in the list returned by the embedding function was not a python list")
                         })?;
                         let embedding: EmbeddingResult<Embedding> = pylist

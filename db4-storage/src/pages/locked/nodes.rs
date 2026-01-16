@@ -10,6 +10,7 @@ use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::ops::DerefMut;
 
+#[derive(Debug)]
 pub struct LockedNodePage<'a, NS> {
     page_id: usize,
     max_page_len: u32,
@@ -81,7 +82,7 @@ impl<NS> Default for WriteLockedNodePages<'_, NS> {
     }
 }
 
-impl<'a, NS: NodeSegmentOps> WriteLockedNodePages<'a, NS> {
+impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> {
     pub fn new(writers: Vec<LockedNodePage<'a, NS>>) -> Self {
         Self { writers }
     }

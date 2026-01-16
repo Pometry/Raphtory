@@ -9,6 +9,8 @@ use serde::{ser::SerializeMap, Serialize};
 
 use crate::core::entities::properties::prop::{Prop, PropArray, PropRef};
 
+pub const EMPTY_MAP_FIELD_NAME: &str = "__empty__";
+
 #[derive(Debug, Clone, Copy)]
 pub struct ArrowRow<'a> {
     array: &'a StructArray,

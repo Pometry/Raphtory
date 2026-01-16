@@ -90,8 +90,6 @@ pub enum LoadError {
     MissingEdgeError(VID, VID),
     #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
     NodeIdTypeError { existing: GidType, new: GidType },
-    #[error("Fatal load error, graph may be in a dirty state.")]
-    FatalError,
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
 }

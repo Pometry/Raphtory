@@ -15,7 +15,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::GraphError,
-    io::parquet_loaders::*,
+    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
@@ -23,7 +23,7 @@ use crate::{
     },
     serialise::StableEncode,
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr};
+use pyo3::{prelude::*, pybacked::PyBackedStr, Borrowed};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::arc_str::ArcStr,
@@ -75,16 +75,18 @@ impl<'py> IntoPyObject<'py> for PersistentGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for PersistentGraph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        let g = ob.downcast::<PyPersistentGraph>()?.get();
+impl<'py> FromPyObject<'_, 'py> for PersistentGraph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let binding = ob.cast::<PyPersistentGraph>()?;
+        let g = binding.get();
         Ok(g.graph.clone())
     }
 }
 
 impl PyPersistentGraph {
     pub fn py_from_db_graph(db_graph: PersistentGraph) -> PyResult<Py<PyPersistentGraph>> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Py::new(
                 py,
                 (
@@ -665,6 +667,7 @@ impl PyPersistentGraph {
             &metadata,
             shared_metadata.as_ref(),
             None,
+            true,
         )
     }
 
@@ -760,15 +763,12 @@ impl PyPersistentGraph {
         load_edges_from_parquet(
             &self.graph,
             parquet_path.as_path(),
-            time,
-            secondary_index,
-            src,
-            dst,
+            ColumnNames::new(time, secondary_index, src, dst, layer_col),
+            true,
             &properties,
             &metadata,
             shared_metadata.as_ref(),
             layer,
-            layer_col,
             None,
         )
     }
@@ -846,12 +846,9 @@ impl PyPersistentGraph {
         load_edge_deletions_from_parquet(
             &self.graph,
             parquet_path.as_path(),
-            time,
-            secondary_index,
-            src,
-            dst,
+            ColumnNames::new(time, secondary_index, src, dst, layer_col),
             layer,
-            layer_col,
+            true,
             None,
         )
     }
@@ -925,6 +922,8 @@ impl PyPersistentGraph {
             id,
             node_type,
             node_type_col,
+            None,
+            None,
             &metadata,
             shared_metadata.as_ref(),
             None,
@@ -1009,6 +1008,7 @@ impl PyPersistentGraph {
             layer,
             layer_col,
             None,
+            true,
         )
     }
 

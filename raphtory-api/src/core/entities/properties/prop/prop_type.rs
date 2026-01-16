@@ -144,7 +144,7 @@ impl PropType {
             PropType::NDTime | PropType::DTime => 8,
             PropType::List(p_type) => p_type.est_size() * CONTAINER_SIZE,
             PropType::Map(p_map) => {
-                p_map.iter().map(|(_, v)| v.est_size()).sum::<usize>() * CONTAINER_SIZE
+                p_map.values().map(|v| v.est_size()).sum::<usize>() * CONTAINER_SIZE
             }
             PropType::Decimal { .. } => 16,
             PropType::Empty => 0,
@@ -153,7 +153,7 @@ impl PropType {
 }
 
 pub mod arrow {
-    use crate::core::entities::properties::prop::PropType;
+    use crate::core::entities::properties::prop::{PropType, EMPTY_MAP_FIELD_NAME};
     use arrow_schema::{DataType, TimeUnit};
 
     impl From<&DataType> for PropType {
@@ -179,6 +179,7 @@ pub mod arrow {
                 DataType::Struct(fields) => PropType::map(
                     fields
                         .iter()
+                        .filter(|field| field.name() != EMPTY_MAP_FIELD_NAME)
                         .map(|f| (f.name().to_string(), PropType::from(f.data_type()))),
                 ),
                 DataType::List(field) | DataType::LargeList(field) => {

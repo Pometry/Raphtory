@@ -1,6 +1,6 @@
 use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use ouroboros::self_referencing;
-use pyo3::{pyclass, pymethods, BoundObject, IntoPyObject, PyObject, PyRef, PyResult, Python};
+use pyo3::{pyclass, pymethods, BoundObject, IntoPyObject, Py, PyAny, PyRef, PyResult, Python};
 
 #[pyclass]
 #[self_referencing]
@@ -8,7 +8,7 @@ pub struct PyBorrowingIterator {
     inner: Box<dyn PyIter>,
     #[borrows(inner)]
     #[covariant]
-    iter: BoxedLIter<'this, PyResult<PyObject>>,
+    iter: BoxedLIter<'this, PyResult<Py<PyAny>>>,
 }
 
 #[pymethods]
@@ -16,13 +16,13 @@ impl PyBorrowingIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(&mut self) -> Option<PyResult<PyObject>> {
+    fn __next__(&mut self) -> Option<PyResult<Py<PyAny>>> {
         self.with_iter_mut(|iter| iter.next())
     }
 }
 
 pub trait PyIter: Send + Sync + 'static {
-    fn iter(&self) -> BoxedLIter<'_, PyResult<PyObject>>;
+    fn iter(&self) -> BoxedLIter<'_, PyResult<Py<PyAny>>>;
 
     fn into_py_iter(self) -> PyBorrowingIterator
     where
@@ -37,16 +37,16 @@ pub trait PyIter: Send + Sync + 'static {
 }
 
 pub trait IntoPyIter<'a> {
-    fn into_py_iter(self) -> BoxedLIter<'a, PyResult<PyObject>>;
+    fn into_py_iter(self) -> BoxedLIter<'a, PyResult<Py<PyAny>>>;
 }
 
 impl<'a, I: Iterator + Send + Sync + 'a> IntoPyIter<'a> for I
 where
     I::Item: for<'py> IntoPyObject<'py>,
 {
-    fn into_py_iter(self) -> BoxedLIter<'a, PyResult<PyObject>> {
+    fn into_py_iter(self) -> BoxedLIter<'a, PyResult<Py<PyAny>>> {
         self.map(|v| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 Ok(v.into_pyobject(py)
                     .map_err(|e| e.into())?
                     .into_any()

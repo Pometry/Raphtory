@@ -252,7 +252,7 @@ impl PyGraphServer {
             // we need to release the GIL, otherwise the server will deadlock when trying to use python function as the embedding function
             // and wait_for_server_online will never return
             let result =
-                py.allow_threads(|| PyRunningGraphServer::wait_for_server_online(&url, timeout_ms));
+                py.detach(|| PyRunningGraphServer::wait_for_server_online(&url, timeout_ms));
             match result {
                 Ok(_) => return Ok(server),
                 Err(e) => {
@@ -278,6 +278,6 @@ impl PyGraphServer {
     )]
     pub fn run(slf: PyRefMut<Self>, py: Python, port: u16, timeout_ms: u64) -> PyResult<()> {
         let mut server = Self::start(slf, py, port, timeout_ms)?.server_handler;
-        py.allow_threads(|| wait_server(&mut server))
+        py.detach(|| wait_server(&mut server))
     }
 }
