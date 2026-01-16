@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768406907791,
+  "lastUpdate": 1768583313408,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3293,6 +3293,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1521,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "79378897+arienandalibi@users.noreply.github.com",
+            "name": "arienandalibi",
+            "username": "arienandalibi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fee245267a7660496c976776ec00513130abb787",
+          "message": "Consolidate load functions, add schema for casting, and add CSV options for reading (#2423)\n\n* Added tests for loading edges from polars and from fireducks. Added a load_edges_from_polars that internally calls to_pandas() on the polars dataframe. Fireducks works.\n\n* Adding loading of data (only edges for now) from arrow directly\n\n* Adding loading of data (only edges for now) from arrow with streaming in rust instead of obtaining each column of each batch from Python individually.\n\n* Added loading of edges from DuckDB, either normally or using streaming.\n\n* Added loading edges from fireducks.pandas dataframes. General cleaning up. Committing benchmarks and tests that check graph equality when using different ingestion pathways.\n\n* Adding flag to stream/not stream data in load_* functions. Will get rid of them and always stream. Added benchmark for loading from fireducks.\n\n* Added functions for load_nodes, load_node_props, load_edges, load_edge_props, that all use the __arrow_c_stream__() interface. If a data source is passed with no __len__ function, we calculate the len ourselves. Updated ingestion benchmarks to also test pandas_streaming, fireducks_streaming, polars_streaming\n\n* Cleaned up benchmark print statements\n\n* Ran make stubs\n\n* Removed num_rows from DFView. No longer calculating/storing the total number of rows.\n\n* Cleaned up load_*_from_df functions. load_edge_props/load_node_props renamed to load_edge_metadata/load_node_metadata.\n\n* Re-added total number of rows in DFView, but as an Option. We use it if the data source provides __len__(), and if not, the loading/progress bar for loading nodes and edges doesn't show progression, only iterations per second.\n\n* Added splitting of large chunks into smaller chunks so that the progress bar for loading updates properly when using the __arrow_c_stream__ interface.\n\n* Renamed props to metadata for remaining functions\n\n* Added tests to check equality between graphs created using different ingestion pathways\n\n* Changed load_*_metadata_* back to load_*_props_*\n\n* Fixed tests and updated workflow dependencies\n\n* Added try-catch blocks for fireducks import in tests\n\n* Fixed tests and notebooks\n\n* Fixed invalid function call in test\n\n* Fixed fireducks package not available on Windows (for now anyway)\n\n* Added load_*_from_df functions to PyPersistentGraph, including load_edge_deletions_from_df\n\n* Cleaned up load_from_df tests and parametrized them to run for both event graphs/persistent graphs.\n\n* Fixed bug in tests\n\n* Removed btc dataset benchmarks\n\n* Merge cleanup and fixing python docs errors\n\n* Adding load_nodes function in python that can take any input from the following: object with __arrow_c_stream__(), parquet file/directory, csv file/directory. Added arrow-csv as a dependency to load from csv files. Added csv loading.\n\n* Fixed CSV reader to calculate column indices for each file separately.\n\n* Changed unsafe ArrowArrayStreamReader pointer cast to stream arrow data from python. Replaced it with PyRecordBatchReader::from_arrow_pycapsule for safety and future changes.\n\n* Added test for loading data from CSV\n\n* Changed CSV reading to avoid loading whole CSV files into memory in arrow format at once. Now stream 1 mil rows at a time.\n\n* Added support for mixed directories containing both CSV and parquet files.\n\n* Added schema argument to load_nodes function\n\n* Fixed load_nodes docs. Added PropType in Python. Added get_dtype_of() function on PyProperties. Added test for schema casting.\n\n* Fixed casting of columns, can use PropType variants in python to specify what type to cast columns to.\n\n* Added casting using pyarrow types as input in the schema\n\n* Added casting of nested datatypes in the data source. Added test for nested type using pyarrow Table. Cast whole RecordBatch at once now using StructArray.\n\n* Added dep:arrow-schema to \"python\" feature in raphtory-api so that DataTypes can be extracted from Python without feature gating behind arrow (larger dependency). Refactored data_type_as_prop_type to be in raphtory-api as long as any of \"arrow\", \"storage\", or \"python\" features is enabled, since they all have dep:arrow-schema.\n\n* Added support for dicts as input for the schema. Added equality comparison for PropType. Fixed previous tests and added tests for dict schema input, pyarrow types, nested (StructArray) properties, nested schemas, mixed and matched PropType and pyarrow types, both in property and in schema,...\n\n* Added CSV options for when loading CSV. Errors if CSV options were passed but no CSV files were detected.\n\n* Added schema support for Parquet and CSV files\n\n* Post merge cleanup\n\n* Added test for loading from directories (pure parquet, pure csv, mixed parquet/csv). Make sure each ingestion path returns the same node ids.\n\n* Added btc_dataset tests for loading/casting from different sources as well as failures from malformed inputs\n\n* Fixed error message displaying incorrectly when the time column is malformed (or any column). Added tests for malformed inputs in csv.\n\n* Added malformed parquet test files\n\n* Fixed CSV loader to return the same error as other loaders when a column is not found. removed extra_field parquet test bc it didn't work. cleaned up test file.\n\n* Added tests for malformed files\n\n* Added tests for compressed csv files (gz and bz2 compression).\n\n* Added test for directory with no CSV/Parquet files\n\n* Added load functions for edges, node_metadata, edge_metadata, and edge_deletions for csv files/directories\n\n* Added pyarrow.DataType import to gen-stubs.py and pyarrow-stubs to dev optional-dependencies in pyproject.toml. General clean-up before adding other functions (load_edge, load_node_metadata, ...) in python graph.\n\n* Removed load_*_from_df, load_*_from_pandas, and load_*_from_parquet functions. Added load_edges, load_node_metadata, load_edge_metadata functions to PyGraph and PyPersistentGraph. Removed Pandas loaders.\n\n* Fixed some python tests\n\n* Fixed cast_columns function to not be imported from a python feature folder which is not available in the crate root. Fixed parquet_loaders.rs.\n\n* Fixed failing tests\n\n* Added docstring for PyPropType\n\n* Fixed failing test\n\n* Changed dtype method on PyProp to return PyPropType instead of string.\n\n* Fixed tests\n\n* Fixed python doc tests\n\n* More doc fixes\n\n* Parquets need to have extension\n\n* fixed mypy failing\n\n* chore: apply tidy-public auto-fixes\n\n* Fixed CSV loader crashing on rows with missing fields. Updated missing field test on parquet and csv to ensure that nothing is loaded on None/null property values.\n\n* chore: apply tidy-public auto-fixes\n\n* Fixed docstring\n\n---------\n\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-16T11:32:17-05:00",
+          "tree_id": "60825e2ce410034498e4671a0ec7b097795ec90a",
+          "url": "https://github.com/Pometry/Raphtory/commit/fee245267a7660496c976776ec00513130abb787"
+        },
+        "date": 1768583309611,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 35,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 205,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 143,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1160,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 942,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1389,
             "unit": "req/s"
           }
         ]
