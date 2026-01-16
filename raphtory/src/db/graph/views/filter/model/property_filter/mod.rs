@@ -119,6 +119,25 @@ pub enum PropertyFilterValue {
     Set(Arc<HashSet<Prop>>),
 }
 
+pub(crate) struct PropertyFilterInput {
+    pub prop_ref: PropertyRef,
+    pub prop_value: PropertyFilterValue,
+    pub operator: FilterOperator,
+    pub ops: Vec<Op>, // validated by validate_chain_and_infer_effective_dtype
+}
+
+impl PropertyFilterInput {
+    pub fn with_entity<M>(self, entity: M) -> PropertyFilter<M> {
+        PropertyFilter {
+            prop_ref: self.prop_ref,
+            prop_value: self.prop_value,
+            operator: self.operator,
+            ops: self.ops,
+            entity,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PropertyFilter<M> {
     pub prop_ref: PropertyRef,

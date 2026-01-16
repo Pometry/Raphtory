@@ -5,9 +5,8 @@ use crate::{
         PropertyFilterFactory, ViewWrapOps,
     },
     python::{
-        filter::{
-            create_filter::PyViewFilterBuilder,
-            property_filter_builders::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
+        filter::property_filter_builders::{
+            PyPropertyExprBuilder, PyPropertyFilterBuilder, PyViewFilterBuilder,
         },
         types::iterable::FromIterable,
     },

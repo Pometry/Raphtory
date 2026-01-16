@@ -18,12 +18,15 @@ use crate::{
                     CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::{
-                    builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
-                    Op, PropertyFilter, PropertyRef,
+                    builders::{
+                        MetadataFilterBuilder, PropertyExprBuilder, PropertyExprBuilderInput,
+                        PropertyFilterBuilder,
+                    },
+                    Op, PropertyFilter, PropertyFilterInput, PropertyRef,
                 },
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, ComposableFilter, InternalPropertyFilterBuilder,
+                AndFilter, ComposableFilter, EntityMarker, InternalPropertyFilterBuilder,
                 InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
                 TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, Wrap,
             },
@@ -32,6 +35,7 @@ use crate::{
     },
     errors::GraphError,
     prelude::GraphViewOps,
+    test_utils::prop,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
@@ -39,6 +43,12 @@ use std::{fmt, fmt::Display, sync::Arc};
 // User facing entry for building edge filters.
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct EdgeFilter;
+
+impl From<EdgeFilter> for EntityMarker {
+    fn from(_value: EdgeFilter) -> Self {
+        EntityMarker::Edge
+    }
+}
 
 impl EdgeFilter {
     #[inline]
@@ -77,18 +87,12 @@ impl InternalPropertyFilterFactory for EdgeFilter {
         EdgeFilter
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        builder
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        PropertyFilterBuilder(property, self.entity())
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        builder
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        MetadataFilterBuilder(property, self.entity())
     }
 }
 
@@ -191,12 +195,12 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for EdgeEnd
         self.inner.entity()
     }
 
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
         self.wrap(self.inner.filter(filter))
     }
 
-    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
-        self.wrap(self.inner.into_expr_builder(builder))
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        self.wrap(self.inner.with_expr_builder(builder))
     }
 }
 
@@ -209,18 +213,12 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EdgeEnd
         self.inner.entity()
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(builder))
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(property))
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(builder))
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(property))
     }
 }
 

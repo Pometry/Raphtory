@@ -10,9 +10,10 @@ use crate::{
     },
     python::{
         filter::{
-            create_filter::PyViewFilterBuilder,
             filter_expr::PyFilterExpr,
-            property_filter_builders::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
+            property_filter_builders::{
+                PyPropertyExprBuilder, PyPropertyFilterBuilder, PyViewFilterBuilder,
+            },
         },
         types::iterable::FromIterable,
     },

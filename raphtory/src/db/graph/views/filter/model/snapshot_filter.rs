@@ -5,8 +5,12 @@ use crate::{
             filter::{
                 model::{
                     edge_filter::CompositeEdgeFilter,
-                    property_filter::builders::{
-                        MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
+                    property_filter::{
+                        builders::{
+                            MetadataFilterBuilder, PropertyExprBuilder, PropertyExprBuilderInput,
+                            PropertyFilterBuilder,
+                        },
+                        PropertyFilterInput,
                     },
                     windowed_filter::Windowed,
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
@@ -72,12 +76,12 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Snapsho
         self.inner.entity()
     }
 
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
         self.wrap(self.inner.filter(filter))
     }
 
-    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
-        self.wrap(self.inner.into_expr_builder(builder))
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        self.wrap(self.inner.with_expr_builder(builder))
     }
 }
 
@@ -161,18 +165,12 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Snapsho
         self.inner.entity()
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(builder))
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(property))
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(builder))
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(property))
     }
 }
 
@@ -221,12 +219,12 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Snapsho
         self.inner.entity()
     }
 
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
         self.wrap(self.inner.filter(filter))
     }
 
-    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
-        self.wrap(self.inner.into_expr_builder(builder))
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        self.wrap(self.inner.with_expr_builder(builder))
     }
 }
 
@@ -302,18 +300,12 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Snapsho
         self.inner.entity()
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(builder))
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(property))
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(builder))
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(property))
     }
 }
 

@@ -6,7 +6,8 @@ use crate::{
         },
         graph::views::filter::{
             model::{
-                windowed_filter::Windowed, InternalViewWrapOps, TryAsCompositeFilter, ViewWrapOps,
+                windowed_filter::Windowed, CombinedFilter, DynPropertyFilterFactory,
+                InternalViewWrapOps, TryAsCompositeFilter, ViewWrapOps,
             },
             CreateFilter,
         },
@@ -21,9 +22,8 @@ use crate::{
 use pyo3::{pyclass, pymethods};
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{ops::Deref, sync::Arc};
-use crate::python::filter::property_filter_builders::DynPropertyFilterFactory;
 
-pub trait DynCreateFilter: Send + Sync + TryAsCompositeFilter {
+pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
     fn create_dyn_filter<'graph>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
@@ -37,7 +37,7 @@ pub trait DynCreateFilter: Send + Sync + TryAsCompositeFilter {
 
 impl<T> DynCreateFilter for T
 where
-    T: CreateFilter + TryAsCompositeFilter + Clone + Send + Sync + 'static,
+    T: CombinedFilter,
 {
     fn create_dyn_filter<'graph>(
         &self,
@@ -79,10 +79,10 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
 
 // pub trait DynViewWrap: Send + Sync {
 //     fn property(&self, name: String) -> PyPropertyFilterBuilder;
-// 
+//
 //     fn metadata(&self, name: String) -> PyPropertyExprBuilder;
 // }
-// 
+//
 // impl<T> DynViewWrap for T
 // where
 //     T: ViewWrapOps,
@@ -93,7 +93,7 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
 //             name,
 //         )))
 //     }
-// 
+//
 //     fn metadata(&self, name: String) -> PyPropertyExprBuilder {
 //         PyPropertyExprBuilder::from_arc(Arc::new(PropertyFilterFactory::metadata(
 //             &NodeFilter,
@@ -102,59 +102,51 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
 //     }
 // }
 
-impl InternalViewWrapOps for Arc<dyn DynPropertyFilterFactory> {
-    type Window = Windowed<Arc<dyn DynPropertyFilterFactory>>;
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Windowed::from_times(start, end, self)
-    }
-}
-
 // #[pyclass(name = "ViewFilterBuilder", module = "raphtory.filter", subclass)]
 // pub struct PyViewFilterBuilder(pub Arc<dyn DynPropertyFilterFactory>);
-// 
+//
 // #[pymethods]
 // impl PyViewFilterBuilder {
 //     fn property(&self, name: String) -> PyPropertyFilterBuilder {
 //         self.0.property(name)
 //     }
-// 
+//
 //     fn metadata(&self, name: String) -> PyPropertyExprBuilder {
 //         self.0.metadata(name)
 //     }
-// 
+//
 //     fn window(&self, start: EventTime, end: EventTime) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().window(start, end)))
 //     }
-// 
+//
 //     fn at(&self, time: EventTime) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().at(time)))
 //     }
-// 
+//
 //     fn after(&self, time: EventTime) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().after(time)))
 //     }
-// 
+//
 //     fn before(&self, time: EventTime) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().before(time)))
 //     }
-// 
+//
 //     fn latest(&self) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().latest()))
 //     }
-// 
+//
 //     fn snapshot_at(&self, time: EventTime) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().snapshot_at(time)))
 //     }
-// 
+//
 //     fn snapshot_latest(&self) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().snapshot_latest()))
 //     }
-// 
+//
 //     fn layer(&self, layer: String) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().layer(layer)))
 //     }
-// 
+//
 //     fn layers(&self, layers: FromIterable<String>) -> PyViewFilterBuilder {
 //         PyViewFilterBuilder(Arc::new(self.0.clone().layer(layers)))
 //     }

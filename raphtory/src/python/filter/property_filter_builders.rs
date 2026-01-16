@@ -6,8 +6,10 @@ use crate::{
                 builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
             },
-            ComposableFilter, InternalPropertyFilterBuilder, PropertyFilterFactory,
-            TemporalPropertyFilterFactory, TryAsCompositeFilter,
+            ComposableFilter, DynInternalViewWrapOps, DynPropertyFilterBuilder,
+            DynPropertyFilterFactory, DynTemporalPropertyFilterBuilder, EntityMarker,
+            InternalPropertyFilterBuilder, PropertyFilterFactory, TemporalPropertyFilterFactory,
+            TryAsCompositeFilter, ViewWrapOps,
         },
         CreateFilter,
     },
@@ -15,201 +17,20 @@ use crate::{
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::sync::Arc;
-use raphtory_api::core::storage::timeindex::EventTime;
-use crate::db::graph::views::filter::model::ViewWrapOps;
-use crate::python::filter::create_filter::PyViewFilterBuilder;
-
-pub trait DynPropertyFilterOps: Send + Sync {
-    fn __eq__(&self, value: Prop) -> PyFilterExpr;
-
-    fn __ne__(&self, value: Prop) -> PyFilterExpr;
-
-    fn __lt__(&self, value: Prop) -> PyFilterExpr;
-
-    fn __le__(&self, value: Prop) -> PyFilterExpr;
-
-    fn __gt__(&self, value: Prop) -> PyFilterExpr;
-
-    fn __ge__(&self, value: Prop) -> PyFilterExpr;
-
-    fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr;
-
-    fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr;
-
-    fn is_none(&self) -> PyFilterExpr;
-
-    fn is_some(&self) -> PyFilterExpr;
-
-    fn starts_with(&self, value: Prop) -> PyFilterExpr;
-
-    fn ends_with(&self, value: Prop) -> PyFilterExpr;
-
-    fn contains(&self, value: Prop) -> PyFilterExpr;
-
-    fn not_contains(&self, value: Prop) -> PyFilterExpr;
-
-    fn fuzzy_search(
-        &self,
-        prop_value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr;
-}
-
-impl<T: PropertyFilterOps> DynPropertyFilterOps for T {
-    fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::eq(self, value)))
-    }
-
-    fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ne(self, value)))
-    }
-
-    fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::lt(self, value)))
-    }
-
-    fn __le__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::le(self, value)))
-    }
-
-    fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::gt(self, value)))
-    }
-
-    fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        let filter = Arc::new(PropertyFilterOps::ge(self, value));
-        PyFilterExpr(filter)
-    }
-
-    fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_in(self, values)))
-    }
-
-    fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_not_in(self, values)))
-    }
-
-    fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_none(self)))
-    }
-
-    fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::is_some(self)))
-    }
-
-    fn starts_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::starts_with(self, value)))
-    }
-
-    fn ends_with(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::ends_with(self, value)))
-    }
-
-    fn contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::contains(self, value)))
-    }
-
-    fn not_contains(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::not_contains(self, value)))
-    }
-
-    fn fuzzy_search(
-        &self,
-        prop_value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(PropertyFilterOps::fuzzy_search(
-            self,
-            prop_value,
-            levenshtein_distance,
-            prefix_match,
-        )))
-    }
-}
-
-pub trait DynPropertyExprBuilderOps: Send + Sync {
-    fn any(&self) -> PyPropertyExprBuilder;
-
-    fn all(&self) -> PyPropertyExprBuilder;
-
-    fn len(&self) -> PyPropertyExprBuilder;
-
-    fn sum(&self) -> PyPropertyExprBuilder;
-
-    fn avg(&self) -> PyPropertyExprBuilder;
-
-    fn min(&self) -> PyPropertyExprBuilder;
-
-    fn max(&self) -> PyPropertyExprBuilder;
-
-    fn first(&self) -> PyPropertyExprBuilder;
-
-    fn last(&self) -> PyPropertyExprBuilder;
-}
-
-impl<T> DynPropertyExprBuilderOps for T
-where
-    T: InternalPropertyFilterBuilder + 'static,
-{
-    fn any(&self) -> PyPropertyExprBuilder {
-        let filter = ElemQualifierOps::any(self);
-        PyPropertyExprBuilder::wrap(filter)
-    }
-
-    fn all(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(ElemQualifierOps::all(self))
-    }
-
-    fn len(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(ListAggOps::len(self))
-    }
-
-    fn sum(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(ListAggOps::sum(self))
-    }
-
-    fn avg(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(ListAggOps::avg(self))
-    }
-
-    fn min(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(ListAggOps::min(self))
-    }
-
-    fn max(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(ListAggOps::max(self))
-    }
-
-    fn first(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(ListAggOps::first(self))
-    }
-
-    fn last(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(ListAggOps::last(self))
-    }
-}
-
-pub trait DynPropertyExprOps: DynPropertyExprBuilderOps + DynPropertyFilterOps {}
-
-impl<T: DynPropertyExprBuilderOps + DynPropertyFilterOps + ?Sized> DynPropertyExprOps for T {}
 
 #[pyclass(frozen, name = "FilterOps", module = "raphtory.filter", subclass)]
 #[derive(Clone)]
-pub struct PyPropertyExprBuilder {
-    inner: Arc<dyn DynPropertyExprOps>,
-}
+pub struct PyPropertyExprBuilder(pub Arc<dyn DynPropertyFilterBuilder>);
 
 impl PyPropertyExprBuilder {
-    pub fn wrap<T: DynPropertyExprOps + 'static>(t: T) -> Self {
-        Self { inner: Arc::new(t) }
+    pub fn wrap<T: DynPropertyFilterBuilder + 'static>(t: T) -> Self {
+        Self(Arc::new(t))
     }
 
-    pub fn from_arc(inner: Arc<dyn DynPropertyExprOps>) -> Self {
-        Self { inner }
+    pub fn from_arc(inner: Arc<dyn DynPropertyFilterBuilder>) -> Self {
+        Self(inner)
     }
 }
 
@@ -224,7 +45,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating equality.
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        self.inner.__eq__(value)
+        PyFilterExpr(self.0.eq(value))
     }
 
     /// Returns a filter expression that checks whether the property
@@ -236,7 +57,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating inequality.
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        self.inner.__ne__(value)
+        PyFilterExpr(self.0.ne(value))
     }
 
     /// Returns a filter expression that checks whether the property
@@ -248,7 +69,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating a `<` comparison.
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
-        self.inner.__lt__(value)
+        PyFilterExpr(self.0.lt(value))
     }
 
     /// Returns a filter expression that checks whether the property
@@ -260,7 +81,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating a `<=` comparison.
     fn __le__(&self, value: Prop) -> PyFilterExpr {
-        self.inner.__le__(value)
+        PyFilterExpr(self.0.le(value))
     }
 
     /// Returns a filter expression that checks whether the property
@@ -272,7 +93,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating a `>` comparison.
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
-        self.inner.__gt__(value)
+        PyFilterExpr(self.0.gt(value))
     }
 
     /// Returns a filter expression that checks whether the property
@@ -284,7 +105,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating a `>=` comparison.
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
-        self.inner.__ge__(value)
+        PyFilterExpr(self.0.ge(value))
     }
 
     /// Returns a filter expression that checks whether the property
@@ -296,7 +117,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating membership.
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        self.inner.is_in(values)
+        PyFilterExpr(self.0.is_in(values))
     }
 
     /// Returns a filter expression that checks whether the property
@@ -308,7 +129,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating non-membership.
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        self.inner.is_not_in(values)
+        PyFilterExpr(self.0.is_not_in(values))
     }
 
     /// Returns a filter expression that checks whether the property
@@ -317,7 +138,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating `value is None`.
     fn is_none(&self) -> PyFilterExpr {
-        self.inner.is_none()
+        PyFilterExpr(self.0.is_none())
     }
 
     /// Returns a filter expression that checks whether the property
@@ -326,7 +147,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating `value is not None`.
     fn is_some(&self) -> PyFilterExpr {
-        self.inner.is_some()
+        PyFilterExpr(self.0.is_some())
     }
 
     /// Returns a filter expression that checks whether the property's
@@ -338,7 +159,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating prefix matching.
     fn starts_with(&self, value: Prop) -> PyFilterExpr {
-        self.inner.starts_with(value)
+        PyFilterExpr(self.0.starts_with(value))
     }
 
     /// Returns a filter expression that checks whether the property's
@@ -350,7 +171,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating suffix matching.
     fn ends_with(&self, value: Prop) -> PyFilterExpr {
-        self.inner.ends_with(value)
+        PyFilterExpr(self.0.ends_with(value))
     }
 
     /// Returns a filter expression that checks whether the property's
@@ -362,7 +183,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating substring search.
     fn contains(&self, value: Prop) -> PyFilterExpr {
-        self.inner.contains(value)
+        PyFilterExpr(self.0.contains(value))
     }
 
     /// Returns a filter expression that checks whether the property's
@@ -374,7 +195,7 @@ impl PyPropertyExprBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating substring exclusion.
     fn not_contains(&self, value: Prop) -> PyFilterExpr {
-        self.inner.not_contains(value)
+        PyFilterExpr(self.0.not_contains(value))
     }
 
     /// Returns a filter expression that performs fuzzy matching
@@ -395,44 +216,46 @@ impl PyPropertyExprBuilder {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        self.inner
-            .fuzzy_search(prop_value, levenshtein_distance, prefix_match)
+        PyFilterExpr(
+            self.0
+                .fuzzy_search(prop_value, levenshtein_distance, prefix_match),
+        )
     }
 
     pub fn first(&self) -> PyPropertyExprBuilder {
-        self.inner.first()
+        PyPropertyExprBuilder(self.0.first())
     }
 
     pub fn last(&self) -> PyPropertyExprBuilder {
-        self.inner.last()
+        PyPropertyExprBuilder(self.0.last())
     }
 
     pub fn any(&self) -> PyPropertyExprBuilder {
-        self.inner.any()
+        PyPropertyExprBuilder(self.0.any())
     }
 
     pub fn all(&self) -> PyPropertyExprBuilder {
-        self.inner.all()
+        PyPropertyExprBuilder(self.0.all())
     }
 
     fn len(&self) -> PyPropertyExprBuilder {
-        self.inner.len()
+        PyPropertyExprBuilder(self.0.len())
     }
 
     fn sum(&self) -> PyPropertyExprBuilder {
-        self.inner.sum()
+        PyPropertyExprBuilder(self.0.sum())
     }
 
     fn avg(&self) -> PyPropertyExprBuilder {
-        self.inner.avg()
+        PyPropertyExprBuilder(self.0.avg())
     }
 
     fn min(&self) -> PyPropertyExprBuilder {
-        self.inner.min()
+        PyPropertyExprBuilder(self.0.min())
     }
 
     fn max(&self) -> PyPropertyExprBuilder {
-        self.inner.max()
+        PyPropertyExprBuilder(self.0.max())
     }
 }
 
@@ -443,37 +266,23 @@ impl PyPropertyExprBuilder {
     extends = PyPropertyExprBuilder
 )]
 #[derive(Clone)]
-pub struct PyPropertyFilterBuilder {
-    inner: Arc<dyn DynTemporalPropertyFilterFactory>,
-}
+pub struct PyPropertyFilterBuilder(pub Arc<dyn DynTemporalPropertyFilterBuilder>);
 
 impl PyPropertyFilterBuilder {
-    pub fn from_arc(inner: Arc<dyn DynTemporalPropertyFilterFactory>) -> Self {
-        Self { inner }
-    }
-}
-
-pub trait DynTemporalPropertyFilterFactory: DynPropertyExprOps {
-    fn temporal(&self) -> PyPropertyExprBuilder;
-}
-
-impl<T: DynPropertyExprOps + TemporalPropertyFilterFactory> DynTemporalPropertyFilterFactory for T
-where
-    T::ExprBuilder: 'static,
-{
-    fn temporal(&self) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(self.temporal())
+    pub fn from_arc(inner: Arc<dyn DynTemporalPropertyFilterBuilder>) -> Self {
+        Self(inner)
     }
 }
 
 #[pymethods]
 impl PyPropertyFilterBuilder {
     fn temporal(&self) -> PyPropertyExprBuilder {
-        self.inner.temporal()
+        PyPropertyExprBuilder(self.0.temporal())
     }
 }
 
-impl<'py, M: Clone + Send + Sync + 'static> IntoPyObject<'py> for PropertyFilterBuilder<M>
+impl<'py, M: Into<EntityMarker> + Clone + Send + Sync + 'static> IntoPyObject<'py>
+    for PropertyFilterBuilder<M>
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder<Marker = M>,
@@ -490,7 +299,8 @@ where
     }
 }
 
-impl<'py, M: Send + Sync + Clone + 'static> IntoPyObject<'py> for MetadataFilterBuilder<M>
+impl<'py, M: Into<EntityMarker> + Send + Sync + Clone + 'static> IntoPyObject<'py>
+    for MetadataFilterBuilder<M>
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder<Marker = M>,
@@ -506,7 +316,7 @@ where
 
 impl<'py, M> IntoPyObject<'py> for EdgeEndpointWrapper<PropertyFilterBuilder<M>>
 where
-    M: Clone + Send + Sync + 'static,
+    M: Into<EntityMarker> + Clone + Send + Sync + 'static,
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder<Marker = M>,
 {
@@ -524,7 +334,7 @@ where
 
 impl<'py, M> IntoPyObject<'py> for EdgeEndpointWrapper<MetadataFilterBuilder<M>>
 where
-    M: Clone + Send + Sync + 'static,
+    M: Into<EntityMarker> + Clone + Send + Sync + 'static,
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder<Marker = M>,
 {
@@ -544,24 +354,8 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let parent = PyPropertyExprBuilder::from_arc(self.inner.clone());
+        let parent = PyPropertyExprBuilder::from_arc(self.0.clone());
         Bound::new(py, (self, parent))
-    }
-}
-
-pub trait DynPropertyFilterFactory: Send + Sync + 'static {
-    fn property(&self, name: String) -> PyPropertyFilterBuilder;
-
-    fn metadata(&self, name: String) -> PyPropertyExprBuilder;
-}
-
-impl<T: PropertyFilterFactory + Send + Sync + 'static> DynPropertyFilterFactory for T where T: ViewWrapOps {
-    fn property(&self, name: String) -> PyPropertyFilterBuilder {
-        PyPropertyFilterBuilder::from_arc(Arc::new(self.property(name)))
-    }
-
-    fn metadata(&self, name: String) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder::wrap(self.metadata(name))
     }
 }
 
@@ -571,10 +365,10 @@ impl<T: PropertyFilterFactory + Send + Sync + 'static> DynPropertyFilterFactory 
     subclass,
     frozen
 )]
-pub struct PyViewFilterBuilder(Arc<dyn DynPropertyFilterFactory>);
+pub struct PyViewFilterBuilder(pub Arc<dyn DynInternalViewWrapOps>);
 
 impl PyViewFilterBuilder {
-    pub fn wrap<T: DynPropertyFilterFactory>(value: T) -> Self {
+    pub fn wrap<T: DynInternalViewWrapOps>(value: T) -> Self {
         Self(Arc::new(value))
     }
 }
@@ -582,27 +376,27 @@ impl PyViewFilterBuilder {
 #[pymethods]
 impl PyViewFilterBuilder {
     fn property(&self, name: String) -> PyPropertyFilterBuilder {
-        self.0.property(name)
+        PyPropertyFilterBuilder(self.0.property(name))
     }
 
     fn metadata(&self, name: String) -> PyPropertyExprBuilder {
-        self.0.metadata(name)
+        PyPropertyExprBuilder(self.0.metadata(name))
     }
 
     fn window(&self, start: EventTime, end: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().window(start, end)))
+        PyViewFilterBuilder(self.0.clone().window(start, end))
     }
 
     fn at(&self, time: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().at(time)))
+        PyViewFilterBuilder(self.0.clone().at(time))
     }
 
     fn after(&self, time: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().after(time)))
+        PyViewFilterBuilder(self.0.clone().after(time))
     }
 
     fn before(&self, time: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().before(time)))
+        PyViewFilterBuilder(self.0.clone().before(time))
     }
 
     fn latest(&self) -> PyViewFilterBuilder {

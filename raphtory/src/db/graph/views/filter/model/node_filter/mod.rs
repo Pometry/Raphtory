@@ -22,7 +22,7 @@ use crate::{
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
+                CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker,
                 InternalPropertyFilterFactory, InternalViewWrapOps, TryAsCompositeFilter,
                 ViewWrapOps, Wrap,
             },
@@ -43,6 +43,11 @@ mod validate;
 #[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]
 pub struct NodeFilter;
 
+impl From<NodeFilter> for EntityMarker {
+    fn from(_value: NodeFilter) -> Self {
+        EntityMarker::Node
+    }
+}
 impl NodeFilter {
     #[inline]
     pub fn id() -> NodeIdFilterBuilder {
@@ -85,18 +90,12 @@ impl InternalPropertyFilterFactory for NodeFilter {
         NodeFilter
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        builder
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        PropertyFilterBuilder(property, self.entity())
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        builder
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        MetadataFilterBuilder(property, self.entity())
     }
 }
 
