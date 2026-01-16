@@ -20,8 +20,8 @@ edges_df = pd.read_csv("../data/network_traffic_edges.csv")
 edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     time="timestamp",
     src="source",
     dst="destination",

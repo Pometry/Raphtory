@@ -99,6 +99,7 @@ mod io_tests {
                     Some(edge_list.layer),
                     None,
                     None,
+                    None,
                 )
                 .unwrap();
             }
@@ -161,6 +162,7 @@ mod io_tests {
                     &[],
                     None,
                     Some(edge_list.layer),
+                    None,
                     None,
                     None,
                 )

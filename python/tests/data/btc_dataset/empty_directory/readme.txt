@@ -1,0 +1,1 @@
+There are no CSV/Parquet files in this directory. Ingestion should fail.
