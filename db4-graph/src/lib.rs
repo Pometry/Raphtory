@@ -25,7 +25,7 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::{Config, PersistentStrategy},
+    persist::strategy::PersistentStrategy,
     resolver::GIDResolverOps,
     wal::{GraphWal, TransactionID, Wal},
     Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, GS, NS,

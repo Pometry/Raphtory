@@ -14,12 +14,9 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps},
-        MutationError,
-    },
+use raphtory_storage::mutation::{
+    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    MutationError,
 };
 use storage::wal::{GraphWal, Wal};
 

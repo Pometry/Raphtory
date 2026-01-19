@@ -4,7 +4,7 @@ use super::{
 use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    persist::strategy::{Config, PersistentStrategy},
+    persist::strategy::PersistentStrategy,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
 };
 use parking_lot::RwLockWriteGuard;
