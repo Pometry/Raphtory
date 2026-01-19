@@ -78,4 +78,8 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: Config> GraphPropStorageInne
             self.page.head_mut(),
         ))
     }
+
+    pub fn flush(&self) -> Result<(), StorageError> {
+        self.page.flush()
+    }
 }

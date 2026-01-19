@@ -14,7 +14,9 @@ use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
-use storage::{pages::SegmentCounts, state::StateIndex, Extension, GraphPropEntry};
+use storage::{
+    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GraphPropEntry,
+};
 use thiserror::Error;
 
 #[derive(Clone, Debug)]
@@ -97,6 +99,13 @@ impl GraphStorage {
                 GraphStorage::Mem(locked)
             }
             _ => self.clone(),
+        }
+    }
+
+    pub fn flush(&self) -> Result<(), StorageError> {
+        match self {
+            GraphStorage::Mem(graph) => graph.flush(),
+            GraphStorage::Unlocked(graph) => graph.flush(),
         }
     }
 

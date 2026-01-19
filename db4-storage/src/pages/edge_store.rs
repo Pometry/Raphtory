@@ -1,9 +1,3 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
@@ -25,6 +19,12 @@ use raphtory_core::{
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
+use std::{
+    collections::HashMap,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 const N: usize = 32;
 
@@ -568,18 +568,21 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
             .ok()
     }
 
-    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+    fn par_iter_segments(&self) -> impl ParallelIterator<Item = &ES> {
         (0..self.segments.count())
             .into_par_iter()
-            .filter_map(move |page_id| self.segments.get(page_id))
-            .flat_map(move |page| {
-                (0..page.num_edges())
-                    .into_par_iter()
-                    .map(LocalPOS)
-                    .filter_map(move |local_edge| {
-                        page.layer_entry(local_edge, layer, Some(page.head()))
-                    })
-            })
+            .filter_map(|idx| self.segments.get(idx).map(|seg| seg.deref()))
+    }
+
+    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+        self.par_iter_segments().flat_map(move |page| {
+            (0..page.num_edges())
+                .into_par_iter()
+                .map(LocalPOS)
+                .filter_map(move |local_edge| {
+                    page.layer_entry(local_edge, layer, Some(page.head()))
+                })
+        })
     }
 
     pub fn iter(&self, layer: usize) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
@@ -617,5 +620,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
             self.max_page_len(),
             self.pages().iter().map(|(_, seg)| seg.num_edges()),
         )
+    }
+
+    pub fn flush(&self) -> Result<(), StorageError> {
+        self.par_iter_segments().try_for_each(|seg| seg.flush())
     }
 }

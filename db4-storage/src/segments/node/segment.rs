@@ -531,7 +531,9 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
             .map_or(0, |layer| layer.len())
     }
 
-    fn flush(&self) {}
+    fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 
     fn est_size(&self) -> usize {
         self.est_size.load(Ordering::Relaxed)

@@ -1,12 +1,14 @@
 use std::ops::DerefMut;
 
-use serde::{Deserialize, Serialize};
-
-use crate::segments::{
-    edge::segment::{EdgeSegmentView, MemEdgeSegment},
-    graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
-    node::segment::{MemNodeSegment, NodeSegmentView},
+use crate::{
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    segments::{
+        edge::segment::{EdgeSegmentView, MemEdgeSegment},
+        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
+        node::segment::{MemNodeSegment, NodeSegmentView},
+    },
 };
+use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
@@ -21,13 +23,13 @@ pub trait Config:
     fn max_memory_bytes(&self) -> usize;
     fn is_parallel(&self) -> bool;
     fn node_types(&self) -> &[String];
-    fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>);
+    fn with_node_types(&self, types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 }
 
 pub trait PersistentStrategy: Config {
-    type NS;
-    type ES;
-    type GS;
+    type NS: NodeSegmentOps;
+    type ES: EdgeSegmentOps;
+    type GS: GraphPropSegmentOps;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
@@ -97,8 +99,8 @@ impl Config for NoOpStrategy {
         &[]
     }
 
-    fn set_node_types(&mut self, _types: impl IntoIterator<Item = impl AsRef<str>>) {
-        // No operation
+    fn with_node_types(&self, _types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        *self
     }
 }
 
