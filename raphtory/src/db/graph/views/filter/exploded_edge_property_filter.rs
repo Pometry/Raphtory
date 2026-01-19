@@ -17,10 +17,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::{
-        entities::{EID, ELID},
-        storage::timeindex::EventTime,
-    },
+    core::{entities::ELID, storage::timeindex::EventTime},
     inherit::Base,
 };
 use raphtory_storage::core_ops::InheritCoreGraphOps;

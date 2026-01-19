@@ -163,10 +163,11 @@ mod test_filters_cached_view {
                     },
                     views::filter::model::{
                         node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
+                        PropertyFilterFactory,
                     },
                 },
             },
-            prelude::{AdditionOps, PropertyFilterFactory},
+            prelude::AdditionOps,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -271,14 +272,16 @@ mod test_filters_cached_view {
                     assert_filter_edges_results, assert_search_edges_results, TestVariants,
                 },
             },
-            prelude::{AdditionOps, EdgeFilter, PropertyFilterFactory},
+            prelude::{AdditionOps, EdgeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
         use crate::test_filters_cached_view::{
             CachedGraphTransformer, WindowedCachedGraphTransformer,
         };
-        use raphtory::db::graph::views::filter::model::property_filter::ops::PropertyFilterOps;
+        use raphtory::db::graph::views::filter::model::{
+            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+        };
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
             let edge_data = vec![

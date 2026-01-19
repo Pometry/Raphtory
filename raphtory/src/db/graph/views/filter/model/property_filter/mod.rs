@@ -24,7 +24,6 @@ use crate::{
     errors::GraphError,
     prelude::{
         EdgeFilter, EdgeViewOps, GraphViewOps, LayerOps, NodeFilter, NodeViewOps, PropertiesOps,
-        TimeOps,
     },
 };
 use itertools::Itertools;
@@ -36,14 +35,11 @@ use raphtory_api::core::{
         },
         EID,
     },
-    storage::timeindex::{AsTime, EventTime},
+    storage::timeindex::EventTime,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
@@ -117,6 +113,25 @@ pub enum PropertyFilterValue {
     None,
     Single(Prop),
     Set(Arc<HashSet<Prop>>),
+}
+
+pub struct PropertyFilterInput {
+    pub prop_ref: PropertyRef,
+    pub prop_value: PropertyFilterValue,
+    pub operator: FilterOperator,
+    pub ops: Vec<Op>, // validated by validate_chain_and_infer_effective_dtype
+}
+
+impl PropertyFilterInput {
+    pub fn with_entity<M>(self, entity: M) -> PropertyFilter<M> {
+        PropertyFilter {
+            prop_ref: self.prop_ref,
+            prop_value: self.prop_value,
+            operator: self.operator,
+            ops: self.ops,
+            entity,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -364,6 +379,12 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodePropertyFilterOp<G>;
 
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -379,12 +400,25 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
         let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
         Ok(NodePropertyFilterOp::new(graph, prop_id, self))
     }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
 }
 
 impl CreateFilter for PropertyFilter<EdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -400,11 +434,23 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
 }
 
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -419,6 +465,13 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 

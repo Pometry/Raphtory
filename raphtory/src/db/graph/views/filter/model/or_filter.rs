@@ -35,21 +35,35 @@ impl<L, R> ComposableFilter for OrFilter<L, R> {}
 
 impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = OrFilteredGraph<G, L::EntityFiltered<'graph, G>, R::EntityFiltered<'graph, G>>
+        = OrFilteredGraph<
+        G,
+        L::EntityFiltered<'graph, L::FilteredGraph<'graph, G>>,
+        R::EntityFiltered<'graph, R::FilteredGraph<'graph, G>>,
+    >
     where
         Self: 'graph;
 
     type NodeFilter<'graph, G: GraphView + 'graph>
-        = OrOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
+        = OrOp<
+        L::NodeFilter<'graph, L::FilteredGraph<'graph, G>>,
+        R::NodeFilter<'graph, R::FilteredGraph<'graph, G>>,
+    >
     where
         Self: 'graph;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let left = self.left.create_filter(graph.clone())?;
-        let right = self.right.create_filter(graph.clone())?;
+        let l = self.left.filter_graph_view(graph.clone())?;
+        let r = self.right.filter_graph_view(graph.clone())?;
+        let left = self.left.create_filter(l)?;
+        let right = self.right.create_filter(r)?;
         Ok(OrFilteredGraph { graph, left, right })
     }
 
@@ -57,9 +71,21 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let left = self.left.create_node_filter(graph.clone())?;
-        let right = self.right.create_node_filter(graph.clone())?;
+        let l = self.left.filter_graph_view(graph.clone())?;
+        let r = self.right.filter_graph_view(graph.clone())?;
+        let left = self.left.create_node_filter(l)?;
+        let right = self.right.create_node_filter(r)?;
         Ok(left.or(right))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
+    where
+        Self: 'graph,
+    {
+        Ok(graph)
     }
 }
 

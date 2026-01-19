@@ -13,14 +13,17 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter::Filter,
+                latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
                 },
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                ComposableFilter, CompositeExplodedEdgeFilter, InternalPropertyFilterFactory,
+                AndFilter, ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker,
+                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
                 TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
@@ -30,8 +33,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::{entities::Layer, utils::time::IntoTime};
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
@@ -41,6 +43,11 @@ mod validate;
 #[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]
 pub struct NodeFilter;
 
+impl From<NodeFilter> for EntityMarker {
+    fn from(_value: NodeFilter) -> Self {
+        EntityMarker::Node
+    }
+}
 impl NodeFilter {
     #[inline]
     pub fn id() -> NodeIdFilterBuilder {
@@ -56,16 +63,6 @@ impl NodeFilter {
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
     }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<NodeFilter> {
-        Windowed::from_times(start, end, NodeFilter)
-    }
-
-    #[inline]
-    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<NodeFilter> {
-        Layered::from_layers(layer, NodeFilter)
-    }
 }
 
 impl Wrap for NodeFilter {
@@ -73,6 +70,14 @@ impl Wrap for NodeFilter {
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
         value
+    }
+}
+
+impl InternalViewWrapOps for NodeFilter {
+    type Window = Windowed<NodeFilter>;
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Windowed::from_times(start, end, self)
     }
 }
 
@@ -85,18 +90,12 @@ impl InternalPropertyFilterFactory for NodeFilter {
         NodeFilter
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        builder
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        PropertyFilterBuilder(property, self.entity())
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        builder
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        MetadataFilterBuilder(property, self.entity())
     }
 }
 
@@ -115,10 +114,18 @@ impl From<Filter> for NodeIdFilter {
     }
 }
 
+impl ComposableFilter for NodeIdFilter {}
+
 impl CreateFilter for NodeIdFilter {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, NodeIdFilterOp>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeIdFilterOp;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -134,6 +141,13 @@ impl CreateFilter for NodeIdFilter {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         validate(graph.id_type(), &self.0)?;
         Ok(NodeIdFilterOp::new(self.0))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -175,6 +189,12 @@ impl CreateFilter for NodeNameFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeNameFilterOp;
 
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -187,6 +207,13 @@ impl CreateFilter for NodeNameFilter {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeNameFilterOp::new(self.0))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -228,6 +255,12 @@ impl CreateFilter for NodeTypeFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeTypeFilterOp;
 
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -258,6 +291,13 @@ impl CreateFilter for NodeTypeFilter {
             .collect::<Vec<_>>();
         Ok(TypeId.mask(node_types_filter.into()))
     }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
 }
 
 impl TryAsCompositeFilter for NodeTypeFilter {
@@ -281,6 +321,9 @@ pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter<NodeFilter>),
     Windowed(Box<Windowed<CompositeNodeFilter>>),
+    Latest(Box<Latest<CompositeNodeFilter>>),
+    SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
+    SnapshotLatest(Box<SnapshotLatest<CompositeNodeFilter>>),
     Layered(Box<Layered<CompositeNodeFilter>>),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
@@ -293,6 +336,9 @@ impl Display for CompositeNodeFilter {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Layered(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Latest(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -306,6 +352,12 @@ impl CreateFilter for CompositeNodeFilter {
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+
+    type FilteredGraph<'graph, G>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -337,6 +389,18 @@ impl CreateFilter for CompositeNodeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_node_filter(dyn_graph)
             }
+            CompositeNodeFilter::Latest(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::SnapshotAt(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
+            CompositeNodeFilter::SnapshotLatest(i) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                i.create_node_filter(dyn_graph)
+            }
             CompositeNodeFilter::And(l, r) => Ok(Arc::new(AndOp {
                 left: l.clone().create_node_filter(graph.clone())?,
                 right: r.clone().create_node_filter(graph.clone())?,
@@ -347,6 +411,44 @@ impl CreateFilter for CompositeNodeFilter {
             })),
             CompositeNodeFilter::Not(filter) => {
                 Ok(Arc::new(NotOp(filter.clone().create_node_filter(graph)?)))
+            }
+        }
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        match self.clone() {
+            CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
+                "node_id" => Ok(Arc::new(NodeIdFilter(i).filter_graph_view(graph)?)),
+                "node_name" => Ok(Arc::new(NodeNameFilter(i).filter_graph_view(graph)?)),
+                "node_type" => Ok(Arc::new(NodeTypeFilter(i).filter_graph_view(graph)?)),
+                _ => {
+                    unreachable!()
+                }
+            },
+            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::Windowed(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::Layered(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::SnapshotAt(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::SnapshotLatest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::And(l, r) => {
+                let (l, r) = (*l, *r);
+                Ok(Arc::new(
+                    AndFilter { left: l, right: r }.filter_graph_view(graph)?,
+                ))
+            }
+            CompositeNodeFilter::Or(l, r) => {
+                let (l, r) = (*l, *r);
+                Ok(Arc::new(
+                    OrFilter { left: l, right: r }.filter_graph_view(graph)?,
+                ))
+            }
+            CompositeNodeFilter::Not(f) => {
+                let base = *f;
+                Ok(Arc::new(NotFilter(base).filter_graph_view(graph)?))
             }
         }
     }

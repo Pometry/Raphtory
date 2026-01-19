@@ -723,15 +723,19 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_edge_temporal_property_filter_empty_layers_is_error(graph):
+def test_edge_temporal_property_filter_empty_layers(graph):
     query = """
     query {
       graph(path: "g") {
         filterEdges(expr: {
-          temporalProperty: {
-            name: "prop5"
-            layers: []
-            where: { any: { avg: { lt: { f64: 10.0 } } } }
+          layers: {
+            names: []
+            expr: {
+              temporalProperty: {
+                name: "p2"
+                where: { any: { avg: { lt: { f64: 1.0 } } } }
+              }
+            }
           }
         }) {
           edges { list { src { name } dst { name } } }
@@ -740,14 +744,8 @@ def test_edge_temporal_property_filter_empty_layers_is_error(graph):
     }
     """
 
-    run_graphql_error_test_contains(
-        query,
-        [
-            "EdgeFilter.temporalProperty",
-            "'layers' must be non-empty",
-        ],
-        graph,
-    )
+    expected = {"graph": {"filterEdges": {"edges": {"list": []}}}}
+    run_graphql_test(query, expected, graph)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -756,10 +754,14 @@ def test_edges_temporal_property_last_with_single_layer(graph):
     query {
       graph(path: "g") {
         filterEdges(expr: {
-          temporalProperty: {
-            name: "p10"
-            layers: ["air_nomads"]
-            where: { last: { eq: { str: "Paper_ship" } } }
+          layers: {
+            names: ["air_nomads"]
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_ship" } } }
+              }
+            }
           }
         }) {
           edges { list { src { name } dst { name } } }
@@ -786,10 +788,14 @@ def test_edges_temporal_property_last_with_multiple_layers(graph):
     query {
       graph(path: "g") {
         filterEdges(expr: {
-          temporalProperty: {
-            name: "p10"
-            layers: ["fire_nation", "air_nomads"]
-            where: { last: { eq: { str: "Paper_airplane" } } }
+          layers: {
+            names: ["fire_nation", "air_nomads"]
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_airplane" } } }
+              }
+            }
           }
         }) {
           edges { list { src { name } dst { name } } }
@@ -815,10 +821,14 @@ def test_edges_temporal_property_last_with_default_layer(graph):
     query {
       graph(path: "g") {
         filterEdges(expr: {
-          temporalProperty: {
-            name: "p10"
-            layers: ["_default"]
-            where: { last: { eq: { str: "Paper_airplane" } } }
+          layers: {
+            names: ["_default"]
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_airplane" } } }
+              }
+            }
           }
         }) {
           edges { list { src { name } dst { name } } }
@@ -832,6 +842,193 @@ def test_edges_temporal_property_last_with_default_layer(graph):
         "graph": {
             "filterEdges": {
                 "edges": {"list": [{"src": {"name": "2"}, "dst": {"name": "1"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_at_temporal_last(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          at: {
+            time: 1
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_airplane" } } }
+              }
+            }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "1"}, "dst": {"name": "2"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_before_temporal_last(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          before: {
+            time: 2
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_airplane" } } }
+              }
+            }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "1"}, "dst": {"name": "2"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
+def test_edges_after_temporal_last(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          after: {
+            time: 2
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_ship" } } }
+              }
+            }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"dst": {"name": "3"}, "src": {"name": "2"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
+def test_edges_latest_temporal_last(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          latest: {
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_ship" } } }
+              }
+            }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "2"}, "dst": {"name": "3"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_snapshot_at_temporal_last(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          snapshotAt: {
+            time: 2
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_ship" } } }
+              }
+            }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "2"}, "dst": {"name": "3"}}]}
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
+def test_edges_snapshot_latest_temporal_last(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filterEdges(expr: {
+          snapshotLatest: {
+            expr: {
+              temporalProperty: {
+                name: "p10"
+                where: { last: { eq: { str: "Paper_ship" } } }
+              }
+            }
+          }
+        }) {
+          edges { list { src { name } dst { name } } }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {
+            "filterEdges": {
+                "edges": {"list": [{"src": {"name": "2"}, "dst": {"name": "3"}}]}
             }
         }
     }

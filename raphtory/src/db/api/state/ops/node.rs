@@ -10,7 +10,6 @@ use raphtory_api::core::{
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
-    layer_ops::InternalLayerOps,
 };
 
 #[derive(Debug, Clone, Copy)]

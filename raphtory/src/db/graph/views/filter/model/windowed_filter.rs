@@ -8,12 +8,11 @@ use crate::{
                     node_filter::builders::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                     },
-                    property_filter::builders::{
-                        MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder,
-                    },
+                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
+                    TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -21,7 +20,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter, TimeOps},
+    prelude::{GraphViewOps, TimeOps},
 };
 use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
@@ -66,6 +65,18 @@ impl<M> Windowed<M> {
     }
 }
 
+impl<T: InternalViewWrapOps> InternalViewWrapOps for Windowed<T> {
+    type Window = T::Window;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        (self.start, self.end)
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        self.inner.build_window(start, end)
+    }
+}
+
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Windowed<T> {
     type FilterType = T::FilterType;
 
@@ -97,12 +108,12 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Windowe
         self.inner.entity()
     }
 
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
         self.wrap(self.inner.filter(filter))
     }
 
-    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
-        self.wrap(self.inner.into_expr_builder(builder))
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        self.wrap(self.inner.with_expr_builder(builder))
     }
 }
 
@@ -130,14 +141,20 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Windowed<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, WindowedGraph<G>>
+        = T::EntityFiltered<'graph, G>
     where
         G: GraphViewOps<'graph>;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, WindowedGraph<G>>
+        = T::NodeFilter<'graph, G>
     where
         G: GraphView + 'graph;
+
+    type FilteredGraph<'graph, G>
+        = WindowedGraph<T::FilteredGraph<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G>(
         self,
@@ -146,8 +163,7 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
     where
         G: GraphViewOps<'graph>,
     {
-        self.inner
-            .create_filter(graph.window(self.start.t(), self.end.t()))
+        self.inner.create_filter(graph)
     }
 
     fn create_node_filter<'graph, G>(
@@ -157,8 +173,17 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
     where
         G: GraphView + 'graph,
     {
-        self.inner
-            .create_node_filter(graph.window(self.start.t(), self.end.t()))
+        self.inner.create_node_filter(graph)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(self
+            .inner
+            .filter_graph_view(graph)?
+            .window(self.start.t(), self.end.t()))
     }
 }
 
@@ -181,18 +206,12 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Windowe
         self.inner.entity()
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(builder))
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(property))
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(builder))
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(property))
     }
 }
 

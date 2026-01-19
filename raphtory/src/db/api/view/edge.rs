@@ -9,7 +9,7 @@ use crate::{
             view::{
                 history::{DeletionHistory, History},
                 internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView},
-                BoxableGraphView, IntoDynBoxed,
+                IntoDynBoxed,
             },
         },
         graph::{

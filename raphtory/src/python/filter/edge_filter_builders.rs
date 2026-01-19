@@ -7,24 +7,21 @@ use crate::{
             NodeFilter,
         },
         property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory,
+        PropertyFilterFactory, ViewWrapOps,
     },
     impl_node_text_filter_builder,
     python::{
         filter::{
             filter_expr::PyFilterExpr,
             property_filter_builders::{
-                PyPropertyExprBuilder, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+                PyPropertyExprBuilder, PyPropertyFilterBuilder, PyViewFilterBuilder,
             },
         },
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, types::PyTime, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::{
-    entities::{Layer, GID},
-    storage::timeindex::EventTime,
-};
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "EdgeEndpointIdFilter", module = "raphtory.filter")]
@@ -285,17 +282,47 @@ impl PyEdgeFilter {
     }
 
     #[staticmethod]
-    fn window(start: EventTime, end: EventTime) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(EdgeFilter::window(start, end))
+    fn window(start: EventTime, end: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.window(start, end)))
     }
 
     #[staticmethod]
-    fn layer(layer: String) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(EdgeFilter::layer(layer))
+    fn at(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.at(time)))
     }
 
     #[staticmethod]
-    fn layers(layers: FromIterable<String>) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(EdgeFilter::layer::<Layer>(layers.into()))
+    fn after(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.after(time)))
+    }
+
+    #[staticmethod]
+    fn before(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.before(time)))
+    }
+
+    #[staticmethod]
+    fn latest() -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.latest()))
+    }
+
+    #[staticmethod]
+    fn snapshot_at(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.snapshot_at(time)))
+    }
+
+    #[staticmethod]
+    fn snapshot_latest() -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.snapshot_latest()))
+    }
+
+    #[staticmethod]
+    fn layer(layer: String) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.layer(layer)))
+    }
+
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(EdgeFilter.layer(layers)))
     }
 }

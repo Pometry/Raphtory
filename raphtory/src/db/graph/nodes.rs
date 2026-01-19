@@ -18,7 +18,6 @@ use crate::{
     },
     prelude::*,
 };
-use itertools::Itertools;
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
 use rayon::iter::ParallelIterator;
 use std::{
@@ -177,16 +176,10 @@ where
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.base_graph.core_graph().lock();
-        let view = self.base_graph.clone();
-        let selector = self.predicate.clone();
-        self.node_list().into_iter().filter(move |&vid| {
-            g.try_core_node(vid)
-                .is_some_and(|node| view.filter_node(node.as_ref()) && selector.apply(&g, vid))
-        })
+        self.iter_vids(g)
     }
 
     fn iter_vids(&self, g: GraphStorage) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
-        let g = self.base_graph.core_graph().clone();
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
         self.node_list().into_iter().filter(move |&vid| {
@@ -197,16 +190,18 @@ where
 
     #[inline]
     pub(crate) fn iter_refs_unlocked(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
-        let g = self.graph.core_graph().clone();
+        let g = self.base_graph.core_graph().clone();
         self.iter_vids(g)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodeView<&GH>> + use<'_, 'graph, G, GH, F> {
+    pub fn iter(&self) -> impl Iterator<Item = NodeView<'_, &GH>> + use<'_, 'graph, G, GH, F> {
         self.iter_refs()
             .map(|v| NodeView::new_internal(&self.graph, v))
     }
 
-    pub fn iter_unlocked(&self) -> impl Iterator<Item = NodeView<&GH>> + use<'_, 'graph, G, GH, F> {
+    pub fn iter_unlocked(
+        &self,
+    ) -> impl Iterator<Item = NodeView<'_, &GH>> + use<'_, 'graph, G, GH, F> {
         self.iter_refs_unlocked()
             .map(|v| NodeView::new_internal(&self.graph, v))
     }
@@ -227,7 +222,7 @@ where
 
     pub fn par_iter(
         &self,
-    ) -> impl ParallelIterator<Item = NodeView<&GH>> + use<'_, 'graph, G, GH, F> {
+    ) -> impl ParallelIterator<Item = NodeView<'_, &GH>> + use<'_, 'graph, G, GH, F> {
         self.par_iter_refs()
             .map(|v| NodeView::new_internal(&self.graph, v))
     }

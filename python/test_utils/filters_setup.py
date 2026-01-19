@@ -176,6 +176,58 @@ def init_graph2(graph):
     return graph
 
 
+def init_graph3(graph):
+    edge_data = [
+        (
+            1,
+            1,
+            2,
+            {
+                "p1": "shivam_kapoor",
+                "p2": 6,
+                "p10": "Paper_airplane",
+                "p20": "Gold_ship",
+            },
+            "fire_nation",
+        ),
+        (
+            2,
+            1,
+            2,
+            {
+                "p1": "shivam_kapoor",
+                "p2": 7,
+                "p10": "Paper_airplane",
+                "p20": "Gold_ship",
+            },
+            "fire_nation",
+        ),
+        (
+            2,
+            1,
+            2,
+            {"p1": "shivam_kapoor", "p2": 4, "p20": "Gold_ship"},
+            "air_nomads",
+        ),
+        (
+            2,
+            2,
+            3,
+            {"p1": "prop12", "p2": 2, "p10": "Paper_ship", "p20": "Gold_boat"},
+            "air_nomads",
+        ),
+        (3, 2, 3, {"p20": "Gold_ship"}, "air_nomads"),
+        (3, 3, 1, {"p2": 6, "p3": 1}, "air_nomads"),
+        (3, 3, 4, {"p2": 6, "p3": 1}, "air_nomads"),
+        (3, 2, 1, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
+    ]
+
+    for time, src, dst, props, edge_type in edge_data:
+        graph.add_edge(time, src, dst, props, edge_type)
+
+    return graph
+
+
 def init_nodes_graph(graph):
     nodes = [
         (6, "N1", {"p1": 2}),

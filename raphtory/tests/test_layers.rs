@@ -184,11 +184,14 @@ pub mod test_filters_layer_graph {
             LayeredGraphTransformer, LayeredGraphWindowTransformer,
         };
         use raphtory::{
-            db::graph::assertions::{
-                assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
-                TestVariants,
+            db::graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+                    TestVariants,
+                },
+                views::filter::model::PropertyFilterFactory,
             },
-            prelude::{NodeFilter, PropertyFilterFactory},
+            prelude::NodeFilter,
         };
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -459,10 +462,12 @@ pub mod test_filters_layer_graph {
                         assert_filter_edges_results, assert_search_edges_results,
                         TestGraphVariants, TestVariants,
                     },
-                    views::filter::model::property_filter::ops::PropertyFilterOps,
+                    views::filter::model::{
+                        property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+                    },
                 },
             },
-            prelude::{AdditionOps, EdgeFilter, PropertyFilterFactory},
+            prelude::{AdditionOps, EdgeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 

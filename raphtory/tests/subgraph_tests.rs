@@ -179,10 +179,12 @@ pub mod test_filters_node_subgraph {
                         assert_filter_nodes_results, assert_search_nodes_results,
                         TestGraphVariants, TestVariants,
                     },
-                    views::filter::model::property_filter::ops::PropertyFilterOps,
+                    views::filter::model::{
+                        property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+                    },
                 },
             },
-            prelude::{AdditionOps, NodeFilter, PropertyFilterFactory},
+            prelude::{AdditionOps, NodeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -337,10 +339,12 @@ pub mod test_filters_node_subgraph {
                     assertions::{
                         assert_filter_edges_results, assert_search_edges_results, TestVariants,
                     },
-                    views::filter::model::property_filter::ops::PropertyFilterOps,
+                    views::filter::model::{
+                        property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+                    },
                 },
             },
-            prelude::{AdditionOps, EdgeFilter, PropertyFilterFactory},
+            prelude::{AdditionOps, EdgeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 

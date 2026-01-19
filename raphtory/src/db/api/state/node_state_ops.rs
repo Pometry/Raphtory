@@ -54,7 +54,7 @@ pub trait NodeStateOps<'graph>:
     where
         'graph: 'a;
 
-    fn get_by_index(&self, index: usize) -> Option<(NodeView<&Self::Graph>, Self::Value<'_>)>;
+    fn get_by_index(&self, index: usize) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)>;
 
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>>;
 
@@ -154,7 +154,7 @@ pub trait NodeStateOps<'graph>:
     fn min_item_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
         &self,
         cmp: F,
-    ) -> Option<(NodeView<&Self::Graph>, Self::Value<'_>)> {
+    ) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         self.par_iter()
             .min_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()))
     }
@@ -162,7 +162,7 @@ pub trait NodeStateOps<'graph>:
     fn max_item_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
         &self,
         cmp: F,
-    ) -> Option<(NodeView<&Self::Graph>, Self::Value<'_>)> {
+    ) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         self.par_iter()
             .max_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()))
     }
@@ -170,7 +170,7 @@ pub trait NodeStateOps<'graph>:
     fn median_item_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
         &self,
         cmp: F,
-    ) -> Option<(NodeView<&Self::Graph>, Self::Value<'_>)> {
+    ) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         let mut values: Vec<_> = self.par_iter().collect();
         let len = values.len();
         if len == 0 {

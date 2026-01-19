@@ -3,7 +3,6 @@ use crate::{
     db::{
         api::{
             properties::{Metadata, Properties},
-            state::ops::filter::NodeTypeFilterOp,
             view::{
                 filter_ops::Filter,
                 internal::{
@@ -23,7 +22,6 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    node_filtered_graph::NodeFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
                 node_subgraph::NodeSubgraph,

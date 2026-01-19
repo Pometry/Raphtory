@@ -9,6 +9,7 @@ use crate::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                     },
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
+                    windowed_filter::Windowed,
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
                     InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
@@ -16,71 +17,57 @@ use crate::{
                 },
                 CreateFilter,
             },
-            layer_graph::LayeredGraph,
+            window_graph::WindowedGraph,
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, LayerOps},
+    prelude::{GraphViewOps, TimeOps},
 };
-use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Layered<M> {
-    pub layer: Layer,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Latest<M> {
     pub inner: M,
 }
 
-impl<M: Display> Display for Layered<M> {
+impl<M> Latest<M> {
+    #[inline]
+    pub fn new(inner: M) -> Self {
+        Self { inner }
+    }
+}
+
+impl<M: Display> Display for Latest<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "LAYER[{:?}]({})", self.layer, self.inner)
+        write!(f, "LATEST({})", self.inner)
     }
 }
 
-impl<M> Layered<M> {
-    #[inline]
-    pub fn new(layer: Layer, entity: M) -> Self {
-        Self {
-            layer,
-            inner: entity,
-        }
-    }
-
-    #[inline]
-    pub fn from_layers<L: Into<Layer>>(layer: L, entity: M) -> Self {
-        Self::new(layer.into(), entity)
-    }
-}
-
-impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
-    type Window = Layered<T::Window>;
-
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.inner.bounds()
-    }
+impl<T: InternalViewWrapOps> InternalViewWrapOps for Latest<T> {
+    type Window = Windowed<Latest<T>>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Layered::new(self.layer, self.inner.build_window(start, end))
+        Windowed::from_times(start, end, self)
     }
 }
 
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Layered<T> {
+impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Latest<T> {
     type FilterType = T::FilterType;
-
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
 }
 
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Layered<T> {
+impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Latest<T> {
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
 }
 
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Layered<T> {
-    type Filter = Layered<T::Filter>;
-    type ExprBuilder = Layered<T::ExprBuilder>;
+impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Latest<T> {
+    type Filter = Latest<T::Filter>;
+    type ExprBuilder = Latest<T::ExprBuilder>;
     type Marker = T::Marker;
 
     fn property_ref(&self) -> PropertyRef {
@@ -104,41 +91,41 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Layered
     }
 }
 
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
+impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_node_filter()?;
-        let filter = CompositeNodeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
+        Ok(CompositeNodeFilter::Latest(Box::new(Latest::new(
+            self.inner.try_as_composite_node_filter()?,
+        ))))
     }
 
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_edge_filter()?;
-        let filter = CompositeEdgeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
+        Ok(CompositeEdgeFilter::Latest(Box::new(Latest::new(
+            self.inner.try_as_composite_edge_filter()?,
+        ))))
     }
 
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_exploded_edge_filter()?;
-        let filter = CompositeExplodedEdgeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
+        Ok(CompositeExplodedEdgeFilter::Latest(Box::new(Latest::new(
+            self.inner.try_as_composite_exploded_edge_filter()?,
+        ))))
     }
 }
 
-impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T> {
+impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T> {
     type EntityFiltered<'graph, G>
         = T::EntityFiltered<'graph, G>
     where
-        G: GraphViewOps<'graph>;
+        G: GraphViewOps<'graph> + TimeOps<'graph> + Clone;
 
     type NodeFilter<'graph, G>
         = T::NodeFilter<'graph, G>
     where
-        G: GraphView + 'graph;
+        G: GraphView + TimeOps<'graph> + Clone + 'graph;
 
     type FilteredGraph<'graph, G>
-        = LayeredGraph<T::FilteredGraph<'graph, G>>
+        = WindowedGraph<T::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -148,7 +135,7 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
     where
-        G: GraphViewOps<'graph>,
+        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone,
     {
         self.inner.create_filter(graph)
     }
@@ -158,7 +145,7 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
     where
-        G: GraphView + 'graph,
+        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph,
     {
         self.inner.create_node_filter(graph)
     }
@@ -167,26 +154,23 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
         &self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.inner
-            .filter_graph_view(graph)?
-            .layers(self.layer.clone())
+        Ok(self.inner.filter_graph_view(graph)?.latest())
     }
 }
 
-impl<T: ComposableFilter> ComposableFilter for Layered<T> {}
+impl<T: ComposableFilter> ComposableFilter for Latest<T> {}
 
-impl<M> Wrap for Layered<M> {
-    type Wrapped<T> = Layered<T>;
-
+impl<M> Wrap for Latest<M> {
+    type Wrapped<T> = Latest<T>;
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        Layered::new(self.layer.clone(), value)
+        Latest::new(value)
     }
 }
 
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Layered<T> {
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Latest<T> {
     type Entity = T::Entity;
-    type PropertyBuilder = Layered<T::PropertyBuilder>;
-    type MetadataBuilder = Layered<T::MetadataBuilder>;
+    type PropertyBuilder = Latest<T::PropertyBuilder>;
+    type MetadataBuilder = Latest<T::MetadataBuilder>;
 
     fn entity(&self) -> Self::Entity {
         self.inner.entity()
@@ -201,4 +185,4 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Layered
     }
 }
 
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Layered<T> {}
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Latest<T> {}
