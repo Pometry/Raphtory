@@ -495,49 +495,39 @@ impl Prop {
 pub fn list_array_from_props<P: Serialize + std::fmt::Debug + Clone>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
-) -> LargeListArray {
+) -> Result<LargeListArray, serde_arrow::Error> {
     use arrow_schema::{Field, Fields};
     use serde_arrow::ArrayBuilder;
 
     let fields: Fields = vec![Field::new("value", dt.clone(), true)].into();
 
-    let mut builder = ArrayBuilder::from_arrow(&fields)
-        .unwrap_or_else(|e| panic!("Failed to make array builder {e}"));
+    let mut builder = ArrayBuilder::from_arrow(&fields)?;
 
     for value in props {
-        builder.push(SerdeRow { value }).unwrap_or_else(|e| {
-            panic!("Failed to push list to array builder {e} for type {fields:?}",)
-        });
+        builder.push(SerdeRow { value })?;
     }
 
-    let arrays = builder
-        .to_arrow()
-        .unwrap_or_else(|e| panic!("Failed to convert to arrow array {e}"));
+    let arrays = builder.to_arrow()?;
 
-    arrays.first().unwrap().as_list::<i64>().clone()
+    Ok(arrays.first().unwrap().as_list::<i64>().clone())
 }
 
 pub fn struct_array_from_props<P: Serialize>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
-) -> StructArray {
+) -> Result<StructArray, serde_arrow::Error> {
     use serde_arrow::ArrayBuilder;
 
     let fields = [FieldRef::new(Field::new("value", dt.clone(), true))];
 
-    let mut builder = ArrayBuilder::from_arrow(&fields)
-        .unwrap_or_else(|e| panic!("Failed to make array builder {e}, {:?}", fields));
+    let mut builder = ArrayBuilder::from_arrow(&fields)?;
 
     for p in props {
-        builder
-            .push(SerdeRow { value: p })
-            .unwrap_or_else(|e| panic!("Failed to push map to array builder {e}"))
+        builder.push(SerdeRow { value: p })?
     }
 
-    let arrays = builder
-        .to_arrow()
-        .unwrap_or_else(|e| panic!("Failed to convert to arrow array {e}"));
-    arrays.first().unwrap().as_struct().clone()
+    let arrays = builder.to_arrow()?;
+    Ok(arrays.first().unwrap().as_struct().clone())
 }
 
 impl Display for Prop {

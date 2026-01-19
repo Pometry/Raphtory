@@ -104,6 +104,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
+
+    fn flush(&self) -> Result<(), StorageError>;
 }
 
 pub trait LockedESegment: Send + Sync + std::fmt::Debug {

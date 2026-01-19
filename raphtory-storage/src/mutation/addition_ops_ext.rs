@@ -20,6 +20,7 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
     persist::strategy::PersistenceStrategy,
     properties::props_meta_writer::PropsMetaWriter,
@@ -29,7 +30,13 @@ use storage::{
     Extension, WalType, ES, GS, NS,
 };
 
-pub struct WriteS<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
+pub struct WriteS<'a, EXT>
+where
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+{
     static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
 }
 
@@ -38,8 +45,12 @@ pub struct UnlockedSession<'a> {
     graph: &'a TemporalGraph<Extension>,
 }
 
-impl<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> EdgeWriteLock
-    for WriteS<'a, EXT>
+impl<'a, EXT> EdgeWriteLock for WriteS<'a, EXT>
+where
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     fn internal_add_static_edge(
         &mut self,

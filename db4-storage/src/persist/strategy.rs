@@ -1,11 +1,11 @@
 use crate::{
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
-        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
+        graph_prop::{segment::MemGraphPropSegment, GraphPropSegmentView},
         node::segment::{MemNodeSegment, NodeSegmentView},
-    },
-    wal::{Wal, no_wal::NoWal},
+    }, wal::{no_wal::NoWal, Wal}
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
@@ -81,24 +81,25 @@ impl PersistenceConfig {
         &self.node_types
     }
 
-    pub fn set_node_types(&mut self, types: impl IntoIterator<Item = impl AsRef<str>>) {
-        self.node_types = types.into_iter().map(|s| s.as_ref().to_string()).collect();
+    pub fn with_node_types(&self, types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        let node_types = types.into_iter().map(|s| s.as_ref().to_string()).collect();
+
+        Self {
+            node_types,
+            ..*self
+        }
     }
 }
 
 pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
-    type NS;
-    type ES;
-    type GS;
+    type NS: NodeSegmentOps;
+    type ES: EdgeSegmentOps;
+    type GS: GraphPropSegmentOps;
     type WalType: Wal;
 
     fn new(config: PersistenceConfig, wal: Arc<Self::WalType>) -> Self;
 
     fn config(&self) -> &PersistenceConfig;
-
-    // Need this to set node_types.
-    // TODO: Remove this once we have a better way to set node_types.
-    fn config_mut(&mut self) -> &mut PersistenceConfig;
 
     fn wal(&self) -> &Self::WalType;
 
@@ -145,10 +146,6 @@ impl PersistenceStrategy for NoOpStrategy {
 
     fn config(&self) -> &PersistenceConfig {
         &self.config
-    }
-
-    fn config_mut(&mut self) -> &mut PersistenceConfig {
-        &mut self.config
     }
 
     fn wal(&self) -> &Self::WalType {

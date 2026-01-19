@@ -460,7 +460,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         _path: Option<PathBuf>,
         ext: Self::Extension,
     ) -> Self {
-        let max_page_len = ext.config().max_node_page_len;
+        let max_page_len = ext.persistence_config().max_node_page_len;
         Self {
             inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta))
                 .into(),
@@ -547,7 +547,9 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
             .map_or(0, |layer| layer.len())
     }
 
-    fn flush(&self) {}
+    fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 
     fn est_size(&self) -> usize {
         self.est_size.load(Ordering::Relaxed)

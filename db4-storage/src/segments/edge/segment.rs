@@ -440,7 +440,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn new(page_id: usize, meta: Arc<Meta>, _path: Option<PathBuf>, ext: Self::Extension) -> Self {
-        let max_page_len = ext.config().max_edge_page_len;
+        let max_page_len = ext.persistence_config().max_edge_page_len;
         Self {
             segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta))
                 .into(),
@@ -549,13 +549,18 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     fn immut_lsn(&self) -> LSN {
         panic!("immut_lsn not supported for EdgeSegmentView");
     }
+
+    fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use arrow_array::{Array, BooleanArray, StringArray};
     use raphtory_api::core::entities::properties::prop::PropType;
-    use raphtory_core::storage::timeindex::TimeIndexEntry;
+    use raphtory_core::{entities::EID, storage::timeindex::TimeIndexEntry};
     use super::*;
     use raphtory_api::core::entities::properties::meta::Meta;
 

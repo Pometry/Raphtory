@@ -13,10 +13,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{
-    GidType,
-    properties::{meta::Meta, prop::PropType},
-};
+use raphtory_api::core::entities::{GidType, properties::meta::Meta};
 use raphtory_core::{
     entities::{EID, VID},
     storage::timeindex::AsTime,
@@ -24,9 +21,11 @@ use raphtory_core::{
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
 };
+
 // graph // (nodes|edges) // graph segments // layers // chunks
 pub const N: usize = 32;
 
@@ -119,7 +118,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
     }
 }
 
-impl<NS, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
+impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -145,6 +144,13 @@ impl<NS, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
         &self.segments
     }
 
+    fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
+        let len = self.segments.count();
+        (0..len)
+            .into_par_iter()
+            .filter_map(|idx| self.segments.get(idx).map(|seg| seg.deref()))
+    }
+
     pub fn nodes_path(&self) -> Option<&Path> {
         self.nodes_path.as_deref()
     }
@@ -155,7 +161,7 @@ impl<NS, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     }
 
     pub fn max_segment_len(&self) -> u32 {
-        self.ext.config().max_node_page_len
+        self.ext.persistence_config().max_node_page_len
     }
 }
 
@@ -329,7 +335,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let nodes_path = nodes_path.as_ref();
-        let max_page_len = ext.max_node_page_len();
+        let max_page_len = ext.persistence_config().max_node_page_len;
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !nodes_path.exists() {
@@ -524,6 +530,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             self.max_segment_len(),
             self.segments().iter().map(|(_, seg)| seg.num_nodes()),
         )
+    }
+
+    pub(crate) fn flush(&self) -> Result<(), StorageError> {
+        self.segments_par_iter().try_for_each(|seg| seg.flush())
     }
 }
 

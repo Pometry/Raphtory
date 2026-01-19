@@ -1,9 +1,3 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
@@ -28,6 +22,12 @@ use raphtory_core::{
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
+use std::{
+    collections::HashMap,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 const N: usize = 32;
 
@@ -223,7 +223,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
 
     pub fn load(edges_path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let edges_path = edges_path.as_ref();
-        let max_page_len = ext.config().max_edge_page_len;
+        let max_page_len = ext.persistence_config().max_edge_page_len;
 
         let meta = Arc::new(Meta::new_for_edges());
 
@@ -417,7 +417,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
 
     #[inline(always)]
     pub fn max_page_len(&self) -> u32 {
-        self.ext.config().max_edge_page_len
+        self.ext.persistence_config().max_edge_page_len
     }
 
     pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
@@ -581,18 +581,21 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             .ok()
     }
 
-    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+    fn par_iter_segments(&self) -> impl ParallelIterator<Item = &ES> {
         (0..self.segments.count())
             .into_par_iter()
-            .filter_map(move |page_id| self.segments.get(page_id))
-            .flat_map(move |page| {
-                (0..page.num_edges())
-                    .into_par_iter()
-                    .map(LocalPOS)
-                    .filter_map(move |local_edge| {
-                        page.layer_entry(local_edge, layer, Some(page.head()))
-                    })
-            })
+            .filter_map(|idx| self.segments.get(idx).map(|seg| seg.deref()))
+    }
+
+    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+        self.par_iter_segments().flat_map(move |page| {
+            (0..page.num_edges())
+                .into_par_iter()
+                .map(LocalPOS)
+                .filter_map(move |local_edge| {
+                    page.layer_entry(local_edge, layer, Some(page.head()))
+                })
+        })
     }
 
     pub fn iter(&self, layer: usize) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
@@ -630,5 +633,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             self.max_page_len(),
             self.pages().iter().map(|(_, seg)| seg.num_edges()),
         )
+    }
+
+    pub fn flush(&self) -> Result<(), StorageError> {
+        self.par_iter_segments().try_for_each(|seg| seg.flush())
     }
 }

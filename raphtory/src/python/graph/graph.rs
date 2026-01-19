@@ -170,6 +170,14 @@ impl PyGraph {
         Graph::load_from_path(&path)
     }
 
+    /// Trigger a flush of the underlying storage if disk storage is enabled
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    pub fn flush(&self) -> Result<(), GraphError> {
+        self.graph.flush()
+    }
+
     fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {
         let state = self.graph.encode_to_bytes()?;
         Ok((PyGraphEncoder, (state,)))

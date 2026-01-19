@@ -810,6 +810,14 @@ class Graph(GraphView):
             Graph: the graph with event semantics applied
         """
 
+    def flush(self) -> None:
+        """
+        Trigger a flush of the underlying storage if disk storage is enabled
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+        """
+
     @staticmethod
     def from_parquet(graph_dir: str | PathLike) -> Graph:
         """
@@ -1382,6 +1390,14 @@ class PersistentGraph(GraphView):
 
         Returns:
             Graph: the graph with event semantics applied
+        """
+
+    def flush(self) -> None:
+        """
+        Trigger a flush of the underlying storage if disk storage is enabled
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
         """
 
     def get_all_node_types(self) -> list[str]:

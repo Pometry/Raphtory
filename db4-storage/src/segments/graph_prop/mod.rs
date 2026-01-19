@@ -89,4 +89,8 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
     ) -> Result<(), StorageError> {
         Ok(())
     }
+
+    fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 }

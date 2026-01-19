@@ -299,7 +299,7 @@ fn materialize_impl(
     let graph_dir = path.map(|p| GraphDir::from(p));
     let wal_dir = graph_dir.map(|dir| dir.wal_dir());
     let wal = WalType::new(wal_dir.as_deref())?;
-    let config = storage.extension().config().clone();
+    let config = storage.extension().persistence_config().clone();
     let ext = Extension::new(config, Arc::new(wal));
 
     let temporal_graph = TemporalGraph::new_with_meta(
