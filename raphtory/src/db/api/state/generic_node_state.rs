@@ -783,6 +783,8 @@ impl<
     type Value = V;
     type OwnedValue = V;
 
+    type OutputType = Self;
+
     fn graph(&self) -> &Self::Graph {
         &self.state.graph
     }
@@ -910,7 +912,7 @@ impl<
     }
 
     fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value> {
-        let index = self.state.get_index_by_node(&node).unwrap();
+        let index = self.state.get_index_by_node(&node)?;
         let deserializer = Deserializer::from_record_batch(&self.state.values).unwrap();
         let item = V::deserialize(
             deserializer
@@ -924,6 +926,32 @@ impl<
 
     fn len(&self) -> usize {
         self.state.len()
+    }
+
+    fn construct(
+        &self,
+        base_graph: Self::BaseGraph,
+        graph: Self::Graph,
+        keys: IndexSet<VID, ahash::RandomState>,
+        values: Vec<Self::OwnedValue>,
+    ) -> Self::OutputType
+    where
+        Self::BaseGraph: 'graph,
+        Self::Graph: 'graph,
+    {
+        let state = GenericNodeState::new_from_eval_with_index(
+            base_graph,
+            graph,
+            values,
+            Some(Index::new(keys)),
+            Some(self.state.node_cols.clone()),
+        );
+        TypedNodeState::<'graph, V, Self::BaseGraph, Self::Graph, T> {
+            state: state,
+            converter: self.converter,
+            _v_marker: PhantomData,
+            _t_marker: PhantomData,
+        }
     }
 }
 

@@ -157,6 +157,10 @@ impl PyOutputNodeState {
         self.__iter__()
     }
 
+    //fn sorted_by_id(&self) -> OutputTypedNodeState<'static, DynamicGraph> {
+    //    self.inner.sort_by_id()
+    //}
+
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn to_parquet(&self, file_path: String, id_column: String) {
         self.inner.state.to_parquet(file_path, Some(id_column));

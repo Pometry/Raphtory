@@ -58,10 +58,8 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    fn sort_by_values(
-        &'a self,
-        reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn sort_by_values(&'a self, reverse: bool) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph;
@@ -80,18 +78,14 @@ where
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    fn top_k(
-        &'a self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn top_k(&'a self, k: usize) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph;
 
-    fn bottom_k(
-        &'a self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn bottom_k(&'a self, k: usize) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph;
@@ -149,10 +143,8 @@ pub trait AsOrderedNodeStateOps<'a, 'graph: 'a>: NodeStateOps<'a, 'graph> {
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    fn sort_by_values(
-        &'a self,
-        reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn sort_by_values(&'a self, reverse: bool) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph;
@@ -171,18 +163,14 @@ pub trait AsOrderedNodeStateOps<'a, 'graph: 'a>: NodeStateOps<'a, 'graph> {
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    fn top_k(
-        &'a self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn top_k(&'a self, k: usize) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph;
 
-    fn bottom_k(
-        &'a self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn bottom_k(&'a self, k: usize) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph;
@@ -234,10 +222,8 @@ impl<'a, 'graph: 'a, V: NodeStateOps<'a, 'graph>> OrderedNodeStateOps<'a, 'graph
 where
     V::Value: Ord,
 {
-    fn sort_by_values(
-        &'a self,
-        reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn sort_by_values(&'a self, reverse: bool) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
@@ -249,10 +235,8 @@ where
         }
     }
 
-    fn top_k(
-        &'a self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn top_k(&'a self, k: usize) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
@@ -260,10 +244,8 @@ where
         self.top_k_by(Ord::cmp, k)
     }
 
-    fn bottom_k(
-        &'a self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn bottom_k(&'a self, k: usize) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
@@ -303,10 +285,8 @@ impl<'a, 'graph: 'a, V: NodeStateOps<'a, 'graph>> AsOrderedNodeStateOps<'a, 'gra
 where
     V::Value: AsOrd,
 {
-    fn sort_by_values(
-        &'a self,
-        reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn sort_by_values(&'a self, reverse: bool) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
@@ -318,10 +298,8 @@ where
         }
     }
 
-    fn top_k(
-        &'a self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn top_k(&'a self, k: usize) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
@@ -329,10 +307,8 @@ where
         self.top_k_by(|a, b| a.as_ord().cmp(b.as_ord()), k)
     }
 
-    fn bottom_k(
-        &'a self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn bottom_k(&'a self, k: usize) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,

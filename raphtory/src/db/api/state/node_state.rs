@@ -327,6 +327,7 @@ impl<
     type BaseGraph = G;
     type Value = &'a V;
     type OwnedValue = V;
+    type OutputType = Self;
 
     fn graph(&self) -> &Self::Graph {
         &self.graph
@@ -473,6 +474,20 @@ impl<
 
     fn len(&self) -> usize {
         self.values.len()
+    }
+
+    fn construct(
+        &self,
+        base_graph: Self::BaseGraph,
+        graph: Self::Graph,
+        keys: IndexSet<VID, ahash::RandomState>,
+        values: Vec<Self::OwnedValue>,
+    ) -> Self
+    where
+        Self::BaseGraph: 'graph,
+        Self::Graph: 'graph,
+    {
+        NodeState::new(base_graph, graph, values.into(), Some(Index::new(keys)))
     }
 }
 

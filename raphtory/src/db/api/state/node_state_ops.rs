@@ -6,8 +6,10 @@ use crate::{
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
+use ahash::RandomState;
 use indexmap::IndexSet;
 use num_traits::AsPrimitive;
+use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::{borrow::Borrow, fmt::Debug, hash::Hash, iter::Sum};
 
@@ -40,6 +42,8 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
     type Value: Send + Sync + ToOwnedValue<Self::OwnedValue>;
+
+    type OutputType: Sized;
 
     type OwnedValue: Clone + Send + Sync;
 
@@ -89,6 +93,17 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
 
     fn len(&self) -> usize;
 
+    fn construct(
+        &self,
+        base_graph: Self::BaseGraph,
+        graph: Self::Graph,
+        keys: IndexSet<VID, RandomState>,
+        values: Vec<Self::OwnedValue>,
+    ) -> Self::OutputType
+    where
+        Self::BaseGraph: 'graph,
+        Self::Graph: 'graph;
+
     fn sort_by<
         F: Fn(
                 (
@@ -104,7 +119,8 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
     >(
         &'a self,
         cmp: F,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    ) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
@@ -124,12 +140,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
             .map(|(n1, v1)| (n1, v1.to_owned_value()))
             .unzip();
 
-        NodeState::new(
-            self.base_graph().clone(),
-            self.graph().clone(),
-            values.into(),
-            Some(Index::new(keys)),
-        )
+        self.construct(base_graph.clone(), graph.clone(), keys, values)
     }
 
     /// Sorts the by its values in ascending or descending order.
@@ -144,7 +155,8 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
     fn sort_by_values_by<F: Fn(&Self::Value, &Self::Value) -> std::cmp::Ordering + Sync>(
         &'a self,
         cmp: F,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    ) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
@@ -153,7 +165,8 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
     }
 
     /// Sort the results by global node id
-    fn sort_by_id(&'a self) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    fn sort_by_id(&'a self) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
@@ -179,7 +192,12 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         &'a self,
         cmp: F,
         k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    ) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    where
+        Self::BaseGraph: 'graph,
+        Self::Graph: 'graph,
+    {
         let values = node_state_ord_ops::top_k(
             self.iter(),
             |(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()),
@@ -190,11 +208,11 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
             .map(|(n, v)| (n.node, v.to_owned_value()))
             .unzip();
 
-        NodeState::new(
+        self.construct(
             self.base_graph().clone(),
             self.graph().clone(),
-            values.into(),
-            Some(Index::new(keys)),
+            keys,
+            values,
         )
     }
 
@@ -202,7 +220,8 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         &'a self,
         cmp: F,
         k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
+    ) -> Self::OutputType
+    //NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>
     where
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,

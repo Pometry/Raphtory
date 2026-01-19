@@ -213,6 +213,7 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
         'graph: 'a,
         Self: 'a;
     type OwnedValue = Op::Output;
+    type OutputType = NodeState<'graph, Self::Value, Self::BaseGraph, Self::Graph>;
 
     fn graph(&self) -> &Self::Graph {
         &self.nodes.graph
@@ -319,6 +320,20 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
 
     fn len(&self) -> usize {
         self.nodes.len()
+    }
+
+    fn construct(
+        &self,
+        base_graph: Self::BaseGraph,
+        graph: Self::Graph,
+        keys: IndexSet<VID, ahash::RandomState>,
+        values: Vec<Self::OwnedValue>,
+    ) -> Self::OutputType
+    where
+        Self::BaseGraph: 'graph,
+        Self::Graph: 'graph,
+    {
+        NodeState::new(base_graph, graph, values.into(), Some(Index::new(keys)))
     }
 }
 

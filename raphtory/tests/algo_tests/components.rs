@@ -401,10 +401,6 @@ mod components_test {
 
         test_storage!(&graph, |graph| {
             let results = out_components(graph, None);
-            println!(
-                "results: {:?}",
-                (results.converter)(&results.state, results.get_by_node(VID(0)).unwrap())
-            );
 
             let mut correct = HashMap::new();
             correct.insert("1".to_string(), vec![2, 3, 4, 5, 6, 7, 8]);

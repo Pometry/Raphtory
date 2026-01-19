@@ -105,7 +105,9 @@ pub fn balance<G: StaticGraphViewOps>(
         let values: Vec<_> = graph
             .nodes()
             .par_iter()
-            .map(|n| balance_per_node(&n, weight_id, direction))
+            .map(|n| BalanceState {
+                balance: balance_per_node(&n, weight_id, direction),
+            })
             .collect();
 
         Ok(TypedNodeState::new(GenericNodeState::new_from_eval(
