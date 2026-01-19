@@ -16,7 +16,7 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    api::nodes::NodeSegmentOps,
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
@@ -33,9 +33,13 @@ use storage::{
 use tempfile::TempDir;
 
 #[derive(Debug)]
-pub struct TemporalGraph<
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>> = Extension,
-> {
+pub struct TemporalGraph<EXT = Extension>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+{
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
     pub event_counter: AtomicUsize,
@@ -126,7 +130,13 @@ impl Default for TemporalGraph<Extension> {
     }
 }
 
-impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> TemporalGraph<EXT> {
+impl<EXT> TemporalGraph<EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+{
     pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
@@ -397,6 +407,9 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
 pub struct WriteLockedGraph<'a, EXT>
 where
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
@@ -404,8 +417,12 @@ where
     pub graph: &'a TemporalGraph<EXT>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
-    WriteLockedGraph<'a, EXT>
+impl<'a, EXT> WriteLockedGraph<'a, EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
         WriteLockedGraph {

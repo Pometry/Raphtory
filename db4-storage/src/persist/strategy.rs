@@ -1,7 +1,7 @@
 use std::ops::DerefMut;
 
 use crate::{
-    api::nodes::NodeSegmentOps,
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
@@ -27,9 +27,9 @@ pub trait Config:
 }
 
 pub trait PersistentStrategy: Config {
-    type NS;
-    type ES;
-    type GS;
+    type NS: NodeSegmentOps;
+    type ES: EdgeSegmentOps;
+    type GS: GraphPropSegmentOps;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
