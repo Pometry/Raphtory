@@ -32,28 +32,49 @@ impl<T> ComposableFilter for NotFilter<T> {}
 
 impl<T: CreateFilter> CreateFilter for NotFilter<T> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = NotFilteredGraph<G, T::EntityFiltered<'graph, G>>
+        = NotFilteredGraph<G, T::EntityFiltered<'graph, T::FilteredGraph<'graph, G>>>
     where
         Self: 'graph;
 
     type NodeFilter<'graph, G: GraphView + 'graph>
-        = NotOp<T::NodeFilter<'graph, G>>
+        = NotOp<T::NodeFilter<'graph, T::FilteredGraph<'graph, G>>>
     where
         Self: 'graph;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.0.create_filter(graph.clone())?;
+        let f = self.0.filter_graph_view(graph.clone())?;
+        let filter = self.0.create_filter(f)?;
         Ok(NotFilteredGraph { graph, filter })
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(self.0.create_node_filter(graph)?.not())
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+    where
+        Self: 'graph,
+    {
+        let f = self.0.filter_graph_view(graph.clone())?;
+        Ok(self.0.create_node_filter(f)?.not())
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
+    where
+        Self: 'graph,
+    {
+        Ok(graph)
     }
 }
 

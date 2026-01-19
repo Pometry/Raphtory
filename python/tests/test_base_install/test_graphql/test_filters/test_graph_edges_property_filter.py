@@ -723,7 +723,7 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_edge_temporal_property_filter_empty_layers_is_error(graph):
+def test_edge_temporal_property_filter_empty_layers(graph):
     query = """
     query {
       graph(path: "g") {
@@ -732,8 +732,8 @@ def test_edge_temporal_property_filter_empty_layers_is_error(graph):
             names: []
             expr: {
               temporalProperty: {
-                name: "prop5"
-                where: { any: { avg: { lt: { f64: 10.0 } } } }
+                name: "p2"
+                where: { any: { avg: { lt: { f64: 1.0 } } } }
               }
             }
           }
@@ -744,13 +744,8 @@ def test_edge_temporal_property_filter_empty_layers_is_error(graph):
     }
     """
 
-    run_graphql_error_test_contains(
-        query,
-        [
-            "EdgeFilter.layers.names must be non-empty",
-        ],
-        graph,
-    )
+    expected = {"graph": {"filterEdges": {"edges": {"list": []}}}}
+    run_graphql_test(query, expected, graph)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])

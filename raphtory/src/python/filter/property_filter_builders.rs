@@ -21,14 +21,14 @@ use std::sync::Arc;
 
 #[pyclass(frozen, name = "FilterOps", module = "raphtory.filter", subclass)]
 #[derive(Clone)]
-pub struct PyPropertyExprBuilder(pub(crate) Arc<dyn DynPropertyFilterBuilder>);
+pub struct PyPropertyExprBuilder(pub Arc<dyn DynPropertyFilterBuilder>);
 
 impl PyPropertyExprBuilder {
-    pub(crate) fn wrap<T: DynPropertyFilterBuilder + 'static>(t: T) -> Self {
+    pub fn wrap<T: DynPropertyFilterBuilder + 'static>(t: T) -> Self {
         Self(Arc::new(t))
     }
 
-    pub(crate) fn from_arc(inner: Arc<dyn DynPropertyFilterBuilder>) -> Self {
+    pub fn from_arc(inner: Arc<dyn DynPropertyFilterBuilder>) -> Self {
         Self(inner)
     }
 }

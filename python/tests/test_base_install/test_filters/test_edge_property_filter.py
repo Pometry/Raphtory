@@ -1,6 +1,6 @@
 from filters_setup import U32_MAX, U64_MAX, I64_MAX, U16_MAX, U8_MAX
 from raphtory import filter, Prop
-from filters_setup import init_graph, create_test_graph2
+from filters_setup import init_graph, init_graph3, create_test_graph2
 from utils import with_disk_variants
 import pytest
 
@@ -1596,5 +1596,33 @@ def test_filter_edges_snapshot_latest():
             == "Paper_ship"
         )
         assert _pairs(graph.filter(expr).edges) == {("2", "3")}
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_layer_latest():
+    def check(graph):
+        # print("myfilter", graph.edge(1, 2).layer("fire_nation").latest().properties.get("p2"))
+        print("myfilter", graph.layer("fire_nation").latest().edges.id)
+        expr = (
+            filter.Edge.layer("fire_nation").latest().property("p2").temporal().last()
+            == 7
+        )
+
+        assert sorted(graph.filter(expr).edges.id) == [(1, 2)]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_latest_layer():
+    def check(graph):
+        expr = (
+            filter.Edge.latest().layer("fire_nation").property("p2").temporal().last()
+            == 7
+        )
+
+        assert sorted(graph.filter(expr).edges.id) == []
 
     return check

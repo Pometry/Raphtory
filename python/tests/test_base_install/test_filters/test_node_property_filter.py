@@ -1,5 +1,5 @@
 from raphtory import filter, Prop
-from filters_setup import init_graph, create_test_graph, create_test_graph2
+from filters_setup import init_graph, init_graph2, create_test_graph, create_test_graph2
 from utils import with_disk_variants
 import pytest
 import re
@@ -1238,5 +1238,55 @@ def test_filter_nodes_snapshot_latest():
 
         expr = filter.Node.snapshot_latest().property("prop5").temporal().sum() >= 0
         assert list(graph.filter(expr).nodes.id) == []
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_window_latest():
+    def check(graph):
+        expr = (
+            filter.Node.window(1, 3).latest().property("prop6").temporal().last().sum()
+            == 12
+        )
+        assert sorted(graph.filter(expr).nodes.id) == ["a"]
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_latest_window():
+    def check(graph):
+        expr = (
+            filter.Node.latest().window(1, 3).property("prop6").temporal().last().sum()
+            == 12
+        )
+        assert sorted(graph.filter(expr).nodes.id) == ["a"]
+
+    return check
+
+
+@with_disk_variants(init_graph2, variants=("graph", "persistent_graph"))
+def test_filter_nodes_layer_latest():
+    def check(graph):
+        expr = (
+            filter.Node.layer("fire_nation").latest().property("p9").temporal().sum()
+            == 5
+        )
+
+        assert sorted(graph.filter(expr).nodes.id) == [1]
+
+    return check
+
+
+@with_disk_variants(init_graph2, variants=("graph", "persistent_graph"))
+def test_filter_nodes_latest_layer():
+    def check(graph):
+        expr = (
+            filter.Node.latest().layer("fire_nation").property("p9").temporal().sum()
+            == 5
+        )
+
+        assert sorted(graph.filter(expr).nodes.id) == [1]
 
     return check

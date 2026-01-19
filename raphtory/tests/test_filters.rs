@@ -1408,6 +1408,100 @@ fn init_edges_graph<
     graph
 }
 
+fn init_edges_graph2<
+    G: StaticGraphViewOps
+        + AdditionOps
+        + InternalAdditionOps
+        + InternalPropertyAdditionOps
+        + PropertyAdditionOps,
+>(
+    graph: G,
+) -> G {
+    let edges = [
+        (
+            1,
+            "1",
+            "2",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p2", 6u64.into_prop()),
+                ("p10", "Paper_airplane".into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            2,
+            "1",
+            "2",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p2", 7u64.into_prop()),
+                ("p10", "Gold_ship".into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            2,
+            "1",
+            "2",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p2", 4u64.into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            2,
+            "2",
+            "3",
+            vec![
+                ("p1", "prop12".into_prop()),
+                ("p2", 2u64.into_prop()),
+                ("p10", "Paper_ship".into_prop()),
+                ("p20", "Gold_boat".into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            3,
+            "2",
+            "3",
+            vec![
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_boat".into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            3,
+            "3",
+            "1",
+            vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+            Some("air_nomads"),
+        ),
+        (
+            3,
+            "2",
+            "1",
+            vec![
+                ("p2", 6u64.into_prop()),
+                ("p3", 1u64.into_prop()),
+                ("p10", "Paper_airplane".into_prop()),
+            ],
+            None,
+        ),
+    ];
+
+    for (time, src, dst, props, edge_type) in edges {
+        graph.add_edge(time, src, dst, props, edge_type).unwrap();
+    }
+
+    graph
+}
+
 fn init_edges_graph_with_num_ids<
     G: StaticGraphViewOps
         + AdditionOps
@@ -9228,7 +9322,7 @@ mod test_edge_filter {
 
 #[cfg(test)]
 mod test_edge_property_filter {
-    use crate::{init_edges_graph, IdentityGraphTransformer};
+    use crate::{init_edges_graph, init_edges_graph2, IdentityGraphTransformer};
     use raphtory::db::graph::{
         assertions::{
             assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
@@ -11027,6 +11121,48 @@ mod test_edge_property_filter {
             filter,
             &expected_results,
             TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_edges_latest_layer() {
+        let filter = EdgeFilter
+            .latest()
+            .layer("fire_nation")
+            .property("p2")
+            .temporal()
+            .last()
+            .eq(7u64);
+
+        let expected_results = vec![];
+
+        assert_filter_edges_results(
+            init_edges_graph2,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+    }
+
+    #[test]
+    fn test_edges_layer_latest() {
+        let filter = EdgeFilter
+            .layer("fire_nation")
+            .latest()
+            .property("p2")
+            .temporal()
+            .last()
+            .eq(7u64);
+
+        let expected_results = vec!["1->2"];
+
+        assert_filter_edges_results(
+            init_edges_graph2,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
         );
     }
 }

@@ -116,6 +116,11 @@ pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
+
+    fn dyn_filter_graph_view<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
 }
 
 impl<T> DynCreateFilter for T
@@ -135,6 +140,13 @@ where
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
         Ok(Arc::new(self.clone().create_node_filter(graph)?))
     }
+
+    fn dyn_filter_graph_view<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
+        Ok(Arc::new(self.clone().filter_graph_view(graph)?))
+    }
 }
 
 impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
@@ -144,6 +156,12 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
         Self: 'graph;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+
+    type FilteredGraph<'graph, G>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -157,6 +175,13 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         self.deref().create_dyn_node_filter(Arc::new(graph))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        self.deref().dyn_filter_graph_view(Arc::new(graph))
     }
 }
 
@@ -439,7 +464,7 @@ impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapOps> {
     type Window = Arc<dyn DynInternalViewWrapOps>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        self.dyn_build_window(start, end)
+        self.deref().dyn_build_window(start, end)
     }
 }
 

@@ -176,16 +176,10 @@ where
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.base_graph.core_graph().lock();
-        let view = self.base_graph.clone();
-        let selector = self.predicate.clone();
-        self.node_list().into_iter().filter(move |&vid| {
-            g.try_core_node(vid)
-                .is_some_and(|node| view.filter_node(node.as_ref()) && selector.apply(&g, vid))
-        })
+        self.iter_vids(g)
     }
 
-    fn iter_vids(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
-        let g = self.base_graph.core_graph().clone();
+    fn iter_vids(&self, g: GraphStorage) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
         self.node_list().into_iter().filter(move |&vid| {
@@ -196,7 +190,8 @@ where
 
     #[inline]
     pub(crate) fn iter_refs_unlocked(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
-        self.iter_vids()
+        let g = self.base_graph.core_graph().clone();
+        self.iter_vids(g)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = NodeView<'_, &GH>> + use<'_, 'graph, G, GH, F> {

@@ -379,6 +379,12 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodePropertyFilterOp<G>;
 
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -394,12 +400,25 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
         let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
         Ok(NodePropertyFilterOp::new(graph, prop_id, self))
     }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
 }
 
 impl CreateFilter for PropertyFilter<EdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -415,11 +434,23 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
 }
 
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
     type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -434,6 +465,13 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 

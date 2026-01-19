@@ -18,10 +18,11 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, TimeOps},
+    prelude::{GraphViewOps},
 };
 use raphtory_api::core::{storage::timeindex::EventTime, utils::time::IntoTime};
 use std::{fmt, fmt::Display};
+use crate::db::api::view::time::TimeOps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SnapshotAt<M> {
@@ -108,23 +109,29 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotAt<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotAt<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, WindowedGraph<G>>
+        = T::EntityFiltered<'graph, G>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph> + Clone;
+        G: GraphViewOps<'graph>;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, WindowedGraph<G>>
+        = T::NodeFilter<'graph, G>
     where
-        G: GraphView + TimeOps<'graph> + Clone + 'graph;
+        G: GraphView + 'graph;
+
+    type FilteredGraph<'graph, G>
+        = WindowedGraph<T::FilteredGraph<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone,
+        G: GraphViewOps<'graph>,
     {
-        self.inner.create_filter(graph.snapshot_at(self.time))
+        self.inner.create_filter(graph)
     }
 
     fn create_node_filter<'graph, G>(
@@ -132,9 +139,16 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotA
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
     where
-        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph,
+        G: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph.snapshot_at(self.time))
+        self.inner.create_node_filter(graph)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(self.inner.filter_graph_view(graph)?.snapshot_at(self.time))
     }
 }
 
@@ -246,23 +260,28 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotLatest<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotLatest<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, WindowedGraph<G>>
+        = T::EntityFiltered<'graph, G>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph> + Clone;
+        G: GraphViewOps<'graph>;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, WindowedGraph<G>>
+        = T::NodeFilter<'graph, G>
     where
-        G: GraphView + TimeOps<'graph> + Clone + 'graph;
+        G: GraphView + 'graph;
+    type FilteredGraph<'graph, G>
+        = WindowedGraph<T::FilteredGraph<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G>(
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
     where
-        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone,
+        G: GraphViewOps<'graph>,
     {
-        self.inner.create_filter(graph.snapshot_latest())
+        self.inner.create_filter(graph)
     }
 
     fn create_node_filter<'graph, G>(
@@ -270,9 +289,16 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotL
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
     where
-        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph,
+        G: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph.snapshot_latest())
+        self.inner.create_node_filter(graph)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(self.inner.filter_graph_view(graph)?.snapshot_latest())
     }
 }
 

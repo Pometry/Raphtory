@@ -991,7 +991,7 @@ impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G> InternalFilter<'graph> for G
 where
-    G: GraphViewOps<'graph> + 'graph,
+    G: GraphView + 'graph,
 {
     type Graph = G;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;

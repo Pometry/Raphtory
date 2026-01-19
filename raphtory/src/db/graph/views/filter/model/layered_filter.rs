@@ -128,14 +128,20 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T> {
     type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, LayeredGraph<G>>
+        = T::EntityFiltered<'graph, G>
     where
         G: GraphViewOps<'graph>;
 
     type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, LayeredGraph<G>>
+        = T::NodeFilter<'graph, G>
     where
         G: GraphView + 'graph;
+
+    type FilteredGraph<'graph, G>
+        = LayeredGraph<T::FilteredGraph<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G>(
         self,
@@ -144,7 +150,7 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
     where
         G: GraphViewOps<'graph>,
     {
-        self.inner.create_filter(graph.layers(self.layer)?)
+        self.inner.create_filter(graph)
     }
 
     fn create_node_filter<'graph, G>(
@@ -154,7 +160,16 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
     where
         G: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph.layers(self.layer)?)
+        self.inner.create_node_filter(graph)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        self.inner
+            .filter_graph_view(graph)?
+            .layers(self.layer.clone())
     }
 }
 

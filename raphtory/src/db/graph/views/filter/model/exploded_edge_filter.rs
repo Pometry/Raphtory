@@ -212,6 +212,11 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type FilteredGraph<'graph, G>
+        = T::FilteredGraph<'graph, G>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -233,6 +238,13 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        self.inner.filter_graph_view(graph)
     }
 }
 
@@ -305,6 +317,11 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type FilteredGraph<'graph, G>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -366,6 +383,49 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        match self.clone() {
+            Self::Src(filter) => {
+                let wrapped = ExplodedEdgeEndpointWrapper::new(filter, Endpoint::Src);
+                let filtered_graph = wrapped.filter_graph_view(graph)?;
+                Ok(Arc::new(filtered_graph))
+            }
+            Self::Dst(filter) => {
+                let wrapped = ExplodedEdgeEndpointWrapper::new(filter, Endpoint::Dst);
+                let filtered_graph = wrapped.filter_graph_view(graph)?;
+                Ok(Arc::new(filtered_graph))
+            }
+            Self::Property(p) => Ok(Arc::new(p.filter_graph_view(graph)?)),
+            Self::Windowed(pw) => {
+                // let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                Ok(Arc::new(pw.filter_graph_view(graph)?))
+            }
+            Self::Latest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::SnapshotAt(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::SnapshotLatest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::Layered(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::And(l, r) => {
+                let (l, r) = (*l, *r); // move out, no clone
+                Ok(Arc::new(
+                    AndFilter { left: l, right: r }.filter_graph_view(graph)?,
+                ))
+            }
+            Self::Or(l, r) => {
+                let (l, r) = (*l, *r);
+                Ok(Arc::new(
+                    OrFilter { left: l, right: r }.filter_graph_view(graph)?,
+                ))
+            }
+            Self::Not(f) => {
+                let base = *f;
+                Ok(Arc::new(NotFilter(base).filter_graph_view(graph)?))
+            }
+        }
     }
 }
 

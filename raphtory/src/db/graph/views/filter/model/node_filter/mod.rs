@@ -120,6 +120,12 @@ impl CreateFilter for NodeIdFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeIdFilterOp;
 
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -134,6 +140,13 @@ impl CreateFilter for NodeIdFilter {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         validate(graph.id_type(), &self.0)?;
         Ok(NodeIdFilterOp::new(self.0))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -175,6 +188,12 @@ impl CreateFilter for NodeNameFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeNameFilterOp;
 
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -187,6 +206,13 @@ impl CreateFilter for NodeNameFilter {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeNameFilterOp::new(self.0))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -228,6 +254,12 @@ impl CreateFilter for NodeTypeFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = NodeTypeFilterOp;
 
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -257,6 +289,13 @@ impl CreateFilter for NodeTypeFilter {
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
         Ok(TypeId.mask(node_types_filter.into()))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -313,6 +352,12 @@ impl CreateFilter for CompositeNodeFilter {
 
     type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
 
+    type FilteredGraph<'graph, G>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -366,6 +411,31 @@ impl CreateFilter for CompositeNodeFilter {
             CompositeNodeFilter::Not(filter) => {
                 Ok(Arc::new(NotOp(filter.clone().create_node_filter(graph)?)))
             }
+        }
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        match self.clone() {
+            CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
+                "node_id" => Ok(Arc::new(NodeIdFilter(i).filter_graph_view(graph)?)),
+                "node_name" => Ok(Arc::new(NodeNameFilter(i).filter_graph_view(graph)?)),
+                "node_type" => Ok(Arc::new(NodeTypeFilter(i).filter_graph_view(graph)?)),
+                _ => {
+                    unreachable!()
+                }
+            },
+            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::Windowed(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::Layered(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::SnapshotAt(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::SnapshotLatest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::And(_l, _r) => Ok(Arc::new(graph)),
+            CompositeNodeFilter::Or(_l, _r) => Ok(Arc::new(graph)),
+            CompositeNodeFilter::Not(_filter) => Ok(Arc::new(graph)),
         }
     }
 }

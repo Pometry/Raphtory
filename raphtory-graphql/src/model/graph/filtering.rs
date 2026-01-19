@@ -1243,11 +1243,6 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             }
 
             GqlEdgeFilter::Layers(l) => {
-                if l.names.is_empty() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "EdgeFilter.layers.names must be non-empty".into(),
-                    ));
-                }
                 let layer = Layer::from(l.names.clone());
                 let inner: CompositeEdgeFilter = l.expr.deref().clone().try_into()?;
                 Ok(CompositeEdgeFilter::Layered(Box::new(Layered::new(
