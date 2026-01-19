@@ -161,7 +161,7 @@ impl GraphServer {
             for graph_name in graph_names {
                 embedding_conf
                     .individual_templates
-                    .insert(graph_name.into(), template.clone());
+                    .insert(graph_name, template.clone());
             }
         }
         self

@@ -3,7 +3,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use raphtory_api::core::entities::{
-    EID, VID,
+    EID, GID, VID,
     properties::{
         meta::{NODE_ID_IDX, NODE_TYPE_IDX},
         prop::Prop,
@@ -164,6 +164,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.page.increment_est_size(add);
     }
 
+    #[inline(always)]
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
         self.page
             .get_out_edge(pos, dst, layer_id, self.mut_segment.deref())
@@ -186,11 +187,21 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 
     pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: GidRef<'_>) {
-        self.update_c_props(pos, layer_id, node_info_as_props(Some(gid), None));
+        let gid = match gid {
+            GID::U64(id) => Prop::U64(id),
+            GID::Str(s) => Prop::str(s),
+        };
+        let props = [(NODE_ID_IDX, gid)];
+        self.update_c_props(pos, layer_id, props);
     }
 
     pub fn update_deletion_time<T: AsTime>(&mut self, t: T, node: LocalPOS, e_id: ELID) {
         self.update_timestamp(t, node, e_id);
+    }
+
+    pub fn increment_seg_num_nodes(&mut self) {
+        self.page
+            .increment_num_nodes(self.mut_segment.max_page_len());
     }
 }
 
@@ -209,7 +220,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     for NodeWriter<'a, MP, NS>
 {
     fn drop(&mut self) {
-        self.page.increment_event_id(1);
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");

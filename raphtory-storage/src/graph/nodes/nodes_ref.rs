@@ -44,4 +44,12 @@ impl<'a> NodesStorageEntry<'a> {
     pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.iter())
     }
+
+    /// Returns a parallel iterator over nodes row groups
+    /// the (usize) part is the row group not the segment
+    pub fn row_groups_par_iter(
+        &self,
+    ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = VID> + '_)> {
+        for_all_variants!(self, nodes => nodes.row_groups_par_iter())
+    }
 }

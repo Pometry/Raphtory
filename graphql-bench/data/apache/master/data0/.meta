@@ -1,1 +1,1 @@
-{"path":"graph0","meta":{"node_count":52151,"edge_count":44045,"graph_type":"PersistentGraph","is_diskgraph":false}}
+{"path":"graph0","meta":{"node_count":52151,"edge_count":44045,"graph_type":"EventGraph","is_diskgraph":false}}

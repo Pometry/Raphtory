@@ -69,14 +69,6 @@ pub trait NodeStateOps<'graph>:
     where
         'graph: 'a;
 
-    fn get_by_index(
-        &self,
-        index: usize,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )>;
-
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>>;
 
     fn len(&self) -> usize;
@@ -111,7 +103,7 @@ pub trait NodeStateOps<'graph>:
             self.base_graph().clone(),
             self.graph().clone(),
             values.into(),
-            Some(Index::new(keys)),
+            Index::Partial(keys.into()),
         )
     }
 
@@ -171,7 +163,7 @@ pub trait NodeStateOps<'graph>:
             self.base_graph().clone(),
             self.graph().clone(),
             values.into(),
-            Some(Index::new(keys)),
+            Index::Partial(keys.into()),
         )
     }
 

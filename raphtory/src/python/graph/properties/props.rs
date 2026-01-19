@@ -36,8 +36,9 @@ impl PartialEq for PyPropsComp {
     }
 }
 
-impl<'source> FromPyObject<'source> for PyPropsComp {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyPropsComp {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyMetadata>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
@@ -236,8 +237,9 @@ impl Repr for PyProperties {
 #[derive(PartialEq, Clone)]
 pub struct PyPropsListCmp(HashMap<ArcStr, PyPropValueListCmp>);
 
-impl<'source> FromPyObject<'source> for PyPropsListCmp {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyPropsListCmp {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<MetadataView>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PropertiesView>>() {
@@ -390,8 +392,9 @@ py_eq!(PyNestedPropsIterable, PyMetadataListListCmp);
 #[derive(PartialEq, Clone)]
 pub struct PyMetadataListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
 
-impl<'source> FromPyObject<'source> for PyMetadataListListCmp {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyMetadataListListCmp {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<MetadataListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {

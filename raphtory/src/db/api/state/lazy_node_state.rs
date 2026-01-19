@@ -1,15 +1,12 @@
 use crate::{
-    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             state::{
                 ops::{node::NodeOp, NodeOpFilter},
                 Index, NodeState, NodeStateOps,
             },
-            view::{
-                internal::{FilterOps, NodeList, OneHopFilter},
-                BoxedLIter, IntoDynBoxed,
-            },
+            view::{internal::OneHopFilter, BoxedLIter, IntoDynBoxed},
         },
         graph::{node::NodeView, nodes::Nodes},
     },
@@ -162,7 +159,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
                 values.into(),
-                Some(Index::new(keys)),
+                Index::Partial(keys.into()),
             )
         } else {
             let values = self.collect_vec();
@@ -170,7 +167,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 self.nodes.base_graph.clone(),
                 self.nodes.graph.clone(),
                 values.into(),
-                None,
+                Index::for_graph(self.nodes.graph.clone()),
             )
         }
     }
@@ -266,34 +263,6 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         self.nodes
             .par_iter()
             .map(move |node| (node, self.op.apply(&storage, node.node)))
-    }
-
-    fn get_by_index(
-        &self,
-        index: usize,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
-        if self.graph().filtered() {
-            self.iter().nth(index)
-        } else {
-            let vid = match self.graph().node_list() {
-                NodeList::All { len } => {
-                    if index < len {
-                        VID(index)
-                    } else {
-                        return None;
-                    }
-                }
-                NodeList::List { elems } => elems.key(index)?,
-            };
-            let cg = self.graph().core_graph();
-            Some((
-                NodeView::new_one_hop_filtered(self.base_graph(), self.graph(), vid),
-                self.op.apply(cg, vid),
-            ))
-        }
     }
 
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {

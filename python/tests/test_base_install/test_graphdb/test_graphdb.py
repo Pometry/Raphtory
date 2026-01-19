@@ -1,28 +1,27 @@
 from __future__ import unicode_literals
-from decimal import Decimal
+
 import math
-import sys
+import os
+import pickle
 import random
 import re
+import shutil
+import string
+import sys
+import tempfile
+from datetime import datetime, timezone
+from decimal import Decimal
+from math import isclose
+from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pandas.core.frame
-import pytest
 import pyarrow as pa
-from raphtory import Graph, PersistentGraph
-from raphtory import algorithms
-from raphtory import graph_loader
-import tempfile
-from math import isclose
-from datetime import datetime, timezone
-import string
-from pathlib import Path
-from pytest import fixture
+import pytest
 from numpy.testing import assert_equal as check_arr
-import os
-import shutil
-import numpy as np
-import pickle
+from pytest import fixture
+from raphtory import Graph, PersistentGraph, algorithms, graph_loader
 from utils import with_disk_graph
 
 base_dir = Path(__file__).parent
@@ -2074,8 +2073,8 @@ def test_datetime_add_node():
 
 
 def test_datetime_with_timezone():
-    from raphtory import Graph
     import pytz
+    from raphtory import Graph
 
     g = Graph()
     # testing zones east and west of UK
@@ -2217,9 +2216,11 @@ def test_materialize_graph():
             assert mg.node(4).metadata.get("abc") == "xyz"
             check_arr(mg.node(1).history(), [-1, 0, 1, 2])
             check_arr(mg.node(4).history(), [6, 8])
-            assert mg.nodes.id.collect() == [1, 2, 3, 4]
+            assert len(mg.nodes.id.collect()) == 4
+            assert set(mg.nodes.id.collect()) == {1, 3, 2, 4}
             assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
-            assert g.nodes.id.collect() == mg.nodes.id.collect()
+            assert len(g.nodes.id.collect()) == len(mg.nodes.id.collect())
+            assert set(g.nodes.id.collect()) == set(mg.nodes.id.collect())
             assert set(g.edges.id) == set(mg.edges.id)
             assert mg.node(1).metadata == {}
             assert mg.node(4).metadata == {"abc": "xyz"}

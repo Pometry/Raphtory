@@ -41,7 +41,7 @@ impl<'a> From<&'a LayerIds> for LayerIter<'a> {
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     layer_id: LayerIter<'a>,
-    node: Ref,
+    item_ref: Ref,
 }
 
 impl<'a, Ref> GenericTimeOps<'a, Ref> {
@@ -49,7 +49,7 @@ impl<'a, Ref> GenericTimeOps<'a, Ref> {
         Self {
             range: None,
             layer_id: layer_id.into(),
-            node,
+            item_ref: node,
         }
     }
 
@@ -57,7 +57,7 @@ impl<'a, Ref> GenericTimeOps<'a, Ref> {
         Self {
             range: None,
             layer_id: layer_id.into(),
-            node,
+            item_ref: node,
         }
     }
 }
@@ -296,9 +296,9 @@ where
 {
     pub fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
         self.layer_id
-            .into_iter(self.node.num_layers())
+            .into_iter(self.item_ref.num_layers())
             .flat_map(move |layer_id| {
-                self.node
+                self.item_ref
                     .additions_tc(layer_id, self.range)
                     .map(|t_cell| t_cell.edge_events())
             })
@@ -309,9 +309,9 @@ where
         self,
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
         self.layer_id
-            .into_iter(self.node.num_layers())
+            .into_iter(self.item_ref.num_layers())
             .flat_map(|layer_id| {
-                self.node
+                self.item_ref
                     .additions_tc(layer_id, self.range)
                     .map(|t_cell| t_cell.edge_events_rev())
             })
@@ -323,12 +323,12 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
     pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + Send + Sync + 'a {
         let range = self.range;
         self.layer_id
-            .into_iter(self.node.num_layers())
+            .into_iter(self.item_ref.num_layers())
             .flat_map(move |layer_id| {
-                self.node.t_props_tc(layer_id, range).chain(
-                    self.node
+                self.item_ref.t_props_tc(layer_id, range).chain(
+                    self.item_ref
                         .additions_tc(layer_id, range)
-                        .chain(self.node.deletions_tc(layer_id, range)),
+                        .chain(self.item_ref.deletions_tc(layer_id, range)),
                 )
             })
     }
@@ -356,7 +356,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         GenericTimeOps {
             range: Some((w.start, w.end)),
-            node: self.node,
+            item_ref: self.item_ref,
             layer_id: self.layer_id,
         }
     }

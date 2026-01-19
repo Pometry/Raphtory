@@ -108,6 +108,9 @@ streaming-stats = { workspace = true }
 indoc = { workspace = true }
 raphtory = { workspace = true, features = ["test-utils"] } # enable test-utils for integration tests
 
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = "0.6.1"
+
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
 

@@ -31,7 +31,7 @@ use raphtory_storage::{
         nodes::node_storage_ops::NodeStorageOps,
     },
 };
-use std::{io::Cursor, iter, ops::Deref};
+use std::{iter, ops::Deref};
 
 pub mod ext;
 

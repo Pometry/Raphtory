@@ -1,5 +1,7 @@
 use crate::{
-    core::entities::properties::prop::{unify_types, ArrowRow, DirectConvert, Prop, PropType},
+    core::entities::properties::prop::{
+        unify_types, ArrowRow, DirectConvert, Prop, PropType, EMPTY_MAP_FIELD_NAME,
+    },
     iter::{BoxedLIter, IntoDynBoxed},
 };
 use arrow_array::{
@@ -298,7 +300,7 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
                 .collect::<Vec<_>>();
             if fields.is_empty() {
                 DataType::Struct(Fields::from_iter([Field::new(
-                    "__empty__",
+                    EMPTY_MAP_FIELD_NAME,
                     DataType::Null,
                     true,
                 )]))

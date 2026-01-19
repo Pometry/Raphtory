@@ -113,7 +113,7 @@ impl PersistentGraph {
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::PersistentGraph;
-    /// let g = Graph::new_at_path("/path/to/storage");
+    /// let g = PersistentGraph::new_at_path("/path/to/storage");
     /// ```
     #[cfg(feature = "io")]
     pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {

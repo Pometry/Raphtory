@@ -6,7 +6,7 @@ use crate::{
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
-use pyo3::{prelude::PyAnyMethods, Bound, PyAny, PyObject, Python};
+use pyo3::{prelude::PyAnyMethods, Bound, Py, PyAny, Python};
 use raphtory_api::core::{
     entities::{properties::prop::PropArray, GID},
     storage::arc_str::ArcStr,
@@ -89,9 +89,9 @@ impl<T: Repr, const N: usize> Repr for [T; N] {
     }
 }
 
-impl Repr for PyObject {
+impl Repr for Py<PyAny> {
     fn repr(&self) -> String {
-        Python::with_gil(|py| Repr::repr(self.bind(py)))
+        Python::attach(|py| Repr::repr(self.bind(py)))
     }
 }
 
@@ -267,6 +267,13 @@ impl<K: Repr, V: Repr, S> Repr for HashMap<K, V, S> {
 impl<S: Repr, T: Repr> Repr for (S, T) {
     fn repr(&self) -> String {
         format!("({}, {})", self.0.repr(), self.1.repr())
+    }
+}
+
+// three element tuple
+impl<S: Repr, T: Repr, U: Repr> Repr for (S, T, U) {
+    fn repr(&self) -> String {
+        format!("({}, {}, {})", self.0.repr(), self.1.repr(), self.2.repr())
     }
 }
 

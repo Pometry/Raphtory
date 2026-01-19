@@ -138,7 +138,7 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) -> Box<dyn Iterator<Item = Option<&A>> + '_>
+    ) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_>
     where
         A: StateType,
     {

@@ -17,6 +17,7 @@ use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
     storage::dict_mapper::MaybeNew,
 };
+use rayon::prelude::*;
 
 use raphtory_core::{
     entities::{EID, ELID, VID},
@@ -31,6 +32,7 @@ use std::{
         atomic::{self, AtomicUsize},
     },
 };
+use tinyvec::TinyVec;
 
 pub mod edge_page;
 pub mod edge_store;
@@ -210,6 +212,14 @@ impl<
 
     pub fn latest(&self) -> i64 {
         self.nodes.stats().latest().max(self.edges.stats().latest())
+    }
+
+    pub fn node_segment_counts(&self) -> SegmentCounts<VID> {
+        self.nodes.segment_counts()
+    }
+
+    pub fn edge_segment_counts(&self) -> SegmentCounts<EID> {
+        self.edges.segment_counts()
     }
 
     pub fn add_edge<T: TryIntoInputTime>(
@@ -453,15 +463,61 @@ impl<
     }
 }
 
+#[derive(Debug)]
+pub struct SegmentCounts<I> {
+    max_seg_len: u32,
+    counts: TinyVec<[u32; node_store::N]>, // this might come to be a problem
+    _marker: std::marker::PhantomData<I>,
+}
+
+impl<I: From<usize>> SegmentCounts<I> {
+    pub fn new(max_seg_len: u32, counts: impl IntoIterator<Item = u32>) -> Self {
+        let counts: TinyVec<[u32; node_store::N]> = counts.into_iter().collect();
+
+        Self {
+            max_seg_len,
+            counts,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item = I> {
+        let max_seg_len = self.max_seg_len as usize;
+        self.counts.into_iter().enumerate().flat_map(move |(i, c)| {
+            let g_pos = i * max_seg_len as usize;
+            (0..c).map(move |offset| I::from(g_pos + offset as usize))
+        })
+    }
+
+    pub(crate) fn counts(&self) -> &[u32] {
+        &self.counts
+    }
+
+    pub(crate) fn max_seg_len(&self) -> u32 {
+        self.max_seg_len
+    }
+}
+impl<I: From<usize> + Send> SegmentCounts<I> {
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = I> {
+        let max_seg_len = self.max_seg_len as usize;
+        (0..self.counts.len()).into_par_iter().flat_map(move |i| {
+            let c = self.counts[i];
+            let g_pos = i * max_seg_len;
+            (0..c)
+                .into_par_iter()
+                .map(move |offset| I::from(g_pos + offset as usize))
+        })
+    }
+}
+
 impl<NS, ES, GS, EXT: PersistenceStrategy> Drop for GraphStore<NS, ES, GS, EXT> {
     fn drop(&mut self) {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         self.ext.config_mut().set_node_types(node_types);
 
-        if let Some(graph_dir) = self.graph_dir.as_ref() {
-            if self.ext.config().save_to_dir(graph_dir).is_err() {
+        if let Some(graph_dir) = self.graph_dir.as_ref()
+            && self.ext.config().save_to_dir(graph_dir).is_err() {
                 eprintln!("Unrecoverable! Failed to write graph meta");
-            }
         }
     }
 }
@@ -469,9 +525,35 @@ impl<NS, ES, GS, EXT: PersistenceStrategy> Drop for GraphStore<NS, ES, GS, EXT> 
 #[inline(always)]
 pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: u32) -> (usize, LocalPOS) {
     let i = i.into();
-    let chunk = i / max_page_len as usize;
+    let seg = i / max_page_len as usize;
     let pos = i % max_page_len as usize;
-    (chunk, LocalPOS(pos as u32))
+    (seg, LocalPOS(pos as u32))
+}
+
+pub fn row_group_par_iter<I: From<usize>>(
+    chunk_size: usize,
+    num_segments: usize,
+    max_seg_len: u32,
+    max_actual_seg_len: u32,
+) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = I>)> {
+    let (num_chunks, chunk_size) = if num_segments != 0 {
+        let chunk_size = (chunk_size / num_segments).max(1);
+        let num_chunks = (max_seg_len as usize + chunk_size - 1) / chunk_size;
+        (num_chunks, chunk_size)
+    } else {
+        (0, 0)
+    };
+
+    (0..num_chunks).into_par_iter().map(move |chunk_id| {
+        let start = chunk_id * chunk_size;
+        let end = ((chunk_id + 1) * chunk_size).min(max_actual_seg_len as usize);
+
+        let iter = (start..end).flat_map(move |x| {
+            (0..num_segments).map(move |seg| I::from(seg * max_seg_len as usize + x))
+        });
+
+        (chunk_id, iter)
+    })
 }
 
 #[cfg(test)]
@@ -493,6 +575,27 @@ mod test {
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
     use std::sync::Arc;
+    use rayon::iter::ParallelIterator;
+
+    #[test]
+    fn test_iterleave() {
+        let chunk_size = 3;
+        let num_segments = 3;
+        let max_seg_len = 4;
+
+        let actual = super::row_group_par_iter(chunk_size, num_segments, max_seg_len, max_seg_len)
+            .map(|(c, items)| (c, items.collect::<Vec<_>>()))
+            .collect::<Vec<_>>();
+
+        let expected = vec![
+            (0, vec![0, 4, 8]),
+            (1, vec![1, 5, 9]),
+            (2, vec![2, 6, 10]),
+            (3, vec![3, 7, 11]),
+        ];
+
+        assert_eq!(actual, expected);
+    }
 
     fn check_edges(edges: Vec<(impl Into<VID>, impl Into<VID>)>, chunk_size: u32, par_load: bool) {
         // Set optional layer_id to None

@@ -2439,6 +2439,9 @@ enum TemporalType {
 	LATEST
 }
 
+"""
+A multipart file upload
+"""
 scalar Upload
 
 input Value @oneOf {

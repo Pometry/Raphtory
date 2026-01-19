@@ -36,7 +36,7 @@ mod replay;
 pub struct TemporalGraph<EXT: PersistenceStrategy = Extension> {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
-    pub node_count: AtomicUsize,
+    pub event_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
@@ -156,9 +156,9 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
         Ok(Self {
             graph_dir,
             logical_to_physical,
-            node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
+            event_counter: AtomicUsize::new(0),
         })
     }
 
@@ -169,12 +169,11 @@ impl<EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Tempora
 
         let gid_resolver_dir = path.join("gid_resolver");
         let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
-        let node_count = AtomicUsize::new(storage.nodes().num_nodes());
 
         Ok(Self {
             graph_dir: Some(path.into()),
+            event_counter: AtomicUsize::new(resolver.len()),
             logical_to_physical: resolver.into(),
-            node_count,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
         })
@@ -382,21 +381,17 @@ impl<'a, EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
         self.graph
     }
 
-    pub fn resize_chunks_to_num_nodes(&mut self, num_nodes: usize) {
-        if num_nodes == 0 {
-            return;
+    pub fn resize_chunks_to_num_nodes(&mut self, max_vid: Option<VID>) {
+        if let Some(max_vid) = max_vid {
+            let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(max_vid);
+            self.graph.storage().nodes().grow(chunks_needed + 1);
+            std::mem::take(&mut self.nodes);
+            self.nodes = self.graph.storage.nodes().write_locked();
         }
-        let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(VID(num_nodes - 1));
-        self.graph.storage().nodes().grow(chunks_needed + 1);
-        std::mem::take(&mut self.nodes);
-        self.nodes = self.graph.storage.nodes().write_locked();
     }
 
-    pub fn resize_chunks_to_num_edges(&mut self, num_edges: usize) {
-        if num_edges == 0 {
-            return;
-        }
-        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(EID(num_edges - 1));
+    pub fn resize_chunks_to_num_edges(&mut self, max_eid: EID) {
+        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(max_eid);
         self.graph.storage().edges().grow(chunks_needed + 1);
         std::mem::take(&mut self.edges);
         self.edges = self.graph.storage.edges().write_locked();

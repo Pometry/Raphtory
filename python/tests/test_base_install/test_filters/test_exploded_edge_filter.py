@@ -788,7 +788,7 @@ def test_all_property_types(GraphClass):
 
     with pytest.raises(Exception) as e:
         filter.Property("name").fuzzy_search(2, 2, False)
-    assert "'int' object cannot be converted to 'PyString'" in str(e.value)
+    assert "argument 'prop_value': 'int' object cannot be cast as 'str'" in str(e.value)
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])

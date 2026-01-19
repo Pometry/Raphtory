@@ -72,7 +72,6 @@ mod search_tests {
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
-    use tempfile::tempdir;
     use tracing::info;
 
     #[cfg(test)]
