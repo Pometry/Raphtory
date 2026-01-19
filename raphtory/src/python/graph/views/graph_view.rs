@@ -39,10 +39,9 @@ use crate::{
         types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },
-    serialise::GraphFolder,
 };
 use chrono::prelude::*;
-use pyo3::prelude::*;
+use pyo3::{prelude::*, Borrowed};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
@@ -70,9 +69,10 @@ impl<'py> IntoPyObject<'py> for DynamicGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for DynamicGraph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        ob.extract::<PyRef<PyGraphView>>().map(|g| g.graph.clone())
+impl<'py> FromPyObject<'_, 'py> for DynamicGraph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.extract::<PyRef<PyGraphView>>()?.graph.clone())
     }
 }
 /// Graph view is a read-only version of a graph at a certain point in time.
@@ -465,25 +465,16 @@ impl PyGraphView {
 
     /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a
     /// copy of the data seen within the view instead of just a mask over the original graph.
-    /// If a path is provided, the new graph will be stored at that path
-    /// (assuming the storage feature is enabled).
     ///
     /// Returns:
     ///    GraphView: Returns a graph clone
-    #[pyo3(signature = (path = None))]
-    fn materialize(&self, path: Option<PathBuf>) -> Result<MaterializedGraph, GraphError> {
-        self.graph.materialize_at(path.as_deref())
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize()
     }
 
     /// Materializes the graph view into a graphql compatible folder.
-    fn materialize_to_graph_folder(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
-        let folder: GraphFolder = path.into();
-        folder.reserve()?;
-
-        let graph = self.graph.materialize_at(Some(&folder.get_graph_path()))?;
-        folder.write_metadata(&graph)?;
-
-        Ok(graph)
+    fn materialize_at(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize_at(&path)
     }
 
     /// Displays the graph

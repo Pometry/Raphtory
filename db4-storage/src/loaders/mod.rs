@@ -1,4 +1,4 @@
-use crate::{error::StorageError, pages::GraphStore, EdgeSegmentOps, NodeSegmentOps};
+use crate::{EdgeSegmentOps, NodeSegmentOps, error::StorageError, pages::GraphStore};
 use arrow::buffer::ScalarBuffer;
 use arrow_array::{
     Array, PrimitiveArray, RecordBatch, TimestampMicrosecondArray, TimestampMillisecondArray,
@@ -13,7 +13,7 @@ use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
-use raphtory_core::entities::{graph::logical_to_physical::Mapping, EID, VID};
+use raphtory_core::entities::{EID, VID, graph::logical_to_physical::Mapping};
 use rayon::prelude::*;
 use std::{
     fs::File,
@@ -409,14 +409,6 @@ impl<'a> Loader<'a> {
             eid_col_resolved.clear();
             eids_exist.clear();
             offset += rb.num_rows();
-
-            // println!(
-            //     "Loaded {} events in {:?}. Average {} events/s. Batch time: {:?}",
-            //     offset,
-            //     now.elapsed(),
-            //     offset as f64 / now.elapsed().as_secs_f64(),
-            //     now_chunk.elapsed(),
-            // );
         }
 
         Ok(resolver)

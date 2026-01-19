@@ -27,6 +27,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn t_len(&self) -> usize;
     fn num_layers(&self) -> usize;
+    // Persistent layer count, not used for up to date counts
     fn layer_count(&self, layer_id: usize) -> u32;
 
     fn load(
@@ -67,7 +68,10 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         head_lock: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError>;
 
-    fn increment_num_edges(&self) -> u32;
+    fn increment_num_edges(&self) -> u32 {
+        self.edges_counter()
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    }
 
     fn contains_edge(
         &self,
@@ -98,6 +102,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &self,
         locked_head: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError>;
+    fn flush(&self) -> Result<(), StorageError>;
 }
 
 pub trait LockedESegment: Send + Sync + std::fmt::Debug {

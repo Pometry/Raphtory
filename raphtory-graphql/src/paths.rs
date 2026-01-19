@@ -1,198 +1,680 @@
-use crate::rayon::blocking_compute;
+use crate::{data::DIRTY_PATH, model::blocking_io, rayon::blocking_compute};
+use futures_util::io;
 use raphtory::{
+    db::api::{
+        storage::storage::{Extension, PersistentStrategy},
+        view::{internal::InternalStorageOps, MaterializedGraph},
+    },
     errors::{GraphError, InvalidPathReason},
-    serialise::{metadata::GraphMetadata, GraphFolder, META_PATH},
+    prelude::GraphViewOps,
+    serialise::{
+        metadata::GraphMetadata, GraphFolder, GraphPaths, RelativePath, StableDecode,
+        WriteableGraphFolder, ROOT_META_PATH,
+    },
 };
 use std::{
+    cmp::Ordering,
+    ffi::OsStr,
     fs,
+    fs::File,
+    io::{ErrorKind, Read, Seek, Write},
     ops::Deref,
-    path::{Component, Path, PathBuf},
+    panic::Location,
+    path::{Component, Path, PathBuf, StripPrefixError},
     time::{SystemTime, UNIX_EPOCH},
 };
+use tracing::{error, warn};
+use zip::ZipArchive;
+
+pub trait ValidGraphPaths {
+    fn local_path(&self) -> &str;
+
+    fn graph_folder(&self) -> &impl GraphPaths;
+
+    fn with_internal_errors<R: WithPath>(
+        &self,
+        fun: impl FnOnce() -> R,
+    ) -> Result<R::Value, PathValidationError> {
+        fun().with_path(self.local_path())
+    }
+}
+
+pub struct ValidPath(PathBuf);
+
+fn valid_path_inner(
+    base_path: PathBuf,
+    relative_path: &str,
+) -> Result<PathBuf, InternalPathValidationError> {
+    ensure_clean_folder(&base_path)?;
+    let mut full_path = base_path.clone();
+    let user_facing_path: &Path = relative_path.as_ref();
+
+    if relative_path.contains(r"//") {
+        Err(InvalidPathReason::DoubleForwardSlash)?;
+    }
+    if relative_path.contains(r"\") {
+        Err(InvalidPathReason::BackslashError)?;
+    }
+
+    // fail if any component is a Prefix (C://), tries to access root,
+    // tries to access a parent dir or is a symlink which could break out of the working dir
+    for component in user_facing_path.components() {
+        extend_and_validate(&mut full_path, component)?;
+    }
+
+    Ok(full_path)
+}
+
+impl ValidPath {
+    pub fn try_new(base_path: PathBuf, relative_path: &str) -> Result<Self, PathValidationError> {
+        let full_path = valid_path_inner(base_path, relative_path).with_path(relative_path)?;
+        Ok(ValidPath(full_path))
+    }
+    /// path exists and is a graph
+    pub fn is_graph(&self) -> bool {
+        self.0.exists() && self.0.join(ROOT_META_PATH).exists()
+    }
+
+    /// path exists and is a namespace
+    pub fn is_namespace(&self) -> bool {
+        self.0.exists() && !self.0.join(ROOT_META_PATH).exists()
+    }
+
+    pub fn into_path(self) -> PathBuf {
+        self.0
+    }
+}
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
-pub struct ExistingGraphFolder {
-    folder: ValidGraphFolder,
+pub struct ExistingGraphFolder(pub(crate) ValidGraphFolder);
+
+impl ValidGraphPaths for ExistingGraphFolder {
+    fn local_path(&self) -> &str {
+        self.0.local_path()
+    }
+
+    fn graph_folder(&self) -> &impl GraphPaths {
+        self.0.graph_folder()
+    }
 }
 
 impl Deref for ExistingGraphFolder {
     type Target = ValidGraphFolder;
 
     fn deref(&self) -> &Self::Target {
-        &self.folder
+        &self.0
     }
 }
 
-impl From<ValidGraphFolder> for GraphFolder {
-    fn from(value: ValidGraphFolder) -> Self {
-        value.folder
-    }
-}
-
-impl From<ExistingGraphFolder> for GraphFolder {
-    fn from(value: ExistingGraphFolder) -> Self {
-        value.folder.folder
-    }
-}
 impl ExistingGraphFolder {
-    pub(crate) fn try_from(base_path: PathBuf, relative_path: &str) -> Result<Self, GraphError> {
-        let graph_folder = ValidGraphFolder::try_from(base_path, relative_path)?;
+    pub fn try_from(base_path: PathBuf, relative_path: &str) -> Result<Self, PathValidationError> {
+        let path = ValidPath::try_new(base_path, relative_path)?;
+        Self::try_from_valid(path, relative_path)
+    }
 
+    pub fn try_from_valid(
+        base_path: ValidPath,
+        relative_path: &str,
+    ) -> Result<Self, PathValidationError> {
+        let graph_folder: GraphFolder = base_path.into_path().into();
         if graph_folder.is_reserved() {
-            Ok(Self {
-                folder: graph_folder,
-            })
+            Ok(Self(ValidGraphFolder {
+                global_path: graph_folder,
+                local_path: relative_path.to_string(),
+            }))
         } else {
-            Err(GraphError::GraphNotFound(graph_folder.to_error_path()))
+            Err(PathValidationError::GraphNotExistsError(
+                relative_path.to_string(),
+            ))
         }
     }
 
-    pub(crate) fn get_graph_name(&self) -> Result<String, GraphError> {
-        let path = &self.get_base_path();
-        let last_component: Component = path.components().last().ok_or_else(|| {
-            GraphError::from(InvalidPathReason::PathNotParsable(self.to_error_path()))
-        })?;
-        match last_component {
-            Component::Normal(value) => {
-                value
-                    .to_str()
-                    .map(|s| s.to_string())
-                    .ok_or(GraphError::from(InvalidPathReason::PathNotParsable(
-                        self.to_error_path(),
-                    )))
+    pub fn replace_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
+        self.with_internal_errors(|| {
+            if let Some(path) = graph.disk_storage_path() {
+                if path != self.global_path.graph_path()? {
+                    return Err(InternalPathValidationError::MismatchedGraphPath);
+                }
+                self.global_path.write_metadata(&graph)?;
+            } else {
+                self.global_path.data_path()?.replace_graph(graph)?;
             }
-            Component::Prefix(_)
-            | Component::RootDir
-            | Component::CurDir
-            | Component::ParentDir => Err(GraphError::from(InvalidPathReason::PathNotParsable(
-                self.to_error_path(),
-            ))),
-        }
+            Ok(())
+        })
     }
 }
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ValidGraphFolder {
-    pub folder: GraphFolder,
-    original_path: String,
+    global_path: GraphFolder,
+    local_path: String,
 }
 
-impl From<ExistingGraphFolder> for ValidGraphFolder {
-    fn from(value: ExistingGraphFolder) -> Self {
-        value.folder
+fn valid_component(component: Component<'_>) -> Result<&OsStr, InvalidPathReason> {
+    match component {
+        Component::Prefix(_) => Err(InvalidPathReason::RootNotAllowed),
+        Component::RootDir => Err(InvalidPathReason::RootNotAllowed),
+        Component::CurDir => Err(InvalidPathReason::CurDirNotAllowed),
+        Component::ParentDir => Err(InvalidPathReason::ParentDirNotAllowed),
+        Component::Normal(component) => Ok(component),
     }
 }
 
-impl Deref for ValidGraphFolder {
-    type Target = GraphFolder;
+fn extend_and_validate(
+    full_path: &mut PathBuf,
+    component: Component,
+) -> Result<(), InternalPathValidationError> {
+    let component = valid_component(component)?;
+    // check if some intermediate path is already a graph
+    if full_path.join(ROOT_META_PATH).exists() {
+        return Err(InvalidPathReason::ParentIsGraph.into());
+    }
+    full_path.push(component);
+    //check for symlinks
+    if full_path.is_symlink() {
+        return Err(InvalidPathReason::SymlinkNotAllowed.into());
+    }
+    ensure_clean_folder(&full_path)?;
+    Ok(())
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.folder
+#[derive(Clone, Debug)]
+pub struct NewPath {
+    path: PathBuf,
+    cleanup: Option<CleanupPath>,
+}
+
+impl NewPath {
+    pub fn is_new(&self) -> bool {
+        self.cleanup.is_some()
     }
 }
 
-pub(crate) fn valid_path(
+impl PartialEq for NewPath {
+    fn eq(&self, other: &Self) -> bool {
+        self.path.eq(&other.path)
+    }
+}
+
+impl PartialOrd for NewPath {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.path.partial_cmp(&other.path)
+    }
+}
+
+pub(crate) fn create_valid_path(
     base_path: PathBuf,
     relative_path: &str,
-    namespace: bool,
-) -> Result<PathBuf, InvalidPathReason> {
+) -> Result<NewPath, InternalPathValidationError> {
+    ensure_clean_folder(&base_path)?;
     let user_facing_path = PathBuf::from(relative_path);
 
     if relative_path.contains(r"//") {
-        return Err(InvalidPathReason::DoubleForwardSlash(user_facing_path));
+        return Err(InvalidPathReason::DoubleForwardSlash.into());
     }
     if relative_path.contains(r"\") {
-        return Err(InvalidPathReason::BackslashError(user_facing_path));
+        return Err(InvalidPathReason::BackslashError.into());
     }
 
     let mut full_path = base_path.clone();
+    let mut cleanup_marker = None;
     // fail if any component is a Prefix (C://), tries to access root,
     // tries to access a parent dir or is a symlink which could break out of the working dir
     for component in user_facing_path.components() {
-        match component {
-            Component::Prefix(_) => {
-                return Err(InvalidPathReason::RootNotAllowed(user_facing_path))
+        match extend_and_validate(&mut full_path, component) {
+            Ok(_) => {
+                if !full_path.exists() {
+                    if cleanup_marker.is_none() {
+                        cleanup_marker = Some(CleanupPath {
+                            path: full_path.clone(),
+                            dirty_marker: mark_dirty(&full_path)?,
+                        });
+                        fs::create_dir(&full_path)?;
+                    }
+                }
             }
-            Component::RootDir => return Err(InvalidPathReason::RootNotAllowed(user_facing_path)),
-            Component::CurDir => return Err(InvalidPathReason::CurDirNotAllowed(user_facing_path)),
-            Component::ParentDir => {
-                return Err(InvalidPathReason::ParentDirNotAllowed(user_facing_path))
-            }
-            Component::Normal(component) => {
-                // check if some intermediate path is already a graph
-                if full_path.join(META_PATH).exists() {
-                    return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
+            Err(error) => {
+                if let Some(created_path) = cleanup_marker {
+                    created_path.cleanup()?;
                 }
-                full_path.push(component);
-                //check if the path with the component is a graph
-                if namespace && full_path.join(META_PATH).exists() {
-                    return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
-                }
-                //check for symlinks
-                if full_path.is_symlink() {
-                    return Err(InvalidPathReason::SymlinkNotAllowed(user_facing_path));
-                }
+                return Err(error.into());
             }
         }
     }
-    Ok(full_path)
+    Ok(NewPath {
+        path: full_path,
+        cleanup: cleanup_marker,
+    })
 }
 
-impl ValidGraphFolder {
-    pub(crate) fn try_from(
-        base_path: PathBuf,
-        relative_path: &str,
-    ) -> Result<Self, InvalidPathReason> {
-        let full_path = valid_path(base_path, relative_path, false)?;
+#[derive(Debug, Clone)]
+struct CleanupPath {
+    path: PathBuf,
+    dirty_marker: PathBuf,
+}
+
+impl CleanupPath {
+    fn persist(&self) -> Result<(), InternalPathValidationError> {
+        fs::remove_file(&self.dirty_marker)?;
+        Ok(())
+    }
+
+    fn cleanup(&self) -> Result<(), InternalPathValidationError> {
+        fs::remove_dir_all(&self.path)?;
+        fs::remove_file(&self.dirty_marker)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ValidWriteableGraphFolder {
+    global_path: WriteableGraphFolder,
+    local_path: String,
+    dirty_marker: Option<CleanupPath>,
+}
+
+impl ValidGraphPaths for ValidWriteableGraphFolder {
+    fn local_path(&self) -> &str {
+        &self.local_path
+    }
+
+    fn graph_folder(&self) -> &impl GraphPaths {
+        &self.global_path
+    }
+}
+
+impl ValidWriteableGraphFolder {
+    fn new_inner(
+        valid_path: NewPath,
+        graph_name: &str,
+    ) -> Result<Self, InternalPathValidationError> {
+        let is_new = valid_path.is_new();
+        let graph_folder = GraphFolder::from(valid_path.path);
+        if !is_new {
+            if !graph_folder.is_reserved() {
+                return Err(InternalPathValidationError::GraphIsNamespace);
+            }
+        }
+        let data_path = graph_folder.init_swap()?;
         Ok(Self {
-            original_path: relative_path.to_owned(),
-            folder: GraphFolder::from(full_path),
+            global_path: data_path,
+            dirty_marker: valid_path.cleanup,
+            local_path: graph_name.to_string(),
+        })
+    }
+    fn new(valid_path: NewPath, graph_name: &str) -> Result<Self, PathValidationError> {
+        Self::new_inner(valid_path, graph_name).map_err(|error| {
+            PathValidationError::InternalError {
+                graph: graph_name.to_string(),
+                error,
+            }
         })
     }
 
-    pub fn created(&self) -> Result<i64, GraphError> {
-        fs::metadata(self.get_graph_path())?.created()?.to_millis()
+    pub(crate) fn try_new(
+        base_path: PathBuf,
+        relative_path: &str,
+    ) -> Result<Self, PathValidationError> {
+        let path = create_valid_path(base_path, relative_path).map_err(|error| {
+            PathValidationError::InternalError {
+                graph: relative_path.to_string(),
+                error,
+            }
+        })?;
+        if !path.cleanup.is_some() {
+            return Err(PathValidationError::GraphExistsError(
+                relative_path.to_string(),
+            ));
+        }
+        Self::new(path, relative_path)
     }
 
-    pub fn last_opened(&self) -> Result<i64, GraphError> {
-        fs::metadata(self.get_graph_path())?.accessed()?.to_millis()
+    pub(crate) fn try_existing_or_new(
+        base_path: PathBuf,
+        relative_path: &str,
+    ) -> Result<Self, PathValidationError> {
+        let path = create_valid_path(base_path, relative_path).with_path(relative_path)?;
+        Self::new(path, relative_path)
     }
 
-    pub fn last_updated(&self) -> Result<i64, GraphError> {
-        fs::metadata(self.get_graph_path())?.modified()?.to_millis()
+    fn write_graph_data_inner(
+        &self,
+        graph: MaterializedGraph,
+    ) -> Result<(), InternalPathValidationError> {
+        if Extension::disk_storage_enabled() {
+            let graph_path = self.graph_folder().graph_path()?;
+            if graph
+                .disk_storage_path()
+                .is_some_and(|path| path == &graph_path)
+            {
+                self.global_path.write_metadata(&graph)?;
+            } else {
+                graph.materialize_at(self.graph_folder())?;
+            }
+        } else {
+            self.global_path.data_path()?.replace_graph(graph)?;
+        }
+        Ok(())
+    }
+    pub fn write_graph_data(&self, graph: MaterializedGraph) -> Result<(), PathValidationError> {
+        self.write_graph_data_inner(graph)
+            .with_path(self.local_path())
     }
 
-    pub async fn created_async(&self) -> Result<i64, GraphError> {
-        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
-        metadata.created()?.to_millis()
+    pub fn read_graph(&self) -> Result<MaterializedGraph, PathValidationError> {
+        self.with_internal_errors(|| {
+            if self.graph_folder().read_metadata()?.is_diskgraph {
+                MaterializedGraph::load_from_path(self.graph_folder())
+            } else {
+                MaterializedGraph::decode(self.graph_folder())
+            }
+        })
     }
 
-    pub async fn last_opened_async(&self) -> Result<i64, GraphError> {
-        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
-        metadata.accessed()?.to_millis()
+    pub fn write_graph_bytes<R: Read + Seek + Send + 'static>(
+        &self,
+        bytes: R,
+    ) -> Result<(), PathValidationError> {
+        self.with_internal_errors(|| {
+            if Extension::disk_storage_enabled() {
+                MaterializedGraph::decode_from_zip_at(
+                    ZipArchive::new(bytes)?,
+                    self.graph_folder(),
+                )?;
+            } else {
+                self.global_path.data_path()?.unzip_to_folder(bytes)?;
+            }
+            Ok::<(), GraphError>(())
+        })
     }
 
-    pub async fn last_updated_async(&self) -> Result<i64, GraphError> {
-        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
-        metadata.modified()?.to_millis()
+    /// Swap old and new data and delete the old graph
+    pub fn finish(self) -> Result<ValidGraphFolder, PathValidationError> {
+        let data_path = self.global_path.finish().with_path(&self.local_path)?;
+        if let Some(cleanup) = self.dirty_marker.as_ref() {
+            cleanup.persist().with_path(&self.local_path)?;
+        }
+        Ok(ValidGraphFolder {
+            global_path: data_path,
+            local_path: self.local_path,
+        })
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum InternalPathValidationError {
+    #[error(transparent)]
+    InvalidPath(#[from] InvalidPathReason),
+    #[error(transparent)]
+    IOError(io::Error),
+    #[error("Graph path should not be nested: {0}")]
+    NestedPath(PathBuf),
+    #[error("Graph metadata file does not exist")]
+    MissingMetadataFile,
+    #[error("Reading path from metadata failed: {0}")]
+    InvalidMetadata(#[from] serde_json::Error),
+    #[error(transparent)]
+    GraphError(#[from] GraphError),
+    #[error("Graph path should always have a parent")]
+    MissingParent,
+    #[error(transparent)]
+    StripPrefix(#[from] StripPrefixError),
+    #[error("Expected a graph but found a namespace")]
+    GraphIsNamespace,
+    #[error("Expected a namespace but found a graph")]
+    NamespaceIsGraph,
+    #[error("The path provided contains non-UTF8 characters.")]
+    NonUTFCharacters,
+    #[error("Relative path from metadata is empty")]
+    EmptyRelativePath,
+    #[error("Relative path from metadata has more than one component")]
+    RelativePathMultipleComponents,
+    #[error("Mismatched graph paths when updating metadata")]
+    MismatchedGraphPath,
+}
+
+impl From<io::Error> for InternalPathValidationError {
+    #[track_caller]
+    fn from(value: io::Error) -> Self {
+        let location = Location::caller();
+        error!("Unexpected IO failure at {location}: {}", value);
+        InternalPathValidationError::IOError(value)
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum PathValidationError {
+    #[error("Graph '{0}' already exists")]
+    GraphExistsError(String),
+    #[error("Graph '{0}' does not exist")]
+    GraphNotExistsError(String),
+    #[error("'{0}' does not exist as a namespace")]
+    NamespaceDoesNotExist(String),
+    #[error("Invalid path '{graph}': {reason}")]
+    InvalidPath {
+        graph: String,
+        reason: InvalidPathReason,
+    },
+    #[error("Graph '{graph}' is corrupted: {error}")]
+    InternalError {
+        graph: String,
+        error: InternalPathValidationError,
+    },
+    #[error("Unexpected IO error for graph '{graph}': {error}")]
+    IOError { graph: String, error: io::Error },
+}
+
+pub trait WithPath {
+    type Value;
+    fn with_path<S: Into<String>>(self, graph: S) -> Result<Self::Value, PathValidationError>;
+}
+
+impl<V, E: Into<InternalPathValidationError>> WithPath for Result<V, E> {
+    type Value = V;
+    fn with_path<S: Into<String>>(self, graph: S) -> Result<V, PathValidationError> {
+        self.map_err(move |error| {
+            let error = error.into();
+            let graph = graph.into();
+            match error {
+                InternalPathValidationError::InvalidPath(reason) => {
+                    PathValidationError::InvalidPath { graph, reason }
+                }
+                _ => PathValidationError::InternalError { graph, error },
+            }
+        })
+    }
+}
+
+fn valid_relative_path(relative_path: &Path) -> Result<(), InternalPathValidationError> {
+    let mut components = relative_path.components();
+    valid_component(
+        components
+            .next()
+            .ok_or(InternalPathValidationError::EmptyRelativePath)?,
+    )?;
+    if components.next().is_some() {
+        return Err(InternalPathValidationError::RelativePathMultipleComponents);
+    }
+    Ok(())
+}
+
+fn read_dirty_relative_path(
+    base_path: &Path,
+) -> Result<Option<String>, InternalPathValidationError> {
+    let mut file = match File::open(base_path.join(DIRTY_PATH)) {
+        Ok(file) => file,
+        Err(error) => {
+            return match error.kind() {
+                ErrorKind::NotFound => Ok(None),
+                _ => Err(error.into()),
+            }
+        }
+    };
+    let mut json_string = String::new();
+    file.read_to_string(&mut json_string)?;
+    let path: RelativePath = serde_json::from_str(&json_string)?;
+    valid_relative_path(path.path.as_ref())?;
+    Ok(Some(path.path))
+}
+
+pub(crate) fn ensure_clean_folder(base_path: &Path) -> Result<(), InternalPathValidationError> {
+    if base_path.is_dir() {
+        match read_dirty_relative_path(base_path) {
+            Ok(path) => {
+                if let Some(path) = path {
+                    let full_path = base_path.join(path);
+                    warn!("Found dirty path {}, cleaning...", full_path.display());
+                    fs::remove_dir_all(full_path)?;
+                }
+            }
+            Err(error) => {
+                warn!("Found dirty file with invalid path: {error}, cleaning...")
+            }
+        }
+        match fs::remove_file(base_path.join(DIRTY_PATH)) {
+            Ok(_) => {}
+            Err(err) => match err.kind() {
+                ErrorKind::NotFound => {}
+                _ => Err(err)?,
+            },
+        };
+    }
+    Ok(())
+}
+
+/// Mark path as dirty
+/// - ensure parent is clean
+/// - create dirty file and fsync it
+pub(crate) fn mark_dirty(path: &Path) -> Result<PathBuf, InternalPathValidationError> {
+    let cleanup_path = path
+        .file_name()
+        .ok_or(InternalPathValidationError::MissingParent)?
+        .to_str()
+        .ok_or(InternalPathValidationError::NonUTFCharacters)?
+        .to_string();
+    let parent = path
+        .parent()
+        .ok_or(InternalPathValidationError::MissingParent)?;
+    ensure_clean_folder(parent)?;
+    let dirty_file_path = parent.join(DIRTY_PATH);
+    let mut dirty_file = File::create_new(&dirty_file_path)?;
+    dirty_file.write_all(&serde_json::to_vec(&RelativePath { path: cleanup_path })?)?;
+    // make sure the dirty path is properly recorded before we proceed!
+    dirty_file.sync_all()?;
+    Ok(dirty_file_path)
+}
+
+impl GraphPaths for ValidGraphFolder {
+    fn root(&self) -> &Path {
+        self.global_path.root()
     }
 
-    pub async fn read_metadata_async(&self) -> Result<GraphMetadata, GraphError> {
-        let folder = self.folder.clone();
-        blocking_compute(move || folder.read_metadata()).await
+    fn relative_data_path(&self) -> Result<String, GraphError> {
+        self.global_path.relative_data_path()
     }
 
-    pub fn get_original_path_str(&self) -> &str {
-        &self.original_path
+    fn relative_graph_path(&self) -> Result<String, GraphError> {
+        self.global_path.relative_graph_path()
+    }
+}
+
+impl ValidGraphPaths for ValidGraphFolder {
+    fn local_path(&self) -> &str {
+        &self.local_path
     }
 
-    pub fn get_original_path(&self) -> &Path {
-        &Path::new(&self.original_path)
+    fn graph_folder(&self) -> &impl GraphPaths {
+        &self.global_path
+    }
+}
+
+impl ValidGraphFolder {
+    fn with_internal_errors<V>(
+        &self,
+        map: impl FnOnce() -> Result<V, InternalPathValidationError>,
+    ) -> Result<V, PathValidationError> {
+        map().with_path(self.local_path())
+    }
+
+    pub fn graph_folder(&self) -> &GraphFolder {
+        &self.global_path
+    }
+    pub fn created(&self) -> Result<i64, PathValidationError> {
+        self.with_internal_errors(|| {
+            Ok(self.root_meta_path().metadata()?.created()?.to_millis()?)
+        })
+    }
+
+    pub fn last_opened(&self) -> Result<i64, PathValidationError> {
+        self.with_internal_errors(|| {
+            Ok(fs::metadata(self.global_path.meta_path()?)?
+                .accessed()?
+                .to_millis()?)
+        })
+    }
+
+    pub fn last_updated(&self) -> Result<i64, PathValidationError> {
+        self.with_internal_errors(|| {
+            Ok(fs::metadata(self.meta_path()?)?.modified()?.to_millis()?)
+        })
+    }
+
+    pub async fn created_async(&self) -> Result<i64, PathValidationError> {
+        let cloned = self.clone();
+        blocking_io(move || cloned.created()).await
+    }
+
+    pub async fn last_opened_async(&self) -> Result<i64, PathValidationError> {
+        let cloned = self.clone();
+        blocking_io(move || cloned.last_opened()).await
+    }
+
+    pub async fn last_updated_async(&self) -> Result<i64, PathValidationError> {
+        let cloned = self.clone();
+        blocking_io(move || cloned.last_updated()).await
+    }
+
+    pub async fn read_metadata_async(&self) -> Result<GraphMetadata, PathValidationError> {
+        let folder: GraphFolder = self.global_path.clone();
+        blocking_compute(move || folder.read_metadata())
+            .await
+            .with_path(self.local_path())
     }
 
     /// This returns the PathBuf used to build multiple GraphError types
     pub fn to_error_path(&self) -> PathBuf {
-        self.original_path.to_owned().into()
+        self.local_path.to_owned().into()
+    }
+
+    pub fn get_graph_name(&self) -> Result<String, PathValidationError> {
+        let path: &Path = self.local_path.as_ref();
+        let name = self.with_internal_errors(|| {
+            let last_component: Component = path
+                .components()
+                .last()
+                .ok_or(InvalidPathReason::PathNotParsable)?;
+            match last_component {
+                Component::Normal(value) => Ok(value
+                    .to_str()
+                    .map(|s| s.to_string())
+                    .ok_or(InvalidPathReason::PathNotParsable)?),
+                Component::Prefix(_)
+                | Component::RootDir
+                | Component::CurDir
+                | Component::ParentDir => Err(InvalidPathReason::PathNotParsable)?,
+            }
+        })?;
+
+        Ok(name)
+    }
+    pub(crate) fn as_existing(&self) -> Result<ExistingGraphFolder, PathValidationError> {
+        if self.global_path.is_reserved() {
+            Ok(ExistingGraphFolder(self.clone()))
+        } else {
+            Err(PathValidationError::GraphNotExistsError(
+                self.local_path.clone(),
+            ))
+        }
     }
 }
 

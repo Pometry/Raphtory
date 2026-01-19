@@ -231,7 +231,7 @@ class RaphtoryClient(object):
         Receive graph from a path path on the server
 
         Note:
-        This downloads a copy of the graph. Modifications are not persistet to the server.
+        This downloads a copy of the graph. Modifications are not persisted to the server.
 
         Arguments:
             path (str): the path of the graph to be received

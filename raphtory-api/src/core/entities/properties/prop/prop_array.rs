@@ -1,6 +1,6 @@
 use crate::{
     core::entities::properties::prop::{
-        unify_types, ArrowRow, DirectConvert, Prop, PropType, SerdeProp,
+        unify_types, ArrowRow, DirectConvert, Prop, PropType, EMPTY_MAP_FIELD_NAME,
     },
     iter::{BoxedLIter, IntoDynBoxed},
 };
@@ -8,7 +8,7 @@ use arrow_array::{
     cast::AsArray, types::*, Array, ArrayRef, ArrowPrimitiveType, OffsetSizeTrait, PrimitiveArray,
 };
 use arrow_schema::{DataType, Field, Fields, TimeUnit};
-use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
+use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     hash::{Hash, Hasher},
     sync::Arc,
@@ -16,7 +16,7 @@ use std::{
 
 #[derive(Debug, Clone, derive_more::From)]
 pub enum PropArray {
-    Vec(Arc<Vec<Prop>>),
+    Vec(Arc<[Prop]>),
     Array(ArrayRef),
 }
 
@@ -201,7 +201,7 @@ impl Serialize for PropArray {
     {
         let mut state = serializer.serialize_seq(Some(self.len()))?;
         for prop in self.iter_all() {
-            state.serialize_element(&prop.as_ref().map(SerdeProp))?;
+            state.serialize_element(&prop)?;
         }
         state.end()
     }
@@ -210,10 +210,10 @@ impl Serialize for PropArray {
 impl<'de> Deserialize<'de> for PropArray {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
-        let vec: Vec<Prop> = Deserialize::deserialize(deserializer)?;
-        Ok(PropArray::Vec(Arc::from(vec)))
+        let data = <Vec<Prop>>::deserialize(deserializer)?;
+        Ok(PropArray::Vec(data.into()))
     }
 }
 
@@ -300,7 +300,7 @@ pub fn arrow_dtype_from_prop_type(prop_type: &PropType) -> DataType {
                 .collect::<Vec<_>>();
             if fields.is_empty() {
                 DataType::Struct(Fields::from_iter([Field::new(
-                    "__empty__",
+                    EMPTY_MAP_FIELD_NAME,
                     DataType::Null,
                     true,
                 )]))

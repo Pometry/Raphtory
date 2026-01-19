@@ -1,6 +1,6 @@
 use db4_graph::TemporalGraph;
 use std::sync::Arc;
-use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
+use storage::{error::StorageError, Extension, ReadLockedEdges, ReadLockedNodes};
 
 #[derive(Debug)]
 pub struct LockedGraph {
@@ -18,6 +18,10 @@ impl LockedGraph {
             edges,
             graph,
         }
+    }
+
+    pub fn flush(&self) -> Result<(), StorageError> {
+        self.graph.flush()
     }
 }
 

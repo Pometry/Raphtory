@@ -27,8 +27,20 @@ impl GIDResolverOps for MappingResolver {
         })
     }
 
-    fn new_with_path(_path: impl AsRef<Path>) -> Result<Self, StorageError> {
-        Self::new()
+    fn new_with_path(
+        _path: impl AsRef<Path>,
+        dtype: Option<GidType>,
+    ) -> Result<Self, StorageError> {
+        match dtype {
+            None => Self::new(),
+            Some(dtype) => {
+                let mapping = match dtype {
+                    GidType::U64 => Mapping::new_u64(),
+                    GidType::Str => Mapping::new_str(),
+                };
+                Ok(Self { mapping })
+            }
+        }
     }
 
     fn len(&self) -> usize {

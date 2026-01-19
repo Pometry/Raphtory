@@ -65,7 +65,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
     let encoded_data_dir = data_dir.join("graphdb.bincode");
     if encoded_data_dir.exists() {
         let now = Instant::now();
-        let g = Graph::decode(encoded_data_dir.as_path(), None)?;
+        let g = Graph::decode(encoded_data_dir.as_path())?;
 
         info!(
             "Loaded graph from path {} with {} nodes, {} edges, took {} seconds",

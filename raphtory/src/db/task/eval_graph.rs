@@ -3,13 +3,17 @@ use crate::{
         entities::nodes::node_ref::AsNodeRef,
         state::compute_state::{ComputeState, ComputeStateVec},
     },
-    db::task::{
-        edge::eval_edge::EvalEdgeView,
-        node::{eval_node::EvalNodeView, eval_node_state::EVState},
-        task_state::PrevLocalState,
+    db::{
+        api::state::Index,
+        task::{
+            edge::eval_edge::EvalEdgeView,
+            node::{eval_node::EvalNodeView, eval_node_state::EVState},
+            task_state::PrevLocalState,
+        },
     },
     prelude::GraphViewOps,
 };
+use raphtory_core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 
@@ -20,6 +24,7 @@ pub struct EvalGraph<'graph, 'a, G, S, CS: Clone = ComputeStateVec> {
     pub(crate) storage: &'graph GraphStorage,
     pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
+    pub(crate) index: &'graph Index<VID>,
 }
 
 impl<'graph, 'a, G, S, CS: Clone> Clone for EvalGraph<'graph, 'a, G, S, CS> {
@@ -30,6 +35,7 @@ impl<'graph, 'a, G, S, CS: Clone> Clone for EvalGraph<'graph, 'a, G, S, CS> {
             storage: self.storage,
             local_state_prev: self.local_state_prev,
             node_state: self.node_state.clone(),
+            index: self.index,
         }
     }
 }
@@ -39,7 +45,15 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
 {
     pub fn node(&self, n: impl AsNodeRef) -> Option<EvalNodeView<'graph, 'a, G, S, &'graph G, CS>> {
         let node = (&self.base_graph).node(n)?;
-        Some(EvalNodeView::new_local(node.node, self.clone(), None))
+        let state_pos = self.index.index(&node.node).unwrap_or_else(|| {
+            panic!("Internal Error, node {:?} needs to be in index", node.node);
+        });
+        Some(EvalNodeView::new_local(
+            node.node,
+            state_pos,
+            self.clone(),
+            None,
+        ))
     }
 
     pub fn edge<N: AsNodeRef>(
@@ -52,6 +66,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
             self.ss,
             edge,
             self.storage,
+            self.index,
             self.node_state.clone(),
             self.local_state_prev,
         ))

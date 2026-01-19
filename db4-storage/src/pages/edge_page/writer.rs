@@ -2,12 +2,8 @@ use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::edge::segment::MemEdgeSegment,
 };
-use arrow_array::{ArrayRef, BooleanArray};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
-use raphtory_core::{
-    entities::EID,
-    storage::timeindex::{AsTime, TimeIndexEntry},
-};
+use raphtory_core::storage::timeindex::{AsTime, TimeIndexEntry};
 use std::ops::DerefMut;
 
 pub struct EdgeWriter<
@@ -58,31 +54,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, props, lsn);
         edge_pos
     }
-
-    // pub fn bulk_add_edges(
-    //     &mut self,
-    //     mask: &BooleanArray,
-    //     time: &[i64],
-    //     start_idx: usize,
-    //     eids: &[EID],
-    //     srcs: &[VID],
-    //     dsts: &[VID],
-    //     layer_id: usize,
-    //     cols: &[ArrayRef],
-    //     cols_prop_ids: &[usize],
-    // ) {
-    //     self.writer.bulk_insert_edges_internal(
-    //         mask,
-    //         time,
-    //         start_idx,
-    //         eids,
-    //         srcs,
-    //         dsts,
-    //         layer_id,
-    //         cols,
-    //         cols_prop_ids,
-    //     );
-    // }
 
     pub fn delete_edge<T: AsTime>(
         &mut self,
@@ -151,6 +122,29 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.graph_stats.update_time(t.t());
         self.writer
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props, lsn);
+    }
+
+    pub fn bulk_delete_edge(
+        &mut self,
+        t: TimeIndexEntry,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        exists: bool,
+        layer_id: usize,
+        lsn: u64,
+    ) {
+        if !exists {
+            self.increment_layer_num_edges(0);
+            self.increment_layer_num_edges(layer_id);
+        }
+
+        self.writer
+            .insert_static_edge_internal(edge_pos, src, dst, 0, lsn);
+
+        self.graph_stats.update_time(t.t());
+        self.writer
+            .delete_edge_internal(t, edge_pos, src, dst, layer_id, lsn);
     }
 
     pub fn segment_id(&self) -> usize {

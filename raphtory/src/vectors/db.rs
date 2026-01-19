@@ -1,15 +1,3 @@
-use std::{
-    collections::HashSet,
-    ops::Deref,
-    path::{Path, PathBuf},
-    sync::{Arc, OnceLock},
-};
-
-use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
-use futures_util::StreamExt;
-use rand::{rngs::StdRng, SeedableRng};
-use tempfile::TempDir;
-
 use super::{
     entity_ref::{EntityRef, IntoDbId},
     Embedding,
@@ -19,6 +7,15 @@ use crate::{
     errors::{GraphError, GraphResult},
     prelude::GraphViewOps,
 };
+use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
+use futures_util::StreamExt;
+use std::{
+    collections::HashSet,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::{Arc, OnceLock},
+};
+use tempfile::TempDir;
 
 const LMDB_MAX_SIZE: usize = 1024 * 1024 * 1024 * 1024; // 1TB
 

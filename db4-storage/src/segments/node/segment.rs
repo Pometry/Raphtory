@@ -3,6 +3,7 @@ use crate::{
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
+    pages::node_store::increment_and_clamp,
     persist::strategy::PersistentStrategy,
     segments::{
         HasRow, SegmentContainer,
@@ -27,7 +28,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc,
-        atomic::{AtomicI64, AtomicUsize, Ordering},
+        atomic::{AtomicU32, AtomicUsize, Ordering},
     },
 };
 
@@ -359,20 +360,34 @@ impl MemNodeSegment {
     pub fn node_ref(&self, pos: LocalPOS) -> MemNodeRef<'_> {
         MemNodeRef::new(pos, self)
     }
+
+    pub fn max_page_len(&self) -> u32 {
+        self.max_page_len
+    }
 }
 
 #[derive(Debug)]
 pub struct NodeSegmentView<EXT> {
     inner: Arc<parking_lot::RwLock<MemNodeSegment>>,
     segment_id: usize,
-    event_id: AtomicI64,
     est_size: AtomicUsize,
+    max_num_node: AtomicU32,
     _ext: EXT,
 }
 
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
     inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+    num_nodes: u32,
+}
+
+impl ArcLockedSegmentView {
+    pub fn new(
+        inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+        num_nodes: u32,
+    ) -> Self {
+        Self { inner, num_nodes }
+    }
 }
 
 impl LockedNSSegment for ArcLockedSegmentView {
@@ -381,6 +396,10 @@ impl LockedNSSegment for ArcLockedSegmentView {
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a> {
         let pos = pos.into();
         MemNodeRef::new(pos, &self.inner)
+    }
+
+    fn num_nodes(&self) -> u32 {
+        self.num_nodes
     }
 }
 
@@ -401,22 +420,6 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
     fn t_len(&self) -> usize {
         self.head().t_len()
-    }
-
-    fn event_id(&self) -> i64 {
-        self.event_id.load(Ordering::Relaxed)
-    }
-
-    fn increment_event_id(&self, i: i64) {
-        self.event_id.fetch_add(i, Ordering::Relaxed);
-    }
-
-    fn decrement_event_id(&self) -> i64 {
-        self.event_id
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| {
-                if x > 0 { Some(x - 1) } else { None }
-            })
-            .unwrap_or_default()
     }
 
     fn load(
@@ -447,7 +450,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
                 .into(),
             segment_id: page_id,
             _ext: ext,
-            event_id: Default::default(),
+            max_num_node: AtomicU32::new(0),
             est_size: AtomicUsize::new(0),
         }
     }
@@ -515,9 +518,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     }
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
-        ArcLockedSegmentView {
-            inner: self.inner.read_arc(),
-        }
+        ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
     fn num_layers(&self) -> usize {
@@ -530,7 +531,9 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
             .map_or(0, |layer| layer.len())
     }
 
-    fn flush(&self) {}
+    fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 
     fn est_size(&self) -> usize {
         self.est_size.load(Ordering::Relaxed)
@@ -546,25 +549,31 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     ) -> Result<(), StorageError> {
         Ok(())
     }
+
+    fn nodes_counter(&self) -> &AtomicU32 {
+        &self.max_num_node
+    }
+
+    fn increment_num_nodes(&self, max_page_len: u32) {
+        increment_and_clamp(self.nodes_counter(), max_page_len);
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use raphtory_api::core::entities::properties::{
-        meta::Meta,
-        prop::{Prop, PropType},
-    };
-    use raphtory_core::entities::{EID, ELID, VID};
-    use tempfile::tempdir;
-
     use crate::{
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::strategy::NoOpStrategy,
     };
+    use raphtory_api::core::entities::properties::{
+        meta::Meta,
+        prop::{Prop, PropType},
+    };
+    use raphtory_core::entities::{EID, ELID, VID};
+    use std::sync::Arc;
+    use tempfile::tempdir;
 
     #[test]
     fn est_size_changes() {

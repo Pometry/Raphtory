@@ -392,6 +392,10 @@ impl<'a> WriteLockedPropMapper<'a> {
 
     pub fn set_id_and_dtype(&mut self, key: impl Into<ArcStr>, id: usize, dtype: PropType) {
         self.dict_mapper.set_id(key, id);
+        self.set_dtype(id, dtype);
+    }
+
+    pub fn set_dtype(&mut self, id: usize, dtype: PropType) {
         let dtypes = self.d_types.deref_mut();
         if dtypes.len() <= id {
             dtypes.resize(id + 1, PropType::Empty);

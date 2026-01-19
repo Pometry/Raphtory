@@ -19,14 +19,21 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
-    persist::strategy::PersistentStrategy,
+    persist::strategy::{Config, PersistentStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     Extension, WalImpl, ES, GS, NS,
 };
 
-pub struct WriteS<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> {
+pub struct WriteS<'a, EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+{
     static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
 }
 
@@ -35,8 +42,12 @@ pub struct UnlockedSession<'a> {
     graph: &'a TemporalGraph<Extension>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> EdgeWriteLock
-    for WriteS<'a, EXT>
+impl<'a, EXT> EdgeWriteLock for WriteS<'a, EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     fn internal_add_static_edge(
         &mut self,
@@ -169,36 +180,6 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
             .edge_meta()
             .resolve_prop_id(prop, dtype, is_static)?)
     }
-
-    fn internal_add_node(
-        &self,
-        t: TimeIndexEntry,
-        v: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
-        todo!()
-    }
-
-    fn internal_add_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, Self::Error> {
-        todo!()
-    }
-
-    fn internal_add_edge_update(
-        &self,
-        t: TimeIndexEntry,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<(), Self::Error> {
-        todo!()
-    }
 }
 
 impl InternalAdditionOps for TemporalGraph {
@@ -234,9 +215,11 @@ impl InternalAdditionOps for TemporalGraph {
         match id {
             NodeRef::External(id) => {
                 let id = self.logical_to_physical.get_or_init(id, || {
-                    self.node_count
-                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                        .into()
+                    let (seg, pos) = self.storage().nodes().reserve_free_pos(
+                        self.event_counter
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                    );
+                    pos.as_vid(seg, self.extension().max_node_page_len())
                 })?;
 
                 Ok(id)

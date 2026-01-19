@@ -1,17 +1,13 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
     api::edges::{EdgeRefOps, EdgeSegmentOps, LockedESegment},
     error::StorageError,
     pages::{
+        SegmentCounts,
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
+        row_group_par_iter,
     },
     persist::strategy::Config,
     segments::edge::segment::MemEdgeSegment,
@@ -23,6 +19,12 @@ use raphtory_core::{
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
+use std::{
+    collections::HashMap,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 const N: usize = 32;
 
@@ -93,6 +95,31 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedEdgeStorage<ES,
                     page.edge_iter(&LayerIds::All).map(|e| e.edge_id()),
                 )
             })
+    }
+
+    pub fn row_groups_par_iter(
+        &self,
+    ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = EID> + '_)> {
+        let max_actual_seg_len = self
+            .storage
+            .segments
+            .iter()
+            .map(|(_, seg)| seg.num_edges())
+            .max()
+            .unwrap_or(0);
+        let max_seg_len = self.storage.max_page_len();
+        row_group_par_iter(
+            max_seg_len as usize,
+            self.locked_pages.len(),
+            max_seg_len,
+            max_actual_seg_len,
+        )
+        .map(|(row_group_id, iter)| {
+            (
+                row_group_id,
+                iter.filter(|eid| self.edge_ref(*eid).edge(0).is_some()),
+            )
+        })
     }
 }
 
@@ -326,6 +353,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         segment_id
     }
 
+    pub fn increment_edge_segment_count(&self, eid: EID) {
+        let (segment_id, _) = resolve_pos(eid, self.max_page_len());
+        let segment = self.get_or_create_segment(segment_id);
+        segment.increment_num_edges();
+    }
+
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<ES> {
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
@@ -484,6 +517,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         }
     }
 
+    pub fn reserve_new_eid(&self, row: usize) -> EID {
+        let (segment_id, local_pos) = self.reserve_free_pos(row);
+        local_pos.as_eid(segment_id, self.max_page_len())
+    }
+
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % N;
         let maybe_free_page = {
@@ -530,18 +568,21 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
             .ok()
     }
 
-    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+    fn par_iter_segments(&self) -> impl ParallelIterator<Item = &ES> {
         (0..self.segments.count())
             .into_par_iter()
-            .filter_map(move |page_id| self.segments.get(page_id))
-            .flat_map(move |page| {
-                (0..page.num_edges())
-                    .into_par_iter()
-                    .map(LocalPOS)
-                    .filter_map(move |local_edge| {
-                        page.layer_entry(local_edge, layer, Some(page.head()))
-                    })
-            })
+            .filter_map(|idx| self.segments.get(idx).map(|seg| seg.deref()))
+    }
+
+    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+        self.par_iter_segments().flat_map(move |page| {
+            (0..page.num_edges())
+                .into_par_iter()
+                .map(LocalPOS)
+                .filter_map(move |local_edge| {
+                    page.layer_entry(local_edge, layer, Some(page.head()))
+                })
+        })
     }
 
     pub fn iter(&self, layer: usize) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
@@ -572,5 +613,16 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                     )
                 })
             })
+    }
+
+    pub(crate) fn segment_counts(&self) -> SegmentCounts<EID> {
+        SegmentCounts::new(
+            self.max_page_len(),
+            self.pages().iter().map(|(_, seg)| seg.num_edges()),
+        )
+    }
+
+    pub fn flush(&self) -> Result<(), StorageError> {
+        self.par_iter_segments().try_for_each(|seg| seg.flush())
     }
 }

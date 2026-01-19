@@ -26,7 +26,7 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'PyPropValueList', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'iterables', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -307,14 +307,6 @@ class GraphView(object):
            list[Node]: the nodes that match the properties name and value
         """
 
-    def get_index_spec(self) -> IndexSpec:
-        """
-        Get index spec
-
-        Returns:
-            IndexSpec:
-        """
-
     def has_edge(self, src: NodeInput, dst: NodeInput) -> bool:
         """
         Returns true if the graph contains the specified edge
@@ -401,11 +393,15 @@ class GraphView(object):
 
     def materialize(self) -> GraphView:
         """
-        Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
+        Returns a 'materialized' clone of the graph view - i.e. a new graph with a
+        copy of the data seen within the view instead of just a mask over the original graph.
 
         Returns:
            GraphView: Returns a graph clone
         """
+
+    def materialize_at(self, path):
+        """Materializes the graph view into a graphql compatible folder."""
 
     @property
     def metadata(self) -> Metadata:
@@ -469,32 +465,6 @@ class GraphView(object):
 
         Returns:
             WindowSet: A `WindowSet` object.
-        """
-
-    def search_edges(self, filter: Any, limit: int = 25, offset: int = 0) -> list[Edge]:
-        """
-        Searches for edges which match the given filter expression. This uses Tantivy's exact search.
-
-        Arguments:
-           filter: The filter expression to search for.
-           limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
-
-        Returns:
-           list[Edge]: A list of edges which match the filter expression. The list will be empty if no edges match the query.
-        """
-
-    def search_nodes(self, filter: Any, limit: int = 25, offset: int = 0) -> list[Node]:
-        """
-        Searches for nodes which match the given filter expression. This uses Tantivy's exact search.
-
-        Arguments:
-           filter: The filter expression to search for.
-           limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
-
-        Returns:
-           list[Node]: A list of nodes which match the filter expression. The list will be empty if no nodes match.
         """
 
     def shrink_end(self, end: TimeInput) -> GraphView:
@@ -717,7 +687,7 @@ class Graph(GraphView):
         num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
     """
 
-    def __new__(cls, num_shards: Optional[int] = None) -> Graph:
+    def __new__(cls, path=None) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self):
@@ -790,67 +760,6 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def cache(self, path: str) -> None:
-        """
-         Write Graph to cache file and initialise the cache.
-
-        Future updates are tracked. Use `write_updates` to persist them to the
-        cache file. If the file already exists its contents are overwritten.
-
-        Arguments:
-            path (str): The path to the cache file
-
-        Returns:
-            None:
-        """
-
-    def create_index(self) -> None:
-        """
-        Create graph index
-
-        Returns:
-            None:
-        """
-
-    def create_index_in_ram(self) -> None:
-        """
-        Creates a graph index in memory (RAM).
-
-        This is primarily intended for use in tests and should not be used in production environments,
-        as the index will not be persisted to disk.
-
-        Returns:
-            None:
-        """
-
-    def create_index_in_ram_with_spec(self, py_spec: IndexSpec) -> None:
-        """
-        Creates a graph index in memory (RAM) with the provided index spec.
-
-        This is primarily intended for use in tests and should not be used in production environments,
-        as the index will not be persisted to disk.
-
-        Arguments:
-            py_spec: The specification for the in-memory index to be created.
-
-        Arguments:
-            py_spec (IndexSpec): - The specification for the in-memory index to be created.
-
-        Returns:
-            None:
-        """
-
-    def create_index_with_spec(self, py_spec: Any) -> None:
-        """
-        Create graph index with the provided index spec.
-
-        Arguments:
-            py_spec: - The specification for the in-memory index to be created.
-
-        Returns:
-            None:
-        """
-
     def create_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -899,6 +808,14 @@ class Graph(GraphView):
 
         Returns:
             Graph: the graph with event semantics applied
+        """
+
+    def flush(self) -> None:
+        """
+        Trigger a flush of the underlying storage if disk storage is enabled
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
         """
 
     @staticmethod
@@ -1075,19 +992,8 @@ class Graph(GraphView):
         """
 
     @staticmethod
-    def load_cached(path: str) -> Graph:
-        """
-         Load Graph from a file and initialise it as a cache file.
-
-        Future updates are tracked. Use `write_updates` to persist them to the
-        cache file.
-
-        Arguments:
-          path (str): The path to the cache file
-
-        Returns:
-           Graph: the loaded graph with initialised cache
-        """
+    def load(path):
+        ...
 
     def load_edge_props_from_pandas(self, df: DataFrame, src: str, dst: str, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
@@ -1129,7 +1035,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1143,6 +1049,7 @@ class Graph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1151,7 +1058,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load edges from a Parquet file into the graph.
 
@@ -1165,6 +1072,7 @@ class Graph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1176,7 +1084,7 @@ class Graph(GraphView):
     @staticmethod
     def load_from_file(path: str) -> Graph:
         """
-         Load Graph from a file.
+         Load Graph from a parquet file.
 
         Arguments:
           path (str): The path to the file.
@@ -1223,7 +1131,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(self, df: DataFrame, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
+    def load_nodes_from_pandas(self, df: DataFrame, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -1236,6 +1144,7 @@ class Graph(GraphView):
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1244,7 +1153,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
+    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load nodes from a Parquet file into the graph.
 
@@ -1257,6 +1166,7 @@ class Graph(GraphView):
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            secondary_index (str, optional): The column name for the secondary index. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1286,7 +1196,7 @@ class Graph(GraphView):
 
     def save_to_file(self, path: str) -> None:
         """
-         Saves the Graph to the given path.
+         Saves the Graph to the given path in parquet format.
 
         Arguments:
             path (str): The path to the file.
@@ -1315,7 +1225,7 @@ class Graph(GraphView):
 
     def to_parquet(self, graph_dir: str | PathLike) -> None:
         """
-        Persist graph to parquet files.
+        Persist graph to parquet files
 
         Arguments:
             graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
@@ -1338,18 +1248,10 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def write_updates(self) -> None:
-        """
-        Persist the new updates by appending them to the cache file.
-
-        Returns:
-            None:
-        """
-
 class PersistentGraph(GraphView): 
     """A temporal graph that allows edges and nodes to be deleted."""
 
-    def __new__(cls) -> PersistentGraph:
+    def __new__(cls, path=None) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self):
@@ -1422,66 +1324,6 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def cache(self, path: str) -> None:
-        """
-         Write PersistentGraph to cache file and initialise the cache.
-
-        Future updates are tracked. Use `write_updates` to persist them to the
-        cache file. If the file already exists its contents are overwritten.
-
-        Arguments:
-            path (str): The path to the cache file
-
-        Returns:
-            None:
-        """
-
-    def create_index(self) -> None:
-        """
-        Create graph index
-
-        Returns:
-            None:
-        """
-
-    def create_index_in_ram(self) -> None:
-        """
-        Creates a graph index in memory (RAM).
-
-        This is primarily intended for use in tests and should not be used in production environments,
-        as the index will not be persisted to disk.
-
-        Returns:
-            None:
-        """
-
-    def create_index_in_ram_with_spec(self, py_spec: IndexSpec) -> None:
-        """
-        Creates a graph index in memory (RAM) with the provided index spec.
-
-        This is primarily intended for use in tests and should not be used in production environments,
-        as the index will not be persisted to disk.
-
-        Arguments:
-            py_spec: The specification for the in-memory index to be created.
-
-         Arguments:
-            py_spec (IndexSpec): The specification for the in-memory index to be created.
-
-        Returns:
-            None:
-        """
-
-    def create_index_with_spec(self, py_spec: Any) -> None:
-        """
-        Create graph index with the provided index spec.
-        Arguments:
-            py_spec: - The specification for the in-memory index to be created.
-
-        Returns:
-            None:
-        """
-
     def create_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -1548,6 +1390,14 @@ class PersistentGraph(GraphView):
 
         Returns:
             Graph: the graph with event semantics applied
+        """
+
+    def flush(self) -> None:
+        """
+        Trigger a flush of the underlying storage if disk storage is enabled
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
         """
 
     def get_all_node_types(self) -> list[str]:
@@ -1707,21 +1557,10 @@ class PersistentGraph(GraphView):
         """
 
     @staticmethod
-    def load_cached(path: str) -> PersistentGraph:
-        """
-         Load PersistentGraph from a file and initialise it as a cache file.
+    def load(path):
+        ...
 
-        Future updates are tracked. Use `write_updates` to persist them to the
-        cache file.
-
-        Arguments:
-          path (str): The path to the cache file
-
-        Returns:
-           PersistentGraph: the loaded graph with initialised cache
-        """
-
-    def load_edge_deletions_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edge_deletions_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, layer: Optional[str] = None, layer_col: Optional[str] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load edges deletions from a Pandas DataFrame into the graph.
 
@@ -1730,8 +1569,10 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
+                NOTE: All values in this column must be unique. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1740,17 +1581,19 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_deletions_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edge_deletions_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, layer: Optional[str] = None, layer_col: Optional[str] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load edges deletions from a Parquet file into the graph.
 
         Arguments:
             parquet_path (str): Parquet file or directory of Parquet files path containing node information.
+            time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
-            time (str): The column name for the update timestamps.
+                NOTE: All values in this column must be unique. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1799,7 +1642,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1808,11 +1651,13 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
+                NOTE: All values in this column must be unique. Defaults to None.
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1821,7 +1666,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
+    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load edges from a Parquet file into the graph.
 
@@ -1830,11 +1675,13 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
+                NOTE: All values in this column must be unique. Defaults to None.
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1846,7 +1693,7 @@ class PersistentGraph(GraphView):
     @staticmethod
     def load_from_file(path: str) -> PersistentGraph:
         """
-         Load PersistentGraph from a file.
+         Load PersistentGraph from a parquet file.
 
         Arguments:
           path (str): The path to the file.
@@ -1893,7 +1740,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(self, df: DataFrame, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
+    def load_nodes_from_pandas(self, df: DataFrame, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -1901,11 +1748,13 @@ class PersistentGraph(GraphView):
             df (DataFrame): The Pandas DataFrame containing the nodes.
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
+                NOTE: All values in this column must be unique. Defaults to None.
             node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1914,7 +1763,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
+    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, secondary_index: Optional[str] = None) -> None:
         """
         Load nodes from a Parquet file into the graph.
 
@@ -1922,11 +1771,13 @@ class PersistentGraph(GraphView):
             parquet_path (str): Parquet file or directory of Parquet files containing the nodes
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
+                NOTE: All values in this column must be unique. Defaults to None.
             node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            secondary_index (str, optional): The column name for the secondary index.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1956,7 +1807,7 @@ class PersistentGraph(GraphView):
 
     def save_to_file(self, path: str) -> None:
         """
-         Saves the PersistentGraph to the given path.
+         Saves the PersistentGraph to the given path in parquet format.
 
         Arguments:
             path (str): The path to the file.
@@ -1995,14 +1846,6 @@ class PersistentGraph(GraphView):
 
         Raises:
             GraphError: If the operation fails.
-        """
-
-    def write_updates(self) -> None:
-        """
-        Persist the new updates by appending them to the cache file.
-
-        Returns:
-            None:
         """
 
 class Node(object): 
@@ -6566,152 +6409,6 @@ class WindowSet(object):
 
         Returns:
             Iterable: The time index.
-        """
-
-class IndexSpecBuilder(object): 
-
-    def __new__(cls, graph) -> IndexSpecBuilder:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-    def build(self) -> IndexSpec:
-        """
-        Return a spec
-
-        Returns:
-            IndexSpec:
-        """
-
-    def with_all_edge_metadata(self) -> dict[str, Any]:
-        """
-        Adds all edge metadata to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_edge_properties(self) -> dict[str, Any]:
-        """
-        Adds all edge properties to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_edge_properties_and_metadata(self) -> dict[str, Any]:
-        """
-        Adds all edge properties and metadata to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_node_metadata(self) -> dict[str, Any]:
-        """
-        Adds all node metadata to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_node_properties(self) -> dict[str, Any]:
-        """
-        Adds all node properties to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_node_properties_and_metadata(self) -> dict[str, Any]:
-        """
-        Adds all node properties and metadata to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_edge_metadata(self, props: Any) -> dict[str, Any]:
-        """
-        Adds specified edge metadata to the spec.
-
-        Arguments:
-            props: List of metadata.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_edge_properties(self, props: Any) -> dict[str, Any]:
-        """
-        Adds specified edge properties to the spec.
-
-        Arguments:
-            props: List of properties.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_node_metadata(self, props: Any) -> dict[str, Any]:
-        """
-        Adds specified node metadata to the spec.
-
-        Arguments:
-            props: list of metadata.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_node_properties(self, props: Any) -> dict[str, Any]:
-        """
-        Adds specified node properties to the spec.
-
-        Arguments:
-            props: list of properties.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-class IndexSpec(object): 
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    @property
-    def edge_metadata(self) -> list[str]:
-        """
-        Get edge metadata.
-
-        Returns:
-            list[str]:
-        """
-
-    @property
-    def edge_properties(self) -> list[str]:
-        """
-        Get edge properties.
-
-        Returns:
-            list[str]:
-        """
-
-    @property
-    def node_metadata(self) -> list[str]:
-        """
-        Get node metadata.
-
-        Returns:
-            list[str]:
-        """
-
-    @property
-    def node_properties(self) -> list[str]:
-        """
-        Get node properties.
-
-        Returns:
-            list[str]:
         """
 
 def version() -> str:

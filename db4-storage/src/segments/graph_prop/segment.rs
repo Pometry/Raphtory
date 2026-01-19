@@ -1,5 +1,4 @@
 use crate::{
-    LocalPOS,
     error::StorageError,
     segments::{HasRow, SegmentContainer},
 };

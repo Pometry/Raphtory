@@ -28,7 +28,7 @@ pub fn make_graph_from_edges<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
 >(
     edges: &[(VID, VID, Option<usize>)], // src, dst, optional layer_id
     graph_dir: &Path,
@@ -90,7 +90,7 @@ pub fn check_edges_support<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
 >(
     edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
     par_load: bool,
@@ -121,7 +121,7 @@ pub fn check_edges_support<
         NS: NodeSegmentOps<Extension = EXT>,
         ES: EdgeSegmentOps<Extension = EXT>,
         GS: GraphPropSegmentOps<Extension = EXT>,
-        EXT: PersistentStrategy,
+        EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
     >(
         stage: &str,
         expected_edges: &[(VID, VID, Option<usize>)], // (src, dst, layer_id)
@@ -221,7 +221,7 @@ pub fn check_edges_support<
 }
 
 pub fn check_graph_with_nodes_support<
-    EXT: PersistentStrategy,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
@@ -356,7 +356,7 @@ pub fn check_graph_with_nodes_support<
 }
 
 pub fn check_graph_with_props_support<
-    EXT: PersistentStrategy,
+    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,

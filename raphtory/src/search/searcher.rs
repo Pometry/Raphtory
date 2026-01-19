@@ -72,7 +72,6 @@ mod search_tests {
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
-    use tempfile::tempdir;
     use tracing::info;
 
     #[cfg(test)]
@@ -265,7 +264,7 @@ mod search_tests {
     fn load_jira_graph() -> Result<(), GraphError> {
         global_info_logger();
 
-        let graph = Graph::decode("/tmp/graphs/jira", None).expect("failed to load graph");
+        let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
         let now = SystemTime::now();

@@ -37,7 +37,7 @@ struct OutState {
 ///
 pub fn out_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
 where
-    G: StaticGraphViewOps,
+    G: StaticGraphViewOps + std::fmt::Debug,
 {
     let ctx: Context<G, ComputeStateVec> = g.into();
     let step1 = ATask::new(move |vv: &mut EvalNodeView<G, OutState>| {
@@ -71,12 +71,12 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<OutState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
+        |_, _, _, local: Vec<OutState>, index| {
+            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |v| {
                 Nodes::new_filtered(
                     g.clone(),
                     g.clone(),
-                    Some(Index::from_iter(v.out_components)),
+                    Index::from_iter(v.out_components),
                     None,
                 )
             })
@@ -127,6 +127,6 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         node.base_graph.clone(),
         node.base_graph.clone(),
         distances.into(),
-        Some(Index::new(nodes)),
+        Index::Partial(nodes.into()),
     )
 }

@@ -8,8 +8,8 @@ use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
     prop::{
-        Prop, PropType, SerdeList, SerdeMap, arrow_dtype_from_prop_type, list_array_from_props,
-        struct_array_from_props,
+        Prop, PropType, SerdeArrowList, SerdeArrowMap, arrow_dtype_from_prop_type,
+        list_array_from_props, struct_array_from_props,
     },
 };
 use raphtory_core::{
@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 pub mod props_meta_writer;
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default)]
 pub struct Properties {
     c_properties: Vec<PropColumn>,
 
@@ -202,13 +202,12 @@ impl Properties {
                 let dt = meta
                     .get_dtype(col_id)
                     .as_ref()
-                    .map(arrow_dtype_from_prop_type)
-                    .unwrap();
+                    .map(arrow_dtype_from_prop_type)?;
                 let array_iter = indices
                     .map(|i| lazy_vec.get_opt(i))
-                    .map(|e| e.map(|m| SerdeMap(m)));
+                    .map(|e| e.map(|m| SerdeArrowMap(m)));
 
-                let struct_array = struct_array_from_props(&dt, array_iter);
+                let struct_array = struct_array_from_props(&dt, array_iter).ok()?;
 
                 Some(Arc::new(struct_array))
             }
@@ -221,9 +220,9 @@ impl Properties {
 
                 let array_iter = indices
                     .map(|i| lazy_vec.get_opt(i))
-                    .map(|opt_list| opt_list.map(SerdeList));
+                    .map(|opt_list| opt_list.map(SerdeArrowList));
 
-                let list_array = list_array_from_props(&dt, array_iter);
+                let list_array = list_array_from_props(&dt, array_iter).ok()?;
 
                 Some(Arc::new(list_array))
             }
@@ -266,13 +265,13 @@ impl Properties {
         self.t_properties.len()
     }
 
-    pub(crate) fn t_properties_mut(&mut self) -> &mut TColumns {
-        &mut self.t_properties
-    }
+    // pub(crate) fn t_properties_mut(&mut self) -> &mut TColumns {
+    //     &mut self.t_properties
+    // }
 
-    pub(crate) fn reset_t_len(&mut self) {
-        self.t_properties.reset_len();
-    }
+    // pub(crate) fn reset_t_len(&mut self) {
+    //     self.t_properties.reset_len();
+    // }
 }
 
 impl<'a> PropMutEntry<'a> {

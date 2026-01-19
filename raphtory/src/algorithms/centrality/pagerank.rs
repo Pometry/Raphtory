@@ -161,7 +161,9 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_nodes); num_nodes]),
-        |_, _, _, local| NodeState::new_from_eval_mapped(g.clone(), local, |v| v.score),
+        |_, _, _, local, index| {
+            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |v| v.score)
+        },
         threads,
         iter_count,
         None,

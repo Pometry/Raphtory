@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Union, Literal, Mapping
 
-
 PropValue = Union[
     bool,
     int,

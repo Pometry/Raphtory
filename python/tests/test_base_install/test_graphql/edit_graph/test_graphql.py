@@ -1,18 +1,16 @@
+import json
 import os
 import tempfile
 
 import pytest
-
+from raphtory import Graph, graph_loader
 from raphtory.graphql import (
     GraphServer,
     RaphtoryClient,
-    encode_graph,
-    decode_graph,
     RemoteGraph,
+    decode_graph,
+    encode_graph,
 )
-from raphtory import graph_loader
-from raphtory import Graph
-import json
 
 
 def normalize_path(path):
@@ -156,39 +154,47 @@ def test_namespaces():
         path = "../shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "References to the parent dir are not allowed within the path:" in str(
-            excinfo.value
+        assert (
+            "Invalid path '../shivam/g': References to the parent dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "./shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "References to the current dir are not allowed within the path" in str(
-            excinfo.value
+        assert (
+            "Invalid path './shivam/g': References to the current dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "References to the parent dir are not allowed within the path:" in str(
-            excinfo.value
+        assert (
+            "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "//shivam/investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Double forward slashes are not allowed in path" in str(excinfo.value)
+        assert (
+            "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path"
+            in str(excinfo.value)
+        )
 
         path = "shivam/investigation//2024-12-12/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Double forward slashes are not allowed in path" in str(excinfo.value)
+        assert (
+            "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path"
+            in str(excinfo.value)
+        )
 
         path = r"shivam/investigation\2024-12-12"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Backslash not allowed in path" in str(excinfo.value)
-
+        assert r"Backslash not allowed in path" in str(excinfo.value)
         # Test if we can escape through a symlink
         tmp_dir2 = tempfile.mkdtemp()
         nested_dir = os.path.join(tmp_work_dir, "shivam", "graphs")
@@ -199,7 +205,10 @@ def test_namespaces():
         path = "shivam/graphs/not_a_symlink_i_promise/escaped"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "A component of the given path was a symlink" in str(excinfo.value)
+        assert (
+            "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink"
+            in str(excinfo.value)
+        )
 
 
 def test_graph_windows_and_layers_query():
@@ -405,7 +414,7 @@ def test_create_node():
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "ben"}, {"name": "shivam"}, {"name": "oogway"}]
+                    "list": [{"name": "ben"}, {"name": "oogway"}, {"name": "shivam"}]
                 }
             }
         }
@@ -435,7 +444,7 @@ def test_create_node_using_client():
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "ben"}, {"name": "shivam"}, {"name": "oogway"}]
+                    "list": [{"name": "ben"}, {"name": "oogway"}, {"name": "shivam"}]
                 }
             }
         }
@@ -605,8 +614,8 @@ def test_create_node_using_client_with_node_type():
                 "nodes": {
                     "list": [
                         {"name": "ben", "nodeType": None},
-                        {"name": "shivam", "nodeType": None},
                         {"name": "oogway", "nodeType": "master"},
+                        {"name": "shivam", "nodeType": None},
                     ]
                 }
             }
@@ -638,6 +647,117 @@ def test_edge_id():
                         {"id": ["oogway", "po"]},
                         {"id": ["po", "ben"]},
                     ]
+                }
+            }
+        }
+
+
+def test_graph_persistence_across_restarts():
+    tmp_work_dir = tempfile.mkdtemp()
+
+    # First server session: create graph with 3 nodes and 2 edges
+    with GraphServer(tmp_work_dir).start(port=1738):
+        client = RaphtoryClient("http://localhost:1738")
+        client.new_graph(path="persistent_graph", graph_type="EVENT")
+        remote_graph = client.remote_graph(path="persistent_graph")
+        # Create 3 nodes
+        remote_graph.add_node(timestamp=1, id="node1")
+        remote_graph.add_node(timestamp=2, id="node2")
+        remote_graph.add_node(timestamp=3, id="node3")
+
+        # Create 2 edges
+        remote_graph.add_edge(timestamp=4, src="node1", dst="node2")
+        remote_graph.add_edge(timestamp=5, src="node2", dst="node3")
+
+        # Verify initial creation
+        query_nodes = """{graph(path: "persistent_graph") {nodes {list {name}}}}"""
+        query_edges = """{graph(path: "persistent_graph") {edges {list {id}}}}"""
+
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "list": [{"name": "node1"}, {"name": "node2"}, {"name": "node3"}]
+                }
+            }
+        }
+
+        assert client.query(query_edges) == {
+            "graph": {
+                "edges": {
+                    "list": [
+                        {"id": ["node1", "node2"]},
+                        {"id": ["node2", "node3"]},
+                    ]
+                }
+            }
+        }
+
+    # Server is now shutdown, start it again
+    with GraphServer(tmp_work_dir).start(port=1738):
+        client = RaphtoryClient("http://localhost:1738")
+
+        # Verify persistence: check that nodes and edges are still there
+        query_nodes = """{graph(path: "persistent_graph") {nodes {sorted (sortBys: [{id: true}]){ list {name} }}}}"""
+        query_edges = """{graph(path: "persistent_graph") {edges {sorted (sortBys: [{src: true, dst: true}]){ list {id} }}}}"""
+
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "sorted": {
+                        "list": [
+                            {"name": "node1"},
+                            {"name": "node2"},
+                            {"name": "node3"},
+                        ]
+                    }
+                }
+            }
+        }
+
+        assert client.query(query_edges) == {
+            "graph": {
+                "edges": {
+                    "sorted": {
+                        "list": [
+                            {"id": ["node1", "node2"]},
+                            {"id": ["node2", "node3"]},
+                        ]
+                    }
+                }
+            }
+        }
+
+        # Add one more node and another edge
+        remote_graph = client.remote_graph(path="persistent_graph")
+        remote_graph.add_node(timestamp=6, id="node4")
+        remote_graph.add_edge(timestamp=7, src="node3", dst="node4")
+
+        # Verify the new additions
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "sorted": {
+                        "list": [
+                            {"name": "node1"},
+                            {"name": "node2"},
+                            {"name": "node3"},
+                            {"name": "node4"},
+                        ]
+                    }
+                }
+            }
+        }
+
+        assert client.query(query_edges) == {
+            "graph": {
+                "edges": {
+                    "sorted": {
+                        "list": [
+                            {"id": ["node1", "node2"]},
+                            {"id": ["node2", "node3"]},
+                            {"id": ["node3", "node4"]},
+                        ]
+                    }
                 }
             }
         }

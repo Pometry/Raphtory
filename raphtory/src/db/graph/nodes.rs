@@ -30,7 +30,7 @@ use std::{
 pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
-    pub(crate) nodes: Option<Index<VID>>,
+    pub(crate) nodes: Index<VID>,
     pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
 }
@@ -113,10 +113,11 @@ where
 {
     pub fn new(graph: G) -> Self {
         let base_graph = graph.clone();
+        let node_index = base_graph.core_graph().node_state_index();
         Self {
             base_graph,
             graph,
-            nodes: None,
+            nodes: node_index.into(),
             node_types_filter: None,
             _marker: PhantomData,
         }
@@ -148,7 +149,7 @@ where
     pub fn new_filtered(
         base_graph: G,
         graph: GH,
-        nodes: Option<Index<VID>>,
+        nodes: Index<VID>,
         node_types_filter: Option<Arc<[bool]>>,
     ) -> Self {
         Self {
@@ -162,8 +163,8 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            None => self.graph.node_list(),
-            Some(elems) => NodeList::List { elems },
+            elems @ Index::Partial(_) => NodeList::List { elems },
+            _ => self.graph.node_list(),
         }
     }
 
@@ -171,7 +172,7 @@ where
         let g = self.graph.core_graph().lock();
         let view = self.graph.clone();
         let node_types_filter = self.node_types_filter.clone();
-        self.node_list().into_par_iter().filter(move |&vid| {
+        self.node_list().nodes_par_iter(&g).filter(move |&vid| {
             g.try_core_node(vid).is_some_and(|node| {
                 node_types_filter
                     .as_ref()
@@ -185,7 +186,7 @@ where
         Nodes::new_filtered(
             self.base_graph.clone(),
             self.graph.clone(),
-            Some(index),
+            index,
             self.node_types_filter.clone(),
         )
     }
@@ -199,7 +200,7 @@ where
     fn iter_vids(&self, g: GraphStorage) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let node_types_filter = self.node_types_filter.clone();
         let view = self.graph.clone();
-        self.node_list().into_iter().filter(move |&vid| {
+        self.node_list().nodes_iter(&g).filter(move |&vid| {
             g.try_core_node(vid).is_some_and(|node| {
                 node_types_filter
                     .as_ref()
@@ -259,15 +260,15 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
-        match self.nodes.as_ref() {
-            None => {
+        match &self.nodes {
+            Index::Full(_) => {
                 if self.is_list_filtered() {
                     self.par_iter_refs().count()
                 } else {
                     self.graph.node_list().len()
                 }
             }
-            Some(nodes) => {
+            Index::Partial(nodes) => {
                 if self.is_filtered() {
                     self.par_iter_refs().count()
                 } else {
@@ -346,11 +347,7 @@ where
                     .as_ref()
                     .map(|filter| filter[node.node_type_id()])
                     .unwrap_or(true)
-                    && self
-                        .nodes
-                        .as_ref()
-                        .map(|nodes| nodes.contains(&node.node))
-                        .unwrap_or(true)
+                    && self.nodes.contains(&node.node)
             })
             .is_some()
     }

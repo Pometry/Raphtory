@@ -8,9 +8,9 @@ use crate::{
 };
 use arrow::datatypes::{DataType, Field};
 use itertools::Itertools;
-use parquet::format::KeyValue;
+use parquet::file::metadata::KeyValue;
 use raphtory_api::{
-    core::{entities::properties::prop::SerdeProp, storage::arc_str::ArcStr},
+    core::{entities::properties::prop::SerdeArrowProp, storage::arc_str::ArcStr},
     GraphType,
 };
 use raphtory_core::storage::timeindex::TimeIndexEntry;
@@ -88,7 +88,7 @@ impl Serialize for Row {
         let mut state = serializer.serialize_map(Some(self.row.len()))?;
 
         for (k, v) in self.row.iter() {
-            state.serialize_entry(k, &SerdeProp(v))?;
+            state.serialize_entry(k, &SerdeArrowProp(v))?;
         }
 
         state.serialize_entry(TIME_COL, &self.t.0)?;

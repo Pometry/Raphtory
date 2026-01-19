@@ -8,7 +8,7 @@ use std::{
 };
 
 use raphtory_api::core::{
-    entities::{self, properties::meta::Meta},
+    entities::{self, properties::meta::Meta, GidType},
     input::input_node::InputNode,
 };
 use raphtory_core::{
@@ -16,6 +16,7 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
@@ -24,7 +25,7 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::{Config, PersistentStrategy},
+    persist::strategy::PersistentStrategy,
     resolver::GIDResolverOps,
     wal::{GraphWal, TransactionID, Wal},
     Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, GS, NS,
@@ -32,10 +33,16 @@ use storage::{
 use tempfile::TempDir;
 
 #[derive(Debug)]
-pub struct TemporalGraph<EXT: Config = Extension> {
+pub struct TemporalGraph<EXT = Extension>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+{
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
-    pub node_count: AtomicUsize,
+    pub event_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
@@ -123,7 +130,13 @@ impl Default for TemporalGraph<Extension> {
     }
 }
 
-impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> TemporalGraph<EXT> {
+impl<EXT> TemporalGraph<EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
+{
     pub fn new(ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
@@ -149,17 +162,17 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
         let path = path.as_ref();
         let storage = Layer::load(path)?;
+        let id_type = storage.nodes().id_type();
 
         let gid_resolver_dir = path.join("gid_resolver");
-        let resolver = GIDResolver::new_with_path(&gid_resolver_dir)?;
-        let node_count = AtomicUsize::new(storage.nodes().num_nodes());
+        let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
         let wal_dir = path.join("wal");
         let wal = Arc::new(WalImpl::new(Some(wal_dir))?);
 
         Ok(Self {
             graph_dir: Some(path.into()),
+            event_counter: AtomicUsize::new(resolver.len()),
             logical_to_physical: resolver.into(),
-            node_count,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
@@ -184,9 +197,15 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
             std::fs::create_dir_all(dir)?
         }
 
+        let id_type = node_meta
+            .metadata_mapper()
+            .d_types()
+            .first()
+            .and_then(|dtype| GidType::from_prop_type(dtype));
+
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
         let logical_to_physical = match gid_resolver_dir {
-            Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir)?,
+            Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir, id_type)?,
             None => GIDResolver::new()?,
         }
         .into();
@@ -205,15 +224,20 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
         Ok(Self {
             graph_dir,
             logical_to_physical,
-            node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            event_counter: AtomicUsize::new(0),
             wal,
         })
     }
 
-    pub fn disk_storage_enabled(&self) -> bool {
-        self.graph_dir().is_some() && Extension::disk_storage_enabled()
+    pub fn flush(&self) -> Result<(), StorageError> {
+        self.storage.flush()
+    }
+
+    pub fn disk_storage_path(&self) -> Option<&Path> {
+        self.graph_dir()
+            .filter(|_| Extension::disk_storage_enabled())
     }
 
     pub fn extension(&self) -> &EXT {
@@ -234,13 +258,22 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
 
     #[inline]
     pub fn resolve_node_ref(&self, node: NodeRef) -> Option<VID> {
-        match node {
+        let vid = match node {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
             NodeRef::External(GidRef::Str(string)) => self
                 .logical_to_physical
                 .get_str(string)
                 .or_else(|| self.logical_to_physical.get_u64(string.id())),
+        }?;
+        // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
+        let nodes = self.storage().nodes();
+        let (page_id, pos) = nodes.resolve_pos(vid);
+        let node_page = nodes.segments().get(page_id)?;
+        if pos.0 < node_page.num_nodes() {
+            Some(vid)
+        } else {
+            None
         }
     }
 
@@ -374,6 +407,9 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>> Temporal
 pub struct WriteLockedGraph<'a, EXT>
 where
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
@@ -381,8 +417,12 @@ where
     pub graph: &'a TemporalGraph<EXT>,
 }
 
-impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
-    WriteLockedGraph<'a, EXT>
+impl<'a, EXT> WriteLockedGraph<'a, EXT>
+where
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
         WriteLockedGraph {
@@ -397,21 +437,17 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>>
         self.graph
     }
 
-    pub fn resize_chunks_to_num_nodes(&mut self, num_nodes: usize) {
-        if num_nodes == 0 {
-            return;
+    pub fn resize_chunks_to_num_nodes(&mut self, max_vid: Option<VID>) {
+        if let Some(max_vid) = max_vid {
+            let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(max_vid);
+            self.graph.storage().nodes().grow(chunks_needed + 1);
+            std::mem::take(&mut self.nodes);
+            self.nodes = self.graph.storage.nodes().write_locked();
         }
-        let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(VID(num_nodes - 1));
-        self.graph.storage().nodes().grow(chunks_needed + 1);
-        std::mem::take(&mut self.nodes);
-        self.nodes = self.graph.storage.nodes().write_locked();
     }
 
-    pub fn resize_chunks_to_num_edges(&mut self, num_edges: usize) {
-        if num_edges == 0 {
-            return;
-        }
-        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(EID(num_edges - 1));
+    pub fn resize_chunks_to_num_edges(&mut self, max_eid: EID) {
+        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(max_eid);
         self.graph.storage().edges().grow(chunks_needed + 1);
         std::mem::take(&mut self.edges);
         self.edges = self.graph.storage.edges().write_locked();

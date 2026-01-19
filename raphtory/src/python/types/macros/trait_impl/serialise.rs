@@ -18,12 +18,7 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn load_from_file(path: PathBuf) -> Result<$base_type, GraphError> {
-                let path_for_decoded_graph = None;
-
-                <$base_type as $crate::serialise::StableDecode>::decode(
-                    path,
-                    path_for_decoded_graph,
-                )
+                <$base_type as $crate::serialise::StableDecode>::decode(&path)
             }
 
             #[doc = concat!(" Saves the ", $name, " to the given path in parquet format.")]
@@ -57,21 +52,19 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name, ":")]
             #[staticmethod]
             fn deserialise(bytes: &[u8]) -> Result<$base_type, GraphError> {
-                let path_for_decoded_graph = None;
-
-                <$base_type as $crate::serialise::StableDecode>::decode_from_bytes(
-                    bytes,
-                    path_for_decoded_graph,
-                )
+                <$base_type as $crate::serialise::StableDecode>::decode_from_bytes(bytes)
             }
 
             #[doc = concat!(" Serialise ", $name, " to bytes.")]
             ///
             /// Returns:
             ///   bytes:
-            fn serialise<'py>(&self, py: Python<'py>) -> Bound<'py, pyo3::types::PyBytes> {
-                let bytes = $crate::serialise::StableEncode::encode_to_bytes(&self.$field);
-                pyo3::types::PyBytes::new(py, &bytes)
+            fn serialise<'py>(
+                &self,
+                py: Python<'py>,
+            ) -> Result<Bound<'py, pyo3::types::PyBytes>, GraphError> {
+                let bytes = $crate::serialise::StableEncode::encode_to_bytes(&self.$field)?;
+                Ok(pyo3::types::PyBytes::new(py, &bytes))
             }
         }
     };

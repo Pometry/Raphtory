@@ -5,6 +5,13 @@ use tokio::sync::oneshot;
 static WRITE_POOL: LazyLock<ThreadPool> =
     LazyLock::new(|| ThreadPoolBuilder::new().build().unwrap());
 
+static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    ThreadPoolBuilder::new()
+        .stack_size(16 * 1024 * 1024)
+        .build()
+        .unwrap()
+});
+
 /// Use the rayon threadpool to execute a task
 ///
 /// Use this for long-running, compute-heavy work
@@ -12,7 +19,7 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
     closure: F,
 ) -> R {
     let (send, recv) = oneshot::channel();
-    rayon::spawn(move || {
+    COMPUTE_POOL.spawn_fifo(move || {
         let _ = send.send(closure()); // this only errors if no-one is listening anymore
     });
 

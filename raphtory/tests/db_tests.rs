@@ -709,7 +709,7 @@ fn graph_save_to_load_from_file() {
     g.encode(&graph_path).unwrap();
 
     // Load from files
-    let g2 = Graph::decode(&graph_path, None).unwrap();
+    let g2 = Graph::decode(&graph_path).unwrap();
 
     assert_eq!(g, g2);
 }
@@ -1163,23 +1163,21 @@ fn temporal_node_rows_nodes() {
         .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None)
         .unwrap();
 
-    test_storage!(&graph, |graph| {
-        for id in 0..3 {
-            let actual = graph
-                .core_graph()
-                .nodes()
-                .node(VID(id))
-                .temp_prop_rows()
-                .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
-                .collect::<Vec<_>>();
+    for (id, n) in graph.nodes().into_iter().enumerate() {
+        let actual = graph
+            .core_graph()
+            .nodes()
+            .node(n.node)
+            .temp_prop_rows()
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
+            .collect::<Vec<_>>();
 
-            let expected = vec![(
-                TimeIndexEntry::new(id as i64, id),
-                vec![Prop::U64((id as u64) + 1)],
-            )];
-            assert_eq!(actual, expected);
-        }
-    });
+        let expected = vec![(
+            TimeIndexEntry::new(id as i64, id),
+            vec![Prop::U64((id as u64) + 1)],
+        )];
+        assert_eq!(actual, expected);
+    }
 }
 
 #[test]
@@ -2947,7 +2945,7 @@ fn save_load_serial() {
     let dir = tempfile::tempdir().unwrap();
     let file_path = dir.path().join("abcd11");
     g.encode(&file_path).unwrap();
-    let gg = Graph::decode(file_path, None).unwrap();
+    let gg = Graph::decode(&file_path).unwrap();
     assert_graph_equal(&g, &gg);
 }
 
@@ -3795,8 +3793,8 @@ fn test_empty_window() {
 
 #[test]
 fn add_edge_and_read_props_concurrent() {
-    let g = Graph::new();
     for t in 0..1000 {
+        let g = Graph::new();
         join(
             || g.add_edge(t, 1, 2, [("test", true)], None).unwrap(),
             || {

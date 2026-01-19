@@ -11,7 +11,7 @@ pub trait GIDResolverOps {
     fn new() -> Result<Self, StorageError>
     where
         Self: Sized;
-    fn new_with_path(path: impl AsRef<Path>) -> Result<Self, StorageError>
+    fn new_with_path(path: impl AsRef<Path>, dtype: Option<GidType>) -> Result<Self, StorageError>
     where
         Self: Sized;
     fn len(&self) -> usize;
