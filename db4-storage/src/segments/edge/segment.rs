@@ -556,6 +556,7 @@ mod test {
     use super::*;
     use raphtory_api::core::entities::properties::prop::PropType;
     use raphtory_core::storage::timeindex::TimeIndexEntry;
+    use super::*;
     use raphtory_api::core::entities::properties::meta::Meta;
 
     fn create_test_segment() -> MemEdgeSegment {

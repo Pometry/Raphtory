@@ -144,19 +144,18 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         dst: VID,
         exists: bool,
         layer_id: usize,
-        lsn: u64,
     ) {
         if !exists {
-            self.increment_layer_num_edges(0);
+            self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
             self.increment_layer_num_edges(layer_id);
         }
 
         self.writer
-            .insert_static_edge_internal(edge_pos, src, dst, 0, lsn);
+            .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID);
 
         self.graph_stats.update_time(t.t());
         self.writer
-            .delete_edge_internal(t, edge_pos, src, dst, layer_id, lsn);
+            .delete_edge_internal(t, edge_pos, src, dst, layer_id);
     }
 
     pub fn segment_id(&self) -> usize {
