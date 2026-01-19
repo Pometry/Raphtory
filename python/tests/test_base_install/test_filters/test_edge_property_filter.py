@@ -1603,8 +1603,6 @@ def test_filter_edges_snapshot_latest():
 @with_disk_variants(init_graph3, variants=("graph"))
 def test_filter_edges_layer_latest():
     def check(graph):
-        # print("myfilter", graph.edge(1, 2).layer("fire_nation").latest().properties.get("p2"))
-        print("myfilter", graph.layer("fire_nation").latest().edges.id)
         expr = (
             filter.Edge.layer("fire_nation").latest().property("p2").temporal().last()
             == 7
