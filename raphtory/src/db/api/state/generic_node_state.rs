@@ -15,7 +15,7 @@ use arrow::compute::{cast_with_options, CastOptions};
 use arrow_array::{Array, ArrayRef, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use indexmap::{IndexMap, IndexSet};
-use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
+use parquet::{arrow::{ArrowWriter,arrow_reader::ParquetRecordBatchReaderBuilder}, basic::Compression, file::properties::WriterProperties};
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
@@ -334,6 +334,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         self.values.num_rows()
     }
 
+    pub fn from_parquet<P: AsRef<Path>>(file_path: P, id_column: Option<String>) -> GenericNodeState<'graph, G, GH> {
+        // read recordbatch
+        // if id column exists
+        //  use to reconstruct index
+        //  drop column
+        todo!();
+    }
+
     pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P, id_column: Option<String>) {
         let mut batch: Option<RecordBatch> = None;
         let mut schema = self.values.schema();
@@ -434,11 +442,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
 
     pub fn merge(
         &self,
-        other: &GenericNodeState<'graph, G>,
+        other: &GenericNodeState<'graph, G, GH>,
         index_merge_priority: MergePriority,
         default_column_merge_priority: MergePriority,
         column_merge_priority_map: Option<HashMap<String, MergePriority>>,
     ) -> Self {
+        let mut merge_node_cols: HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)> = HashMap::default();
+        let default_node_cols: &HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)> = 
+            if default_column_merge_priority == MergePriority::Left {
+                &self.node_cols
+            } else {
+                &other.node_cols
+            };
         let new_idx_set = if self.keys.is_none() || other.keys.is_none() {
             None
         } else {
@@ -447,6 +462,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                     self.keys.as_ref().unwrap().index.as_ref(),
                     other.keys.as_ref().unwrap().index.as_ref(),
                 )
+
                 .clone()
                 .into_iter()
                 .map(|v| v.to_owned())
@@ -468,18 +484,26 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         if column_merge_priority_map.as_ref().is_some() {
             for (col_name, priority) in column_merge_priority_map.as_ref().unwrap() {
                 let (lh, rh, lh_batch, rh_batch) = match priority {
-                    MergePriority::Left => (
+                    MergePriority::Left => {
+                        if self.node_cols.contains_key(col_name) {
+                            merge_node_cols.insert(col_name.to_string(), self.node_cols.get(col_name).unwrap().clone());
+                        }
+                        (
                         self.keys.as_ref(),
                         other.keys.as_ref(),
                         &self.values,
                         &other.values,
-                    ),
-                    MergePriority::Right => (
+                    )},
+                    MergePriority::Right => {
+                        if other.node_cols.contains_key(col_name) {
+                            merge_node_cols.insert(col_name.to_string(), other.node_cols.get(col_name).unwrap().clone());
+                        }
+                        (
                         other.keys.as_ref(),
                         self.keys.as_ref(),
                         &other.values,
                         &self.values,
-                    ),
+                    )},
                     MergePriority::Exclude => continue,
                 };
                 let (col, field) = GenericNodeState::<'graph, G>::merge_columns(
@@ -518,7 +542,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                     self.graph.clone(),
                     RecordBatch::try_new(Schema::new(fields).into(), cols).unwrap(),
                     tgt_idx_set.cloned(),
-                    Some(self.node_cols.clone()),
+                    Some(merge_node_cols),
                 );
             }
         };
@@ -529,6 +553,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 .as_ref()
                 .map_or(true, |map| map.contains_key(col_name) == false)
             {
+                if default_node_cols.contains_key(col_name) {
+                    merge_node_cols.insert(col_name.to_string(), default_node_cols.get(col_name).unwrap().clone());
+                }
                 let (col, field) = GenericNodeState::<'graph, G>::merge_columns(
                     col_name,
                     tgt_idx_set,
@@ -547,7 +574,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             self.graph.clone(),
             RecordBatch::try_new(Schema::new(fields).into(), cols).unwrap(),
             tgt_idx_set.cloned(),
-            Some(self.node_cols.clone()),
+            Some(merge_node_cols),
         )
     }
 
