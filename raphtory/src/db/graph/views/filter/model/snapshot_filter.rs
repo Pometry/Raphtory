@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::internal::GraphView,
+        api::view::{internal::GraphView, time::TimeOps},
         graph::views::{
             filter::{
                 model::{
@@ -18,11 +18,10 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps},
+    prelude::GraphViewOps,
 };
 use raphtory_api::core::{storage::timeindex::EventTime, utils::time::IntoTime};
 use std::{fmt, fmt::Display};
-use crate::db::api::view::time::TimeOps;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SnapshotAt<M> {

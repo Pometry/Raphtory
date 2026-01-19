@@ -22,8 +22,9 @@ use crate::{
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker,
-                InternalPropertyFilterFactory, InternalViewWrapOps, TryAsCompositeFilter, Wrap,
+                AndFilter, ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker,
+                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
+                TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -433,9 +434,22 @@ impl CreateFilter for CompositeNodeFilter {
             CompositeNodeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeNodeFilter::SnapshotAt(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeNodeFilter::SnapshotLatest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::And(_l, _r) => Ok(Arc::new(graph)),
-            CompositeNodeFilter::Or(_l, _r) => Ok(Arc::new(graph)),
-            CompositeNodeFilter::Not(_filter) => Ok(Arc::new(graph)),
+            CompositeNodeFilter::And(l, r) => {
+                let (l, r) = (*l, *r);
+                Ok(Arc::new(
+                    AndFilter { left: l, right: r }.filter_graph_view(graph)?,
+                ))
+            }
+            CompositeNodeFilter::Or(l, r) => {
+                let (l, r) = (*l, *r);
+                Ok(Arc::new(
+                    OrFilter { left: l, right: r }.filter_graph_view(graph)?,
+                ))
+            }
+            CompositeNodeFilter::Not(f) => {
+                let base = *f;
+                Ok(Arc::new(NotFilter(base).filter_graph_view(graph)?))
+            }
         }
     }
 }

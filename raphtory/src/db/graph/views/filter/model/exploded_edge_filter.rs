@@ -401,10 +401,7 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
                 Ok(Arc::new(filtered_graph))
             }
             Self::Property(p) => Ok(Arc::new(p.filter_graph_view(graph)?)),
-            Self::Windowed(pw) => {
-                // let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                Ok(Arc::new(pw.filter_graph_view(graph)?))
-            }
+            Self::Windowed(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
             Self::Latest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
             Self::SnapshotAt(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
             Self::SnapshotLatest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
