@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768583313408,
+  "lastUpdate": 1768859514635,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3347,6 +3347,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1389,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+shivamka1@users.noreply.github.com",
+            "name": "Shivam",
+            "username": "shivamka1"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a2dabf26e3ac0b8b9d50dfce4ac4bce64243cda",
+          "message": "impl windowing filter (#2441)\n\n* impl windowing filter\n\n* chore: apply tidy-public auto-fixes\n\n* fix viewops\n\n* solving recursive windowing\n\n* add windowing to gql\n\n* rework the dynamic dispatch for filter builders to avoid infinite recursion in window\n\n* fix warnings, ref\n\n* fix warnings, ref\n\n* ref\n\n* fix gql semantics, add tests\n\n* chore: apply tidy-public auto-fixes\n\n* fix the ordering of views in filters, add tests\n\n* rid print\n\n* ref\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>",
+          "timestamp": "2026-01-19T21:15:36Z",
+          "tree_id": "43a377af7131e3bb3d5d8820d3e2edf7dfa29117",
+          "url": "https://github.com/Pometry/Raphtory/commit/3a2dabf26e3ac0b8b9d50dfce4ac4bce64243cda"
+        },
+        "date": 1768859511419,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1475,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 214,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 150,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1208,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1038,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1568,
             "unit": "req/s"
           }
         ]
