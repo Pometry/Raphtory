@@ -28,7 +28,8 @@ use std::{
     collections::HashMap,
     fmt,
     fmt::{Display, Formatter},
-    hash::{Hash, Hasher},
+    hash::{DefaultHasher, Hash, Hasher},
+    num::Wrapping,
     sync::Arc,
 };
 use thiserror::Error;
@@ -123,10 +124,20 @@ impl Hash for Prop {
                 }
             }
             Prop::Map(m) => {
-                for (key, prop) in m.iter().sorted_by(|(lk, _), (rk, _)| lk.cmp(rk)) {
-                    key.hash(state);
-                    prop.hash(state);
+                // Based on python set hash
+                let mut hash = Wrapping(1927868237u64);
+                hash *= (m.len() as u64).wrapping_add(1);
+                for v in m.iter() {
+                    let mut inner_hasher = DefaultHasher::new();
+                    v.hash(&mut inner_hasher);
+                    let inner_hash = Wrapping(inner_hasher.finish());
+                    hash ^= (inner_hash ^ (inner_hash << 16) ^ Wrapping(89869747u64))
+                        * Wrapping(3644798167u64);
                 }
+                hash ^= (hash >> 11) ^ (hash >> 25);
+                hash *= 69069;
+                hash += 907133923;
+                state.write_u64(hash.0);
             }
             Prop::Decimal(d) => d.hash(state),
         }
