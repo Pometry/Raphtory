@@ -15,10 +15,12 @@ use crate::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
     },
-    prelude::{DeletionOps, NodeStateOps, NO_PROPS},
+    prelude::{NO_PROPS, NodeStateOps},
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_core::entities::GID;
+use rayon::iter::ParallelIterator;
 use tracing::error;
 
 /// Generates an Erdos-Renyi random graph in the provided `graph`.
@@ -40,13 +42,14 @@ use tracing::error;
 /// erdos_renyi(&graph, 10, 0.2, None);
 /// ```
 pub fn erdos_renyi(graph: &Graph, nodes_to_add: usize, p: f64, seed: Option<u64>) {
-    let mut rng: StdRng;
+    let mut rng;
     if let Some(seed_value) = seed {
         rng = StdRng::seed_from_u64(seed_value);
     } else {
         rng = StdRng::from_entropy();
     }
-    let mut latest_time = graph.latest_time().unwrap_or(0);
+    let mut ids = graph.nodes().id().par_iter_values().collect::<Vec<GID>>();
+    let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     let mut max_id = next_id(graph, graph.nodes().id().iter_values().max());
     for _ in 0..nodes_to_add {
         max_id = next_id(graph, Some(max_id));
@@ -55,16 +58,17 @@ pub fn erdos_renyi(graph: &Graph, nodes_to_add: usize, p: f64, seed: Option<u64>
             .add_node(latest_time, &max_id, NO_PROPS, None)
             .map_err(|err| error!("{:?}", err))
             .ok();
+        ids.push(max_id.clone()); 
     }
-    for src_node in graph.nodes() {
-        for dst_node in graph.nodes() {
-            if src_node.node > dst_node.node {
-                if graph.has_edge(&src_node.id(), &dst_node.id()) {
-                    graph.delete_edge(latest_time, &src_node.id(), &dst_node.id(), None);
-                }
+    for i in 0..ids.len() {
+        for j in (i + 1)..ids.len() {
+            let create_edge = rng.gen_bool(p);  
+            if create_edge {
+                latest_time += 1;
+                graph.add_edge(latest_time, &ids[i], &ids[j], NO_PROPS, None).expect("Not able to add edge");
             }
         }
-    }
+    }  
 }
 
 #[cfg(test)]
@@ -75,9 +79,9 @@ mod tests {
     #[test]
     fn test_erdos_renyi_small_graph() {
         let graph = Graph::new();
-        let n_nodes = 5;
+        let n_nodes = 20;
         let p = 0.5;
-        let seed = Some([1u8; 32]);
+        let seed = Some(42);
         erdos_renyi(&graph, n_nodes, p, seed);
         let node_count = graph.nodes().id().iter_values().count();
         assert_eq!(node_count, n_nodes);
@@ -89,9 +93,9 @@ mod tests {
     #[test]
     fn test_erdos_renyi_zero_probability() {
         let graph = Graph::new();
-        let n_nodes = 4;
+        let n_nodes = 20;
         let p = 0.0;
-        let seed = Some([2u8; 32]);
+        let seed = Some(42); 
         erdos_renyi(&graph, n_nodes, p, seed);
         let edge_count = graph.edges().into_iter().count();
         assert_eq!(edge_count, 0);
@@ -100,11 +104,13 @@ mod tests {
     #[test]
     fn test_erdos_renyi_full_probability() {
         let graph = Graph::new();
-        let n_nodes = 3;
+        let n_nodes = 20;
         let p = 1.0;
-        let seed = Some([3u8; 32]);
+        let seed = Some(42);
         erdos_renyi(&graph, n_nodes, p, seed);
         let edge_count = graph.edges().into_iter().count();
-        assert_eq!(edge_count, n_nodes * (n_nodes - 1));
+        assert_eq!(edge_count, (n_nodes * (n_nodes - 1))/2);
     }
+
+    
 }
