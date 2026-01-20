@@ -14,7 +14,7 @@ use raphtory_api::{
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::{EID, GidRef, LayerIds, VID, edges::edge_ref::EdgeRef},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
 use std::{
@@ -44,9 +44,9 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     type ArcLockedSegment: LockedNSSegment;
 
-    fn latest(&self) -> Option<TimeIndexEntry>;
+    fn latest(&self) -> Option<EventTime>;
 
-    fn earliest(&self) -> Option<TimeIndexEntry>;
+    fn earliest(&self) -> Option<EventTime>;
 
     fn t_len(&self) -> usize;
 
@@ -183,8 +183,8 @@ pub trait NodeEntryOps<'a>: Send + Sync + 'a {
 }
 
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
-    type Additions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
-    type EdgeAdditions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
+    type Additions: TimeIndexOps<'a, IndexType = EventTime>;
+    type EdgeAdditions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
     fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
@@ -262,8 +262,8 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn temp_prop_rows(
         self,
-        w: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> + 'a {
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> + 'a {
         (0..self.internal_num_layers()).flat_map(move |layer_id| {
             let w = w.clone();
             let additions = self.node_additions(layer_id);

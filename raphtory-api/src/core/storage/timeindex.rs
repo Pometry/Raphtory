@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Range};
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash)]
-pub struct TimeIndexEntry(pub i64, pub usize);
+pub struct EventTime(pub i64, pub usize);
 
 pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn t(&self) -> i64;
@@ -171,16 +171,16 @@ impl<'a, L: TimeIndexOps<'a>, R: TimeIndexOps<'a, IndexType = L::IndexType>> Tim
     }
 }
 
-impl From<i64> for TimeIndexEntry {
+impl From<i64> for EventTime {
     fn from(value: i64) -> Self {
         Self::start(value)
     }
 }
 
-impl TimeIndexEntry {
-    pub const MIN: TimeIndexEntry = TimeIndexEntry(i64::MIN, 0);
+impl EventTime {
+    pub const MIN: EventTime = EventTime(i64::MIN, 0);
 
-    pub const MAX: TimeIndexEntry = TimeIndexEntry(i64::MAX, usize::MAX);
+    pub const MAX: EventTime = EventTime(i64::MAX, usize::MAX);
 
     pub fn new(t: i64, s: usize) -> Self {
         Self(t, s)
@@ -229,7 +229,7 @@ impl AsTime for i64 {
     }
 }
 
-impl AsTime for TimeIndexEntry {
+impl AsTime for EventTime {
     fn t(&self) -> i64 {
         self.0
     }

@@ -36,7 +36,7 @@ use raphtory_api::core::{
     entities::{GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
-        timeindex::TimeIndexEntry,
+        timeindex::EventTime,
     },
     utils::logging::global_info_logger,
 };
@@ -1086,8 +1086,8 @@ fn temporal_node_rows_1_node() {
         assert_eq!(
             actual,
             vec![
-                (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-                (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)])
+                (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+                (EventTime::new(0, 1), vec![Prop::U64(9)])
             ]
         );
     });
@@ -1113,10 +1113,10 @@ fn temporal_node_rows_1_node() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)]),
+            (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+            (EventTime::new(0, 1), vec![Prop::U64(9)]),
             (
-                TimeIndexEntry::new(1, 2),
+                EventTime::new(1, 2),
                 vec![Prop::Bool(false), Prop::U64(19)],
             ),
         ];
@@ -1136,13 +1136,13 @@ fn temporal_node_rows_1_node() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)]),
+            (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+            (EventTime::new(0, 1), vec![Prop::U64(9)]),
             (
-                TimeIndexEntry::new(1, 2),
+                EventTime::new(1, 2),
                 vec![Prop::Bool(false), Prop::U64(19)],
             ),
-            (TimeIndexEntry::new(2, 3), vec![]),
+            (EventTime::new(2, 3), vec![]),
         ];
 
         assert_eq!(actual, expected);
@@ -1173,7 +1173,7 @@ fn temporal_node_rows_nodes() {
             .collect::<Vec<_>>();
 
         let expected = vec![(
-            TimeIndexEntry::new(id as i64, id),
+            EventTime::new(id as i64, id),
             vec![Prop::U64((id as u64) + 1)],
         )];
         assert_eq!(actual, expected);
@@ -1194,7 +1194,7 @@ fn temporal_node_rows_window() {
         .unwrap();
 
     test_storage!(&graph, |graph| {
-        let get_rows = |vid: VID, range: Range<TimeIndexEntry>| {
+        let get_rows = |vid: VID, range: Range<EventTime>| {
             graph
                 .core_graph()
                 .nodes()
@@ -1203,17 +1203,17 @@ fn temporal_node_rows_window() {
                 .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         };
-        let actual = get_rows(VID(0), TimeIndexEntry::new(2, 0)..TimeIndexEntry::new(3, 0));
+        let actual = get_rows(VID(0), EventTime::new(2, 0)..EventTime::new(3, 0));
 
-        let expected = vec![(TimeIndexEntry::new(2, 2), vec![Prop::U64(3)])];
+        let expected = vec![(EventTime::new(2, 2), vec![Prop::U64(3)])];
 
         assert_eq!(actual, expected);
 
-        let actual = get_rows(VID(0), TimeIndexEntry::new(0, 0)..TimeIndexEntry::new(3, 0));
+        let actual = get_rows(VID(0), EventTime::new(0, 0)..EventTime::new(3, 0));
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Prop::U64(1)]),
-            (TimeIndexEntry::new(1, 1), vec![Prop::U64(2)]),
-            (TimeIndexEntry::new(2, 2), vec![Prop::U64(3)]),
+            (EventTime::new(0, 0), vec![Prop::U64(1)]),
+            (EventTime::new(1, 1), vec![Prop::U64(2)]),
+            (EventTime::new(2, 2), vec![Prop::U64(3)]),
         ];
 
         assert_eq!(actual, expected);
@@ -1772,13 +1772,13 @@ fn node_history_rows() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(1)]),
+            (EventTime::new(0, 1), vec![Prop::U64(1)]),
             (
-                TimeIndexEntry::new(1, 2),
+                EventTime::new(1, 2),
                 vec![Prop::Bool(true), Prop::I64(2)],
             ),
-            (TimeIndexEntry::new(1, 4), vec![Prop::U64(3)]),
-            (TimeIndexEntry::new(2, 3), vec![]),
+            (EventTime::new(1, 4), vec![Prop::U64(3)]),
+            (EventTime::new(2, 3), vec![]),
         ];
 
         assert_eq!(actual, expected);
@@ -1790,7 +1790,7 @@ fn node_history_rows() {
             .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
-        let expected = vec![(TimeIndexEntry::new(1, 0), vec![Prop::U64(1)])];
+        let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
 
         assert_eq!(actual, expected);
     });

@@ -5,7 +5,7 @@ use crate::{
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
 use raphtory_core::{
     entities::properties::tprop::TPropCell,
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
 };
 use std::sync::Arc;
 
@@ -96,7 +96,7 @@ impl MemGraphPropSegment {
     ) -> usize {
         let layer = self.get_or_create_layer(Self::DEFAULT_LAYER);
         let est_size = layer.est_size();
-        let ts = TimeIndexEntry::new(t.t(), t.i());
+        let ts = EventTime::new(t.t(), t.i());
 
         layer.reserve_local_row(Self::DEFAULT_ROW.into());
         let mut prop_mut_entry = layer.properties_mut().get_mut_entry(Self::DEFAULT_ROW);

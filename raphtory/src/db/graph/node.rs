@@ -36,7 +36,7 @@ use raphtory_api::core::{
     entities::{properties::prop::PropType, ELID},
     storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, EventTime},
     },
 };
 use raphtory_storage::{
@@ -169,7 +169,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         }
     }
 
-    pub fn edge_history(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+    pub fn edge_history(&self) -> impl Iterator<Item = (EventTime, ELID)> + '_ {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
@@ -179,7 +179,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         })
     }
 
-    pub fn edge_history_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+    pub fn edge_history_rev(&self) -> impl Iterator<Item = (EventTime, ELID)> + '_ {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
@@ -308,7 +308,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         res
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
@@ -319,7 +319,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         .into_dyn_boxed()
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
@@ -334,13 +334,13 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         semantics
-            .node_tprop_last_at(node.as_ref(), &self.graph, id, TimeIndexEntry::end(t))
+            .node_tprop_last_at(node.as_ref(), &self.graph, id, EventTime::end(t))
             .map(|(_, v)| v)
     }
 }
 
 impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
-    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (TimeIndexEntry, Vec<(usize, Prop)>)>
+    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, Vec<(usize, Prop)>)>
     where
         'graph: 'a,
     {

@@ -14,7 +14,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{LayerIds, edges::edge_ref::EdgeRef, properties::tprop::TPropCell},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use std::{ops::Deref, sync::Arc};
 
@@ -74,7 +74,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
     fn t_props_tc(
         self,
         layer_id: usize,
-        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+        range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.ns
             .as_ref()
@@ -91,7 +91,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
     fn additions_tc(
         self,
         layer_id: usize,
-        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+        range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.ns
             .as_ref()
@@ -108,7 +108,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
     fn deletions_tc(
         self,
         layer_id: usize,
-        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+        range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.ns
             .as_ref()

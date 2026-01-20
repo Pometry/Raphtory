@@ -3,7 +3,7 @@ use std::ops::Range;
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::{ELID, properties::tcell::TCell},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps, TimeIndexWindow},
+    storage::timeindex::{EventTime, TimeIndexOps, TimeIndexWindow},
 };
 
 use crate::{gen_ts::EdgeEventOps, utils::Iter4};
@@ -12,8 +12,8 @@ use crate::{gen_ts::EdgeEventOps, utils::Iter4};
 pub enum MemAdditions<'a> {
     Edges(&'a TCell<ELID>),
     Props(&'a TCell<Option<usize>>),
-    WEdges(TimeIndexWindow<'a, TimeIndexEntry, TCell<ELID>>),
-    WProps(TimeIndexWindow<'a, TimeIndexEntry, TCell<Option<usize>>>),
+    WEdges(TimeIndexWindow<'a, EventTime, TCell<ELID>>),
+    WProps(TimeIndexWindow<'a, EventTime, TCell<Option<usize>>>),
 }
 
 impl<'a> From<&'a TCell<ELID>> for MemAdditions<'a> {
@@ -30,7 +30,7 @@ impl<'a> From<&'a TCell<Option<usize>>> for MemAdditions<'a> {
 
 impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
     #[box_on_debug_lifetime]
-    fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+    fn edge_events(self) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'a {
         match self {
             MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v))),
             MemAdditions::WEdges(TimeIndexWindow::All(ti)) => {
@@ -44,7 +44,7 @@ impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
     }
 
     #[box_on_debug_lifetime]
-    fn edge_events_rev(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+    fn edge_events_rev(self) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'a {
         match self {
             MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v)).rev()),
             MemAdditions::WEdges(TimeIndexWindow::All(ti)) => {
@@ -59,7 +59,7 @@ impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
 }
 
 impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
 
     type RangeType = Self;
 

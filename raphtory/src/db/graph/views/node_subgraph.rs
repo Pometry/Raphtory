@@ -13,7 +13,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    core::{entities::ELID, storage::timeindex::EventTime},
     inherit::Base,
 };
 use raphtory_storage::{
@@ -92,7 +92,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for NodeSubg
     fn internal_filter_exploded_edge(
         &self,
         eid: ELID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer_ids: &LayerIds,
     ) -> bool {
         self.graph.internal_filter_exploded_edge(eid, t, layer_ids)

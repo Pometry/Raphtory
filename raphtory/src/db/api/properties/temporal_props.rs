@@ -3,7 +3,7 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropArray, PropType, PropUnwrap},
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -83,7 +83,7 @@ impl<P: InternalPropertiesOps> TemporalPropertyView<P> {
         self.history().zip(self.values())
     }
 
-    pub fn iter_indexed(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + use<'_, P> {
+    pub fn iter_indexed(&self) -> impl Iterator<Item = (EventTime, Prop)> + use<'_, P> {
         self.props.temporal_iter(self.id)
     }
 

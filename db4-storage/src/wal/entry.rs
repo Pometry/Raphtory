@@ -3,7 +3,7 @@ use std::path::Path;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
     entities::{EID, GID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 
 use crate::{
@@ -25,7 +25,7 @@ impl GraphWal for NoWal {
     fn log_add_static_edge(
         &self,
         _transaction_id: TransactionID,
-        _t: TimeIndexEntry,
+        _t: EventTime,
         _src: VID,
         _dst: VID,
     ) -> Result<LSN, StorageError> {
@@ -35,7 +35,7 @@ impl GraphWal for NoWal {
     fn log_add_edge(
         &self,
         _transaction_id: TransactionID,
-        _t: TimeIndexEntry,
+        _t: EventTime,
         _src: VID,
         _dst: VID,
         _eid: EID,

@@ -15,7 +15,7 @@ use raphtory_api::{
             },
             GidRef, EID, VID,
         },
-        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+        storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
     inherit::Base,
 };
@@ -74,7 +74,7 @@ pub trait InternalAdditionOps {
 
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error>;
@@ -112,7 +112,7 @@ pub trait EdgeWriteLock: Send + Sync {
     /// add edge update
     fn internal_add_edge(
         &mut self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         eid: MaybeNew<ELID>,
@@ -122,7 +122,7 @@ pub trait EdgeWriteLock: Send + Sync {
 
     fn internal_delete_edge(
         &mut self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         lsn: u64,
@@ -224,7 +224,7 @@ impl InternalAdditionOps for GraphStorage {
 
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error> {
@@ -341,7 +341,7 @@ where
     #[inline]
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error> {

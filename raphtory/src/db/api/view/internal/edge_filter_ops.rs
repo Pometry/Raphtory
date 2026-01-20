@@ -1,6 +1,6 @@
 use crate::core::entities::LayerIds;
 use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    core::{entities::ELID, storage::timeindex::EventTime},
     inherit::Base,
 };
 use storage::EdgeEntryRef;
@@ -38,7 +38,7 @@ pub trait InternalExplodedEdgeFilterOps {
     fn internal_filter_exploded_edge(
         &self,
         eid: ELID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer_ids: &LayerIds,
     ) -> bool;
 
@@ -151,7 +151,7 @@ impl<G: InheritExplodedEdgeFilterOps<Base: InternalExplodedEdgeFilterOps>>
     fn internal_filter_exploded_edge(
         &self,
         eid: ELID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer_ids: &LayerIds,
     ) -> bool {
         self.base().internal_filter_exploded_edge(eid, t, layer_ids)

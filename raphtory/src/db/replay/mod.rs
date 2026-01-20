@@ -1,7 +1,7 @@
 use db4_graph::TemporalGraph;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, EID, GID, VID},
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
 use storage::{
     api::edges::EdgeSegmentOps,
@@ -45,7 +45,7 @@ impl GraphReplayer for ReplayGraph {
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
     ) -> Result<(), StorageError> {
@@ -56,7 +56,7 @@ impl GraphReplayer for ReplayGraph {
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         eid: EID,

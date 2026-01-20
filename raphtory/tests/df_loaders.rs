@@ -24,7 +24,7 @@ mod io_tests {
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
-    use raphtory_core::storage::timeindex::TimeIndexEntry;
+    use raphtory_core::storage::timeindex::EventTime;
     use raphtory_storage::{
         core_ops::CoreGraphOps,
         mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
@@ -481,7 +481,7 @@ mod io_tests {
         let g2 = Graph::new();
 
         for (src, dst, time, secondary_index, str_prop, int_prop) in edges {
-            let time_with_secondary_index = TimeIndexEntry::new(time, secondary_index as usize);
+            let time_with_secondary_index = EventTime::new(time, secondary_index as usize);
 
             g2.add_edge(
                 time_with_secondary_index,
@@ -540,7 +540,7 @@ mod io_tests {
             let mut max_secondary_index = 0;
 
             for (src, dst, time, secondary_index_val, str_prop, int_prop) in edges {
-                let time_with_secondary_index = TimeIndexEntry(time, secondary_index_val as usize);
+                let time_with_secondary_index = EventTime(time, secondary_index_val as usize);
 
                 g2.add_edge(
                     time_with_secondary_index,
@@ -641,7 +641,7 @@ mod io_tests {
         let g2 = Graph::new();
 
         for (node_id, time, secondary_index, str_prop, int_prop, node_type) in nodes {
-            let time_with_secondary_index = TimeIndexEntry(time, secondary_index as usize);
+            let time_with_secondary_index = EventTime(time, secondary_index as usize);
 
             g2.add_node(
                 time_with_secondary_index,

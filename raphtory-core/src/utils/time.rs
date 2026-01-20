@@ -7,7 +7,7 @@ use std::{
 };
 
 use chrono::ParseError;
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
 use std::{num::ParseIntError, ops::Mul};
 
 pub(crate) const SECOND_MS: i64 = 1000;
@@ -140,7 +140,7 @@ impl TryIntoInputTime for InputTime {
     }
 }
 
-impl TryIntoInputTime for TimeIndexEntry {
+impl TryIntoInputTime for EventTime {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
         Ok(InputTime::Indexed(self.t(), self.i()))
     }
@@ -629,11 +629,11 @@ impl Mul<Interval> for u32 {
     }
 }
 
-impl Add<Interval> for TimeIndexEntry {
-    type Output = TimeIndexEntry;
+impl Add<Interval> for EventTime {
+    type Output = EventTime;
     fn add(self, rhs: Interval) -> Self::Output {
         match rhs.size {
-            IntervalSize::Discrete(number) => TimeIndexEntry(self.0 + (number as i64), self.1),
+            IntervalSize::Discrete(number) => EventTime(self.0 + (number as i64), self.1),
             IntervalSize::Temporal { millis, months } => {
                 // first we add the number of months and then the number of milliseconds for
                 // consistency with the implementation of Sub (we revert back the steps) so we
@@ -647,7 +647,7 @@ impl Add<Interval> for TimeIndexEntry {
                     .and_utc()
                     .timestamp_millis()
                     + millis as i64;
-                TimeIndexEntry(timestamp, self.1)
+                EventTime(timestamp, self.1)
             }
         }
     }

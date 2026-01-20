@@ -15,7 +15,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::ELID,
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::{AsTime, EventTime},
     },
     inherit::Base,
 };
@@ -169,7 +169,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for CachedVi
     fn internal_filter_exploded_edge(
         &self,
         eid: ELID,
-        t: TimeIndexEntry,
+        t: EventTime,
         _layer_ids: &LayerIds,
     ) -> bool {
         self.layered_mask

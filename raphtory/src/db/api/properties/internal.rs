@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropType},
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{arc_str::ArcStr, timeindex::EventTime},
     },
     inherit::Base,
     iter::IntoDynBoxed,
@@ -12,9 +12,9 @@ use raphtory_api::{
 pub trait InternalTemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)>;
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)>;
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)>;
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)>;
 
     fn temporal_history_iter(&self, id: usize) -> BoxedLIter<'_, i64> {
         self.temporal_iter(id).map(|(t, _)| t.t()).into_dyn_boxed()
@@ -48,7 +48,7 @@ pub trait InternalTemporalPropertyViewOps {
 }
 
 pub trait TemporalPropertiesRowView {
-    fn rows(&self) -> BoxedLIter<'_, (TimeIndexEntry, Vec<(usize, Prop)>)>;
+    fn rows(&self) -> BoxedLIter<'_, (EventTime, Vec<(usize, Prop)>)>;
 }
 
 pub trait InternalMetadataOps: Send + Sync {
@@ -115,12 +115,12 @@ where
     }
 
     #[inline]
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         self.base().temporal_iter(id)
     }
 
     #[inline]
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         self.base().temporal_iter_rev(id)
     }
 

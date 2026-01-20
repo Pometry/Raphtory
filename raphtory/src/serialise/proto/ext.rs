@@ -21,7 +21,7 @@ use raphtory_api::core::{
     },
     storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, EventTime},
     },
 };
 use std::{borrow::Borrow, collections::HashMap, sync::Arc};
@@ -128,8 +128,8 @@ impl DelEdge {
         self.layer_id as usize
     }
 
-    pub fn time(&self) -> TimeIndexEntry {
-        TimeIndexEntry(self.time, self.secondary as usize)
+    pub fn time(&self) -> EventTime {
+        EventTime(self.time, self.secondary as usize)
     }
 }
 
@@ -159,8 +159,8 @@ impl UpdateEdgeTProps {
         self.layer_id as usize
     }
 
-    pub fn time(&self) -> TimeIndexEntry {
-        TimeIndexEntry(self.time, self.secondary as usize)
+    pub fn time(&self) -> EventTime {
+        EventTime(self.time, self.secondary as usize)
     }
 
     pub fn has_props(&self) -> bool {
@@ -203,8 +203,8 @@ impl UpdateNodeTProps {
         VID(self.id as usize)
     }
 
-    pub fn time(&self) -> TimeIndexEntry {
-        TimeIndexEntry(self.time, self.secondary as usize)
+    pub fn time(&self) -> EventTime {
+        EventTime(self.time, self.secondary as usize)
     }
 
     pub fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
@@ -365,7 +365,7 @@ impl GraphUpdate {
     }
 
     fn update_graph_tprops(
-        time: TimeIndexEntry,
+        time: EventTime,
         values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Self {
         let inner = UpdateGraphTProps::new(time, values);
@@ -394,7 +394,7 @@ impl GraphUpdate {
 
     fn update_node_tprops(
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Self {
         let properties = collect_proto_props(properties);
@@ -409,7 +409,7 @@ impl GraphUpdate {
 
     fn update_edge_tprops(
         eid: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
         layer_id: usize,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Self {
@@ -438,7 +438,7 @@ impl GraphUpdate {
         Self::new(Update::UpdateEdgeCprops(inner))
     }
 
-    fn del_edge(eid: EID, layer_id: usize, time: TimeIndexEntry) -> Self {
+    fn del_edge(eid: EID, layer_id: usize, time: EventTime) -> Self {
         let inner = DelEdge {
             eid: eid.as_u64(),
             time: time.t(),
@@ -458,7 +458,7 @@ impl UpdateGraphCProps {
 
 impl UpdateGraphTProps {
     fn new(
-        time: TimeIndexEntry,
+        time: EventTime,
         values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Self {
         let properties = collect_proto_props(values);
@@ -544,7 +544,7 @@ impl proto_generated::Graph {
 
     pub fn update_graph_tprops(
         &mut self,
-        time: TimeIndexEntry,
+        time: EventTime,
         values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
     ) {
         self.updates
@@ -567,7 +567,7 @@ impl proto_generated::Graph {
     pub fn update_node_tprops(
         &mut self,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) {
         self.updates
@@ -577,7 +577,7 @@ impl proto_generated::Graph {
     pub fn update_edge_tprops(
         &mut self,
         eid: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
         layer_id: usize,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) {
@@ -596,7 +596,7 @@ impl proto_generated::Graph {
             .push(GraphUpdate::update_edge_cprops(eid, layer_id, properties));
     }
 
-    pub fn del_edge(&mut self, eid: EID, layer_id: usize, time: TimeIndexEntry) {
+    pub fn del_edge(&mut self, eid: EID, layer_id: usize, time: EventTime) {
         self.updates
             .push(GraphUpdate::del_edge(eid, layer_id, time))
     }

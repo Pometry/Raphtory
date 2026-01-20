@@ -37,7 +37,7 @@ use raphtory_api::{
             properties::meta::{Meta, PropMapper},
             EID,
         },
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{arc_str::ArcStr, timeindex::EventTime},
         Direction,
     },
 };
@@ -304,11 +304,11 @@ fn materialize_impl(
     )?;
 
     if let Some(earliest) = graph.earliest_time() {
-        temporal_graph.update_time(TimeIndexEntry::start(earliest));
+        temporal_graph.update_time(EventTime::start(earliest));
     };
 
     if let Some(latest) = graph.latest_time() {
-        temporal_graph.update_time(TimeIndexEntry::end(latest));
+        temporal_graph.update_time(EventTime::end(latest));
     };
 
     // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids

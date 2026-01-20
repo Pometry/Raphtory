@@ -16,7 +16,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{LayerIds, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     inherit::Base,
 };
@@ -82,7 +82,7 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.left
             .is_node_prop_update_available(prop_id, node_id, time)
@@ -95,7 +95,7 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         self.left
@@ -109,7 +109,7 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.left.is_node_prop_update_latest(prop_id, node_id, time)
             || self
@@ -121,7 +121,7 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         self.left

@@ -1,6 +1,6 @@
 use crate::core::entities::{LayerIds, VID};
 use raphtory_api::{
-    core::{entities::EID, storage::timeindex::TimeIndexEntry},
+    core::{entities::EID, storage::timeindex::EventTime},
     inherit::Base,
 };
 use std::ops::Range;
@@ -10,14 +10,14 @@ pub trait NodeHistoryFilter {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool;
 
     fn is_node_prop_update_available_window(
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool;
 
@@ -25,14 +25,14 @@ pub trait NodeHistoryFilter {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool;
 
     fn is_node_prop_update_latest_window(
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool;
 }
@@ -43,7 +43,7 @@ pub trait EdgeHistoryFilter {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool;
 
     fn is_edge_prop_update_available_window(
@@ -51,7 +51,7 @@ pub trait EdgeHistoryFilter {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool;
 
@@ -61,7 +61,7 @@ pub trait EdgeHistoryFilter {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool;
 
     fn is_edge_prop_update_latest_window(
@@ -70,7 +70,7 @@ pub trait EdgeHistoryFilter {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool;
 }
@@ -88,7 +88,7 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.base()
             .is_node_prop_update_available(prop_id, node_id, time)
@@ -99,7 +99,7 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         self.base()
@@ -110,7 +110,7 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.base()
             .is_node_prop_update_latest(prop_id, node_id, time)
@@ -120,7 +120,7 @@ where
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         self.base()
@@ -138,7 +138,7 @@ where
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.base()
             .is_edge_prop_update_available(layer_id, prop_id, edge_id, time)
@@ -150,7 +150,7 @@ where
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         self.base()
@@ -163,7 +163,7 @@ where
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         self.base()
             .is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
@@ -175,7 +175,7 @@ where
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         self.base()

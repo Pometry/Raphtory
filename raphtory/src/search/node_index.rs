@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::VID, storage::timeindex::TimeIndexEntry},
+    core::{entities::VID, storage::timeindex::EventTime},
     db::{api::view::IndexSpec, graph::node::NodeView},
     errors::GraphError,
     prelude::*,
@@ -266,7 +266,7 @@ impl NodeIndex {
 
     pub(crate) fn add_node_update(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {

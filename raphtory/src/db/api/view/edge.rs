@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::{AsTime, EventTime},
     },
     db::{
         api::{
@@ -246,7 +246,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
+    fn time_and_index(&self) -> Self::ValueType<Result<EventTime, GraphError>>;
 
     /// Gets the name of the layer this edge belongs to
     ///
@@ -656,7 +656,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>> {
+    fn time_and_index(&self) -> Self::ValueType<Result<EventTime, GraphError>> {
         self.map(|_, e| e.time().ok_or(GraphError::TimeAPIError))
     }
 

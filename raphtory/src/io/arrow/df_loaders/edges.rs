@@ -22,7 +22,7 @@ use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
         entities::EID,
-        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry, FxDashMap},
+        storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
     },
 };
 use raphtory_core::entities::VID;
@@ -500,7 +500,7 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
 
     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
         if let Some(eid_pos) = shard.resolve_pos(*eid) {
-            let t = TimeIndexEntry(time, secondary_index);
+            let t = EventTime(time, secondary_index);
             let mut writer = shard.writer();
 
             t_props.clear();
@@ -547,7 +547,7 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
     ) in zip
     {
         if let Some(dst_pos) = shard.resolve_pos(*dst) {
-            let t = TimeIndexEntry(time, secondary_index);
+            let t = EventTime(time, secondary_index);
             let mut writer = shard.writer();
 
             if !edge_exists_in_static_graph {
@@ -593,7 +593,7 @@ fn add_and_resolve_outbound_edges<
     for (row, (src, dst, time, secondary_index, layer)) in zip.enumerate() {
         if let Some(src_pos) = locked_page.resolve_pos(*src) {
             let mut writer = locked_page.writer();
-            let t = TimeIndexEntry(time, secondary_index);
+            let t = EventTime(time, secondary_index);
             // find the original EID in the static graph if it exists
             // otherwise create a new one
 

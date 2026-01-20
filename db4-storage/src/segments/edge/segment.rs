@@ -18,7 +18,7 @@ use raphtory_api::core::entities::{
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::LayerIds,
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
 use std::{
@@ -162,7 +162,7 @@ impl MemEdgeSegment {
         let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
             .properties_mut()
             .get_mut_entry(local_row);
-        let ts = TimeIndexEntry::new(t.t(), t.i());
+        let ts = EventTime::new(t.t(), t.i());
         prop_entry.append_t_props(ts, props);
         let layer_est_size = self.layers[layer_id].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
@@ -177,7 +177,7 @@ impl MemEdgeSegment {
         layer_id: usize,
         lsn: u64,
     ) {
-        let t = TimeIndexEntry::new(t.t(), t.i());
+        let t = EventTime::new(t.t(), t.i());
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
@@ -288,11 +288,11 @@ impl MemEdgeSegment {
             .is_some()
     }
 
-    pub fn latest(&self) -> Option<TimeIndexEntry> {
+    pub fn latest(&self) -> Option<EventTime> {
         Iterator::max(self.layers.iter().filter_map(|seg| seg.latest()))
     }
 
-    pub fn earliest(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest(&self) -> Option<EventTime> {
         Iterator::min(self.layers.iter().filter_map(|seg| seg.earliest()))
     }
 
@@ -391,11 +391,11 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
-    fn latest(&self) -> Option<TimeIndexEntry> {
+    fn latest(&self) -> Option<EventTime> {
         self.head().latest()
     }
 
-    fn earliest(&self) -> Option<TimeIndexEntry> {
+    fn earliest(&self) -> Option<EventTime> {
         self.head().earliest()
     }
 
@@ -534,7 +534,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
 mod test {
     use super::*;
     use raphtory_api::core::entities::properties::prop::PropType;
-    use raphtory_core::storage::timeindex::TimeIndexEntry;
+    use raphtory_core::storage::timeindex::EventTime;
 
     fn create_test_segment() -> MemEdgeSegment {
         let meta = Arc::new(Meta::default());
@@ -547,7 +547,7 @@ mod test {
 
         // Insert a few edges using insert_edge_internal
         segment.insert_edge_internal(
-            TimeIndexEntry::new(1, 0),
+            EventTime::new(1, 0),
             LocalPOS(0),
             VID(1),
             VID(2),
@@ -557,7 +557,7 @@ mod test {
         );
 
         segment.insert_edge_internal(
-            TimeIndexEntry::new(2, 1),
+            EventTime::new(2, 1),
             LocalPOS(1),
             VID(3),
             VID(4),
@@ -567,7 +567,7 @@ mod test {
         );
 
         segment.insert_edge_internal(
-            TimeIndexEntry::new(3, 2),
+            EventTime::new(3, 2),
             LocalPOS(2),
             VID(5),
             VID(6),
@@ -601,7 +601,7 @@ mod test {
         assert_eq!(segment.est_size(), 0);
 
         segment.insert_edge_internal(
-            TimeIndexEntry::new(1, 0),
+            EventTime::new(1, 0),
             LocalPOS(0),
             VID(1),
             VID(2),
@@ -614,7 +614,7 @@ mod test {
 
         assert!(est_size1 > 0);
 
-        segment.delete_edge_internal(TimeIndexEntry::new(2, 3), LocalPOS(0), VID(5), VID(3), 0, 0);
+        segment.delete_edge_internal(EventTime::new(2, 3), LocalPOS(0), VID(5), VID(3), 0, 0);
 
         let est_size2 = segment.est_size();
 
@@ -625,7 +625,7 @@ mod test {
 
         // same edge insertion again to check size increase
         segment.insert_edge_internal(
-            TimeIndexEntry::new(3, 0),
+            EventTime::new(3, 0),
             LocalPOS(1),
             VID(4),
             VID(6),

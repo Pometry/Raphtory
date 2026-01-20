@@ -20,7 +20,7 @@ mod serialise_test {
         entities::properties::{meta::PropMapper, prop::PropType},
         storage::arc_str::ArcStr,
     };
-    use raphtory_core::{entities::GidRef, storage::timeindex::TimeIndexEntry};
+    use raphtory_core::{entities::GidRef, storage::timeindex::EventTime};
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::{collections::HashMap, path::PathBuf, sync::Arc};
     use tempfile::TempDir;

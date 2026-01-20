@@ -18,7 +18,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{EID, ELID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     inherit::Base,
 };
@@ -43,7 +43,7 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
         }
     }
 
-    fn filter(&self, e: EID, t: TimeIndexEntry, layer: usize) -> bool {
+    fn filter(&self, e: EID, t: EventTime, layer: usize) -> bool {
         self.filter
             .matches_exploded_edge(&self.graph, self.prop_id, e, t, layer)
     }
@@ -124,7 +124,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
     fn internal_filter_exploded_edge(
         &self,
         eid: ELID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer_ids: &LayerIds,
     ) -> bool {
         self.graph.internal_filter_exploded_edge(eid, t, layer_ids) && {

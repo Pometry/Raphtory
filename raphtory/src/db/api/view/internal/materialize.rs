@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{LayerIds, EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     db::{
         api::view::internal::*,
@@ -161,7 +161,7 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.has_temporal_prop(prop_id))
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter(prop_id))
     }
 
@@ -174,7 +174,7 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window(prop_id, start, end))
     }
 
@@ -183,24 +183,24 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window_rev(prop_id, start, end))
     }
 
     fn temporal_prop_last_at(
         &self,
         prop_id: usize,
-        t: TimeIndexEntry,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+        t: EventTime,
+    ) -> Option<(EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at(prop_id, t))
     }
 
     fn temporal_prop_last_at_window(
         &self,
         prop_id: usize,
-        t: TimeIndexEntry,
+        t: EventTime,
         w: Range<i64>,
-    ) -> Option<(TimeIndexEntry, Prop)> {
+    ) -> Option<(EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at_window(prop_id, t, w))
     }
 }
@@ -210,7 +210,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         for_all!(self, g => g.is_node_prop_update_available(prop_id, node_id, time))
     }
@@ -219,7 +219,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         for_all!(self, g => g.is_node_prop_update_available_window(prop_id, node_id, time, w))
@@ -229,7 +229,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         for_all!(self, g =>g.is_node_prop_update_latest(prop_id, node_id, time))
     }
@@ -238,7 +238,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         &self,
         prop_id: usize,
         node_id: VID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         for_all!(self, g => g.is_node_prop_update_latest_window(prop_id, node_id, time, w))
@@ -251,7 +251,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         for_all!(self, g => g.is_edge_prop_update_available(layer_id, prop_id, edge_id, time))
     }
@@ -261,7 +261,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         for_all!(self, g => g.is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w))
@@ -273,7 +273,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
     ) -> bool {
         for_all!(self, g => g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time))
     }
@@ -284,7 +284,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         layer_id: usize,
         prop_id: usize,
         edge_id: EID,
-        time: TimeIndexEntry,
+        time: EventTime,
         w: Range<i64>,
     ) -> bool {
         for_all!(self, g => g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w))

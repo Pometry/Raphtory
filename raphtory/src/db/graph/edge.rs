@@ -33,7 +33,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::EventTime},
 };
 use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
@@ -129,7 +129,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> 
         }
     }
 
-    pub fn deletions_hist(&self) -> BoxedLIter<'_, (TimeIndexEntry, usize)> {
+    pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, usize)> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -556,7 +556,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -595,7 +595,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -650,13 +650,13 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
                         edge.as_ref(),
                         &self.graph,
                         id,
-                        TimeIndexEntry::start(t),
+                        EventTime::start(t),
                     ),
                     Some(layer) => time_semantics.temporal_edge_prop_last_at(
                         edge.as_ref(),
                         LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                         id,
-                        TimeIndexEntry::start(t),
+                        EventTime::start(t),
                     ),
                 },
                 Some(ti) => {
@@ -667,7 +667,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
                         ti,
                         layer,
                         id,
-                        TimeIndexEntry::start(t),
+                        EventTime::start(t),
                     )
                 }
             }

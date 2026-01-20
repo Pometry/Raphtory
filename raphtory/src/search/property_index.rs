@@ -4,7 +4,7 @@ use crate::{
     search::{fields, get_reader, new_index, TOKENIZER},
 };
 use raphtory_api::core::{
-    entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,
+    entities::properties::prop::PropType, storage::timeindex::EventTime,
 };
 use std::{fs, path::PathBuf, sync::Arc};
 use tantivy::{
@@ -259,7 +259,7 @@ impl PropertyIndex {
         &self,
         field_entity_id: Field,
         entity_id: u64,
-        time: Option<TimeIndexEntry>,
+        time: Option<EventTime>,
         layer_id: Option<usize>,
         prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
@@ -295,7 +295,7 @@ impl PropertyIndex {
 
     pub(crate) fn create_node_temporal_property_document(
         &self,
-        time: TimeIndexEntry,
+        time: EventTime,
         node_id: u64,
         prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
@@ -315,7 +315,7 @@ impl PropertyIndex {
 
     pub(crate) fn create_edge_temporal_property_document(
         &self,
-        time: TimeIndexEntry,
+        time: EventTime,
         edge_id: u64,
         layer_id: usize,
         prop_value: &Prop,

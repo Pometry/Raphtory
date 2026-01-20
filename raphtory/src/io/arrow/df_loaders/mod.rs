@@ -14,7 +14,7 @@ use crate::{
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry, FxDashMap},
+    storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
 };
 use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
@@ -218,7 +218,7 @@ pub(crate) fn load_graph_props_from_df<
             .zip(prop_cols.par_rows())
             .zip(metadata_cols.par_rows())
             .try_for_each(|(((time, secondary_index), t_props), c_props)| {
-                let t = TimeIndexEntry(time, secondary_index);
+                let t = EventTime(time, secondary_index);
                 let t_props: Vec<_> = t_props.collect();
 
                 if !t_props.is_empty() {
