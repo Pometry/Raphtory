@@ -2,17 +2,18 @@ use crate::{
     db::graph::views::filter::model::{
         exploded_edge_filter::ExplodedEdgeFilter,
         property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory,
+        PropertyFilterFactory, ViewWrapOps,
     },
     python::{
         filter::property_filter_builders::{
-            PyPropertyExprBuilder, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+            PyPropertyExprBuilder, PyPropertyFilterBuilder, PyViewFilterBuilder,
         },
         types::iterable::FromIterable,
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
+use raphtory_api::core::storage::timeindex::EventTime;
+use std::sync::Arc;
 
 #[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
 #[derive(Clone)]
@@ -38,17 +39,47 @@ impl PyExplodedEdgeFilter {
     }
 
     #[staticmethod]
-    fn window(start: EventTime, end: EventTime) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::window(start, end))
+    fn window(start: EventTime, end: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.window(start, end)))
     }
 
     #[staticmethod]
-    fn layer(layer: String) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::layer(layer))
+    fn at(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.at(time)))
     }
 
     #[staticmethod]
-    fn layers(layers: FromIterable<String>) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(ExplodedEdgeFilter::layer::<Layer>(layers.into()))
+    fn after(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.after(time)))
+    }
+
+    #[staticmethod]
+    fn before(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.before(time)))
+    }
+
+    #[staticmethod]
+    fn latest() -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.latest()))
+    }
+
+    #[staticmethod]
+    fn snapshot_at(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.snapshot_at(time)))
+    }
+
+    #[staticmethod]
+    fn snapshot_latest() -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.snapshot_latest()))
+    }
+
+    #[staticmethod]
+    fn layer(layer: String) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.layer(layer)))
+    }
+
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(ExplodedEdgeFilter.layer(layers)))
     }
 }

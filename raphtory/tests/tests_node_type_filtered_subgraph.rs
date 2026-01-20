@@ -4,7 +4,9 @@ use raphtory::{
         api::view::Filter,
         graph::{
             graph::assert_graph_equal,
-            views::filter::model::property_filter::ops::PropertyFilterOps,
+            views::filter::model::{
+                property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+            },
         },
     },
     prelude::*,
@@ -230,15 +232,19 @@ mod test_filters_node_type_filtered_subgraph {
             graph
         }
 
-        use raphtory::db::graph::assertions::{
-            assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
-            TestVariants,
-        };
-
         use crate::test_filters_node_type_filtered_subgraph::{
             NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };
-        use raphtory::prelude::{NodeFilter, PropertyFilterFactory};
+        use raphtory::{
+            db::graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+                    TestVariants,
+                },
+                views::filter::model::PropertyFilterFactory,
+            },
+            prelude::NodeFilter,
+        };
         #[test]
         fn test_nodes_filters() {
             let filter = NodeFilter.property("p1").eq(1u64);
@@ -471,21 +477,17 @@ mod test_filters_node_type_filtered_subgraph {
         }
 
         use crate::test_filters_node_type_filtered_subgraph::{
-            get_all_node_types, LayeredNodeTypeGraphTransformer,
-            LayeredWindowedNodeTypeGraphTransformer, NodeTypeGraphTransformer,
-            WindowedNodeTypeGraphTransformer,
+            LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer,
+            NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };
         use raphtory::{
             db::graph::{
                 assertions::{
                     assert_filter_edges_results, assert_search_edges_results, TestVariants,
                 },
-                views::deletion_graph::PersistentGraph,
+                views::filter::model::PropertyFilterFactory,
             },
-            prelude::{
-                EdgeFilter, EdgeViewOps, GraphViewOps, PropertiesOps, PropertyFilterFactory,
-                TimeOps,
-            },
+            prelude::{EdgeFilter, EdgeViewOps, GraphViewOps},
         };
 
         #[test]

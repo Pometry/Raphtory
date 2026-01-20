@@ -9,7 +9,6 @@ use crate::{
             view::{internal::*, *},
         },
         graph::{
-            create_node_type_filter,
             edge::EdgeView,
             edges::Edges,
             node::NodeView,
@@ -992,7 +991,7 @@ impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G> InternalFilter<'graph> for G
 where
-    G: GraphViewOps<'graph> + 'graph,
+    G: GraphView + 'graph,
 {
     type Graph = G;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;

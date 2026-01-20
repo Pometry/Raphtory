@@ -56,6 +56,11 @@ def with_disk_variants(init_fn, variants=None):
             "persistent_disk_graph",
         ]
 
+    if isinstance(variants, str):
+        variants = (variants,)
+    else:
+        variants = tuple(variants)
+
     def decorator(func):
         @wraps(func)
         def wrapper():
@@ -86,6 +91,7 @@ def with_disk_variants(init_fn, variants=None):
 
                         if "event_disk_graph" in variants:
                             check(disk.to_events())
+
                         if "persistent_disk_graph" in variants:
                             check(disk.to_persistent())
 

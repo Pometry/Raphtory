@@ -149,9 +149,7 @@ pub mod prelude {
         filter::Filter, property_filter::PropertyFilter,
     };
 
-    pub use crate::db::graph::views::filter::model::{
-        node_filter::NodeFilter, EdgeFilter, PropertyFilterFactory,
-    };
+    pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
     #[cfg(feature = "storage")]
     pub use {

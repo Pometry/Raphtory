@@ -28,6 +28,11 @@ pub trait CreateFilter: Sized {
         Self: 'graph,
         G: GraphView + 'graph;
 
+    type FilteredGraph<'graph, G>: GraphViewOps<'graph>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
@@ -37,6 +42,11 @@ pub trait CreateFilter: Sized {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>;
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>;
 }
 
 impl<T: NodeFilterOp> CreateFilter for T {
@@ -49,6 +59,11 @@ impl<T: NodeFilterOp> CreateFilter for T {
         = Self
     where
         Self: 'graph;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -68,5 +83,15 @@ impl<T: NodeFilterOp> CreateFilter for T {
         Self: 'graph,
     {
         Ok(self)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
+    where
+        Self: 'graph,
+    {
+        Ok(graph)
     }
 }

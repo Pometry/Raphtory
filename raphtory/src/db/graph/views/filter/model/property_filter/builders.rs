@@ -1,10 +1,11 @@
 use crate::db::graph::views::filter::model::{
-    property_filter::{Op, PropertyFilter, PropertyRef},
-    CombinedFilter, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory, Wrap,
+    property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
+    CombinedFilter, EntityMarker, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory,
+    Wrap,
 };
 
 #[derive(Clone)]
-pub struct PropertyFilterBuilder<M>(String, pub M);
+pub struct PropertyFilterBuilder<M>(pub String, pub M);
 
 impl<M> PropertyFilterBuilder<M> {
     pub fn new(prop: impl Into<String>, entity: M) -> Self {
@@ -22,7 +23,7 @@ impl<M> Wrap for PropertyFilterBuilder<M> {
 
 impl<M> InternalPropertyFilterBuilder for PropertyFilterBuilder<M>
 where
-    M: Send + Sync + Clone + 'static,
+    M: Into<EntityMarker> + Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
 {
@@ -42,18 +43,18 @@ where
         self.1.clone()
     }
 
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
-        filter
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
+        filter.with_entity(self.entity())
     }
 
-    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
-        builder
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        builder.with_entity(self.entity())
     }
 }
 
 impl<T> TemporalPropertyFilterFactory for PropertyFilterBuilder<T>
 where
-    T: Send + Sync + Clone + 'static,
+    T: Into<EntityMarker> + Send + Sync + Clone + 'static,
     PropertyFilter<T>: CombinedFilter,
 {
 }
@@ -77,7 +78,7 @@ impl<M> Wrap for MetadataFilterBuilder<M> {
 
 impl<M> InternalPropertyFilterBuilder for MetadataFilterBuilder<M>
 where
-    M: Send + Sync + Clone + 'static,
+    M: Into<EntityMarker> + Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
 {
@@ -97,12 +98,27 @@ where
         self.1.clone()
     }
 
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
-        filter
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
+        filter.with_entity(self.entity())
     }
 
-    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
-        builder
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        builder.with_entity(self.entity())
+    }
+}
+
+pub struct PropertyExprBuilderInput {
+    pub prop_ref: PropertyRef,
+    pub ops: Vec<Op>,
+}
+
+impl PropertyExprBuilderInput {
+    pub fn with_entity<M>(self, entity: M) -> PropertyExprBuilder<M> {
+        PropertyExprBuilder {
+            prop_ref: self.prop_ref,
+            ops: self.ops,
+            entity,
+        }
     }
 }
 
@@ -171,7 +187,7 @@ impl<M> Wrap for PropertyExprBuilder<M> {
 
 impl<M> InternalPropertyFilterBuilder for PropertyExprBuilder<M>
 where
-    M: Send + Sync + Clone + 'static,
+    M: Into<EntityMarker> + Send + Sync + Clone + 'static,
     PropertyFilter<M>: CombinedFilter,
 {
     type Filter = PropertyFilter<M>;
@@ -190,11 +206,11 @@ where
         self.entity.clone()
     }
 
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
-        filter
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
+        filter.with_entity(self.entity())
     }
 
-    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
-        builder
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        builder.with_entity(self.entity())
     }
 }

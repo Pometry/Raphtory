@@ -6,23 +6,20 @@ use crate::{
             NodeFilter,
         },
         property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory,
+        PropertyFilterFactory, ViewWrapOps,
     },
     python::{
         filter::{
             filter_expr::PyFilterExpr,
             property_filter_builders::{
-                PyPropertyExprBuilder, PyPropertyFilterBuilder, PyPropertyFilterFactory,
+                PyPropertyExprBuilder, PyPropertyFilterBuilder, PyViewFilterBuilder,
             },
         },
         types::iterable::FromIterable,
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::{
-    entities::{Layer, GID},
-    storage::timeindex::EventTime,
-};
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "NodeIdFilterBuilder", module = "raphtory.filter")]
@@ -382,17 +379,47 @@ impl PyNodeFilter {
     }
 
     #[staticmethod]
-    fn window(start: EventTime, end: EventTime) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(NodeFilter::window(start, end))
+    fn window(start: EventTime, end: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.window(start, end)))
     }
 
     #[staticmethod]
-    fn layer(layer: String) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(NodeFilter::layer(layer))
+    fn at(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.at(time)))
     }
 
     #[staticmethod]
-    fn layers(layers: FromIterable<String>) -> PyPropertyFilterFactory {
-        PyPropertyFilterFactory::wrap(NodeFilter::layer::<Layer>(layers.into()))
+    fn after(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.after(time)))
+    }
+
+    #[staticmethod]
+    fn before(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.before(time)))
+    }
+
+    #[staticmethod]
+    fn latest() -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.latest()))
+    }
+
+    #[staticmethod]
+    fn snapshot_at(time: EventTime) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.snapshot_at(time)))
+    }
+
+    #[staticmethod]
+    fn snapshot_latest() -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.snapshot_latest()))
+    }
+
+    #[staticmethod]
+    fn layer(layer: String) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.layer(layer)))
+    }
+
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyViewFilterBuilder {
+        PyViewFilterBuilder(Arc::new(NodeFilter.layer(layers)))
     }
 }

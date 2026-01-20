@@ -10,7 +10,7 @@ use raphtory::{
                 deletion_graph::PersistentGraph,
                 filter::model::{
                     node_filter::ops::NodeFilterOps, property_filter::ops::PropertyFilterOps,
-                    ComposableFilter, EdgeFilter,
+                    ComposableFilter, EdgeFilter, PropertyFilterFactory,
                 },
             },
         },

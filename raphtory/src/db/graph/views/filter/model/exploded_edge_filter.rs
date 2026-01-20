@@ -8,18 +8,23 @@ use crate::{
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
+                latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
                     builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
                     CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::{
-                    builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
-                    Op, PropertyFilter, PropertyRef,
+                    builders::{
+                        MetadataFilterBuilder, PropertyExprBuilderInput, PropertyFilterBuilder,
+                    },
+                    Op, PropertyFilter, PropertyFilterInput, PropertyRef,
                 },
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, InternalPropertyFilterBuilder, InternalPropertyFilterFactory, NotFilter,
-                OrFilter, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                AndFilter, EntityMarker, InternalPropertyFilterBuilder,
+                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
+                TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -27,11 +32,17 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::Layer, utils::time::IntoTime};
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
+
+impl From<ExplodedEdgeFilter> for EntityMarker {
+    fn from(_value: ExplodedEdgeFilter) -> Self {
+        EntityMarker::ExplodedEdge
+    }
+}
 
 impl ExplodedEdgeFilter {
     #[inline]
@@ -43,16 +54,6 @@ impl ExplodedEdgeFilter {
     pub fn dst() -> ExplodedEdgeEndpointWrapper<NodeFilter> {
         ExplodedEdgeEndpointWrapper::new(NodeFilter, Endpoint::Dst)
     }
-
-    #[inline]
-    pub fn window<S: IntoTime, E: IntoTime>(start: S, end: E) -> Windowed<ExplodedEdgeFilter> {
-        Windowed::from_times(start, end, ExplodedEdgeFilter)
-    }
-
-    #[inline]
-    pub fn layer<L: Into<Layer>>(layer: L) -> Layered<ExplodedEdgeFilter> {
-        Layered::from_layers(layer, ExplodedEdgeFilter)
-    }
 }
 
 impl Wrap for ExplodedEdgeFilter {
@@ -60,6 +61,14 @@ impl Wrap for ExplodedEdgeFilter {
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
         value
+    }
+}
+
+impl InternalViewWrapOps for ExplodedEdgeFilter {
+    type Window = Windowed<ExplodedEdgeFilter>;
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Windowed::from_times(start, end, self)
     }
 }
 
@@ -72,18 +81,12 @@ impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
         ExplodedEdgeFilter
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        builder
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        PropertyFilterBuilder(property, self.entity())
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        builder
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        MetadataFilterBuilder(property, self.entity())
     }
 }
 
@@ -163,12 +166,12 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder
         self.inner.entity()
     }
 
-    fn filter(&self, filter: PropertyFilter<Self::Marker>) -> Self::Filter {
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
         self.wrap(self.inner.filter(filter))
     }
 
-    fn into_expr_builder(&self, builder: PropertyExprBuilder<Self::Marker>) -> Self::ExprBuilder {
-        self.wrap(self.inner.into_expr_builder(builder))
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        self.wrap(self.inner.with_expr_builder(builder))
     }
 }
 
@@ -183,18 +186,12 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory
         self.inner.entity()
     }
 
-    fn property_builder(
-        &self,
-        builder: PropertyFilterBuilder<Self::Entity>,
-    ) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(builder))
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(property))
     }
 
-    fn metadata_builder(
-        &self,
-        builder: MetadataFilterBuilder<Self::Entity>,
-    ) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(builder))
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(property))
     }
 }
 
@@ -215,6 +212,11 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type FilteredGraph<'graph, G>
+        = T::FilteredGraph<'graph, G>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -236,6 +238,13 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        self.inner.filter_graph_view(graph)
     }
 }
 
@@ -268,6 +277,9 @@ pub enum CompositeExplodedEdgeFilter {
     Dst(CompositeNodeFilter),
     Property(PropertyFilter<ExplodedEdgeFilter>),
     Windowed(Box<Windowed<CompositeExplodedEdgeFilter>>),
+    Latest(Box<Latest<CompositeExplodedEdgeFilter>>),
+    SnapshotAt(Box<SnapshotAt<CompositeExplodedEdgeFilter>>),
+    SnapshotLatest(Box<SnapshotLatest<CompositeExplodedEdgeFilter>>),
     Layered(Box<Layered<CompositeExplodedEdgeFilter>>),
     And(
         Box<CompositeExplodedEdgeFilter>,
@@ -287,6 +299,9 @@ impl Display for CompositeExplodedEdgeFilter {
             CompositeExplodedEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
             CompositeExplodedEdgeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::Windowed(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::Latest(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeExplodedEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -302,6 +317,11 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
     where
         Self: 'graph,
         G: GraphView + 'graph;
+    type FilteredGraph<'graph, G>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
 
     fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
@@ -320,6 +340,18 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
             }
             Self::Property(p) => Ok(Arc::new(p.create_filter(graph)?)),
             Self::Windowed(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::Latest(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::SnapshotAt(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::SnapshotLatest(pw) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 pw.create_filter(dyn_graph)
             }
@@ -351,6 +383,46 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        match self.clone() {
+            Self::Src(filter) => {
+                let wrapped = ExplodedEdgeEndpointWrapper::new(filter, Endpoint::Src);
+                let filtered_graph = wrapped.filter_graph_view(graph)?;
+                Ok(Arc::new(filtered_graph))
+            }
+            Self::Dst(filter) => {
+                let wrapped = ExplodedEdgeEndpointWrapper::new(filter, Endpoint::Dst);
+                let filtered_graph = wrapped.filter_graph_view(graph)?;
+                Ok(Arc::new(filtered_graph))
+            }
+            Self::Property(p) => Ok(Arc::new(p.filter_graph_view(graph)?)),
+            Self::Windowed(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::Latest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::SnapshotAt(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::SnapshotLatest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::Layered(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::And(l, r) => {
+                let (l, r) = (*l, *r); // move out, no clone
+                Ok(Arc::new(
+                    AndFilter { left: l, right: r }.filter_graph_view(graph)?,
+                ))
+            }
+            Self::Or(l, r) => {
+                let (l, r) = (*l, *r);
+                Ok(Arc::new(
+                    OrFilter { left: l, right: r }.filter_graph_view(graph)?,
+                ))
+            }
+            Self::Not(f) => {
+                let base = *f;
+                Ok(Arc::new(NotFilter(base).filter_graph_view(graph)?))
+            }
+        }
     }
 }
 

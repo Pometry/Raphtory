@@ -405,7 +405,7 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
         }
     }
 
-    fn get_by_index(&self, index: usize) -> Option<(NodeView<&Self::Graph>, Self::Value<'_>)> {
+    fn get_by_index(&self, index: usize) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         match &self.keys {
             Some(node_index) => node_index.key(index).map(|n| {
                 (

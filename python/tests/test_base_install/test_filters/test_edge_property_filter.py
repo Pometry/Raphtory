@@ -1,6 +1,6 @@
 from filters_setup import U32_MAX, U64_MAX, I64_MAX, U16_MAX, U8_MAX
 from raphtory import filter, Prop
-from filters_setup import init_graph, create_test_graph2
+from filters_setup import init_graph, init_graph3, create_test_graph2
 from utils import with_disk_variants
 import pytest
 
@@ -1458,5 +1458,169 @@ def test_filter_edges_temporal_layer_eq_is_empty():
             == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == set()
+
+    return check
+
+
+@with_disk_variants(init_graph, variants="graph")
+def test_filter_edges_at():
+    def check(graph):
+        expr = filter.Edge.at(1).property("p10").temporal().last() == "Paper_airplane"
+        assert _pairs(graph.filter(expr).edges) == {("1", "2")}
+
+        expr = filter.Edge.at(2).property("p10").temporal().last() == "Paper_ship"
+        assert _pairs(graph.filter(expr).edges) == {("2", "3")}
+
+        expr = filter.Edge.at(3).property("p10").temporal().last() == "Paper_airplane"
+        assert _pairs(graph.filter(expr).edges) == {("2", "1")}
+
+    return check
+
+
+@with_disk_variants(init_graph, variants="persistent_graph")
+def test_filter_edges_at_persistent():
+    def check(graph):
+        expr = filter.Edge.at(3).property("p10").temporal().last() == "Paper_airplane"
+        assert _pairs(graph.filter(expr).edges) == {("1", "2"), ("2", "1")}
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+def test_filter_edges_before():
+    def check(graph):
+        expr = (
+            filter.Edge.before(2).property("p10").temporal().last() == "Paper_airplane"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("1", "2")}
+
+        expr = filter.Edge.before(2).property("p10").temporal().last() == "Paper_ship"
+        assert _pairs(graph.filter(expr).edges) == set()
+
+    return check
+
+
+@with_disk_variants(init_graph, variants="graph")
+def test_filter_edges_after():
+    def check(graph):
+        expr = (
+            filter.Edge.after(2).property("p10").temporal().last() == "Paper_airplane"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("2", "1")}
+
+        expr = filter.Edge.after(2).property("p10").temporal().last() == "Paper_ship"
+        assert _pairs(graph.filter(expr).edges) == set()
+
+    return check
+
+
+@with_disk_variants(init_graph, variants="persistent_graph")
+def test_filter_edges_after_persistent():
+    def check(graph):
+        expr = (
+            filter.Edge.after(2).property("p10").temporal().last() == "Paper_airplane"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("1", "2"), ("2", "1")}
+
+        expr = filter.Edge.after(2).property("p10").temporal().last() == "Paper_ship"
+        assert _pairs(graph.filter(expr).edges) == {("2", "3")}
+
+    return check
+
+
+@with_disk_variants(init_graph, variants="graph")
+def test_filter_edges_latest():
+    def check(graph):
+        expr = filter.Edge.latest().property("p2").temporal().sum() >= 0
+        assert ("1", "2") not in _pairs(graph.filter(expr).edges)
+
+        expr = (
+            filter.Edge.latest().property("p10").temporal().last() == "Paper_airplane"
+        )
+        assert _pairs(graph.filter(expr).edges) == set()
+
+        expr = filter.Edge.latest().property("p10").temporal().last() == "Paper_ship"
+        assert _pairs(graph.filter(expr).edges) == set()
+
+    return check
+
+
+@with_disk_variants(init_graph, variants="persistent_graph")
+def test_filter_edges_latest_persistent():
+    def check(graph):
+        expr = (
+            filter.Edge.latest().property("p10").temporal().last() == "Paper_airplane"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("1", "2"), ("2", "1")}
+
+        expr = filter.Edge.latest().property("p10").temporal().last() == "Paper_ship"
+        assert _pairs(graph.filter(expr).edges) == {("2", "3")}
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+def test_filter_edges_snapshot_at():
+    def check(graph):
+        expr = (
+            filter.Edge.snapshot_at(2).property("p10").temporal().last()
+            == "Paper_airplane"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("1", "2")}
+
+        expr = (
+            filter.Edge.snapshot_at(2).property("p10").temporal().last() == "Paper_ship"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("2", "3")}
+
+        expr = (
+            filter.Edge.snapshot_at(1).property("p10").temporal().last()
+            == "Paper_airplane"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("1", "2")}
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+def test_filter_edges_snapshot_latest():
+    def check(graph):
+        expr = (
+            filter.Edge.snapshot_latest().property("p10").temporal().last()
+            == "Paper_airplane"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("1", "2"), ("2", "1")}
+
+        expr = (
+            filter.Edge.snapshot_latest().property("p10").temporal().last()
+            == "Paper_ship"
+        )
+        assert _pairs(graph.filter(expr).edges) == {("2", "3")}
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_layer_latest():
+    def check(graph):
+        expr = (
+            filter.Edge.layer("fire_nation").latest().property("p2").temporal().last()
+            == 7
+        )
+
+        assert sorted(graph.filter(expr).edges.id) == [(1, 2)]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_latest_layer():
+    def check(graph):
+        expr = (
+            filter.Edge.latest().layer("fire_nation").property("p2").temporal().last()
+            == 7
+        )
+
+        assert sorted(graph.filter(expr).edges.id) == []
 
     return check

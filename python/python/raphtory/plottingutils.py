@@ -5,7 +5,6 @@ Useful code snippets for making commonly used plots in Raphtory.
 from pathlib import Path
 import numpy as np
 
-
 motif_im_dir = Path(__file__).parents[1].absolute().as_posix() + "/motif-images/"
 
 

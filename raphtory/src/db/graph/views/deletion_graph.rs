@@ -1,6 +1,5 @@
 use crate::{
     core::{
-        entities::LayerIds,
         storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
         utils::iter::GenLockedDIter,
     },
@@ -14,18 +13,12 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::{
-    core::entities::{properties::tprop::TPropOps, EID, VID},
+    core::entities::properties::tprop::TPropOps,
     inherit::Base,
     iter::{BoxedLDIter, IntoDynDBoxed},
     GraphType,
 };
-use raphtory_storage::{
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
-        nodes::node_storage_ops::NodeStorageOps,
-    },
-    mutation::InheritMutationOps,
-};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},

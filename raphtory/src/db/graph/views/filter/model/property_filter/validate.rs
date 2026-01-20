@@ -3,11 +3,9 @@ use crate::{
         property_filter::PropertyFilterValue, FilterOperator, Op, PropertyRef,
     },
     errors::GraphError,
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropertiesOps, PropertyFilter},
+    prelude::PropertyFilter,
 };
 use raphtory_api::core::entities::properties::prop::{unify_types, PropType};
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
-use std::fmt::Display;
 use Shape::{List, Quantified, Scalar};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

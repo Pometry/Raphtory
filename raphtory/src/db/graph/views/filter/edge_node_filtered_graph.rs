@@ -1,18 +1,15 @@
-use crate::{
-    db::{
-        api::{
-            properties::internal::InheritPropertiesOps,
-            state::ops::NodeFilterOp,
-            view::internal::{
-                GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
-                InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
-                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritTimeSemantics, InternalEdgeFilterOps, Static,
-            },
+use crate::db::{
+    api::{
+        properties::internal::InheritPropertiesOps,
+        state::ops::NodeFilterOp,
+        view::internal::{
+            GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+            InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
+            InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalEdgeFilterOps, Static,
         },
-        graph::views::filter::model::edge_filter::Endpoint,
     },
-    prelude::GraphViewOps,
+    graph::views::filter::model::edge_filter::Endpoint,
 };
 use raphtory_api::{core::entities::LayerIds, inherit::Base};
 use raphtory_storage::{

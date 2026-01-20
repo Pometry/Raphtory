@@ -6338,6 +6338,70 @@ NOT operator.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.window">window</strong></td>
+<td valign="top"><a href="#edgewindowexpr">EdgeWindowExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.at">at</strong></td>
+<td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.before">before</strong></td>
+<td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.after">after</strong></td>
+<td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.latest">latest</strong></td>
+<td valign="top"><a href="#edgeunaryexpr">EdgeUnaryExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#edgeunaryexpr">EdgeUnaryExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.layers">layers</strong></td>
+<td valign="top"><a href="#edgelayersexpr">EdgeLayersExpr</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### EdgeLayersExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgelayersexpr.names">names</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgelayersexpr.expr">expr</strong></td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td></td>
+</tr>
 </tbody>
 </table>
 
@@ -6396,6 +6460,49 @@ Time
 Property
 
 </td>
+</tr>
+</tbody>
+</table>
+
+### EdgeTimeExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgetimeexpr.time">time</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgetimeexpr.expr">expr</strong></td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### EdgeUnaryExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeunaryexpr.expr">expr</strong></td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -6545,6 +6652,35 @@ Set the window end to a specified time.
 Edge filter
 
 </td>
+</tr>
+</tbody>
+</table>
+
+### EdgeWindowExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgewindowexpr.start">start</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgewindowexpr.end">end</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgewindowexpr.expr">expr</strong></td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -7178,6 +7314,70 @@ NOT operator.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.window">window</strong></td>
+<td valign="top"><a href="#nodewindowexpr">NodeWindowExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.at">at</strong></td>
+<td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.before">before</strong></td>
+<td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.after">after</strong></td>
+<td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.latest">latest</strong></td>
+<td valign="top"><a href="#nodeunaryexpr">NodeUnaryExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#nodeunaryexpr">NodeUnaryExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.layers">layers</strong></td>
+<td valign="top"><a href="#nodelayersexpr">NodeLayersExpr</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### NodeLayersExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodelayersexpr.names">names</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodelayersexpr.expr">expr</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td></td>
+</tr>
 </tbody>
 </table>
 
@@ -7227,6 +7427,49 @@ Time
 Property
 
 </td>
+</tr>
+</tbody>
+</table>
+
+### NodeTimeExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodetimeexpr.time">time</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodetimeexpr.expr">expr</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### NodeUnaryExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeunaryexpr.expr">expr</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -7376,6 +7619,35 @@ Set the window end to a specified time.
 Node filter.
 
 </td>
+</tr>
+</tbody>
+</table>
+
+### NodeWindowExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodewindowexpr.start">start</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodewindowexpr.end">end</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodewindowexpr.expr">expr</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -7859,16 +8131,6 @@ Set the window end to a specified time.
 <tr>
 <td colspan="2" valign="top"><strong id="propertyfilternew.name">name</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="propertyfilternew.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="propertyfilternew.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
 <td></td>
 </tr>
 <tr>

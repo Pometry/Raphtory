@@ -8,7 +8,6 @@ use crate::{
     },
     impl_lazy_node_state, impl_lazy_node_state_ord, impl_node_state_group_by_ops,
     impl_node_state_ops, impl_node_state_ord_ops,
-    prelude::*,
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -36,7 +35,6 @@ pub(crate) use crate::{
     py_borrowing_iter,
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
-use pyo3::prelude::*;
 
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,
