@@ -42,44 +42,63 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             .map(|(k, v)| (ArcStr::from(k.as_str()), v.clone()))
             .collect()
     };
+
+    // compare histories as multiset as order for values with the same timestamp is ambiguous!
     let get_fixture_t_prop_map =
-        |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> HashMap<ArcStr, Vec<(i64, Prop)>> {
-            let mut out: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
+        |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
+            let mut grouped: HashMap<ArcStr, HashMap<i64, HashMap<Prop, usize>>> = HashMap::new();
             for (t, props) in t_props {
                 for (k, v) in props {
-                    out.entry(ArcStr::from(k.as_str()))
-                        .or_default()
-                        .push((*t, v.clone()));
+                    grouped.entry(ArcStr::from(k.as_str()))
+                        .or_default().entry(*t).or_default().entry(v.clone()).and_modify(|v| *v += 1).or_insert(1);;
                 }
             }
-            for values in out.values_mut() {
-                values.sort_by_key(|(t, _)| *t);
-            }
-            out
+            grouped.into_iter().map(|(key, value)| (key, value.into_iter().sorted_by_key(|(t, _)| *t).collect())).collect()
         };
-    let get_node_t_prop_map = |node: &NodeView<Graph>| -> HashMap<ArcStr, Vec<(i64, Prop)>> {
-        let mut out: HashMap<ArcStr, Vec<(i64, Prop)>> = node
+    
+    let get_node_t_prop_map = |node: &NodeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
+        let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
             .properties()
             .temporal()
-            .iter()
+            .iter().filter(|(_, props)| !props.is_empty())
             .map(|(key, values)| {
-                let v = values.iter().map(|(t, p)| (t.t(), p.clone())).collect_vec();
-                (key, v)
+                let runs = values.iter().map(|(t, v)| {
+                    (t, HashMap::from([(v, 1usize)]))
+                }).coalesce(|(lt, mut lv), (rt, rv)| {
+                    if lt == rt {
+                        for (v, count) in rv {
+                            lv.entry(v).and_modify(|c| *c += 1).or_insert(1);
+                        }
+                        Ok((lt, lv))
+                    } else {
+                        Err(((lt, lv), (rt, rv)))
+                    }
+                }).collect();
+                (key, runs)
             })
-            .filter(|(_, v)| !v.is_empty())
             .collect();
         out
     };
-    let get_edge_t_prop_map = |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, Prop)>> {
-        let mut out: HashMap<ArcStr, Vec<(i64, Prop)>> = edge
+    let get_edge_t_prop_map = |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
+        let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
             .properties()
             .temporal()
-            .iter()
+            .iter().filter(|(_, props)| !props.is_empty())
             .map(|(key, values)| {
-                let v = values.iter().map(|(t, p)| (t.t(), p.clone())).collect_vec();
-                (key, v)
+                let runs = values.iter().map(|(t, v)| {
+                    (t, HashMap::from([(v, 1usize)]))
+                }).coalesce(|(lt, mut lv), (rt, rv)| {
+                    if lt == rt {
+                        for (v, count) in rv {
+                            lv.entry(v).and_modify(|c| *c += 1).or_insert(1);
+                        }
+                        Ok((lt, lv))
+                    } else {
+                        Err(((lt, lv), (rt, rv)))
+                    }
+                }).collect();
+                (key, runs)
             })
-            .filter(|(_, v)| !v.is_empty())
             .collect();
         out
     };
@@ -203,7 +222,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
 
     // node-level checks
     for (node_id, expected_history) in expected_node_histories {
-        let node = graph
+        let node = (&graph)
             .node(node_id)
             .unwrap_or_else(|| panic!("graph should have node {node_id}"));
         assert_eq!(
