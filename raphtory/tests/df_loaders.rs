@@ -1096,13 +1096,10 @@ mod parquet_tests {
                 0,
                 NodeUpdatesFixture {
                     props: PropUpdatesFixture {
-                        t_props: vec![(
-                            0,
-                            vec![
-                                ("a".to_string(), Prop::U8(5)),
-                                ("a".to_string(), Prop::U8(5)),
-                            ],
-                        )],
+                        t_props: vec![
+                            (0, vec![("a".to_string(), Prop::U8(5))]),
+                            (0, vec![("a".to_string(), Prop::U8(5))]),
+                        ],
                         c_props: vec![("b".to_string(), Prop::DTime(dt))],
                     },
                     node_type: None,
