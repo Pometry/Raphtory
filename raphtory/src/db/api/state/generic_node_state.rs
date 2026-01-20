@@ -345,10 +345,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
     }
 
     pub fn from_parquet<P: AsRef<Path>>(
-        &mut self,
+        &self,
         file_path: P,
         id_column: Option<String>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<GenericNodeState<'graph, G, GH>, GraphError> {
         let file = File::open(file_path)?;
         let builder = ParquetRecordBatchReaderBuilder::try_new(file)?;
         let schema = builder.schema().clone();
@@ -381,6 +381,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             )));
         }
 
+        let mut index = self.keys.clone();
+
         // checking again so we can remove the column
         if let Some(ref col_name) = id_column {
             // reconstruct index
@@ -400,7 +402,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                         .to_string(),
                     )));
                 }
-                self.keys = Some(Index::from_iter(
+                index = Some(Index::from_iter(
                     arr.iter().map(|v| VID(v.unwrap_or(0) as usize)),
                 ));
             } else {
@@ -410,12 +412,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             }
             batch.remove_column(schema.column_with_name(col_name).unwrap().0);
         } else if batch.num_rows() < self.graph.unfiltered_num_nodes() {
-            self.keys = Some(Index::from_iter((0..batch.num_rows()).map(VID)));
+            index = Some(Index::from_iter((0..batch.num_rows()).map(VID)));
         }
 
-        self.values = batch;
-
-        Ok(())
+        Ok(GenericNodeState {
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            values: batch,
+            keys: index,
+            node_cols: self.node_cols.clone(),
+            _marker: PhantomData,
+        })
     }
 
     pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P, id_column: Option<String>) {

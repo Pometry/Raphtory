@@ -166,7 +166,16 @@ impl PyOutputNodeState {
         self.inner.state.to_parquet(file_path, Some(id_column));
     }
 
-    // TOOD?
+    #[pyo3(signature = (file_path, id_column="id".to_string()))]
+    fn from_parquet(&self, file_path: String, id_column: String) -> PyResult<Self> {
+        Ok(PyOutputNodeState {
+            inner: OutputTypedNodeState::new_mapped(
+                self.inner.state.from_parquet(file_path, Some(id_column))?,
+                GenericNodeState::get_nodes,
+            ),
+        })
+    }
+
     #[pyo3(signature = (other, index_merge_priority="left".to_string(), default_column_merge_priority="left".to_string(), column_merge_priority_map=None::<HashMap<String, String>>))]
     fn merge<'py>(
         &self,
