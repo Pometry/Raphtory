@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "raphtory",
-    "raphtory-cypher",
     "raphtory-benchmark",
     "examples/rust",
     "examples/netflow",

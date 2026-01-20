@@ -99,7 +99,6 @@ pub enum LoadError {
     Arrow(#[from] ArrowError),
 }
 
-#[cfg(feature = "arrow")]
 pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
     err.into()
 }
