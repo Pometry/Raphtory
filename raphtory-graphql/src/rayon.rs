@@ -37,16 +37,17 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 #[cfg(test)]
 mod deadlock_tests {
+    use crate::{
+        rayon::{COMPUTE_POOL, WRITE_POOL},
+        routes::Health,
+        GraphServer,
+    };
+    use reqwest::{Client, StatusCode};
     use std::{
         sync::{Arc, Mutex},
         time::Duration,
     };
-
-    use reqwest::{Client, StatusCode};
     use tempfile::TempDir;
-
-    use crate::{rayon::WRITE_POOL, routes::Health, GraphServer};
-    use crate::rayon::COMPUTE_POOL;
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
