@@ -46,11 +46,12 @@ mod deadlock_tests {
     use tempfile::TempDir;
 
     use crate::{rayon::WRITE_POOL, routes::Health, GraphServer};
+    use crate::rayon::COMPUTE_POOL;
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
         test_pool_lock(43871, |lock| {
-            rayon::spawn_broadcast(move |_| {
+            COMPUTE_POOL.spawn_broadcast(move |_| {
                 let _guard = lock.lock().unwrap();
             });
         })
