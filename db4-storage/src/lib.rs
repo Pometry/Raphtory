@@ -42,8 +42,8 @@ pub mod persist;
 pub mod properties;
 pub mod resolver;
 pub mod segments;
-pub mod transaction;
 pub mod state;
+pub mod transaction;
 pub mod utils;
 pub mod wal;
 

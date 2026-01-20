@@ -606,8 +606,8 @@ mod test {
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
-    use std::sync::Arc;
     use rayon::iter::ParallelIterator;
+    use std::sync::Arc;
 
     #[test]
     fn test_iterleave() {

@@ -242,7 +242,12 @@ pub fn load_node_props_from_df<
         )?;
 
         // We assume this is fast enough
-        let max_vid = node_col_resolved.iter().map(|vid| vid.index()).max().map(VID).unwrap_or(VID(0));
+        let max_vid = node_col_resolved
+            .iter()
+            .map(|vid| vid.index())
+            .max()
+            .map(VID)
+            .unwrap_or(VID(0));
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
         write_locked_graph.resize_chunks_to_vid(max_vid);
 
@@ -257,7 +262,12 @@ pub fn load_node_props_from_df<
             {
                 if let Some(mut_node) = shard.resolve_pos(*vid) {
                     let mut writer = shard.writer();
-                    writer.store_node_id_and_node_type(mut_node, STATIC_GRAPH_LAYER_ID, gid, *node_type);
+                    writer.store_node_id_and_node_type(
+                        mut_node,
+                        STATIC_GRAPH_LAYER_ID,
+                        gid,
+                        *node_type,
+                    );
 
                     if resolve_nodes {
                         // because we don't call resolve_node above

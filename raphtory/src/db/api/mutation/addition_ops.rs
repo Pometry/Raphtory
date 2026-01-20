@@ -17,7 +17,8 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::GID;
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps},
-    durability_ops::DurabilityOps, MutationError,
+    durability_ops::DurabilityOps,
+    MutationError,
 };
 use storage::wal::{GraphWal, Wal};
 

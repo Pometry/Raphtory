@@ -558,9 +558,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 #[cfg(test)]
 mod test {
     use super::*;
+    use raphtory_api::core::entities::properties::meta::Meta;
     use raphtory_api::core::entities::properties::prop::PropType;
     use raphtory_core::storage::timeindex::TimeIndexEntry;
-    use raphtory_api::core::entities::properties::meta::Meta;
 
     fn create_test_segment() -> MemEdgeSegment {
         let meta = Arc::new(Meta::default());

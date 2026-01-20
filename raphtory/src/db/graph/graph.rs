@@ -48,7 +48,10 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use storage::{persist::strategy::{PersistenceStrategy, PersistenceConfig}, Extension};
+use storage::{
+    persist::strategy::{PersistenceConfig, PersistenceStrategy},
+    Extension,
+};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]
@@ -170,7 +173,10 @@ impl Graph {
         path.init()?;
 
         let graph = Self {
-            inner: Arc::new(Storage::new_at_path_with_config(path.graph_path()?, config)?),
+            inner: Arc::new(Storage::new_at_path_with_config(
+                path.graph_path()?,
+                config,
+            )?),
         };
 
         path.write_metadata(&graph)?;

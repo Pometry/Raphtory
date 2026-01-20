@@ -19,10 +19,13 @@ use raphtory_core::{
 };
 use std::{
     borrow::Cow,
+    fmt::Debug,
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
-    sync::{Arc, atomic::{AtomicU32, Ordering}},
-    fmt::Debug,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
 };
 
 use rayon::prelude::*;
@@ -130,8 +133,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     }
 
     fn num_nodes(&self) -> u32 {
-        self.nodes_counter()
-            .load(Ordering::Relaxed)
+        self.nodes_counter().load(Ordering::Relaxed)
     }
 
     fn num_layers(&self) -> usize;

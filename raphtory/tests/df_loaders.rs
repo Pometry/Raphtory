@@ -8,13 +8,11 @@ mod io_tests {
     use raphtory::{
         db::graph::graph::assert_graph_equal,
         errors::GraphError,
-        io::{
-            arrow::{
-                dataframe::{DFChunk, DFView},
-                df_loaders::{
-                    edges::{load_edges_from_df, ColumnNames},
-                    nodes::{load_node_props_from_df, load_nodes_from_df},
-                },
+        io::arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::{
+                edges::{load_edges_from_df, ColumnNames},
+                nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
         prelude::*,
@@ -705,9 +703,9 @@ mod parquet_tests {
         db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         prelude::*,
         test_utils::{
-            build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
-            EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
-            PropUpdatesFixture,
+            assert_valid_graph, build_edge_list_dyn, build_graph, build_graph_strat,
+            build_nodes_dyn, build_props_dyn, EdgeFixture, EdgeUpdatesFixture, GraphFixture,
+            NodeFixture, NodeUpdatesFixture, PropUpdatesFixture,
         },
     };
     use std::{io::Cursor, str::FromStr};
@@ -1062,13 +1060,17 @@ mod parquet_tests {
     // proptest
     fn build_and_check_parquet_encoding(edges: GraphFixture) {
         let g = Graph::from(build_graph(&edges));
-        check_parquet_encoding(g);
+        check_parquet_encoding(&g, Some(edges));
     }
 
-    fn check_parquet_encoding(g: Graph) {
+    fn check_parquet_encoding(g: &Graph, fixture: Option<GraphFixture>) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None).unwrap();
+        if let Some(f) = fixture {
+            assert_valid_graph(&f, g);
+            assert_valid_graph(&f, &g2);
+        }
         assert_graph_equal(&g, &g2);
     }
 
@@ -1089,13 +1091,10 @@ mod parquet_tests {
                 0,
                 NodeUpdatesFixture {
                     props: PropUpdatesFixture {
-                        t_props: vec![(
-                            0,
-                            vec![
-                                ("a".to_string(), Prop::U8(5)),
-                                ("a".to_string(), Prop::U8(5)),
-                            ],
-                        )],
+                        t_props: vec![
+                            (0, vec![("a".to_string(), Prop::U8(5))]),
+                            (0, vec![("a".to_string(), Prop::U8(5))]),
+                        ],
                         c_props: vec![("b".to_string(), Prop::DTime(dt))],
                     },
                     node_type: None,
@@ -1178,8 +1177,8 @@ mod parquet_tests {
 
     #[test]
     fn write_graph_to_parquet() {
-        proptest!(|(edges in build_graph_strat(10, 10, 10, 10, true))| {
-            build_and_check_parquet_encoding(edges);
+        proptest!(|(graph in build_graph_strat(10, 10, 10, 10, true))| {
+            build_and_check_parquet_encoding(graph);
         })
     }
 
@@ -1196,7 +1195,7 @@ mod parquet_tests {
         graph
             .add_edge(0, 0, 1, [("test", Prop::map(NO_PROPS))], None)
             .unwrap();
-        check_parquet_encoding(graph);
+        check_parquet_encoding(&graph, None);
     }
 
     #[test]

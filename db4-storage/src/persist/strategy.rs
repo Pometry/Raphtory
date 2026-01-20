@@ -3,9 +3,10 @@ use crate::{
     error::StorageError,
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
-        graph_prop::{segment::MemGraphPropSegment, GraphPropSegmentView},
+        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
-    }, wal::{no_wal::NoWal, Wal}
+    },
+    wal::{Wal, no_wal::NoWal},
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
