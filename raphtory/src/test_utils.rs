@@ -55,53 +55,61 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             }
             grouped.into_iter().map(|(key, value)| (key, value.into_iter().sorted_by_key(|(t, _)| *t).collect())).collect()
         };
-    
-    let get_node_t_prop_map = |node: &NodeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-        let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
-            .properties()
-            .temporal()
-            .iter().filter(|(_, props)| !props.is_empty())
-            .map(|(key, values)| {
-                let runs = values.iter().map(|(t, v)| {
-                    (t, HashMap::from([(v, 1usize)]))
-                }).coalesce(|(lt, mut lv), (rt, rv)| {
-                    if lt == rt {
-                        for (v, count) in rv {
-                            lv.entry(v).and_modify(|c| *c += 1).or_insert(1);
-                        }
-                        Ok((lt, lv))
-                    } else {
-                        Err(((lt, lv), (rt, rv)))
-                    }
-                }).collect();
-                (key, runs)
-            })
-            .collect();
-        out
-    };
-    let get_edge_t_prop_map = |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-        let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
-            .properties()
-            .temporal()
-            .iter().filter(|(_, props)| !props.is_empty())
-            .map(|(key, values)| {
-                let runs = values.iter().map(|(t, v)| {
-                    (t, HashMap::from([(v, 1usize)]))
-                }).coalesce(|(lt, mut lv), (rt, rv)| {
-                    if lt == rt {
-                        for (v, count) in rv {
-                            lv.entry(v).and_modify(|c| *c += 1).or_insert(1);
-                        }
-                        Ok((lt, lv))
-                    } else {
-                        Err(((lt, lv), (rt, rv)))
-                    }
-                }).collect();
-                (key, runs)
-            })
-            .collect();
-        out
-    };
+
+    let get_node_t_prop_map =
+        |node: &NodeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
+            let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
+                .properties()
+                .temporal()
+                .iter()
+                .filter(|(_, props)| !props.is_empty())
+                .map(|(key, values)| {
+                    let runs = values
+                        .iter()
+                        .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
+                        .coalesce(|(lt, mut lv), (rt, rv)| {
+                            if lt == rt {
+                                for (v, count) in rv {
+                                    lv.entry(v).and_modify(|c| *c += 1).or_insert(1);
+                                }
+                                Ok((lt, lv))
+                            } else {
+                                Err(((lt, lv), (rt, rv)))
+                            }
+                        })
+                        .collect();
+                    (key, runs)
+                })
+                .collect();
+            out
+        };
+    let get_edge_t_prop_map =
+        |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
+            let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
+                .properties()
+                .temporal()
+                .iter()
+                .filter(|(_, props)| !props.is_empty())
+                .map(|(key, values)| {
+                    let runs = values
+                        .iter()
+                        .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
+                        .coalesce(|(lt, mut lv), (rt, rv)| {
+                            if lt == rt {
+                                for (v, count) in rv {
+                                    lv.entry(v).and_modify(|c| *c += 1).or_insert(1);
+                                }
+                                Ok((lt, lv))
+                            } else {
+                                Err(((lt, lv), (rt, rv)))
+                            }
+                        })
+                        .collect();
+                    (key, runs)
+                })
+                .collect();
+            out
+        };
 
     // collect expected sets from fixture
     let mut expected_node_histories: HashMap<u64, Vec<i64>> = fixture
