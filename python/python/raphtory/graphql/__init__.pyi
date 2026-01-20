@@ -43,7 +43,7 @@ class GraphServer(object):
         create_index:
     """
 
-    def __new__(cls, work_dir: str | PathLike, cache_capacity: Optional[int] = None, cache_tti_seconds: Optional[int] = None, log_level: Optional[str] = None, tracing: Optional[bool] = None, otlp_agent_host: Optional[str] = None, otlp_agent_port: Optional[str] = None, otlp_tracing_service_name: Optional[str] = None, auth_public_key: Any = None, auth_enabled_for_reads: Any = None, config_path: Optional[str | PathLike] = None, create_index: Any = None) -> GraphServer:
+    def __new__(cls, work_dir: str | PathLike, cache_capacity: Optional[int] = None, cache_tti_seconds: Optional[int] = None, log_level: Optional[str] = None, tracing: Optional[bool] = None, tracing_level=None, otlp_agent_host: Optional[str] = None, otlp_agent_port: Optional[str] = None, otlp_tracing_service_name: Optional[str] = None, auth_public_key: Any = None, auth_enabled_for_reads: Any = None, config_path: Optional[str | PathLike] = None, create_index: Any = None) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def run(self, port: int = 1736, timeout_ms: int = 180000) -> None:
