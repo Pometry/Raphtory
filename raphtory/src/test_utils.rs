@@ -50,7 +50,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             for (t, props) in t_props {
                 for (k, v) in props {
                     grouped.entry(ArcStr::from(k.as_str()))
-                        .or_default().entry(*t).or_default().entry(v.clone()).and_modify(|v| *v += 1).or_insert(1);;
+                        .or_default().entry(*t).or_default().entry(v.clone()).and_modify(|v| *v += 1).or_insert(1);
                 }
             }
             grouped.into_iter().map(|(key, value)| (key, value.into_iter().sorted_by_key(|(t, _)| *t).collect())).collect()
@@ -70,7 +70,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                         .coalesce(|(lt, mut lv), (rt, rv)| {
                             if lt == rt {
                                 for (v, count) in rv {
-                                    lv.entry(v).and_modify(|c| *c += 1).or_insert(1);
+                                    lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                                 }
                                 Ok((lt, lv))
                             } else {
@@ -97,7 +97,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                         .coalesce(|(lt, mut lv), (rt, rv)| {
                             if lt == rt {
                                 for (v, count) in rv {
-                                    lv.entry(v).and_modify(|c| *c += 1).or_insert(1);
+                                    lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                                 }
                                 Ok((lt, lv))
                             } else {

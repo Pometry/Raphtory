@@ -123,7 +123,7 @@ impl Hash for Prop {
                 }
             }
             Prop::Map(m) => {
-                for (key, prop) in m.iter() {
+                for (key, prop) in m.iter().sorted_by(|(lk, _), (rk, _)| lk.cmp(rk)) {
                     key.hash(state);
                     prop.hash(state);
                 }
