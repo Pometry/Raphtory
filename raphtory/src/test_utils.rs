@@ -54,7 +54,6 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             }
             for values in out.values_mut() {
                 values.sort_by_key(|(t, _)| *t);
-                values.dedup()
             }
             out
         };
@@ -64,8 +63,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             .temporal()
             .iter()
             .map(|(key, values)| {
-                let mut v = values.iter().map(|(t, p)| (t.t(), p.clone())).collect_vec();
-                v.sort_by_key(|(t, _)| *t);
+                let v = values.iter().map(|(t, p)| (t.t(), p.clone())).collect_vec();
                 (key, v)
             })
             .filter(|(_, v)| !v.is_empty())
@@ -78,8 +76,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             .temporal()
             .iter()
             .map(|(key, values)| {
-                let mut v = values.iter().map(|(t, p)| (t.t(), p.clone())).collect_vec();
-                v.sort_by_key(|(t, _)| *t);
+                let v = values.iter().map(|(t, p)| (t.t(), p.clone())).collect_vec();
                 (key, v)
             })
             .filter(|(_, v)| !v.is_empty())
@@ -117,10 +114,9 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             .or_default()
             .extend(updates.deletions.iter().copied());
     }
-    // sort and dedup history vecs to match node.history()
+    // sort history vecs to match node.history()
     for values in expected_node_histories.values_mut() {
         values.sort();
-        values.dedup();
     }
     let expected_edge_pairs: std::collections::HashSet<(u64, u64)> = fixture
         .edges()
