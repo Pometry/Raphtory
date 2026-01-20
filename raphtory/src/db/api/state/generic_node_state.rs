@@ -370,6 +370,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
         let mut batch = arrow::compute::concat_batches(&schema, &batches)?;
 
+        if batch.num_rows() > self.graph.unfiltered_num_nodes() {
+            return Err(GraphError::ParquetError(ParquetError::ArrowError(
+                format!(
+                    "Number of rows ({}) exceeds order of graph ({}).",
+                    batch.num_rows(),
+                    self.graph.unfiltered_num_nodes()
+                )
+                .to_string(),
+            )));
+        }
+
         // checking again so we can remove the column
         if let Some(ref col_name) = id_column {
             // reconstruct index
@@ -378,30 +389,28 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 .unwrap()
                 .as_primitive_opt::<UInt64Type>()
             {
+                let max_node_id = arr.iter().max().unwrap_or(Some(0)).unwrap() as usize;
+                if max_node_id >= self.graph.unfiltered_num_nodes() {
+                    return Err(GraphError::ParquetError(ParquetError::ArrowError(
+                        format!(
+                            "Max Node ID ({}) exceeds order of graph ({}).",
+                            max_node_id,
+                            self.graph.unfiltered_num_nodes()
+                        )
+                        .to_string(),
+                    )));
+                }
                 self.keys = Some(Index::from_iter(
                     arr.iter().map(|v| VID(v.unwrap_or(0) as usize)),
                 ));
-                // TODO: check if index is valid for graph
             } else {
                 return Err(GraphError::ParquetError(ParquetError::ArrowError(
                     format!("Column {} is not unsigned integer type.", col_name).to_string(),
                 )));
             }
-            // Index::from_iter()
             batch.remove_column(schema.column_with_name(col_name).unwrap().0);
-        } else {
-            if batch.num_rows() < self.graph.unfiltered_num_nodes() {
-                self.keys = Some(Index::from_iter((0..batch.num_rows()).map(VID)));
-            } else if batch.num_rows() > self.graph.unfiltered_num_nodes() {
-                return Err(GraphError::ParquetError(ParquetError::ArrowError(
-                    format!(
-                        "Number of rows ({}) exceeds order of graph ({}).",
-                        batch.num_rows(),
-                        self.graph.unfiltered_num_nodes()
-                    )
-                    .to_string(),
-                )));
-            }
+        } else if batch.num_rows() < self.graph.unfiltered_num_nodes() {
+            self.keys = Some(Index::from_iter((0..batch.num_rows()).map(VID)));
         }
 
         self.values = batch;
