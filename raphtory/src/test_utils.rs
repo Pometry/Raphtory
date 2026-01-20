@@ -144,6 +144,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
     // sort history vecs to match node.history()
     for values in expected_node_histories.values_mut() {
         values.sort();
+        values.dedup(); // FIXME: remove when updating to the new history apis
     }
     let expected_edge_pairs: std::collections::HashSet<(u64, u64)> = fixture
         .edges()
