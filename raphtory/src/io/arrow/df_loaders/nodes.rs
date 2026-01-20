@@ -142,7 +142,6 @@ pub fn load_nodes_from_df<
                         let mut writer = shard.writer();
                         let t = TimeIndexEntry(time, secondary_index);
                         let layer_id = STATIC_GRAPH_LAYER_ID;
-                        let lsn = 0;
 
                         update_time(t);
 
@@ -151,8 +150,8 @@ pub fn load_nodes_from_df<
                             .iter_row(row)
                             .chain(shared_metadata.iter().cloned());
 
-                        writer.add_props(t, mut_node, layer_id, t_props, lsn);
-                        writer.update_c_props(mut_node, layer_id, c_props, lsn);
+                        writer.add_props(t, mut_node, layer_id, t_props);
+                        writer.update_c_props(mut_node, layer_id, c_props);
                     };
                 }
 
@@ -243,9 +242,9 @@ pub fn load_node_props_from_df<
         )?;
 
         // We assume this is fast enough
-        let max_id = node_col_resolved.iter().map(|VID(i)| *i).max().map(VID);
+        let max_vid = node_col_resolved.iter().map(|vid| vid.index()).max().map(VID).unwrap_or(VID(0));
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-        write_locked_graph.resize_chunks_to_num_nodes(max_id);
+        write_locked_graph.resize_chunks_to_vid(max_vid);
 
         write_locked_graph.nodes.iter_mut().try_for_each(|shard| {
             let mut c_props = vec![];
@@ -258,7 +257,7 @@ pub fn load_node_props_from_df<
             {
                 if let Some(mut_node) = shard.resolve_pos(*vid) {
                     let mut writer = shard.writer();
-                    writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type, 0);
+                    writer.store_node_id_and_node_type(mut_node, STATIC_GRAPH_LAYER_ID, gid, *node_type);
 
                     if resolve_nodes {
                         // because we don't call resolve_node above
@@ -269,7 +268,7 @@ pub fn load_node_props_from_df<
                     c_props.extend(metadata_cols.iter_row(idx));
                     c_props.extend_from_slice(&shared_metadata);
                     if !c_props.is_empty() {
-                        writer.update_c_props(mut_node, 0, c_props.drain(..), 0);
+                        writer.update_c_props(mut_node, STATIC_GRAPH_LAYER_ID, c_props.drain(..));
                     }
                 };
             }
@@ -467,7 +466,7 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
 
         if let Some(src_pos) = locked_page.resolve_pos(*vid) {
             let mut writer = locked_page.writer();
-            writer.store_node_id_and_node_type(src_pos, 0, *gid, *node_type, 0);
+            writer.store_node_id_and_node_type(src_pos, STATIC_GRAPH_LAYER_ID, *gid, *node_type);
         }
     }
 }

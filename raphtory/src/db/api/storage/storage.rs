@@ -114,7 +114,24 @@ impl Storage {
         let wal_dir = graph_dir.wal_dir();
         let wal = Arc::new(WalType::new(Some(wal_dir.as_path()))?);
         let ext = Extension::new(config, wal.clone());
-        let temporal_graph = TemporalGraph::new_with_path(path, ext)?;
+        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
+    pub(crate) fn new_at_path_with_config(
+        path: impl AsRef<Path>,
+        config: PersistenceConfig,
+    ) -> Result<Self, GraphError> {
+        let graph_dir = GraphDir::from(path.as_ref());
+        let wal_dir = graph_dir.wal_dir();
+        let wal = Arc::new(WalType::new(Some(wal_dir.as_path()))?);
+        let ext = Extension::new(config, wal.clone());
+        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),

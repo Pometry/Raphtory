@@ -161,7 +161,7 @@ impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     }
 
     pub fn max_segment_len(&self) -> u32 {
-        self.ext.persistence_config().max_node_page_len
+        self.ext.config().max_node_page_len
     }
 }
 
@@ -335,7 +335,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let nodes_path = nodes_path.as_ref();
-        let max_page_len = ext.persistence_config().max_node_page_len;
+        let max_page_len = ext.config().max_node_page_len;
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !nodes_path.exists() {

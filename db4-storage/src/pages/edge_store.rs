@@ -223,7 +223,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
 
     pub fn load(edges_path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let edges_path = edges_path.as_ref();
-        let max_page_len = ext.persistence_config().max_edge_page_len;
+        let max_page_len = ext.config().max_edge_page_len;
 
         let meta = Arc::new(Meta::new_for_edges());
 
@@ -417,7 +417,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
 
     #[inline(always)]
     pub fn max_page_len(&self) -> u32 {
-        self.ext.persistence_config().max_edge_page_len
+        self.ext.config().max_edge_page_len
     }
 
     pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {

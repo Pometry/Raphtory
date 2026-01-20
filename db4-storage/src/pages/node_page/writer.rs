@@ -186,10 +186,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(pos, layer_id, node_info_as_props(Some(gid), node_type));
     }
 
-    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: GidRef<'_>) {
+    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: GID) {
         let gid = match gid {
-            GidRef::U64(id) => Prop::U64(id),
-            GidRef::Str(s) => Prop::str(s),
+            GID::U64(id) => Prop::U64(id),
+            GID::Str(s) => Prop::str(s),
         };
         let props = [(NODE_ID_IDX, gid)];
         self.update_c_props(pos, layer_id, props);

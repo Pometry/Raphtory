@@ -112,7 +112,7 @@ where
         Self::new_with_meta(None, node_meta, edge_meta, graph_props_meta, ext)
     }
 
-    pub fn new_with_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+    pub fn new_at_path_with_ext(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
         let graph_props_meta = Meta::new_for_graph_props();
@@ -404,17 +404,15 @@ where
         self.graph
     }
 
-    pub fn resize_chunks_to_num_nodes(&mut self, max_vid: Option<VID>) {
-        if let Some(max_vid) = max_vid {
-            let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(max_vid);
-            self.graph.storage().nodes().grow(chunks_needed + 1);
-            std::mem::take(&mut self.nodes);
-            self.nodes = self.graph.storage.nodes().write_locked();
-        }
+    pub fn resize_chunks_to_vid(&mut self, vid: VID) {
+        let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(vid);
+        self.graph.storage().nodes().grow(chunks_needed + 1);
+        std::mem::take(&mut self.nodes);
+        self.nodes = self.graph.storage.nodes().write_locked();
     }
 
-    pub fn resize_chunks_to_num_edges(&mut self, max_eid: EID) {
-        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(max_eid);
+    pub fn resize_chunks_to_eid(&mut self, eid: EID) {
+        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(eid);
         self.graph.storage().edges().grow(chunks_needed + 1);
         std::mem::take(&mut self.edges);
         self.edges = self.graph.storage.edges().write_locked();

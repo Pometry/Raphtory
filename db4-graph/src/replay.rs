@@ -12,7 +12,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::entities::GidRef;
 use storage::{
-    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::resolve_pos,
     persist::strategy::PersistenceStrategy,
@@ -24,6 +24,9 @@ use storage::{
 impl<EXT> GraphReplay for WriteLockedGraph<'_, EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    NS<EXT>: NodeSegmentOps<Extension = EXT>,
+    ES<EXT>: EdgeSegmentOps<Extension = EXT>,
+    GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     fn replay_add_edge(
         &mut self,
@@ -40,8 +43,8 @@ where
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let temporal_graph = self.graph();
-        let node_max_page_len = temporal_graph.storage().nodes().max_page_len();
-        let edge_max_page_len = temporal_graph.storage().edges().max_page_len();
+        let node_max_page_len = temporal_graph.extension().config().max_node_page_len;
+        let edge_max_page_len = temporal_graph.extension().config().max_edge_page_len;
 
         // 1. Insert prop ids into edge meta.
         // No need to validate props again since they are already validated before
@@ -76,8 +79,8 @@ where
 
         // 4. Grab src writer and add edge data.
         let (src_segment_id, src_pos) = resolve_pos(src_id, node_max_page_len);
-        let num_nodes = src_id.index() + 1;
-        self.resize_chunks_to_num_nodes(num_nodes); // Create enough segments.
+        let resize_vid = VID::from(src_id.index() + 1);
+        self.resize_chunks_to_vid(resize_vid); // Create enough segments.
 
         let segment = self
             .graph()
@@ -89,7 +92,7 @@ where
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
             let mut src_writer = self.nodes.get_mut(src_segment_id).unwrap().writer();
-            src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, GidRef::from(&src_name));
+            src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name.into());
 
             let is_new_edge_static = src_writer
                 .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
@@ -116,8 +119,8 @@ where
 
         // 5. Grab dst writer and add edge data.
         let (dst_segment_id, dst_pos) = resolve_pos(dst_id, node_max_page_len);
-        let num_nodes = dst_id.index() + 1;
-        self.resize_chunks_to_num_nodes(num_nodes);
+        let resize_vid = VID::from(dst_id.index() + 1);
+        self.resize_chunks_to_vid(resize_vid);
 
         let segment = self
             .graph()
@@ -129,7 +132,7 @@ where
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
             let mut dst_writer = self.nodes.get_mut(dst_segment_id).unwrap().writer();
-            dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, GidRef::from(&dst_name));
+            dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, dst_name.into());
 
             let is_new_edge_static = dst_writer
                 .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
@@ -153,8 +156,8 @@ where
 
         // 6. Grab edge writer and add temporal props & metadata.
         let (edge_segment_id, edge_pos) = resolve_pos(eid, edge_max_page_len);
-        let num_edges = eid.index() + 1;
-        self.resize_chunks_to_num_edges(num_edges);
+        let resize_eid = EID::from(eid.index() + 1);
+        self.resize_chunks_to_eid(resize_eid);
 
         let segment = self
             .graph()

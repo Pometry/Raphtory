@@ -73,7 +73,7 @@ impl<
 {
     pub fn flush(&self) -> Result<(), StorageError> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
-        let config = self.ext.persistence_config().with_node_types(node_types);
+        let config = self.ext.config().with_node_types(node_types);
 
         if let Some(graph_dir) = self.graph_dir.as_ref() {
             config.save_to_dir(graph_dir)?;
@@ -146,7 +146,7 @@ impl<
         ));
 
         if let Some(graph_dir) = graph_dir {
-            ext.persistence_config()
+            ext.config()
                 .save_to_dir(graph_dir)
                 .expect("Unrecoverable! Failed to write graph config");
         }
@@ -175,7 +175,7 @@ impl<
         let graph_prop_storage =
             Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
 
-        for node_type in ext.persistence_config().node_types().iter() {
+        for node_type in ext.config().node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
         }
 

@@ -21,7 +21,8 @@ use std::{
     borrow::Cow,
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
-    sync::{Arc, atomic::AtomicU32},
+    sync::{Arc, atomic::{AtomicU32, Ordering}},
+    fmt::Debug,
 };
 
 use rayon::prelude::*;
@@ -36,7 +37,7 @@ use crate::{
     wal::LSN,
 };
 
-pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
+pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
     type Entry<'a>: NodeEntryOps<'a>
@@ -130,7 +131,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn num_nodes(&self) -> u32 {
         self.nodes_counter()
-            .load(std::sync::atomic::Ordering::Relaxed)
+            .load(Ordering::Relaxed)
     }
 
     fn num_layers(&self) -> usize;
@@ -138,7 +139,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn layer_count(&self, layer_id: usize) -> u32;
 }
 
-pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {
+pub trait LockedNSSegment: Debug + Send + Sync {
     type EntryRef<'a>: NodeRefOps<'a>
     where
         Self: 'a;

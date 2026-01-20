@@ -220,7 +220,7 @@ impl InternalAdditionOps for TemporalGraph {
                         self.event_counter
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                     );
-                    pos.as_vid(seg, self.extension().max_node_page_len())
+                    pos.as_vid(seg, self.extension().config().max_node_page_len)
                 })?;
 
                 Ok(id)

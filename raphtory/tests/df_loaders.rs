@@ -1,7 +1,5 @@
 #[cfg(feature = "io")]
 mod io_tests {
-    use std::any::Any;
-
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
@@ -18,7 +16,6 @@ mod io_tests {
                     nodes::{load_node_props_from_df, load_nodes_from_df},
                 },
             },
-            parquet_loaders::load_node_props_from_parquet,
         },
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},

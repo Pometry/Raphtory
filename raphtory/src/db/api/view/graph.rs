@@ -299,7 +299,7 @@ fn materialize_impl(
     let graph_dir = path.map(|p| GraphDir::from(p));
     let wal_dir = graph_dir.map(|dir| dir.wal_dir());
     let wal = WalType::new(wal_dir.as_deref())?;
-    let config = storage.extension().persistence_config().clone();
+    let config = storage.extension().config().clone();
     let ext = Extension::new(config, Arc::new(wal));
 
     let temporal_graph = TemporalGraph::new_with_meta(
@@ -376,7 +376,7 @@ fn materialize_impl(
                             new_type_id,
                         );
                     } else {
-                        writer.store_node_id(node_pos, STATIC_GRAPH_LAYER_ID, gid.as_ref());
+                        writer.store_node_id(node_pos, STATIC_GRAPH_LAYER_ID, gid.clone());
                     }
 
                     graph_storage
@@ -406,7 +406,7 @@ fn materialize_impl(
             new_eids.push(new_eid);
             max_eid = new_eid.0.max(max_eid);
         }
-        new_storage.resize_chunks_to_num_edges(EID(max_eid));
+        new_storage.resize_chunks_to_eid(EID(max_eid));
 
         for layer_id in &layer_map {
             new_storage.edges.ensure_layer(*layer_id);
