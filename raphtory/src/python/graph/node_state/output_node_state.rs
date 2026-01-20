@@ -167,7 +167,7 @@ impl PyOutputNodeState {
     }
 
     // TOOD?
-    #[pyo3(signature = (other, index_merge_priority, default_column_merge_priority, column_merge_priority_map=None::<HashMap<String, String>>))]
+    #[pyo3(signature = (other, index_merge_priority="left".to_string(), default_column_merge_priority="left".to_string(), column_merge_priority_map=None::<HashMap<String, String>>))]
     fn merge<'py>(
         &self,
         other: &Bound<'py, PyAny>,
