@@ -1,7 +1,4 @@
-use crate::db::{
-    api::state::{node_state::NodeState, node_state_ops::NodeStateOps},
-    graph::node::NodeView,
-};
+use crate::db::{api::state::node_state_ops::NodeStateOps, graph::node::NodeView};
 use num_traits::float::FloatCore;
 use ordered_float::OrderedFloat;
 use parking_lot::RwLock;

@@ -2,7 +2,7 @@ use crate::core::{entities::properties::prop::PropType, storage::arc_str::ArcStr
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
-use num_traits::{Bounded, FromPrimitive, NumCast, ToPrimitive};
+use num_traits::{Bounded, FromPrimitive, ToPrimitive};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{

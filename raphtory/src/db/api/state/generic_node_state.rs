@@ -1,18 +1,30 @@
 use crate::{
-    core::entities::{VID, nodes::node_ref::AsNodeRef}, db::{
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    db::{
         api::{
-            state::{Index, node_state_ops::NodeStateOps},
+            state::{node_state_ops::NodeStateOps, Index},
             view::{DynamicGraph, IntoDynBoxed, IntoDynamic},
         },
         graph::{node::NodeView, nodes::Nodes},
-    }, errors::GraphError, prelude::{GraphViewOps, NodeViewOps}
+    },
+    errors::GraphError,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 
-use arrow::{array::AsArray, compute::{CastOptions, cast_with_options}, datatypes::UInt64Type};
+use arrow::{
+    array::AsArray,
+    compute::{cast_with_options, CastOptions},
+    datatypes::UInt64Type,
+};
 use arrow_array::{Array, ArrayRef, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use indexmap::{IndexMap, IndexSet};
-use parquet::{arrow::{ArrowWriter,arrow_reader::ParquetRecordBatchReaderBuilder}, basic::Compression, errors::ParquetError, file::properties::WriterProperties};
+use parquet::{
+    arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter},
+    basic::Compression,
+    errors::ParquetError,
+    file::properties::WriterProperties,
+};
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
@@ -26,7 +38,14 @@ use serde_arrow::{
 };
 
 use std::{
-    cmp::PartialEq, collections::HashMap, fmt::{Debug, Formatter}, fs::File, hash::BuildHasher, marker::PhantomData, path::Path, sync::Arc
+    cmp::PartialEq,
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+    fs::File,
+    hash::BuildHasher,
+    marker::PhantomData,
+    path::Path,
+    sync::Arc,
 };
 
 pub trait NodeStateValue:
@@ -325,8 +344,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         self.values.num_rows()
     }
 
-    pub fn from_parquet<P: AsRef<Path>>(&mut self, file_path: P, id_column: Option<String>) -> Result<(), GraphError> {
-
+    pub fn from_parquet<P: AsRef<Path>>(
+        &mut self,
+        file_path: P,
+        id_column: Option<String>,
+    ) -> Result<(), GraphError> {
         let file = File::open(file_path)?;
         let builder = ParquetRecordBatchReaderBuilder::try_new(file)?;
         let schema = builder.schema().clone();
@@ -342,18 +364,28 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         let reader = builder.build()?;
         let batches: Vec<RecordBatch> = reader.collect::<Result<Vec<_>, _>>()?;
         if batches.is_empty() {
-            return Err(GraphError::ParquetError(ParquetError::ArrowError("Parquet file is empty.".to_string())));
+            return Err(GraphError::ParquetError(ParquetError::ArrowError(
+                "Parquet file is empty.".to_string(),
+            )));
         }
         let mut batch = arrow::compute::concat_batches(&schema, &batches)?;
 
         // checking again so we can remove the column
         if let Some(ref col_name) = id_column {
             // reconstruct index
-            if let Some(arr) = batch.column_by_name(col_name).unwrap().as_primitive_opt::<UInt64Type>() {
-                self.keys = Some(Index::from_iter(arr.iter().map(|v| VID(v.unwrap_or(0) as usize))));
+            if let Some(arr) = batch
+                .column_by_name(col_name)
+                .unwrap()
+                .as_primitive_opt::<UInt64Type>()
+            {
+                self.keys = Some(Index::from_iter(
+                    arr.iter().map(|v| VID(v.unwrap_or(0) as usize)),
+                ));
                 // TODO: check if index is valid for graph
             } else {
-                return Err(GraphError::ParquetError(ParquetError::ArrowError(format!("Column {} is not unsigned integer type.", col_name).to_string())));
+                return Err(GraphError::ParquetError(ParquetError::ArrowError(
+                    format!("Column {} is not unsigned integer type.", col_name).to_string(),
+                )));
             }
             // Index::from_iter()
             batch.remove_column(schema.column_with_name(col_name).unwrap().0);
@@ -361,7 +393,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             if batch.num_rows() < self.graph.unfiltered_num_nodes() {
                 self.keys = Some(Index::from_iter((0..batch.num_rows()).map(VID)));
             } else if batch.num_rows() > self.graph.unfiltered_num_nodes() {
-                return Err(GraphError::ParquetError(ParquetError::ArrowError(format!("Number of rows ({}) exceeds order of graph ({}).", batch.num_rows(), self.graph.unfiltered_num_nodes()).to_string())));
+                return Err(GraphError::ParquetError(ParquetError::ArrowError(
+                    format!(
+                        "Number of rows ({}) exceeds order of graph ({}).",
+                        batch.num_rows(),
+                        self.graph.unfiltered_num_nodes()
+                    )
+                    .to_string(),
+                )));
             }
         }
 
@@ -475,8 +514,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         default_column_merge_priority: MergePriority,
         column_merge_priority_map: Option<HashMap<String, MergePriority>>,
     ) -> Self {
-        let mut merge_node_cols: HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)> = HashMap::default();
-        let default_node_cols: &HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)> = 
+        let mut merge_node_cols: HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)> =
+            HashMap::default();
+        let default_node_cols: &HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)> =
             if default_column_merge_priority == MergePriority::Left {
                 &self.node_cols
             } else {
@@ -490,7 +530,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                     self.keys.as_ref().unwrap().index.as_ref(),
                     other.keys.as_ref().unwrap().index.as_ref(),
                 )
-
                 .clone()
                 .into_iter()
                 .map(|v| v.to_owned())
@@ -514,24 +553,32 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 let (lh, rh, lh_batch, rh_batch) = match priority {
                     MergePriority::Left => {
                         if self.node_cols.contains_key(col_name) {
-                            merge_node_cols.insert(col_name.to_string(), self.node_cols.get(col_name).unwrap().clone());
+                            merge_node_cols.insert(
+                                col_name.to_string(),
+                                self.node_cols.get(col_name).unwrap().clone(),
+                            );
                         }
                         (
-                        self.keys.as_ref(),
-                        other.keys.as_ref(),
-                        &self.values,
-                        &other.values,
-                    )},
+                            self.keys.as_ref(),
+                            other.keys.as_ref(),
+                            &self.values,
+                            &other.values,
+                        )
+                    }
                     MergePriority::Right => {
                         if other.node_cols.contains_key(col_name) {
-                            merge_node_cols.insert(col_name.to_string(), other.node_cols.get(col_name).unwrap().clone());
+                            merge_node_cols.insert(
+                                col_name.to_string(),
+                                other.node_cols.get(col_name).unwrap().clone(),
+                            );
                         }
                         (
-                        other.keys.as_ref(),
-                        self.keys.as_ref(),
-                        &other.values,
-                        &self.values,
-                    )},
+                            other.keys.as_ref(),
+                            self.keys.as_ref(),
+                            &other.values,
+                            &self.values,
+                        )
+                    }
                     MergePriority::Exclude => continue,
                 };
                 let (col, field) = GenericNodeState::<'graph, G>::merge_columns(
@@ -581,7 +628,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 .map_or(true, |map| map.contains_key(col_name) == false)
             {
                 if default_node_cols.contains_key(col_name) {
-                    merge_node_cols.insert(col_name.to_string(), default_node_cols.get(col_name).unwrap().clone());
+                    merge_node_cols.insert(
+                        col_name.to_string(),
+                        default_node_cols.get(col_name).unwrap().clone(),
+                    );
                 }
                 let (col, field) = GenericNodeState::<'graph, G>::merge_columns(
                     col_name,
