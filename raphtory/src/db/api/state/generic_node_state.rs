@@ -1,21 +1,18 @@
 use crate::{
-    core::entities::{nodes::node_ref::AsNodeRef, VID},
-    db::{
+    core::entities::{VID, nodes::node_ref::AsNodeRef}, db::{
         api::{
-            state::{node_state_ops::NodeStateOps, Index},
+            state::{Index, node_state_ops::NodeStateOps},
             view::{DynamicGraph, IntoDynBoxed, IntoDynamic},
         },
         graph::{node::NodeView, nodes::Nodes},
-    },
-    prelude::{GraphViewOps, NodeViewOps},
+    }, errors::GraphError, prelude::{GraphViewOps, NodeViewOps}
 };
 
-use arrow::compute::{cast_with_options, CastOptions};
-
+use arrow::{array::AsArray, compute::{CastOptions, cast_with_options}, datatypes::UInt64Type};
 use arrow_array::{Array, ArrayRef, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use indexmap::{IndexMap, IndexSet};
-use parquet::{arrow::{ArrowWriter,arrow_reader::ParquetRecordBatchReaderBuilder}, basic::Compression, file::properties::WriterProperties};
+use parquet::{arrow::{ArrowWriter,arrow_reader::ParquetRecordBatchReaderBuilder}, basic::Compression, errors::ParquetError, file::properties::WriterProperties};
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
@@ -27,15 +24,9 @@ use serde_arrow::{
     schema::{SchemaLike, TracingOptions},
     to_record_batch, Deserializer,
 };
+
 use std::{
-    cmp::PartialEq,
-    collections::HashMap,
-    fmt::{Debug, Formatter},
-    fs::File,
-    hash::BuildHasher,
-    marker::PhantomData,
-    path::Path,
-    sync::Arc,
+    cmp::PartialEq, collections::HashMap, fmt::{Debug, Formatter}, fs::File, hash::BuildHasher, marker::PhantomData, path::Path, sync::Arc
 };
 
 pub trait NodeStateValue:
@@ -334,12 +325,49 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         self.values.num_rows()
     }
 
-    pub fn from_parquet<P: AsRef<Path>>(file_path: P, id_column: Option<String>) -> GenericNodeState<'graph, G, GH> {
-        // read recordbatch
-        // if id column exists
-        //  use to reconstruct index
-        //  drop column
-        todo!();
+    pub fn from_parquet<P: AsRef<Path>>(&mut self, file_path: P, id_column: Option<String>) -> Result<(), GraphError> {
+
+        let file = File::open(file_path)?;
+        let builder = ParquetRecordBatchReaderBuilder::try_new(file)?;
+        let schema = builder.schema().clone();
+
+        // if id column is specified, but doesn't exist, throw error
+        // we're checking here so we can potentially terminate early
+        if let Some(ref col_name) = id_column {
+            if schema.column_with_name(col_name).is_none() {
+                return Err(GraphError::ColumnDoesNotExist(col_name.clone()));
+            }
+        }
+
+        let reader = builder.build()?;
+        let batches: Vec<RecordBatch> = reader.collect::<Result<Vec<_>, _>>()?;
+        if batches.is_empty() {
+            return Err(GraphError::ParquetError(ParquetError::ArrowError("Parquet file is empty.".to_string())));
+        }
+        let mut batch = arrow::compute::concat_batches(&schema, &batches)?;
+
+        // checking again so we can remove the column
+        if let Some(ref col_name) = id_column {
+            // reconstruct index
+            if let Some(arr) = batch.column_by_name(col_name).unwrap().as_primitive_opt::<UInt64Type>() {
+                self.keys = Some(Index::from_iter(arr.iter().map(|v| VID(v.unwrap_or(0) as usize))));
+                // TODO: check if index is valid for graph
+            } else {
+                return Err(GraphError::ParquetError(ParquetError::ArrowError(format!("Column {} is not unsigned integer type.", col_name).to_string())));
+            }
+            // Index::from_iter()
+            batch.remove_column(schema.column_with_name(col_name).unwrap().0);
+        } else {
+            if batch.num_rows() < self.graph.unfiltered_num_nodes() {
+                self.keys = Some(Index::from_iter((0..batch.num_rows()).map(VID)));
+            } else if batch.num_rows() > self.graph.unfiltered_num_nodes() {
+                return Err(GraphError::ParquetError(ParquetError::ArrowError(format!("Number of rows ({}) exceeds order of graph ({}).", batch.num_rows(), self.graph.unfiltered_num_nodes()).to_string())));
+            }
+        }
+
+        self.values = batch;
+
+        Ok(())
     }
 
     pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P, id_column: Option<String>) {
@@ -536,7 +564,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 &self.values,
             ),
             MergePriority::Exclude => {
-                // TODO: handle node cols merge
                 return GenericNodeState::new(
                     self.base_graph.clone(),
                     self.graph.clone(),
