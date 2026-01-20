@@ -1,6 +1,7 @@
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
+    persist::merge::MergeConfig,
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
@@ -98,9 +99,11 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type GS: GraphPropSegmentOps;
     type WalType: Wal;
 
-    fn new(config: PersistenceConfig, wal: Arc<Self::WalType>) -> Self;
+    fn new(config: PersistenceConfig, merge_config: MergeConfig, wal: Arc<Self::WalType>) -> Self;
 
     fn config(&self) -> &PersistenceConfig;
+
+    fn merge_config(&self) -> &MergeConfig;
 
     fn wal(&self) -> &Self::WalType;
 
@@ -132,6 +135,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 #[derive(Debug, Clone)]
 pub struct NoOpStrategy {
     config: PersistenceConfig,
+    merge_config: MergeConfig,
     wal: Arc<NoWal>,
 }
 
@@ -141,12 +145,20 @@ impl PersistenceStrategy for NoOpStrategy {
     type GS = GraphPropSegmentView<Self>;
     type WalType = NoWal;
 
-    fn new(config: PersistenceConfig, wal: Arc<Self::WalType>) -> Self {
-        Self { config, wal }
+    fn new(config: PersistenceConfig, merge_config: MergeConfig, wal: Arc<Self::WalType>) -> Self {
+        Self {
+            config,
+            merge_config,
+            wal,
+        }
     }
 
     fn config(&self) -> &PersistenceConfig {
         &self.config
+    }
+
+    fn merge_config(&self) -> &MergeConfig {
+        &self.merge_config
     }
 
     fn wal(&self) -> &Self::WalType {

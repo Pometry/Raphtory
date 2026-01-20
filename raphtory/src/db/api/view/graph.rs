@@ -58,7 +58,10 @@ use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
 };
-use storage::{persist::strategy::PersistenceStrategy, wal::Wal, Extension, WalType};
+use storage::{
+    persist::merge::MergeConfig,
+    persist::strategy::PersistenceStrategy, wal::Wal, Extension, WalType,
+};
 
 #[cfg(feature = "search")]
 use crate::{
@@ -300,7 +303,7 @@ fn materialize_impl(
     let wal_dir = graph_dir.map(|dir| dir.wal_dir());
     let wal = WalType::new(wal_dir.as_deref())?;
     let config = storage.extension().config().clone();
-    let ext = Extension::new(config, Arc::new(wal));
+    let ext = Extension::new(config, MergeConfig::default(), Arc::new(wal));
 
     let temporal_graph = TemporalGraph::new_with_meta(
         path.map(|p| p.into()),

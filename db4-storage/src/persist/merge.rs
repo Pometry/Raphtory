@@ -40,12 +40,6 @@ impl MergeConfig {
     }
 }
 
-pub trait HasMergeConfig {
-    fn merge_config(&self) -> &MergeConfig;
-
-    fn with_merge_config(self, config: MergeConfig) -> Self;
-}
-
 pub trait HasSize {
     fn size(&self) -> usize;
 }

@@ -585,6 +585,7 @@ mod test {
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
+        persist::merge::MergeConfig,
         persist::strategy::{
             DEFAULT_MAX_MEMORY_BYTES, NoOpStrategy, PersistenceConfig, PersistenceStrategy,
         },
@@ -604,7 +605,7 @@ mod test {
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
         let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 10, 10);
-        let ext = NoOpStrategy::new(config, Arc::new(NoWal));
+        let ext = NoOpStrategy::new(config, MergeConfig::default(), Arc::new(NoWal));
         let segment = NodeSegmentView::new(
             0,
             node_meta.clone(),

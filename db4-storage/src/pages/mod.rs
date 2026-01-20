@@ -3,6 +3,7 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
+    persist::merge::MergeConfig,
     persist::strategy::PersistenceStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
@@ -592,15 +593,12 @@ pub fn row_group_par_iter<I: From<usize>>(
 mod test {
     use super::GraphStore;
     use crate::{
-        Extension, Layer,
-        api::nodes::{NodeEntryOps, NodeRefOps},
-        pages::test_utils::{
-            AddEdge, Fixture, NodeFixture, check_edges_support, check_graph_with_nodes_support,
-            check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,
-            make_nodes,
+        api::nodes::{NodeEntryOps, NodeRefOps}, pages::test_utils::{
+            check_edges_support, check_graph_with_nodes_support, check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges, make_nodes, AddEdge, Fixture, NodeFixture
         },
-        persist::strategy::{DEFAULT_MAX_MEMORY_BYTES, PersistenceConfig, PersistenceStrategy},
-        wal::no_wal::NoWal,
+        persist::strategy::{PersistenceConfig, PersistenceStrategy, DEFAULT_MAX_MEMORY_BYTES},
+        persist::merge::MergeConfig,
+        wal::no_wal::NoWal, Extension, Layer,
     };
     use chrono::DateTime;
     use proptest::prelude::*;
@@ -643,7 +641,7 @@ mod test {
                 chunk_size,
                 chunk_size,
             );
-            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
+            Layer::new(Some(graph_dir), Extension::new(config, MergeConfig::default(), Arc::new(NoWal)))
         })
     }
 
@@ -658,7 +656,7 @@ mod test {
                 chunk_size,
                 chunk_size,
             );
-            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
+            Layer::new(Some(graph_dir), Extension::new(config, MergeConfig::default(), Arc::new(NoWal)))
         })
     }
 
@@ -733,7 +731,7 @@ mod test {
         let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
         let g = Layer::new(
             Some(graph_dir.path()),
-            Extension::new(config, Arc::new(NoWal)),
+            Extension::new(config, MergeConfig::default(), Arc::new(NoWal)),
         );
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
@@ -745,7 +743,7 @@ mod test {
         let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
         let g = GraphStore::new(
             Some(graph_dir.path()),
-            Extension::new(config, Arc::new(NoWal)),
+            Extension::new(config, MergeConfig::default(), Arc::new(NoWal)),
         );
         g.add_edge(4, 7, 3).unwrap();
 
@@ -791,7 +789,7 @@ mod test {
         let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
         let g = Layer::new(
             Some(graph_dir.path()),
-            Extension::new(config, Arc::new(NoWal)),
+            Extension::new(config, MergeConfig::default(), Arc::new(NoWal)),
         );
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
@@ -1600,7 +1598,7 @@ mod test {
                 node_page_len,
                 edge_page_len,
             );
-            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
+            Layer::new(Some(path), Extension::new(config, MergeConfig::default(), Arc::new(NoWal)))
         });
     }
 
@@ -1611,7 +1609,7 @@ mod test {
                 node_page_len,
                 edge_page_len,
             );
-            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
+            Layer::new(Some(path), Extension::new(config, MergeConfig::default(), Arc::new(NoWal)))
         });
     }
 }

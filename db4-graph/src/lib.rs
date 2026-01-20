@@ -23,6 +23,7 @@ use storage::{
         },
     },
     persist::strategy::{PersistenceConfig, PersistenceStrategy},
+    persist::merge::MergeConfig,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::Wal,
@@ -93,7 +94,7 @@ impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
         let config = PersistenceConfig::default();
         let wal = Arc::new(WalType::new(None).unwrap());
-        Self::new(Extension::new(config, wal)).unwrap()
+        Self::new(Extension::new(config, MergeConfig::default(), wal)).unwrap()
     }
 }
 
