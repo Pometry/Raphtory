@@ -6,9 +6,10 @@ use crate::{
                 builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
             },
-            DynInternalViewWrapOps, DynPropertyFilterBuilder, DynTemporalPropertyFilterBuilder,
-            EntityMarker, InternalPropertyFilterBuilder, PropertyFilterFactory,
-            TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+            DynInternalViewWrapPropOps, DynInternalWindowWrapOps, DynPropertyFilterBuilder,
+            DynTemporalPropertyFilterBuilder, EntityMarker, InternalPropertyFilterBuilder,
+            PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
+            ViewWrapOps,
         },
         CreateFilter,
     },
@@ -364,10 +365,10 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
     subclass,
     frozen
 )]
-pub struct PyViewFilterBuilder(pub(crate) Arc<dyn DynInternalViewWrapOps>);
+pub struct PyViewFilterBuilder(pub(crate) Arc<dyn DynInternalViewWrapPropOps>);
 
 impl PyViewFilterBuilder {
-    pub(crate) fn wrap<T: DynInternalViewWrapOps>(value: T) -> Self {
+    pub(crate) fn wrap<T: DynInternalViewWrapPropOps>(value: T) -> Self {
         Self(Arc::new(value))
     }
 }

@@ -9,7 +9,7 @@ use crate::{
                     windowed_filter::Windowed,
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
-                    InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
+                    InternalWindowWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
                     TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
@@ -45,7 +45,7 @@ impl<M: Display> Display for SnapshotAt<M> {
     }
 }
 
-impl<T: InternalViewWrapOps> InternalViewWrapOps for SnapshotAt<T> {
+impl<T: InternalWindowWrapOps> InternalWindowWrapOps for SnapshotAt<T> {
     type Window = Windowed<SnapshotAt<T>>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
@@ -201,7 +201,7 @@ impl<M: Display> Display for SnapshotLatest<M> {
     }
 }
 
-impl<T: InternalViewWrapOps> InternalViewWrapOps for SnapshotLatest<T> {
+impl<T: InternalWindowWrapOps> InternalWindowWrapOps for SnapshotLatest<T> {
     type Window = Windowed<SnapshotLatest<T>>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {

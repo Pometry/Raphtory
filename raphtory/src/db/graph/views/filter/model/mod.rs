@@ -48,6 +48,7 @@ pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;
 pub mod filter_operator;
+pub mod graph_filter;
 pub mod latest_filter;
 pub mod layered_filter;
 pub mod node_filter;
@@ -427,10 +428,8 @@ pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static 
 impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
 
 // This is implemented to avoid infinite recursive windowing.
-pub trait InternalViewWrapOps:
-    InternalPropertyFilterFactory + Send + Sync + Clone + 'static
-{
-    type Window: InternalViewWrapOps;
+pub trait InternalWindowWrapOps: Send + Sync + Clone + 'static {
+    type Window: InternalWindowWrapOps;
 
     fn bounds(&self) -> (EventTime, EventTime) {
         (EventTime::MIN, EventTime::MAX)
@@ -439,14 +438,17 @@ pub trait InternalViewWrapOps:
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window;
 }
 
-pub trait DynInternalViewWrapOps: DynPropertyFilterFactory {
+pub trait DynInternalWindowWrapOps: Send + Sync + 'static {
     fn dyn_bounds(&self) -> (EventTime, EventTime);
 
-    fn dyn_build_window(&self, start: EventTime, end: EventTime)
-        -> Arc<dyn DynInternalViewWrapOps>;
+    fn dyn_build_window(
+        &self,
+        start: EventTime,
+        end: EventTime,
+    ) -> Arc<dyn DynInternalWindowWrapOps>;
 }
 
-impl<T: InternalViewWrapOps> DynInternalViewWrapOps for T {
+impl<T: InternalWindowWrapOps> DynInternalWindowWrapOps for T {
     fn dyn_bounds(&self) -> (EventTime, EventTime) {
         self.bounds()
     }
@@ -455,38 +457,24 @@ impl<T: InternalViewWrapOps> DynInternalViewWrapOps for T {
         &self,
         start: EventTime,
         end: EventTime,
-    ) -> Arc<dyn DynInternalViewWrapOps> {
+    ) -> Arc<dyn DynInternalWindowWrapOps> {
         Arc::new(self.clone().build_window(start, end))
     }
 }
 
-impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapOps> {
-    type Window = Arc<dyn DynInternalViewWrapOps>;
+impl InternalWindowWrapOps for Arc<dyn DynInternalWindowWrapOps> {
+    type Window = Arc<dyn DynInternalWindowWrapOps>;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         self.deref().dyn_build_window(start, end)
     }
 }
 
-impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapOps> {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
-    }
-}
-
-pub trait ViewWrapOps: InternalViewWrapOps + Sized {
+pub trait ViewWrapOps: InternalWindowWrapOps + Sized {
     #[inline]
     fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Self::Window {
         let (old_start, old_end) = self.bounds();
@@ -536,4 +524,31 @@ pub trait ViewWrapOps: InternalViewWrapOps + Sized {
     }
 }
 
-impl<T: InternalViewWrapOps + Sized> ViewWrapOps for T {}
+impl<T: InternalWindowWrapOps + Sized> ViewWrapOps for T {}
+
+pub trait ViewWrapPropOps: InternalWindowWrapOps + InternalPropertyFilterFactory + Sized {}
+
+impl<T> ViewWrapPropOps for T where T: InternalWindowWrapOps + InternalPropertyFilterFactory + Sized {}
+
+pub trait DynInternalViewWrapPropOps: DynInternalWindowWrapOps + DynPropertyFilterFactory {}
+
+impl<T> DynInternalViewWrapPropOps for T where T: DynInternalWindowWrapOps + DynPropertyFilterFactory
+{}
+
+impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapPropOps> {
+    type Entity = EntityMarker;
+    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
+    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.deref().dyn_entity()
+    }
+
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.deref().dyn_property_builder(property)
+    }
+
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.deref().dyn_metadata_builder(property)
+    }
+}

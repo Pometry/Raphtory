@@ -2390,6 +2390,7 @@ mod test_node_property_filter {
     use raphtory::db::graph::{
         assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
         views::filter::model::{
+            graph_filter::GraphFilter,
             node_filter::NodeFilter,
             not_filter::NotFilter,
             property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
@@ -4183,6 +4184,269 @@ mod test_node_property_filter {
             filter,
             &expected_results,
             TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_graph_filter_window() {
+        let filter = GraphFilter.window(1, 2);
+        let expected_results = vec!["1"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.window(1, 3);
+        let expected_results = vec!["1", "2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.window(4, 6);
+        let expected_results = vec!["1", "2", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        let filter = GraphFilter.window(4, 6);
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
+    fn test_graph_filter_layer() {
+        let filter = GraphFilter.layer("fire_nation");
+        let expected_results = vec!["1", "3"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.layer("air_nomads");
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
+    fn test_graph_filter_window_then_layer() {
+        let filter = GraphFilter.window(1, 3).layer("fire_nation");
+        let expected_results = vec!["1", "3"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.window(4, 4).layer("air_nomads");
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    #[ignore] // TODO: Enable this when node layer is supported
+    fn test_graph_filter_layer_then_window() {
+        let filter = GraphFilter.layer("fire_nation").window(1, 3);
+        let expected_results = vec!["1", "3"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_graph_filter_at() {
+        let filter = GraphFilter.at(1);
+        let expected_results = vec!["1"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.at(2);
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        let filter = GraphFilter.at(2);
+        let expected_results = vec!["1", "2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+
+        let filter = GraphFilter.at(3);
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_graph_filter_after() {
+        let filter = GraphFilter.after(3);
+        let expected_results = vec!["1", "2", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        let filter = GraphFilter.after(3);
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_graph_filter_before() {
+        let filter = GraphFilter.before(2);
+        let expected_results = vec!["1"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.before(3);
+        let expected_results = vec!["1", "2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_graph_filter_snapshot_at() {
+        let filter = GraphFilter.snapshot_at(1);
+        let expected_results = vec!["1"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.snapshot_at(3);
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.snapshot_at(4);
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_graph_filter_snapshot_latest() {
+        let filter = GraphFilter.snapshot_latest();
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_graph_filter_latest() {
+        let filter = GraphFilter.latest();
+        let expected_results = vec!["1", "2", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::EventOnly,
+        );
+
+        let filter = GraphFilter.latest();
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
         );
     }
 }

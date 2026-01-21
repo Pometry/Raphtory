@@ -12,7 +12,7 @@ use crate::{
                     windowed_filter::Windowed,
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
-                    InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
+                    InternalWindowWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
                     TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
@@ -44,7 +44,7 @@ impl<M: Display> Display for Latest<M> {
     }
 }
 
-impl<T: InternalViewWrapOps> InternalViewWrapOps for Latest<T> {
+impl<T: InternalWindowWrapOps> InternalWindowWrapOps for Latest<T> {
     type Window = Windowed<Latest<T>>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
