@@ -6,10 +6,10 @@ use raphtory_core::{
 
 use crate::{
     error::StorageError,
-    wal::{GraphReplay, GraphWal, LSN, TransactionID, no_wal::NoWal},
+    wal::{GraphReplay, GraphWalOps, LSN, TransactionID, no_wal::NoWal},
 };
 
-impl GraphWal for NoWal {
+impl GraphWalOps for NoWal {
     type ReplayEntry = ();
 
     fn log_add_edge(

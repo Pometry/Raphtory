@@ -13,7 +13,7 @@ pub type LSN = u64;
 pub type TransactionID = u64;
 
 /// Core Wal methods.
-pub trait Wal {
+pub trait WalOps {
     fn new(dir: Option<&Path>) -> Result<Self, StorageError>
     where
         Self: Sized;
@@ -71,7 +71,7 @@ impl ReplayRecord {
 }
 
 // Raphtory-specific logging & replay methods.
-pub trait GraphWal {
+pub trait GraphWalOps {
     /// ReplayEntry represents the type of the wal entry returned during replay.
     type ReplayEntry;
 

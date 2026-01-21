@@ -26,7 +26,7 @@ use storage::{
     persist::merge::MergeConfig,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
-    wal::Wal,
+    wal::WalOps,
     Extension, GIDResolver, Layer, ReadLockedLayer, WalType, ES, GS, NS,
 };
 use tempfile::TempDir;
@@ -205,7 +205,7 @@ where
         self.storage().extension()
     }
 
-    pub fn wal(&self) -> &EXT::WalType {
+    pub fn wal(&self) -> &EXT::Wal {
         self.storage().extension().wal()
     }
 

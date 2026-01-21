@@ -60,7 +60,7 @@ use std::{
 };
 use storage::{
     persist::merge::MergeConfig,
-    persist::strategy::PersistenceStrategy, wal::Wal, Extension, WalType,
+    persist::strategy::PersistenceStrategy, wal::WalOps, Extension, WalType,
 };
 
 #[cfg(feature = "search")]

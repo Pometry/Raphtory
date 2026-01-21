@@ -53,7 +53,7 @@ pub type ES<P> = EdgeSegmentView<P>;
 pub type GS<P> = GraphPropSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
-pub type WalType = <Extension as PersistenceStrategy>::WalType;
+pub type WalType = <Extension as PersistenceStrategy>::Wal;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;

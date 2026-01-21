@@ -7,7 +7,7 @@ use crate::{
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
     },
-    wal::{Wal, no_wal::NoWal},
+    wal::{WalOps, no_wal::NoWal},
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
@@ -97,15 +97,15 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
     type ES: EdgeSegmentOps;
     type GS: GraphPropSegmentOps;
-    type WalType: Wal;
+    type Wal: WalOps;
 
-    fn new(config: PersistenceConfig, merge_config: MergeConfig, wal: Arc<Self::WalType>) -> Self;
+    fn new(config: PersistenceConfig, merge_config: MergeConfig, wal: Arc<Self::Wal>) -> Self;
 
     fn config(&self) -> &PersistenceConfig;
 
     fn merge_config(&self) -> &MergeConfig;
 
-    fn wal(&self) -> &Self::WalType;
+    fn wal(&self) -> &Self::Wal;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
@@ -143,9 +143,9 @@ impl PersistenceStrategy for NoOpStrategy {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
-    type WalType = NoWal;
+    type Wal = NoWal;
 
-    fn new(config: PersistenceConfig, merge_config: MergeConfig, wal: Arc<Self::WalType>) -> Self {
+    fn new(config: PersistenceConfig, merge_config: MergeConfig, wal: Arc<Self::Wal>) -> Self {
         Self {
             config,
             merge_config,
@@ -161,7 +161,7 @@ impl PersistenceStrategy for NoOpStrategy {
         &self.merge_config
     }
 
-    fn wal(&self) -> &Self::WalType {
+    fn wal(&self) -> &Self::Wal {
         &self.wal
     }
 

@@ -38,7 +38,7 @@ use std::{
 };
 use storage::{
     transaction::TransactionManager,
-    wal::{GraphWal, Wal, LSN},
+    wal::{GraphWalOps, WalOps, LSN},
     WalType,
 };
 

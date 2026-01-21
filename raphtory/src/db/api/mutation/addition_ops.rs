@@ -20,7 +20,7 @@ use raphtory_storage::mutation::{
     durability_ops::DurabilityOps,
     MutationError,
 };
-use storage::wal::{GraphWal, Wal};
+use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps:
     StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> + DurabilityOps

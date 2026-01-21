@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     error::StorageError,
-    wal::{LSN, ReplayRecord, Wal},
+    wal::{LSN, ReplayRecord, WalOps},
 };
 
 /// `NoWAL` is a no-op WAL implementation that discards all writes.
@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug)]
 pub struct NoWal;
 
-impl Wal for NoWal {
+impl WalOps for NoWal {
     fn new(_dir: Option<&Path>) -> Result<Self, StorageError> {
         Ok(Self)
     }
