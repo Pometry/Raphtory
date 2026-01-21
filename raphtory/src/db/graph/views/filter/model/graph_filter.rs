@@ -4,7 +4,7 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalWindowWrapOps,
+                CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalViewWrapOps,
                 TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
@@ -32,7 +32,7 @@ impl Wrap for GraphFilter {
     }
 }
 
-impl InternalWindowWrapOps for GraphFilter {
+impl InternalViewWrapOps for GraphFilter {
     type Window = Windowed<GraphFilter>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {

@@ -23,7 +23,7 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 AndFilter, EntityMarker, InternalPropertyFilterBuilder,
-                InternalPropertyFilterFactory, InternalWindowWrapOps, NotFilter, OrFilter,
+                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
                 TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
@@ -64,7 +64,7 @@ impl Wrap for ExplodedEdgeFilter {
     }
 }
 
-impl InternalWindowWrapOps for ExplodedEdgeFilter {
+impl InternalViewWrapOps for ExplodedEdgeFilter {
     type Window = Windowed<ExplodedEdgeFilter>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {

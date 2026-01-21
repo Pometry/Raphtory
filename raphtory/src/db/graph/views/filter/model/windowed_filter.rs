@@ -11,7 +11,7 @@ use crate::{
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
-                    InternalWindowWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
+                    InternalViewWrapOps, Op, PropertyRef, TemporalPropertyFilterFactory,
                     TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
@@ -65,7 +65,7 @@ impl<M> Windowed<M> {
     }
 }
 
-impl<T: InternalWindowWrapOps> InternalWindowWrapOps for Windowed<T> {
+impl<T: InternalViewWrapOps> InternalViewWrapOps for Windowed<T> {
     type Window = T::Window;
 
     fn bounds(&self) -> (EventTime, EventTime) {

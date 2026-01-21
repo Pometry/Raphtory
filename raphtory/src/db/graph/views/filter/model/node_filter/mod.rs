@@ -23,7 +23,7 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 AndFilter, ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker,
-                InternalPropertyFilterFactory, InternalWindowWrapOps, NotFilter, OrFilter,
+                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
                 TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
@@ -73,7 +73,7 @@ impl Wrap for NodeFilter {
     }
 }
 
-impl InternalWindowWrapOps for NodeFilter {
+impl InternalViewWrapOps for NodeFilter {
     type Window = Windowed<NodeFilter>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
