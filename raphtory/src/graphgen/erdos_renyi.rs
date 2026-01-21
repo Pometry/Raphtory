@@ -57,9 +57,7 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
         let id = GID::U64(i as u64);
         latest_time += 1;
         graph
-            .add_node(latest_time, &id, NO_PROPS, None)
-            .map_err(|err| error!("{:?}", err))
-            .ok();
+            .add_node(latest_time, &id, NO_PROPS, None)?;
     }
     for i in 0..nodes_to_add {
         let source_id = GID::U64(i as u64);
@@ -68,7 +66,7 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
             let create_edge = rng.gen_bool(p);  
             if create_edge {
                 latest_time += 1;
-                graph.add_edge(latest_time, &source_id, &dst_id, NO_PROPS, None).expect("Not able to add edge");
+                graph.add_edge(latest_time, &source_id, &dst_id, NO_PROPS, None)?;
             } 
         }
     }  
