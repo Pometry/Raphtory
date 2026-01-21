@@ -566,8 +566,10 @@ pub trait DynViewFilter: DynInternalViewWrapOps + DynCreateFilter + Send + Sync 
 impl<T> DynViewFilter for T where T: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static
 {}
 
-impl InternalViewWrapOps for Arc<dyn DynViewFilter> {
-    type Window = Arc<dyn DynViewFilter>;
+pub type DynView = Arc<dyn DynViewFilter>;
+
+impl InternalViewWrapOps for DynView {
+    type Window = DynView;
 
     fn bounds(&self) -> (EventTime, EventTime) {
         self.deref().dyn_bounds()

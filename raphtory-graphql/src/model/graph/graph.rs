@@ -4,9 +4,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{
-                DynView, GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection,
-            },
+            filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection},
             index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
@@ -42,7 +40,7 @@ use raphtory::{
             views::filter::{
                 model::{
                     edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
-                    node_filter::CompositeNodeFilter, DynViewFilter,
+                    node_filter::CompositeNodeFilter, DynView, DynViewFilter,
                 },
                 CreateFilter,
             },

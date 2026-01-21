@@ -18,7 +18,7 @@ use raphtory::{
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        DynViewFilter,
+        DynView, DynViewFilter,
     },
     errors::GraphError,
 };
@@ -1293,8 +1293,6 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
         }
     }
 }
-
-pub type DynView = Arc<dyn DynViewFilter>;
 
 impl TryFrom<GqlGraphFilter> for DynView {
     type Error = GraphError;

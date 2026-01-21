@@ -7,8 +7,9 @@ use crate::{
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
             },
             DynInternalViewWrapPropOps, DynPropertyFilterBuilder, DynTemporalPropertyFilterBuilder,
-            DynViewFilter, EntityMarker, InternalPropertyFilterBuilder, PropertyFilterFactory,
-            TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+            DynView, DynViewFilter, EntityMarker, InternalPropertyFilterBuilder,
+            PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
+            ViewWrapOps,
         },
         CreateFilter,
     },
@@ -364,7 +365,7 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
     subclass,
     frozen
 )]
-pub struct PyViewFilterBuilder(pub(crate) Arc<dyn DynViewFilter>);
+pub struct PyViewFilterBuilder(pub(crate) DynView);
 
 #[pymethods]
 impl PyViewFilterBuilder {
