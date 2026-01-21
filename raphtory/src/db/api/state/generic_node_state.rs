@@ -48,6 +48,7 @@ use std::{
     sync::Arc,
 };
 
+// TODO(wyatt)
 pub trait NodeStateValue:
     Clone + PartialEq + Serialize + DeserializeOwned + Send + Sync + Debug
 {
@@ -57,10 +58,11 @@ impl<T> NodeStateValue for T where
 {
 }
 
+// TODO(wyatt)
 pub trait InputNodeStateValue: Clone + Serialize + DeserializeOwned + Debug {}
-
 impl<T> InputNodeStateValue for T where T: Clone + Serialize + DeserializeOwned + Debug {}
 
+// TODO(wyatt)
 #[derive(Clone, PartialEq)]
 pub enum MergePriority {
     Left,
@@ -68,6 +70,7 @@ pub enum MergePriority {
     Exclude,
 }
 
+// TODO(wyatt)
 #[derive(Clone, PartialEq, Debug)]
 pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> = G> {
     Node(NodeView<'graph, G, GH>),
@@ -75,6 +78,7 @@ pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'grap
     Prop(Option<Prop>),
 }
 
+// TODO(wyatt)
 #[derive(Clone, PartialEq, Debug)]
 pub enum NodeStateOutputType {
     Node,
@@ -82,18 +86,17 @@ pub enum NodeStateOutputType {
     Prop,
 }
 
+// TODO(wyatt)
 pub type PropMap = IndexMap<String, Option<Prop>>;
 
+// TODO(wyatt)
 pub type TransformedPropMap<'graph, G, GH = G> = IndexMap<String, NodeStateOutput<'graph, G, GH>>;
 
-/*
-pub type PropMapConverter<'graph, G, GH> =
-    fn(&GenericNodeState<'graph, G, GH>, PropMap) -> TransformedPropMap<'graph, G, GH>;
- */
-
+// TODO(wyatt)
 pub type OutputTypedNodeState<'graph, G, GH = G> =
     TypedNodeState<'graph, PropMap, G, GH, TransformedPropMap<'graph, G, GH>>;
 
+// TODO(wyatt)
 pub trait NodeTransform {
     type Input;
     type Output;
@@ -107,7 +110,6 @@ pub trait NodeTransform {
         GH: GraphViewOps<'graph>;
 }
 
-// --- Blanket implementation for identity transforms ---
 impl<T> NodeTransform for T
 where
     T: NodeStateValue,
@@ -127,24 +129,27 @@ where
     }
 }
 
+// TODO(wyatt)
 #[derive(Clone, Debug)]
 pub struct GenericNodeState<'graph, G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
     values: RecordBatch,
     keys: Option<Index<VID>>,
-    node_cols: HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>,
+    node_cols: HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>, //
     _marker: PhantomData<&'graph ()>,
 }
 
+// TODO(wyatt)
 #[derive(Clone)]
 pub struct TypedNodeState<'graph, V: NodeStateValue, G, GH = G, T: Clone + Sync + Send = V> {
     pub state: GenericNodeState<'graph, G, GH>,
-    pub converter: fn(&GenericNodeState<'graph, G, GH>, V) -> T,
+    pub converter: fn(&GenericNodeState<'graph, G, GH>, V) -> T, //
     _v_marker: PhantomData<V>,
     _t_marker: PhantomData<T>,
 }
 
+// TODO(wyatt)
 pub struct RecordBatchIterator<'a, T> {
     deserializer: Deserializer<'a>,
     idx: usize,
@@ -165,8 +170,9 @@ where
         }
     }
 
-    pub fn get(&self, idx: usize) -> T {
-        T::deserialize(self.deserializer.get(idx).unwrap()).unwrap()
+    // TODO(wyatt)
+    pub fn get(&self, idx: usize) -> Option<T> {
+        Some(T::deserialize(self.deserializer.get(idx)?).unwrap())
     }
 }
 
@@ -232,9 +238,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
     }
 
-    // get node (base_graph, graph, Prop::U64)
-    // get nodes(base_graph, graph, Vec<u64>)
-
+    // TODO(wyatt)
     pub fn get_nodes(
         state: &GenericNodeState<'graph, G, GH>,
         value_map: PropMap,
@@ -311,6 +315,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             .collect()
     }
 
+    // TODO(wyatt)
     pub fn transform(self) -> OutputTypedNodeState<'graph, G, GH> {
         TypedNodeState::new_mapped(self, Self::get_nodes)
     }
@@ -344,6 +349,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         self.values.num_rows()
     }
 
+    // TODO(wyatt)
     pub fn from_parquet<P: AsRef<Path>>(
         &self,
         file_path: P,
@@ -425,6 +431,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         })
     }
 
+    // TODO(wyatt)
     pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P, id_column: Option<String>) {
         let mut batch: Option<RecordBatch> = None;
         let mut schema = self.values.schema();
@@ -467,6 +474,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         writer.close().unwrap();
     }
 
+    // TODO(wyatt)
     fn merge_columns(
         col_name: &String,
         tgt_idx_set: Option<&Index<VID>>,
@@ -523,6 +531,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         )
     }
 
+    // TODO(wyatt)
     pub fn merge(
         &self,
         other: &GenericNodeState<'graph, G, GH>,
@@ -671,6 +680,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         )
     }
 
+    // TODO(wyatt)
     fn convert_recordbatch(
         recordbatch: RecordBatch,
     ) -> Result<RecordBatch, arrow_schema::ArrowError> {
@@ -922,7 +932,7 @@ impl<
         let iter = RecordBatchIterator::<'a, Self::Value>::new(&self.state.values);
         (0..self.len())
             .into_par_iter()
-            .map(move |i| RecordBatchIterator::get(&iter, i))
+            .map(move |i| RecordBatchIterator::get(&iter, i).unwrap())
     }
 
     fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync {

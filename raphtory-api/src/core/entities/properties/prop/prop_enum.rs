@@ -111,6 +111,7 @@ impl PartialOrd for Prop {
     }
 }
 
+// TODO(wyatt)
 pub fn validate_prop(prop: Prop) -> Result<Prop, InvalidBigDecimal> {
     match prop {
         Prop::Decimal(ref bd) => {
@@ -125,6 +126,7 @@ pub fn validate_prop(prop: Prop) -> Result<Prop, InvalidBigDecimal> {
     }
 }
 
+// TODO(wyatt)
 fn float_to_int<T>(val: f64) -> Result<T, String>
 where
     T: FromPrimitive + Bounded + ToPrimitive,
@@ -142,6 +144,7 @@ where
 }
 
 impl Prop {
+    // TODO(wyatt)
     fn try_into_int<T>(self) -> Result<T, Error>
     where
         T: FromPrimitive + Bounded,
@@ -166,6 +169,7 @@ impl Prop {
         }
     }
 
+    // TODO(wyatt)
     fn into_f64(self) -> Result<f64, Error> {
         let result = match self {
             Prop::U8(v) => v.to_f64(),
@@ -181,6 +185,7 @@ impl Prop {
         result.ok_or(Error)
     }
 
+    // TODO(wyatt)
     fn try_into_f32(self) -> Result<Prop, Error> {
         let as_f32 = match self {
             Prop::U8(v) => v.to_f32(),
@@ -208,6 +213,7 @@ impl Prop {
         as_f32.map(Prop::F32).ok_or(Error)
     }
 
+    // TODO(wyatt)
     pub fn try_cast(self, prop_type: PropType) -> Result<Prop, Error> {
         // Early return if casting to the same type
         if self.dtype() == prop_type {

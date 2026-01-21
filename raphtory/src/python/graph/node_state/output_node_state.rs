@@ -55,7 +55,7 @@ impl PyOutputNodeState {
         self.inner.nodes()
     }
 
-    // TODO
+    // TODO?
     fn __eq__<'py>(
         &self,
         other: &Bound<'py, PyAny>,
@@ -96,7 +96,6 @@ impl PyOutputNodeState {
         Ok(res.into_pyobject(py)?.to_owned().into_any())
     }
 
-    // TODO?
     fn __repr__(&self) -> String {
         self.inner.repr()
     }
@@ -161,11 +160,13 @@ impl PyOutputNodeState {
     //    self.inner.sort_by_id()
     //}
 
+    // TODO(wyatt)
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn to_parquet(&self, file_path: String, id_column: String) {
         self.inner.state.to_parquet(file_path, Some(id_column));
     }
 
+    // TODO(wyatt)
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn from_parquet(&self, file_path: String, id_column: String) -> PyResult<Self> {
         Ok(PyOutputNodeState {
@@ -176,6 +177,7 @@ impl PyOutputNodeState {
         })
     }
 
+    // TODO(wyatt)
     #[pyo3(signature = (other, index_merge_priority="left".to_string(), default_column_merge_priority="left".to_string(), column_merge_priority_map=None::<HashMap<String, String>>))]
     fn merge<'py>(
         &self,
