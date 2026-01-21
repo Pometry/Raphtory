@@ -3,7 +3,6 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::merge::MergeConfig,
     persist::strategy::PersistenceStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
@@ -73,12 +72,9 @@ impl<
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
-        let node_types = self.nodes.prop_meta().get_all_node_types();
-        let config = self.ext.config().with_node_types(node_types);
-
-        if let Some(graph_dir) = self.graph_dir.as_ref() {
-            config.save_to_dir(graph_dir)?;
-        }
+        // Config saving for WriteAndMerge is handled in db4-disk-storage's implementation
+        // This generic code in db4-storage doesn't have access to WriteAndMergeConfig types
+        // to avoid circular dependencies. For NoOpStrategy, config saving is not needed.
 
         self.nodes.flush()?;
         self.edges.flush()?;
@@ -147,9 +143,12 @@ impl<
         ));
 
         if let Some(graph_dir) = graph_dir {
-            ext.config()
-                .save_to_dir(graph_dir)
-                .expect("Unrecoverable! Failed to write graph config");
+            // Config saving for WriteAndMerge is handled in db4-disk-storage's implementation
+            // This generic code in db4-storage doesn't have access to WriteAndMergeConfig types
+            // to avoid circular dependencies. For NoOpStrategy, config saving is not needed.
+            if EXT::disk_storage_enabled() {
+                // Config will be saved by db4-disk-storage's GraphStore implementation
+            }
         }
 
         Self {
@@ -176,8 +175,10 @@ impl<
         let graph_prop_storage =
             Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
 
-        for node_type in ext.config().node_types().iter() {
-            node_meta.get_or_create_node_type_id(node_type);
+        // Node types handling for WriteAndMerge is done in db4-disk-storage
+        // For NoOpStrategy, disk_storage_enabled() returns false, so this is skipped
+        if EXT::disk_storage_enabled() {
+            // Node types will be handled by db4-disk-storage's implementation
         }
 
         let t_len = edge_storage.t_len();
@@ -594,10 +595,10 @@ mod test {
     use super::GraphStore;
     use crate::{
         api::nodes::{NodeEntryOps, NodeRefOps}, pages::test_utils::{
-            check_edges_support, check_graph_with_nodes_support, check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges, make_nodes, AddEdge, Fixture, NodeFixture
+            check_edges_support, check_graph_with_nodes_support, check_graph_with_props_support,
+            edges_strat, edges_strat_with_layers, make_edges, make_nodes, AddEdge, Fixture, NodeFixture
         },
-        persist::strategy::{PersistenceConfig, PersistenceStrategy, DEFAULT_MAX_MEMORY_BYTES},
-        persist::merge::MergeConfig,
+        persist::strategy::{PersistenceStrategy},
         wal::no_wal::NoWal, Extension, Layer,
     };
     use chrono::DateTime;
@@ -636,12 +637,12 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            let config = PersistenceConfig::new_with_page_lens(
-                DEFAULT_MAX_MEMORY_BYTES,
-                chunk_size,
-                chunk_size,
-            );
-            Layer::new(Some(graph_dir), Extension::new(config, MergeConfig::default(), Arc::new(NoWal)))
+            use crate::persist::strategy::NoOpConfig;
+            let config = NoOpConfig {
+                max_node_page_len: chunk_size,
+                max_edge_page_len: chunk_size,
+            };
+            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
 
@@ -651,12 +652,12 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            let config = PersistenceConfig::new_with_page_lens(
-                DEFAULT_MAX_MEMORY_BYTES,
-                chunk_size,
-                chunk_size,
-            );
-            Layer::new(Some(graph_dir), Extension::new(config, MergeConfig::default(), Arc::new(NoWal)))
+            use crate::persist::strategy::NoOpConfig;
+            let config = NoOpConfig {
+                max_node_page_len: chunk_size,
+                max_edge_page_len: chunk_size,
+            };
+            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
 
@@ -728,10 +729,14 @@ mod test {
     #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
+        use crate::persist::strategy::NoOpConfig;
+        let config = NoOpConfig {
+            max_node_page_len: 32,
+            max_edge_page_len: 32,
+        };
         let g = Layer::new(
             Some(graph_dir.path()),
-            Extension::new(config, MergeConfig::default(), Arc::new(NoWal)),
+            Extension::new(config, Arc::new(NoWal)),
         );
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
@@ -740,10 +745,14 @@ mod test {
     #[test]
     fn test_node_additions_1() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
+        use crate::persist::strategy::NoOpConfig;
+        let config = NoOpConfig {
+            max_node_page_len: 32,
+            max_edge_page_len: 32,
+        };
         let g = GraphStore::new(
             Some(graph_dir.path()),
-            Extension::new(config, MergeConfig::default(), Arc::new(NoWal)),
+            Extension::new(config, Arc::new(NoWal)),
         );
         g.add_edge(4, 7, 3).unwrap();
 
@@ -786,10 +795,14 @@ mod test {
     #[test]
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let config = PersistenceConfig::new_with_page_lens(DEFAULT_MAX_MEMORY_BYTES, 32, 32);
+        use crate::persist::strategy::NoOpConfig;
+        let config = NoOpConfig {
+            max_node_page_len: 32,
+            max_edge_page_len: 32,
+        };
         let g = Layer::new(
             Some(graph_dir.path()),
-            Extension::new(config, MergeConfig::default(), Arc::new(NoWal)),
+            Extension::new(config, Arc::new(NoWal)),
         );
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
@@ -1593,23 +1606,23 @@ mod test {
 
     fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
-            let config = PersistenceConfig::new_with_page_lens(
-                DEFAULT_MAX_MEMORY_BYTES,
-                node_page_len,
-                edge_page_len,
-            );
-            Layer::new(Some(path), Extension::new(config, MergeConfig::default(), Arc::new(NoWal)))
+            use crate::persist::strategy::NoOpConfig;
+            let config = NoOpConfig {
+                max_node_page_len: node_page_len,
+                max_edge_page_len: edge_page_len,
+            };
+            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 
     fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
-            let config = PersistenceConfig::new_with_page_lens(
-                DEFAULT_MAX_MEMORY_BYTES,
-                node_page_len,
-                edge_page_len,
-            );
-            Layer::new(Some(path), Extension::new(config, MergeConfig::default(), Arc::new(NoWal)))
+            use crate::persist::strategy::NoOpConfig;
+            let config = NoOpConfig {
+                max_node_page_len: node_page_len,
+                max_edge_page_len: edge_page_len,
+            };
+            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 }

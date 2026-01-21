@@ -22,12 +22,11 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::{PersistenceConfig, PersistenceStrategy},
-    persist::merge::MergeConfig,
+    persist::strategy::{PersistenceStrategy},
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::WalOps,
-    Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, GS, NS,
+    Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, GS, NS, Config,
 };
 use tempfile::TempDir;
 
@@ -92,9 +91,9 @@ impl<'a> From<&'a Path> for GraphDir {
 
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
-        let config = PersistenceConfig::default();
+        let config = Config::default();
         let wal = Arc::new(Wal::new(None).unwrap());
-        Self::new(Extension::new(config, MergeConfig::default(), wal)).unwrap()
+        Self::new(Extension::new(config, wal)).unwrap()
     }
 }
 

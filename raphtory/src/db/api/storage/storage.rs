@@ -40,13 +40,12 @@ use storage::{
     transaction::TransactionManager,
     wal::{GraphWalOps, WalOps, LSN},
     Wal,
+    ConfigOps,
 };
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
-    persist::merge::MergeConfig,
-    persist::strategy::{PersistenceConfig, PersistenceStrategy},
-    Extension,
+    Extension, Config, PersistenceStrategy
 };
 
 #[cfg(feature = "search")]
@@ -112,11 +111,11 @@ impl Storage {
     }
 
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let config = PersistenceConfig::default();
+        let config = Config::default();
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
         let wal = Arc::new(Wal::new(Some(wal_dir.as_path()))?);
-        let ext = Extension::new(config, MergeConfig::default(), wal.clone());
+        let ext = Extension::new(config, wal.clone());
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
         Ok(Self {
@@ -128,13 +127,12 @@ impl Storage {
 
     pub(crate) fn new_at_path_with_config(
         path: impl AsRef<Path>,
-        config: PersistenceConfig,
-        merge_config: MergeConfig,
+        config: Config,
     ) -> Result<Self, GraphError> {
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
         let wal = Arc::new(Wal::new(Some(wal_dir.as_path()))?);
-        let ext = Extension::new(config, merge_config, wal.clone());
+        let ext = Extension::new(config, wal.clone());
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
         Ok(Self {
@@ -145,12 +143,12 @@ impl Storage {
     }
 
     pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let config = PersistenceConfig::load_from_dir(path.as_ref())
-            .unwrap_or_else(|_| PersistenceConfig::default());
+        let config = Config::load_from_dir(path.as_ref())
+            .unwrap_or_else(|_| Config::default());
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
         let wal = Arc::new(Wal::load(Some(wal_dir.as_path()))?);
-        let ext = Extension::new(config, MergeConfig::default(), wal.clone());
+        let ext = Extension::new(config, wal.clone());
         let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
 
         // Replay any pending writes from the WAL.

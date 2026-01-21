@@ -49,9 +49,8 @@ use std::{
     sync::Arc,
 };
 use storage::{
-    persist::merge::MergeConfig,
-    persist::strategy::{PersistenceConfig, PersistenceStrategy},
-    Extension,
+    persist::strategy::PersistenceStrategy,
+    Extension, Config,
 };
 
 #[repr(transparent)]
@@ -165,8 +164,7 @@ impl Graph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: PersistenceConfig,
-        merge_config: MergeConfig,
+        config: Config,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
@@ -178,7 +176,6 @@ impl Graph {
             inner: Arc::new(Storage::new_at_path_with_config(
                 path.graph_path()?,
                 config,
-                merge_config,
             )?),
         };
 

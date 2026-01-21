@@ -43,8 +43,8 @@ where
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let temporal_graph = self.graph();
-        let node_max_page_len = temporal_graph.extension().config().max_node_page_len;
-        let edge_max_page_len = temporal_graph.extension().config().max_edge_page_len;
+        let node_max_page_len = temporal_graph.extension().max_node_page_len();
+        let edge_max_page_len = temporal_graph.extension().max_edge_page_len();
 
         // 1. Insert prop ids into edge meta.
         // No need to validate props again since they are already validated before
