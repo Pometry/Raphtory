@@ -5,13 +5,7 @@ use crate::{
 };
 use pyo3::{prelude::*, IntoPyObjectExt};
 
-/// A Document
-///
-/// Args:
-///     content (str): the document content
-///     life (int | Tuple[int, int], optional): the optional lifespan for the document (single value
-///                                             corresponds to an event, a tuple corresponds to a
-///                                             window).
+/// A document corresponding to a graph entity. Used to generate embeddings.
 #[pyclass(name = "Document", module = "raphtory.vectors", frozen)]
 #[derive(Clone)]
 pub struct PyDocument(pub(crate) Document<DynamicGraph>);
@@ -24,16 +18,16 @@ impl From<PyDocument> for Document<DynamicGraph> {
 
 #[pymethods]
 impl PyDocument {
-    /// the document content
+    /// The document content.
     ///
     /// Returns:
-    ///     str:
+    ///     str: Content of the document.
     #[getter]
     fn content(&self) -> &str {
         &self.0.content
     }
 
-    /// the entity corresponding to the document
+    /// The graph entity corresponding to the document.
     ///
     /// Returns:
     ///     Optional[Any]:
@@ -45,10 +39,10 @@ impl PyDocument {
         }
     }
 
-    /// the embedding
+    /// The embedding of the document.
     ///
     /// Returns:
-    ///     Optional[Embedding]: the embedding for the document if it was computed
+    ///     Optional[Embedding]: The embedding of the document if it was computed.
     #[getter]
     fn embedding(&self) -> PyEmbedding {
         PyEmbedding(self.0.embedding.clone())

@@ -20,7 +20,7 @@ simple_relationship_file = "data/simple-relationships.csv"
 
 class RaphtoryBench(BenchmarkBase):
     def start_docker(self, **kwargs):
-        image_name = "python:3.10-bullseye"
+        image_name = "python:3.11-bullseye"
         container_folder = "/app/data"
         exec_commands = [
             "pip install raphtory requests tqdm pandas numpy docker",
