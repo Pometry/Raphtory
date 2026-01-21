@@ -39,7 +39,7 @@ use std::{
 use storage::{
     transaction::TransactionManager,
     wal::{GraphWalOps, WalOps, LSN},
-    WalType,
+    Wal,
 };
 
 // Re-export for raphtory dependencies to use when creating graphs.
@@ -115,7 +115,7 @@ impl Storage {
         let config = PersistenceConfig::default();
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
-        let wal = Arc::new(WalType::new(Some(wal_dir.as_path()))?);
+        let wal = Arc::new(Wal::new(Some(wal_dir.as_path()))?);
         let ext = Extension::new(config, MergeConfig::default(), wal.clone());
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
@@ -133,7 +133,7 @@ impl Storage {
     ) -> Result<Self, GraphError> {
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
-        let wal = Arc::new(WalType::new(Some(wal_dir.as_path()))?);
+        let wal = Arc::new(Wal::new(Some(wal_dir.as_path()))?);
         let ext = Extension::new(config, merge_config, wal.clone());
         let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
@@ -149,7 +149,7 @@ impl Storage {
             .unwrap_or_else(|_| PersistenceConfig::default());
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
-        let wal = Arc::new(WalType::load(Some(wal_dir.as_path()))?);
+        let wal = Arc::new(Wal::load(Some(wal_dir.as_path()))?);
         let ext = Extension::new(config, MergeConfig::default(), wal.clone());
         let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
 
@@ -579,7 +579,7 @@ impl DurabilityOps for Storage {
         self.graph.mutable().unwrap().transaction_manager.as_ref()
     }
 
-    fn wal(&self) -> &WalType {
+    fn wal(&self) -> &Wal {
         self.graph.mutable().unwrap().wal()
     }
 }

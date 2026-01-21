@@ -27,7 +27,7 @@ use storage::{
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::WalOps,
-    Extension, GIDResolver, Layer, ReadLockedLayer, WalType, ES, GS, NS,
+    Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, GS, NS,
 };
 use tempfile::TempDir;
 
@@ -93,7 +93,7 @@ impl<'a> From<&'a Path> for GraphDir {
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
         let config = PersistenceConfig::default();
-        let wal = Arc::new(WalType::new(None).unwrap());
+        let wal = Arc::new(Wal::new(None).unwrap());
         Self::new(Extension::new(config, MergeConfig::default(), wal)).unwrap()
     }
 }

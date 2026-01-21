@@ -27,7 +27,7 @@ use storage::{
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::LSN,
-    Extension, WalType, ES, GS, NS,
+    Extension, Wal, ES, GS, NS,
 };
 
 pub struct WriteS<'a, EXT>
@@ -369,7 +369,7 @@ impl DurabilityOps for TemporalGraph {
         &self.transaction_manager
     }
 
-    fn wal(&self) -> &WalType {
+    fn wal(&self) -> &Wal {
         &self.extension().wal()
     }
 }

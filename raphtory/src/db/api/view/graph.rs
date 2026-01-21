@@ -60,7 +60,7 @@ use std::{
 };
 use storage::{
     persist::merge::MergeConfig,
-    persist::strategy::PersistenceStrategy, wal::WalOps, Extension, WalType,
+    persist::strategy::PersistenceStrategy, wal::WalOps, Extension, Wal,
 };
 
 #[cfg(feature = "search")]
@@ -301,7 +301,7 @@ fn materialize_impl(
     // Create new WAL file for the new materialized graph.
     let graph_dir = path.map(|p| GraphDir::from(p));
     let wal_dir = graph_dir.map(|dir| dir.wal_dir());
-    let wal = WalType::new(wal_dir.as_deref())?;
+    let wal = Wal::new(wal_dir.as_deref())?;
     let config = storage.extension().config().clone();
     let ext = Extension::new(config, MergeConfig::default(), Arc::new(wal));
 
