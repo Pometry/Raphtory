@@ -42,11 +42,13 @@ use storage::{
     WalType,
 };
 
+// Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
     persist::merge::MergeConfig,
     persist::strategy::{PersistenceConfig, PersistenceStrategy},
     Extension,
 };
+
 #[cfg(feature = "search")]
 use {
     crate::{
