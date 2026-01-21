@@ -9,7 +9,7 @@ members = [
     "raphtory-graphql",
     "raphtory-api",
     "raphtory-core",
-    "raphtory-storage", "raphtory-api-macros",
+    "raphtory-storage", "raphtory-api-macros", "fast_merge",
 ]
 default-members = ["raphtory"]
 resolver = "2"

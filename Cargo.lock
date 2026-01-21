@@ -1858,6 +1858,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "fast_merge"
+version = "0.16.4"
+dependencies = [
+ "itertools 0.13.0",
+ "proptest",
+]
+
+[[package]]
 name = "fastdivide"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
