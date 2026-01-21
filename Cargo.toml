@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "raphtory",
-    "raphtory-cypher",
     "raphtory-benchmark",
     "examples/rust",
     "examples/netflow",
@@ -16,7 +15,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.16.3"
+version = "0.16.4"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -49,13 +48,13 @@ incremental = false
 
 
 [workspace.dependencies]
-db4-graph = { version = "0.16.2", path = "db4-graph", default-features = false }
-raphtory = { version = "0.16.2", path = "raphtory", default-features = false }
-raphtory-api = { version = "0.16.2", path = "raphtory-api", default-features = false }
-raphtory-api-macros = { version = "0.16.2", path = "raphtory-api-macros", default-features = false }
-raphtory-core = { version = "0.16.2", path = "raphtory-core", default-features = false }
-raphtory-graphql = { version = "0.16.2", path = "raphtory-graphql", default-features = false }
-raphtory-storage = { version = "0.16.2", path = "raphtory-storage", default-features = false }
+db4-graph = { version = "0.16.4", path = "db4-graph", default-features = false }
+raphtory = { version = "0.16.4", path = "raphtory", default-features = false }
+raphtory-api = { version = "0.16.4", path = "raphtory-api", default-features = false }
+raphtory-api-macros = { version = "0.16.4", path = "raphtory-api-macros", default-features = false }
+raphtory-core = { version = "0.16.4", path = "raphtory-core", default-features = false }
+raphtory-graphql = { version = "0.16.4", path = "raphtory-graphql", default-features = false }
+raphtory-storage = { version = "0.16.4", path = "raphtory-storage", default-features = false }
 async-graphql = { version = "7.0.16", features = ["dynamic-schema"] }
 bincode = {version = "2", features = ["serde"]}
 async-graphql-poem = "7.0.16"
@@ -173,7 +172,10 @@ strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
 bitvec = "1.0.1"
 sysinfo = "0.37.0"
+strum = "0.27.2"
+strum_macros = "0.27.2"
 
 [workspace.dependencies.storage]
 package = "db4-storage"
 path = "db4-storage"
+

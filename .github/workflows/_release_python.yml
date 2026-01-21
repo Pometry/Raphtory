@@ -44,18 +44,17 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.9
-            3.10
             3.11
             3.12
             3.13
+            3.14
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
           manylinux: 2_28
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
@@ -137,11 +136,10 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.9
-            3.10
             3.11
             3.12
             3.13
+            3.14
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -149,7 +147,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
         with:
@@ -182,18 +180,17 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.9
-            3.10
             3.11
             3.12
             3.13
+            3.14
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
         with:

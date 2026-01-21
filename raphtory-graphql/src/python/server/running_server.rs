@@ -48,17 +48,20 @@ impl PyRunningGraphServer {
         }
     }
 
-    pub(crate) fn wait_for_server_online(url: &String, timeout_ms: u64) -> PyResult<()> {
+    pub(crate) fn wait_for_server_online(&self, url: &String, timeout_ms: u64) -> PyResult<()> {
         let num_intervals = timeout_ms / WAIT_CHECK_INTERVAL_MILLIS;
-
         for _ in 0..num_intervals {
+            let join_handle = &self.server_handler.as_ref().unwrap().join_handle;
+            if join_handle.is_finished() {
+                // this error will never be presented to the user, the result coming from the server task will instead
+                return Err(PyException::new_err("Server task finished too early"));
+            }
             if is_online(url) {
                 return Ok(());
             } else {
                 sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
             }
         }
-
         Err(PyException::new_err(format!(
             "Failed to start server in {} milliseconds",
             timeout_ms

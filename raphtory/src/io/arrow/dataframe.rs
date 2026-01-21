@@ -1,14 +1,15 @@
 use crate::{
-    errors::{GraphError, LoadError},
+    errors::{into_load_err, GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
+    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
 };
 use either::Either;
 use itertools::Itertools;
+use raphtory_core::utils::time::TryIntoTime;
 use rayon::prelude::*;
 use std::{
     fmt::{Debug, Formatter},
@@ -74,6 +75,45 @@ impl TimeCol {
         }
         match arr.data_type() {
             DataType::Int64 => Ok(Self(arr.as_primitive::<Int64Type>().clone())),
+            DataType::Date32 => {
+                let arr = cast(arr, &DataType::Date64)?
+                    .as_primitive::<Date64Type>()
+                    .clone();
+                Ok(Self(arr.reinterpret_cast()))
+            }
+            DataType::Utf8 => {
+                let strings = arr.as_string::<i32>();
+                // filters out None values in the array
+                let timestamps = strings
+                    .iter()
+                    .flatten()
+                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .collect::<Result<Vec<i64>, LoadError>>()?;
+                let arr = PrimitiveArray::<Int64Type>::from(timestamps);
+                Ok(Self(arr))
+            }
+            DataType::LargeUtf8 => {
+                let strings = arr.as_string::<i64>();
+                // filters out None values in the array
+                let timestamps = strings
+                    .iter()
+                    .flatten()
+                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .collect::<Result<Vec<i64>, LoadError>>()?;
+                let arr = PrimitiveArray::<Int64Type>::from(timestamps);
+                Ok(Self(arr))
+            }
+            DataType::Utf8View => {
+                let strings = arr.as_string_view();
+                // filters out None values in the array
+                let timestamps = strings
+                    .iter()
+                    .flatten()
+                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .collect::<Result<Vec<i64>, LoadError>>()?;
+                let arr = PrimitiveArray::<Int64Type>::from(timestamps);
+                Ok(Self(arr))
+            }
             DataType::Timestamp(_, _) => {
                 let arr = cast(
                     arr,
