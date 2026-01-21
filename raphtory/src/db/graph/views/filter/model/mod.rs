@@ -9,6 +9,7 @@ use crate::db::{
             builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
         },
         snapshot_filter::{SnapshotAt, SnapshotLatest},
+        windowed_filter::Windowed,
     },
 };
 pub use crate::{
@@ -546,5 +547,33 @@ impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapPropOps> {
 
     fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
         self.deref().dyn_metadata_builder(property)
+    }
+}
+
+impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapPropOps> {
+    type Window = Arc<dyn DynInternalViewWrapPropOps>;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Arc::new(Windowed::new(start, end, self))
+    }
+}
+
+pub trait DynViewFilter: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static {}
+impl<T> DynViewFilter for T where T: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static
+{}
+
+impl InternalViewWrapOps for Arc<dyn DynViewFilter> {
+    type Window = Arc<dyn DynViewFilter>;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Arc::new(Windowed::new(start, end, self))
     }
 }
