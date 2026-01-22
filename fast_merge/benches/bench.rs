@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use fast_merge::FastMergeExt;
 use itertools::Itertools;
-use rand::{random, rng, rngs::SmallRng, Rng, SeedableRng};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn bench(criterion: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
@@ -42,6 +42,13 @@ fn bench(criterion: &mut Criterion) {
         merge_and_iter.bench_with_input(BenchmarkId::new("fast", size), &size, |bencher, size| {
             bencher.iter(|| {
                 for i in data.iter().take(*size).fast_merge() {
+                    black_box(i);
+                }
+            })
+        });
+        merge_and_iter.bench_with_input(BenchmarkId::new("sort", size), &size, |bencher, size| {
+            bencher.iter(|| {
+                for i in data.iter().take(*size).flatten().sorted() {
                     black_box(i);
                 }
             })
