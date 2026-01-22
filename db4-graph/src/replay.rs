@@ -15,7 +15,7 @@ use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::resolve_pos,
-    PersistenceStrategy,
+    persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     wal::{GraphReplay, TransactionID, LSN},
     ES, GS, NS,
