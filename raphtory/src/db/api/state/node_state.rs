@@ -245,10 +245,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     /// # Arguments
     /// - `graph`: the graph view
     /// - `values`: the values indexed by flat position (i.e., `values.len() == index.len()`).
-    pub fn new_from_eval(graph: G, values: Vec<V>) -> Self
-    where
-        V: Clone,
-    {
+    pub fn new_from_eval(graph: G, values: Vec<V>) -> Self {
         let index = Index::for_graph(graph.clone());
         // Values are already in flat index order from TaskRunner
         Self::new(graph, values.into(), index)
@@ -260,10 +257,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     /// - `graph`: the graph view
     /// - `values`: the values indexed by flat position (i.e., `values.len() == index.len()`).
     /// - `index`: the index mapping VID to flat position in values
-    pub fn new_from_eval_with_index(graph: G, values: Vec<V>, index: Index<VID>) -> Self
-    where
-        V: Clone,
-    {
+    pub fn new_from_eval_with_index(graph: G, values: Vec<V>, index: Index<VID>) -> Self {
         // Values are already in flat index order from TaskRunner
         Self::new(graph, values.into(), index)
     }
@@ -336,12 +330,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .iter()
                 .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
                 .unzip();
-            Self::new(
-                graph.clone(),
-                graph,
-                values.into(),
-                Index::Partial(index.into()),
-            )
+            Self::new(graph, values.into(), Index::Partial(index.into()))
         }
     }
 
@@ -364,7 +353,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
         &self.values
     }
 
-    pub fn ids(&self) -> &Option<Index<VID>> {
+    pub fn ids(&self) -> &Index<VID> {
         &self.keys
     }
 }
@@ -430,12 +419,10 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
     where
         'graph: 'a,
     {
-        self.keys.iter().zip(self.values.iter()).map(move |(n, v)| {
-            (
-                NodeView::new_internal(&self.base_graph, n),
-                v,
-            )
-        })
+        self.keys
+            .iter()
+            .zip(self.values.iter())
+            .map(move |(n, v)| (NodeView::new_internal(&self.base_graph, n), v))
     }
 
     fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph, Self::Select> {
@@ -467,7 +454,7 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
     }
 
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
-        let id = self.graph.internalise_node(node.as_node_ref())?;
+        let id = self.base_graph.internalise_node(node.as_node_ref())?;
         self.keys.index(&id).map(|i| &self.values[i])
     }
 

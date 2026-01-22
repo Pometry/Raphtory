@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::time::IntoTimeWithFormat},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             mutation::{time_from_input_session, TryIntoInputTime},
@@ -9,7 +9,7 @@ use crate::{
     },
     errors::{into_graph_err, GraphError},
 };
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps},
     deletion_ops::InternalDeletionOps,

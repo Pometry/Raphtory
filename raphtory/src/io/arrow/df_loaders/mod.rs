@@ -27,15 +27,24 @@ use std::{
 pub mod edge_props;
 pub mod edges;
 pub mod nodes;
-
-fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
-    BarBuilder::default()
-        .desc(des)
-        .animation(kdam::Animation::FillUp)
-        .total(num_rows)
-        .unit_scale(true)
-        .build()
-        .map_err(|_| GraphError::TqdmError)
+#[cfg(feature = "python")]
+fn build_progress_bar(des: String, num_rows: Option<usize>) -> Result<Bar, GraphError> {
+    if let Some(num_rows) = num_rows {
+        BarBuilder::default()
+            .desc(des)
+            .animation(kdam::Animation::FillUp)
+            .total(num_rows)
+            .unit_scale(true)
+            .build()
+            .map_err(|_| GraphError::TqdmError)
+    } else {
+        BarBuilder::default()
+            .desc(des)
+            .animation(kdam::Animation::FillUp)
+            .unit_scale(true)
+            .build()
+            .map_err(|_| GraphError::TqdmError)
+    }
 }
 
 fn process_shared_properties(

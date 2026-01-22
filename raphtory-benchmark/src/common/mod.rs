@@ -301,7 +301,10 @@ pub fn run_analysis_benchmarks<F, G>(
 
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::rng();
-        let (src, dst) = edges.iter().choose(&mut rng).expect("has_edge_existing: non-empty graph (graph().edges().iter() is empty)");
+        let (src, dst) = edges
+            .iter()
+            .choose(&mut rng)
+            .expect("has_edge_existing: non-empty graph (graph().edges().iter() is empty)");
         b.iter(|| graph.has_edge(src, dst))
     });
 

@@ -268,7 +268,7 @@ impl CreateFilter for NodeTypeFilter {
         let node_types_filter = graph
             .node_meta()
             .node_type_meta()
-            .get_keys()
+            .keys()
             .iter()
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
@@ -285,7 +285,7 @@ impl CreateFilter for NodeTypeFilter {
         let node_types_filter = graph
             .node_meta()
             .node_type_meta()
-            .get_keys()
+            .keys()
             .iter()
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();

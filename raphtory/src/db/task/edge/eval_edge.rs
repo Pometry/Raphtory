@@ -106,7 +106,6 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
         EvalNodeView {
             node: node.node,
             state_pos,
-            graph: node.base_graph,
             eval_graph,
             local_state: None,
         }

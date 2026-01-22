@@ -1,9 +1,7 @@
 use super::GraphStorage;
 use crate::{
     core::{entities::LayerIds, storage::timeindex::TimeIndexOps},
-    db::api::view::internal::{
-        EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
-    },
+    db::api::view::internal::{GraphTimeSemanticsOps, TimeSemantics},
     prelude::Prop,
 };
 use raphtory_api::{
@@ -158,11 +156,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
         .into_dyn_boxed()
     }
 
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: EventTime,
-    ) -> Option<(EventTime, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         let graph_entry = self.graph_entry();
 
         graph_entry

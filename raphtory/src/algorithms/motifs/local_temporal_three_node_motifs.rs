@@ -200,22 +200,21 @@ where
         Step::Continue
     });
 
-    let intersection_compute_step =
-        ATask::new(move |u: &mut EvalNodeView<_, MotifCounter>| {
-            let uu = u.get_mut();
-            if uu.triangle.is_empty() {
-                uu.triangle = vec![[0usize; 8]; delta_len];
-            }
-            for v in u.neighbours() {
-                // Find triangles on the UV edge
-                let intersection_nbs = {
-                    let default = FxHashSet::default();
-                    let u_entry = u.entry(&neighbours_set);
-                    let u_set = u_entry.read_ref().unwrap_or(&default);
-                    let v_entry = v.entry(&neighbours_set);
-                    let v_set = v_entry.read_ref().unwrap_or(&default);
-                    u_set.intersection(v_set).cloned().collect::<Vec<_>>()
-                };
+    let intersection_compute_step = ATask::new(move |u: &mut EvalNodeView<_, MotifCounter>| {
+        let uu = u.get_mut();
+        if uu.triangle.is_empty() {
+            uu.triangle = vec![[0usize; 8]; delta_len];
+        }
+        for v in u.neighbours() {
+            // Find triangles on the UV edge
+            let intersection_nbs = {
+                let default = FxHashSet::default();
+                let u_entry = u.entry(&neighbours_set);
+                let u_set = u_entry.read_ref().unwrap_or(&default);
+                let v_entry = v.entry(&neighbours_set);
+                let v_set = v_entry.read_ref().unwrap_or(&default);
+                u_set.intersection(v_set).cloned().collect::<Vec<_>>()
+            };
 
             if intersection_nbs.is_empty() {
                 continue;

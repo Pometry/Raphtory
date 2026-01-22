@@ -3,6 +3,8 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
+#[cfg(feature = "search")]
+use crate::python::graph::index::PyIndexSpec;
 use crate::{
     algorithms::components::LargestConnectedComponent,
     db::{
@@ -14,11 +16,8 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
-            node::PyNode, views::graph_view::PyGraphView,
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
-            index::PyIndexSpec,
             io::arrow_loaders::{
                 convert_py_prop_args, convert_py_schema, is_csv_path,
                 load_edge_metadata_from_arrow_c_stream, load_edge_metadata_from_csv_path,
@@ -37,7 +36,7 @@ use crate::{
         StableDecode, StableEncode,
     },
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict, Borrowed};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::PyDict, Borrowed};
 use raphtory_api::{
     core::{entities::GID, storage::arc_str::ArcStr},
     python::timeindex::EventTimeComponent,
@@ -49,9 +48,6 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-
-#[cfg(feature = "search")]
-use crate::python::graph::index::PyIndexSpec;
 
 /// A temporal graph with event semantics.
 ///
@@ -662,7 +658,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = none)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None)
     )]
     fn load_nodes(
         &self,
@@ -717,6 +713,7 @@ impl PyGraph {
                     &self.graph,
                     path.as_path(),
                     time,
+                    event_id,
                     id,
                     node_type,
                     node_type_col,
@@ -724,6 +721,7 @@ impl PyGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
+                    true,
                     arced_schema.clone(),
                 )?;
             }

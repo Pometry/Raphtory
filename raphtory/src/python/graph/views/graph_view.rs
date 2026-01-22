@@ -39,9 +39,9 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use chrono::prelude::*;
 use pyo3::{prelude::*, Borrowed};
+use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use rayon::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
 

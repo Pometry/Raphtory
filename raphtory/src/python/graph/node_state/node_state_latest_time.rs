@@ -635,7 +635,7 @@ impl<'py> pyo3::IntoPyObject<'py>
     }
 }
 
-impl<'py> FromPyObject<'py>
+impl<'py> FromPyObject<'_, 'py>
     for LazyNodeState<
         'static,
         LatestDateTime<DynamicGraph>,
@@ -644,7 +644,8 @@ impl<'py> FromPyObject<'py>
         DynNodeFilter,
     >
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Ok(ob.downcast::<LatestDateTimeView>()?.get().inner().clone())
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<LatestDateTimeView>()?.get().inner().clone())
     }
 }

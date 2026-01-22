@@ -188,7 +188,7 @@ impl<
             )
         } else {
             let values = self.collect_vec();
-            NodeState::new(self.nodes.graph.clone(), values.into(), None)
+            NodeState::new_from_eval(self.nodes.graph.clone(), values.into())
         }
     }
 
@@ -206,14 +206,13 @@ impl<
             Ok(NodeState::new(
                 self.nodes.base_graph.clone(),
                 values?.into(),
-                Some(Index::new(keys)),
+                Index::new(keys),
             ))
         } else {
             let values: Result<Vec<T>, E> = self.collect::<Result<Vec<T>, E>>();
-            Ok(NodeState::new(
+            Ok(NodeState::new_from_eval(
                 self.nodes.base_graph.clone(),
                 values?.into(),
-                None,
             ))
         }
     }
@@ -238,7 +237,7 @@ impl<
                 .par_iter_values()
                 .filter_map(|value| value.ok())
                 .collect();
-            NodeState::new(self.nodes.base_graph.clone(), values.into(), None)
+            NodeState::new_from_eval(self.nodes.base_graph.clone(), values.into())
         }
     }
 }

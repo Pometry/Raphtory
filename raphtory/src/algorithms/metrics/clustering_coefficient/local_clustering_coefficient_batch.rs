@@ -47,9 +47,5 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
             ))
         })
         .unzip();
-    NodeState::new(
-        graph.clone(),
-        values.into(),
-        Index::Partial(index.into()),
-    )
+    NodeState::new(graph.clone(), values.into(), Index::Partial(index.into()))
 }

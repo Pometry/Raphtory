@@ -1,6 +1,8 @@
 use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use ouroboros::self_referencing;
-use pyo3::{pyclass, pymethods, BoundObject, IntoPyObject, Py, PyAny, PyErr, PyRef, PyResult, Python};
+use pyo3::{
+    pyclass, pymethods, BoundObject, IntoPyObject, Py, PyAny, PyErr, PyRef, PyResult, Python,
+};
 
 #[pyclass]
 #[self_referencing]

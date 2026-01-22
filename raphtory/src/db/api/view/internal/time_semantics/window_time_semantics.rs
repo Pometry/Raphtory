@@ -45,7 +45,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<EventTime> {
         self.semantics
             .node_latest_time_window(node, view, self.window.clone())
     }
@@ -335,7 +335,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     #[inline]
     fn edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
-        edge: EdgeStorageRef<'graph>,
+        edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
@@ -357,7 +357,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     #[inline]
     fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
-        edge: EdgeStorageRef<'graph>,
+        edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
@@ -534,7 +534,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     #[inline]
     fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
         self,
-        e: EdgeStorageRef<'graph>,
+        e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
@@ -556,7 +556,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
 
     fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
-        e: EdgeStorageRef<'graph>,
+        e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,

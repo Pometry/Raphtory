@@ -214,8 +214,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id)
-            .iter_window_rev(w)
+        node.tprop(prop_id).iter_window_rev(w)
     }
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
@@ -309,7 +308,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
 
     fn edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
-        edge: EdgeStorageRef<'graph>,
+        edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
@@ -337,7 +336,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
 
     fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
-        edge: EdgeStorageRef<'graph>,
+        edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
@@ -544,7 +543,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
 
     fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
         self,
-        e: EdgeStorageRef<'graph>,
+        e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
@@ -572,7 +571,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
 
     fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
-        edge: EdgeStorageRef<'graph>,
+        edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
@@ -849,8 +848,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
             .map(move |(layer_id, prop)| {
-                prop.iter_window(w.clone())
-                    .rev()
+                prop.iter_window_rev(w.clone())
                     .map(move |(t, v)| (t, layer_id, v))
             })
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)

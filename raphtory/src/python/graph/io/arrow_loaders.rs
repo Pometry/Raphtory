@@ -5,14 +5,15 @@ use crate::{
         arrow::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
-                load_edge_deletions_from_df, load_edges_from_df, load_edges_props_from_df,
-                load_node_props_from_df, load_nodes_from_df,
+                edges::{load_edges_from_df, ColumnNames},
+                load_edge_deletions_from_df, load_edges_props_from_df,
+                nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
         parquet_loaders::cast_columns,
     },
     prelude::{AdditionOps, PropertyAdditionOps},
-    serialise::incremental::InternalCache,
+    test_utils::prop,
 };
 use arrow::{
     array::{RecordBatch, RecordBatchReader},
@@ -21,6 +22,7 @@ use arrow::{
 use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
+use itertools::chain;
 use pyo3::{
     exceptions::PyValueError,
     ffi::c_str,
@@ -64,11 +66,12 @@ pub(crate) fn convert_py_schema(
 
 pub(crate) fn load_nodes_from_arrow_c_stream<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     data: &Bound<'py, PyAny>,
     time: &str,
+    event_id: Option<&str>,
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
@@ -77,30 +80,34 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     shared_metadata: Option<&HashMap<String, Prop>>,
     schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![id, time];
-    cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(metadata);
-    if let Some(ref node_type_col) = node_type_col {
-        cols_to_check.push(node_type_col.as_ref());
-    }
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
+    let cols_to_check = [id, time]
+        .into_iter()
+        .chain(properties.iter())
+        .chain(metadata)
+        .chain(node_type_col)
+        .chain(event_id)
+        .collect::<Vec<_>>();
+
+    let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_nodes_from_df(
         df_view,
         time,
         id,
+        event_id,
         properties,
         metadata,
         shared_metadata,
         node_type,
         node_type_col,
         graph,
+        true,
     )
 }
 
 pub(crate) fn load_edges_from_arrow_c_stream<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     data: &Bound<'py, PyAny>,
@@ -113,32 +120,34 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     layer: Option<&str>,
     layer_col: Option<&str>,
     schema: Option<HashMap<String, PropType>>,
+    event_id: Option<&str>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst, time];
-    cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(metadata);
-    if let Some(layer_col) = layer_col {
-        cols_to_check.push(layer_col.as_ref());
-    }
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
+    let mut cols_to_check = [src, dst, time]
+        .into_iter()
+        .chain(properties)
+        .chain(metadata)
+        .chain(layer_col)
+        .chain(event_id)
+        .collect::<Vec<_>>();
+
+    let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_from_df(
         df_view,
-        time,
-        src,
-        dst,
+        ColumnNames::new(time, event_id, src, dst, layer_col),
+        true,
         properties,
         metadata,
         shared_metadata,
         layer,
-        layer_col,
         graph,
+        false,
     )
 }
 
 pub(crate) fn load_node_metadata_from_arrow_c_stream<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     data: &Bound<'py, PyAny>,
@@ -149,18 +158,21 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
     shared_metadata: Option<&HashMap<String, Prop>>,
     schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![id];
-    cols_to_check.extend_from_slice(metadata);
-    if let Some(ref node_type_col) = node_type_col {
-        cols_to_check.push(node_type_col.as_ref());
-    }
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
+    let mut cols_to_check = [id]
+        .into_iter()
+        .chain(metadata)
+        .chain(node_type_col)
+        .collect::<Vec<_>>();
+
+    let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_node_props_from_df(
         df_view,
         id,
         node_type,
         node_type_col,
+        None,
+        None,
         metadata,
         shared_metadata,
         graph,
@@ -169,7 +181,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
 
 pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     data: &Bound<'py, PyAny>,
@@ -181,12 +193,12 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     layer_col: Option<&str>,
     schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst];
-    if let Some(ref layer_col) = layer_col {
-        cols_to_check.push(layer_col.as_ref());
-    }
-    cols_to_check.extend_from_slice(metadata);
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
+    let mut cols_to_check = [src, dst]
+        .into_iter()
+        .chain(layer_col)
+        .chain(metadata)
+        .collect::<Vec<_>>();
+    let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_props_from_df(
         df_view,
@@ -197,6 +209,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
         layer,
         layer_col,
         graph,
+        true,
     )
 }
 
@@ -213,20 +226,17 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     layer_col: Option<&str>,
     schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst, time];
-    if let Some(ref layer_col) = layer_col {
-        cols_to_check.push(layer_col.as_ref());
-    }
-
-    let df_view = process_arrow_c_stream_df(data, cols_to_check.clone(), schema)?;
+    let mut cols_to_check = [src, dst, time]
+        .into_iter()
+        .chain(layer_col)
+        .collect::<Vec<_>>();
+    let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edge_deletions_from_df(
         df_view,
-        time,
-        src,
-        dst,
+        ColumnNames::new(time, None, src, dst, layer_col),
+        true,
         layer,
-        layer_col,
         graph.core_graph(),
     )
 }
@@ -234,7 +244,7 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
 /// Can handle any object that provides the \_\_arrow_c_stream__() interface
 pub(crate) fn process_arrow_c_stream_df<'a>(
     data: &Bound<'a, PyAny>,
-    col_names: Vec<&str>,
+    col_names: &[&str],
     schema: Option<HashMap<String, PropType>>,
 ) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
     let py = data.py();
@@ -247,7 +257,7 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
     }
 
     let stream_capsule_any: Bound<'a, PyAny> = data.call_method0("__arrow_c_stream__")?;
-    let stream_capsule: &Bound<'a, PyCapsule> = stream_capsule_any.downcast::<PyCapsule>()?;
+    let stream_capsule: &Bound<'a, PyCapsule> = stream_capsule_any.cast::<PyCapsule>()?;
 
     if !stream_capsule.is_valid() {
         return Err(PyErr::from(GraphError::LoadFailure(
@@ -370,9 +380,11 @@ pub(crate) struct CsvReadOptions {
     has_header: Option<bool>,
 }
 
-impl<'a> FromPyObject<'a> for CsvReadOptions {
-    fn extract_bound(ob: &Bound<'a, PyAny>) -> PyResult<Self> {
-        let dict = ob.downcast::<PyDict>().map_err(|e| {
+impl<'py> FromPyObject<'_, 'py> for CsvReadOptions {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let dict = ob.cast::<PyDict>().map_err(|e| {
             PyValueError::new_err(format!("CSV options should be passed as a dict: {e}"))
         })?;
         let get_char = |option: &str| match dict.get_item(option)? {
@@ -440,7 +452,7 @@ fn collect_csv_paths(path: &PathBuf) -> Result<Vec<PathBuf>, GraphError> {
 // Load from CSV files using arrow-csv
 pub(crate) fn load_nodes_from_csv_path<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     path: &PathBuf,
@@ -453,21 +465,24 @@ pub(crate) fn load_nodes_from_csv_path<
     shared_metadata: Option<&HashMap<String, Prop>>,
     csv_options: Option<&CsvReadOptions>,
     schema: Option<Arc<HashMap<String, PropType>>>,
+    event_id: Option<&str>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![id, time];
-    cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(metadata);
-    if let Some(ref node_type_col) = node_type_col {
-        cols_to_check.push(node_type_col.as_ref());
-    }
+    let mut cols_to_check = [id, time]
+        .into_iter()
+        .chain(properties)
+        .chain(metadata)
+        .chain(node_type_col)
+        .chain(event_id)
+        .collect::<Vec<_>>();
 
     let csv_paths = collect_csv_paths(path)?;
 
-    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
+    let df_view = process_csv_paths_df(&csv_paths, &cols_to_check, csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_nodes_from_df(
         df_view,
         time,
+        event_id,
         id,
         properties,
         metadata,
@@ -475,12 +490,13 @@ pub(crate) fn load_nodes_from_csv_path<
         node_type,
         node_type_col,
         graph,
+        true,
     )
 }
 
 pub(crate) fn load_edges_from_csv_path<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     path: &PathBuf,
@@ -494,35 +510,35 @@ pub(crate) fn load_edges_from_csv_path<
     layer_col: Option<&str>,
     csv_options: Option<&CsvReadOptions>,
     schema: Option<Arc<HashMap<String, PropType>>>,
+    event_id: Option<&str>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst, time];
-    cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(metadata);
-    if let Some(layer_col) = layer_col {
-        cols_to_check.push(layer_col.as_ref());
-    }
+    let mut cols_to_check = [src, dst, time]
+        .into_iter()
+        .chain(properties)
+        .chain(metadata)
+        .chain(layer_col)
+        .collect::<Vec<_>>();
 
     let csv_paths = collect_csv_paths(path)?;
 
-    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
+    let df_view = process_csv_paths_df(&csv_paths, &cols_to_check, csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_from_df(
         df_view,
-        time,
-        src,
-        dst,
+        ColumnNames::new(time, event_id, src, dst, layer_col),
+        true,
         properties,
         metadata,
         shared_metadata,
         layer,
-        layer_col,
         graph,
+        false,
     )
 }
 
 pub(crate) fn load_node_metadata_from_csv_path<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     path: &PathBuf,
@@ -534,21 +550,23 @@ pub(crate) fn load_node_metadata_from_csv_path<
     csv_options: Option<&CsvReadOptions>,
     schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![id];
-    cols_to_check.extend_from_slice(metadata);
-    if let Some(ref node_type_col) = node_type_col {
-        cols_to_check.push(node_type_col.as_ref());
-    }
+    let cols_to_check = [id]
+        .into_iter()
+        .chain(metadata)
+        .chain(node_type_col)
+        .collect::<Vec<_>>();
 
     let csv_paths = collect_csv_paths(path)?;
 
-    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
+    let df_view = process_csv_paths_df(&csv_paths, &cols_to_check, csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_node_props_from_df(
         df_view,
         id,
         node_type,
         node_type_col,
+        None,
+        None,
         metadata,
         shared_metadata,
         graph,
@@ -557,7 +575,7 @@ pub(crate) fn load_node_metadata_from_csv_path<
 
 pub(crate) fn load_edge_metadata_from_csv_path<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     path: &PathBuf,
@@ -570,15 +588,15 @@ pub(crate) fn load_edge_metadata_from_csv_path<
     csv_options: Option<&CsvReadOptions>,
     schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst];
-    if let Some(ref layer_col) = layer_col {
-        cols_to_check.push(layer_col.as_ref());
-    }
-    cols_to_check.extend_from_slice(metadata);
+    let cols_to_check = [src, dst]
+        .into_iter()
+        .chain(metadata)
+        .chain(layer_col)
+        .collect::<Vec<_>>();
 
     let csv_paths = collect_csv_paths(path)?;
 
-    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
+    let df_view = process_csv_paths_df(&csv_paths, &cols_to_check, csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_props_from_df(
         df_view,
@@ -589,6 +607,7 @@ pub(crate) fn load_edge_metadata_from_csv_path<
         layer,
         layer_col,
         graph,
+        true,
     )
 }
 
@@ -605,23 +624,22 @@ pub(crate) fn load_edge_deletions_from_csv_path<
     layer_col: Option<&str>,
     csv_options: Option<&CsvReadOptions>,
     schema: Option<Arc<HashMap<String, PropType>>>,
+    event_id: Option<&str>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst, time];
-    if let Some(ref layer_col) = layer_col {
-        cols_to_check.push(layer_col.as_ref());
-    }
+    let cols_to_check = [src, dst, time]
+        .into_iter()
+        .chain(layer_col)
+        .collect::<Vec<_>>();
 
     let csv_paths = collect_csv_paths(path)?;
 
-    let df_view = process_csv_paths_df(&csv_paths, cols_to_check.clone(), csv_options, schema)?;
+    let df_view = process_csv_paths_df(&csv_paths, &cols_to_check, csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edge_deletions_from_df(
         df_view,
-        time,
-        src,
-        dst,
+        ColumnNames::new(time, event_id, src, dst, layer_col),
+        true,
         layer,
-        layer_col,
         graph.core_graph(),
     )
 }
@@ -731,7 +749,7 @@ fn build_csv_reader(
 
 fn process_csv_paths_df<'a>(
     paths: &'a [PathBuf],
-    col_names: Vec<&'a str>,
+    col_names: &'a [&'a str],
     csv_options: Option<&'a CsvReadOptions>,
     schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>, GraphError> {
@@ -751,7 +769,7 @@ fn process_csv_paths_df<'a>(
             Err(e) => return Box::new(iter::once(Err(e))) as ChunkIter<'a>,
         };
         let mut indices = Vec::with_capacity(col_names.len());
-        for required_col in &col_names {
+        for required_col in col_names {
             if let Some((idx, _)) = csv_reader
                 .schema()
                 .fields()

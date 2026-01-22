@@ -111,11 +111,7 @@ pub trait GraphTimeSemanticsOps {
     ) -> BoxedLIter<'_, (EventTime, Prop)>;
 
     /// Returns the value and update time for the temporal graph property at or before a given timestamp
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: EventTime,
-    ) -> Option<(EventTime, Prop)>;
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)>;
 
     fn temporal_prop_last_at_window(
         &self,
@@ -209,19 +205,15 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     fn temporal_prop_iter_window_rev(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: EventTime,
+        end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
         self.graph()
             .temporal_prop_iter_window_rev(prop_id, start, end)
     }
 
     #[inline]
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: EventTime,
-    ) -> Option<(EventTime, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         self.graph().temporal_prop_last_at(prop_id, t)
     }
 

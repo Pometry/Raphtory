@@ -17,7 +17,6 @@ use crate::{
     python::{
         graph::{
             edge::PyEdge,
-            index::PyIndexSpec,
             io::arrow_loaders::{
                 convert_py_prop_args, convert_py_schema, is_csv_path,
                 load_edge_deletions_from_arrow_c_stream, load_edge_deletions_from_csv_path,
@@ -610,7 +609,7 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, secondary_index = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None)
     )]
     fn load_nodes(
         &self,
@@ -625,7 +624,7 @@ impl PyPersistentGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
-        secondary_index: Option<&str>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -635,7 +634,7 @@ impl PyPersistentGraph {
                 &self.graph,
                 data,
                 time,
-                secondary_index,
+                event_id,
                 id,
                 node_type,
                 node_type_col,

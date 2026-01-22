@@ -187,11 +187,7 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.temporal_prop_iter_window_rev(prop_id, start, end))
     }
 
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: EventTime,
-    ) -> Option<(EventTime, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at(prop_id, t))
     }
 

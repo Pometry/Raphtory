@@ -295,8 +295,9 @@ impl<'py, T: IntoArcDynHistoryOps> IntoPyObject<'py> for History<'_, T> {
     }
 }
 
-impl<'py> FromPyObject<'py> for History<'static, Arc<dyn InternalHistoryOps>> {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for History<'static, Arc<dyn InternalHistoryOps>> {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let py_history = ob.downcast::<PyHistory>()?;
         Ok(py_history.get().history.clone())
     }

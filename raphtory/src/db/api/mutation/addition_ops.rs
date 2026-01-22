@@ -1,10 +1,7 @@
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
-        api::{
-            mutation::{time_from_input_session, TryIntoInputTime},
-            view::StaticGraphViewOps,
-        },
+        api::{mutation::time_from_input_session, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
@@ -13,7 +10,7 @@ use crate::{
 
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps},
-    MutationError
+    MutationError,
 };
 
 use raphtory_api::core::{
@@ -255,7 +252,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         dst: V,
         props: PII,
         layer: Option<&str>,
-    ) -> Result<EdgeView<G, G>, GraphError> {
+    ) -> Result<EdgeView<G>, GraphError> {
         // Log transaction start
         let transaction_id = self.transaction_manager().begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;

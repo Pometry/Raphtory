@@ -6,8 +6,7 @@ use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
 use parquet::errors::ParquetError;
 use raphtory_api::core::entities::{
-    properties::prop::{PropError, PropType},
-    properties::prop::{DeserialisationError, InvalidPropertyTypeErr},
+    properties::prop::{InvalidPropertyTypeErr, PropError, PropType},
     GidType, GID, VID,
 };
 use raphtory_core::entities::{
@@ -31,6 +30,7 @@ use raphtory_api::core::utils::time::ParseTimeError;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
+use raphtory_api::core::storage::timeindex::TimeError;
 use storage::error::StorageError;
 #[cfg(feature = "io")]
 use zip::result::ZipError;

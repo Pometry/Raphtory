@@ -224,7 +224,7 @@ pub trait EdgeTimeSemanticsOps {
     /// An iterator over timestamp and layer pairs
     fn edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
-        edge: EdgeStorageRef<'graph>,
+        edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;

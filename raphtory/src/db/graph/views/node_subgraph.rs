@@ -89,12 +89,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for NodeSubg
         false
     }
 
-    fn internal_filter_exploded_edge(
-        &self,
-        eid: ELID,
-        t: EventTime,
-        layer_ids: &LayerIds,
-    ) -> bool {
+    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
         self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
     }
 

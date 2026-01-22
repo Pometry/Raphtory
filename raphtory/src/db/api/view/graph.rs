@@ -1,7 +1,7 @@
-#[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
 #[cfg(feature = "search")]
 use crate::search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes};
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
@@ -10,8 +10,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::InternalMetadataOps, Metadata, Properties},
-            state::Index,
-            state::ops::filter::NodeTypeFilterOp,
+            state::{ops::filter::NodeTypeFilterOp, Index},
             view::{internal::*, *},
         },
         graph::{
@@ -20,8 +19,6 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView, filter::node_type_filtered_graph::NodeTypeFilteredGraph,
-                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
                 cached_view::CachedView,
                 filter::{model::TryAsCompositeFilter, node_filtered_graph::NodeFilteredGraph},
                 node_subgraph::NodeSubgraph,
@@ -308,11 +305,11 @@ fn materialize_impl(
     )?;
 
     if let Some(earliest) = graph.earliest_time() {
-        temporal_graph.update_time(EventTime::start(earliest));
+        temporal_graph.update_time(earliest);
     };
 
     if let Some(latest) = graph.latest_time() {
-        temporal_graph.update_time(EventTime::end(latest));
+        temporal_graph.update_time(latest);
     };
 
     // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
@@ -515,14 +512,14 @@ fn materialize_impl(
                     if let Some(node_pos) = maybe_src_pos {
                         let mut writer = shard.writer();
 
-                        let t = e.time_and_index().expect("exploded edge should have time");
+                        let t = e.time().expect("exploded edge should have time");
                         let l = layer_map[e.edge.layer().unwrap()];
                         writer.update_timestamp(t, node_pos, eid.with_layer(l), 0);
                     }
                     if let Some(node_pos) = maybe_dst_pos {
                         let mut writer = shard.writer();
 
-                        let t = e.time_and_index().expect("exploded edge should have time");
+                        let t = e.time().expect("exploded edge should have time");
                         let l = layer_map[e.edge.layer().unwrap()];
                         writer.update_timestamp(t, node_pos, eid.with_layer(l), 0);
                     }

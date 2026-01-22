@@ -18,7 +18,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds, ELID,
     },
-    storage::timeindex::{AsTime, MergedTimeIndex, EventTime, TimeIndexOps},
+    storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
 };
 use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
@@ -72,8 +72,10 @@ fn persisted_event<
     deletions: FilteredEdgeTimeIndex<'a, G, TSD>,
     t: EventTime,
 ) -> Option<EventTime> {
-    let active_at_start = deletions.active(t..EventTime::start(t.saturating_add(1)))
-        || additions.unfiltered().active(t..EventTime::start(t.saturating_add(1)));
+    let active_at_start = deletions.active(t..EventTime::start(t.t().saturating_add(1)))
+        || additions
+            .unfiltered()
+            .active(t..EventTime::start(t.t().saturating_add(1)));
     if active_at_start {
         return None;
     }
@@ -336,12 +338,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
     ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows().map(|(t, row)| {
-            (
-                t,
-                row.into_iter().filter_map(|(i, v)| Some((i, v?))).collect(),
-            )
-        })
+        node.temp_prop_rows().map(|(t, _, row)| (t, row))
     }
 
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
@@ -375,13 +372,10 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         } else {
             None
         };
-        first_row
-            .into_iter()
-            .map(move |row| (start, row))
-            .chain(
-                node.temp_prop_rows_range(Some(w))
-                    .map(|(t, _, row)| (t, row))
-            )
+        first_row.into_iter().map(move |row| (start, row)).chain(
+            node.temp_prop_rows_range(Some(w))
+                .map(|(t, _, row)| (t, row)),
+        )
     }
 
     fn node_valid<'graph, G: GraphViewOps<'graph>>(
@@ -455,8 +449,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         let first = if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
             None
         } else {
-            prop.last_before(EventTime::start(w.start))
-                .map(|(t, v)| (t.max(EventTime::start(w.start)), v))
+            prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
         };
         prop.iter_window_rev(w).chain(first)
     }
@@ -600,7 +593,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
 
     fn edge_history_rev<'graph, G: GraphViewOps<'graph>>(
         self,
-        edge: EdgeStorageRef<'graph>,
+        edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph {
@@ -624,7 +617,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
 
     fn edge_history_window_rev<'graph, G: GraphViewOps<'graph>>(
         self,
-        edge: EdgeStorageRef<'graph>,
+        edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
@@ -1282,14 +1275,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 let deletions = merged_deletions(e, &view, layer);
                 let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
                     .map(|(t, v)| (t, layer, v));
-                first_prop
-                    .into_iter()
-                    .chain(
-                        props
-                            .iter_window(interior_window(w.clone(), &deletions))
-                            .map(move |(t, v)| (t, layer, v)),
-                    )
-                    .rev()
+                props
+                    .iter_inner_rev(Some(interior_window(w.clone(), &deletions)))
+                    .map(move |(t, v)| (t, layer, v))
+                    .chain(first_prop)
             })
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
             .map(move |(t, layer, v)| (t.max(w.start), layer, v))

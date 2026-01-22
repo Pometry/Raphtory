@@ -372,11 +372,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             .temporal_prop_iter_window_rev(prop_id, start, end)
     }
 
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: EventTime,
-    ) -> Option<(EventTime, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         self.graph
             .temporal_prop_last_at_window(prop_id, t, self.window_bound())
     }
@@ -441,12 +437,7 @@ impl<G: GraphView> InternalExplodedEdgeFilterOps for WindowedGraph<G> {
                 && self.graph.internal_exploded_filter_edge_list_trusted())
     }
 
-    fn internal_filter_exploded_edge(
-        &self,
-        eid: ELID,
-        t: EventTime,
-        layer_ids: &LayerIds,
-    ) -> bool {
+    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
         self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
     }
 

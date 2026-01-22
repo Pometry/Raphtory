@@ -3,7 +3,7 @@ use crate::serialise::GraphPaths;
 use crate::{
     core::{
         entities::LayerIds,
-        storage::timeindex::{AsTime, TimeIndex, EventTime, TimeIndexOps},
+        storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     },
     db::{
         api::{
@@ -267,7 +267,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
 
             // Get the property value that was active at the start of the window.
             let first = persisted_prop_value_at(start.t(), tprop, &TimeIndex::Empty)
-                .map(|prop_value| (EventTime::start(start), prop_value));
+                .map(|prop_value| (start, prop_value));
 
             // Chain the initial prop with the rest of the props that occur
             // within the window.
@@ -292,7 +292,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
 
             // Get the property value that was active at the start of the window.
             let first = persisted_prop_value_at(start.t(), tprop, &TimeIndex::Empty)
-                .map(|prop_value| (EventTime::start(start), prop_value));
+                .map(|prop_value| (start, prop_value));
 
             // Chain the initial prop with the rest of the props that occur
             // within the window, in reverse order.
@@ -304,11 +304,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         .into_dyn_boxed()
     }
 
-    fn temporal_prop_last_at(
-        &self,
-        prop_id: usize,
-        t: EventTime,
-    ) -> Option<(EventTime, Prop)> {
+    fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
         self.0.temporal_prop_last_at(prop_id, t)
     }
 

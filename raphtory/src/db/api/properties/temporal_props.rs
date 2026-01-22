@@ -12,8 +12,15 @@ use std::{
     sync::Arc,
 };
 
+use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
 use arrow::array::ArrayRef;
-use raphtory_api::core::entities::properties::prop::PropArrayUnwrap;
+use raphtory_api::{
+    core::{
+        entities::properties::prop::PropArrayUnwrap, storage::timeindex::AsTime,
+        utils::time::IntoTime,
+    },
+    iter::BoxedLIter,
+};
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: InternalPropertiesOps> {
@@ -84,7 +91,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn iter_rev(&self) -> impl Iterator<Item = (EventTime, Prop)> + '_ {
-        self.history_rev().zip(self.values_rev())
+        self.history().into_iter_rev().zip(self.values_rev())
     }
 
     pub fn iter_indexed(&self) -> impl Iterator<Item = (EventTime, Prop)> + use<'_, P> {
@@ -298,7 +305,7 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
     }
 }
 
-impl<P: InternalPropertiesOps> PropArrayUnwrap for TemporalPropertyView<P> {
+impl<P: InternalPropertiesOps + Clone> PropArrayUnwrap for TemporalPropertyView<P> {
     fn into_array(self) -> Option<ArrayRef> {
         self.latest().into_array()
     }

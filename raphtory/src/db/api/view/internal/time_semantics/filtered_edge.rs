@@ -195,38 +195,6 @@ pub struct FilteredEdgeTProp<G, P> {
 impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
     for FilteredEdgeTProp<G, P>
 {
-    // fn iter(
-    //     self,
-    // ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-    //     let view = self.view.clone();
-    //     let eid = self.eid;
-    //     self.props
-    //         .iter()
-    //         .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
-    // }
-
-    // fn iter_window(
-    //     self,
-    //     r: Range<TimeIndexEntry>,
-    // ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-    //     let view = self.view.clone();
-    //     let eid = self.eid;
-    //     self.props
-    //         .iter_window(r)
-    //         .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
-    // }
-
-    fn at(&self, ti: &EventTime) -> Option<Prop> {
-        if self
-            .view
-            .internal_filter_exploded_edge(self.eid, *ti, self.view.layer_ids())
-        {
-            self.props.at(ti)
-        } else {
-            None
-        }
-    }
-
     fn iter_inner(
         self,
         range: Option<Range<EventTime>>,

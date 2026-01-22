@@ -242,7 +242,7 @@ pub fn load_node_metadata_from_parquet<
 }
 
 pub fn load_edge_metadata_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     parquet_path: &Path,

@@ -186,11 +186,10 @@ mod test_index {
         use crate::{
             db::{
                 api::view::{internal::InternalStorageOps, ResolvedIndexSpec},
-                graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
                 graph::views::filter::model::{
                     node_filter::{ops::NodeFilterOps, NodeFilter},
-                    TryAsCompositeFilter,
-                }
+                    AsNodeFilter, NodeFilter, NodeFilterBuilderOps, TryAsCompositeFilter,
+                },
             },
             errors::GraphError,
             prelude::*,

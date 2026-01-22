@@ -19,7 +19,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
-use rayon::iter::ParallelIterator;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::HashSet,
     fmt::{Debug, Formatter},
@@ -157,16 +157,12 @@ where
     }
 
     pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
-        let g = self.graph.core_graph().lock();
-        let view = self.graph.clone();
-        let node_types_filter = self.node_types_filter.clone();
+        let g = self.base_graph.core_graph().lock();
+        let view = self.base_graph.clone();
+        let node_select = self.predicate.clone();
         self.node_list().nodes_par_iter(&g).filter(move |&vid| {
-            g.try_core_node(vid).is_some_and(|node| {
-                node_types_filter
-                    .as_ref()
-                    .is_none_or(|type_filter| type_filter[node.node_type_id()])
-                    && view.filter_node(node.as_ref())
-            })
+            g.try_core_node(vid)
+                .is_some_and(|node| view.filter_node(node.as_ref()) && node_select.apply(&g, vid))
         })
     }
 
@@ -177,16 +173,6 @@ where
             self.predicate.clone(),
             index,
         )
-    }
-
-    pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
-        let g = self.base_graph.core_graph().lock();
-        let view = self.base_graph.clone();
-        let node_select = self.predicate.clone();
-        self.node_list().into_par_iter().filter(move |&vid| {
-            g.try_core_node(vid)
-                .is_some_and(|node| view.filter_node(node.as_ref()) && node_select.apply(&g, vid))
-        })
     }
 
     #[inline]

@@ -78,6 +78,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
             node_state: self.node_state.clone(),
             local_state_prev: self.local_state_prev,
             storage: self.storage,
+            index: self.index,
         }
     }
 }

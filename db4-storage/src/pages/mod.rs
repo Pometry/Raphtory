@@ -16,13 +16,13 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
     storage::dict_mapper::MaybeNew,
+    utils::time::{InputTime, TryIntoInputTime},
 };
 use rayon::prelude::*;
 
 use raphtory_core::{
     entities::{EID, ELID, VID},
     storage::timeindex::EventTime,
-    utils::time::{InputTime, TryIntoInputTime},
 };
 use session::WriteSession;
 use std::{
@@ -289,10 +289,7 @@ impl<
         Ok(elid)
     }
 
-    fn as_time_index_entry<T: TryIntoInputTime>(
-        &self,
-        t: T,
-    ) -> Result<EventTime, StorageError> {
+    fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<EventTime, StorageError> {
         let input_time = t.try_into_input_time()?;
         let t = match input_time {
             InputTime::Indexed(t, i) => EventTime::new(t, i),

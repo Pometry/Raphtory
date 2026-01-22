@@ -6,9 +6,9 @@ use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
-    sync::PyOnceLock,
     pybacked::PyBackedStr,
-    types::{PyBool, PyType, PyDict},
+    sync::PyOnceLock,
+    types::{PyBool, PyDict, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 use pyo3_arrow::PyDataType;
@@ -172,7 +172,10 @@ impl PyProp {
     pub fn map(dict: Bound<'_, PyDict>) -> PyResult<Self> {
         let items: HashMap<String, Prop> = dict.extract()?;
 
-        let mut map: FxHashMap<ArcStr, Prop> = items.into_iter().map(|(k, v)| (ArcStr::from(k), v)).collect();
+        let map: FxHashMap<ArcStr, Prop> = items
+            .into_iter()
+            .map(|(k, v)| (ArcStr::from(k), v))
+            .collect();
 
         Ok(PyProp(Prop::Map(Arc::new(map))))
     }
@@ -328,11 +331,6 @@ impl PyPropType {
     #[staticmethod]
     pub fn map(hash_map: HashMap<String, PropType>) -> PropType {
         PropType::Map(Arc::new(hash_map))
-    }
-
-    #[staticmethod]
-    pub fn array(p: PropType) -> PropType {
-        PropType::Array(Box::new(p))
     }
 
     fn __repr__(&self) -> String {

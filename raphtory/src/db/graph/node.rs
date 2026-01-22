@@ -10,7 +10,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{time_from_input_session, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input_session, CollectProperties},
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
@@ -29,12 +29,12 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{
-    utils::time::TryIntoInputTime,
     entities::{properties::prop::PropType, ELID},
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
     },
+    utils::time::TryIntoInputTime,
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,

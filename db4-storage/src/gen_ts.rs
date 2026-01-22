@@ -305,9 +305,7 @@ where
             .kmerge_by(|a, b| a < b)
     }
 
-    pub fn edge_events_rev(
-        self,
-    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'a {
+    pub fn edge_events_rev(self) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'a {
         self.layer_id
             .into_iter(self.item_ref.num_layers())
             .flat_map(|layer_id| {

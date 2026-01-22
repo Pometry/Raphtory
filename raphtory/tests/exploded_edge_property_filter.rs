@@ -30,7 +30,10 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::AsTime},
 };
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
-use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps}};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+};
 use std::collections::HashMap;
 
 fn build_filtered_graph(

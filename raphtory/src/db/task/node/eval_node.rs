@@ -244,9 +244,9 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
         (self.op)()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = EvalNodeView<'graph, 'a, G, S, GH, CS>> + 'graph {
+    pub fn iter(&self) -> impl Iterator<Item = EvalNodeView<'graph, 'a, G, S, CS>> + 'graph {
         let base_graph = self.eval_graph.clone();
-        let index = self.base_graph.index;
+        let index = self.eval_graph.index;
         self.iter_refs().map(move |v| {
             let state_pos = index.index(&v).expect("VID not found in index");
             EvalNodeView::new_filtered(v, state_pos, base_graph.clone(), None)
@@ -332,10 +332,8 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
         let node_state = self.eval_graph.node_state.clone();
         let ss = self.eval_graph.ss;
         let storage = self.eval_graph.storage;
-        let path = PathFromNode::new_one_hop_filtered(
-            self.eval_graph.base_graph.clone(),
-            self.op.clone(),
-        );
+        let path =
+            PathFromNode::new_one_hop_filtered(self.eval_graph.base_graph.clone(), self.op.clone());
         let index = self.eval_graph.index;
         let edges = path.map_edges(op);
         EvalEdges {

@@ -41,7 +41,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    Some(nodes.clone()),
+                    nodes.clone(),
                 ),
             )
         })
@@ -83,8 +83,12 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
         self.groups.get(index).map(|(v, nodes)| {
             (
                 v,
-                Nodes::new_filtered(self.graph.clone(), self.graph.clone(), nodes.clone(), Const(true)),
-
+                Nodes::new_filtered(
+                    self.graph.clone(),
+                    self.graph.clone(),
+                    Const(true),
+                    nodes.clone(),
+                ),
             )
         })
     }

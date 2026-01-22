@@ -2,8 +2,8 @@ use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            properties::internal::InternalTemporalPropertiesOps,
             mutation::time_from_input_session,
+            properties::internal::InternalTemporalPropertiesOps,
             view::{
                 internal::{GraphView, InternalMaterialize},
                 StaticGraphViewOps,

@@ -82,7 +82,7 @@ impl NodeOp for NodeNameFilterOp {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node_ref = storage.core_node(node);
-        self.filter.matches(node_ref.name().as_str())
+        self.filter.matches(Some(&node_ref.name()))
     }
 }
 

@@ -571,10 +571,11 @@ impl<'py> pyo3::IntoPyObject<'py>
     }
 }
 
-impl<'py> FromPyObject<'py>
+impl<'py> FromPyObject<'_, 'py>
     for LazyNodeState<'static, EarliestDateTime, DynamicGraph, DynamicGraph, DynNodeFilter>
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Ok(ob.downcast::<EarliestDateTimeView>()?.get().inner().clone())
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<EarliestDateTimeView>()?.get().inner().clone())
     }
 }

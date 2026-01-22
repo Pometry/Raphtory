@@ -15,9 +15,7 @@ pub trait TPropOps<'a>: Clone + Send + Sync + Sized + 'a {
     }
 
     fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
-        self.clone()
-            .iter_inner_rev(Some(EventTime::MIN..t))
-            .next()
+        self.clone().iter_inner_rev(Some(EventTime::MIN..t)).next()
     }
 
     fn iter_inner(

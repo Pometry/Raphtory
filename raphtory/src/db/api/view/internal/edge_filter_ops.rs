@@ -35,12 +35,7 @@ pub trait InternalExplodedEdgeFilterOps {
     /// If true, all edges removed by this filter have also been removed from the edge list
     fn internal_exploded_filter_edge_list_trusted(&self) -> bool;
 
-    fn internal_filter_exploded_edge(
-        &self,
-        eid: ELID,
-        t: EventTime,
-        layer_ids: &LayerIds,
-    ) -> bool;
+    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool;
 
     fn node_filter_includes_exploded_edge_filter(&self) -> bool {
         false
@@ -148,12 +143,7 @@ impl<G: InheritExplodedEdgeFilterOps<Base: InternalExplodedEdgeFilterOps>>
         self.base().internal_exploded_filter_edge_list_trusted()
     }
     #[inline]
-    fn internal_filter_exploded_edge(
-        &self,
-        eid: ELID,
-        t: EventTime,
-        layer_ids: &LayerIds,
-    ) -> bool {
+    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
         self.base().internal_filter_exploded_edge(eid, t, layer_ids)
     }
 

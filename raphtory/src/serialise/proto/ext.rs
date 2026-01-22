@@ -457,10 +457,7 @@ impl UpdateGraphCProps {
 }
 
 impl UpdateGraphTProps {
-    fn new(
-        time: EventTime,
-        values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
-    ) -> Self {
+    fn new(time: EventTime, values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>) -> Self {
         let properties = collect_proto_props(values);
         UpdateGraphTProps {
             time: time.t(),

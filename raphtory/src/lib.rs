@@ -141,12 +141,7 @@ pub mod prelude {
                 },
                 view::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
             },
-            graph::{
-                graph::Graph,
-                views::{
-                    deletion_graph::PersistentGraph,
-                },
-            },
+            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
         },
     };
 

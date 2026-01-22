@@ -124,11 +124,6 @@ where
     }
 
     #[inline]
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
-        self.base().temporal_history_date_time(id)
-    }
-
-    #[inline]
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<'_, Prop> {
         self.base().temporal_values_iter(id)
     }
