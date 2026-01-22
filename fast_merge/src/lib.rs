@@ -8,8 +8,16 @@ pub(crate) mod merge;
 pub(crate) mod merge_impl;
 
 pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
-    /// Alternative implementation of `kmerge()` which uses a tree merge when there are few
-    /// iterators to merge and only switches over to a heap merge for more than 4 iterators.
+    /// Return an iterator adaptor that flattens an iterator of iterators by
+    /// merging them according to the given closure. Uses tree merge for up to 8 iterators.
+    ///
+    /// The closure `first` is called with two elements *a*, *b* and should
+    /// return `true` if *a* is ordered before *b*.
+    ///
+    /// If all base iterators are sorted according to `first`, the result is
+    /// sorted.
+    ///
+    /// Iterator element type is `Self::Item`.
     fn fast_merge_by<
         F: FnMut(&<Self::Item as IntoIterator>::Item, &<Self::Item as IntoIterator>::Item) -> bool
             + Clone,
@@ -20,6 +28,12 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
         FastMerge::new(self.map(|i| i.into_iter()), cmp_fn)
     }
 
+    /// Return an iterator adaptor that flattens an iterator of iterators by
+    /// merging them in ascending order. Uses tree merge for up to 8 iterators.
+    ///
+    /// If all base iterators are sorted (ascending), the result is sorted.
+    ///
+    /// Iterator element type is `Self::Item`.
     fn fast_merge(self) -> FastMerge<<Self::Item as IntoIterator>::IntoIter, MergeByLt>
     where
         <Self::Item as IntoIterator>::Item: Ord,
@@ -27,19 +41,35 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
         FastMerge::new(self.map(|i| i.into_iter()), MergeByLt)
     }
 
+    /// Return an iterator adaptor that flattens an iterator of iterators by
+    /// merging them in reverse according to the given closure. Uses tree merge for up to 8 iterators.
+    ///
+    /// The closure `first` is called with two elements *a*, *b* and should
+    /// return `true` if *a* is ordered before *b*.
+    ///
+    /// If all base iterators are sorted ascending according to `first`, the result is
+    /// sorted descending according to `first`.
+    ///
+    /// Iterator element type is `Self::Item`.
     fn fast_merge_by_rev<
         F: FnMut(&<Self::Item as IntoIterator>::Item, &<Self::Item as IntoIterator>::Item) -> bool
             + Clone,
     >(
         self,
-        cmp_fn: F,
+        first: F,
     ) -> FastMerge<Rev<<Self::Item as IntoIterator>::IntoIter>, MergeByRev<F>>
     where
         <Self::Item as IntoIterator>::IntoIter: DoubleEndedIterator,
     {
-        FastMerge::new(self.map(|iter| iter.into_iter().rev()), MergeByRev(cmp_fn))
+        FastMerge::new(self.map(|iter| iter.into_iter().rev()), MergeByRev(first))
     }
 
+    /// Return an iterator adaptor that flattens an iterator of iterators by
+    /// merging and reversing them. Uses tree merge for up to 8 iterators. Uses tree merge for up to 8 iterators.
+    ///
+    /// If all base iterators are sorted ascending, the result is sorted descending.
+    ///
+    /// Iterator element type is `Self::Item`.
     fn fast_merge_rev(self) -> FastMerge<Rev<<Self::Item as IntoIterator>::IntoIter>, MergeByGe>
     where
         <Self::Item as IntoIterator>::Item: Ord,

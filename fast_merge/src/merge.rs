@@ -1,6 +1,7 @@
 use crate::merge_impl::{KMergeBy, MergeBy, MergePredicate};
 use std::iter::FusedIterator;
 
+#[must_use = "this iterator adaptor is not lazy but does nearly nothing unless consumed"]
 pub enum FastMerge<I: Iterator, F: MergePredicate<I::Item>> {
     Zero,
     One(I),
