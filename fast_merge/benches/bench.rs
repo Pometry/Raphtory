@@ -26,6 +26,29 @@ fn bench(criterion: &mut Criterion) {
     }
     merge_and_first.finish();
 
+    let mut merge_and_iter = criterion.benchmark_group("merge sorted vecs and iterate");
+    for size in 0..=data.len() {
+        merge_and_iter.bench_with_input(
+            BenchmarkId::new("kmerge", size),
+            &size,
+            |bencher, size| {
+                bencher.iter(|| {
+                    for i in data.iter().take(*size).kmerge() {
+                        black_box(i);
+                    }
+                })
+            },
+        );
+        merge_and_iter.bench_with_input(BenchmarkId::new("fast", size), &size, |bencher, size| {
+            bencher.iter(|| {
+                for i in data.iter().take(*size).fast_merge() {
+                    black_box(i);
+                }
+            })
+        });
+    }
+    merge_and_iter.finish();
+
     let mut merge = criterion.benchmark_group("create merged iterator");
     for size in 0..=data.len() {
         merge.bench_with_input(BenchmarkId::new("kmerge", size), &size, |bencher, size| {
