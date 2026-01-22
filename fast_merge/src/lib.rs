@@ -8,6 +8,8 @@ pub(crate) mod merge;
 pub(crate) mod merge_impl;
 
 pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
+    /// Alternative implementation of `kmerge()` which uses a tree merge when there are few
+    /// iterators to merge and only switches over to a heap merge for more than 4 iterators.
     fn fast_merge_by<
         F: FnMut(&<Self::Item as IntoIterator>::Item, &<Self::Item as IntoIterator>::Item) -> bool
             + Clone,
