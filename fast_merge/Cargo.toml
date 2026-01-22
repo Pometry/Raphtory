@@ -16,3 +16,10 @@ itertools = { workspace = true }
 
 [dev-dependencies]
 proptest.workspace = true
+criterion = { workspace = true }
+rand = { workspace = true }
+
+
+[[bench]]
+name = "bench"
+harness = false
