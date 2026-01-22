@@ -36,6 +36,7 @@ pub fn make_graph_from_edges<
     make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
 ) -> GraphStore<NS, ES, GS, EXT> {
     let graph = make_graph(graph_dir);
+
     for (_, _, layer) in edges {
         if let Some(layer) = layer {
             for layer in 0..=*layer {
@@ -49,6 +50,7 @@ pub fn make_graph_from_edges<
             }
         }
     }
+
     if par_load {
         edges
             .par_iter()
@@ -85,6 +87,7 @@ pub fn make_graph_from_edges<
             })
             .expect("Failed to add edge");
     }
+
     graph
 }
 

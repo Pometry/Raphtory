@@ -59,7 +59,6 @@ use std::{
     sync::{atomic::Ordering, Arc},
 };
 use storage::{
-    persist::merge::MergeConfig,
     persist::strategy::PersistenceStrategy, wal::WalOps, Extension, Wal,
 };
 
