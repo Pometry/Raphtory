@@ -72,10 +72,6 @@ impl<
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
-        // Config saving for WriteAndMerge is handled in db4-disk-storage's implementation
-        // This generic code in db4-storage doesn't have access to WriteAndMergeConfig types
-        // to avoid circular dependencies. For NoOpStrategy, config saving is not needed.
-
         self.nodes.flush()?;
         self.edges.flush()?;
         self.graph_props.flush()?;
