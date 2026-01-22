@@ -2167,7 +2167,6 @@ def test_datetime_add_node():
 
 
 def test_datetime_with_timezone():
-    from raphtory import Graph
     import pytz
 
     g = Graph()
