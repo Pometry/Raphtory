@@ -285,9 +285,9 @@ where
 /// See [`.merge_by()`](crate::Itertools::merge_by) for more information.
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct MergeBy<I: Iterator, J: Iterator, F> {
-    left: PutBack<I>,
-    right: PutBack<J>,
-    cmp_fn: F,
+    pub(crate) left: PutBack<I>,
+    pub(crate) right: PutBack<J>,
+    pub(crate) cmp_fn: F,
 }
 
 impl<I: Iterator, J: Iterator, F> MergeBy<I, J, F> {
